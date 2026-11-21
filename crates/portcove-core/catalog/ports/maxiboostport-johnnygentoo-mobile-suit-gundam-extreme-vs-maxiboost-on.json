@@ -4,6 +4,14 @@
     "id": "maxiboostport-johnnygentoo-mobile-suit-gundam-extreme-vs-maxiboost-on",
     "name": "Mobile Suit Gundam Extreme VS. Maxiboost ON — MaxiboostPort (johnnygentoo)",
     "original_game_title": "Mobile Suit Gundam Extreme VS. Maxiboost ON",
+    "artwork": {
+      "game_id": 128773,
+      "cover_id": 109114,
+      "image_id": "co2c6y",
+      "image_sha256": "4b4339415eee50c7b1170d0714c12ec93aa2e0a45eb9a4f83bb2a15abb63d54e",
+      "game_slug": "mobile-suit-gundam-extreme-vs-maxiboost-on",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental project. The project reports early offline Free Battle at 60 FPS, saves and split-screen play, plus limited online tests using two instances or two PCs and one DLC. Complete mode coverage and the full game have not been confirmed. Portcove has not tested networking. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/johnnygentoo/MaxiboostPort",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/johnnygentoo/MaxiboostPort"
     },
-    "issue_number": 3465
+    "issue_number": 3465,
+    "original_game": {
+      "format_version": 1,
+      "id": "mobile-suit-gundam-extreme-vs-maxiboost-on",
+      "evidence_urls": ["https://github.com/johnnygentoo/MaxiboostPort"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

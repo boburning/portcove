@@ -801,6 +801,17 @@ capture is capped at 3 MiB per stream. These inert/control suites establish
 their stated contracts; platform skips retain their actual reason and Linux
 wrappers still require their POSIX cases to run there.
 
+The supersession helper runs on same-PR updates, reopenings and transitions to
+ready for review. It scopes the lookup to the source branch, includes pending
+and requested runs, and requires GitHub to associate a run with exactly that
+PR. If GitHub omits the association for a deferred draft, re-run all jobs after
+marking the PR ready.
+
+On events that already refresh the closing inventory, the trusted inventory job
+runs the conventions report as a bounded advisory step before its exact-head
+check. The
+standalone advisory workflow handles conversion to draft and manual dispatch.
+
 Use `just ci-health` to inspect the latest 20 main CI runs, including every rerun
 attempt. GitHub CLI authentication with read access to Actions is required.
 This is an on-demand report, not another required CI job or a planning authority.
@@ -834,6 +845,18 @@ identity. A rerun recovery is not proof
 of a flaky test: runners, caches and external services may differ even when the
 commit does not. No retries are scheduled by this report, and it never changes
 issues, checks, caches or runs.
+
+The existing Maintenance inventory workflow also runs `node scripts/ci-health.mts
+--throughput` on its collect runner. The Actions summary compares the last two
+hours with the same period 24 hours earlier. The existing maintenance report
+artifact contains `ci-throughput.json` with run counts by workflow, sampled job
+timings by OS, cancellation duration, observed job time after a replacement and point-in-time
+queue depth. Job creation to runner start can include dependency and scheduler
+delay. Required-check timing starts at creation of the PR CI run and uses the
+five passing jobs from its first attempt. Missing observations remain null. The sample counts show how much recent work
+had yet to acquire a runner.
+The November 18 baseline records the audited workflow definitions, run IDs and
+sample boundaries in [the Actions inventory](../evidence/actions-throughput-baseline-2026-11-18.json).
 
 Qualification cross-compiles the Intel macOS test archive once, then runs both
 Intel partitions from an artifact named for `github.run_attempt`. Before
@@ -1175,8 +1198,10 @@ with their producer rather than rerunning only an already-successful consumer.
 Use `node scripts/cleanup-intel-artifacts.mts` for the read-only bounded sweep,
 or `node scripts/cleanup-intel-artifacts.mts --run-id <id>` for one exact run;
 add `--apply` only for authorized cleanup. A restarted attempt or changed
-artifact identity stops deletion. Failed or ambiguous deletion responses require
-readback; the tool never retries an uncertain mutation.
+artifact identity stops deletion. An acknowledged deletion allows up to 15
+seconds of backoff between readback requests while GitHub's metadata catches up.
+Readback must observe that the transfer is absent. A failed or ambiguous
+deletion gets one immediate readback. The tool sends a single delete request.
 
 ## Bounded dependency delivery
 

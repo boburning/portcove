@@ -4,6 +4,14 @@
     "id": "demonssoulsrecomp-jonathandc64-demon-s-souls",
     "name": "Demon's Souls — DemonsSoulsRecomp (JonathanDC64)",
     "original_game_title": "Demon's Souls",
+    "artwork": {
+      "game_id": 5619,
+      "cover_id": 103412,
+      "image_id": "co27sk",
+      "image_sha256": "65f71553ad5995532f8dbf93e6b10058f1b05372335ddf0cae4e44f69011bb0b",
+      "game_slug": "demon-s-souls",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports early play of Boletarian Palace 1-1. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/JonathanDC64/Soulbrandt",
     "listed_at": "2026-10-25",
@@ -27,7 +35,26 @@
       ],
       "help_url": "https://github.com/JonathanDC64/Soulbrandt"
     },
-    "issue_number": 3321
+    "issue_number": 3321,
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": [
+        "https://github.com/JonathanDC64/Soulbrandt",
+        "https://api.github.com/repositories/1284347398",
+        "https://api.github.com/repos/JonathanDC64/DemonsSoulsRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/JonathanDC64/Soulbrandt/blob/a3d260f4757d1af3906f4682654a44fdd3b937ba/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,0 +1,67 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "quake-miniquake",
+    "name": "Quake / MiniQuake",
+    "summary": "Play original Quake maps with MiniQuake’s GLQuake and WinQuake engine port.",
+    "original_game_title": "Quake",
+    "project_url": "https://github.com/MiniLangProject/MiniQuake",
+    "artwork": {
+      "game_id": 333,
+      "cover_id": 434745,
+      "image_id": "co9bg9",
+      "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+      "game_slug": "quake",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 6063,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/MiniLangProject/MiniQuake/blob/v2026.10.23/README.md#quick-start",
+    "release_url": "https://github.com/MiniLangProject/MiniQuake/releases/tag/v2026.10.23",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the original Quake data",
+          "instruction": "Keep your original files. Put a copy of your permitted Quake PAK files in an id1 folder inside a writable Quake data folder. The original Quake shareware episode needs its own pak0.pak and does not include the registered episodes."
+        },
+        {
+          "title": "Start the publisher engine",
+          "instruction": "Extract the complete Windows x64 or Linux x86-64 package and keep its native libraries beside the player. On Windows 10 or later use MiniQuake.exe --play, followed by the quoted path to the folder that contains id1. On Linux use ./run-miniquake --play followed by that path. Linux needs glibc 2.34 or later, SDL2 and OpenGL."
+        }
+      ],
+      "warnings": [
+        "To play the shareware base episode, use the normal base-game command without -game. The engine requires registered Quake data when you select a custom game directory."
+      ],
+      "references": [
+        {
+          "title": "Keep your Quake saves",
+          "instruction": "MiniQuake writes .sav files and config.cfg under id1 in the selected Quake data folder. Close the game and back up that folder before changing packages. Continue with the same original PAK files when restoring a save."
+        }
+      ],
+      "help_url": "https://github.com/MiniLangProject/MiniQuake/blob/v2026.10.23/README.md#quick-start"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/MiniLangProject/MiniQuake/blob/v2026.10.23/README.md#quick-start",
+        "https://github.com/MiniLangProject/MiniQuake"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "quake-miniquake",
+    "origin": {
+      "project_url": "https://github.com/MiniLangProject/MiniQuake",
+      "repository": {
+        "host": "github.com",
+        "id": "1310752711"
+      }
+    },
+    "decisions": []
+  }
+}

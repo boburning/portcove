@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "crackdown-crackdown-recompiled",
+    "artwork": {
+      "game_id": 2896,
+      "cover_id": 88349,
+      "image_id": "co1w65",
+      "image_sha256": "12112227f54014af4c0298e143088587ee8f20673ce8ae60684b661aad9cb50d",
+      "game_slug": "crackdown",
+      "match_kind": "underlying-game"
+    },
     "name": "Crackdown (Crackdown Recompiled)",
     "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
     "original_game_title": "Crackdown",
@@ -56,7 +64,25 @@
       "windows-x86-64": ["Crackdown-", "-windows-x64.zip"],
       "linux-x86-64": ["CrackdownRecompiled-", "-x86_64.AppImage"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "crackdown",
+      "evidence_urls": [
+        "https://github.com/saulob/crackdown-xbox360-recompiled",
+        "https://github.com/saulob/crackdown-xbox360-recompiled/blob/757ad47070719c4cdb6405bc0047fd6d64bbe108/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crackdown-xbox-360",
+          "title": "Crackdown (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/saulob/crackdown-xbox360-recompiled/blob/33ab1b632e38cb5c1c39a3d56c479537b9e0d185/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

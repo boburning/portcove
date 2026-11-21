@@ -3,6 +3,14 @@
   "listing": {
     "id": "petarov-saboteur2",
     "project_url": "https://github.com/petarov/saboteur2",
+    "artwork": {
+      "game_id": 12964,
+      "cover_id": 155265,
+      "image_id": "co3bsx",
+      "image_sha256": "51fc1cce83d056f44213924b067ed27eec2c1d0d907b25cf97759950e3ca6308",
+      "game_slug": "saboteur-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
     "summary": "Saboteur II: Avenging Angel native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
     "issue_number": 2722,
@@ -34,6 +42,15 @@
           "instruction": "The player normally stores fullscreen settings and high scores in SDL’s per-user petarov/saboteur2 preferences folder. When that folder is unavailable, high scores can fall back to SAB_II.SCR in the working directory; preserve that file too. Forced quit keys do not save scores. Before changing versions, close the game and keep a separate copy of the working runtime and actual preferences/fallback file. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "saboteur-ii-avenging-angel",
+      "evidence_urls": [
+        "https://github.com/petarov/saboteur2#readme",
+        "https://github.com/petarov/saboteur2"
+      ],
+      "source_editions": []
     }
   }
 }

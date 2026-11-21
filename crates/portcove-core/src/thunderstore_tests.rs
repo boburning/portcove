@@ -102,6 +102,16 @@ fn listings_bind_package_identity_versions_and_canonical_downloads() {
         "an inactive version is not offered"
     );
     assert!(timer.files[0].claimed_md5.is_none());
+    assert_eq!(
+        timer.files[0].thunderstore_dependencies.as_deref(),
+        Some(
+            &[ThunderstoreDependency {
+                namespace: "Other".into(),
+                package: "Api".into(),
+                version: "1.0.0".into(),
+            }][..]
+        )
+    );
     let elsewhere = &projects[1];
     assert!(elsewhere.files.is_empty());
     assert_eq!(
@@ -109,6 +119,80 @@ fn listings_bind_package_identity_versions_and_canonical_downloads() {
         "an unreadable version is counted"
     );
     assert!(parse_listing(&json!({}), "c", WEB).is_err());
+}
+
+#[test]
+fn incomplete_dependency_observations_make_the_version_unreadable() {
+    let mut value = version(WEB, "Owner", "Timer", "1.0.0", "2026-11-01T00:00:00Z", true);
+    value["dependencies"] = json!([]);
+    assert_eq!(
+        parse_version(&value, "Owner", "Timer", WEB)
+            .unwrap()
+            .thunderstore_dependencies,
+        Some(vec![])
+    );
+    for dependencies in [
+        Value::Null,
+        json!(["Other-Api-1.0.0", "Other-Api-latest"]),
+        json!(["Other/Api-Dependency-1.0.0"]),
+        json!(vec!["Other-Api-1.0.0"; MAX_DEPENDENCIES + 1]),
+    ] {
+        value["dependencies"] = dependencies;
+        assert!(parse_version(&value, "Owner", "Timer", WEB).is_none());
+    }
+}
+
+#[test]
+fn resolves_only_exact_provider_dependencies_in_dependency_order() {
+    let package_with = |name: &str, dependencies: &[&str]| {
+        let mut file = version(WEB, "Owner", name, "1.0.0", "2026-11-01T00:00:00Z", true);
+        file["dependencies"] = json!(dependencies);
+        package(WEB, "Owner", name, vec![file])
+    };
+    let source = [
+        package_with("Main", &["Owner-B-1.0.0", "Owner-C-1.0.0"]),
+        package_with("B", &["Owner-Shared-1.0.0"]),
+        package_with("C", &["Owner-Shared-1.0.0"]),
+        package_with("Shared", &[]),
+    ];
+    let resolve = |source: &[Value]| {
+        let listing = parse_listing(&json!(source), "c", WEB).unwrap();
+        resolve_dependencies(&listing, "Owner-Main", "1.0.0").map(|files| {
+            files
+                .into_iter()
+                .map(|(project, _)| project.project_id.clone())
+                .collect::<Vec<_>>()
+        })
+    };
+    assert_eq!(
+        resolve(&source).unwrap(),
+        ["Owner-Shared", "Owner-B", "Owner-C", "Owner-Main"]
+    );
+
+    let mut missing = source.clone();
+    missing[0]["versions"][0]["dependencies"] = json!(["Owner-Shared-1.1.0"]);
+    assert_eq!(
+        resolve(&missing).unwrap_err().code,
+        crate::ErrorCode::NotFound
+    );
+    let mut cyclic = source.clone();
+    cyclic[3]["versions"][0]["dependencies"] = json!(["Owner-Main-1.0.0"]);
+    assert_eq!(
+        resolve(&cyclic).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    let mut conflicting = source.clone();
+    conflicting[2]["versions"][0]["dependencies"] = json!(["Owner-Shared-1.1.0"]);
+    assert_eq!(
+        resolve(&conflicting).unwrap_err().details["other_version"],
+        "1.0.0"
+    );
+    let mut duplicate = source.to_vec();
+    duplicate.push(source[3].clone());
+    assert_eq!(
+        resolve(&duplicate).unwrap_err().code,
+        crate::ErrorCode::Verification
+    );
 }
 
 #[test]
@@ -190,4 +274,33 @@ fn only_reviewed_communities_are_bound() {
         Some("zelda-64-recompiled")
     );
     assert_eq!(thunderstore_community("shipwright"), None);
+}
+
+#[test]
+fn thunderstore_flags_distinguish_absent_null_malformed_and_boolean() {
+    use crate::ProviderStatusUnknown::{Malformed, Null, Omitted};
+    for (raw, expected, flag) in [
+        (None, Some(Omitted), false),
+        (Some(Value::Null), Some(Null), false),
+        (Some(json!("false")), Some(Malformed), false),
+        (Some(json!(true)), None, true),
+        (Some(json!(false)), None, false),
+    ] {
+        let mut candidate = version(WEB, "Owner", "Timer", "1.0.0", "2026-11-02T00:00:00Z", true);
+        let mut project = package(WEB, "Owner", "Timer", Vec::new());
+        if let Some(raw) = raw {
+            candidate["is_active"] = raw.clone();
+            project["is_deprecated"] = raw;
+        } else {
+            candidate.as_object_mut().unwrap().remove("is_active");
+            project.as_object_mut().unwrap().remove("is_deprecated");
+        }
+        project["versions"] = json!([candidate]);
+        let listing = parse_listing(&json!([project]), "zelda-64-recompiled", WEB).unwrap();
+        let parsed = &listing[0];
+        assert_eq!(parsed.status_unknown, expected);
+        assert_eq!(parsed.obsolete, flag);
+        assert_eq!(parsed.files[0].status_unknown, expected);
+        assert_eq!(parsed.files[0].archived, !flag);
+    }
 }

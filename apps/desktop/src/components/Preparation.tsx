@@ -202,10 +202,10 @@ export function PreparationControl({
                 ? t("preparation.description.running")
                 : t("preparation.description.review")}
             </DialogDescription>
-            <div className="mb-4 flex min-w-0 items-center gap-4 border-b border-[var(--color-border)] pb-4">
+            <div className="flex min-w-0 items-center gap-3 border-b border-pc-border pb-3">
               <ArtworkImage
                 port={{ id: portId }}
-                className="aspect-[2/3] w-12 shrink-0 rounded-pc-sm"
+                className="aspect-[2/3] w-10 shrink-0 rounded-pc-sm"
                 quietFallback
               />
               <div className="min-w-0">
@@ -221,10 +221,21 @@ export function PreparationControl({
                 </p>
               </div>
             </div>
+            {pending !== "prepare" && <PreparationConsequences />}
             {pending === "prepare" ? (
               <>
-                <p role="status">{message ?? t("preparation.status.starting")}</p>
-                <p>{t("preparation.keepOpen")}</p>
+                <div className="preparation-review-progress">
+                  <p role="status" className="font-medium">
+                    {message ?? t("preparation.status.starting")}
+                  </p>
+                  <p className="text-pc-muted-foreground">{t("preparation.keepOpen")}</p>
+                  {plan.inputs.setup_tool && (
+                    <p className="text-pc-muted-foreground">
+                      <strong>{t("preparation.plan.window")}</strong>{" "}
+                      {t("preparation.plan.windowText")}
+                    </p>
+                  )}
+                </div>
                 {operationId && (
                   <OperationCancellation
                     key={operationId}
@@ -233,7 +244,7 @@ export function PreparationControl({
                   />
                 )}
                 <details className="mt-4">
-                  <summary data-focusable className="cursor-pointer py-2">
+                  <summary data-focusable className="disclosure-pad-2 cursor-pointer">
                     {t("preparation.details")}
                   </summary>
                   <PreparationFacts plan={plan} />
@@ -258,6 +269,16 @@ export function PreparationControl({
               {pending !== "prepare" && (
                 <Button
                   data-focusable
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={dismissReview}
+                >
+                  {t("preparation.cancelReview")}
+                </Button>
+              )}
+              {pending !== "prepare" && (
+                <Button
+                  data-focusable
                   variant="primary"
                   disabled={disabled || Boolean(pending)}
                   onClick={() => {
@@ -265,16 +286,6 @@ export function PreparationControl({
                   }}
                 >
                   {t("preparation.prepare")}
-                </Button>
-              )}
-              {pending !== "prepare" && (
-                <Button
-                  data-focusable
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={dismissReview}
-                >
-                  {t("preparation.cancelReview")}
                 </Button>
               )}
             </DialogFooter>
@@ -302,20 +313,19 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
         <div>
           <dt className="text-pc-secondary-foreground">{t("preparation.plan.uses")}</dt>
           <dd className="m-0 [user-select:text]">
-            <bdi dir="ltr">{plan.inputs.source.path}</bdi>
+            <bdi dir="ltr" className="path-value">
+              {plan.inputs.source.path}
+            </bdi>
           </dd>
         </div>
         <div>
           <dt className="text-pc-secondary-foreground">{t("preparation.plan.current")}</dt>
           <dd className="m-0 [user-select:text]">
-            <bdi dir="ltr">{plan.inputs.install.path}</bdi>
-            <span className="block">{t("preparation.plan.destination")}</span>
-            <span className="block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
-              <Trans
-                t={t}
-                i18nKey="preparation.installedVersion"
-                components={{ version: <bdi>{plan.inputs.install.version}</bdi> }}
-              />
+            <bdi dir="ltr" className="path-value">
+              {plan.inputs.install.path}
+            </bdi>
+            <span className="block text-pc-muted-foreground">
+              {t("preparation.plan.destination")}
             </span>
           </dd>
         </div>
@@ -334,23 +344,20 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
           </dd>
         </div>
       </dl>
-      <p>{t("preparation.plan.originalSafe")}</p>
-      <details>
-        <summary data-focusable className="cursor-pointer py-2">
-          {t("preparation.plan.ifWrong")}
-        </summary>
-        <div className="preparation-during" role="group" aria-label={t("preparation.plan.during")}>
-          <p>{t("preparation.plan.activationText")}</p>
-          <p>{t("preparation.plan.duringOpen")}</p>
-          <p>{t("preparation.plan.duringInterrupt")}</p>
-        </div>
-      </details>
-      <details>
-        <summary data-focusable className="cursor-pointer py-2">
-          {t("preparation.plan.window")}
-        </summary>
-        <p className="mt-2 mb-0">{t("preparation.plan.windowText")}</p>
-      </details>
     </div>
+  );
+}
+
+function PreparationConsequences() {
+  const { t } = useAppTranslation("installation");
+  return (
+    <section className="grid gap-2" aria-label={t("preparation.plan.during")}>
+      <p>{t("preparation.plan.activationText")}</p>
+      <p>{t("preparation.plan.duringOpen")}</p>
+      <p>{t("preparation.plan.duringInterrupt")}</p>
+      <p>
+        <strong>{t("preparation.plan.window")}</strong> {t("preparation.plan.windowText")}
+      </p>
+    </section>
   );
 }

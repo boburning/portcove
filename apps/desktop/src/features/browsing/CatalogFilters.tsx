@@ -1,13 +1,6 @@
-import {
-  useRef,
-  useState,
-  useId,
-  useEffect,
-  useCallback,
-  type Dispatch,
-  type SetStateAction,
-  type ReactNode,
-} from "react";
+import { useFilterPanel } from "./useFilterPanel";
+import { implementationMethodLabels } from "./implementation-metadata";
+import { useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
 import { ListFilter, X } from "lucide-react";
 import type { CatalogEntry } from "./catalog-entry";
 import {
@@ -42,6 +35,7 @@ const fixedGroups = [
   { key: "portOptions" },
   { key: "channels" },
   { key: "installationMethods" },
+  { key: "implementationMethods" },
   { key: "membership" },
   { key: "updates" },
   { key: "gameFiles" },
@@ -72,6 +66,8 @@ export function queryFromFilter(filter: Filter | CatalogQuery): CatalogQuery {
     : filter;
 }
 function label(t: TFunction<"gameFiles">, group: Group, value: string) {
+  if (group === "implementationMethods")
+    return implementationMethodLabels[value as keyof typeof implementationMethodLabels] ?? value;
   if (group === "originalSystems") return identityLabel(value);
   if (group === "portOptions")
     return value === "multiple" ? t("filters.value.multiplePorts") : t("filters.value.singlePort");
@@ -109,6 +105,8 @@ function attentionLabel(t: TFunction<"gameFiles">, value: string) {
 
 function groupLabel(t: TFunction<"gameFiles">, group: Group): string {
   switch (group) {
+    case "implementationMethods":
+      return "Implementation technique";
     case "originalSystems":
       return t("filters.group.originalSystems");
     case "platforms":
@@ -169,37 +167,6 @@ function SelectedFilterChip({
   );
 }
 
-function useFilterPanel() {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const trigger = useRef<HTMLButtonElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const panel = useRef<HTMLElement>(null);
-  const close = useCallback(() => {
-    setOpen(false);
-    trigger.current?.focus();
-  }, []);
-  useEffect(() => {
-    if (!open) return;
-    heading.current?.focus();
-    const escape = (event: KeyboardEvent) => {
-      if (
-        event.key !== "Escape" ||
-        event.defaultPrevented ||
-        !(event.target instanceof Node) ||
-        !panel.current?.contains(event.target)
-      )
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [open, close]);
-  return { open, setOpen, panelId, trigger, heading, panel, close };
-}
-
 /** Presentation of declarations and Core observations; the evaluator owns matching/counts. */
 export function CatalogFilters({
   candidates,
@@ -241,8 +208,11 @@ export function CatalogFilters({
     })),
   ];
   const { open, setOpen, panelId, trigger, heading, panel, close } = useFilterPanel();
-  const query = queryFromFilter(filter);
-  const result = evaluateCatalogQuery(candidates ?? [], query, context);
+  const query = useMemo(() => queryFromFilter(filter), [filter]);
+  const result = useMemo(
+    () => evaluateCatalogQuery(candidates ?? [], query, context, { includeFacetCounts: open }),
+    [candidates, query, context, open],
+  );
   const editable = result.state === "matched";
   const supported = result.state !== "unresolved";
   const quickViewOwnsUpdates = quickViewUpdates && isQuickViewUpdateSelection(query.updates);
@@ -331,7 +301,9 @@ export function CatalogFilters({
               {view === "library" ? t("filters.headingLibrary") : t("filters.headingDiscover")}
             </h2>
             <details className="my-2 text-sm text-pc-muted-foreground">
-              <summary className="cursor-pointer py-1">{t("filters.howSummary")}</summary>
+              <summary className="disclosure-pad-1 cursor-pointer">
+                {t("filters.howSummary")}
+              </summary>
               <p>{t("filters.howBody")}</p>
             </details>
           </div>
@@ -361,7 +333,9 @@ export function CatalogFilters({
             open={advancedOpen}
             onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
           >
-            <summary className="cursor-pointer py-2 font-medium">{t("filters.advanced")}</summary>
+            <summary className="disclosure-pad-2 cursor-pointer font-medium">
+              {t("filters.advanced")}
+            </summary>
             <p className="text-sm text-pc-muted-foreground">{t("filters.advancedNote")}</p>
             <div className="catalog-filter-groups items-start pt-3">
               {advanced}

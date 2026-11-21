@@ -1926,16 +1926,9 @@ fn oversized_published_thumbnail_is_retained_as_an_unexpected_cache_entry() {
         .join(format!("{}.png", selected.asset_sha256.as_ref().unwrap()));
     let oversized = vec![0_u8; crate::artwork_image::MAX_THUMBNAIL_BYTES as usize + 1];
     fs::write(&cache, &oversized).unwrap();
-    let error = service.clear_artwork_cache().unwrap_err();
-    assert!(error.message.contains("unexpected entry"), "{error}");
-    assert_eq!(fs::read(&cache).unwrap(), oversized);
-    fs::write(&cache, &oversized[..oversized.len() - 1]).unwrap();
     let cleared = service.clear_artwork_cache().unwrap();
     assert_eq!(cleared.removed_files, 1);
-    assert_eq!(
-        cleared.removed_bytes,
-        crate::artwork_image::MAX_THUMBNAIL_BYTES
-    );
+    assert_eq!(cleared.removed_bytes, oversized.len() as u64);
     assert!(!cache.exists());
     assert_eq!(
         service
@@ -1962,6 +1955,7 @@ fn transient_cover_failure_backs_off_without_erasing_the_choice() {
             service.library(),
             artwork,
             0,
+            Default::default(),
             |_| panic!("failure cannot publish"),
             || {
                 requests.set(requests.get() + 1);
@@ -2096,6 +2090,7 @@ fn cover_with_fetch(
         service.library(),
         artwork,
         0,
+        Default::default(),
         |bytes| {
             let cache = service.library().root().join("artwork-cache");
             fs::create_dir_all(&cache)?;
@@ -2123,6 +2118,7 @@ fn cover_backoff_expires_from_completion_and_success_recovers() {
         service.library(),
         &artwork,
         0,
+        Default::default(),
         |_| panic!("no publication"),
         || {
             requests.set(1);
@@ -2172,7 +2168,7 @@ fn validated_cover_cache_precedes_backoff_and_clear_permits_retry() {
         .png
         .is_empty()
     );
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     assert!(cover_with_fetch(&service, &artwork, now, || Ok(bytes)).is_ok());
 }
 
@@ -2253,6 +2249,7 @@ fn permanent_integrity_publication_and_detailed_failures_are_not_cached() {
             service.library(),
             &artwork,
             0,
+            Default::default(),
             |_| Err(crate::PortcoveError::conflict("stale choice")),
             || {
                 requests.set(requests.get() + 1);
@@ -2373,6 +2370,7 @@ fn cover_request_registry_is_bounded_and_never_evicts_active_requests() {
             "durable fixture identity".to_owned(),
             format!("image{index}"),
             "0".repeat(64),
+            None,
         )
     };
     let mut active = (0..256)
@@ -2502,7 +2500,7 @@ fn warm_cover_reuses_conversion_but_always_verifies_the_original() {
         cold.png
     );
     assert_eq!(crate::artwork_image::decode_count(), before + 1);
-    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 1);
+    assert_eq!(service.clear_artwork_cache().unwrap().removed_files, 2);
     fs::write(&original, &bytes).unwrap();
     assert_eq!(
         cover_with_fetch(&service, &artwork, now, || panic!("disk original retained"))
@@ -2571,55 +2569,66 @@ fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
         sync::mpsc,
         time::{Duration, Instant},
     };
-    let first_root = tempfile::tempdir().unwrap();
-    let second_root = tempfile::tempdir().unwrap();
-    let third_root = tempfile::tempdir().unwrap();
-    let (first_service, first_artwork, _) = backoff_fixture(first_root.path());
-    let (second_service, second_artwork, second_bytes) = backoff_fixture(second_root.path());
-    let (third_service, third_artwork, third_bytes) = backoff_fixture(third_root.path());
+    let limit = crate::IGDB_ARTWORK_WORK_LIMIT;
+    let extra_root = tempfile::tempdir().unwrap();
+    let (extra_service, extra_artwork, extra_bytes) = backoff_fixture(extra_root.path());
+    let roots: Vec<_> = (0..limit).map(|_| tempfile::tempdir().unwrap()).collect();
     let now = Instant::now();
     let (started, waiting) = mpsc::channel();
-    let (release_first, first_released) = mpsc::channel();
-    let (release_second, second_released) = mpsc::channel();
+    let mut releases = Vec::new();
     std::thread::scope(|scope| {
-        let first_started = started.clone();
-        let first = scope.spawn(move || {
-            cover_with_fetch(&first_service, &first_artwork, now, || {
-                first_started.send(()).unwrap();
-                first_released
-                    .recv_timeout(Duration::from_secs(10))
-                    .unwrap();
-                Err(transient_cover_error())
-            })
-        });
-        let second = scope.spawn(move || {
-            cover_with_fetch(&second_service, &second_artwork, now, || {
-                started.send(()).unwrap();
-                second_released
-                    .recv_timeout(Duration::from_secs(10))
-                    .unwrap();
-                Ok(second_bytes)
-            })
-        });
-        for _ in 0..crate::IGDB_ARTWORK_WORK_LIMIT {
+        let mut workers = Vec::new();
+        for (index, root) in roots.iter().enumerate() {
+            let (service, artwork, bytes) = backoff_fixture(root.path());
+            let (release, released) = mpsc::channel();
+            releases.push(release);
+            let started = started.clone();
+            // The first worker fails transiently; the rest succeed.
+            workers.push(scope.spawn(move || {
+                cover_with_fetch(&service, &artwork, now, || {
+                    started.send(()).unwrap();
+                    released.recv_timeout(Duration::from_secs(10)).unwrap();
+                    if index == 0 {
+                        Err(transient_cover_error())
+                    } else {
+                        Ok(bytes)
+                    }
+                })
+            }));
+        }
+        for _ in 0..limit {
             waiting.recv_timeout(Duration::from_secs(10)).unwrap();
         }
-        let busy = cover_with_fetch(&third_service, &third_artwork, now, || {
+        let busy = cover_with_fetch(&extra_service, &extra_artwork, now, || {
             panic!("excess fetch")
         })
         .unwrap_err();
         assert_eq!(busy.code, crate::ErrorCode::Conflict);
+        let cache = extra_service.library().root().join("artwork-cache");
+        fs::create_dir_all(&cache).unwrap();
+        let original = cache.join(format!("{}.jpg", extra_artwork.image_sha256));
+        fs::write(&original, &extra_bytes).unwrap();
+        let available = cover_with_fetch(&extra_service, &extra_artwork, now, || {
+            panic!("the cached cover must bypass network admission")
+        })
+        .unwrap();
+        assert!(!available.png.is_empty());
+        fs::remove_file(original).unwrap();
         // No library operation lock is held by the artwork admission budget.
-        assert!(third_service.library().try_lock_artwork().is_ok());
-        release_first.send(()).unwrap();
-        release_second.send(()).unwrap();
-        assert_eq!(
-            first.join().unwrap().unwrap_err().code,
-            crate::ErrorCode::Network
-        );
-        assert!(second.join().unwrap().is_ok());
+        assert!(extra_service.library().try_lock_artwork().is_ok());
+        for release in &releases {
+            release.send(()).unwrap();
+        }
+        for (index, worker) in workers.into_iter().enumerate() {
+            let result = worker.join().unwrap();
+            if index == 0 {
+                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+            } else {
+                assert!(result.is_ok());
+            }
+        }
     });
-    assert!(cover_with_fetch(&third_service, &third_artwork, now, || Ok(third_bytes)).is_ok());
+    assert!(cover_with_fetch(&extra_service, &extra_artwork, now, || Ok(extra_bytes)).is_ok());
 }
 
 #[test]
@@ -2632,6 +2641,7 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
     let temp = tempfile::tempdir().unwrap();
     let (service, artwork, bytes) = backoff_fixture(temp.path());
     let now = Instant::now();
+    let replacement_bytes = bytes.clone();
     let (started, waiting) = mpsc::channel();
     let (release, released) = mpsc::channel();
     std::thread::scope(|scope| {
@@ -2643,18 +2653,16 @@ fn clearing_cover_cache_detaches_in_flight_derivative() {
                 released.recv_timeout(Duration::from_secs(10)).unwrap();
                 Ok(bytes)
             })
-            .unwrap()
         });
         waiting.recv_timeout(Duration::from_secs(10)).unwrap();
         service.clear_artwork_cache().unwrap();
         release.send(()).unwrap();
-        let completed = first.join().unwrap();
-        // Clear does not cancel the existing fetch's disk publication. It does
-        // detach its memory state, so this verified original must convert anew.
+        let error = first.join().unwrap().unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(!cached_original(service, artwork));
         let before = crate::artwork_image::decode_count();
-        let rebuilt =
-            cover_with_fetch(service, artwork, now, || panic!("published original")).unwrap();
-        assert_eq!(rebuilt.png, completed.png);
+        let rebuilt = cover_with_fetch(service, artwork, now, || Ok(replacement_bytes)).unwrap();
+        assert!(!rebuilt.png.is_empty());
         assert_eq!(crate::artwork_image::decode_count(), before + 1);
     });
 }
@@ -2729,6 +2737,211 @@ fn retention_catalog(listings: &[(&str, Option<&crate::IgdbArtwork>)]) -> crate:
         .unwrap()
 }
 
+type EditionCoverListing<'a> = (
+    &'a str,
+    &'a str,
+    &'a [&'a str],
+    Option<&'a crate::IgdbArtwork>,
+);
+
+fn edition_cover_catalog(listings: &[EditionCoverListing<'_>]) -> crate::Catalog {
+    let mut document = retention_catalog(
+        &listings
+            .iter()
+            .map(|(port_id, _, _, cover)| (*port_id, *cover))
+            .collect::<Vec<_>>(),
+    )
+    .listing_document()
+    .clone();
+    document.format_version = 3;
+    for listing in &mut document.listings {
+        let (_, game_id, editions, _) = listings
+            .iter()
+            .find(|(id, _, _, _)| *id == listing.id.as_str())
+            .unwrap();
+        listing.original_game = Some(crate::OriginalGameIdentity {
+            format_version: 1,
+            id: (*game_id).into(),
+            evidence_urls: vec!["https://example.invalid/game".into()],
+            source_editions: editions
+                .iter()
+                .map(|id| crate::SourceEdition {
+                    id: (*id).into(),
+                    title: (*id).into(),
+                    system: Some("nintendo-64".into()),
+                    evidence_urls: vec!["https://example.invalid/edition".into()],
+                })
+                .collect(),
+        });
+    }
+    crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap()
+}
+
+#[test]
+fn matching_edition_inherits_a_reviewed_cover_across_display_and_handoff() {
+    use crate::{DestinationArtworkRole, DestinationArtworkSource, IgdbArtworkMatch};
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let bytes = coloured_jpeg([180, 42, 60]);
+    let mut shared = retention_mapping("editioncover", &bytes);
+    shared.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let direct = retention_mapping("directcover", &coloured_jpeg([20, 25, 80]));
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&shared)),
+        ("second-donor", "original-game", &["console"], Some(&shared)),
+        ("receiver", "original-game", &["console"], None),
+        ("direct", "original-game", &["console"], Some(&direct)),
+        ("another-game", "another-game", &["console"], None),
+        ("another-edition", "original-game", &["remaster"], None),
+        (
+            "multi-edition",
+            "original-game",
+            &["console", "remaster"],
+            None,
+        ),
+        ("unknown-edition", "original-game", &[], None),
+    ]));
+    let receiver = "receiver";
+    let slot = ArtworkSlot::Cover;
+    let state = service.artwork(receiver, slot).unwrap();
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = state.resolved_source else {
+        panic!("the matching edition must resolve the shared cover");
+    };
+    assert_eq!(igdb_cover(&service, receiver), Some(shared.clone()));
+    assert_eq!(igdb_cover(&service, "direct"), Some(direct));
+    for other in [
+        "another-game",
+        "another-edition",
+        "multi-edition",
+        "unknown-edition",
+    ] {
+        assert!(igdb_cover(&service, other).is_none(), "{other}");
+    }
+    assert_eq!(
+        service
+            .artwork(receiver, ArtworkSlot::Detail)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback,
+    );
+    published_cover(&service, &shared, || Ok(bytes)).unwrap();
+    let thumbnail = service
+        .artwork_thumbnail(receiver, slot, state.choice.revision)
+        .unwrap();
+    assert_eq!(thumbnail.asset_sha256, cache_id);
+    assert!(!thumbnail.png.is_empty());
+    let handoff = service
+        .destination_artwork(receiver, DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert!(
+        matches!(handoff.source, DestinationArtworkSource::CatalogDefault { artwork } if artwork == shared)
+    );
+
+    let local = image_file(temporary.path(), "chosen.png", image::ImageFormat::Png);
+    let chosen = service
+        .import_artwork(receiver, slot, &local, state.choice.revision)
+        .unwrap();
+    assert!(matches!(
+        chosen.resolved_source,
+        ArtworkResolvedSource::LocalImport { .. }
+    ));
+    let reset = service
+        .reset_artwork(receiver, slot, chosen.choice.revision)
+        .unwrap();
+    assert!(
+        matches!(reset.resolved_source, ArtworkResolvedSource::IgdbCover { artwork, .. } if artwork == shared)
+    );
+
+    service.replace_catalog_for_test(edition_cover_catalog(&[(
+        receiver,
+        "original-game",
+        &["console"],
+        None,
+    )]));
+    assert!(cached_original(&service, &shared));
+    assert!(igdb_cover(&service, receiver).is_none());
+    assert_eq!(
+        service
+            .artwork_thumbnail(receiver, slot, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound,
+    );
+}
+
+#[test]
+fn automatic_cover_rejects_conflicting_mappings_and_port_specific_donors() {
+    use crate::IgdbArtworkMatch;
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let specific = retention_mapping("specificcover", &coloured_jpeg([5, 10, 15]));
+    let mut first = retention_mapping("firstcover", &coloured_jpeg([140, 45, 205]));
+    first.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let mut other = retention_mapping("secondcover", &coloured_jpeg([60, 150, 81]));
+    other.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let receiver = ("receiver", "original-game", &["console"][..], None);
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("specific", "original-game", &["console"], Some(&specific)),
+    ]));
+    assert!(igdb_cover(&service, "receiver").is_none());
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("first", "original-game", &["console"], Some(&first)),
+        ("other", "original-game", &["console"], Some(&other)),
+    ]));
+    assert!(igdb_cover(&service, "receiver").is_none());
+    service.replace_catalog_for_test(edition_cover_catalog(&[
+        receiver,
+        ("first", "original-game", &["console"], Some(&first)),
+        (
+            "other",
+            "original-game",
+            &["console", "remaster"],
+            Some(&other),
+        ),
+    ]));
+    assert_eq!(igdb_cover(&service, "receiver"), Some(first));
+}
+
+#[test]
+fn automatic_cover_preserves_reviewed_collection_identity() {
+    use crate::{DestinationArtworkRole, DestinationArtworkSource, IgdbArtworkMatch};
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let mut shared = retention_mapping("sharedcover", &coloured_jpeg([55, 90, 125]));
+    shared.match_kind = IgdbArtworkMatch::UnderlyingGame;
+    let member = retention_mapping("membercover", &coloured_jpeg([20, 45, 70]));
+    let mut document = edition_cover_catalog(&[
+        ("donor", "original-game", &["console"], Some(&shared)),
+        ("collection", "original-game", &["console"], None),
+    ])
+    .listing_document()
+    .clone();
+    document.format_version = 11;
+    document
+        .listings
+        .iter_mut()
+        .find(|listing| listing.id == "collection")
+        .unwrap()
+        .collection_covers = Some(vec![member.clone()]);
+    let catalog = crate::Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+        .unwrap()
+        .with_listing_document(document)
+        .unwrap();
+    service.replace_catalog_for_test(catalog);
+    assert!(igdb_cover(&service, "collection").is_none());
+    let handoff = service
+        .destination_artwork("collection", DestinationArtworkRole::PortraitCover)
+        .unwrap();
+    assert_eq!(handoff.source, DestinationArtworkSource::GeneratedFallback);
+    let original = service.catalog().listing("collection").unwrap();
+    assert_eq!(original.collection_covers, Some(vec![member]));
+}
+
 /// Uses the production publication route, including its artwork lock and retention.
 fn published_cover(
     service: &PortcoveService,
@@ -2748,10 +2961,8 @@ fn published_cover_at(
         service.library(),
         artwork,
         0,
-        |original| {
-            let _guard = service.library().try_lock_artwork()?;
-            service.publish_igdb_original(artwork, original)
-        },
+        Default::default(),
+        |original| service.publish_igdb_original(artwork, original),
         fetch,
         || now,
     )
@@ -2775,6 +2986,157 @@ fn igdb_cover(service: &PortcoveService, port_id: &str) -> Option<crate::IgdbArt
         ArtworkResolvedSource::IgdbCover { artwork, .. } => Some(artwork),
         _ => None,
     }
+}
+
+#[test]
+fn companion_cover_requires_current_default_and_uses_the_verified_igdb_cache() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let port_id = "kirby-letsgo-oracles-decomp";
+    let primary = retention_mapping("fixtureages", &coloured_jpeg([30, 30, 200]));
+    let bytes = coloured_jpeg([200, 30, 30]);
+    let mut companion = retention_mapping("fixtureseasons", &bytes);
+    companion.game_id += 1;
+    companion.cover_id += 1;
+    let mut document = service.catalog().document().clone();
+    let presentation = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap();
+    presentation.artwork = Some(primary);
+    presentation.companion_cover = Some(companion.clone());
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = service
+        .artwork(port_id, ArtworkSlot::Cover)
+        .unwrap()
+        .resolved_source
+    else {
+        panic!("catalog default missing");
+    };
+    let cached = published_cover(&service, &companion, || Ok(bytes)).unwrap();
+    let get = |revision| {
+        service.companion_cover_thumbnail(port_id, &cache_id, &companion.image_sha256, revision)
+    };
+    let shown = get(0).unwrap();
+    assert_eq!(shown.asset_sha256, companion.image_sha256);
+    assert_eq!(shown.png, cached.png);
+    assert_eq!(
+        service
+            .companion_cover_thumbnail(port_id, "stale", &companion.image_sha256, 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(port_id, ArtworkSlot::Cover, &local, 0)
+        .unwrap();
+    assert_eq!(get(0).unwrap_err().code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        get(selected.choice.revision).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+}
+
+#[test]
+fn collection_members_obey_local_choice_and_retain_registered_identity_after_directory_removal() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "collection-fixture";
+    let first_bytes = coloured_jpeg([180, 30, 30]);
+    let second_bytes = coloured_jpeg([30, 30, 180]);
+    let first = retention_mapping("collectionfirst", &first_bytes);
+    let mut second = retention_mapping("collectionsecond", &second_bytes);
+    second.game_id += 1;
+    second.cover_id += 1;
+    let directory = crate::CatalogListingDocument::from_json(&serde_json::json!({
+        "format_version": 11, "listings": [{"id": id, "name": "Collection fixture", "summary": "A descriptive project with two games.", "project_url": "https://example.invalid/collection", "collection_covers": [first, second]}]
+    }).to_string()).unwrap();
+    service.replace_catalog_for_test(
+        retention_catalog(&[])
+            .with_listing_document(directory)
+            .unwrap(),
+    );
+    published_cover(&service, &first, || Ok(first_bytes)).unwrap();
+    published_cover(&service, &second, || Ok(second_bytes)).unwrap();
+    for cover in [&first, &second] {
+        let shown = service
+            .collection_cover_thumbnail(id, &cover.image_sha256, 0)
+            .unwrap();
+        assert_eq!(shown.asset_sha256, cover.image_sha256);
+        assert!(!shown.png.is_empty());
+    }
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &"f".repeat(64), 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(id, ArtworkSlot::Cover, &local, 0)
+        .unwrap();
+    for revision in [0, selected.choice.revision] {
+        assert_eq!(
+            service
+                .collection_cover_thumbnail(id, &first.image_sha256, revision)
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Conflict
+        );
+    }
+    let reset = service
+        .reset_artwork(id, ArtworkSlot::Cover, selected.choice.revision)
+        .unwrap();
+    let working = temporary.path().join("user-owned-game");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &[])
+        .unwrap();
+    let consent = service
+        .authorize_user_selected_runtime(id, &executable, &working, &[], &preview.preview_sha256)
+        .unwrap();
+    service
+        .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
+        .unwrap();
+    let listed_bytes = coloured_jpeg([30, 180, 30]);
+    let listed = retention_mapping("collectionlisted", &listed_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[("collection-other", Some(&listed))]));
+    // A real publication sweeps unreferenced originals; retained members must survive.
+    published_cover(&service, &listed, || Ok(listed_bytes)).unwrap();
+    for cover in [&first, &second] {
+        assert!(cached_original(&service, cover));
+        assert!(
+            !service
+                .collection_cover_thumbnail(id, &cover.image_sha256, reset.choice.revision)
+                .unwrap()
+                .png
+                .is_empty()
+        );
+    }
+    let fresh_bytes = coloured_jpeg([180, 180, 30]);
+    let fresh = retention_mapping("collectionfresh", &fresh_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[
+        (id, None),
+        ("collection-other", Some(&fresh)),
+    ]));
+    published_cover(&service, &fresh, || Ok(fresh_bytes)).unwrap();
+    assert_eq!(
+        service
+            .collection_cover_thumbnail(id, &first.image_sha256, reset.choice.revision)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+    assert!(!cached_original(&service, &first));
+    assert!(!cached_original(&service, &second));
+    assert!(cached_original(&service, &fresh));
 }
 
 #[test]
@@ -2861,11 +3223,72 @@ fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals()
     );
     assert!(cached_original(&service, &unrelated));
     assert!(cached_original(&service, &fresh));
+    assert_eq!(fs::read_dir(&cache).unwrap().count(), before);
     assert_eq!(
         service.artwork(other, ArtworkSlot::Detail).unwrap().choice,
         chosen.choice
     );
     assert!(local.is_file());
+}
+
+#[test]
+fn large_retained_registration_stays_visible_in_listings_and_artwork() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let id = "zelda64-recomp";
+    let pixels = coloured_jpeg([200, 30, 30]);
+    let artwork = retention_mapping("capacitycover", &pixels);
+    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    crate::test_fixture::grow_catalog_evidence(&mut document, 6 * 1024 * 1024);
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .artwork = Some(artwork.clone());
+    let retained = crate::Catalog::from_document(document).unwrap();
+    let working = temporary.path().join("fixture-registration");
+    fs::create_dir(&working).unwrap();
+    let record = crate::ExternalRuntimeRecord {
+        setup_download: None,
+        id: "catalog-capacity-runtime".into(),
+        port_id: id.into(),
+        path: working.clone(),
+        executable: working.join("game.exe"),
+        version: "fixture-1".into(),
+        platform: crate::Platform::WindowsX86_64,
+        archive_sha256: "a".repeat(64),
+        immutable_tree_sha256: "b".repeat(64),
+        registered_at: 1,
+        retained_definition: None,
+        user_selected: None,
+        shared_preferences: None,
+    };
+    service
+        .library()
+        .register_external_runtime(&record, &retained)
+        .unwrap();
+    let mut former_budget = 8 * 1024 * 1024;
+    assert!(
+        service
+            .library()
+            .external_runtime_with_port_bounded(id, &mut former_budget)
+            .is_err()
+    );
+
+    service.replace_catalog_for_test(retention_catalog(&[("unrelated-artwork", None)]));
+    assert!(service.catalog().listing(id).is_err());
+    assert!(
+        service
+            .listing_statuses()
+            .unwrap()
+            .iter()
+            .any(|status| status.port_id == id)
+    );
+    assert_eq!(igdb_cover(&service, id), Some(artwork));
 }
 
 #[test]
@@ -2947,6 +3370,7 @@ fn reference_retention_covers_catalog_media_and_keeps_local_thumbnails() {
         crate::artwork_image::MAX_ORIGINAL_BYTES,
         b"verified media",
         Some(&referenced),
+        None,
     )
     .unwrap();
     let mut names = fs::read_dir(&cache)

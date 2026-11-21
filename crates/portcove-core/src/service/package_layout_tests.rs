@@ -397,6 +397,7 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
         Platform::LinuxX86_64,
         ReviewedPackageLayout {
             ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
             directories: vec![],
             executables: vec!["openxw".to_owned()],
         },
@@ -467,6 +468,106 @@ async fn a_reviewed_layout_admits_compatible_releases_and_holds_drifted_ones() {
     );
     let status = service.status(PORT).unwrap();
     assert_eq!(status.active.unwrap().version, "2.0.0");
+}
+
+#[tokio::test]
+async fn linux_format_layout_follows_library_revisions_and_holds_new_programs() {
+    const ID: &str = "pilotwings-64-dgv-recomp";
+    // Like the official package, every member carries an executable mode.
+    fn pilotwings(version: &str, library: &str, extra: &[(&str, Vec<u8>)]) -> Vec<u8> {
+        let player = crate::package_layout::elf_fixture(3, &[6, 3, 1, 2]);
+        let mut members = vec![
+            ("Pilotwings64Recomp".to_owned(), player),
+            (
+                "Pilotwings64Recomp.sh".to_owned(),
+                b"#!/bin/sh\nexec ./Pilotwings64Recomp\n".to_vec(),
+            ),
+            ("assets/ui.rml".to_owned(), b"inert asset".to_vec()),
+            ("licenses/LICENSE".to_owned(), b"inert license".to_vec()),
+            (
+                library.to_owned(),
+                crate::package_layout::elf_fixture(3, &[1, 2]),
+            ),
+        ];
+        members.extend(
+            extra
+                .iter()
+                .map(|(path, bytes)| ((*path).to_owned(), bytes.clone())),
+        );
+        let mut tar = tar::Builder::new(Vec::new());
+        for (path, body) in members {
+            let mut header = tar::Header::new_ustar();
+            header.set_mode(0o777);
+            header.set_size(body.len() as u64);
+            tar.append_data(
+                &mut header,
+                format!("Pilotwings64Recomp-{version}-linux-x86_64/{path}"),
+                body.as_slice(),
+            )
+            .unwrap();
+        }
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        gzip.write_all(&tar.into_inner().unwrap()).unwrap();
+        gzip.finish().unwrap()
+    }
+    let served = |version: &str, library: &str, extra: &[(&str, Vec<u8>)]| {
+        serve_archive(
+            version,
+            format!("Pilotwings64Recomp-{version}-linux-x86_64.tar.gz"),
+            pilotwings(version, library, extra),
+        )
+    };
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    // N: the reviewed layout installs despite executable-mode data and a
+    // versioned shared library.
+    let (first, first_server) = served("0.1.1", "libdiscord.so.1.0.0", &[]);
+    let provider = Arc::new(Provider(Mutex::new(first)));
+    let service = PortcoveService::with_provider(library, provider.clone()).unwrap();
+    assert!(
+        service.catalog.port(ID).unwrap().reviewed_package_layouts[&Platform::LinuxX86_64]
+            .classify_linux_programs_by_format
+    );
+    let installed = install(&service, ID).await;
+    first_server.join().unwrap();
+    assert_eq!(installed.version, "0.1.1");
+
+    // N+1 compatible: a library revision and new executable-mode data proceed.
+    let (compatible, compatible_server) = served(
+        "0.1.2",
+        "libdiscord.so.1.1.0",
+        &[("assets/new-course.bin", b"inert".to_vec())],
+    );
+    *provider.0.lock().unwrap() = compatible;
+    let acquired = acquire(&service, ID).await;
+    compatible_server.join().unwrap();
+    let updated = apply_update(&service, ID).await.unwrap();
+    assert_eq!(updated.version, "0.1.2");
+    service
+        .discard_game_update_acquisition(ID, &acquired)
+        .unwrap();
+
+    // N+1 drifted: a new ELF updater is held before activation.
+    let (drifted, drifted_server) = served(
+        "0.2.0",
+        "libdiscord.so.1.1.0",
+        &[(
+            "Updater",
+            crate::package_layout::elf_fixture(3, &[6, 3, 1, 2]),
+        )],
+    );
+    *provider.0.lock().unwrap() = drifted;
+    acquire(&service, ID).await;
+    drifted_server.join().unwrap();
+    let refusal = apply_update(&service, ID).await.unwrap_err();
+    assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
+    assert!(
+        refusal.message.contains("new programs: updater"),
+        "{}",
+        refusal.message
+    );
+    assert_eq!(service.status(ID).unwrap().active.unwrap().id, updated.id);
 }
 
 #[tokio::test]

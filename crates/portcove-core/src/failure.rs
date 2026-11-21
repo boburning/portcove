@@ -91,6 +91,7 @@ pub(crate) struct FailureContext {
     preparation_cause: Option<PreparationFailureCause>,
     preparation_target: Option<PreparationTarget>,
     known_cause: Option<KnownFailureCause>,
+    pub(crate) catalog_fallback: Option<crate::CatalogFallbackCode>,
     upstream: Option<UpstreamObservation>,
 }
 
@@ -157,14 +158,18 @@ pub(crate) enum KnownFailureCause {
     HostLocalCredential {
         path: std::path::PathBuf,
     },
+    RecordedUploaderHold,
+    PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
+    OriginalEmbeddedInRuntime,
     NewerLibrary,
     IncompleteLibrary,
     Busy,
     CancellationUnavailable,
     OperationInterrupted,
     RequiredRuntimeUnverified,
+    LaunchArgumentsUnsupported,
     SourceChanged,
     AmbiguousAdoption,
     StaleRemoval,
@@ -173,6 +178,10 @@ pub(crate) enum KnownFailureCause {
         failures: Vec<String>,
     },
     PortableDataContractChanged,
+    #[cfg(any(test, windows))]
+    SettingsDefaultsConflict,
+    #[cfg(any(test, windows))]
+    SettingsDefaultsUnverified,
     /// Two copies of a settings file a newer version newly carries differ, so
     /// Core cannot tell which to keep. `other` is the saved copy, or the new
     /// version's copy when `other_is_saved` is false.
@@ -192,6 +201,7 @@ pub(crate) enum KnownFailureCause {
         previous_path: std::path::PathBuf,
         current_confirmed: bool,
     },
+    NativeModListReview,
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -202,6 +212,7 @@ pub(crate) enum KnownFailureCause {
     ArchiveLimit,
     UnicodePath,
     RuntimePathRequirement,
+    OpenSurgeUserDataPath,
     /// The package is not a LIVE or PIRS package in the read-only STFS layout.
     UnsupportedStfs,
     /// The STFS package is a different game or content type than the port requires.
@@ -266,6 +277,14 @@ impl KnownFailureCause {
                 "credential_store_locked",
                 "Secure credential storage on this device is locked or refused access, so Portcove can't read or save the credential this task needs. Unlock it or allow access, for example to your login keyring or keychain, then try again.",
             ),
+            Self::RecordedUploaderHold => (
+                "recorded_uploader_hold",
+                "Portcove couldn't confirm the uploader for this version. Check for updates to find a version Portcove can confirm.",
+            ),
+            Self::PackageShapeDrift => (
+                "package_shape_drift",
+                "This release changed some of the files or folders Portcove checks before installing. It is waiting for review. You can still use an installed version.",
+            ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
@@ -273,6 +292,10 @@ impl KnownFailureCause {
             Self::CatalogReplay => (
                 "catalog_replay_rejected",
                 "This catalog revision has already been seen or is older than the recorded revision. Check for a newer catalog; do not reset the library's trust history.",
+            ),
+            Self::OriginalEmbeddedInRuntime => (
+                "original_embedded_in_runtime",
+                "This runtime already contains prepared game data. Prepare another runtime to use a different original.",
             ),
             Self::NewerLibrary => (
                 "library_version_newer",
@@ -301,6 +324,10 @@ impl KnownFailureCause {
             Self::RequiredRuntimeUnverified => (
                 "required_runtime_unverified",
                 "This installation's required runtime could not be verified. Review its runtime requirements and current installation; use an offered compatible update or repair when available.",
+            ),
+            Self::LaunchArgumentsUnsupported => (
+                "launch_arguments_unsupported",
+                "This launch uses a fixed set of arguments. Run it again without extra arguments.",
             ),
             Self::AmbiguousAdoption => (
                 "adoption_ambiguous",
@@ -338,6 +365,16 @@ impl KnownFailureCause {
             Self::PortableDataContractChanged => (
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
+            ),
+            #[cfg(any(test, windows))]
+            Self::SettingsDefaultsConflict => (
+                "settings_defaults_conflict",
+                "Your settings and the new version’s defaults changed in different ways. Portcove kept your settings and the new defaults. You can keep using the installed version while the update waits.",
+            ),
+            #[cfg(any(test, windows))]
+            Self::SettingsDefaultsUnverified => (
+                "settings_defaults_unverified",
+                "Portcove couldn’t verify the settings defaults for both versions. The update is waiting. Keep using the installed version until verified defaults are available.",
             ),
             Self::AppendedSettingsDiverged {
                 file,
@@ -388,6 +425,10 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::NativeModListReview => (
+                "native_mod_list_review",
+                "Review the enabled mods and their dependencies in Setups and mods before playing again.",
+            ),
             Self::RestoreRecovery => (
                 "restore_recovery_required",
                 "A backup restore is unfinished. Keep the backup and any safety copy. Reopen Portcove and check the recovery result before playing or backing up saves again.",
@@ -420,6 +461,10 @@ impl KnownFailureCause {
             Self::UnicodePath => (
                 "path_not_representable",
                 "Portcove can’t read this file or folder name correctly. Choose a location with a valid Unicode name so Portcove can identify the exact files.",
+            ),
+            Self::OpenSurgeUserDataPath => (
+                "opensurge_user_data_path_unsupported",
+                "Open Surge can save to the wrong folder when this Windows library path contains characters outside basic Latin. Use a library path with only basic Latin characters for this game.",
             ),
             Self::RuntimePathRequirement => (
                 "runtime_path_requirement",
@@ -543,10 +588,14 @@ pub(crate) enum PreparationFailureCause {
 
 impl PortcoveError {
     pub fn report(&self) -> FailureReport {
+        let mut details = self.details.clone();
+        if let Some(code) = self.catalog_fallback() {
+            details.insert("catalog_fallback_code".into(), code.as_str().into());
+        }
         FailureReport {
             code: self.code,
             message: self.message.clone(),
-            details: self.details.clone(),
+            details,
             presentation: Box::new(self.presentation()),
         }
     }
@@ -576,6 +625,13 @@ impl PortcoveError {
 
     pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
         self.failure.known_cause.as_ref()
+    }
+
+    pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::RecordedUploaderHold)
+        )
     }
 
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {

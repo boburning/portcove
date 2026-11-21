@@ -271,6 +271,7 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
     }),
     [
       "owned-ready",
+      "owned-update-review",
       "owned-recovery",
       "owned-backups",
       "owned-steam",

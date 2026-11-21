@@ -42,6 +42,11 @@
     block-size: auto;
     object-fit: contain;
   }
+  .game-hero-collection {
+    inline-size: 100%;
+    block-size: 100%;
+    border-radius: var(--radius-md);
+  }
   .game-hero[data-hero-identity="cover"] .game-hero-image {
     inline-size: 100%;
     block-size: 100%;
@@ -95,6 +100,9 @@
   .game-hero-credits > summary {
     inline-size: fit-content;
     cursor: pointer;
+  }
+  .game-hero-credits > summary + * {
+    margin-block-start: var(--space-2);
   }
   .game-hero-continue .game-hero-body {
     align-items: center;
@@ -200,6 +208,10 @@
       max-width: 32ch;
     }
   }
+  .game-hero-detail[data-hero-identity="title"] .game-hero-body {
+    min-block-size: 0;
+    padding-block: var(--space-6);
+  }
   @container library-query (width <= 32rem) {
     .game-hero-continue .game-hero-content {
       align-items: flex-start;
@@ -259,6 +271,27 @@
     }
     .game-hero-detail .game-hero-content {
       padding-block: 0.25rem;
+    }
+  }
+  .game-hero-detail[data-hero-compact] .game-hero-body {
+    min-block-size: 0;
+    padding: var(--space-4);
+  }
+  .game-hero-detail[data-hero-compact] .game-hero-content {
+    padding-block: 0;
+  }
+  .game-hero-detail[data-hero-compact] .detail-title {
+    max-inline-size: none;
+    font-size: var(--text-xl);
+  }
+  .game-hero-detail[data-hero-compact] .detail-project {
+    margin-block-start: var(--space-1);
+  }
+  @container detail (width <= 20rem) {
+    .game-hero-detail[data-hero-compact] .detail-header-actions > [data-variant="primary"],
+    .game-hero-detail[data-hero-compact] .detail-hero-primary,
+    .game-hero-detail[data-hero-compact] .detail-hero-action {
+      min-inline-size: 0;
     }
   }
 }

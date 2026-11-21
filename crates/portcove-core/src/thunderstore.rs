@@ -15,7 +15,10 @@ use serde_json::Value;
 
 use crate::{
     Library, PortcoveError, Result,
-    mod_provider::{Observed, ProviderFileCandidate, ProviderPage, ProviderProject, sanitize_text},
+    mod_provider::{
+        Observed, ProviderFileCandidate, ProviderListing, ProviderPage, ProviderProject,
+        ThunderstoreDependency, artwork_url, sanitize_text,
+    },
     provider_http::ProviderHttp,
 };
 
@@ -27,6 +30,7 @@ const WEB_ROOT: &str = "https://thunderstore.io";
 const MAX_PACKAGES: usize = 20_000;
 /// More versions than this in one package is refused, so a newer one is never missed.
 const MAX_VERSIONS: usize = 1024;
+const MAX_DEPENDENCIES: usize = 128;
 
 /// Reviewed port → Thunderstore community bindings. A community's own listing is
 /// the only route; a package is never matched to a game by name.
@@ -41,11 +45,6 @@ pub(crate) fn thunderstore_community(port_id: &str) -> Option<&'static str> {
         .iter()
         .find(|(port, _)| *port == port_id)
         .map(|(_, community)| *community)
-}
-
-/// Ports with a reviewed community binding.
-pub(crate) fn bound_ports() -> impl Iterator<Item = &'static str> {
-    COMMUNITY_BINDINGS.iter().map(|(port, _)| *port)
 }
 
 #[derive(Clone)]
@@ -71,8 +70,20 @@ impl ThunderstoreClient {
         Self::build(library, root)
     }
 
-    /// Every package in one community, in the provider's listing order.
+    /// Every readable package in one community, in the provider's listing order.
     pub async fn community(&self, community: &str) -> Result<Observed<Vec<ProviderProject>>> {
+        let observed = self.community_catalog(community).await?;
+        Ok(Observed {
+            value: observed.value.0,
+            observed_at: observed.observed_at,
+            freshness: observed.freshness,
+        })
+    }
+
+    pub(crate) async fn community_catalog(
+        &self,
+        community: &str,
+    ) -> Result<Observed<(Vec<ProviderProject>, usize)>> {
         if !plain_name(community, true) {
             return Err(PortcoveError::usage(
                 "a Thunderstore community name is a plain slug",
@@ -81,12 +92,25 @@ impl ThunderstoreClient {
         let url = reqwest::Url::parse(&format!("{}/c/{community}/api/v1/package/", self.web_root))
             .map_err(|error| PortcoveError::state(error.to_string()))?;
         let web_root = self.web_root.clone();
-        let community = community.to_owned();
+        let requested_community = community.to_owned();
         self.http
             .observe(url, move |value| {
-                parse_listing(value, &community, &web_root)
+                let projects = parse_listing(value, &requested_community, &web_root)?;
+                let total = value.as_array().map_or(0, Vec::len);
+                Ok((projects, total))
             })
             .await
+            .map_err(|mut error| {
+                if error.details.contains_key("response_byte_limit")
+                    || error.details.contains_key("community_package_limit")
+                {
+                    let url = format!("{WEB_ROOT}/c/{community}/");
+                    error.message =
+                        format!("{}. Browse the full community at {url}", error.message);
+                    error.details.insert("provider_browse_url".into(), url);
+                }
+                error
+            })
     }
 
     /// One page of a community, `per_page` packages at a time.
@@ -203,6 +227,62 @@ fn timestamp(value: &Value) -> Option<i64> {
     .map(time::OffsetDateTime::unix_timestamp)
 }
 
+fn parse_dependency(value: &Value) -> Option<ThunderstoreDependency> {
+    let (namespace, rest) = value.as_str()?.split_once('-')?;
+    let (package, version) = rest.split_once('-')?;
+    if !plain_name(namespace, false) || !plain_name(package, false) || !version_number(version) {
+        return None;
+    }
+    Some(ThunderstoreDependency {
+        namespace: namespace.to_owned(),
+        package: package.to_owned(),
+        version: version.to_owned(),
+    })
+}
+
+fn parse_dependencies(values: &[Value]) -> Option<Vec<ThunderstoreDependency>> {
+    if values.len() > MAX_DEPENDENCIES {
+        return None;
+    }
+    let mut dependencies = values
+        .iter()
+        .map(parse_dependency)
+        .collect::<Option<Vec<_>>>()?;
+    dependencies.sort_unstable();
+    if dependencies.windows(2).any(|pair| pair[0] == pair[1]) {
+        return None;
+    }
+    Some(dependencies)
+}
+
+pub(crate) fn verify_wrapper_manifest(
+    bytes: &[u8],
+    project_id: &str,
+    file: &ProviderFileCandidate,
+) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct Manifest {
+        name: String,
+        version_number: String,
+        dependencies: Vec<Value>,
+    }
+    let error = || {
+        PortcoveError::verification(
+        "the Thunderstore wrapper manifest does not match the exact listing; check the provider listing and review again",
+    ).detail("project", project_id).detail("version", &file.file_id)
+    };
+    let manifest = serde_json::from_slice::<Manifest>(bytes).map_err(|_| error())?;
+    let (_, package) = project_id.split_once('-').ok_or_else(error)?;
+    let dependencies = parse_dependencies(&manifest.dependencies).ok_or_else(error)?;
+    if manifest.name != package
+        || manifest.version_number != file.file_id
+        || Some(&dependencies) != file.thunderstore_dependencies.as_ref()
+    {
+        return Err(error());
+    }
+    Ok(())
+}
+
 fn parse_version(
     value: &Value,
     namespace: &str,
@@ -223,6 +303,8 @@ fn parse_version(
     if !crate::profile::valid_native_id(&file_name) {
         return None;
     }
+    let dependencies = parse_dependencies(value["dependencies"].as_array()?)?;
+    let active = crate::mod_provider::provider_status_flag(value, "is_active");
     Some(ProviderFileCandidate {
         file_id: version.to_owned(),
         file_name,
@@ -231,8 +313,10 @@ fn parse_version(
         download_url,
         claimed_md5: None,
         // An inactive version is no longer offered by the community.
-        archived: !value["is_active"].as_bool().unwrap_or(false),
+        archived: !active.unwrap_or(false),
+        status_unknown: active.err(),
         claimed_scan: None,
+        thunderstore_dependencies: Some(dependencies),
     })
 }
 
@@ -259,10 +343,43 @@ fn parse_package(value: &Value, community: &str, web_root: &str) -> Option<Provi
     };
     let latest = files
         .iter()
-        .filter(|file| !file.archived)
+        .filter(|file| !file.archived && file.status_unknown.is_none())
         .max_by_key(|file| file.added_at)
         .map(|file| file.file_id.clone());
+    let versions = value["versions"]
+        .as_array()
+        .filter(|versions| versions.len() <= MAX_VERSIONS);
+    let artwork = versions
+        .and_then(|versions| {
+            versions
+                .iter()
+                .find(|version| version["version_number"].as_str() == latest.as_deref())
+        })
+        .and_then(|version| artwork_url(version["icon"].as_str()?, "ccdn.thunderstore.io"));
+    let deprecated = crate::mod_provider::provider_status_flag(value, "is_deprecated");
     Some(ProviderProject {
+        listing: Some(ProviderListing {
+            categories: value["categories"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .take(32)
+                .filter_map(Value::as_str)
+                .map(sanitize_text)
+                .filter(|name| !name.is_empty())
+                .collect(),
+            artwork,
+            created_at: timestamp(&value["date_created"]),
+            downloads: versions
+                .filter(|versions| !versions.is_empty())
+                .and_then(|versions| {
+                    versions.iter().try_fold(0u64, |total, version| {
+                        total.checked_add(version["downloads"].as_u64()?)
+                    })
+                }),
+            likes: None,
+            ratings: value["rating_score"].as_u64(),
+        }),
         provider: PROVIDER.into(),
         profile_url: format!("{web_root}/c/{community}/p/{namespace}/{name}/"),
         project_id,
@@ -271,7 +388,8 @@ fn parse_package(value: &Value, community: &str, web_root: &str) -> Option<Provi
         // The community listing is the binding: every package in it belongs to it.
         game_id: Some(community.to_owned()),
         updated_at: timestamp(&value["date_updated"]).unwrap_or_default(),
-        obsolete: value["is_deprecated"].as_bool().unwrap_or(false),
+        obsolete: deprecated.unwrap_or(false),
+        status_unknown: deprecated.err(),
         submitter: Some(sanitize_text(namespace)),
         files,
         unreadable_files: u32::try_from(unreadable_files).unwrap_or(u32::MAX),
@@ -289,12 +407,121 @@ pub(crate) fn parse_listing(
     if packages.len() > MAX_PACKAGES {
         return Err(PortcoveError::verification(
             "the Thunderstore listing exceeds the number of packages this client can review",
-        ));
+        )
+        .detail("community_package_limit", MAX_PACKAGES.to_string()));
     }
     Ok(packages
         .iter()
         .filter_map(|package| parse_package(package, community, web_root))
         .collect())
+}
+
+/// Exact provider files, with requirements before their dependants. The root
+/// file is last. Native requirements are established separately by inspection.
+pub(crate) fn resolve_dependencies<'a>(
+    listing: &'a [ProviderProject],
+    project_id: &str,
+    file_id: &str,
+) -> Result<Vec<(&'a ProviderProject, &'a ProviderFileCandidate)>> {
+    const MAX_CLOSURE: usize = 64;
+
+    struct Resolution<'a> {
+        listing: &'a [ProviderProject],
+        versions: std::collections::BTreeMap<String, String>,
+        visiting: std::collections::BTreeSet<String>,
+        files: Vec<(&'a ProviderProject, &'a ProviderFileCandidate)>,
+    }
+
+    impl<'a> Resolution<'a> {
+        fn visit(&mut self, project_id: &str, file_id: &str) -> Result<()> {
+            let with_coordinate = |error: PortcoveError| {
+                error
+                    .detail("project", project_id)
+                    .detail("version", file_id)
+            };
+            if let Some(existing) = self.versions.get(project_id) {
+                if existing != file_id {
+                    return Err(with_coordinate(
+                        PortcoveError::conflict(
+                            "Thunderstore requires two versions of the same package",
+                        )
+                        .detail("other_version", existing),
+                    ));
+                }
+                if self.visiting.contains(project_id) {
+                    return Err(with_coordinate(PortcoveError::conflict(
+                        "the Thunderstore package requirements form a cycle",
+                    )));
+                }
+                return Ok(());
+            }
+            if self.versions.len() >= MAX_CLOSURE {
+                return Err(with_coordinate(PortcoveError::unsupported(
+                    "the Thunderstore dependency closure exceeds the supported size",
+                )));
+            }
+            let project = exact_listing_entry(
+                self.listing
+                    .iter()
+                    .filter(|entry| entry.project_id == project_id),
+                &with_coordinate,
+            )?;
+            let file = exact_listing_entry(
+                project.files.iter().filter(|file| file.file_id == file_id),
+                &with_coordinate,
+            )?;
+            if project.status_unknown.is_some() || file.status_unknown.is_some() {
+                return Err(with_coordinate(PortcoveError::verification(
+                    crate::mod_provider::UNKNOWN_PROVIDER_ELIGIBILITY,
+                )));
+            }
+            if project.obsolete || file.archived {
+                return Err(with_coordinate(PortcoveError::unsupported(
+                    "the exact Thunderstore package version is no longer offered",
+                )));
+            }
+            let requirements = file.thunderstore_dependencies.as_deref().ok_or_else(|| {
+                with_coordinate(PortcoveError::verification(
+                    "the exact Thunderstore package version has unreadable dependency metadata",
+                ))
+            })?;
+            self.versions.insert(project_id.into(), file_id.into());
+            self.visiting.insert(project_id.into());
+            for requirement in requirements {
+                let required_project = format!("{}-{}", requirement.namespace, requirement.package);
+                self.visit(&required_project, &requirement.version)?;
+            }
+            self.visiting.remove(project_id);
+            self.files.push((project, file));
+            Ok(())
+        }
+    }
+
+    let mut resolution = Resolution {
+        listing,
+        versions: Default::default(),
+        visiting: Default::default(),
+        files: Vec::new(),
+    };
+    resolution.visit(project_id, file_id)?;
+    Ok(resolution.files)
+}
+
+fn exact_listing_entry<T>(
+    mut matches: impl Iterator<Item = T>,
+    describe: &impl Fn(PortcoveError) -> PortcoveError,
+) -> Result<T> {
+    let entry = matches.next().ok_or_else(|| {
+        describe(PortcoveError::not_found(
+            "the Thunderstore listing does not offer the exact requested package version",
+        ))
+    })?;
+    if matches.next().is_some() {
+        return Err(describe(PortcoveError::verification(
+            "the Thunderstore listing has ambiguous records for the exact package version",
+        )));
+    }
+    Ok(entry)
 }
 
 #[cfg(test)]

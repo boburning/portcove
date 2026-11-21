@@ -142,6 +142,37 @@ it("one confirmation saves every game and installs only the ready ones", async (
   expect(text()).toContain("Second: Couldn't install. Download failed");
 });
 
+it("blocks a second confirmation while saving the waiting games", async () => {
+  let finish!: () => void;
+  const pending = new Promise<Awaited<ReturnType<typeof desktopApi.addGamesToLibrary>>>(
+    (resolve) => {
+      finish = () => resolve([]);
+    },
+  );
+  vi.mocked(desktopApi.addGamesToLibrary).mockReturnValue(pending);
+  vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+    items: [{ port_id: "third", hold: "Missing files" }],
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const done = vi.fn();
+  await root.rerender(
+    <InstallBatchPanel generation={1} ports={ports} portIds={["third"]} onDone={done} />,
+  );
+  await act(async () => {});
+  await act(async () => {
+    const confirm = button("Add 1 to Library");
+    confirm.click();
+    confirm.click();
+  });
+  expect(button("Add 1 to Library").getAttribute("aria-busy")).toBe("true");
+  expect(button("Cancel").disabled).toBe(true);
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledOnce();
+  expect(done).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(done).toHaveBeenCalledOnce();
+  expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+});
+
 it("keeps the exact English space sentences for one game and for three", async () => {
   const volume = {
     path: "D:/Games",
@@ -204,3 +235,205 @@ it("reviews the selection in the current language with exact names and versions"
     await localization.changeLanguage("en");
   }
 });
+
+it("hands focus to review once and leaves a later keyboard choice alone when planning completes", async () => {
+  let resolve!: (value: InstallBatchReview) => void;
+  vi.mocked(desktopApi.planInstallBatch).mockReturnValue(
+    new Promise((finish) => {
+      resolve = finish;
+    }),
+  );
+  const elsewhere = document.createElement("button");
+  elsewhere.textContent = "Another action";
+  document.body.append(elsewhere);
+  await root.rerender(
+    <InstallBatchPanel generation={1} ports={ports} portIds={["first"]} onDone={vi.fn()} />,
+  );
+  const heading = document.querySelector('[aria-label="Install selected games"] h3');
+  expect(document.activeElement).toBe(heading);
+  elsewhere.focus();
+  await act(async () => resolve(review));
+  await vi.waitFor(() => expect(text()).toContain("2 ready to install, 1 waiting"));
+  expect(document.activeElement).toBe(elsewhere);
+  expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+  expect(desktopApi.addGamesToLibrary).not.toHaveBeenCalled();
+});
+
+it.each(["hidden", "inert", "navigation"])(
+  "does not take focus outside a %s review owner",
+  async (boundary) => {
+    const surface = document.createElement("div");
+    const elsewhere = document.createElement("button");
+    surface.append(elsewhere);
+    document.body.append(surface);
+    if (boundary === "navigation") {
+      surface.setAttribute("data-portcove-focus-scope", "");
+      // BODY would normally allow entry, but this other surface owns navigation.
+    }
+    await root.rerender(
+      <div hidden={boundary === "hidden"} inert={boundary === "inert"}>
+        <InstallBatchPanel generation={1} ports={ports} portIds={["first"]} onDone={vi.fn()} />
+      </div>,
+    );
+    await act(async () => {});
+    expect(document.activeElement).toBe(document.body);
+    expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+    expect(desktopApi.addGamesToLibrary).not.toHaveBeenCalled();
+  },
+);
+
+it("uses the read-only review cancellation callback without completion refresh", async () => {
+  const onDone = vi.fn();
+  const onCancelReview = vi.fn();
+  const onChanged = vi.fn(async () => undefined);
+  await root.rerender(
+    <InstallBatchPanel
+      generation={1}
+      ports={ports}
+      portIds={["first"]}
+      onDone={onDone}
+      onCancelReview={onCancelReview}
+      onChanged={onChanged}
+    />,
+  );
+  await act(async () => {});
+  await act(async () => button("Cancel").click());
+  expect(onCancelReview).toHaveBeenCalledExactlyOnceWith(
+    document.querySelector('[aria-label="Install selected games"]'),
+  );
+  expect(onDone).not.toHaveBeenCalled();
+  expect(onChanged).not.toHaveBeenCalled();
+  expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+  expect(desktopApi.addGamesToLibrary).not.toHaveBeenCalled();
+});
+
+it("refreshes saved waiting games before dismissing their review", async () => {
+  const order: string[] = [];
+  const onChanged = vi.fn(async () => {
+    order.push("refresh");
+  });
+  const onDone = vi.fn(() => {
+    order.push("done");
+  });
+  vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+    ...review,
+    items: [{ port_id: "third", hold: "Missing files" }],
+  });
+  vi.mocked(desktopApi.addGamesToLibrary).mockResolvedValue([]);
+  await root.rerender(
+    <InstallBatchPanel
+      generation={1}
+      ports={ports}
+      portIds={["third"]}
+      onChanged={onChanged}
+      onDone={onDone}
+    />,
+  );
+  await act(async () => {});
+  await act(async () => button("Add 1 to Library").click());
+  expect(order).toEqual(["refresh", "done"]);
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledExactlyOnceWith(
+    [{ port_id: "third", origin: "game_file_discovery" }],
+    1,
+  );
+  expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+});
+
+it("refreshes partially saved waiting games when starting the ready batch is refused", async () => {
+  const onChanged = vi.fn(async () => undefined);
+  const onDone = vi.fn();
+  const run = vi.spyOn(desktopApi, "runInstallBatch");
+  vi.mocked(desktopApi.addGamesToLibrary).mockResolvedValue([]);
+  vi.mocked(desktopApi.startInstallBatch).mockRejectedValue(new Error("Owned batch start refused"));
+  await root.rerender(
+    <InstallBatchPanel
+      generation={1}
+      ports={ports}
+      portIds={["first", "second", "third"]}
+      onChanged={onChanged}
+      onDone={onDone}
+    />,
+  );
+  await act(async () => {});
+  await act(async () => button("Add 3 to Library and install 2").click());
+  expect(text()).toContain("Owned batch start refused");
+  expect(onChanged).toHaveBeenCalledExactlyOnceWith();
+  expect(onDone).not.toHaveBeenCalled();
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledTimes(1);
+  expect(desktopApi.startInstallBatch).toHaveBeenCalledTimes(1);
+  expect(run).not.toHaveBeenCalled();
+});
+
+it.each(["waiting", "mixed", "starting"])(
+  "does not continue a detached %s confirmation after generation replacement",
+  async (stage) => {
+    const onDone = vi.fn();
+    const onChanged = vi.fn(async () => undefined);
+    const run = vi.spyOn(desktopApi, "runInstallBatch");
+    let finish!: () => void;
+    const batch = {
+      id: "stale-batch",
+      items: [{ port_id: "first", state: "queued" }],
+    } as unknown as InstallBatchRecord;
+    if (stage === "starting") {
+      vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+        ...review,
+        items: [ready("first", "1.0")],
+      });
+      vi.mocked(desktopApi.startInstallBatch).mockReturnValue(
+        new Promise((resolve) => {
+          finish = () => resolve(batch);
+        }),
+      );
+    } else {
+      if (stage === "waiting")
+        vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+          ...review,
+          items: [{ port_id: "third", hold: "Missing files" }],
+        });
+      vi.mocked(desktopApi.addGamesToLibrary).mockReturnValue(
+        new Promise((resolve) => {
+          finish = () => resolve([]);
+        }),
+      );
+    }
+    await root.rerender(
+      <InstallBatchPanel
+        key={1}
+        generation={1}
+        ports={ports}
+        portIds={["first", "third"]}
+        onDone={onDone}
+        onChanged={onChanged}
+      />,
+    );
+    await act(async () => {});
+    const label =
+      stage === "starting"
+        ? "Add 1 to Library and install 1"
+        : stage === "mixed"
+          ? "Add 3 to Library and install 2"
+          : "Add 1 to Library";
+    await act(async () => button(label).click());
+    vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+      ...review,
+      items: [{ port_id: "second", hold: "Current review" }],
+    });
+    await root.rerender(
+      <InstallBatchPanel
+        key={2}
+        generation={2}
+        ports={ports}
+        portIds={["second"]}
+        onDone={onDone}
+        onChanged={onChanged}
+      />,
+    );
+    await act(async () => finish());
+    await vi.waitFor(() => expect(text()).toContain("Current review"));
+    expect(onDone).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(desktopApi.startInstallBatch).toHaveBeenCalledTimes(stage === "starting" ? 1 : 0);
+  },
+);

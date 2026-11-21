@@ -47,6 +47,13 @@
           "instruction": "The game-specific default profile is %LOCALAPPDATA%/kirby-wii-recomp, containing extracted game data, saves and configuration. Preserve it and every effective custom user directory with the original disc image, controller profiles, NAND/system settings, mods, caches, backups and creating runtime. Retain the game package’s GPL-3.0-or-later and separate notices; framework licensing does not grant Nintendo content or establish cross-game save compatibility."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-s-return-to-dream-land",
+      "evidence_urls": ["https://github.com/ExpansionPak/ModernGekko"],
+      "source_editions": []
+    },
+    "original_game_title": "Kirby's Return to Dream Land"
   }
 }

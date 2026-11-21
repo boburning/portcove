@@ -245,6 +245,7 @@ fn recorded_hold(install: &crate::InstallRecord, cause: &str, reason: &str) -> P
     .detail("reason", reason)
     .detail("port_id", install.port_id.clone())
     .detail("version", install.version.clone())
+    .with_known_cause(crate::failure::KnownFailureCause::RecordedUploaderHold)
 }
 
 /// Applies uploader continuity to a build that is about to become active from

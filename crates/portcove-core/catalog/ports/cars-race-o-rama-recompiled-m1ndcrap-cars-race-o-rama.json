@@ -4,6 +4,14 @@
     "id": "cars-race-o-rama-recompiled-m1ndcrap-cars-race-o-rama",
     "name": "Cars Race-O-Rama — Cars Race-O-Rama Recompiled (m1ndcrap)",
     "original_game_title": "Cars Race-O-Rama",
+    "artwork": {
+      "game_id": 4749,
+      "cover_id": 111700,
+      "image_id": "co2e6s",
+      "image_sha256": "ff8eedebe790250c026bb2686f2eb1c75b23b474d234297640f92c2cecaa9ff7",
+      "game_slug": "cars-race-o-rama",
+      "match_kind": "underlying-game"
+    },
     "summary": "Start-to-finish claimed; slowdowns and bright lighting defects remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"
     },
-    "issue_number": 3304
+    "issue_number": 3304,
+    "original_game": {
+      "format_version": 1,
+      "id": "cars-race-o-rama",
+      "evidence_urls": ["https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled"],
+      "source_editions": [
+        {
+          "id": "cars-race-o-rama-xbox-360",
+          "title": "Cars Race-O-Rama (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled/blob/bd95c43a383bc9ccd9f8281bae7f31ac0deaeb3f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

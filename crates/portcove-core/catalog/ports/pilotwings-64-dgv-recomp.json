@@ -41,11 +41,25 @@
       ]
     },
     "release_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["Pilotwings64Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Pilotwings64Recomp-", "-linux-x86_64.tar.gz"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "pilotwings-64",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md",
+        "https://github.com/danielgomesvieira2000/pilotwings-64-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pilotwings-64-nintendo-64",
+          "title": "Pilotwings 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -75,7 +89,13 @@
       "windows-x86-64": {
         "directories": ["assets", "licenses"],
         "executables": ["pilotwings64recomp.exe"]
+      },
+      "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
+        "directories": ["assets", "licenses"],
+        "executables": ["pilotwings64recomp", "pilotwings64recomp.sh"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

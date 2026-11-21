@@ -6,7 +6,7 @@
     "original_game_title": "Armored Core: Last Raven Portable",
     "summary": "Upstream reports startup, movies, the title screen and a runtime. Mission gameplay is not confirmed here; check the project’s status notes before setup. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Sifayne/last-raven-recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Sifayne/last-raven-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "9f9f155bd8814de6d42011c5fd07b723f935c107138b197a31afe094274ecb63",
       "game_slug": "armored-core-last-raven-portable",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-last-raven-portable",
+      "evidence_urls": ["https://github.com/Sifayne/last-raven-recomp"],
+      "source_editions": [
+        {
+          "id": "armored-core-last-raven-portable-playstation-portable",
+          "title": "Armored Core: Last Raven Portable (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Sifayne/last-raven-recomp/blob/23d4ccf7936056059179e945307282ebb7ad3234/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

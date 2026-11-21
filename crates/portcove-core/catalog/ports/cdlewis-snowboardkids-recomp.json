@@ -22,7 +22,6 @@
     "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["SnowboardKidsRecompiled-", "Windows.zip"],
       "linux-x86-64": ["SnowboardKidsRecompiled-", "Linux-X64.tar.gz"],
       "macos-aarch64": ["SnowboardKidsRecompiled-", "macOS.zip"],
       "macos-x86-64": ["SnowboardKidsRecompiled-", "macOS.zip"]
@@ -53,8 +52,27 @@
           "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "snowboard-kids",
+      "evidence_urls": [
+        "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
+        "https://github.com/cdlewis/snowboardkids-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "snowboard-kids-nintendo-64",
+          "title": "Snowboard Kids (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/README.md"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

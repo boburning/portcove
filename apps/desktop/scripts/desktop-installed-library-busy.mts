@@ -143,10 +143,7 @@ export async function startInstalledLibraryBusy(options: BusyLibraryOptions) {
   let creation: string | null = null;
   let releaseTask: Promise<unknown> | undefined;
   const lines: unknown[] = [];
-  let notifyLine: (() => void) | undefined;
-  const firstLine = new Promise<void>((resolve) => {
-    notifyLine = resolve;
-  });
+  const { promise: firstLine, resolve: notifyLine } = Promise.withResolvers<void>();
   const terminal = new Promise<{
     code: number | null;
     signal: NodeJS.Signals | null;
@@ -171,7 +168,7 @@ export async function startInstalledLibraryBusy(options: BusyLibraryOptions) {
     if (Buffer.byteLength(stdout) + Buffer.byteLength(chunk) > 131_072) {
       streamFailure ??= new Error("Library activity stdout exceeds its bound");
       child.stdin.end();
-      notifyLine?.();
+      notifyLine();
       return;
     }
     stdout += chunk;
@@ -185,7 +182,7 @@ export async function startInstalledLibraryBusy(options: BusyLibraryOptions) {
           error instanceof Error ? error : new Error(String(error), { cause: error });
       }
       consumed = end + 1;
-      notifyLine?.();
+      notifyLine();
     }
   });
   const evidence: Record<string, unknown> = {

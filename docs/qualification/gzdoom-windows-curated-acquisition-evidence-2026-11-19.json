@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "kind": "curated-exact-byte-acquisition-evidence",
+  "port_id": "zdoom-gzdoom",
+  "observed_on": "2026-11-19",
+  "release": {
+    "repository": "ZDoom/gzdoom",
+    "repository_id": 10879376,
+    "release_id": 216296130,
+    "tag": "g4.14.2",
+    "commit_sha1": "99aa489d09015a95bb78df2b30ede29f328cc874",
+    "asset_id": 251530238,
+    "filename": "gzdoom-4-14-2-windows.zip",
+    "version_channel": "stable",
+    "release_author": "madame-rachelle",
+    "asset_uploader": "madame-rachelle",
+    "published_at": "2025-05-03T10:10:18Z",
+    "provider_sha256": null,
+    "checksum_sidecar": null,
+    "release_url": "https://github.com/ZDoom/gzdoom/releases/tag/g4.14.2",
+    "acquisition_url": "https://github.com/ZDoom/gzdoom/releases/download/g4.14.2/gzdoom-4-14-2-windows.zip"
+  },
+  "archive": {
+    "sha256": "6d01c5bb48610cebfa9dfd0b7705a1e20bfd56032a74484ac256d8c4e3c51bee",
+    "archive_size": 21879627,
+    "entries": 15,
+    "regular_files": 13,
+    "expanded_bytes": 34130971,
+    "sorted_members": [
+      "brightmaps.pk3",
+      "fm_banks/",
+      "fm_banks/GENMIDI.GS.wopl",
+      "fm_banks/gs-by-papiezak-and-sneakernets.wopn",
+      "game_support.pk3",
+      "game_widescreen_gfx.pk3",
+      "gzdoom.exe",
+      "gzdoom.pk3",
+      "licenses.zip",
+      "lights.pk3",
+      "openal32.dll",
+      "sndfile.dll",
+      "soundfonts/",
+      "soundfonts/gzdoom.sf2",
+      "zmusic.dll"
+    ],
+    "crc_check": "pass",
+    "executable": {
+      "name": "gzdoom.exe",
+      "size": 11419136,
+      "sha256": "ec706c2ea1ef946eec13be7b1b461df8d52efcd47caa6c056ed0e0257f7f9ffa",
+      "machine": "x86-64",
+      "format": "PE32+"
+    }
+  },
+  "source": {
+    "license_url": "https://github.com/ZDoom/gzdoom/blob/99aa489d09015a95bb78df2b30ede29f328cc874/LICENSE",
+    "license_sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+    "windows_portable_paths_url": "https://github.com/ZDoom/gzdoom/blob/99aa489d09015a95bb78df2b30ede29f328cc874/src/common/platform/win32/i_specialpaths.cpp",
+    "windows_portable_paths_sha256": "549c2ac16cfba992ec6383f72e0e401f54f9cac09519f47ce8fc5a0cd0dfaa5e"
+  },
+  "retained_independent_comparison": {
+    "url": "https://github.com/boburning/portcove/blob/a91c8d295c4331c27d4bb7b1fb9665e4ea8836d3/docs/qualification/raze-windows-managed-2026-11-10.md",
+    "sha256": "b731235937440ad9e3b04ddd239b39227ab06bfa0fce21351831e9e2d36f8288"
+  },
+  "frozen_client": {
+    "release_url": "https://github.com/boburning/portcove/releases/tag/nightly-0.1.0-preview.9",
+    "platform": "windows-x86-64",
+    "source_commit": "f4256f25615d75acc081afb984ab4195288db881",
+    "executable_sha256": "bf579694dafefd2d119cbd2f7b889c6eef926c6b0f47821a884a942c36d6df59",
+    "ordinary_plan_error": "Doom / GZDoom (ZDoom) does not publish a SHA-256 digest for gzdoom-4-14-2-windows.zip",
+    "ordinary_plan_exit_code": 11
+  },
+  "signed_prior": {
+    "pages_commit": "cba59c093ba6a58403545a3bc3443fd09c21ebf2",
+    "versions": {
+      "definitions": 28,
+      "policy": 28,
+      "snapshot": 28,
+      "timestamp": 28
+    },
+    "timestamp_sha256": "59cf030bfcf7a2d3d283e8ec2f518489da7d77cbdc846e66fd8135326e9dcb71",
+    "index_sha256": "fd4e815436c5a473d1a51c7ef363bf8875b2c2608d720aa3c88932b32360c88d",
+    "descriptive_listings_sha256": "69a47aa975ad79e852d945a92f9fe219d2425e5e80eebea78cf5446dfe160440",
+    "authenticated_readback_workflow": "https://github.com/boburning/portcove/actions/runs/44635323966"
+  }
+}

@@ -2,7 +2,12 @@ import { defaultReleaseChannel } from "../../view-model";
 import { gameIdentityLabel } from "../../port-identity";
 import { desktopApi } from "../../api";
 import type { DetailActions } from "../../components/DetailPanel";
-import type { PortDefinition, PortStatus, SourceRegistrationReference } from "../../types";
+import type {
+  InstallRecord,
+  PortDefinition,
+  PortStatus,
+  SourceRegistrationReference,
+} from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
@@ -39,6 +44,7 @@ export interface DetailActionContext {
   backupsChanged?: () => Promise<void>;
   libraryGeneration: number;
   dismissInstallReview?: DetailActions["dismissInstallReview"];
+  onInstallCommitted?: (install: InstallRecord) => void;
 }
 
 export function detailActions({
@@ -53,6 +59,7 @@ export function detailActions({
   backupsChanged = () => Promise.resolve(),
   libraryGeneration,
   dismissInstallReview = () => undefined,
+  onInstallCommitted,
 }: DetailActionContext): DetailActions {
   if (!Number.isSafeInteger(libraryGeneration) || libraryGeneration < 0) {
     throw new Error("Game details require an explicit library generation");
@@ -94,17 +101,23 @@ export function detailActions({
     dismissInstallReview,
     install: async () => {
       try {
-        return await perform("install", (reportEvent) =>
-          desktopApi.install(
-            port.id,
-            status?.channel ?? defaultReleaseChannel(port),
-            sourcePath,
-            biosPath,
-            false,
-            libraryGeneration,
-            reportEvent,
-            ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
-          ),
+        return await perform(
+          "install",
+          async (reportEvent) => {
+            const installed = await desktopApi.install(
+              port.id,
+              status?.channel ?? defaultReleaseChannel(port),
+              sourcePath,
+              biosPath,
+              false,
+              libraryGeneration,
+              reportEvent,
+              ...(sourceReference ? ([sourceReference] as const) : ([] as const)),
+            );
+            onInstallCommitted?.(installed);
+            return installed;
+          },
+          { installedResult: (install) => install },
         );
       } finally {
         // The status layer owns the settled result, including failures and cancellation.

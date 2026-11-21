@@ -1120,6 +1120,8 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
       ) => {
         fetched.push(url);
         source.budget.charge("GET", url, 1, 100, "200");
+        if (url.includes("andrewnakas/recompsoftware"))
+          return { requests: 1, bytes: 1, status: 503, headers: {}, text: "" };
         if (url.includes("portsdr"))
           return portsdrFails
             ? { requests: 1, bytes: 1, status: 503, headers: {}, text: "" }
@@ -1140,6 +1142,10 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
     },
     sdk: await fixtureGitHub(({ endpoint }) => {
       source.budget.charge("GET", endpoint, 1, 100, "200");
+      if (endpoint === "repos/andrewnakas/recompsoftware")
+        return { id: 1418451069, full_name: "andrewnakas/recompsoftware", default_branch: "main" };
+      if (endpoint === "repos/andrewnakas/recompsoftware/git/ref/heads/main")
+        return { object: { sha: "e981757f31fdb58b85e546069cf303daac56cc61" } };
       const repository = endpoint.replace(/^repos\//u, "");
       resolved.push(repository);
       const json = (status: number) =>
@@ -1159,7 +1165,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   };
   Object.defineProperty(session, "source", { configurable: true, value: source });
   const summary = await session.collectExternalLists();
-  assert.equal(fetched.length, 3);
+  assert.equal(fetched.length, 4);
   assert.deepEqual(
     resolved,
     [
@@ -1200,7 +1206,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   const persisted = parseLeadState(JSON.parse(readFileSync(path.join(root, "leads.json"), "utf8")));
   assert.equal(Object.keys(persisted.external?.hints ?? {}).length, 12);
   await session.collectExternalLists();
-  assert.equal(fetched.length, 3, "one collection attempt per run");
+  assert.equal(fetched.length, 4, "one collection attempt per run");
 
   // Next run: failed lists wait out their retry clock and the reserve stops resolution.
   const rerun = async (startedAt: string, reserve: number) => {
@@ -1215,7 +1221,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
     return await session.collectExternalLists();
   };
   await rerun("2026-10-24T12:56:46.011Z", 183);
-  assert.equal(fetched.length, 3, "failed lists are not refetched before their retry clock");
+  assert.equal(fetched.length, 4, "failed lists are not refetched before their retry clock");
   assert.equal(resolved.length, 8, "budget refusal happens before any provider read");
   assert.ok(
     session.journal.notes.some((n) => (n as { phase?: string }).phase === "external-resolution"),
@@ -1226,8 +1232,8 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   const findsClock = structuredClone(session.leads.external?.lists["decomp-buddy-finds"]);
   await rerun("2026-10-26T12:56:46.011Z", 150);
   assert.deepEqual(
-    fetched.slice(3).map((u) => new URL(u).hostname),
-    ["portsdr.com", "alexbeavs-ps1-ports.github.io"],
+    fetched.slice(4).map((u) => new URL(u).hostname),
+    ["portsdr.com", "alexbeavs-ps1-ports.github.io", "raw.githubusercontent.com"],
   );
   assert.deepEqual(session.leads.external?.lists["decomp-buddy-finds"], findsClock);
   const recovered: ExternalLeadState["lists"] = session.leads.external?.lists ?? {};
@@ -1254,7 +1260,7 @@ void test("provider-wide refusals stop hint resolution without blaming any hint"
       now,
       "finds.json",
     );
-    for (const list of ["portsdr", "alexbeav-psx"])
+    for (const list of ["portsdr", "alexbeav-psx", "recompsoftware"])
       leads.external.attempts![list] = { attempted_at: now, outcome: "partial" };
     leads = parseLeadState(JSON.parse(JSON.stringify(leads)));
     const reads: string[] = [];

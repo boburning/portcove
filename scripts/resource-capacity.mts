@@ -67,7 +67,7 @@ import {
   verifyResourceRecoveryReference,
 } from "./resource-paths.mts";
 import { resolvePhysicalPath } from "./dev-storage.mts";
-import { fallowSource } from "./fallow-source.mts";
+import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir, mkdir, writeFile, rm } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -611,7 +611,10 @@ async function acquireLocalResourceCapacity(
           );
         if (performance.now() >= nextReport) {
           const holder =
-            legacy ?? (await observeCapacity({ root })).running.find((entry) => entry.activity);
+            legacy ??
+            (await observeCapacity({ root, passive: true })).running.find(
+              (entry) => entry.activity,
+            );
           (options.report ?? console.error)(
             `Waiting for host capacity (${profile}, ${units}/${config.slots} slots); queued ${elapsed}ms; owner ${diagnosticText(holder?.workspace ?? waiting[0]?.workspace ?? "unknown")}, command ${diagnosticText(holder?.command ?? waiting[0]?.command ?? "unknown")}.`,
           );
@@ -717,7 +720,7 @@ export async function runResourceHostTransition(
   const { acquireBridgedCapacity } = await import("./resource-host-bridge.mts");
   const { runRustTests } = await import("./run-rust-tests.mts");
   const workspace = fileURLToPath(new URL("../", import.meta.url));
-  const before = fallowSource(workspace, undefined, { includeAll: true });
+  const before = await snapshotAdmissionSource(workspace, "before host transition");
   return runRustTests(["--guard-command", process.execPath, ...args], {
     executionTimeoutMilliseconds: 120_000,
     acquireLock: async (metadata, options) => {
@@ -737,14 +740,15 @@ export async function runResourceHostTransition(
             ...(recovery ? { recoveryReceipt: recovery.local } : {}),
           }),
       );
-      if (
-        JSON.stringify(before) !==
-        JSON.stringify(fallowSource(workspace, undefined, { includeAll: true }))
-      ) {
+      try {
+        const after = await snapshotAdmissionSource(workspace, "after host transition admission");
+        if (JSON.stringify(before) !== JSON.stringify(after))
+          throw new Error("Transition source changed while waiting; no configuration changed");
+        return lease;
+      } catch (error) {
         await lease.release();
-        throw new Error("Transition source changed while waiting; no configuration changed");
+        throw error;
       }
-      return lease;
     },
   });
 }
@@ -855,6 +859,94 @@ export async function capacityChildrenStopped(lease: unknown, options: { root?: 
   return true;
 }
 
+export function readResourceProbe(code: string, args: readonly string[], timeoutMs: number) {
+  return new Promise<unknown>((resolve, reject) => {
+    const child = spawn(process.execPath, ["--input-type=module", "-e", code, ...args], {
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+      detached: process.platform !== "win32",
+    });
+    let output = "";
+    let diagnostic = "";
+    const timer = setTimeout(() => {
+      if (child.pid && process.platform !== "win32") {
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {
+          child.kill("SIGKILL");
+        }
+      } else {
+        child.kill("SIGKILL");
+      }
+      child.stdout.destroy();
+      child.stderr.destroy();
+      child.unref();
+      reject(
+        Object.assign(new Error(`Resource probe timed out after ${timeoutMs} ms`), {
+          code: "ETIMEDOUT",
+        }),
+      );
+    }, timeoutMs);
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      output = (output + chunk).slice(0, 8192);
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      diagnostic = (diagnostic + chunk).slice(0, 1024);
+    });
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("close", (status) => {
+      clearTimeout(timer);
+      if (status !== 0) {
+        reject(new Error(diagnostic.trim() || `Resource probe exited ${status}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(output));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+const defaultSourceScanTimeoutMs = 30_000;
+
+function sourceScanTimeoutMs(environment: NodeJS.ProcessEnv) {
+  const value = environment.PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS;
+  if (value === undefined) return defaultSourceScanTimeoutMs;
+  if (!/^[1-9][0-9]{1,2}$/u.test(value) || Number(value) < 30 || Number(value) > 120)
+    throw new Error(
+      "PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS must be an integer from 30 to 120",
+    );
+  return Number(value) * 1000;
+}
+
+async function snapshotAdmissionSource(
+  workspace: string,
+  phase: string,
+  timeoutMs = defaultSourceScanTimeoutMs,
+  report: (message: string) => void = (message) => console.error(message),
+) {
+  report(`Resource checkout scan started (${phase}); budget ${timeoutMs} ms`);
+  try {
+    const source = await readResourceProbe(
+      "const { fallowSource } = await import(process.argv[1]); console.log(JSON.stringify(fallowSource(process.argv[2], undefined, { includeAll: true })));",
+      [new URL("./fallow-source.mts", import.meta.url).href, workspace],
+      timeoutMs,
+    );
+    report(`Resource checkout scan completed (${phase})`);
+    return source;
+  } catch (error) {
+    const outcome = errorCode(error) === "ETIMEDOUT" ? "timed out" : "failed";
+    report(`Resource checkout scan ${outcome} (${phase}); no payload started`);
+    throw error;
+  }
+}
+
 /** Reuse the existing source custody primitive, including dirty/untracked bytes. */
 export async function acquireSourceBoundCapacity(
   profile: string,
@@ -871,17 +963,15 @@ export async function acquireSourceBoundCapacity(
   const workspace = metadata.workspace;
   if (!options.snapshot && typeof workspace !== "string")
     throw new Error("Source-bound capacity requires a workspace");
-  const snapshot =
-    options.snapshot ??
-    (() => {
-      if (typeof workspace !== "string")
-        throw new Error("Source-bound capacity requires a workspace");
-      return fallowSource(workspace, undefined, { includeAll: true });
-    });
-  const before = options.expectedSource ?? snapshot();
+  const timeoutMs = sourceScanTimeoutMs(environment);
+  const snapshot = (phase: string) =>
+    options.snapshot
+      ? options.snapshot()
+      : snapshotAdmissionSource(String(workspace), phase, timeoutMs, options.report);
+  const before = options.expectedSource ?? (await snapshot("before admission"));
   const lease = await acquireResourceCapacity(profile, metadata, options);
   try {
-    if (JSON.stringify(before) !== JSON.stringify(snapshot()))
+    if (JSON.stringify(before) !== JSON.stringify(await snapshot("after admission")))
       throw Object.assign(
         new Error("Source changed while queued; the requested candidate has not run"),
         { code: "PORTCOVE_RESOURCE_SOURCE_CHANGED" },

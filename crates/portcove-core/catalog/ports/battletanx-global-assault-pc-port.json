@@ -28,7 +28,25 @@
       "warnings": [],
       "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme"
     },
-    "original_game_title": "BattleTanx: Global Assault"
+    "original_game_title": "BattleTanx: Global Assault",
+    "original_game": {
+      "format_version": 1,
+      "id": "battletanx-global-assault",
+      "evidence_urls": [
+        "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme",
+        "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port"
+      ],
+      "source_editions": [
+        {
+          "id": "battletanx-global-assault-nintendo-64",
+          "title": "BattleTanx: Global Assault (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/3c074c3bd9e20e81c32a37b588a70ecd2073e128/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

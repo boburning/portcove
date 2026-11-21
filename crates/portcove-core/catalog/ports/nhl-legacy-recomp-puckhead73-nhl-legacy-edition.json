@@ -4,6 +4,14 @@
     "id": "nhl-legacy-recomp-puckhead73-nhl-legacy-edition",
     "name": "NHL Legacy Edition — NHL Legacy Recomp (puckhead73)",
     "original_game_title": "NHL Legacy Edition",
+    "artwork": {
+      "game_id": 36848,
+      "cover_id": 120254,
+      "image_id": "co2kse",
+      "image_sha256": "defe24f153139946cb3e8a073f682b983dd07d1fee1c2b5e507902e66c231dfc",
+      "game_slug": "nhl-legacy-edition",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports playable features, but Portcove has not tested them. Proton use does not establish a native Linux player. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/puckhead73/nhl-legacy-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/puckhead73/nhl-legacy-recomp"
     },
-    "issue_number": 3133
+    "issue_number": 3133,
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-legacy-edition",
+      "evidence_urls": ["https://github.com/puckhead73/nhl-legacy-recomp"],
+      "source_editions": [
+        {
+          "id": "nhl-legacy-edition-xbox-360",
+          "title": "NHL Legacy Edition (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/puckhead73/nhl-legacy-recomp/blob/0852183dd13e6efb108170d3a814c0aa00cd3879/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

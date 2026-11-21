@@ -395,6 +395,94 @@ void test("existing issue membership is reused after complete pagination", async
   assert.deepEqual(cursors, [null, "page2"]);
 });
 
+void test("fresh port membership reads the exact issue across active and archived pages", async () => {
+  const cursors: unknown[] = [];
+  const client = await sdkRoadmap(config, {
+    graphql(query, variables) {
+      assert.match(query, /includeArchived:true/u);
+      assert.equal(variables.id, "I_source");
+      cursors.push(variables.after);
+      return {
+        node: {
+          id: "I_source",
+          projectItems: {
+            totalCount: 2,
+            nodes: variables.after
+              ? [
+                  {
+                    id: "PVTI_selected",
+                    databaseId: 301,
+                    isArchived: false,
+                    project: { id: "PVT" },
+                  },
+                ]
+              : [{ id: "PVTI_other", databaseId: 302, isArchived: true, project: { id: "other" } }],
+            pageInfo: { hasNextPage: !variables.after, endCursor: variables.after ? null : "p2" },
+          },
+        },
+      };
+    },
+  });
+  assert.deepEqual(await client.issueProjectMemberships("I_source"), [
+    { id: "PVTI_other", databaseId: 302, isArchived: true, projectId: "other" },
+    { id: "PVTI_selected", databaseId: 301, isArchived: false, projectId: "PVT" },
+  ]);
+  assert.deepEqual(cursors, [null, "p2"]);
+});
+
+void test("fresh port membership rechecks an initially invisible issue once", async () => {
+  for (const persistent of [false, true]) {
+    let calls = 0;
+    const client = await sdkRoadmap(config, {
+      graphql(_query, variables) {
+        assert.equal(variables.after, null);
+        calls++;
+        return {
+          node:
+            calls === 1 || persistent
+              ? null
+              : {
+                  id: "I_source",
+                  projectItems: {
+                    totalCount: 0,
+                    nodes: [],
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                  },
+                },
+        };
+      },
+    });
+    if (persistent)
+      await assert.rejects(client.issueProjectMemberships("I_source"), /identity mismatch/u);
+    else assert.deepEqual(await client.issueProjectMemberships("I_source"), []);
+    assert.equal(calls, 2);
+  }
+});
+
+void test("fresh port membership fails closed on a wrong issue, incomplete page or malformed item", async () => {
+  for (const node of [
+    { id: "I_wrong", projectItems: { totalCount: 0, nodes: [], pageInfo: { hasNextPage: false } } },
+    {
+      id: "I_source",
+      projectItems: { totalCount: 1, nodes: [], pageInfo: { hasNextPage: false } },
+    },
+    {
+      id: "I_source",
+      projectItems: {
+        totalCount: 1,
+        nodes: [{ id: "PVTI_selected", databaseId: 301, project: { id: "PVT" } }],
+        pageInfo: { hasNextPage: false },
+      },
+    },
+  ]) {
+    const client = await sdkRoadmap(config, { graphql: () => ({ node }) });
+    await assert.rejects(
+      client.issueProjectMemberships("I_source"),
+      /incomplete GitHub inventory/u,
+    );
+  }
+});
+
 void test("complete Project context reads every field page with opaque identity checks", async () => {
   const cursors: unknown[] = [];
   const client = await sdkRoadmap(config, {
@@ -461,6 +549,49 @@ async function readPages(pages: readonly unknown[]) {
   });
   return client.itemList(1);
 }
+
+void test("exact Project item hydration is bounded and refuses a different Project or archived result", async () => {
+  const ids = Array.from({ length: 11 }, (_, i) => `PVTI_${i + 1}`);
+  const batches: number[] = [];
+  let wrongProject = false;
+  let archived = false;
+  let unordered = false;
+  const client = await sdkRoadmap(config, {
+    graphql(query, variables) {
+      assert.match(query, /DoctorProjectItemDetails/u);
+      assert.match(query, /fieldValues/u);
+      assert.match(query, /blockedBy/u);
+      const selected = variables.ids as string[];
+      batches.push(selected.length);
+      const nodes = selected.map((id) => ({
+        ...draft(Number(id.slice(5))),
+        project: { id: wrongProject ? "OTHER" : "PVT" },
+        isArchived: archived,
+      }));
+      return { nodes: unordered ? nodes.reverse() : nodes };
+    },
+  });
+  const read = () =>
+    client.itemList(1, {
+      details: { id: "PVT" },
+      itemIds: ids,
+      includeDependencies: true,
+      includeItemRevision: true,
+    });
+  assert.deepEqual(
+    (await read()).map((r) => r.id),
+    ids,
+  );
+  assert.deepEqual(batches, [10, 1]);
+  wrongProject = true;
+  await assert.rejects(read, /changed identity/u);
+  wrongProject = false;
+  archived = true;
+  await assert.rejects(read, /changed identity/u);
+  archived = false;
+  unordered = true;
+  await assert.rejects(read, /changed identity/u);
+});
 
 void test("GraphQL Project item pagination preserves full content and normalized fields", async () => {
   const first = {

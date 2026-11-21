@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "athelas-the-two-towers-xbox",
+    "artwork": {
+      "game_id": 2965,
+      "cover_id": 615761,
+      "image_id": "cod74h",
+      "image_sha256": "def5162525d1bda7d9f3e3dd44ccb625fb593b24bdf12835ba72a8d055d349c1",
+      "game_slug": "the-lord-of-the-rings-the-two-towers",
+      "match_kind": "underlying-game"
+    },
     "name": "The Lord of the Rings: The Two Towers — Original Xbox (Athelas ports/two-towers)",
     "summary": "Use your own USA Xbox The Two Towers through the complete Athelas launcher. Preserve its separate TT-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Two Towers",
@@ -46,6 +54,24 @@
         {
           "title": "Keep versions, components and restrictions together",
           "instruction": "This Athelas component is distinct from Gumpolas TooTawersRecomp (#2796), whose direct entry is twotowers_recomp.exe with its own settings, game_files and saves. Shared Xbox title/toolkit ancestry does not make the packages or profiles interchangeable. The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-two-towers",
+      "evidence_urls": [
+        "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
+        "https://github.com/Shagg88/Athelas"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-two-towers-xbox",
+          "title": "The Lord of the Rings: The Two Towers (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Shagg88/Athelas/blob/10d20319e54b1050f99bd61651165cb28041e585/README.md"
+          ]
         }
       ]
     }

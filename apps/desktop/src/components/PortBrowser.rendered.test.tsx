@@ -47,6 +47,7 @@ describe("desktop components", () => {
             view={view}
             ports={[port]}
             statuses={new Map([[port.id, status]])}
+            libraryCount={1}
             overview={{ installed: 1, ready: 1, needsSetup: 0, staged: status.staged ? 1 : 0 }}
             filter="all"
             setFilter={vi.fn()}
@@ -205,6 +206,7 @@ describe("desktop components", () => {
         view={view}
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 1 }}
         filter="all"
         setFilter={vi.fn()}
@@ -230,7 +232,7 @@ describe("desktop components", () => {
     ).toBe(expectedAvailable);
   });
 
-  it("counts Discover cards as games while Library keeps its separate-port count", () => {
+  it("counts explicit games and ungrouped projects while Library keeps its matching-port count", () => {
     const originalGame = {
       format_version: 1,
       id: "shared-game",
@@ -247,12 +249,14 @@ describe("desktop components", () => {
       { ...port, id: "shared-two", name: "Shared two", presentation },
     ];
     const ungrouped = { ...port, id: "solo", name: "Solo port" };
-    const count = (view: "catalog" | "library", ports: (typeof port)[]) => {
+    const count = (view: "catalog" | "library", ports: (typeof port)[], query = "") => {
       const html = renderToStaticMarkup(
         <PortBrowser
           view={view}
           ports={ports}
+          query={query}
           statuses={new Map()}
+          libraryCount={0}
           overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}
@@ -262,13 +266,32 @@ describe("desktop components", () => {
       );
       return /<p[^>]*aria-label="Search results"[^>]*>([^<]*)<\/p>/u.exec(html)?.[1];
     };
-    // One card per game: two ports of one game plus one ungrouped port are two games.
-    expect(count("catalog", [...grouped, ungrouped])).toBe("2 games");
+    // Explicit same-game ports share a card; an unmapped project keeps its own scope.
+    expect(count("catalog", [...grouped, ungrouped])).toBe("1 game + 1 ungrouped project");
     expect(count("catalog", grouped)).toBe("1 game");
-    expect(count("catalog", [ungrouped])).toBe("1 game");
+    expect(count("catalog", [ungrouped])).toBe("1 ungrouped project");
     expect(count("library", [...grouped, ungrouped])).toBe(
       "1 game + 1 ungrouped project · 3 matching ports",
     );
+    expect(count("library", [ungrouped])).toBe("1 port in your library");
+    expect(count("library", [], "absent")).toBe("0 ports in your library");
+    const quickViews = renderToStaticMarkup(
+      <PortBrowser
+        view="library"
+        ports={grouped}
+        libraryFilterCandidates={grouped}
+        libraryCount={2}
+        setLibraryReadiness={vi.fn()}
+        statuses={new Map()}
+        overview={{ installed: 2, ready: 0, needsSetup: 2, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        onSelect={vi.fn()}
+        loading={false}
+      />,
+    );
+    expect(quickViews).toContain("Every port in this library scope. 2 ports");
+    expect(quickViews).not.toContain("2 games");
   });
 
   it("renders port cards and empty states", () => {
@@ -278,6 +301,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[port]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -291,6 +315,7 @@ describe("desktop components", () => {
         view="catalog"
         ports={[]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -303,6 +328,7 @@ describe("desktop components", () => {
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -317,6 +343,7 @@ describe("desktop components", () => {
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={2}
         overview={{ ...overview, installed: 2, needsSetup: 2 }}
         filter="setup"
         setFilter={vi.fn()}
@@ -330,6 +357,7 @@ describe("desktop components", () => {
         view="library"
         ports={[]}
         statuses={new Map()}
+        libraryCount={overview.installed}
         overview={overview}
         filter="all"
         setFilter={vi.fn()}
@@ -431,6 +459,7 @@ describe("desktop components", () => {
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
         filter="ready"
         setFilter={vi.fn()}
@@ -498,6 +527,7 @@ describe("desktop components", () => {
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 1 }}
         filter="ready"
         setFilter={vi.fn()}
@@ -555,6 +585,7 @@ describe("desktop components", () => {
           view="catalog"
           ports={[port]}
           statuses={new Map([[port.id, status]])}
+          libraryCount={1}
           overview={{ installed: 1, ready: 0, needsSetup: 0, staged: 1 }}
           filter="all"
           setFilter={vi.fn()}
@@ -602,6 +633,7 @@ describe("desktop components", () => {
           view="library"
           ports={[port]}
           statuses={new Map([[port.id, recentStatus]])}
+          libraryCount={1}
           overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
           recent={{ port, status: recentStatus }}
           filter="all"
@@ -644,6 +676,7 @@ describe("desktop components", () => {
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, recentStatus]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
         recent={{ port, status: recentStatus }}
         filter="all"

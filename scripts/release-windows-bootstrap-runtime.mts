@@ -193,7 +193,7 @@ async function prepareAdmittedWindowsSourceRuntime(role: "bootstrap" | "native")
   const tree = git(["rev-parse", "HEAD^{tree}"]);
   assert.match(tree, /^[a-f0-9]{40}$/u);
   const helperPath = path.join(project, "scripts/prepare-hosted-windows-runtime.ps1"),
-    floorPath = path.join(project, "apps/desktop/src-tauri/src/runtime_support.rs"),
+    floorPath = path.join(project, "apps/desktop/src-tauri/tauri.conf.json"),
     helper = await readControllerToolFile(helperPath, 131072),
     floor = await readControllerToolFile(floorPath, 65536),
     mechanism = readSupportedRuntimeMechanism(helper);

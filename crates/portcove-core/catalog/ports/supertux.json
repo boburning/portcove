@@ -1,0 +1,77 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "supertux",
+    "name": "SuperTux",
+    "original_game_title": "SuperTux",
+    "artwork": {
+      "game_id": 51231,
+      "cover_id": 201619,
+      "image_id": "co4bkj",
+      "image_sha256": "d5c999ea193a6ad6a79e7d4d1f7d82d84be0a3303e48e608e1244b4da1e5ba45",
+      "game_slug": "supertux",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Play the story worlds, bonus levels, and community platforming maps.",
+    "project_url": "https://github.com/SuperTux/supertux",
+    "issue_number": 6455,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/SuperTux/supertux/releases",
+    "setup_url": "https://www.supertux.org/download",
+    "download_asset_hints": {
+      "windows-x86-64": ["supertux-", "-win64-portable.zip"],
+      "linux-x86-64": ["supertux-", "-x86_64.appimage"],
+      "macos-x86-64": ["supertux-", "-darwin-x86_64.dmg"],
+      "macos-aarch64": ["supertux-", "-darwin-arm64.dmg"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Back up existing SuperTux profiles",
+          "instruction": "Close SuperTux and copy your active profile and any older SuperTux profile to a separate location before starting a new release. For the Windows portable edition, include the user folder next to the launcher. On Linux, check for an older ~/.supertux2 folder. Keep the backup until you have checked your story progress and settings."
+        },
+        {
+          "title": "Start the package for your computer",
+          "instruction": "On Windows, extract the complete portable ZIP and run run_supertux_portable.bat, or use the official installer. On Linux, make the publisher’s AppImage executable and start it. If FUSE is unavailable, pass --appimage-extract-and-run when starting the AppImage. The publisher’s download page also links to Flatpak for Linux. On Mac, pick the Intel or Apple Silicon disk image and copy the complete SuperTux.app into Applications. On first launch, choose whether to allow Internet access for the in-game add-on catalog. You can decline and still play the built-in worlds."
+        }
+      ],
+      "warnings": [
+        "SuperTux can move files out of an older profile and remove its directory even when you choose a separate portable user folder. Back up both profiles before first launch."
+      ],
+      "references": [
+        {
+          "title": "Keep saves, settings, and add-ons",
+          "instruction": "The Windows portable launcher uses the user folder next to the batch file. Keep that folder and any profile chosen with --userdir or SUPERTUX2_USER_DIR. Keep older folders such as .supertux2 before changing versions. The 0.7.0 release notes explain the .old story saves left by the betas."
+        },
+        {
+          "title": "Install the Android build for your device",
+          "instruction": "Open the project’s GitHub Releases page and expand the 0.7.0 release assets for the ARM64, ARMv7, x86, and x86-64 APKs. Use the package for your device. Keep your Android app data before uninstalling or switching package sources."
+        }
+      ],
+      "help_url": "https://www.supertux.org/download"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "supertux",
+      "evidence_urls": [
+        "https://www.supertux.org/download",
+        "https://github.com/SuperTux/supertux"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "supertux",
+    "origin": {
+      "project_url": "https://github.com/SuperTux/supertux",
+      "repository": {
+        "host": "github.com",
+        "id": "14650917"
+      }
+    },
+    "decisions": []
+  }
+}

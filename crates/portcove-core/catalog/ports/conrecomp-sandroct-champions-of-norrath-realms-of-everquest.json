@@ -35,6 +35,12 @@
       "image_sha256": "4a52060eb3d399ed2991973104639feefac00ac6cd61ba2673eafa30215d6fc2",
       "game_slug": "champions-of-norrath-realms-of-everquest",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "champions-of-norrath-realms-of-everquest",
+      "evidence_urls": ["https://github.com/sandroct/CoNRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

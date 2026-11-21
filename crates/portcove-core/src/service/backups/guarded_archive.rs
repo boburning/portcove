@@ -84,6 +84,14 @@ pub(super) fn manifest_input(
     match operation.original_paths.as_slice() {
         [] => Ok(None),
         [path] if path.parent() == Some(recovery) && manifest_filename(path) => {
+            if operation.phase == LifecyclePhase::CleanupPending {
+                refuse_symlink_ancestors(path)?;
+                if !path.try_exists()? {
+                    // After the cleanup transition the operation-owned directory
+                    // may already have been deleted, including its receipt.
+                    return Ok(Some(path.clone()));
+                }
+            }
             let manifest = read_input(path)?;
             if manifest.port_id != operation.port_id {
                 return Err(PortcoveError::verification(
@@ -132,10 +140,13 @@ impl PortcoveService {
         &self,
         operation: &mut LifecycleOperation,
         bytes: &[u8],
+        settings_deletion: bool,
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
-        let guarded = manifest.guarded_archive_v1.is_some()
+        let guarded = settings_deletion
+            || crate::native_mod_list::loader_list(&operation.port_id).is_some()
+            || manifest.guarded_archive_v1.is_some()
             || manifest.partitioned_data_v1.is_some()
             || self
                 .library
@@ -192,6 +203,14 @@ impl PortcoveService {
             )?;
             (binding, partitioned)
         } else {
+            if crate::native_mod_list::loader_list(&operation.port_id).is_some()
+                && crate::profile::selection(&self.library.connection()?, &operation.port_id)?
+                    .is_some()
+            {
+                return Err(PortcoveError::conflict(
+                    "This interrupted restore has no verified backup receipt. Keep its staged and previous data for recovery.",
+                ));
+            }
             (None, None)
         };
         self.require_direct_backup_snapshot(

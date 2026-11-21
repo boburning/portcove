@@ -28,7 +28,25 @@
       "warnings": [],
       "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
     },
-    "original_game_title": "Pilotwings 64"
+    "original_game_title": "Pilotwings 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "pilotwings-64",
+      "evidence_urls": [
+        "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md",
+        "https://github.com/NoahVl/Birdman64"
+      ],
+      "source_editions": [
+        {
+          "id": "pilotwings-64-nintendo-64",
+          "title": "Pilotwings 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/NoahVl/Birdman64/blob/18c64ac3c85c77500751a1a9080f73b666fd9bb3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

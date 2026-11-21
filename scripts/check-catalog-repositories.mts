@@ -28,7 +28,10 @@ import {
 } from "./upstream-health-inputs.mts";
 import { assessUpstreamLineage, type UpstreamLineage } from "./upstream-lineage.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import type { OriginalLocationReason } from "./upstream-location-reasons.mts";
+import {
+  reviewedEndpointClassification,
+  type OriginalLocationReason,
+} from "./upstream-location-reasons.mts";
 
 export interface ReviewedPin extends GithubPinScope {
   port_id: string;
@@ -74,6 +77,7 @@ type HealthPort = Record<string, unknown> &
     >
   > & {
     upstream_status?: string;
+    upstream_active_reviewed?: boolean;
     release?: {
       provider?: string;
       repository?: string;
@@ -229,6 +233,15 @@ function assertHealthCatalog(value: unknown): asserts value is HealthCatalog {
       throw new Error("Catalog requires unique stable port IDs");
     if (port.project_url !== undefined && typeof port.project_url !== "string")
       throw new Error("Unsupported original upstream location");
+    if (
+      port.upstream_active_reviewed !== undefined &&
+      (typeof port.upstream_active_reviewed !== "boolean" ||
+        (port.upstream_active_reviewed &&
+          port.upstream_status !== undefined &&
+          port.upstream_status !== "active"))
+    ) {
+      throw new Error("Invalid reviewed active upstream status.");
+    }
     if (port.upstream_status !== undefined && typeof port.upstream_status !== "string")
       throw new Error("Unsupported catalog maintenance declaration");
     for (const key of ["automated_tested_platforms", "manually_validated_platforms"] as const) {
@@ -1749,7 +1762,7 @@ export async function collectRepositoryHealth(
         : commitPresent
           ? "provider-reported-commit-present; destination-unknown; bytes-unverified"
           : record.reviewed_condition_sha256 !== null
-            ? "reviewed-endpoint-condition; availability-unknown; lineage-separately-recorded"
+            ? reviewedEndpointClassification
             : knownMaintenance
               ? "catalog-declared-unavailable-original"
               : record.status === "reachable"
@@ -2297,6 +2310,12 @@ export async function collectRepositoryHealth(
         history: lineage.get(port.id)?.history ?? [],
         decisions: lineage.get(port.id)?.decisions ?? [],
         catalog_upstream_status: port.upstream_status ?? "active",
+        declared_upstream_status:
+          port.upstream_active_reviewed === true
+            ? "active"
+            : ["retired", "superseded", "abandoned"].includes(port.upstream_status ?? "")
+              ? port.upstream_status
+              : null,
         authority: "retained reviewed authoring decisions; no new lineage decision",
       },
       accepted_artifact_obtainability: {

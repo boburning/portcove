@@ -3,13 +3,14 @@ const selector =
   "button, a[href], input, select, textarea, summary, [tabindex], [contenteditable=true], [role=option], [role=menuitem]";
 const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
-function visibleControl(item: HTMLElement) {
+function visibleControl(item: HTMLElement, includeAriaDisabled = false) {
   return (
     (item.tabIndex >= 0 ||
       item.matches("[role=option], [role=menuitem]") ||
       (item.matches("[role=radio], [role=tab]") &&
         Boolean(item.closest("[role=radiogroup], [role=tablist]")))) &&
-    !item.matches(":disabled, [aria-disabled=true]") &&
+    !item.matches(":disabled") &&
+    (includeAriaDisabled || item.getAttribute("aria-disabled") !== "true") &&
     !item.closest("[inert], [hidden], [aria-hidden=true]") &&
     item.getClientRects().length > 0 &&
     getComputedStyle(item).visibility !== "hidden"
@@ -25,16 +26,29 @@ export function navigationScope(): HTMLElement | Document {
   return surfaces.at(-1) ?? document;
 }
 
-export function focusableControls(scope: HTMLElement | Document = navigationScope()) {
-  return [...scope.querySelectorAll<HTMLElement>(selector)].filter(visibleControl);
+export function focusableControls(
+  scope: HTMLElement | Document = navigationScope(),
+  { includeAriaDisabled = false } = {},
+) {
+  return [...scope.querySelectorAll<HTMLElement>(selector)].filter((item) =>
+    visibleControl(item, includeAriaDisabled),
+  );
 }
 
-export function focusAndReveal(item: HTMLElement | null | undefined) {
-  const region = item?.closest<HTMLElement>("[data-focus-region]");
-  if (item && region) regionFocus.set(region, item);
-  item?.focus({ preventScroll: true });
-  item?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  if (item) containWithinScroller(item);
+export function focusAndReveal(
+  item: HTMLElement | null | undefined,
+  { centerBeforeFocus = false } = {},
+) {
+  if (!item) return;
+  const region = item.closest<HTMLElement>("[data-focus-region]");
+  if (region) regionFocus.set(region, item);
+  // Default consumers can resize on focus. A completion handoff centers before
+  // focusin so workspace feedback reflow records the destination's new position.
+  const moveFocus = () => item.focus({ preventScroll: true });
+  if (!centerBeforeFocus) moveFocus();
+  item.scrollIntoView({ block: centerBeforeFocus ? "center" : "nearest", inline: "nearest" });
+  containWithinScroller(item);
+  if (centerBeforeFocus) moveFocus();
 }
 
 /**

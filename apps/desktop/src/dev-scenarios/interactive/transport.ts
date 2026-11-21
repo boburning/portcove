@@ -215,6 +215,18 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_root_setup_consents", args, { generation });
       return [];
     },
+    run_standing_setup: (args) => {
+      if (!(args?.onEvent instanceof Channel))
+        return unsupported("run_standing_setup (unexpected channel)");
+      requireArgs("run_standing_setup", args, { generation, onEvent: args.onEvent });
+      return {
+        already_running: false,
+        assessments: [],
+        not_assessed: 0,
+        batches: [],
+        failures: [],
+      } satisfies Awaited<ReturnType<typeof desktopApi.runStandingSetup>>;
+    },
     assess_port_intents: (args) => {
       requireArgs("assess_port_intents", args, { generation });
       return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
@@ -522,6 +534,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         recoveryChoice === "original" ? "fixture/original" : "fixture/library",
       );
     },
+    get_default_library_root: (args) => {
+      requireArgs("get_default_library_root", args, {});
+      return "fixture/library";
+    },
     reset_default_library: (args) => {
       requireArgs("reset_default_library", args, {});
       if (journey !== "recovery") return unsupported("reset_default_library");
@@ -707,6 +723,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         ReturnType<typeof desktopApi.steamGridDbKeyStatus>
       >;
     },
+    discover_steam_client_roots: (args) => {
+      requireArgs("discover_steam_client_roots", args, { generation });
+      return [];
+    },
     get_application_update_preferences: (args) => {
       requireArgs("get_application_update_preferences", args, {});
       return applicationUpdatePreferences;
@@ -771,7 +791,16 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       return [];
     },
     get_store_game_installs: (args) => {
-      requireArgs("get_store_game_installs", args, { generation });
+      const profileId = args?.profileId;
+      requireArgs("get_store_game_installs", args, {
+        generation,
+        ...(profileId !== undefined ? { profileId } : {}),
+      });
+      if (
+        profileId !== undefined &&
+        !workspace(journey).catalog.source_profiles?.some((profile) => profile.id === profileId)
+      )
+        return unsupported("get_store_game_installs (unknown profile)");
       return { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
     },
     get_backups: (args) => {

@@ -78,6 +78,7 @@ function fixtureHash(port: FixturePort) {
 }
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { captureKeyboardTarget } from "./desktop-capture-target.mts";
 import assert from "node:assert/strict";
 import { copyFile, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -696,12 +697,12 @@ export async function installScenarios({
         })) > 0,
       );
 
-      const failureScreenshot = path.join(output, "native-install-refresh-failure.png");
-      await writeFile(failureScreenshot, await browser.takeScreenshot(), {
-        encoding: "base64",
-        flag: "wx",
-      });
-      artifacts.push(failureScreenshot);
+      await captureKeyboardTarget(
+        { browser, output, artifacts },
+        "native-install-refresh-failure",
+        await browser.findElement(By.css("[data-workspace-feedback]")),
+        "install-commit-refresh-recovery",
+      );
       const accessibility = path.join(output, "install-refresh-failure-accessibility.json");
       await captureAccessibilityReport(browser, accessibility, artifacts);
 
@@ -725,8 +726,8 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
-      // A refreshed workspace also lets the open detail re-read its own
-      // read-only views; none of these can repeat the install.
+      // A refreshed workspace lets the detail re-read its views. The independent
+      // scheduled catalog refresh may also run; none may repeat the game install.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
@@ -737,6 +738,8 @@ export async function installScenarios({
         "get_port_capabilities",
         "get_mod_setups",
         "get_backups",
+        "get_artwork",
+        "refresh_official_catalog_automatically",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(

@@ -122,6 +122,7 @@ void test("macOS qualification recognizes only the maintained portability input 
     "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
     "apps/desktop/src/components/Artwork.browser.test.tsx",
     "apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx",
+    "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
   ]) {
     const changed = editedWorkflow((jobs) => {
       const job = record(jobs.frontend_portability);

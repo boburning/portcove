@@ -4,6 +4,14 @@
     "id": "sotc-vibe-pc-lightvelox-shadow-of-the-colossus",
     "name": "Shadow of the Colossus — sotc-vibe-pc (LightVelox)",
     "original_game_title": "Shadow of the Colossus",
+    "artwork": {
+      "game_id": 2207,
+      "cover_id": 79055,
+      "image_id": "co1ozz",
+      "image_sha256": "9c625bb9076a364924df706cf9e5cb0bf4fc962cf9241191ae16ca0ce94b68cf",
+      "game_slug": "shadow-of-the-colossus",
+      "match_kind": "underlying-game"
+    },
     "summary": "This uses static EE/XFF translation with an IOP interpreter and runtime device emulation. Check the progress guide for the exact gameplay and playthrough limits. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LightVelox/sotc-vibe-pc",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/LightVelox/sotc-vibe-pc"
     },
-    "issue_number": 3063
+    "issue_number": 3063,
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": ["https://github.com/LightVelox/sotc-vibe-pc"],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-2",
+          "title": "Shadow of the Colossus (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/LightVelox/sotc-vibe-pc/blob/1ce4a5ea4955878bd2edabdc4e1a6b6f49a8e1ad/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

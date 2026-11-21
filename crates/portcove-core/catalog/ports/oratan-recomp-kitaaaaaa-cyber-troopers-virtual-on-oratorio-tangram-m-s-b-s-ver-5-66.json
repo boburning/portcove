@@ -3,9 +3,17 @@
   "listing": {
     "id": "oratan-recomp-kitaaaaaa-cyber-troopers-virtual-on-oratorio-tangram-m-s-b-s-ver-5-66",
     "name": "Cyber Troopers Virtual-On Oratorio Tangram M.S.B.S. Ver.5.66 — Oratan-recomp (kitaaaaaa)",
-    "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram M.S.B.S. Ver.5.66",
+    "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
     "summary": "The project reports playing the alpha from start to finish. Split-screen is experimental, and online play is unsupported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kitaaaaaa/Oratan-recomp",
+    "artwork": {
+      "game_id": 172535,
+      "cover_id": 181684,
+      "image_id": "co3w6s",
+      "image_sha256": "6e9e759f1c84a4a342c26bb99602367e7be5c44713bb37d40ba9179d4914fd6e",
+      "game_slug": "cyber-troopers-virtual-on-oratorio-tangram-msbs-ver-5-dot-66",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/kitaaaaaa/Oratan-recomp"
     },
-    "issue_number": 3263
+    "issue_number": 3263,
+    "original_game": {
+      "format_version": 1,
+      "id": "cyber-troopers-virtual-on-oratorio-tangram",
+      "evidence_urls": ["https://github.com/kitaaaaaa/Oratan-recomp"],
+      "source_editions": [
+        {
+          "id": "cyber-troopers-virtual-on-oratorio-tangram-xbox-360",
+          "title": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/kitaaaaaa/Oratan-recomp/blob/762ea1a785ab658cb2dca4d3c7f4a9c7735f2306/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tk22-26-jetforcegemini-recomp",
+    "artwork": {
+      "game_id": 1355,
+      "cover_id": 353828,
+      "image_id": "co7l0k",
+      "image_sha256": "9054c68df441922e51b4fb4d22fd285b2d5531b2b1f14c04c223c26756ff16f9",
+      "game_slug": "jet-force-gemini",
+      "match_kind": "underlying-game"
+    },
     "name": "Jet Force Gemini (Jet Force Gemini Recomp)",
     "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
     "original_game_title": "Jet Force Gemini",
@@ -37,6 +45,25 @@
       ],
       "warnings": [
         "Keep the prebuilt launcher/runtime unit, exact imported US ROM, profiles and storage-location.txt. Do not attach a finite-probe default or infer campaign/device acceptance from upstream testing mods."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": [
+        "https://github.com/TK22-26/JetForceGemini-Recomp/blob/5ec705f7d1575135e7965fe1376666b225f22ee1/README.md",
+        "https://github.com/TK22-26/JetForceGemini-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-force-gemini-nintendo-64",
+          "title": "Jet Force Gemini (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/TK22-26/JetForceGemini-Recomp/blob/5ec705f7d1575135e7965fe1376666b225f22ee1/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tk22-26-jetforcegemini-recomp.json"
+          ]
+        }
       ]
     }
   },

@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bugdom-jorio",
+    "name": "Bugdom",
+    "summary": "Guide Rollie McFly through the original Bugdom campaign.",
+    "original_game_title": "Bugdom",
+    "project_url": "https://github.com/jorio/Bugdom",
+    "artwork": {
+      "game_id": 50343,
+      "cover_id": 309747,
+      "image_id": "co6n03",
+      "image_sha256": "1a361515deeefb028d4b6dfe5444ba4a27952b99f8bf482a8e5ae56839908717",
+      "game_slug": "bugdom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5642,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/jorio/Bugdom/blob/1.3.4/README.md",
+    "release_url": "https://github.com/jorio/Bugdom/releases/tag/1.3.4",
+    "download_asset_hints": {
+      "windows-x86-64": ["Bugdom-", "-windows-x64.zip"],
+      "linux-x86-64": ["Bugdom-", "-linux-x86_64.AppImage"],
+      "macos-x86-64": ["Bugdom-", "-mac.dmg"],
+      "macos-aarch64": ["Bugdom-", "-mac.dmg"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get the publisher’s package for your desktop",
+          "instruction": "On Windows x64, extract the ZIP and keep Bugdom.exe, its libraries, and the Data folder together. On Linux x86-64 or ARM64, get the matching AppImage, make it executable, and run it with FUSE available. On Intel Mac with macOS 10.11 or later, or Apple Silicon with macOS 11 or later, open the universal DMG and copy the complete Bugdom.app to Applications."
+        },
+        {
+          "title": "Add an existing copy to Portcove",
+          "instruction": "On Windows choose Bugdom.exe in the extracted folder. On Linux x86-64 choose the executable AppImage. On Mac choose Contents/MacOS/Bugdom inside the copied app. Keep the executable’s folder as its working directory and leave arguments empty. Review the selected files, then choose Play when ready."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep your saves and preferences before replacing the game",
+          "instruction": "Close the game and make a copy of the Bugdom folder under %APPDATA% on Windows, XDG_CONFIG_HOME or ~/.config on Linux, or ~/Library/Preferences on Mac. Bugdom keeps its Prefs file and SaveA-style slots together in this folder. Portcove only keeps your launch registration. Replace the runtime and back up these files yourself. Removing the registration leaves the game and data in place."
+        }
+      ],
+      "help_url": "https://github.com/jorio/Bugdom/blob/1.3.4/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bugdom",
+      "evidence_urls": [
+        "https://github.com/jorio/Bugdom/blob/1.3.4/README.md",
+        "https://github.com/jorio/Bugdom"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "bugdom-jorio",
+    "origin": {
+      "project_url": "https://github.com/jorio/Bugdom",
+      "repository": {
+        "host": "github.com",
+        "id": "325313107"
+      }
+    },
+    "decisions": []
+  }
+}

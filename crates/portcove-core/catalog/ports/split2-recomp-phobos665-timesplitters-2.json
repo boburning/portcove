@@ -4,11 +4,19 @@
     "id": "split2-recomp-phobos665-timesplitters-2",
     "name": "TimeSplitters 2 — split2-recomp (phobos665)",
     "original_game_title": "TimeSplitters 2",
+    "artwork": {
+      "game_id": 2143,
+      "cover_id": 515651,
+      "image_id": "cob1vn",
+      "image_sha256": "e58e9bf9bc151bd06b83e8ef20c7152da2a9ad11ba433b389f26b9faaeb8739a",
+      "game_slug": "timesplitters-2",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports frontend, story and System Link deathmatch play. Challenge and MapMaker have had little testing. System Link is Windows-only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/phobos665/split2-recomp",
     "listed_at": "2026-10-25",
     "funding_urls": ["https://ko-fi.com/phobos665"],
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/phobos665/split2-recomp",
     "manual_setup": {
@@ -28,7 +36,22 @@
       ],
       "help_url": "https://github.com/phobos665/split2-recomp"
     },
-    "issue_number": 3145
+    "issue_number": 3145,
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters-2",
+      "evidence_urls": ["https://github.com/phobos665/split2-recomp"],
+      "source_editions": [
+        {
+          "id": "timesplitters-2-xbox",
+          "title": "TimeSplitters 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/split2-recomp-phobos665-timesplitters-2.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

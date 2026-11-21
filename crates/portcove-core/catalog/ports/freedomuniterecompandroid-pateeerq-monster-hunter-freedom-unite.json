@@ -6,7 +6,7 @@
     "original_game_title": "Monster Hunter Freedom Unite",
     "summary": "The retained README reports desktop startup and language selection. ATRAC and MPEG decoders are missing: audio and music are silent, and movies are black. Native Android execution has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "4f36e8170fbe53a32d39088379641617c06d047c92f785db334bad2181621f09",
       "game_slug": "monster-hunter-freedom-unite",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-freedom-unite",
+      "evidence_urls": ["https://github.com/PateeerQ/FreedomUniteRecomp"],
+      "source_editions": [
+        {
+          "id": "monster-hunter-freedom-unite-playstation-portable",
+          "title": "Monster Hunter Freedom Unite (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/PateeerQ/FreedomUniteRecomp/blob/3951c17ba6851a6dee2659bb71aa06ba3930b42c/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -53,6 +53,22 @@
         }
       ],
       "help_url": "https://github.com/mariopartyrd/partyboard"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-party-4",
+      "evidence_urls": ["https://github.com/mariopartyrd/partyboard"],
+      "source_editions": [
+        {
+          "id": "mario-party-4-nintendo-gamecube",
+          "title": "Mario Party 4 (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/mariopartyrd/partyboard/blob/cccbf87e783173f74f439f151f1d963e51900021/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mario Party 4"
   }
 }

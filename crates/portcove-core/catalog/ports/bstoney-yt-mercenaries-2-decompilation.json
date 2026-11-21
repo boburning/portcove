@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "bstoney-yt-mercenaries-2-decompilation",
+    "artwork": {
+      "game_id": 2684,
+      "cover_id": 117510,
+      "image_id": "co2io6",
+      "image_sha256": "379b30b6eed6e6d693cb0526adae4a070a4602296dfd7e1815c2dffd7282e4a9",
+      "game_slug": "mercenaries-2-world-in-flames",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/bstoney-yt/Mercenaries-2-Decompilation",
     "name": "Mercenaries 2: World in Flames / Native beta",
     "original_game_title": "Mercenaries 2: World in Flames",
@@ -34,6 +42,15 @@
         "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps.",
         "Movies play only when FFmpeg is installed on your PATH or named by the M2_FFMPEG environment variable."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mercenaries-2-world-in-flames",
+      "evidence_urls": [
+        "https://github.com/bstoney-yt/Mercenaries-2-Decompilation/blob/beta-20261021/README.md",
+        "https://github.com/bstoney-yt/Mercenaries-2-Decompilation"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

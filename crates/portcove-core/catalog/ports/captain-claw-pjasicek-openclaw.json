@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "captain-claw-pjasicek-openclaw",
+    "artwork": {
+      "game_id": 2474,
+      "cover_id": 137550,
+      "image_id": "co2y4u",
+      "image_sha256": "202c18866c7e4f43b05fc1a5fe15fc17338e1385be46a0d89705444f924a8332",
+      "game_slug": "claw",
+      "match_kind": "underlying-game"
+    },
+    "name": "Captain Claw / OpenClaw",
+    "original_game_title": "Captain Claw",
+    "summary": "Build OpenClaw with upstream instructions and use the CLAW.REZ archive from your own Captain Claw installation.",
+    "project_url": "https://github.com/pjasicek/OpenClaw",
+    "issue_number": 5913,
+    "listed_at": "2026-11-15",
+    "platforms": [],
+    "availability": "source-only",
+    "setup_url": "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
+    "download_block_reason": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Build an upstream player",
+          "instruction": "Use the tagged upstream build instructions to make your player. The Linux build needs the SDL2 libraries and TinyXML listed by upstream. On CMake 4, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 at configure time for this tag. On Windows the tag provides an upstream Visual Studio solution. Launch the actual OpenClaw player from its working folder, which is Build_Release for the Linux build. The optional Mono launcher edits the configuration."
+        },
+        {
+          "title": "Use your own Captain Claw data",
+          "instruction": "Keep your original installation intact. Put a separate copy of its CLAW.REZ alongside the source-built player, the project ASSETS.ZIP and the tagged working-folder config.xml. Leave AssetsFolder empty when the files are together. Start the player with that folder as its working folder. Keep the original edition and asset package together."
+        },
+        {
+          "title": "Keep the data from your working copy",
+          "instruction": "Close the player before copying config.xml and the save file selected by SavesFile, normally SAVES.XML. Keep any edited assets and settings with the working copy. A local config.xml selects that folder. Without it, the Linux player looks under ~/.config/openclaw. Use upstream tools when changing the player."
+        }
+      ],
+      "warnings": [
+        "The PortMaster launcher can replace CLAW.REZ with its bundled archive. Keep any original you supply outside that working folder."
+      ],
+      "references": [
+        {
+          "title": "Check Mac and Android build availability",
+          "instruction": "Upstream has Mac and Android build material. The reviewed release has neither an Intel or Apple Silicon Mac app nor an Android APK."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "captain-claw",
+      "evidence_urls": [
+        "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
+        "https://github.com/pjasicek/OpenClaw"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "captain-claw-pjasicek-openclaw",
+    "origin": {
+      "project_url": "https://github.com/pjasicek/OpenClaw",
+      "repository": {
+        "host": "github.com",
+        "id": "84315864"
+      }
+    },
+    "decisions": []
+  }
+}

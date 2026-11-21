@@ -51,7 +51,7 @@
       "references": [
         {
           "title": "Get the official OpenTTD package for your host",
-          "instruction": "Use the upstream downloads page and its published SHA-256. The stable channel has a Linux x86-64 generic tar.xz, an Intel and Apple Silicon universal Mac DMG or ZIP, and Windows ZIPs or installers for x86-64 and ARM64. The reviewed Linux player needs glibc 2.28 and libstdc++ with GLIBCXX_3.4.22. Use your system archive tool and keep the entire extracted folder or OpenTTD.app. Open the official executable or app directly and complete its base-graphics setup."
+          "instruction": "Use the upstream downloads page and its published SHA-256. The stable channel has a Linux x86-64 generic tar.xz, an Intel and Apple Silicon universal Mac DMG or ZIP, and Windows ZIPs or installers for x86-64 and ARM64. The reviewed Linux player needs glibc 2.28 and libstdc++ with GLIBCXX_3.4.22. Use your system archive tool and keep the entire extracted folder or OpenTTD.app. Open the official executable or app directly and complete its base-graphics setup. On Mac, the native program is inside OpenTTD.app at Contents/MacOS/openttd. For CLI registration, run external select-preview with absolute program and --working-directory paths; pass each existing literal argument with --arg=VALUE. Repeat those details with external select and pass the returned preview hash to --expected-preview. Choose Play separately with portcove exec transport-tycoon-deluxe-openttd-upstream. Keep the established config and save locations."
         },
         {
           "title": "Use the Flatpak on Linux x64 or ARM64",
@@ -63,7 +63,25 @@
         }
       ]
     },
-    "release_url": "https://www.openttd.org/downloads/openttd-releases/latest"
+    "release_url": "https://www.openttd.org/downloads/openttd-releases/latest",
+    "original_game": {
+      "format_version": 1,
+      "id": "transport-tycoon-deluxe",
+      "evidence_urls": [
+        "https://wiki.openttd.org/en/Manual/Installation",
+        "https://github.com/OpenTTD/OpenTTD"
+      ],
+      "source_editions": [
+        {
+          "id": "transport-tycoon-deluxe-pc",
+          "title": "Transport Tycoon Deluxe (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

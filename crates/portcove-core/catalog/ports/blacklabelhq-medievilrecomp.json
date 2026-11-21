@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "blacklabelhq-medievilrecomp",
     "name": "MediEvil / MediEvilRecomp (BlackLabelHQ)",
@@ -42,15 +43,33 @@
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["MediEvilRecomp-", "-windows-x64.zip"],
       "linux-x86-64": ["MediEvilRecomp-", "-linux-x64.tar.gz"],
       "macos-aarch64": ["MediEvilRecomp-", "-macos-arm64.zip"],
       "macos-x86-64": ["MediEvilRecomp-", "-macos-x64.zip"]
     },
     "original_game_title": "MediEvil",
     "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
+        "https://github.com/BlackLabelHQ/MediEvilRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "medievil-playstation",
+          "title": "MediEvil (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+          ]
+        }
+      ]
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -83,12 +102,6 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Requires the .NET 10 runtime. On first Play, use MediEvil's disc picker to select your own supported North American MediEvil CUE/BIN or CHD; the game remembers the disc's path, so keep the disc in a folder outside the game folder. Portcove starts the game with --disable-updated, upstream's switch for an external manager, which removes its update check, Updates menu and installer, so only Portcove replaces the managed copy. Settings, memory-card saves, the interface layout, mods, shader and asset packs, texture dumps and the mod hub cache stay in the game folder and are kept across updates, backups and rollback. Keep the memory cards at their default names, carda.sav and cardb.sav. Mods run code you choose to install."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["medievil.exe"]
-      }
     }
   }
 }

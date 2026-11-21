@@ -43,10 +43,7 @@ export async function observeStartup({
     { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
   );
   let diagnostics = "";
-  let ready!: () => void;
-  const readiness = new Promise<void>((resolve) => {
-    ready = resolve;
-  });
+  const { promise: readiness, resolve: ready } = Promise.withResolvers<void>();
   for (const stream of [child.stdout, child.stderr])
     stream.on("data", (chunk: Buffer) => {
       diagnostics = (diagnostics + chunk.toString()).slice(-64 * 1024);

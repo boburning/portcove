@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "azkali-kameorecomp-azkali-kameo-elements-of-power",
+    "artwork": {
+      "game_id": 7029,
+      "cover_id": 87149,
+      "image_id": "co1v8t",
+      "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
+      "game_slug": "kameo-elements-of-power",
+      "match_kind": "underlying-game"
+    },
     "name": "Kameo: Elements of Power — Azkali KameoRecomp (Azkali)",
     "original_game_title": "Kameo: Elements of Power",
     "summary": "This early project generates code that can be linked into a Kameo player. Most Xbox system functions remain unfinished in src/hooks.cpp; startup and gameplay are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -32,7 +40,22 @@
       ],
       "help_url": "https://github.com/Azkali/KameoRecomp"
     },
-    "issue_number": 3172
+    "issue_number": 3172,
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": ["https://github.com/Azkali/KameoRecomp"],
+      "source_editions": [
+        {
+          "id": "kameo-elements-of-power-xbox-360",
+          "title": "Kameo: Elements of Power (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Azkali/KameoRecomp/blob/e41ee4b51248ab148e0d215ccdb50c0242eb0792/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

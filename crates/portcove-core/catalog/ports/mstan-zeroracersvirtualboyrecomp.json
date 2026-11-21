@@ -45,6 +45,16 @@
       "warnings": [
         "Select the complete Windows release’s ZeroRacersVirtualBoyRecomp.exe with an authorized matching Switch Online .vb. Preserve vbrecomp.cfg, keybinds.ini, saves and mods; cartridge progress and build-specific session snapshots are separate."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zero-racers",
+      "evidence_urls": [
+        "https://github.com/mstan/ZeroRacersVirtualBoyRecomp",
+        "https://github.com/mstan/ZeroRacersVirtualBoyRecomp/blob/96f6d05010f92f422cc37e3bd46b940ab3edec08/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Zero Racers"
   }
 }

@@ -50,6 +50,24 @@
           "instruction": "You or upstream update this external copy. Close the game, keep the working folder, and extract a new permitted player separately. Back up the SDL profile for Mikompilation/MikuPan, including mikupan.ini, memory-card saves, albums and PNG captures; on Windows this is normally under AppData/Roaming. If SDL cannot supply a profile directory, upstream uses the local MikuPan directory instead; retain that too. Preserve the original-data folder separately. External registration leaves every file untouched and provides no managed Update, Backup or Rollback. Runtime replacement does not rewind saves or establish older-version readability."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "fatal-frame",
+      "evidence_urls": [
+        "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
+        "https://github.com/Mikompilation/MikuPan"
+      ],
+      "source_editions": [
+        {
+          "id": "fatal-frame-playstation-2",
+          "title": "Fatal Frame (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Mikompilation/MikuPan/blob/599b99feb41d205b10e5f4246c66e00f43aae458/README.md"
+          ]
+        }
+      ]
     }
   }
 }

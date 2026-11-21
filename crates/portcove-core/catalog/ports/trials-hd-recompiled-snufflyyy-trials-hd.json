@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "trials-hd-recompiled-snufflyyy-trials-hd",
+    "artwork": {
+      "game_id": 2145,
+      "cover_id": 234090,
+      "image_id": "co50mi",
+      "image_sha256": "10fdbc6aa94f00258fca8459bd10e5a3f015a1005de8361aa3dca4cbd0b1379d",
+      "game_slug": "trials-hd",
+      "match_kind": "underlying-game"
+    },
     "name": "Trials HD — Trials HD Recompiled (snufflyyy)",
     "original_game_title": "Trials HD",
     "summary": "The project claims controller and keyboard play. Browser storage, audio and gameplay checks remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/snufflyyy/trials-hd-recompiled"
     },
-    "issue_number": 3218
+    "issue_number": 3218,
+    "original_game": {
+      "format_version": 1,
+      "id": "trials-hd",
+      "evidence_urls": ["https://github.com/snufflyyy/trials-hd-recompiled"],
+      "source_editions": [
+        {
+          "id": "trials-hd-xbox-360",
+          "title": "Trials HD (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/snufflyyy/trials-hd-recompiled/blob/17a76f5e674c6132d74f587567e0ecc1624ce3e6/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

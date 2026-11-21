@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "return-to-castle-wolfenstein-neortcw",
+    "artwork": {
+      "game_id": 281,
+      "cover_id": 90711,
+      "image_id": "co1xzr",
+      "image_sha256": "2f90e5db153b35a85ce7d066b1665e4048f8d31243ac2979298a960e9ca387bf",
+      "game_slug": "return-to-castle-wolfenstein",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/klaussilveira/neortcw",
     "name": "Return to Castle Wolfenstein / NeoRTCW",
     "original_game_title": "Return to Castle Wolfenstein",
@@ -31,6 +39,24 @@
       "warnings": [
         "The Apple Silicon archive requires macOS 15 or later and loads sdl2, opusfile, opus, libvorbis, libogg, jpeg-turbo, and freetype from /opt/homebrew. The publisher supplies no Intel Mac, Linux ARM64, or Android package in this release.",
         "The Windows x64 clients need a compatible zlib1.dll, which is missing from the publisher's 1.0.0 ZIP."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "return-to-castle-wolfenstein",
+      "evidence_urls": [
+        "https://github.com/klaussilveira/neortcw/blob/1.0.0/README.md",
+        "https://github.com/klaussilveira/neortcw"
+      ],
+      "source_editions": [
+        {
+          "id": "return-to-castle-wolfenstein-pc",
+          "title": "Return to Castle Wolfenstein (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/klaussilveira/neortcw/blob/031f5dc1516de035f2f4b288d235fa49724135b7/README.md"
+          ]
+        }
       ]
     }
   }

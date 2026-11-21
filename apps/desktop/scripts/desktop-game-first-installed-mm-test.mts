@@ -19,6 +19,7 @@ import { transportValue } from "./transport-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import {
   readGameFirstObservation,
+  readGameFirstCatalogObservation,
   observeGameFirstCaptureReadiness,
   captureGameFirstTarget,
 } from "./desktop-game-first-test.mts";
@@ -31,9 +32,10 @@ import {
   selectCatalogPort,
   revealDetailSection,
   selectGameFilesSettings,
+  openGameFileScan,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
-import { gameIdentityLabel, gameProjectLabel } from "../src/port-identity.ts";
+import { gameTitle, gameProjectLabel } from "../src/port-identity.ts";
 
 const scenarioId = "native-game-first-installed-mm";
 import { gameFirstMMHarnessDeadlineMs } from "../../../scripts/desktop-scenarios.mts";
@@ -209,6 +211,18 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       assert.ok(samePath(required(value.bootstrap.library_root), library));
       return value;
     };
+    const readCatalog = async (phase: string) => {
+      const value = await readGameFirstCatalogObservation(invoke, readbacks);
+      assert.ok(samePath(required(value.bootstrap.library_root), library));
+      readbacks.push({
+        phase,
+        generation: value.bootstrap.generation,
+        library_root: value.bootstrap.library_root,
+        catalog_digest: value.catalog_digest,
+        catalog_status: value.catalog_status,
+        listing_delivery_status: value.listing_delivery_status,
+      });
+    };
     const row = async (id: string) =>
       required((await read()).statuses.find((item) => item.port_id === id));
     const core = ownedFixtureObservationCommand(
@@ -271,7 +285,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       let primary: Error | undefined;
       let restoration: Error | undefined;
       try {
-        // The implementation-choice prompt has no port ID attribute on its Use
+        // The implementation-choice prompt has no port ID attribute on its Choose
         // button. Its stable closed-pair position is guarded by exact visible
         // action text; a changed DOM/action fails instead of crediting another CTA.
         assert.equal((await browser.findElements(By.css(action))).length, 1);
@@ -302,7 +316,6 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
               name,
               scenario: scenarioId,
               target: target.selector,
-              element,
               readiness: () =>
                 executeBrowserScript(browser, observeGameFirstCaptureReadiness, layout.size),
             });
@@ -377,7 +390,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
     const choose = async (id: (typeof pair)[number]) => {
       const value = await read();
       const port = required(required(value.workspace.catalog).ports.find((item) => item.id === id));
-      await click(button(`Use ${gameProjectLabel(port) || port.name}`));
+      await click(button(`Choose ${gameProjectLabel(port) || port.name}`));
       await browser.wait(
         async () => (await read()).organization.preferred_port_by_game?.[gameId] === id,
         15_000,
@@ -409,6 +422,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
           ).some((item) => samePath(item.path, sourceDirectory)),
         15_000,
       );
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       // Refresh reads saved-folder state; this ordinary action actually starts hashing.
       const scanActivitiesBefore = new Set(
@@ -538,7 +552,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         "ambiguous",
         `${groupSelector} > article .collection-title`,
         `${groupSelector} > article .collection-actions > div:nth-child(2) > button`,
-        `Use ${gameProjectLabel(chosenDefinition) || chosenDefinition.name}`,
+        `Choose ${gameProjectLabel(chosenDefinition) || chosenDefinition.name}`,
       );
       await choose(portId);
       const chosenAction = `article:has([data-detail-origin="library:card:${portId}"]) button.library-card-play`;
@@ -580,8 +594,12 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       const chosen = required(
         required((await read()).workspace.catalog).ports.find((item) => item.id === portId),
       );
-      await click(By.css(`button[aria-label="Favorite ${gameIdentityLabel(chosen)}"]`));
-      await browser.wait(async () => (await favorites()).includes(portId), 15_000);
+      await click(By.css(`button[aria-label="Favorite ${gameTitle(chosen)}"]`));
+      await browser.wait(
+        async () => (await read()).organization.saved_game_ids.includes(`game-${gameId}`),
+        15_000,
+      );
+      assert.equal((await favorites()).includes(portId), false);
       const installedBeforeFilters = pair.map(async (id) => required((await row(id)).active));
       const activeRecords = await Promise.all(installedBeforeFilters);
       const filter = (method: "portable-package" | "portable-recompilation") =>
@@ -603,14 +621,14 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
         required(available.workspace.catalog).ports.find((item) => item.id === pair[0]),
       );
       await browser.wait(
-        until.elementLocated(button(`Use ${gameProjectLabel(first) || first.name}`)),
+        until.elementLocated(button(`Choose ${gameProjectLabel(first) || first.name}`)),
         15_000,
       );
       await captureInstalledState(
         "qualifying-filtered",
         `${groupSelector} > article .collection-title`,
         `${groupSelector} > article .collection-actions > div:first-child > button`,
-        `Use ${gameProjectLabel(first) || first.name}`,
+        `Choose ${gameProjectLabel(first) || first.name}`,
       );
       await alternatives();
       await click(By.css(`[data-detail-origin="library:alternative:${portId}"]`));
@@ -676,15 +694,25 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       assert.deepEqual(await favorites(), prePlay.favorites);
       const saved = await baseline();
       report.before_restart = saved;
+      await readCatalog("mm-before-restart-catalog");
       browser = await context.restartApplication("mm-installed-choice-restart");
       await libraryView();
       assert.deepEqual(await baseline(), saved);
       assert.equal(await (await browser.findElement(By.css(playTarget))).isEnabled(), true);
+      await readCatalog("mm-restarted-catalog");
       await inputBaseline.verify();
       report.outcome = "bounded-mm-installed-choice-journey-complete";
     } catch (error) {
       failure = retainedError(error);
       report.failure = errorMessage(error);
+      try {
+        await readCatalog("mm-failed-catalog");
+      } catch (readbackError) {
+        readbacks.push({
+          phase: "mm-failed-catalog-readback",
+          failure: errorMessage(readbackError),
+        });
+      }
     } finally {
       try {
         const file = path.join(output, "game-first-installed-mm.json");

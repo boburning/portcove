@@ -1,11 +1,29 @@
 {
   "format_version": 1,
+  "igdb_regional_cover": {
+    "game_id": 1289,
+    "slug": "ratchet-clank",
+    "name": "Ratchet & Clank",
+    "platform_id": 8,
+    "localization_id": 26955,
+    "region_id": 4,
+    "cover_id": 300607,
+    "image_id": "co6fy7"
+  },
   "listing": {
     "id": "openrac-openrac-ratchet-clank",
     "name": "Ratchet & Clank — OpenRAC (OpenRAC)",
     "original_game_title": "Ratchet & Clank",
     "summary": "The launcher release includes the first native port and skips unmatched assembly. SDK releases and matching-progress counts do not establish that all six games are playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/OpenRAC/OpenRAC",
+    "artwork": {
+      "game_id": 1289,
+      "cover_id": 300607,
+      "image_id": "co6fy7",
+      "image_sha256": "e49a8722b0f5e5982aa5bfe01f9e73c35e528e611c11a74cd9f130560af8373e",
+      "game_slug": "ratchet-clank",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +45,13 @@
       ],
       "help_url": "https://github.com/OpenRAC/OpenRAC"
     },
-    "issue_number": 3003
+    "issue_number": 3003,
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": ["https://github.com/OpenRAC/OpenRAC"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -27,13 +27,14 @@ import assert from "node:assert/strict";
 import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mts";
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
 import { observeDesktopScenario, recordDesktopCheck } from "./desktop-scenario-outcomes.mts";
-import { spawn } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import { once } from "node:events";
 import {
   DesktopNativeAccountSession,
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -90,10 +91,13 @@ import {
 import { preparationScenarios } from "./desktop-preparation-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
+import { setupBatchScenario, largeSetupReviewScenario } from "./desktop-setup-batch-test.mts";
+import { standingSetupScenario } from "./desktop-standing-setup-test.mts";
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
 import { interfaceSizeScenario } from "./desktop-interface-size-test.mts";
+import { collectionArtworkScenario } from "./desktop-collection-artwork-test.mts";
 import { reloadScenario } from "./desktop-reload-test.mts";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mts";
 import {
@@ -106,6 +110,7 @@ import {
 import {
   revealDetailSection,
   clickVisible,
+  replaceKeyboardText,
   assertCompactReview,
   captureAccessibilityReport,
   selectPrimaryNavigation,
@@ -115,7 +120,11 @@ import {
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
-import { createInstallFixture } from "./desktop-install-fixture.mts";
+import {
+  createInstallFixture,
+  prepareLargeSetupReviewFixture,
+  prepareReviewedSetupBatchFixture,
+} from "./desktop-install-fixture.mts";
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -353,6 +362,7 @@ const { inputs, runnerMetadata, metadataPhases } = await observeDesktopHarnessIn
 let acceptancePreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>> | undefined;
 const packetFixtureIdentities: (FileIdentity & { role: string })[] = [];
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
+let largeSetupReviewFixture: Awaited<ReturnType<typeof prepareLargeSetupReviewFixture>> | undefined;
 let installFixture:
   | (Omit<InstallFixture, "sourceJourney"> & {
       sourceJourney:
@@ -400,6 +410,7 @@ const linuxSelectedSession =
         [
           "native-selected-setup-completion",
           "native-saved-folder-selected-setup",
+          "native-large-discovery-setup-review",
           "native-linux-packaged-webview-boundary",
           "native-linux-webview-origin-boundary",
           "native-linux-interrupted-preparation",
@@ -614,7 +625,12 @@ async function stopDriver() {
     stopBackupFocusDriver();
     return;
   }
-  if (!driver?.pid || driver.exitCode !== null) return;
+  if (
+    !driver?.pid ||
+    driver.exitCode !== null ||
+    (process.platform === "linux" && driver.signalCode !== null)
+  )
+    return;
   if (historySession) {
     assert.ok(historyInventory, "History cleanup cannot signal without captured driver identity");
     if (!(await historyDriverStillOwned(historyInventory))) return;
@@ -781,17 +797,18 @@ async function verifySettingsRows() {
     await savedFolders.isDisplayed(),
     "saved game-file roots did not load from the native service",
   );
-  assert.equal(
-    await browser
-      .findElement(
-        By.xpath(
-          '//*[@data-settings-group="game-files"]//button[normalize-space(.)="Scan saved folders"]',
-        ),
-      )
-      .isEnabled(),
-    false,
-    "an empty saved-root registry must not start a scan",
+  const scanLink = await browser.findElement(By.css("[data-open-game-file-scan]"));
+  await scanLink.click();
+  const scan = await browser.wait(
+    until.elementLocated(
+      By.xpath('//*[@id="add-games-scan"]//button[normalize-space(.)="Scan saved folders"]'),
+    ),
+    5_000,
   );
+  assert.equal(await scan.isEnabled(), false, "an empty saved-root registry must not start a scan");
+  await browser
+    .findElement(By.xpath('//button[normalize-space(.)="Back to Game files settings"]'))
+    .click();
   await selectSettingsCategory("advanced");
   const bundleWarningVisible = await executeBrowserScript(browser, () => {
     const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
@@ -971,11 +988,11 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
   const expectedRows: Record<string, number> = {
     appearance: 3,
     "library-storage": 4,
-    "game-files": 3,
+    "game-files": 4,
     updates: 3,
     integrations: 3,
     controls: 2,
-    advanced: 4,
+    advanced: 3,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
     assert.equal(group.rows.length, expectedRows[name], `${name} row count changed`);
@@ -998,6 +1015,13 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
 
 async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
+  // The full catalog is windowed: find the target through normal search before
+  // requiring its exact port action, rather than assuming every card is mounted.
+  await replaceKeyboardText(
+    browser,
+    await browser.findElement(By.id("port-search")),
+    "Castlevania",
+  );
   await selectCatalogPort(browser, "cvlod-recomp");
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
@@ -1097,14 +1121,16 @@ async function refreshSettings(category?: string) {
   if (category) await selectSettingsCategory(category);
 }
 
-async function selectSettingsCategory(id: string) {
+async function selectSettingsCategory(id: string, activation: "pointer" | "keyboard" = "pointer") {
   const browser = driverBrowser();
   await selectPrimaryNavigation(browser, "Settings");
   const category = By.css(
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
   await browser.wait(until.elementLocated(category), 15_000);
-  await clickVisible(browser, await browser.findElement(category));
+  const control = await browser.findElement(category);
+  if (activation === "keyboard") await control.sendKeys(Key.ENTER);
+  else await clickVisible(browser, control);
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1649,6 +1675,12 @@ async function connect() {
     : selection.prerequisites.includes("design-compatibility-fixture")
       ? ".design-compatibility-fixture"
       : 'nav[aria-label="Primary navigation"]';
+  // A retained Linux keyboard run exceeded 30s while catalog loading continued.
+  // Calibrate fixture readiness only; preserve both semantic predicates.
+  const readinessMs =
+    process.platform === "linux" && selection.selected_scenarios.includes("keyboard-layout")
+      ? 90_000
+      : 30_000;
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -1656,11 +1688,13 @@ async function connect() {
         (selector) => document.querySelector(selector) !== null,
         readyRoot,
       ),
-    30_000,
+    readinessMs,
+    "The native shell did not expose its required root",
   );
   await browser.wait(
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
-    30_000,
+    readinessMs,
+    "Native loading state did not clear",
   );
   if (executionPlan.fixtures.acquisitionJourney || executionPlan.fixtures.registeredSourceReuse) {
     const snapshot = path.join(
@@ -1675,10 +1709,23 @@ async function connect() {
 }
 
 async function requestApplicationShutdown(snapshot: string) {
+  const shutdownDriver = process.platform === "linux" ? required(driver) : undefined;
+  if (shutdownDriver) assert.ok(shutdownDriver instanceof ChildProcess);
   await required(browser).quit();
+  if (shutdownDriver)
+    assert.equal(driver, shutdownDriver, "Restart driver changed during application shutdown");
   browser = undefined;
   const driverStop =
     process.platform === "win32" ? observeNativeSession("StopDriver", snapshot) : undefined;
+  if (shutdownDriver) {
+    const exited =
+      !linuxSelectedSession &&
+      shutdownDriver.exitCode === null &&
+      shutdownDriver.signalCode === null
+        ? once(shutdownDriver, "exit", { signal: AbortSignal.timeout(5_000) })
+        : Promise.resolve();
+    await Promise.all([exited, stopDriver()]);
+  }
   driver = undefined;
   return driverStop;
 }
@@ -1720,6 +1767,12 @@ function requiresReadOnlyRestart(name: string, acquisitionRestart: boolean) {
     !preferencesRecoverySession &&
     !hostPublicationSession &&
     !acquisitionRestart &&
+    !(
+      process.platform === "win32" &&
+      selection.selected_scenarios.length === 1 &&
+      selection.selected_scenarios[0] === "native-standing-setup-source-return" &&
+      name === "standing-original-return"
+    ) &&
     !(
       reviewedWorkflowSession &&
       selection.selected_scenarios.includes("native-staged-update-composition") &&
@@ -1776,7 +1829,9 @@ async function restartApplication(
           selectedSetupRestart ||
             acquisitionRestart ||
             interruptedPreparationSession ||
-            reviewedWorkflowSession
+            reviewedWorkflowSession ||
+            selection.selected_scenarios.includes("native-standing-setup-source-return") ||
+            selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
             ? name
             : cleanupName,
         );
@@ -2418,7 +2473,7 @@ async function verifyCompactSettingsJumps() {
     index,
   );
   await captureScenarioScreenshot("settings-section-index-compact");
-  await selectSettingsCategory("game-files");
+  await selectSettingsCategory("game-files", "keyboard");
   const jump = await executeBrowserScript(browser, () => {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement)) return null;
@@ -2615,9 +2670,17 @@ try {
       hashResumeJourney: Boolean(executionPlan.fixtures.hashResumeJourney),
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
+      updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
+    if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+      await prepareReviewedSetupBatchFixture(installFixture);
+    if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) {
+      largeSetupReviewFixture = await prepareLargeSetupReviewFixture(installFixture, revision);
+      for (const original of largeSetupReviewFixture.originals)
+        for (const copy of original.copies) inputs.push(await fileIdentity(copy));
+    }
     if (installFixture.sourceJourney) {
       if (installFixture.preliminaryJourney)
         for (const name of ["path", "before"] as const)
@@ -2641,6 +2704,42 @@ try {
         });
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
+    if (
+      selection.selected_scenarios.some((id) =>
+        ["native-reviewed-discovery-setup-batch", "native-standing-setup-source-return"].includes(
+          id,
+        ),
+      )
+    ) {
+      // Owned pre-state, not native source-registration acceptance. The native
+      // scenario exercises only discovery selection, batch consent and lifecycle.
+      const owned = required(installFixture.sourceJourney);
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      command(["source", "add", required(owned.profiles[0]), owned.gamePath]);
+      command(["source", "add", required(owned.profiles[1]), owned.biosPath]);
+      if (selection.selected_scenarios.includes("native-standing-setup-source-return")) {
+        const unavailable = `${owned.directory}-unavailable`;
+        assert.ok((await lstat(owned.directory)).isDirectory());
+        assert.equal(path.dirname(owned.directory), path.resolve(output));
+        await assert.rejects(lstat(unavailable), { code: "ENOENT" });
+        await rename(owned.directory, unavailable);
+      }
+    }
+    if (largeSetupReviewFixture) {
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      for (const original of largeSetupReviewFixture.originals)
+        command(["source", "add", original.profile, original.path]);
+    }
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
   if (selection.prerequisites.includes("external-runtime-fixture")) {
@@ -3089,6 +3188,47 @@ try {
       packageEvidence: required(packageEvidence),
     });
     assertOwnedBoundaryRequests(requests);
+    const {
+      readGameFirstCatalogObservation,
+      readGameFirstRelationships,
+      inspectGameFirstRelationships,
+    } = await import("./desktop-game-first-test.mts");
+    const readbacks: unknown[] = [];
+    const report: Record<string, unknown> = {
+      outcome: "failed",
+      source_revision: revision,
+      package: required(packageEvidence),
+      application: required(inputs[0]),
+      readbacks,
+      interpretation:
+        "Actual normal-package loaded catalog relationship readback; not installed game runtime or gameplay acceptance.",
+    };
+    try {
+      const relationships = await readGameFirstRelationships();
+      report.expected_baseline_sha256 = relationships.sha256;
+      report.audited_revision = relationships.expected.audited_revision;
+      const observation = await readGameFirstCatalogObservation(invoke, readbacks);
+      report.catalog_digest = observation.workspace.catalog_digest ?? null;
+      report.catalog_status = observation.catalog_status;
+      report.listing_delivery_status = observation.listing_delivery_status;
+      report.generation = observation.bootstrap.generation;
+      const production = inspectGameFirstRelationships(
+        observation.workspace,
+        relationships.expected,
+        observation.catalog_status.provenance,
+      );
+      report.families = production.reviewed_families;
+      report.audited_records = production.provenance.length;
+      report.provenance = production.provenance;
+      report.outcome = "passed";
+    } catch (error) {
+      report.failure = errorMessage(error);
+      throw error;
+    } finally {
+      const file = path.join(output, "normal-package-game-first-catalog.json");
+      await writeFile(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    }
   });
   await scenario("native-linux-packaged-webview-boundary", async () => {
     const browser = requiredInspector();
@@ -3335,11 +3475,17 @@ try {
       3,
       "Add games must offer exactly three routes",
     );
-    for (const name of ["Browse games", "Scan a folder", "Use an existing installation"])
+    const routes = await browser.findElements(By.css('[aria-label="Ways to add games"] button'));
+    assert.deepEqual(await Promise.all(routes.map((route) => route.getAccessibleName())), [
+      "Browse games",
+      "Scan a folder",
+      "Use an existing installation",
+    ]);
+    for (const route of routes)
       assert.equal(
-        await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
+        await route.isDisplayed(),
         true,
-        `Add games route is missing: ${name}`,
+        `Add games route is hidden: ${await route.getAccessibleName()}`,
       );
     await browser.findElement(By.xpath('//button[normalize-space(.)="Back to Library"]')).click();
     await browser
@@ -3500,14 +3646,50 @@ try {
         ...(workspace.pending_setups?.map((setup) => setup.port_id) ?? []),
       ]),
     ].sort();
-    const channelButton = async (channel: string) => {
+    const channelChoice = async (channel: string) => {
       const panel = await openCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
-      return panel.findElement(
-        By.xpath(
-          `.//fieldset[legend[normalize-space(.)="Update channels"]]//button[contains(normalize-space(.),"${label}")]`,
+      const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
+      if ((await trigger.getAttribute("aria-expanded")) !== "true")
+        await clickVisible(browser, trigger);
+      return browser.wait(
+        until.elementLocated(
+          By.css(
+            `fieldset[aria-label="Update channels"] [role="checkbox"][aria-label^="${label} ("]`,
+          ),
         ),
+        5_000,
       );
+    };
+    const closeChannelChoices = async () => {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () =>
+          (await browser
+            .findElement(By.css('button[aria-label^="Update channels:"]'))
+            .getAttribute("aria-expanded")) === "false",
+        5_000,
+        "Channel choices did not close before the next filter action",
+      );
+    };
+    const toggleChannel = async (channel: string) => {
+      const choice = await channelChoice(channel);
+      const previous = await choice.getAttribute("aria-checked");
+      await clickVisible(browser, choice);
+      await browser.wait(
+        async () => (await choice.getAttribute("aria-checked")) !== previous,
+        5_000,
+        `${channel} channel did not toggle`,
+      );
+      await closeChannelChoices();
+    };
+    const expectSelectedChannels = async (channels: string[]) => {
+      for (const channel of ["stable", "beta", "rolling"])
+        assert.equal(
+          await (await channelChoice(channel)).getAttribute("aria-checked"),
+          String(channels.includes(channel)),
+        );
+      await closeChannelChoices();
     };
     const expectChannels = async (channels: string[]) => {
       const expected =
@@ -3524,27 +3706,23 @@ try {
         5_000,
         `Discover did not display the exact ${channels.join("+") || "All"} matching-port union once`,
       );
-      for (const channel of ["stable", "beta", "rolling"])
-        assert.equal(
-          await (await channelButton(channel)).getAttribute("aria-pressed"),
-          String(channels.includes(channel)),
-        );
+      await expectSelectedChannels(channels);
     };
     await clearCatalogFilters(browser);
-    await (await channelButton("stable")).click();
+    await toggleChannel("stable");
     await expectChannels(["stable"]);
-    await (await channelButton("beta")).click();
+    await toggleChannel("beta");
     await expectChannels(["stable", "beta"]);
-    await (await channelButton("stable")).click();
+    await toggleChannel("stable");
     await expectChannels(["beta"]);
-    await (await channelButton("beta")).click();
+    await toggleChannel("beta");
     await expectChannels([]);
-    await (await channelButton("rolling")).click();
+    await toggleChannel("rolling");
     await expectChannels(["rolling"]);
     await clearCatalogFilters(browser);
     await expectChannels([]);
-    await (await channelButton("stable")).click();
-    await (await channelButton("beta")).click();
+    await toggleChannel("stable");
+    await toggleChannel("beta");
     await expectChannels(["stable", "beta"]);
     await search.sendKeys("zelda");
     await reviewControls(browser).click(
@@ -3554,7 +3732,7 @@ try {
     const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
     await browser.findElement(sort).click();
     await browser
-      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
+      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Title A–Z")]')), 5_000)
       .click();
     const card = await browser.findElement(By.css(".discover-game-identity"));
     await executeBrowserScript(browser, "arguments[0].scrollIntoView({block:'center'});", card);
@@ -3590,7 +3768,7 @@ try {
     );
     search = await browser.findElement(By.id("port-search"));
     assert.equal(await search.getAttribute("value"), "zelda");
-    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    assert.ok((await browser.findElement(sort).getText()).includes("Title A–Z"));
     assert.ok(
       Math.abs(
         required(
@@ -3605,9 +3783,12 @@ try {
       "port-search",
     );
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
-    await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
+      15_000,
+    );
     const switchTo = async (target: string, artifactName: string, previousGeneration: number) => {
-      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("advanced");
       await browser.wait(
         async () => {
           const diagnostics = await browser.findElement(By.css(".diagnostics-card"));
@@ -3616,6 +3797,7 @@ try {
         15_000,
         "Settings diagnostics did not settle before the library switch",
       );
+      await selectSettingsCategory("integrations");
       await browser.wait(
         async () => {
           const connection = await browser.findElement(
@@ -3630,6 +3812,7 @@ try {
         65_000,
         "GitHub status request retained the outgoing library lease",
       );
+      await selectSettingsCategory("library-storage");
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Choose another library"]'))
         .click();
@@ -3708,6 +3891,7 @@ try {
         }
       }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
+      await selectSettingsCategory("library-storage");
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
         15_000,
@@ -3717,9 +3901,7 @@ try {
     await selectPrimaryNavigation(browser, "Discover");
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
-    const alternateBeta = await channelButton("beta");
-    assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
-    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
+    await expectSelectedChannels([]);
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
     await selectPrimaryNavigation(browser, "Discover");
@@ -3730,10 +3912,8 @@ try {
       5_000,
       "Saved catalog focus did not return after library data loaded",
     );
-    const restoredBeta = await channelButton("beta");
-    assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
-    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
-    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    await expectSelectedChannels(["stable", "beta"]);
+    assert.ok((await browser.findElement(sort).getText()).includes("Title A–Z"));
     assert.equal((await browser.findElements(By.css('[role="dialog"]'))).length, 0);
     await browser.wait(
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
@@ -3766,6 +3946,8 @@ try {
   }
   await scenario("keyboard-layout", async () => {
     const browser = driverBrowser();
+    // A grouped result can display the original game's title even when a port matched the query.
+    const ghostshipIdentity = By.css('.discover-game-identity[data-detail-game-id="ghostship"]');
     const futureFolderSummary = By.xpath(
       '//details[contains(@class,"future-setup-disclosure")]/summary[normalize-space(.)="Folder for a future install"]',
     );
@@ -3821,15 +4003,55 @@ try {
       "sidebar-full-labels-default",
       await browser.findElement(By.css(".sidebar nav")),
     );
-    await browser.manage().window().setRect({ width: 640, height: 640 });
-    await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
-    await browser.wait(
-      until.elementIsVisible(
-        await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
-      ),
-      5_000,
+    // Native window minimums may clamp this request. Select the navigation
+    // contract from the rendered viewport, never from the requested rectangle.
+    const requestedWindow = { width: 640, height: 640 };
+    await browser.manage().window().setRect(requestedWindow);
+    const actualWindow = await browser.manage().window().getRect();
+    const navigationLayout = await executeBrowserScript(browser, () => {
+      const trigger = document.querySelector('button[aria-label="Open navigation"]');
+      return {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        compact: window.matchMedia("(width < 42rem)").matches,
+        triggerVisible: Boolean(trigger?.getClientRects().length),
+      };
+    });
+    assert.ok(navigationLayout.width > 0 && navigationLayout.height > 0);
+    assert.equal(
+      navigationLayout.triggerVisible,
+      navigationLayout.compact,
+      "Navigation trigger must agree with the actual responsive breakpoint",
     );
-    await verifySidebarLabels(drawerNavigation);
+    const navigationEvidence = path.join(output, "keyboard-layout-navigation.json");
+    await writeFile(
+      navigationEvidence,
+      JSON.stringify(
+        {
+          requested_window: requestedWindow,
+          actual_window: actualWindow,
+          viewport: navigationLayout,
+          desktop_navigation: "required",
+          compact_navigation: navigationLayout.compact
+            ? "required"
+            : "not-exercised: actual viewport is outside the compact breakpoint",
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(navigationEvidence);
+    if (navigationLayout.compact) {
+      await browser.findElement(By.css('button[aria-label="Open navigation"]')).click();
+      await browser.wait(
+        until.elementIsVisible(
+          await browser.wait(until.elementLocated(By.css(".navigation-sheet")), 5_000),
+        ),
+        5_000,
+      );
+      await verifySidebarLabels(drawerNavigation);
+    }
     await verifySidebarLabels(desktopNavigation);
     await selectPrimaryNavigation(browser, "Settings");
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
@@ -3918,8 +4140,8 @@ try {
     });
     assert.ok(focus);
     assert.notEqual(focus.tag, "BODY");
-    assert.ok(focus.left >= 0 && focus.right <= 640);
-    assert.ok(focus.top >= 0 && focus.bottom <= 640);
+    assert.ok(focus.left >= 0 && focus.right <= navigationLayout.width);
+    assert.ok(focus.top >= 0 && focus.bottom <= navigationLayout.height);
     await selectSettingsCategory("about");
     const about = await browser.findElement(By.css(".about-card"));
     await executeBrowserScript(
@@ -4063,37 +4285,34 @@ try {
     // WebDriver clear() can empty the DOM without committing React's query;
     // the next render then restores the previous scenario's search. Exercise
     // actual editing with a nonempty preimage, including on standalone runs.
-    const selectAll = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-    await search.sendKeys(selectAll, "a", Key.NULL, "prior catalog query");
+    await replaceKeyboardText(browser, search, "prior catalog query");
     assert.equal(await search.getAttribute("value"), "prior catalog query");
-    await search.sendKeys(selectAll, "a", Key.NULL, Key.BACK_SPACE);
+    await replaceKeyboardText(browser, search, "");
     await browser.wait(async () => (await search.getAttribute("value")) === "", 5_000);
     await clearCatalogFilters(browser);
     await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
     assert.equal(await search.getAttribute("value"), "Ghostship");
-    await browser.wait(
-      () =>
-        executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".discover-game-identity")].some((card) =>
-            card.textContent?.includes("Ghostship"),
-          ),
-        ),
+    const searched = await browser.wait(
+      until.elementLocated(ghostshipIdentity),
       15_000,
+      "The searched Ghostship port did not enter the rendered catalog window",
     );
-    const origin = await executeBrowserScript(browser, () => {
-      const cards = [...document.querySelectorAll(".discover-game-identity")];
-      const card = cards.find((item) => item.textContent?.includes("Ghostship"));
-      if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
-      card.scrollIntoView({ block: "center", inline: "nearest" });
-      card.focus();
-      const originKey = card.getAttribute("data-detail-origin");
-      const workspace = document.querySelector("main");
-      if (!originKey || !(workspace instanceof HTMLElement))
-        throw new Error("Catalog detail origin is incomplete");
-      const scrollTop = workspace.scrollTop;
-      card.click();
-      return { originKey, scrollTop };
-    });
+    const origin = await executeBrowserScript(
+      browser,
+      (card) => {
+        if (!(card instanceof HTMLElement)) throw new Error("Catalog detail origin is missing");
+        card.scrollIntoView({ block: "center", inline: "nearest" });
+        card.focus();
+        const originKey = card.getAttribute("data-detail-origin");
+        const workspace = document.querySelector("main");
+        if (!originKey || !(workspace instanceof HTMLElement))
+          throw new Error("Catalog detail origin is incomplete");
+        const scrollTop = workspace.scrollTop;
+        card.click();
+        return { originKey, scrollTop };
+      },
+      searched,
+    );
     await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
     assert.equal(
       await executeBrowserScript(browser, () =>
@@ -4140,7 +4359,7 @@ try {
         return {
           state: document.querySelector("[data-detail-readiness]")?.textContent?.trim(),
           reason: document.querySelector("[data-detail-reason]")?.textContent?.trim(),
-          requirement: document.querySelector(".requirements-disclosure")?.textContent,
+          requirement: document.querySelector(".requirements-body")?.textContent,
           tabs: Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
             tab.textContent?.trim(),
           ),
@@ -4246,7 +4465,7 @@ try {
     );
     await captureOutputDestinationReview("game-details");
     const draftPath = "C:\\Portcove-fixture\\Future-install";
-    await outputDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, draftPath);
+    await replaceKeyboardText(browser, outputDraft, draftPath);
     await revealDetailSection(browser, "Game files");
     const sourceDraft = await browser.findElement(
       By.css('.requirements-body input[id^="source-"]'),
@@ -4265,7 +4484,7 @@ try {
     );
     assert.equal(await outputDraft.getAttribute("value"), draftPath);
     await revealDetailSection(browser, "Game files");
-    await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, sourceDraft, "");
     await revealDetailSection(browser, "Manage");
     await browser.wait(
       async () =>
@@ -4302,9 +4521,7 @@ try {
     assert.equal(restored.focus, origin.originKey);
     assert.ok(Math.abs(required(restored.scrollTop) - origin.scrollTop) <= 1);
     await captureScenarioScreenshot("game-details-workspace-return");
-    await browser
-      .findElement(By.id("port-search"))
-      .sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
+    await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
     await browser.wait(
       async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
       15_000,
@@ -4366,6 +4583,7 @@ try {
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
         await selectPrimaryNavigation(browser, "Discover");
+        await replaceKeyboardText(browser, await browser.findElement(By.id("port-search")), "");
         await browser.wait(
           async () => (await browser.findElements(By.css(".discover-game-identity"))).length > 2,
           15_000,
@@ -4398,17 +4616,24 @@ try {
         );
         await captureScenarioScreenshot(`catalog-short-window-${theme}`);
 
-        const themedOrigin = await executeBrowserScript(browser, () => {
-          const card = [...document.querySelectorAll(".discover-game-identity")].find((item) =>
-            item.textContent?.includes("Ghostship"),
-          );
-          if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
-          const originKey = card.getAttribute("data-detail-origin");
-          if (!originKey) throw new Error("Ghostship detail origin is missing");
-          card.scrollIntoView({ block: "center", inline: "nearest" });
-          card.click();
-          return originKey;
-        });
+        await browser.findElement(By.id("port-search")).sendKeys("Ghostship");
+        const themedCard = await browser.wait(
+          until.elementLocated(ghostshipIdentity),
+          15_000,
+          "The searched Ghostship port did not enter the rendered catalog window",
+        );
+        const themedOrigin = await executeBrowserScript(
+          browser,
+          (card) => {
+            if (!(card instanceof HTMLElement)) throw new Error("Ghostship card is missing");
+            const originKey = card.getAttribute("data-detail-origin");
+            if (!originKey) throw new Error("Ghostship detail origin is missing");
+            card.scrollIntoView({ block: "center", inline: "nearest" });
+            card.click();
+            return originKey;
+          },
+          themedCard,
+        );
         await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
         for (const size of [
           { width: 960, height: 640 },
@@ -4785,6 +5010,16 @@ try {
       capture: captureScenarioScreenshot,
       captureTarget: (name, target) => captureKeyboardTarget(name, target, "native-interface-size"),
     });
+    await collectionArtworkScenario({
+      browser: driverBrowser(),
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      library,
+      setTheme: selectSettingsTheme,
+      runtimeRoot,
+    });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
       invoke,
@@ -4861,11 +5096,21 @@ try {
         install: installScenarios,
         selectedSetup: (context) =>
           selectedFixtureFamilies.has("selected-setup")
-            ? selectedSetupScenario({
-                ...context,
-                fixture: required(context.fixture),
-                cli: required(context.cli),
-              })
+            ? selection.selected_scenarios.includes("native-standing-setup-source-return")
+              ? standingSetupScenario({ ...context, fixture: required(context.fixture) })
+              : selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
+                ? setupBatchScenario({ ...context, fixture: required(context.fixture) })
+                : selection.selected_scenarios.includes("native-large-discovery-setup-review")
+                  ? largeSetupReviewScenario({
+                      ...context,
+                      fixture: required(context.fixture),
+                      largeReview: required(largeSetupReviewFixture),
+                    })
+                  : selectedSetupScenario({
+                      ...context,
+                      fixture: required(context.fixture),
+                      cli: required(context.cli),
+                    })
             : Promise.resolve(),
         selectedSetupCompletion: ({ chooseGameFileFolder, ...context }) =>
           selectedFixtureFamilies.has("selected-setup-completion")
@@ -4886,6 +5131,9 @@ try {
                     : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
+                ...(executionPlan.fixtures.updateReviewJourney
+                  ? { catalogPath: required(installFixture).catalogPath }
+                  : {}),
               })
             : Promise.resolve(),
       },

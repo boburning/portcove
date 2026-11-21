@@ -2,7 +2,11 @@ import type { CSSProperties } from "react";
 import palette from "./platform-palette.json";
 
 // v58 identity decoration is independent of readiness and semantic status colors.
-const identities: Record<string, { label: string; color: string }> = palette;
+const identities: Record<string, { label: string; color: string }> = {
+  ...palette,
+  // Keep the existing facet key for saved filters that use the authored ID.
+  "nintendo-gamecube": palette.gamecube,
+};
 const aliases: Record<string, string> = {
   "windows-x86-64": "windows",
   "linux-x86-64": "linux",

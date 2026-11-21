@@ -5,6 +5,14 @@
     "name": "Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA)",
     "summary": "Choose Red Alert, Tiberian Dawn or Dune 2000, then let OpenRA prepare the game content on first Play.",
     "project_url": "https://github.com/OpenRA/OpenRA",
+    "artwork": {
+      "game_id": 57205,
+      "cover_id": 198255,
+      "image_id": "co48z3",
+      "image_sha256": "da301705205bb3596cd69bdf6464dca6bf50eee06c09bd257c7f77c0a34ad898",
+      "game_slug": "openra",
+      "match_kind": "port"
+    },
     "issue_number": 1852,
     "listed_at": "2026-10-23",
     "funding_urls": ["https://www.patreon.com/orahosting"],
@@ -56,5 +64,13 @@
         }
       ]
     }
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The exact Windows/macOS/Linux routes provide separate RedAlert, TiberianDawn and Dune2000 players. Retain explicit game choice instead of assigning one original to the shared project.",
+    "evidence_urls": [
+      "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
+      "https://github.com/OpenRA/OpenRA"
+    ]
   }
 }

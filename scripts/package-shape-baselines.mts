@@ -113,7 +113,23 @@ function field(value: unknown, key: string): unknown {
  */
 export function derivationInputs(port: unknown, platform: string) {
   const subdirectory = field(field(port, "runtime_subdirectory_by_platform"), platform);
+  // Recorded only when declared, so digests of routes without it are unchanged.
+  const linuxFormat = field(
+    field(field(port, "reviewed_package_layouts"), platform),
+    "classify_linux_programs_by_format",
+  );
   return {
+    ...(linuxFormat === null ? {} : { classify_linux_programs_by_format: linuxFormat }),
+    ...(field(port, "external_profile_policy") === "openmohaa-unix-v1" &&
+    ["linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform)
+      ? { openmohaa_prepared_programs: true }
+      : {}),
+    ...(field(port, "adapter") === "n64-recomp-portable" &&
+    ["macos-x86-64", "macos-aarch64"].includes(platform) &&
+    (field(port, "launch_from_install_root") === true ||
+      field(port, "n64_runtime_at_executable_parent") !== true)
+      ? { n64_macos_flat_persistence_observed: true }
+      : {}),
     adapter: field(port, "adapter"),
     executable_hints: field(field(port, "executable_hints"), platform),
     external_profile_policy: field(port, "external_profile_policy"),

@@ -28,6 +28,14 @@ interface SourceDialogContext {
   command: FixtureCommand;
 }
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
+
+export function assertPreliminarySourceReviewExplanation(text: string) {
+  assert.match(
+    text,
+    /Basic\s+file\s+checks\s+passed\.\s+These\s+checks\s+alone\s+don[’']t\s+identify\s+the\s+edition\.\s+Check\s+which\s+files\s+this\s+port\s+needs\./u,
+  );
+}
+
 type SetupFixture = Omit<InstallFixture, "sourceJourney"> & {
   sourceJourney: (NonNullable<InstallFixture["sourceJourney"]> & { root?: GameFileRoot }) | null;
   hashResumeInitial?: GameFileScanSnapshot;
@@ -294,6 +302,7 @@ import {
   openCatalogPortAfterRefresh,
   reviewControls,
   selectGameFilesSettings,
+  openGameFileScan,
 } from "./desktop-review-controls.mts";
 
 async function progressiveScanNavigation({
@@ -346,6 +355,7 @@ async function progressiveScanNavigation({
   let cleanupError;
   try {
     try {
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
         const scan = await browser.findElements(button("Scan saved folders"));
@@ -653,18 +663,8 @@ export async function sourceDialogScenario({
     const profileLabel = required(required(port.presentation).source_requirements[0]).label;
     const { button, click } = reviewControls(browser);
 
-    await openCatalogPortAfterRefresh(browser, port);
+    await openCatalogPortAfterRefresh(browser, port, port.name);
     await revealDetailSection(browser, "Game files");
-    const disclosure = await browser.findElement(By.css(".requirements-disclosure"));
-    const detailsOpen = (element: Element) => {
-      if (!(element instanceof HTMLDetailsElement))
-        throw new Error("Expected requirements disclosure details element");
-      return element.open;
-    };
-    if (!(await executeBrowserScript(browser, detailsOpen, disclosure))) {
-      await click(By.css(".requirements-disclosure > .requirements-summary"));
-    }
-    assert.equal(await executeBrowserScript(browser, detailsOpen, disclosure), true);
     const intakeTrigger = await browser.findElement(button("Check game files"));
     await executeBrowserScript(
       browser,
@@ -679,9 +679,21 @@ export async function sourceDialogScenario({
     );
     const chooseFiles = await browser.findElement(button("Choose game files to check"));
     await browser.wait(until.elementIsEnabled(chooseFiles), 5_000);
+    // This journey already supplies a registered path, so the automatic check
+    // offers its candidate. Choosing different files is the secondary action.
+    const useCurrentLocation = await browser.wait(
+      until.elementLocated(
+        By.css(
+          '[aria-labelledby="source-intake-title"] button[data-import-mode="use_current_location"]',
+        ),
+      ),
+      15_000,
+    );
+    await browser.wait(until.elementIsEnabled(useCurrentLocation), 5_000);
+    assert.equal(await chooseFiles.getAttribute("data-variant"), "outline");
     const intakeStyles = await assertPrimaryReviewAction(
       browser,
-      chooseFiles,
+      useCurrentLocation,
       await browser.findElement(button("Close")),
     );
     await assertCompactReview(browser, '[aria-labelledby="source-intake-title"]');
@@ -896,7 +908,9 @@ export async function sourceDialogScenario({
     const discoveryActivity = By.xpath(
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );
-    await browser.wait(until.elementLocated(discoveryActivity), 15_000);
+    // Native27 still awaited the updated Activity row after a 20.687 s workspace
+    // read, with another read pending. Keep its exact identity and accessible name.
+    await browser.wait(until.elementLocated(discoveryActivity), 60_000);
     await click(discoveryActivity);
     await browser.wait(
       () =>
@@ -938,6 +952,8 @@ export async function sourceDialogScenario({
           library_discovery_settings_control_focused: true,
           directional_navigation_stayed_in_game_files: sourceActivityInRecentPreview,
           intake_action_styles: intakeStyles,
+          intake_action_label: "Use current location",
+          intake_choose_files_variant: "outline",
           search_action_styles: searchStyles,
           field_presentation: fieldPresentation,
           evidence:
@@ -1364,7 +1380,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(
         async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),
@@ -1428,7 +1444,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
         15_000,
       );
       const reviewText = await review.getText();
-      assert.match(reviewText, /validation.*not.*run|not.*validated|structural/i);
+      assertPreliminarySourceReviewExplanation(reviewText);
       report.observations.review_text = reviewText;
       await captureAccessibilityReport(
         browser,
@@ -1508,7 +1524,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await enabled(button("Scan saved folders"));
       const activities = new Set(
@@ -1554,7 +1570,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
         15_000,
       );
       const sourceText = await sourceReview.getText();
-      assert.match(sourceText, /validation.*not.*run|not.*validated|structural/i);
+      assertPreliminarySourceReviewExplanation(sourceText);
       assertOwnedSelectedSetupPath(
         await sourceReview.findElement(By.css("code")).getText(),
         owned.path,
@@ -1623,7 +1639,8 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
       report.observations.registered = registered;
       report.observations.status = status;
       await clickVisible(browser, checkbox);
-      assert.match(await queue.getText(), /1 of 16 ports selected/);
+      assert.equal(await queue.findElement(By.css('[role="status"]')).getText(), "1 selected");
+      assert.equal(await queue.findElement(checkboxLocator).getAttribute("aria-checked"), "true");
       assert.deepEqual(await read("get_statuses"), statuses);
       await screenshot("preliminary-selected-queue");
       await click(button(`Review ${fixture.port.name} setup`));
@@ -1852,7 +1869,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
     const { button, click } = reviewControls(browser);
     let nativeRead: ReturnType<typeof selectedSetupRead>;
     const report: SetupReport = {
-      scope: "Actual saved hash-batch continuation and fresh source review/cancel",
+      scope: "Finish an actual saved hash-batch scan and review the new match without registering",
       limitations: [
         "Inert owned Windows development inputs; no gameplay, installed package, physical storage or Linux proof",
         "Root and initial batch seeded by first-party CLI; native picker not exercised",
@@ -1881,10 +1898,10 @@ async function hashResumeScenario(context: SelectedSetupContext) {
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
-        const controls = await browser.findElements(button("Continue scan"));
+        const controls = await browser.findElements(button("Finish scanning these folders"));
         return (
           controls.length === 1 && controls[0] !== undefined && (await controls[0].isEnabled())
         );
@@ -1894,6 +1911,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       assert.deepEqual(initial.report, fixture.hashResumeInitial.report);
       assert.deepEqual(initial.limits, fixture.hashResumeInitial.limits);
       assert.equal(required(initial.coverage).can_resume, true);
+      const scanId = required(initial.matches).scan_id;
       const presentation = await browser
         .findElement(By.css('[aria-label="Saved folder scan results"]'))
         .getText();
@@ -1903,18 +1921,18 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       const previous = new Set(
         transportValue("activity", command(["activity"])).records.map((record) => record.id),
       );
-      report.checkpoint = "keyboard continuation";
-      const continueButton = await browser.findElement(button("Continue scan"));
+      report.checkpoint = "finish scan by keyboard";
+      const finishButton = await browser.findElement(button("Finish scanning these folders"));
       await executeBrowserScript(
         browser,
         (element) => {
           if (!(element instanceof HTMLElement))
-            throw new Error("Expected focusable scan continuation");
+            throw new Error("Expected focusable Finish scanning button");
           element.focus();
         },
-        continueButton,
+        finishButton,
       );
-      await continueButton.sendKeys(Key.SPACE);
+      await finishButton.sendKeys(Key.SPACE);
       await browser.wait(
         async () =>
           transportValue("activity", command(["activity"])).records.some(
@@ -1933,6 +1951,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       }, 5_000);
       const continued = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(continued.freshness, "inputs_match");
+      assert.equal(required(continued.matches).scan_id, scanId);
       assert.equal(required(continued.coverage).batches, 2);
       assert.equal(required(continued.coverage).can_resume, false);
       assert.equal(required(continued.coverage).frontier_exhausted, true);
@@ -1948,7 +1967,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       );
       assert.deepEqual(
         continued.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       const newlyDiscovered = continued.report.candidates.find(
         (item) => item.profile_id !== required(initial.report.candidates[0]).profile_id,
@@ -1988,7 +2007,9 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       assert.ok(report.observations.review_text.includes("Use current location"));
       assert.ok(report.observations.review_text.includes("File check: Edition identified"));
       const displayedPath = await review
-        .findElement(By.xpath('.//p[contains(.,"Selected location:")]/code'))
+        .findElement(
+          By.xpath('.//dt[normalize-space(.)="Selected location"]/following-sibling::dd/code'),
+        )
         .getText();
       assertOwnedSelectedSetupPath(displayedPath, plan.source.path);
       report.observations.fresh_plan = plan;
@@ -2139,7 +2160,7 @@ export async function selectedSetupScenario({
       assert.equal(snapshot.freshness, "inputs_match");
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       return snapshot;
     };
@@ -2177,7 +2198,7 @@ export async function selectedSetupScenario({
         ),
       );
       await selectGameFilesSettings(browser);
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await openGameFileScan(browser);
       await click(button("Refresh folders"));
       report.observations.initial_scan = await scan();
       assert.deepEqual(
@@ -2475,7 +2496,7 @@ export async function selectedSetupScenario({
         assert.ok(installPlan.source_requirements.every((item) => item.registered));
         assert.deepEqual(
           installPlan.source_requirements.map((item) => item.profile_id).sort(),
-          (port === fixture.refreshPort ? owned.profiles : [owned.profiles[0]]).slice().sort(),
+          port === fixture.refreshPort ? owned.profiles.toSorted() : [owned.profiles[0]],
         );
         return { status, install_plan: installPlan };
       });

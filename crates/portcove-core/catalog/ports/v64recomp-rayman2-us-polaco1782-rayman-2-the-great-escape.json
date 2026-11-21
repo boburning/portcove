@@ -6,7 +6,7 @@
     "original_game_title": "Rayman 2: The Great Escape",
     "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/polaco1782/v64recomp",
     "manual_setup": {
@@ -45,6 +45,24 @@
       "image_sha256": "d6927888c6f6184250267a1bf04115a97b1145679102e7627863df4b5de866d2",
       "game_slug": "rayman-2-the-great-escape",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rayman-2-the-great-escape",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md",
+        "https://github.com/polaco1782/v64recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "rayman-2-the-great-escape-nintendo-64",
+          "title": "Rayman 2: The Great Escape (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/v64recomp-rayman2-us-polaco1782-rayman-2-the-great-escape.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

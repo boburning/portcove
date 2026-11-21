@@ -1,9 +1,13 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import type { PortStatus, RuntimePrerequisiteReport } from "../types";
 import { RuntimePrerequisiteNotice } from "./RuntimePrerequisiteNotice";
+import { captureParityState } from "../../test/parity-capture";
+import { browserFixture } from "../../test/browser-fixture";
+import "../styles/index.css";
 
 const VISUAL_CPP = "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist";
 const DIRECTX = "https://www.microsoft.com/download/details.aspx?id=35";
@@ -45,7 +49,9 @@ function report(
 const installed = { active: { id: "i1" } } as unknown as PortStatus;
 let root: RenderResult;
 let container: HTMLDivElement;
+let fixture: ReturnType<typeof browserFixture>;
 beforeEach(async () => {
+  fixture = browserFixture({ viewport: true, attributes: ["data-theme"] });
   container = document.createElement("div");
   document.body.append(container);
   root = await renderComponent(null, { container: document.body.appendChild(container) });
@@ -54,6 +60,7 @@ afterEach(async () => {
   await cleanup();
   container.remove();
   vi.restoreAllMocks();
+  await fixture.dispose();
 });
 
 async function show(load: () => Promise<RuntimePrerequisiteReport | null>, status?: PortStatus) {
@@ -115,6 +122,42 @@ it("does not re-read program files when only the status object refreshes", async
   await show(load, { active: { id: "i1" }, channel: "stable" } as unknown as PortStatus);
   expect(load).toHaveBeenCalledOnce();
 });
+
+it.each([
+  { width: 960, theme: "dark" },
+  { width: 430, theme: "light" },
+])(
+  "rechecks the same installation without naming a launch label at $width px in $theme",
+  async ({ width, theme }) => {
+    await page.viewport(width, width < 600 ? 780 : 800);
+    document.documentElement.dataset.theme = theme;
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce(report("missing"))
+      .mockRejectedValueOnce(new Error("unavailable"))
+      .mockResolvedValueOnce(report("unknown"))
+      .mockResolvedValueOnce({ ...report("present"), inspection: "partial" })
+      .mockResolvedValueOnce(report("present"));
+    await show(load, installed);
+
+    const recheck = async () => {
+      const button = notice()?.querySelector("button");
+      if (!button) throw new Error("Expected the runtime recheck button");
+      await act(async () => button.click());
+    };
+    await recheck();
+    expect(notice()?.textContent).toContain("could not confirm");
+    await recheck();
+    expect(notice()?.textContent).toContain("could not confirm");
+    await recheck();
+    expect(notice()?.textContent).toContain("could not confirm");
+    await recheck();
+    expect(load.mock.calls).toEqual(Array.from({ length: 5 }, () => ["p", "i1", 1]));
+    expect(notice()?.querySelector("p")?.textContent).toBe("The checked runtimes are installed.");
+    expect(notice()?.querySelector("a")).toBeNull();
+    await captureParityState("runtime-recheck-present-action-neutral");
+  },
+);
 
 it("never shows a report for an installation that is no longer current", async () => {
   let resolveFirst: (value: RuntimePrerequisiteReport) => void = () => {};

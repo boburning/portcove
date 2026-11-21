@@ -1,0 +1,77 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "spelunky-classic-hd",
+    "name": "Spelunky Classic HD",
+    "summary": "Explore the caves in a community modification of Derek Yu’s Spelunky Classic.",
+    "original_game_title": "Spelunky Classic",
+    "project_url": "https://github.com/yancharkin/SpelunkyClassicHD",
+    "artwork": {
+      "game_id": 8145,
+      "cover_id": 90941,
+      "image_id": "co1y65",
+      "image_sha256": "34711cd0f5381465e54129e0ca315275d6ba08e01877c2907ff90726b5ec0185",
+      "game_slug": "spelunky-classic",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 6056,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_block_reason": "The release bundles modified Spelunky game data. Portcove needs an exact record of the applicable game-data permission and notices before offering Download. The setup guide covers a copy you already have permission to use.",
+    "setup_url": "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md",
+    "release_url": "https://github.com/yancharkin/SpelunkyClassicHD/releases/tag/1.2.2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Start the Windows or Linux package",
+          "instruction": "For a copy you already have permission to use, on Windows x64 extract the complete x86_64 ZIP and open SpelunkyClassicHD.exe from its folder. On Linux x86-64, allow the AppImage to run as a program and open it on a system with FUSE support."
+        },
+        {
+          "title": "Keep your settings and scores",
+          "instruction": "Close the game before backing up the SpelunkyClassicHD profile under %LOCALAPPDATA% on Windows, or under $XDG_CONFIG_HOME or ~/.config on Linux. Keep settings.json and spelunky.ini. If you use the publisher’s portable mode on Windows, back up the profile files from the extracted game folder."
+        }
+      ],
+      "warnings": [
+        "The release includes modified original game data. Portcove Download is held while its exact permission and notice record is unresolved.",
+        "Before changing Windows portable mode or replacing an extracted copy, back up the files from the mode you already use."
+      ],
+      "references": [
+        {
+          "title": "Set up Windows N media components",
+          "instruction": "Both Windows builds need Media Foundation. On Windows N, install Microsoft’s Media Feature Pack in Optional features and restart before opening the game."
+        },
+        {
+          "title": "Use a sibling package from the same release",
+          "instruction": "The publisher offers a Windows 11 on Arm ZIP and a native Linux ARM64 ZIP. On Linux ARM64, extract the complete ZIP, keep assets beside SpelunkyClassicHD, and run it from that folder on a system with glibc 2.34 or later, libstdc++ with GLIBCXX_3.4.30, OpenSSL 3, OpenSSL-backed libcurl.so.4, X11, and OpenGL."
+        },
+        {
+          "title": "Find the Android build",
+          "instruction": "The same release includes an Android APK for ARM64, ARMv7 and x86-64. Follow the publisher’s Android setup and keep its data separate from desktop copies. This release has no Mac package."
+        }
+      ],
+      "help_url": "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "spelunky-classic",
+      "evidence_urls": [
+        "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md",
+        "https://github.com/yancharkin/SpelunkyClassicHD"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "spelunky-classic-hd",
+    "origin": {
+      "project_url": "https://github.com/yancharkin/SpelunkyClassicHD",
+      "repository": {
+        "host": "github.com",
+        "id": "95799684"
+      }
+    },
+    "decisions": []
+  }
+}

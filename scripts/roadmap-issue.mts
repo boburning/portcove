@@ -255,9 +255,10 @@ export function findPortIssueDuplicates(
       ...upstreams,
       ...history.map((row) => normalizedUpstream(row.project_url)),
     ];
-    const knownGame =
-      authored?.listing.original_game_title ??
-      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    const knownGames = [
+      authored?.listing.original_game_title,
+      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1],
+    ].filter((game): game is string => Boolean(game));
     const separateIdentity =
       repositoryIdentity &&
       bodyIds.length <= 1 &&
@@ -266,8 +267,8 @@ export function findPortIssueDuplicates(
       ((!repositoryIds.includes(repositoryIdentity.id) &&
         !knownUpstreams.includes(candidateUpstream)) ||
         (repositoryIds.includes(repositoryIdentity.id) &&
-          knownGame &&
-          portGameKey(knownGame) !== portGameKey(repositoryIdentity.game)));
+          knownGames.length > 0 &&
+          !knownGames.some((game) => portGameKey(game) === portGameKey(repositoryIdentity.game))));
     const issueIdentity = ids[0] ?? keys[0] ?? titleIdentity;
     if (catalogId && ids.includes(catalogId)) reasons.push(`catalog ID ${catalogId}`);
     if (candidateKey && keys.includes(candidateKey)) reasons.push(`port key ${candidateKey}`);
@@ -322,21 +323,40 @@ export function renderPortResearchDeclaration() {
   return "<!-- portcove-research: catalog=unassigned; support=not-granted -->";
 }
 
-export function renderPortIssueBody({
-  title,
-  upstream,
-  catalogId,
-  portKey,
-  currentEvidence = "Initial intake; evidence pending triage.",
-  blocker = "No current blocker has been established. Exact resume condition pending triage.",
-}: {
-  title: string;
-  upstream: string;
-  catalogId?: string | null | undefined;
-  portKey?: string | null | undefined;
-  currentEvidence?: string;
-  blocker?: string;
-}) {
+// These versions reconstruct issue bodies bound by retained hosted intake hashes.
+const portIssueBodyCopy = {
+  "hosted-before-finite-v1": {
+    acceptance: `- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.`,
+    completion: "No completion evidence yet.",
+  },
+  "finite-route-v1": {
+    acceptance: `- [ ] Each offered operation names its platform, owner and applicable checks. Record exact title facts, reuse matching shared proof and retain relevant failures.\n- [ ] The finite integration can finish with a working upstream-managed registration. Record work Status, Port stage, offered operations and qualification separately.`,
+    completion:
+      "Record the released route and applicable receipts here when the title scope is delivered. Preserve superseded requirements and their dated evidence.",
+  },
+} as const;
+
+export type PortIssueBodyTemplate = keyof typeof portIssueBodyCopy;
+
+export function renderPortIssueBody(
+  {
+    title,
+    upstream,
+    catalogId,
+    portKey,
+    currentEvidence = "Initial intake; evidence pending triage.",
+    blocker = "No current blocker has been established. Exact resume condition pending triage.",
+  }: {
+    title: string;
+    upstream: string;
+    catalogId?: string | null | undefined;
+    portKey?: string | null | undefined;
+    currentEvidence?: string;
+    blocker?: string;
+  },
+  template: PortIssueBodyTemplate = "finite-route-v1",
+) {
+  const copy = portIssueBodyCopy[template];
   const normalizedPortKey = portKey ? normalizePortKey(portKey) : null;
   if (!catalogId && !normalizedPortKey) {
     throw new Error("a non-catalog port requires a durable --port-key");
@@ -350,7 +370,7 @@ export function renderPortIssueBody({
   const portKeyMarker = normalizedPortKey
     ? `\n<!-- portcove-port-key: ${normalizedPortKey} -->`
     : "";
-  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n- [ ] Every promised operation and owned port fact has explicit evidence or an honest Unknown/Not run limitation.\n- [ ] The catalog and Project agree with the independently closable port state.\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\nNo completion evidence yet.\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}${catalogId ? "" : `\n${renderPortResearchDeclaration()}`}`;
+  return `## User outcome\n\n${title} can be researched, prioritized, qualified, advanced, blocked, and closed independently.\n\n## Current behavior and evidence\n\n${currentEvidence}\n\n## Scope\n\n- Direct upstream: ${upstream}\n- Game/title identity: ${title}\n- Catalog ID: ${catalogLine}\n- Durable port key: ${portKeyLine}\n- Supported and candidate platforms: Unknown until evidenced\n- Release assets and integrity: Pending\n- Source requirements and accepted revisions: Pending\n- Executable/setup boundary: Pending\n- Persistence and user-data boundary: Pending\n- Adapter fit and dependencies: Pending\n- Initial Port stage: Watchlist. The live Port stage is maintained in the Portcove Roadmap.\n- Current blocker and exact resume condition: ${blocker}\n- Automated qualification: Not yet recorded\n- Manual qualification: Not yet recorded\n\n## Non-goals\n\nThis issue does not grant support, expand V1 scope, weaken source or artifact validation, or replace shared engineering dependencies.\n\n## Acceptance criteria\n\n${copy.acceptance}\n- [ ] Completion evidence links the implementation and exact qualification results.\n\n## Required tests\n\nValidate applicable admission, source, artifact, archive, executable and lifecycle checks for each promised operation/platform. Record absent optional gameplay evidence as Unknown, not failure. Integration completion does not require personal playtesting; explicit hands-on support claims still require actual observations. Unsupported management operations remain unavailable with reasons.\n\n## Documentation impact\n\nUpdate catalog.json only when actual support or qualification changes; keep mutable priority and stage in the Project.\n\n## Dependencies and blockers\n\n${blocker}\n\n## Completion evidence\n\n${copy.completion}\n\n${portMarker}\n<!-- portcove-upstream: ${upstream} -->${catalogMarker}${portKeyMarker}${catalogId ? "" : `\n${renderPortResearchDeclaration()}`}`;
 }
 
 export function itemTitle(item: RoadmapIssueItem | null | undefined) {

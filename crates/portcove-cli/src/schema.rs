@@ -784,6 +784,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "profile_original_instance",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::ProfileOriginalInstance>(contract)
+                ),
+            ),
+            (
                 "profile_inventory",
                 serde_json::json!(schema_for_contract::<portcove_core::ProfileInventory>(
                     contract
@@ -796,8 +802,26 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "recipe_acquisition_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::RecipeAcquisitionPlan>(
+                    contract
+                )),
+            ),
+            (
                 "recipe_import_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::RecipeImportPlan>(
+                    contract
+                )),
+            ),
+            (
+                "mod_setup_draft_preview",
+                serde_json::json!(schema_for_contract::<portcove_core::ModSetupDraftPreview>(
+                    contract
+                )),
+            ),
+            (
+                "provider_catalog",
+                serde_json::json!(schema_for_contract::<portcove_core::ProviderCatalog>(
                     contract
                 )),
             ),
@@ -836,14 +860,44 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "local_mod_package_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::LocalModPackagePlan>(
+                    contract
+                )),
+            ),
+            (
+                "mod_file_preservation_plan",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::ModFilePreservationPlan>(contract)
+                ),
+            ),
+            (
+                "mod_file_preservation_result",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ModFilePreservationResult,
+                >(contract)),
+            ),
+            (
                 "mod_code_review",
                 serde_json::json!(schema_for_contract::<portcove_core::ModCodeReview>(
                     contract
                 )),
             ),
             (
+                "profile_original_review",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileOriginalReview>(
+                    contract
+                )),
+            ),
+            (
                 "profile_revision",
                 serde_json::json!(schema_for_contract::<portcove_core::ProfileRevision>(
+                    contract
+                )),
+            ),
+            (
+                "profile_recovery_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileRecoveryPlan>(
                     contract
                 )),
             ),

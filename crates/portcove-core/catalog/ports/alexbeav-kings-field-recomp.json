@@ -48,15 +48,14 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["King-s-Field-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["King-s-Field-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["King-s-Field-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["King-s-Field-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["King-s-Field-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
     "original_game_title": "King's Field"
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -94,8 +93,31 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own Japan King's Field CHD (SLPS-00017) containing its single data track, plus your own retail SCPH-5500 (Japan) BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-5500 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters."
+      "manual_preparation": "Provide your own Japan King's Field CHD (SLPS-00017) containing its single data track, plus your own retail SCPH-5500 (Japan) BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-5500 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own Japan King's Field disc, SLPS-00017, with its single data track intact. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact.",
+          "Older kits had relaunch or generated-target issues. Use the reviewed player name and keep the completed output with its creating kit."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/kings-field-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5500-bios"
+  },
+  "original_game_review": {
+    "disposition": "unresolved",
+    "reason": "The upstream README declares Japan but the generator still uses scaffold marker SLUS_01234. Recover an attributable actual disc/executable target before assigning the precise original game or merging it with US King’s Field; a region label alone is insufficient.",
+    "evidence_urls": [
+      "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/b9266f92d8a91c78e5a4b383ba306bd24b6f0ef9/README.md",
+      "https://github.com/alexbeavs-ps1-ports/kings-field-recomp#readme",
+      "https://github.com/alexbeavs-ps1-ports/kings-field-recomp"
+    ]
   }
 }

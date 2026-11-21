@@ -3,9 +3,17 @@
   "listing": {
     "id": "pc-4ddriving-vs-sr-dev-4d-driving-fm-towns-marty-rerelease",
     "name": "4D Driving (FM Towns Marty rerelease) — pc-4ddriving (vs-sr-dev)",
-    "original_game_title": "4D Driving (FM Towns Marty rerelease)",
+    "original_game_title": "Stunts / 4D Driving",
     "summary": "Experimental project. Races/replay/editor/music/audio comparisons; no completed full-game checks; the distinct Marty edition preserved. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-4ddriving",
+    "artwork": {
+      "game_id": 11630,
+      "cover_id": 100218,
+      "image_id": "co25bu",
+      "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+      "game_slug": "stunts",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +35,16 @@
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-4ddriving"
     },
-    "issue_number": 3592
+    "issue_number": 3592,
+    "original_game": {
+      "format_version": 1,
+      "id": "stunts",
+      "evidence_urls": [
+        "https://github.com/vs-sr-dev/pc-4ddriving/blob/fbff75fabe221c731de74e7981e0b17b64f30441/README.md",
+        "https://github.com/vs-sr-dev/pc-4ddriving"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

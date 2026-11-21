@@ -17,7 +17,13 @@
       "game_slug": "pokemon-red-version",
       "match_kind": "underlying-game"
     },
-    "issue_number": 98
+    "issue_number": 98,
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-red",
+      "evidence_urls": ["https://github.com/bryanthaboi/gen1recomp"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "stable",

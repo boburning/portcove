@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$ArchivePath,
     [Parameter(Mandatory = $true)][ValidateSet("windows-x86_64", "linux-x86_64", "macos-aarch64", "macos-x86_64")][string]$PlatformLabel,
-    [Parameter(Mandatory = $true)][string]$Version
+    [Parameter(Mandatory = $true)][string]$Version,
+    [ValidateRange(1, 999999999)][int]$ExpectedCliApi
 )
 
 $ErrorActionPreference = "Stop"
@@ -87,7 +88,7 @@ $library = Join-Path $temporaryDirectory "Library $unicodeMarker space"
 
 try {
     Invoke-IsolatedCliSmoke -LibraryPath $library -PreferencePath (Join-Path $temporaryDirectory "preferences.json") -Operation {
-        param($PlatformLabel, $Version)
+        param($PlatformLabel, $Version, $ExpectedCliApi)
         $expectedExecutableName = if ($PlatformLabel -eq "windows-x86_64") { "portcove.exe" } else { "portcove" }
         if ($archive.EndsWith(".zip", [System.StringComparison]::OrdinalIgnoreCase)) {
             if ($PlatformLabel -ne "windows-x86_64") { throw "Only the Windows CLI package may use ZIP" }
@@ -174,6 +175,10 @@ try {
         if ($LASTEXITCODE -ne 0 -or $capabilitiesOutput.ok -ne $true -or $capabilitiesOutput.command -ne "capabilities") {
             throw "Packaged CLI failed its launch-capability smoke test"
         }
+        if ($ExpectedCliApi -and ($capabilitiesOutput.schema_version -cne $ExpectedCliApi -or
+            $capabilitiesOutput.data.schema_version -cne $ExpectedCliApi)) {
+            throw "Packaged CLI did not report the release's CLI API $ExpectedCliApi"
+        }
         if (@($capabilitiesOutput.data.raw_stream_commands) -cnotcontains "exec") {
             throw "Packaged CLI does not declare exec as its raw-stream launch route"
         }
@@ -189,7 +194,7 @@ try {
             throw "Packaged CLI failed its isolated-library doctor smoke test"
         }
         Write-Output "Packaged CLI smoke test passed: $PlatformLabel; $versionOutput; $identity; spaces/Unicode executable and explicit library paths; exec plus launch.show and launch.recover"
-    } -Arguments @($PlatformLabel, $Version)
+    } -Arguments @($PlatformLabel, $Version, $ExpectedCliApi)
 }
 finally {
         $resolvedParent = [System.IO.Path]::GetFullPath($temporaryParent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar

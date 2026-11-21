@@ -51,8 +51,27 @@
           "instruction": "Keep game, bin including the generated module, art, module-src, work, userdata and every actual custom location together. Preserve settings, memory cards, states, screenshots, logs, replays, shaders, textures, mods and unknown files. Upstream and the player own preparation, repair and replacement."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-ii",
+      "evidence_urls": [
+        "https://github.com/jackpoison-prog/RingOut#installing",
+        "https://github.com/jackpoison-prog/RingOut"
+      ],
+      "source_editions": [
+        {
+          "id": "soulcalibur-ii-nintendo-gamecube",
+          "title": "Soulcalibur II (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/jackpoison-prog/RingOut/blob/31c1bab7ecdd1f7a45b1a8a85930e4faf9638374/README.md"
+          ]
+        }
+      ]
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -62,19 +81,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "jackpoison-prog/RingOut",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "jackpoison-prog/RingOut"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

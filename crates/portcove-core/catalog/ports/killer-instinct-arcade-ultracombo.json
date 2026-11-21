@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "killer-instinct-arcade-ultracombo",
+    "artwork": {
+      "game_id": 2907,
+      "cover_id": 100781,
+      "image_id": "co25rh",
+      "image_sha256": "1bdd5b9f331881dd465e4e02fbb59054b0e20706ca8bfc8e2d06d2dfac5f9be2",
+      "game_slug": "killer-instinct",
+      "match_kind": "underlying-game"
+    },
     "name": "Killer Instinct (arcade) (UltraCombo)",
     "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
     "original_game_title": "Killer Instinct (arcade)",
@@ -38,6 +46,15 @@
       "warnings": [
         "Keep the kinst originals, active data root and per-version settings/states. First-use compilation, game switching and netplay remain upstream-owned operations."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killer-instinct-arcade",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/UltraCombo/blob/aca9a93825b93ecfc9fc55df3dfcb1bc08be7608/README.md",
+        "https://github.com/thefixinhixon/UltraCombo"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

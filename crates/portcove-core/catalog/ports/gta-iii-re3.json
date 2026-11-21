@@ -34,7 +34,7 @@
       ]
     },
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "download_block_reason": "Fresh acquisition/build qualification remains unresolved: the archived game-specific source explicitly declines to give the code a license. Reconsider when the canonical owner accepts an authorized exact implementation and original-PC-input route. Conditional registration of a permitted existing copy does not resolve that hold.",
+    "download_block_reason": "Downloads are paused. The release link points to an archived mirror that carries both GTA III and Vice City, and its latest package is for Vice City. The archived project explicitly declines to license its code. Downloads can resume after review identifies the re3 project’s own GTA III package, verifies its contents and checks the package terms for any express restriction on third-party acquisition. You can register your own permitted re3 copy with its original PC game files.",
     "artwork": {
       "game_id": 730,
       "cover_id": 120932,
@@ -42,6 +42,15 @@
       "image_sha256": "5f64f7a41034ea93cb44c3cd3c5b7167d680f647e9952967e167e452dd8e447c",
       "game_slug": "grand-theft-auto-iii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-iii",
+      "evidence_urls": [
+        "https://github.com/leanndroguedes/re3-19feb21/blob/e35c56ceb3eea3c3ccda1cc4e6645e901787d70a/README.md",
+        "https://github.com/leanndroguedes/re3-19feb21"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -64,6 +64,17 @@ impl CatalogDownloadRepository {
             Self::Github(name) | Self::Gitlab(name) => name,
         }
     }
+
+    pub(super) fn release_notes_url(&self, tag: &str) -> Option<String> {
+        if tag.is_empty() || tag.len() > 512 || tag.chars().any(char::is_control) {
+            return None;
+        }
+        let url = match self {
+            Self::Github(repository) => format!("https://github.com/{repository}/releases/tag"),
+            Self::Gitlab(repository) => format!("https://gitlab.com/{repository}/-/releases"),
+        };
+        crate::release_notes::web_url(&url, &[tag])
+    }
 }
 
 #[derive(Clone)]
@@ -106,6 +117,7 @@ impl CatalogDownloadProvider {
         selected: Option<&CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
+        github_other_stream_prefixes: &[String],
     ) -> Result<(
         Vec<CatalogDownloadCandidate>,
         CatalogDownloadCoverage,
@@ -122,7 +134,13 @@ impl CatalogDownloadProvider {
                     })
                     .transpose()?;
                 let (candidates, coverage, releases, selected) = provider
-                    .catalog_download_options(repository, selected, channel, rolling_tag)
+                    .catalog_download_options(
+                        repository,
+                        selected,
+                        channel,
+                        rolling_tag,
+                        github_other_stream_prefixes,
+                    )
                     .await?;
                 Ok((candidates, coverage, releases, selected.map(Into::into)))
             }
@@ -160,6 +178,31 @@ impl CatalogDownloadProvider {
                     .catalog_download_candidate(repository, release, asset)
                     .await
             }
+        }
+    }
+
+    pub(super) async fn candidate_release_notes_url(
+        &self,
+        repository: &str,
+        release: &CatalogDownloadReleaseId,
+        asset: &CatalogDownloadAssetId,
+    ) -> Result<String> {
+        asset.validate_for(release)?;
+        match self {
+            Self::Github(provider) => {
+                let (Some(release), Some(asset)) = (release.github_id(), asset.github_id()) else {
+                    return Err(PortcoveError::verification(
+                        "mixed download provider identity",
+                    ));
+                };
+                provider
+                    .catalog_release_notes_url(repository, release, asset)
+                    .await
+            }
+            Self::Gitlab(provider) => provider
+                .catalog_download_candidate(repository, release, asset)
+                .await
+                .map(|candidate| candidate.release_url),
         }
     }
 

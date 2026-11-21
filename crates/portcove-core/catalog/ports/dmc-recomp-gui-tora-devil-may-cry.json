@@ -4,6 +4,14 @@
     "id": "dmc-recomp-gui-tora-devil-may-cry",
     "name": "Devil May Cry — dmc-recomp (Gui-Tora)",
     "original_game_title": "Devil May Cry",
+    "artwork": {
+      "game_id": 134,
+      "cover_id": 436183,
+      "image_id": "co9ck7",
+      "image_sha256": "9d36a30485711695159e534666c5866311270b75024cfb629bddcd6eac11e560",
+      "game_slug": "devil-may-cry",
+      "match_kind": "underlying-game"
+    },
     "summary": "Research project. Source-only prereleases; explicitly not playable; late-stream MPEG/rendering blockers. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Gui-Tora/dmc-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/Gui-Tora/dmc-recomp"
     },
-    "issue_number": 2995
+    "issue_number": 2995,
+    "original_game": {
+      "format_version": 1,
+      "id": "devil-may-cry",
+      "evidence_urls": ["https://github.com/Gui-Tora/dmc-recomp"],
+      "source_editions": [
+        {
+          "id": "devil-may-cry-playstation-2",
+          "title": "Devil May Cry (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Gui-Tora/dmc-recomp/blob/529e9ed572241b15793ac47dd850a5b5c259b924/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

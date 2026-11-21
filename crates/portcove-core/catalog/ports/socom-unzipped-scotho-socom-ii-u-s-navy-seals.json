@@ -35,6 +35,21 @@
       "image_sha256": "0a6e19060030b1593fc431cec23fce1b66a4f442ceb42b1c3efed01b36814ff0",
       "game_slug": "socom-ii-us-navy-seals",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "socom-ii-u-s-navy-seals",
+      "evidence_urls": ["https://github.com/Scotho/socom-unzipped"],
+      "source_editions": [
+        {
+          "id": "socom-ii-u-s-navy-seals-playstation-2",
+          "title": "SOCOM II: U.S. Navy SEALs (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Scotho/socom-unzipped/blob/ef8b1bc285b17e40d1073a7254aa78733e334e6a/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

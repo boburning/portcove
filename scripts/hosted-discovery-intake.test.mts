@@ -1,3 +1,8 @@
+import { hostedAmendmentMarker } from "./hosted-discovery-amendment.mts";
+import {
+  resolveDiscoveryRepository,
+  DiscoveryLocationUnavailable,
+} from "./upstream-relocation-candidates.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -5,6 +10,8 @@ import {
   HostedIntakeBridge,
   parseHostedRequest,
   assertHostedEvent,
+  selectHostedRequests,
+  verifyOwnerAuditRun,
   hostedRequestMarker,
   hostedBody,
   hostedPlanHash,
@@ -20,6 +27,7 @@ import {
 import { portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { DiscoveryRepositoryUnavailable } from "./daily-discovery-sources.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import type { HostedIntakeCheckpointStore } from "./hosted-discovery-intake-checkpoint.mts";
 import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { observationHash } from "./upstream-observer.mts";
@@ -141,7 +149,11 @@ void test("real Project field writes use the complete API schema without CLI com
     },
   ]);
 });
-async function fixture(candidates = [candidate]) {
+async function fixture(
+  candidates = [candidate],
+  schemaVersion = 1,
+  checkpoints?: HostedIntakeCheckpointStore,
+) {
   const comments = new Map<
     number,
     { id: number; body: string; user: { login: string }; issue_url: string }
@@ -149,7 +161,7 @@ async function fixture(candidates = [candidate]) {
   const issueUrl = "https://api.github.com/repos/boburning/portcove/issues/177";
   const request = {
     id: 100,
-    body: encode({ ...proposal, candidates }),
+    body: encode({ ...proposal, schema_version: schemaVersion, candidates }),
     user: { login: "boburning" },
     issue_url: issueUrl,
   };
@@ -161,6 +173,9 @@ async function fixture(candidates = [candidate]) {
     projectFailure = false,
     denied = false,
     primaryChanged = false;
+  let changedRepository: string | undefined;
+  const researchCalls: string[] = [];
+  const repositoryAliases = new Map<string, string>();
   const issues: {
     id: string;
     node_id: string;
@@ -174,8 +189,8 @@ async function fixture(candidates = [candidate]) {
   }[] = [];
   const fields = { ...portFieldInitialization(null) };
   let normalizations = 0;
-  const snapshots: { delivery: { status: string }[] }[] = [];
-  let lastInventorySnapshot: { delivery: { status: string }[] } | undefined;
+  const snapshots: { delivery: { status: string; hold?: unknown }[] }[] = [];
+  let lastInventorySnapshot: { delivery: { status: string; hold?: unknown }[] } | undefined;
   const client = await sdkRoadmap(config, {
     graphql: async () => {
       throw new Error("Unexpected domain transport");
@@ -223,7 +238,7 @@ async function fixture(candidates = [candidate]) {
     const checked = structuredClone(lastInventorySnapshot);
     const attempt = snapshots.at(-1);
     assert(checked && attempt);
-    const index = checked.delivery.findIndex((d) => d.status === "preflight");
+    const index = checked.delivery.findIndex((d) => d.status === "preflight" && !d.hold);
     assert(index >= 0);
     checked.delivery[index]!.status = "create-attempted";
     assert.deepEqual(
@@ -301,26 +316,38 @@ async function fixture(candidates = [candidate]) {
     client,
     { project: sdk, repository: sdk },
     "a".repeat(40),
-    async (upstream) => ({
-      metadata: {
-        id: candidates.find((c) => new URL(c.upstream).pathname.slice(1) === upstream)!
-          .repository_id,
-        full_name: upstream,
-      },
-      releases: [],
-      selected: [],
-      readme: {
-        commit: (primaryChanged ? "c" : "b").repeat(40),
-        blob: "d".repeat(40),
-        text: "Primary evidence",
-      },
-      fingerprint: "primary-release-fingerprint",
-      manifest: undefined,
-      manifest_evidence: { commit: "b".repeat(40), status: "unavailable-or-invalid" },
-      scope: "Fixture primary evidence",
-      observed_at: undefined,
-    }),
+    async (upstream) => {
+      researchCalls.push(upstream);
+      return {
+        metadata: {
+          id: candidates.find(
+            (c) =>
+              (repositoryAliases.get(new URL(c.upstream).pathname.slice(1)) ??
+                new URL(c.upstream).pathname.slice(1)) === upstream,
+          )!.repository_id,
+          full_name: upstream,
+        },
+        releases: [],
+        selected: [],
+        readme: {
+          commit: (primaryChanged && (!changedRepository || upstream.endsWith(changedRepository))
+            ? "c"
+            : "b"
+          ).repeat(40),
+          blob: "d".repeat(40),
+          text: "Primary evidence",
+        },
+        fingerprint: "primary-release-fingerprint",
+        manifest: undefined,
+        manifest_evidence: { commit: "b".repeat(40), status: "unavailable-or-invalid" },
+        scope: "Fixture primary evidence",
+        observed_at: undefined,
+      };
+    },
     () => {},
+    undefined,
+    undefined,
+    checkpoints ? { checkpoints: () => checkpoints } : undefined,
   );
   client.completeProjectContext = async () => ({
     number: config.project.number,
@@ -427,8 +454,11 @@ async function fixture(candidates = [candidate]) {
     deny: () => {
       denied = true;
     },
-    changePrimary: () => {
+    researchCalls,
+    repositoryAliases,
+    changePrimary: (repository?: string) => {
       primaryChanged = true;
+      changedRepository = repository;
     },
   };
 }
@@ -474,20 +504,20 @@ void test("an existing canonical implementation is retained while unrelated new 
   const f = await fixture([candidate, other]);
   const body = hostedBody({ ...candidate, port_key: "original-owner-key" }, 99);
   f.issues.push({
-    id: "I150",
-    node_id: "I150",
-    number: 150,
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
     title: "[Port] Original owner",
     body,
     state: "CLOSED",
-    url: "https://github.com/boburning/portcove/issues/150",
-    html_url: "https://github.com/boburning/portcove/issues/150",
+    url: "https://github.com/boburning/portcove/issues/1000150",
+    html_url: "https://github.com/boburning/portcove/issues/1000150",
     updatedAt: "2026-10-28T00:00:00Z",
   });
   const execution = f.client.executionIssue.bind(f.client);
   f.client.executionIssue = async (number) => {
     const value = await execution(number);
-    if (number === 150) value.item.Status = "Done";
+    if (number === 1000150) value.item.Status = "Done";
     return value;
   };
   const result = await f.bridge.process(f.request, f.all());
@@ -498,25 +528,25 @@ void test("an existing canonical implementation is retained while unrelated new 
   assert.equal(result.delivery[0]!.status, "existing");
   assert.equal(result.delivery[0]!.created_issue, undefined);
   assert.equal(result.delivery[0]!.existing, true);
-  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.canonical_issue, 1000150);
   assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
   assert.equal((await f.bridge.status(f.request, f.all())).delivered, 1);
   const before = f.comments.size;
   assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
   assert.equal(f.comments.size, before);
 });
-async function existingOwnerFixture(candidates = [candidate]) {
-  const f = await fixture(candidates);
+async function existingOwnerFixture(candidates = [candidate], schemaVersion = 1) {
+  const f = await fixture(candidates, schemaVersion);
   const body = hostedBody({ ...candidate, port_key: "existing-key" }, 99);
   f.issues.push({
-    id: "I150",
-    node_id: "I150",
-    number: 150,
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
     title: "[Port] Existing owner",
     body,
     state: "OPEN",
-    url: "https://github.com/boburning/portcove/issues/150",
-    html_url: "https://github.com/boburning/portcove/issues/150",
+    url: "https://github.com/boburning/portcove/issues/1000150",
+    html_url: "https://github.com/boburning/portcove/issues/1000150",
     updatedAt: "2026-10-28T00:00:00Z",
   });
   return f;
@@ -540,14 +570,14 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
           99,
         );
         f.issues.push({
-          id: "I150",
-          node_id: "I150",
-          number: 150,
+          id: "I1000150",
+          node_id: "I1000150",
+          number: 1000150,
           title: "[Port] Earlier implementation name",
           body,
           state: "OPEN",
-          url: "https://github.com/boburning/portcove/issues/150",
-          html_url: "https://github.com/boburning/portcove/issues/150",
+          url: "https://github.com/boburning/portcove/issues/1000150",
+          html_url: "https://github.com/boburning/portcove/issues/1000150",
           updatedAt: "2026-10-28T00:00:00Z",
         });
       }
@@ -555,7 +585,7 @@ void test("a canonical owner appearing in the final pre-POST inventory is observ
     return inventory(cache, full);
   };
   const result = await f.bridge.process(f.request, f.all());
-  assert.equal(result.delivery[0]!.canonical_issue, 150);
+  assert.equal(result.delivery[0]!.canonical_issue, 1000150);
   assert.equal(result.delivery[0]!.status, "existing");
   assert.equal(f.creations, 0);
 });
@@ -630,7 +660,7 @@ void test("existing observations deduplicate across proposals and preserve non-n
   f.comments.set(101, request);
   const second = await f.bridge.process(request, f.all());
   assert.equal(second.delivery[0]!.status, "existing");
-  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/150")).length, 1);
+  assert.equal([...f.comments.values()].filter((c) => c.issue_url.endsWith("/1000150")).length, 1);
   assert.equal(f.fields.Status, "Deferred");
   assert.equal(f.fields.Priority, "High");
   assert.equal(f.normalizations, 0);
@@ -674,7 +704,7 @@ void test("uncertain observation POSTs recover only a confirmed marker and never
     let posts = 0,
       active = true;
     f.sdk.hook.wrap("request", async (request, options) => {
-      if (active && options.method === "POST" && options.url.endsWith("/150/comments")) {
+      if (active && options.method === "POST" && options.url.endsWith("/1000150/comments")) {
         posts++;
         if (confirmed) await request(options);
         throw new GitHubApiError("budget_exhausted", "Observation POST response unknown");
@@ -721,6 +751,57 @@ void test("reporting reads only hash-bound receipts and refuses completion witho
   await assert.rejects(
     async () => await f.bridge.status(f.request, [f.request, receipt]),
     /doctor|object/u,
+  );
+});
+void test("retained intake bodies keep their original hash after the issue template changes", async () => {
+  const f = await fixture();
+  const delivered = await f.bridge.process(f.request, f.all());
+  const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
+  const original = delivered.plan[0]!;
+  assert.match(
+    original.body,
+    /Each offered operation names its platform, owner and applicable checks/u,
+  );
+  const historicalBody = hostedBody(candidate, f.request.id, "hosted-before-finite-v1");
+  const historical = {
+    ...original,
+    body: historicalBody,
+    body_sha256: observationHash(historicalBody),
+  };
+  assert.equal(
+    historical.body_sha256,
+    "99bba8a4b2de389f8b727a3ba69c46068fd7471fcc49391f2638bcb93eaedfbd",
+  );
+  assert.equal(
+    observationHash(hostedBody(candidate, f.request.id, "finite-route-v1")),
+    "84cfa769bdeed3db499108d73b8db4855efe73b9a475265ac54603460168a636",
+  );
+  assert.notEqual(historical.body_sha256, original.body_sha256);
+  const { candidate: _candidate, body: _body, ...compact } = historical;
+  const retained = {
+    ...delivered,
+    plan_encoding: "proposal-bound-v2",
+    plan: [{ ...compact, candidate_index: 0, port_key: candidate.port_key }],
+    plan_sha256: hostedPlanHash(delivered.request_sha256, [historical]),
+  };
+  const writeCount = f.writes;
+  const { plan_encoding: _encoding, ...full } = retained;
+  for (const row of [retained, { ...full, plan: [historical] }]) {
+    const complete = {
+      ...receipt,
+      body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(row)}\n\`\`\``,
+    };
+    assert.equal((await f.bridge.status(f.request, [f.request, complete])).status, "complete");
+  }
+  assert.equal(f.writes, writeCount);
+  const forged = { ...retained, plan: [{ ...retained.plan[0]!, body_sha256: "0".repeat(64) }] };
+  const invalid = {
+    ...receipt,
+    body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(forged)}\n\`\`\``,
+  };
+  await assert.rejects(
+    f.bridge.status(f.request, [f.request, invalid]),
+    /does not match the exact proposal/u,
   );
 });
 void test("pre-plan diagnostics report blocked while stale diagnostics cannot describe an edited proposal", async () => {
@@ -1156,10 +1237,9 @@ void test("interrupted Project delivery recovers the same issue without another 
   assert.equal(f.creations, 1);
 });
 void test("changed primary, request or existing issue body refuses stale preparation", async () => {
-  for (const change of ["primary", "request", "issue"] as const) {
+  for (const change of ["request", "issue"] as const) {
     const f = await fixture();
     if (change !== "issue") await f.prepare();
-    if (change === "primary") f.changePrimary();
     if (change === "request") f.comments.get(100)!.body += "edited";
     if (change === "issue") {
       f.failProject(true);
@@ -1751,10 +1831,8 @@ void test("a held bound slot retains its binding and refuses changed evidence on
   assert.deepEqual(held.plan[0]!.primary, before.primary);
   f.bridge.primary = primary;
   f.changePrimary();
-  await assert.rejects(
-    f.bridge.process(f.request, f.all(), { resumeHolds: true }),
-    /Primary evidence changed/u,
-  );
+  const changed = await f.bridge.process(f.request, f.all(), { resumeHolds: true });
+  assert.equal(changed.delivery[0]?.hold?.reason, "evidence-changed");
   assert.equal(f.creations, 0);
   assert.equal((await f.bridge.status(f.request, f.all())).held, 1);
 });
@@ -2058,4 +2136,707 @@ void test("a queue beyond the absolute ceiling fails before reading its pages", 
     /exceeded its budget/u,
   );
   assert.equal(budget.used, 1);
+});
+
+void test("explicit observations match exactly one immutable owner and never create on a mismatch", async () => {
+  const observation = {
+    ...candidate,
+    port_key: "existing-key",
+    intent: { kind: "observe-existing", issue: 1000150 },
+  };
+  const independent = {
+    ...candidate,
+    title: "Independent game",
+    game: "Independent game",
+    upstream: "https://github.com/example/independent",
+    repository_id: candidate.repository_id + 1,
+    port_key: "independent",
+    intent: { kind: "create" },
+  };
+  const f = await existingOwnerFixture([observation], 2);
+  f.issues[0]!.state = "CLOSED";
+  f.fields.Status = "Done";
+  const verified = await f.bridge.process(f.request, f.all());
+  assert.equal(f.creations, 0);
+  assert.equal(verified.delivery[0]?.status, "existing");
+  assert.equal(verified.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(verified.delivery[0]?.item_id, "PVTI1000150");
+
+  const held = await existingOwnerFixture([observation, independent], 2);
+  held.issues[0]!.body = held.issues[0]!.body.replace(String(candidate.repository_id), "9001");
+  const result = await held.bridge.process(held.request, held.all());
+  assert.equal(result.status, "complete_with_holds");
+  assert.equal(held.creations, 1);
+  assert.equal(result.delivery[0]?.hold?.http_status, null);
+  assert.equal(result.delivery[0]?.created_comment, undefined);
+  assert.equal(result.delivery[1]?.status, "delivered");
+
+  const createExisting = { ...candidate, port_key: "existing-key", intent: { kind: "create" } };
+  const mustCreate = await existingOwnerFixture([createExisting], 2);
+  assert.equal(
+    (await mustCreate.bridge.process(mustCreate.request, mustCreate.all())).status,
+    "complete_with_holds",
+  );
+  assert.equal(mustCreate.creations, 0);
+  assert.equal(
+    [...mustCreate.comments.values()].some((c) => c.issue_url.endsWith("/1000150")),
+    false,
+  );
+});
+
+void test("scheduled audits verify the exact original owner workflow attempt and request", () => {
+  const sha = "a".repeat(40);
+  const origin = `900/2@${sha}`;
+  const run = {
+    actor: { login: "boburning" },
+    repository: { id: 1354613114 },
+    event: "workflow_dispatch",
+    head_branch: "main",
+    status: "completed",
+    path: ".github/workflows/hosted-discovery-intake.yml",
+    display_title: "Hosted intake audit 341 / 1",
+    id: 900,
+    run_attempt: 2,
+    head_sha: sha,
+  };
+  verifyOwnerAuditRun(run, 341, origin);
+  const ordinary = { ...run, event: "issue_comment", display_title: "Hosted intake 341 / 1" };
+  verifyOwnerAuditRun(ordinary, 341, origin);
+  for (const mismatched of [
+    { ...ordinary, display_title: "Hosted intake 342 / 1" },
+    { ...ordinary, display_title: run.display_title },
+    { ...run, display_title: ordinary.display_title },
+  ])
+    assert.throws(() => verifyOwnerAuditRun(mismatched, 341, origin));
+  for (const changed of [
+    { actor: { login: "github-actions[bot]" } },
+    { repository: { id: 1 } },
+    { event: "schedule" },
+    { head_branch: "feature" },
+    { status: "queued" },
+    { path: "elsewhere.yml" },
+    { display_title: "Hosted intake audit 342 / 1" },
+    { id: 901 },
+    { run_attempt: 1 },
+    { head_sha: "b".repeat(40) },
+  ])
+    assert.throws(() => verifyOwnerAuditRun({ ...run, ...changed }, 341, origin));
+});
+
+async function verifyAuditRecovery(schema: 1 | 2) {
+  const candidates = Array.from({ length: 11 }, (_, i) => ({
+    ...candidate,
+    title: `Intake game ${i}`,
+    game: `Intake game ${i}`,
+    upstream: `${candidate.upstream}-${i}`,
+    repository_id: candidate.repository_id + i,
+    port_key: `intake-game-${i}`,
+    ...(schema === 2 ? { intent: { kind: "create" } } : {}),
+  }));
+  let retained: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  const store: HostedIntakeCheckpointStore = {
+    load: () => structuredClone(retained),
+    save(_id, hash, revision, body, previous, slots) {
+      assert.equal(revision, retained?.revision ?? 0);
+      assert.equal(previous?.body, retained?.receipt_body);
+      retained = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  };
+  const f = await fixture(candidates, schema, schema === 2 ? store : undefined);
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { auditOnly: true }),
+    /full audit pending/u,
+  );
+  assert.equal(f.creations, 0);
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = async (cache, full) => {
+    if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
+    return await inventory(cache, full);
+  };
+  const originalProposalRun = "800/1@" + "e".repeat(40);
+  if (schema === 2) {
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].audit_pending) throw new Error("Interrupted before first audit projection");
+      return await publish(...args);
+    };
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { origin: originalProposalRun }),
+      /Interrupted before first audit projection/u,
+    );
+    f.bridge.persist = publish;
+    const native = await f.bridge.status(f.request, f.all());
+    assert.equal(native.audit_pending, undefined);
+    assert.equal(native.audit_retry, undefined);
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    const scheduledBinding = collected.audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    const verifyOrigin = async (request: number, origin: string) => {
+      assert.equal(request, f.request.id);
+      assert.equal(origin, originalProposalRun);
+    };
+    const comment = f.comments.get(native.receipt_comment!)!;
+    const original = comment.body;
+    comment.body += "\n";
+    assert.equal((await f.bridge.status(f.request, f.all(), store)).audit_retry, undefined);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /ahead of or differs/u,
+    );
+    assert.notEqual(comment.body, original);
+    comment.body = original;
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin: async () => {
+          throw new Error("Original owner action could not be verified");
+        },
+      }),
+      /original owner action/iu,
+    );
+    assert.equal(comment.body, original);
+    const readQueue = f.bridge.comments.bind(f.bridge);
+    for (const changed of [
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.filter((entry) => entry.id !== f.request.id),
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.map((entry) =>
+          entry.id === f.request.id ? { ...entry, body: `Withdrawn\n${entry.body}` } : entry,
+        ),
+    ]) {
+      f.bridge.comments = async () => changed(await readQueue());
+      await assert.rejects(
+        f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+        /scheduled audit request is unavailable or has changed/u,
+      );
+      assert.equal(comment.body, original);
+    }
+    f.bridge.comments = readQueue;
+    const duplicate = { ...comment, id: comment.id + 1000 };
+    await assert.rejects(
+      f.bridge.process(f.request, [...f.all(), duplicate], {
+        auditOnly: true,
+        scheduledBinding,
+        verifyOrigin,
+      }),
+      /ambiguous hosted receipt/iu,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+      /Unrelated Roadmap edit/u,
+    );
+  } else {
+    await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  }
+  assert.equal(f.creations, candidates.length);
+  const status = await f.bridge.status(f.request, f.all());
+  assert.equal(status.audit_pending, true);
+  if (schema === 2) {
+    assert.match(status.audit_retry?.binding ?? "", /^[0-9a-f]{64}$/u);
+    assert.ok(f.comments.get(status.receipt_comment!)!.body.includes(originalProposalRun));
+  } else {
+    assert.equal(
+      status.audit_retry,
+      undefined,
+      "an unbound historical run cannot authorize a retry",
+    );
+  }
+  const origin = "900/2@" + "f".repeat(40);
+  let scheduledBinding: string | undefined;
+  if (schema === 2) {
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, origin }),
+      /Unrelated Roadmap edit/u,
+    );
+    scheduledBinding = (await f.bridge.status(f.request, f.all())).audit_retry?.binding;
+    assert.ok(scheduledBinding);
+    assert.match(scheduledBinding, /^[0-9a-f]{64}$/u);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding: "0".repeat(64) }),
+      /does not authorize/u,
+    );
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding }),
+      /Missing native audit origin/u,
+    );
+  }
+  const verifyOrigin = async (request: number, original: string) => {
+    assert.equal(request, f.request.id);
+    assert.equal(original, origin);
+  };
+  const scheduled = scheduledBinding ? { scheduledBinding, verifyOrigin } : {};
+  const writes = f.writes;
+  if (schema === 1) {
+    const comment = f.comments.get(status.receipt_comment!)!;
+    // Old schema-1 receipts predate the explicit audit checkpoint.
+    comment.body = comment.body.replace(/^  "audit_pending": true,\n/mu, "");
+    assert.equal((await f.bridge.status(f.request, f.all())).audit_pending, undefined);
+    f.fields.Status = "Ready";
+  }
+
+  f.changePrimary();
+  f.bridge.primary = async () => {
+    throw new Error("Audit must not reread upstream");
+  };
+  f.bridge.inventory = async (cache, full) => {
+    assert.equal(cache, undefined);
+    assert.equal(full, true);
+    return await inventory(cache, full);
+  };
+  let audits = 0;
+  f.bridge.auditRoadmap = async (_config, client, options) => {
+    assert(options?.inventory);
+    assert.equal(client, f.client);
+    const full = requireRoadmapInventory(options.inventory, config.repository, f.client);
+    audits++;
+    const { details, fields } = await f.client.completeProjectContext();
+    return {
+      number: config.project.number,
+      details,
+      fields,
+      views: [],
+      repositoryIssues: full.issues,
+      items: full.items,
+      diagnostics: [],
+      warnings: [],
+      inventory: full,
+      repositoryIssueInventoryAttempts: undefined,
+      projectInventorySource: "discovery-inventory",
+    };
+  };
+  if (schema === 2) {
+    // Lose the response after the exact final receipt was persisted in PostgreSQL.
+    const publish = f.bridge.persist.bind(f.bridge);
+    f.bridge.persist = async (...args) => {
+      if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
+      return await publish(...args);
+    };
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true, ...scheduled }),
+      /Worker interrupted/u,
+    );
+    f.bridge.persist = publish;
+    const [collected] = (await hostedStatusAll(f.bridge, store)).requests;
+    assert.ok(collected && !("error" in collected));
+    assert.equal(collected.audit_retry?.binding, scheduledBinding);
+    f.bridge.inventory = async () => {
+      throw new Error("Already verified audit must not repeat");
+    };
+  }
+  const completed = await f.bridge.process(f.request, f.all(), {
+    auditOnly: schema === 2,
+    ...scheduled,
+  });
+  assert.equal(completed.status, "complete");
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { auditOnly: true })).status,
+    "complete",
+  );
+  assert.equal(audits, 1);
+  assert.equal(f.creations, candidates.length);
+  assert.equal(f.writes, writes);
+  assert.equal((await f.bridge.status(f.request, f.all())).status, "complete");
+  assert.deepEqual(
+    completed.delivery.map((d) => d.created_issue),
+    f.issues.map((issue) => issue.number),
+  );
+}
+void test("legacy audit recovery preserves delivered candidates without reopening owner planning", () =>
+  verifyAuditRecovery(1));
+void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", () =>
+  verifyAuditRecovery(2));
+
+void test("scheduled selections retain an unavailable request and independent bound audits", async () => {
+  const f = await fixture();
+  const absent = f.request.id + 1;
+  const selected = [absent, f.request.id];
+  assert.deepEqual(selectHostedRequests([f.request], selected, true), [
+    { id: absent, request: undefined },
+    { id: f.request.id, request: f.request },
+  ]);
+  assert.throws(() => selectHostedRequests([f.request], selected, false), /no longer available/u);
+});
+
+function amendmentFor(
+  f: Awaited<ReturnType<typeof fixture>>,
+  index: number,
+  replacement = {},
+  hold = false,
+) {
+  const receipt = f
+    .all()
+    .find((c) => c.body.startsWith(`<!-- portcove-hosted-intake-receipt:${f.request.id} -->`))!;
+  const stored = JSON.parse(receipt.body.match(/```json\n([\s\S]+)\n```$/u)![1]!) as {
+    plan: { body_sha256: string; evidence_sha256: string | null }[];
+  };
+  const original = parseHostedRequest(f.request.body).candidates[index]!;
+  const value = {
+    schema_version: 1,
+    ...(hold ? { hold: true } : {}),
+    request_comment: f.request.id,
+    request_sha256: observationHash(f.request.body),
+    receipt_comment: receipt.id,
+    receipt_sha256: observationHash(receipt.body),
+    candidate_index: index,
+    port_key: original.port_key,
+    previous_body_sha256: stored.plan[index]!.body_sha256,
+    previous_evidence_sha256: stored.plan[index]!.evidence_sha256,
+    replacement: {
+      upstream: original.upstream,
+      evidence:
+        "Fresh dated primary research retains the original requirements and maturity limits.",
+      resume: original.resume,
+      ...replacement,
+    },
+    reason: "Reconcile newer primary evidence for this unattempted candidate.",
+  };
+  const comment = {
+    ...f.request,
+    id: 10000 + index,
+    body: `${hostedAmendmentMarker}\n\`\`\`json\n${JSON.stringify(value)}\n\`\`\``,
+  };
+  f.comments.set(comment.id, comment);
+  return { comment, value, receipt };
+}
+
+void test("an exact amendment corrects only the game label of a held explicit observation", async () => {
+  const observation = {
+    ...candidate,
+    game: `${candidate.game} (USA original edition)`,
+    port_key: "existing-key",
+    intent: { kind: "observe-existing", issue: 1000150 },
+  };
+  const f = await existingOwnerFixture([observation], 2);
+  const ownerBefore = structuredClone(f.issues[0]);
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  amendmentFor(f, 0, { game: candidate.game });
+  const complete = await f.bridge.process(f.request, f.all());
+  assert.equal(complete.status, "complete");
+  assert.equal(complete.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(complete.delivery[0]?.item_id, "PVTI1000150");
+  assert.equal(complete.plan[0]?.candidate.game, candidate.game);
+  assert.deepEqual(f.issues[0], ownerBefore);
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
+});
+
+void test("a game label correction cannot rebind candidate creation", async () => {
+  const f = await fixture();
+  await f.prepare();
+  amendmentFor(f, 0, { game: "Different game" });
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Game label correction requires an explicit existing-owner observation/u,
+  );
+  assert.equal(f.creations, 0);
+});
+
+void test("a legacy unattempted slot observes an established owner with a different key", async () => {
+  const f = await existingOwnerFixture();
+  const owner = f.issues.pop()!;
+  await f.prepare();
+  f.issues.push(owner);
+  const ownerBefore = structuredClone(f.issues[0]);
+  amendmentFor(f, 0, {
+    game: candidate.game,
+    canonical_owner: { issue: 1000150, port_key: "existing-key" },
+  });
+  const complete = await f.bridge.process(f.request, f.all());
+  assert.equal(complete.status, "complete");
+  assert.equal(complete.delivery[0]?.canonical_issue, 1000150);
+  assert.equal(complete.delivery[0]?.item_id, "PVTI1000150");
+  assert.equal(complete.plan[0]?.candidate.port_key, "existing-key");
+  assert.deepEqual(f.issues[0], ownerBefore);
+  assert.equal(f.creations, 0);
+  assert.equal((await f.bridge.status(f.request, f.all())).existing, 1);
+});
+
+void test("a legacy owner amendment refuses an original creation marker", async () => {
+  const f = await fixture();
+  await f.prepare();
+  const body = hostedBody(candidate, f.request.id);
+  const issueUrl = "https://github.com/boburning/portcove/issues/1000150";
+  f.issues.push({
+    id: "I1000150",
+    node_id: "I1000150",
+    number: 1000150,
+    title: "[Port] Prior creation",
+    body,
+    state: "OPEN",
+    url: issueUrl,
+    html_url: issueUrl,
+    updatedAt: "2026-10-28T00:00:00Z",
+  });
+  amendmentFor(f, 0, {
+    game: candidate.game,
+    canonical_owner: { issue: 1000150, port_key: "different-key" },
+  });
+  await assert.rejects(f.bridge.process(f.request, f.all()), /retained creation marker/u);
+  assert.equal(f.creations, 0);
+  assert(!f.all().some((comment) => comment.issue_url.endsWith("/1000150")));
+});
+
+void test("candidate amendments finish a legacy partial batch while preserving four delivered owners", async () => {
+  const f = await partialFixture(8, 4);
+  const before = structuredClone(f.issues);
+  f.changePrimary();
+  let saved: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  f.bridge.durable.checkpoints = () => ({
+    load: () => structuredClone(saved),
+    save(_request, hash, revision, body, previous, slots) {
+      assert.equal(revision, saved?.revision ?? 0);
+      if (saved) assert.equal(previous?.body, saved.receipt_body);
+      saved = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  });
+  for (let index = 4; index < 8; index++) amendmentFor(f, index);
+  f.researchCalls.length = 0;
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.equal(f.creations, 8);
+  assert(
+    f.researchCalls.every(
+      (name) => !before.some((issue) => issue.body.includes(`https://github.com/${name}`)),
+    ),
+  );
+  assert.deepEqual(f.issues.slice(0, 4), before);
+  assert(saved);
+  assert.equal((await f.bridge.status(f.request, f.all())).status, "complete");
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 8);
+});
+
+void test("a changed candidate holds independently and its amendment resumes the same request", async () => {
+  const f = await partialFixture(3, 1);
+  f.changePrimary("-1");
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal(held.delivery[1]?.hold?.reason, "evidence-changed");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  amendmentFor(f, 1);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
+});
+
+void test("stale amendments, completed slots and uncertain writes retain original intent", async () => {
+  for (const state of ["stale", "delivered", "uncertain"] as const) {
+    const f = state === "uncertain" ? await fixture() : await partialFixture(2, 1);
+    if (state === "uncertain") {
+      f.failPost();
+      await assert.rejects(f.bridge.process(f.request, f.all()), /unknown/u);
+    }
+    const { comment, value } = amendmentFor(
+      f,
+      state === "delivered" ? 0 : state === "uncertain" ? 0 : 1,
+    );
+    if (state === "stale") {
+      value.previous_body_sha256 = "f".repeat(64);
+      comment.body = `${hostedAmendmentMarker}\n\`\`\`json\n${JSON.stringify(value)}\n\`\`\``;
+    }
+    const creations = f.creations;
+    await assert.rejects(f.bridge.process(f.request, f.all()), /amendment cannot revise/u);
+    assert.equal(f.creations, creations);
+  }
+});
+
+void test("repository moves retain immutable identity and a reused source name holds independently", async () => {
+  const paths: string[] = [];
+  const moved = await resolveDiscoveryRepository("old/game", 42, async (endpoint) => {
+    paths.push(endpoint);
+    return endpoint === "/repos/old/game"
+      ? {
+          status: 301,
+          data: { message: "Moved Permanently", url: "https://api.github.com/repositories/42" },
+        }
+      : { status: 200, data: { id: 42, full_name: "new/game" } };
+  });
+  assert.equal(moved, "new/game");
+  assert.deepEqual(paths, ["/repos/old/game", "/repositories/42", "/repos/new/game"]);
+  for (const data of [
+    { status: 200, data: { id: 43 } },
+    {
+      status: 301,
+      data: { message: "Moved Permanently", url: "https://untrusted.test/repositories/42" },
+    },
+    {
+      status: 301,
+      data: { message: "Moved Permanently", url: "https://api.github.com/repositories/43" },
+    },
+    { status: 404, data: null },
+  ]) {
+    let reads = 0;
+    await assert.rejects(
+      resolveDiscoveryRepository("old/game", 42, async () => {
+        reads++;
+        return data;
+      }),
+      DiscoveryLocationUnavailable,
+    );
+    assert.equal(reads, 1);
+  }
+  const f = await partialFixture(3, 1);
+  f.bridge.durable.resolveRepository = async (name) => {
+    if (name.endsWith("-1")) throw new DiscoveryLocationUnavailable("name-reused");
+    return name;
+  };
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.delivery[1]?.hold?.reason, "repository-location");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  assert.equal(f.creations, 2);
+});
+
+void test("an amended candidate retains its verified repository move across interrupted delivery and status readback", async () => {
+  const f = await partialFixture(2, 1);
+  const previous = structuredClone(f.issues);
+  f.changePrimary();
+  amendmentFor(f, 1);
+  const originalName = "example/native-game-1";
+  const currentName = "new-owner/native-game-1";
+  f.repositoryAliases.set(originalName, currentName);
+  f.bridge.durable.resolveRepository = async (name) => (name === originalName ? currentName : name);
+  f.failProject(true);
+  await assert.rejects(f.bridge.process(f.request, f.all()), /interrupted/u);
+  assert.equal(f.creations, 2);
+  f.failProject(false);
+  const result = await f.bridge.process(f.request, f.all());
+  assert.equal(result.status, "complete");
+  assert.deepEqual(result.plan[1]?.location, {
+    declared: `https://github.com/${originalName}`,
+    current: `https://github.com/${currentName}`,
+    repository_id: candidate.repository_id + 1,
+  });
+  assert(result.plan[1]?.amendment);
+  assert.equal(result.delivery[1]?.created_issue, f.issues[1]?.number);
+  assert.deepEqual(f.issues.slice(0, 1), previous);
+  const status = await f.bridge.status(f.request, f.all());
+  assert.equal(status.slots[1]?.upstream, `https://github.com/${currentName}`);
+  assert.equal(f.creations, 2);
+});
+
+void test("malformed unrelated amendments cannot block independent requests", async () => {
+  const f = await fixture();
+  f.comments.set(9000, { ...f.request, id: 9000, body: `${hostedAmendmentMarker}\ninvalid JSON` });
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+});
+
+void test("competing or edited amendments stop before further candidate writes", async () => {
+  for (const mode of ["competing", "edited"] as const) {
+    const f = await partialFixture(2, 1);
+    const { comment } = amendmentFor(f, 1);
+    if (mode === "competing") f.comments.set(20000, { ...comment, id: 20000 });
+    else {
+      const all = f.all();
+      comment.body += "edited";
+      await assert.rejects(f.bridge.process(f.request, all), /preimage changed/u);
+      assert.equal(f.creations, 1);
+      continue;
+    }
+    await assert.rejects(f.bridge.process(f.request, f.all()), /compete/u);
+    assert.equal(f.creations, 1);
+  }
+});
+
+void test("an amended checkpoint survives receipt response loss and resumes from the exact predecessor", async () => {
+  const f = await partialFixture(2, 1);
+  f.changePrimary();
+  amendmentFor(f, 1);
+  let saved: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  f.bridge.durable.checkpoints = () => ({
+    load: () => structuredClone(saved),
+    save(_request, hash, revision, body, previous, slots) {
+      assert.equal(revision, saved?.revision ?? 0);
+      if (saved) assert.equal(previous?.body, saved.receipt_body);
+      saved = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  });
+  const publish = f.bridge.persist.bind(f.bridge);
+  f.bridge.persist = async () => {
+    throw new Error("Receipt response unavailable");
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Receipt response unavailable/u);
+  assert.equal(f.creations, 1);
+  assert(saved);
+  f.bridge.persist = publish;
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 2);
+  const checkpoint = f.bridge.durable.checkpoints().load(f.request.id);
+  assert(checkpoint);
+  assert.equal(
+    checkpoint.receipt_body,
+    f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+  );
+});
+
+void test("an owner research amendment holds one fork while eligible candidates finish", async () => {
+  const f = await partialFixture(3, 1);
+  const first = amendmentFor(f, 1, {}, true);
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal(held.delivery[1]?.hold?.reason, "owner-research");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  assert.equal(f.creations, 2);
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { resumeHolds: true })).delivery[1]?.hold?.reason,
+    "owner-research",
+  );
+  const next = amendmentFor(f, 1);
+  next.comment.id = 20001;
+  f.comments.set(first.comment.id, first.comment);
+  f.comments.set(next.comment.id, next.comment);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
+});
+
+void test("retained plans re-admit receipt growth before relocated candidate creation", async () => {
+  const candidates = Array.from({ length: 29 }, (_, index) => ({
+    ...candidate,
+    game: `Capacity game ${index}`,
+    title: `Capacity game ${index}`,
+    port_key: `capacity-game-${index}`,
+    upstream: `https://github.com/example/game-${index}`,
+    repository_id: candidate.repository_id + index,
+  }));
+  const f = await fixture(candidates);
+  await f.prepare();
+  const before = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!.body;
+  for (const c of candidates) {
+    const name = new URL(c.upstream).pathname.slice(1);
+    f.repositoryAliases.set(name, `renamed/${"a".repeat(600)}-${c.port_key}`);
+  }
+  f.bridge.durable.resolveRepository = async (name) => f.repositoryAliases.get(name) ?? name;
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Logical batch cannot retain complete delivery receipts/u,
+  );
+  assert.equal(f.creations, 0);
+  assert.equal(
+    f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+    before,
+  );
 });

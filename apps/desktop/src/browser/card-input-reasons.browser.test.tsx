@@ -101,6 +101,7 @@ function Fixture({ view }: { view: "library" | "catalog" }) {
           view={view}
           ports={ports}
           statuses={statuses}
+          libraryCount={ports.length}
           overview={{ installed: ports.length, ready: 2, needsSetup: ports.length - 2, staged: 1 }}
           filter="all"
           setFilter={() => {}}
@@ -141,6 +142,7 @@ it("keeps a legacy required-input card unconfirmed when health and assessment ar
         view="library"
         ports={[port]}
         statuses={new Map([[port.id, status]])}
+        libraryCount={1}
         overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
         filter="all"
         setFilter={() => {}}

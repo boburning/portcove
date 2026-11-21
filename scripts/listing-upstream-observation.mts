@@ -24,6 +24,8 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   delete declaration.listed_at;
   // Funding links are upstream descriptions refreshed independently of releases.
   delete declaration.funding_urls;
+  // Technique and dependency explanations do not change the observed release scope.
+  delete declaration.implementation;
   return observationHash(declaration);
 }
 const packageLimit = 32;

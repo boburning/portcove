@@ -15,9 +15,10 @@ beforeEach(() => {
   host = document.body.appendChild(document.createElement("div"));
   root = createRoot(host);
 });
-afterEach(() => {
+afterEach(async () => {
   flushSync(() => root.unmount());
   host.remove();
+  await page.viewport(1280, 800);
 });
 
 function commandList(first: () => void, second: () => void): PaletteCommand[] {
@@ -38,6 +39,83 @@ function commandList(first: () => void, second: () => void): PaletteCommand[] {
     },
   ];
 }
+
+it.each([
+  [240, 160],
+  [320, 213],
+  [960, 320],
+])("keeps one scroll owner and keyboard access at %s by %s", async (width, height) => {
+  await page.viewport(width, height);
+  const action = vi.fn<(index: number) => void>();
+  const commands = Array.from({ length: 30 }, (_, index) => ({
+    id: `short-${index}`,
+    label: `Command ${index}`,
+    description: "A command near the lower end of the results",
+    icon: Library,
+    action: () => action(index),
+  }));
+  function Fixture() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open commands</button>
+        <CommandPalette open={open} commands={commands} close={() => setOpen(false)} />
+      </>
+    );
+  }
+  flushSync(() => root.render(<Fixture />));
+  const opener = page.getByRole("button", { name: "Open commands" });
+  await opener.click();
+  let dialog = page.getByRole("dialog", { name: "Portcove commands" }).element();
+  const input = page.getByRole("combobox", { name: "Search commands" });
+  const scrollOwners = () =>
+    [dialog, ...dialog.querySelectorAll<HTMLElement>("*")].filter(
+      (element) =>
+        /auto|scroll/u.test(getComputedStyle(element).overflowY) &&
+        element.scrollHeight > element.clientHeight + 1,
+    );
+  expect(scrollOwners()).toEqual([dialog]);
+  for (let index = 0; index < 24; index++) await userEvent.keyboard("{ArrowDown}");
+  const selected = document.getElementById(input.element().getAttribute("aria-activedescendant")!)!;
+  await expect
+    .poll(() => selected.getBoundingClientRect().top)
+    .toBeGreaterThanOrEqual(input.element().getBoundingClientRect().bottom);
+  expect(selected.getBoundingClientRect().top).toBeLessThan(dialog.getBoundingClientRect().bottom);
+  await userEvent.keyboard("{Enter}");
+  expect(action).toHaveBeenCalledExactlyOnceWith(24);
+
+  await opener.click();
+  dialog = page.getByRole("dialog", { name: "Portcove commands" }).element();
+  await input.fill("a retained query that does not match any command");
+  expect(scrollOwners().filter((owner) => owner !== dialog)).toEqual([]);
+  const help = dialog.querySelector<HTMLElement>("summary")!;
+  help.focus();
+  await userEvent.keyboard("{Enter}");
+  const lowerHelp = dialog.querySelector<HTMLElement>("footer [role=group]")!;
+  lowerHelp.scrollIntoView({ block: "end" });
+  expect(lowerHelp.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    dialog.getBoundingClientRect().bottom + 1,
+  );
+  const close = page.getByRole("button", { name: "Close", exact: true });
+  await userEvent.keyboard("{Tab}");
+  await expect.element(close).toHaveFocus();
+  await userEvent.keyboard("{Tab}");
+  await expect.element(input).toHaveFocus();
+  await input.fill("another long retained query with no matching command");
+  await expect.poll(() => dialog.scrollTop).toBe(0);
+  expect(
+    dialog.querySelector('[role="status"]')!.getBoundingClientRect().top,
+  ).toBeGreaterThanOrEqual(input.element().getBoundingClientRect().bottom);
+  await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+  await expect.element(close).toHaveFocus();
+  await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+  expect(document.activeElement).toBe(help);
+  await userEvent.keyboard("{Escape}");
+  await expect.element(opener).toHaveFocus();
+  await opener.click();
+  await close.click();
+  await expect.element(opener).toHaveFocus();
+});
 
 it("keeps composition input inert and resumes normal selection through real close/reopen", async () => {
   const first = vi.fn();

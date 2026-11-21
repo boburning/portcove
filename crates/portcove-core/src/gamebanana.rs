@@ -13,7 +13,8 @@ use serde_json::Value;
 use crate::{
     Library, PortcoveError, Result,
     mod_provider::{
-        Observed, ProviderFileCandidate, ProviderPage, ProviderProject, numeric_id, sanitize_text,
+        Observed, ProviderFileCandidate, ProviderListing, ProviderPage, ProviderProject,
+        artwork_url, numeric_id, sanitize_text,
     },
     provider_http::ProviderHttp,
 };
@@ -133,6 +134,7 @@ fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
         .as_str()
         .filter(|md5| md5.len() == 32 && md5.bytes().all(|b| b.is_ascii_hexdigit()))
         .map(str::to_ascii_lowercase);
+    let archived = crate::mod_provider::provider_status_flag(value, "_bIsArchived");
     Some(ProviderFileCandidate {
         file_id,
         file_name,
@@ -140,8 +142,10 @@ fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
         added_at: value["_tsDateAdded"].as_i64().unwrap_or_default(),
         download_url,
         claimed_md5: md5,
-        archived: value["_bIsArchived"].as_bool().unwrap_or(false),
+        archived: archived.unwrap_or(false),
+        status_unknown: archived.err(),
         claimed_scan: value["_sAvResult"].as_str().map(sanitize_text),
+        thunderstore_dependencies: None,
     })
 }
 
@@ -160,7 +164,37 @@ fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
         Value::Null => (Vec::new(), 0),
         _ => (Vec::new(), 1),
     };
+    let artwork = value["_aPreviewMedia"]["_aImages"]
+        .as_array()
+        .and_then(|images| images.first())
+        .and_then(|image| {
+            let base = image["_sBaseUrl"].as_str()?;
+            let file = image["_sFile530"]
+                .as_str()
+                .or_else(|| image["_sFile220"].as_str())?;
+            if !file
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || b"-_.".contains(&byte))
+            {
+                return None;
+            }
+            artwork_url(&format!("{base}/{file}"), "images.gamebanana.com")
+        });
+    let obsolete = crate::mod_provider::provider_status_flag(value, "_bIsObsolete");
     Some(ProviderProject {
+        listing: Some(ProviderListing {
+            categories: value["_aRootCategory"]["_sName"]
+                .as_str()
+                .map(sanitize_text)
+                .filter(|name| !name.is_empty())
+                .into_iter()
+                .collect(),
+            artwork,
+            created_at: value["_tsDateAdded"].as_i64(),
+            downloads: value["_nDownloadCount"].as_u64(),
+            likes: value["_nLikeCount"].as_u64(),
+            ratings: None,
+        }),
         provider: PROVIDER.into(),
         profile_url: format!("{web_root}/mods/{project_id}"),
         project_id,
@@ -174,7 +208,8 @@ fn parse_summary(value: &Value, web_root: &str) -> Option<ProviderProject> {
             .as_i64()
             .or_else(|| value["_tsDateModified"].as_i64())
             .unwrap_or_default(),
-        obsolete: value["_bIsObsolete"].as_bool().unwrap_or(false),
+        obsolete: obsolete.unwrap_or(false),
+        status_unknown: obsolete.err(),
         submitter: value["_aSubmitter"]["_sName"].as_str().map(sanitize_text),
         files,
         unreadable_files: u32::try_from(unreadable_files).unwrap_or(u32::MAX),
@@ -197,7 +232,7 @@ pub(crate) fn parse_index(value: &Value, page: u32, web_root: &str) -> Result<Pr
             .collect(),
         total: value["_aMetadata"]["_nRecordCount"]
             .as_u64()
-            .unwrap_or_default(),
+            .ok_or_else(|| PortcoveError::verification("GameBanana index has no record count"))?,
         page,
         complete: value["_aMetadata"]["_bIsComplete"]
             .as_bool()

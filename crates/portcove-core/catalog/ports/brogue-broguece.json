@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "brogue-broguece",
+    "name": "Brogue / Brogue Community Edition",
+    "summary": "Explore procedurally generated dungeons with Brogue Community Edition.",
+    "original_game_title": "Brogue",
+    "project_url": "https://github.com/tmewett/BrogueCE",
+    "artwork": {
+      "game_id": 12516,
+      "cover_id": 217851,
+      "image_id": "co4o3f",
+      "image_sha256": "a27394f83e0d0e2ae36f5592e78e9465592c2f2e6eb334b6589867ad32c7ef5d",
+      "game_slug": "brogue",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 6047,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing",
+    "release_url": "https://github.com/tmewett/BrogueCE/releases/tag/v1.15.1",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your desktop package",
+          "instruction": "Get the Brogue Community Edition 1.15.1 archive for your system. Extract the whole archive to a folder you can write to. The release includes the game and tiles."
+        },
+        {
+          "title": "Start Brogue Community Edition",
+          "instruction": "On Windows x64, start brogue.exe in its extracted folder. On Linux x86-64, install SDL2 and SDL2_image through your distribution, then run ./brogue from the extracted folder. Use a Linux folder path without spaces for the supplied script. On macOS 15 or later, choose the Apple Silicon or Intel archive and open the included Brogue CE app. If macOS blocks the unsigned app on first launch, follow the publisher’s Mac instructions."
+        }
+      ],
+      "warnings": [
+        "Opening a save and continuing can consume that play copy. Keep a separate backup before restoring."
+      ],
+      "references": [
+        {
+          "title": "Keep your saves and recordings",
+          "instruction": "Use Save Game before leaving a run. Back up your .broguesave and .broguerec files before replacing the package. Look beside brogue.exe on Windows, in the extracted bin folder on Linux, and in ~/Library/Application Support/Brogue/Brogue CE on Mac."
+        },
+        {
+          "title": "Find the separate Android port",
+          "instruction": "The desktop project links to https://github.com/bilgincoskun/brogue-android-port/releases for Android. Its latest published build is v0.12.5.2. Keep its saves separate from the desktop 1.15.1 release."
+        }
+      ],
+      "help_url": "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "brogue",
+      "evidence_urls": [
+        "https://github.com/tmewett/BrogueCE/blob/v1.15.1/README.md#playing",
+        "https://github.com/tmewett/BrogueCE"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "brogue-broguece",
+    "origin": {
+      "project_url": "https://github.com/tmewett/BrogueCE",
+      "repository": {
+        "host": "github.com",
+        "id": "205895782"
+      }
+    },
+    "decisions": []
+  }
+}

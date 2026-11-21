@@ -4,6 +4,14 @@
     "id": "rb3pc-dietslack-rock-band-3",
     "name": "Rock Band 3 — rb3pc (dietslack)",
     "original_game_title": "Rock Band 3",
+    "artwork": {
+      "game_id": 2691,
+      "cover_id": 89041,
+      "image_id": "co1wpd",
+      "image_sha256": "f82a1634934f2dbc72e401cba2709c651a0b7fa24a491c39b7f811718922687d",
+      "game_slug": "rock-band-3",
+      "match_kind": "underlying-game"
+    },
     "summary": "This Linux-focused work has known issues. Completion and instrument support are unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dietslack/rb3pc",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/dietslack/rb3pc"
     },
-    "issue_number": 3209
+    "issue_number": 3209,
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-band-3",
+      "evidence_urls": ["https://github.com/dietslack/rb3pc"],
+      "source_editions": [
+        {
+          "id": "rock-band-3-xbox-360",
+          "title": "Rock Band 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/dietslack/rb3pc/blob/2af17dd2aad1eeee54c886d1813437676a6e5cfd/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

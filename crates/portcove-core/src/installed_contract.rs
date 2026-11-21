@@ -1,13 +1,61 @@
 //! Immutable version-owned catalog semantics, bound by the install manifest digest.
 //!
-//! The legacy catalog projection is deliberately self-contained: retaining the
-//! complete source graph avoids reconstructing referenced identity/validator or
-//! evidence records from a later catalog. This records semantics, not new trust.
+//! The legacy catalog projection retains the source graph referenced by the
+//! installed contract. A later catalog cannot supply missing identity, validator
+//! or evidence records. This records semantics without granting new trust.
 
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
-use crate::{Catalog, DefinitionSelectionIdentity, PortcoveError, Result};
+use crate::{
+    Catalog, CatalogDocument, DefinitionSelectionIdentity, Platform, PortcoveError, Result,
+};
+
+pub(crate) fn legacy_retained_document(
+    catalog: &Catalog,
+    port_id: &str,
+    platform: Option<Platform>,
+) -> CatalogDocument {
+    let mut document = retained_catalog_document(catalog, port_id);
+    let mut omitted = Vec::new();
+    let mut stripped_linux = false;
+    document.ports.retain_mut(|port| {
+        if port.linux_packaged_library.is_none() {
+            return true;
+        }
+        if port.id != port_id {
+            omitted.push(port.id.clone());
+            return false;
+        }
+        if platform == Some(Platform::WindowsX86_64) {
+            let linux = Platform::LinuxX86_64;
+            stripped_linux = true;
+            port.linux_packaged_library = None;
+            port.platforms.retain(|platform| *platform != linux);
+            port.automated_tested_platforms
+                .retain(|platform| *platform != linux);
+            port.manually_validated_platforms
+                .retain(|platform| *platform != linux);
+            port.release.linux_tar_xz = false;
+            port.release.asset_hints.remove(&linux);
+            port.executable_hints.remove(&linux);
+            port.reviewed_package_layouts.remove(&linux);
+        }
+        true
+    });
+    if let Some(sources) = &mut document.source_catalog {
+        sources
+            .contracts
+            .retain(|contract| !omitted.contains(&contract.port_id));
+        sources.qualification.retain(|record| {
+            !omitted.contains(&record.scope.port_id)
+                && !(stripped_linux
+                    && record.scope.port_id == port_id
+                    && record.scope.platform == Platform::LinuxX86_64)
+        });
+    }
+    document
+}
 
 // Keep the active and previous immutable interpretations without evicting each
 // other on every rollback/status read. Keys retain the complete bounded bytes
@@ -35,15 +83,86 @@ pub(crate) struct InstalledContract {
     admission: Option<DefinitionSelectionIdentity>,
 }
 
+/// Keep unrelated source contracts with newer reader requirements out of
+/// legacy captures. Older readers decode the whole retained source graph before
+/// selecting the port, and the selected port can still use a shared profile.
+fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::CatalogDocument {
+    let mut document = catalog.authoritative_document();
+    let excluded_ports = document
+        .ports
+        .iter()
+        .filter(|port| crate::preparation::source::native_relative(port))
+        .map(|port| &port.id)
+        .chain(
+            document
+                .source_catalog
+                .iter()
+                .flat_map(|sources| &sources.contracts)
+                .filter(|contract| {
+                    contract.variant_list_recognition_only
+                        || !contract.n64_recomp_inputs_v1.is_empty()
+                })
+                .map(|contract| &contract.port_id),
+        )
+        .filter(|port_id| port_id.as_str() != selected)
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    if excluded_ports.is_empty() {
+        return document;
+    }
+    let excluded_profiles = document
+        .ports
+        .iter()
+        .filter(|port| excluded_ports.contains(&port.id))
+        .filter_map(|port| port.source_profile.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    document
+        .ports
+        .retain(|port| !excluded_ports.contains(&port.id));
+    if let Some(sources) = document.source_catalog.as_mut() {
+        sources
+            .contracts
+            .retain(|contract| !excluded_ports.contains(&contract.port_id));
+        sources
+            .qualification
+            .retain(|record| !excluded_ports.contains(&record.scope.port_id));
+        let still_used = document
+            .ports
+            .iter()
+            .flat_map(|port| port.source_profile.iter().chain(&port.bios_source_profile))
+            .chain(
+                sources
+                    .contracts
+                    .iter()
+                    .map(|contract| &contract.profile_id),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        sources.identities.retain(|profile| {
+            !excluded_profiles.contains(&profile.id) || still_used.contains(&profile.id)
+        });
+    }
+    document
+}
+
 impl InstalledContract {
     pub(crate) fn port_id(&self) -> &str {
         &self.port_id
     }
 
     pub(crate) fn capture(catalog: &Catalog, port_id: &str) -> Result<Self> {
-        catalog.port(port_id)?;
+        Self::capture_for_platform(catalog, port_id, None)
+    }
+
+    pub(crate) fn capture_for_platform(
+        catalog: &Catalog,
+        port_id: &str,
+        platform: Option<Platform>,
+    ) -> Result<Self> {
+        let port = catalog.port(port_id)?;
         let definition = catalog.definition_snapshot(port_id).cloned();
         let admission = catalog.definition_selection(port_id).cloned();
+        let packaged_library = port.linux_packaged_library.is_some()
+            && (definition.is_some() || platform != Some(Platform::WindowsX86_64));
         let mut contract = Self {
             format: if admission.is_some() {
                 3
@@ -59,12 +178,15 @@ impl InstalledContract {
             catalog_json: if definition.is_some() {
                 String::new()
             } else {
-                serde_json::to_string(&catalog.authoritative_document())?
+                serde_json::to_string(&legacy_retained_document(catalog, port_id, platform))?
             },
             definition,
             admission,
         };
-        if catalog
+        if packaged_library {
+            contract.original_format = Some(contract.format);
+            contract.format = 11;
+        } else if catalog
             .port(port_id)?
             .release
             .user_prepared
@@ -118,6 +240,9 @@ impl InstalledContract {
             }
             (6..=8 | 10, Some(format @ 1..=3), None, None) => format,
             (9, Some(format @ 1..=3), Some(crate::PreparationMode::SourceOnly), None) => format,
+            (11, Some(format @ 1..=3), None | Some(crate::PreparationMode::SourceOnly), None) => {
+                format
+            }
             _ => {
                 return Err(PortcoveError::verification(
                     "retained preparation interpretation is unsupported or malformed",
@@ -156,7 +281,7 @@ impl InstalledContract {
             }
             None => self.catalog_json.clone(),
         };
-        if matches!(self.format, 4..=10) {
+        if matches!(self.format, 4..=11) {
             cache_key = serde_json::to_string(&(
                 self.original_format,
                 self.preparation_mode,
@@ -220,6 +345,12 @@ impl InstalledContract {
     }
 
     fn require_metadata_semantics(&self, catalog: &Catalog) -> Result<()> {
+        let port = catalog.port(&self.port_id)?;
+        if (self.format == 11) != port.linux_packaged_library.is_some() {
+            return Err(PortcoveError::verification(
+                "packaged Linux libraries require their retained interpretation envelope",
+            ));
+        }
         if (self.format == 10)
             != catalog
                 .port(&self.port_id)?
@@ -230,7 +361,9 @@ impl InstalledContract {
                 "partitioned archive data requires its retained interpretation envelope",
             ));
         }
-        if self.format == 9 && !crate::preparation::source::eligible(catalog.port(&self.port_id)?) {
+        if self.preparation_mode == Some(crate::PreparationMode::SourceOnly)
+            && !crate::preparation::source::eligible(port)
+        {
             return Err(PortcoveError::verification(
                 "source-only retained interpretation has no matching source owner",
             ));
@@ -289,8 +422,14 @@ impl InstalledContract {
                 "retained definition has no source-only preparation owner",
             ));
         }
-        if self.format == 9 {
+        if self.preparation_mode == Some(crate::PreparationMode::SourceOnly) {
             return Ok(self.clone());
+        }
+        if self.format == 11 {
+            let mut prepared = self.clone();
+            prepared.preparation_mode = Some(crate::PreparationMode::SourceOnly);
+            prepared.catalog(&self.port_id)?;
+            return Ok(prepared);
         }
         if !matches!(self.format, 1..=3) {
             return Err(PortcoveError::verification(
@@ -313,6 +452,169 @@ impl InstalledContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn packaged_linux_library_fences_only_the_creating_managed_runtime() {
+        let catalog = Catalog::embedded().unwrap();
+        let id = "diablo-devilutionx";
+        let linux =
+            InstalledContract::capture_for_platform(&catalog, id, Some(Platform::LinuxX86_64))
+                .unwrap();
+        assert_eq!(linux.format, 11);
+        let prepared = linux.for_source_only_preparation().unwrap();
+        assert_eq!(prepared.format, 11);
+        let bytes = serde_json::to_vec(&prepared).unwrap();
+        let reopened: InstalledContract = serde_json::from_slice(&bytes).unwrap();
+        let reopened_catalog = reopened.catalog(id).unwrap();
+        let recaptured = InstalledContract::capture_for_platform(
+            &reopened_catalog,
+            id,
+            Some(Platform::LinuxX86_64),
+        )
+        .unwrap()
+        .for_source_only_preparation()
+        .unwrap();
+        assert_eq!(serde_json::to_vec(&recaptured).unwrap(), bytes);
+        assert_eq!(
+            prepared.preparation_mode(),
+            Some(crate::PreparationMode::SourceOnly)
+        );
+        assert_eq!(
+            prepared
+                .catalog(id)
+                .unwrap()
+                .port(id)
+                .unwrap()
+                .linux_packaged_library
+                .as_deref(),
+            Some("discord_game_sdk.so")
+        );
+        let mut downgraded = prepared;
+        downgraded.format = 9;
+        assert!(downgraded.catalog(id).is_err());
+
+        let windows =
+            InstalledContract::capture_for_platform(&catalog, id, Some(Platform::WindowsX86_64))
+                .unwrap();
+        let windows_catalog = windows.catalog(id).unwrap();
+        let windows_port = windows_catalog.port(id).unwrap();
+        assert_eq!(windows.format, 1);
+        assert_eq!(windows_port.platforms, [Platform::WindowsX86_64]);
+        assert!(windows_port.linux_packaged_library.is_none());
+        assert_eq!(
+            windows_port.executable_hints[&Platform::WindowsX86_64],
+            ["devilutionx.exe"]
+        );
+        assert_eq!(windows.for_source_only_preparation().unwrap().format, 9);
+        assert_eq!(
+            serde_json::to_vec(&windows).unwrap(),
+            serde_json::to_vec(
+                &InstalledContract::capture_for_platform(
+                    &windows_catalog,
+                    id,
+                    Some(Platform::WindowsX86_64),
+                )
+                .unwrap()
+            )
+            .unwrap(),
+        );
+        let unrelated = InstalledContract::capture(&catalog, "shipwright").unwrap();
+        assert!(unrelated.catalog("shipwright").unwrap().port(id).is_err());
+        assert!(!unrelated.catalog_json.contains("linux_packaged_library"));
+
+        let previous_catalog = crate::test_fixture::retained_devilutionx_appimage_catalog();
+        let previous = InstalledContract::capture_for_platform(
+            &previous_catalog,
+            id,
+            Some(Platform::LinuxX86_64),
+        )
+        .unwrap()
+        .for_source_only_preparation()
+        .unwrap();
+        assert_eq!(previous.format, 9);
+        let previous_port = previous.catalog(id).unwrap().port(id).unwrap().clone();
+        assert!(previous_port.linux_packaged_library.is_none());
+        assert_eq!(
+            previous_port.executable_hints[&Platform::LinuxX86_64],
+            ["devilutionx.AppImage"]
+        );
+    }
+
+    #[test]
+    fn packaged_linux_library_projection_retains_only_qualified_platforms_present() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let id = "diablo-devilutionx";
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        port.automated_tested_platforms = vec![Platform::WindowsX86_64, Platform::LinuxX86_64];
+        port.manually_validated_platforms = port.automated_tested_platforms.clone();
+        let sources = document.source_catalog.as_mut().unwrap();
+        let contract = sources
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == id)
+            .unwrap();
+        let profile = sources
+            .identities
+            .iter()
+            .find(|profile| profile.id == contract.profile_id)
+            .unwrap();
+        let variant = profile
+            .variants
+            .iter()
+            .find(|variant| contract.supported_variant_ids.contains(&variant.id))
+            .unwrap();
+        let binding = &contract.applicability[0];
+        let mut qualification = sources.qualification[0].clone();
+        qualification.method = "Synthetic retained-catalog projection fixture".into();
+        qualification.scope.port_id = id.into();
+        qualification.scope.platform = Platform::LinuxX86_64;
+        qualification.scope.contract_id = Some(contract.id.clone());
+        qualification.scope.upstream_ref = Some(binding.upstream_ref.clone());
+        qualification.scope.artifact_sha256 = binding.artifact_sha256.clone();
+        qualification.scope.variant = crate::SourceVariantScope::Exact {
+            identity: crate::SourceIdentity {
+                game_id: profile.id.clone(),
+                variant_id: variant.id.clone(),
+                representation_id: variant.representations[0].id.clone(),
+            },
+        };
+        sources.qualification.push(qualification);
+        let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+
+        for (port_id, platform, keeps_linux_record) in [
+            (id, Platform::LinuxX86_64, true),
+            (id, Platform::WindowsX86_64, false),
+            ("shipwright", Platform::LinuxX86_64, false),
+        ] {
+            let retained =
+                InstalledContract::capture_for_platform(&catalog, port_id, Some(platform))
+                    .unwrap()
+                    .catalog(port_id)
+                    .unwrap();
+            assert_eq!(
+                retained
+                    .source_catalog()
+                    .unwrap()
+                    .qualification
+                    .iter()
+                    .any(|record| record.scope.port_id == id),
+                keeps_linux_record,
+            );
+            if port_id == id {
+                let port = retained.port(id).unwrap();
+                let mut expected_platforms = vec![Platform::WindowsX86_64];
+                if keeps_linux_record {
+                    expected_platforms.push(Platform::LinuxX86_64);
+                }
+                assert_eq!(port.automated_tested_platforms, expected_platforms);
+                assert_eq!(port.manually_validated_platforms, expected_platforms);
+            }
+        }
+    }
 
     #[test]
     fn optional_game_settings_retain_exact_legacy_indexed_and_admitted_semantics() {
@@ -777,14 +1079,19 @@ mod tests {
 
     #[test]
     fn successor_content_bounds_and_index_agreement_are_rechecked_before_reuse() {
+        use crate::definition_index::{MAX_CONTENT_BYTES, MAX_ENTRY_BYTES, MAX_INDEX_BYTES};
+
         let catalog =
             crate::test_fixture::indexed_catalog(&Catalog::embedded().unwrap(), "zelda64-recomp");
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         let original = serde_json::to_value(&contract).unwrap();
-        for field in ["index_json", "entry_json", "contract_json"] {
+        for (field, maximum) in [
+            ("index_json", MAX_INDEX_BYTES),
+            ("entry_json", MAX_ENTRY_BYTES),
+            ("contract_json", MAX_CONTENT_BYTES as usize),
+        ] {
             let mut changed = original.clone();
-            changed["definition"][field] =
-                serde_json::json!(" ".repeat(crate::definition_index::MAX_INDEX_BYTES + 1));
+            changed["definition"][field] = serde_json::json!(" ".repeat(maximum + 1));
             let decoded: InstalledContract = serde_json::from_value(changed).unwrap();
             assert!(
                 decoded
@@ -810,17 +1117,112 @@ mod tests {
         );
     }
 
-    // Core-serialized catalog bytes that a node script cannot reproduce: the
-    // compact catalog projection, the retained format-1 contract and the
-    // manifest-embedded (JSON-escaped) copy that browsing reads under
-    // MAX_CATALOG_BYTES. Each stays within the stated margin below the bound
-    // older clients still enforce, so growth fails here before it strands them.
     #[test]
-    fn catalog_growth_stays_within_the_legacy_compatibility_margin() {
-        use crate::signed_catalog::{
-            CATALOG_GROWTH_CEILING_PERCENT, LEGACY_MAX_CATALOG_BYTES, MAX_CATALOG_BYTES,
-        };
-        let ceiling = LEGACY_MAX_CATALOG_BYTES * CATALOG_GROWTH_CEILING_PERCENT / 100;
+    fn unrelated_retention_excludes_new_native_relative_source_contracts() {
+        let catalog = Catalog::embedded().unwrap();
+        let stable = "zelda64-recomp";
+        let newer = "doom-3-classic-dhewm3";
+        let newer_profile = catalog
+            .port(newer)
+            .unwrap()
+            .source_profile
+            .as_deref()
+            .unwrap();
+        let captured = InstalledContract::capture(&catalog, stable).unwrap();
+        let retained = captured.catalog(stable).unwrap();
+        assert_eq!(
+            InstalledContract::capture(&retained, stable)
+                .unwrap()
+                .catalog_json,
+            captured.catalog_json,
+        );
+
+        assert!(retained.port(newer).is_err());
+        assert!(retained.source_profile(newer_profile).is_err());
+        assert_eq!(
+            serde_json::to_value(retained.port(stable).unwrap()).unwrap(),
+            serde_json::to_value(catalog.port(stable).unwrap()).unwrap(),
+        );
+        let stable_profile = catalog
+            .port(stable)
+            .unwrap()
+            .source_profile
+            .as_deref()
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(retained.source_profile(stable_profile).unwrap()).unwrap(),
+            serde_json::to_value(catalog.source_profile(stable_profile).unwrap()).unwrap(),
+        );
+
+        let own = InstalledContract::capture(&catalog, newer)
+            .unwrap()
+            .catalog(newer)
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(own.source_profile(newer_profile).unwrap()).unwrap(),
+            serde_json::to_value(catalog.source_profile(newer_profile).unwrap()).unwrap(),
+        );
+    }
+
+    #[test]
+    fn unrelated_legacy_capture_keeps_shared_identity_without_optional_recognition() {
+        let baseline = Catalog::embedded().unwrap();
+        let optional_port = "zelda64-recomp";
+        let legacy_port = "2ship2harkinian";
+        let mut document = baseline.authoritative_document();
+        let contract = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| {
+                contract.port_id == optional_port && contract.role == crate::PortSourceRole::Game
+            })
+            .unwrap();
+        contract.variant_list_recognition_only = true;
+        contract.applicability = vec![crate::SourceContractApplicability {
+            upstream_ref: "fixture-v1".into(),
+            artifact_sha256: Some("a".repeat(64)),
+        }];
+        let catalog = Catalog::from_document(document).unwrap();
+
+        let captured = InstalledContract::capture(&catalog, legacy_port).unwrap();
+        assert!(
+            !captured
+                .catalog_json
+                .contains("variant_list_recognition_only")
+        );
+        let retained = captured.catalog(legacy_port).unwrap();
+        assert!(retained.port(optional_port).is_err());
+        assert_eq!(
+            serde_json::to_value(retained.port(legacy_port).unwrap()).unwrap(),
+            serde_json::to_value(baseline.port(legacy_port).unwrap()).unwrap(),
+        );
+        assert_eq!(
+            serde_json::to_value(retained.source_profile("majoras-mask").unwrap()).unwrap(),
+            serde_json::to_value(baseline.source_profile("majoras-mask").unwrap()).unwrap(),
+        );
+        let selected = InstalledContract::capture(&catalog, optional_port)
+            .unwrap()
+            .catalog(optional_port)
+            .unwrap();
+        assert!(
+            selected
+                .source_catalog()
+                .unwrap()
+                .contracts
+                .iter()
+                .any(|contract| {
+                    contract.port_id == optional_port && contract.variant_list_recognition_only
+                })
+        );
+    }
+
+    #[test]
+    fn catalog_growth_stays_within_supported_capacity() {
+        use crate::signed_catalog::{CATALOG_SUPPORTED_CAPACITY_PERCENT, MAX_CATALOG_BYTES};
+
         let catalog = Catalog::embedded().unwrap();
         let projection = serde_json::to_vec(&serde_json::json!({
             "contract_schema": 1, "representation": "catalog_projection",
@@ -830,30 +1232,91 @@ mod tests {
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         assert!(contract.definition.is_none());
         let escaped = serde_json::to_vec(&contract).unwrap();
-        for (measure, bytes) in [
-            ("compact catalog projection", projection.len()),
+        let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, "zelda64-recomp");
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        let definition = &index.definitions()[0];
+        let content = |target| {
+            bundle
+                .contents
+                .iter()
+                .find(|(name, _)| name == target)
+                .unwrap()
+                .1
+                .as_slice()
+        };
+        let entry = content(definition.target());
+        let inspection = index
+            .inspect_entry("official", "zelda64-recomp", entry)
+            .unwrap();
+        let indexed = index
+            .inspect_catalog_projection(
+                "official",
+                "zelda64-recomp",
+                entry,
+                content(inspection.execution_contract()),
+            )
+            .unwrap();
+        let snapshot =
+            crate::definition_candidate::selection::publishable_snapshot_size(indexed.snapshot())
+                .unwrap();
+        for (measure, bytes, bound) in [
+            (
+                "escaped indexed selection snapshot",
+                snapshot,
+                crate::definition_candidate::selection::MAX_PUBLISHABLE_SNAPSHOT_BYTES,
+            ),
+            (
+                "compact catalog projection",
+                projection.len(),
+                crate::definition_index::MAX_CONTENT_BYTES as usize,
+            ),
             (
                 "retained format-1 catalog_json",
                 contract.catalog_json.len(),
+                MAX_CATALOG_BYTES,
             ),
-            ("escaped retained contract", escaped.len()),
+            (
+                "escaped retained contract",
+                escaped.len(),
+                MAX_CATALOG_BYTES,
+            ),
         ] {
+            let ceiling = bound * CATALOG_SUPPORTED_CAPACITY_PERCENT / 100;
             println!(
-                "{measure}: {bytes} bytes; ceiling {ceiling} ({CATALOG_GROWTH_CEILING_PERCENT}% of the \
-                 legacy {LEGACY_MAX_CATALOG_BYTES}); headroom {}; current bound {MAX_CATALOG_BYTES}",
+                "{measure}: {bytes} bytes; ceiling {ceiling} ({CATALOG_SUPPORTED_CAPACITY_PERCENT}% of \
+                 {bound}); headroom {}",
                 ceiling as i64 - bytes as i64
             );
             assert!(
                 bytes <= ceiling,
-                "{measure} is {bytes} bytes, above {ceiling}: older clients would soon refuse it. \
-                 Reduce catalog bytes or record an owner decision to move the compatibility floor."
+                "{measure} is {bytes} bytes, above {ceiling}"
             );
         }
     }
 
     #[test]
-    fn retention_keeps_complete_catalog_and_source_graph_before_later_edits() {
-        let original = Catalog::embedded().unwrap();
+    fn retention_keeps_complete_legacy_catalog_and_source_graph_before_later_edits() {
+        let mut legacy =
+            crate::test_fixture::retained_devilutionx_appimage_catalog().authoritative_document();
+        let newer_ports = [
+            "doom-3-classic-dhewm3",
+            "doom-3-resurrection-of-evil-classic-dhewm3",
+        ];
+        legacy
+            .ports
+            .retain(|port| !newer_ports.contains(&port.id.as_str()));
+        let sources = legacy.source_catalog.as_mut().unwrap();
+        sources.identities.retain(|identity| {
+            !["doom-3-classic-pc-131-pk4", "doom-3-roe-classic-pc-131-pk4"]
+                .contains(&identity.id.as_str())
+        });
+        sources
+            .contracts
+            .retain(|contract| !newer_ports.contains(&contract.port_id.as_str()));
+        sources
+            .qualification
+            .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
+        let original = Catalog::from_json(&serde_json::to_string(&legacy).unwrap()).unwrap();
         let contract = InstalledContract::capture(&original, "zelda64-recomp").unwrap();
         let mut changed = original.authoritative_document();
         let port = changed

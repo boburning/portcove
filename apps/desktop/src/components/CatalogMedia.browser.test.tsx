@@ -105,6 +105,159 @@ it("reserves no gallery for absent media", async () => {
   expect(read).not.toHaveBeenCalled();
 });
 
+it("lets players browse reviewed releases without an applicable installed edition", async () => {
+  const release = (id: string, title: string) => ({
+    id,
+    title,
+    evidence_urls: ["https://example.com/original"],
+  });
+  const screenshot = (id: string, editionId: string, caption: string, gameId = "original") => ({
+    ...image(id),
+    caption,
+    subject: { kind: "original" as const, game_id: gameId, source_edition_id: editionId },
+  });
+  const usTitle = "Original game · Nintendo 64, North America 1.0";
+  const euTitle = "Original game · Nintendo 64, Europe";
+  const us = screenshot("us-scene", "us", "North American scene");
+  const eu = { ...screenshot("eu-scene", "eu", "European scene"), sha256: "b".repeat(64) };
+  const foreign = screenshot("foreign-scene", "foreign", "Other game scene", "another-game");
+  const media = [us, eu, foreign];
+  const base = portDefinition();
+  const port = {
+    ...base,
+    presentation: {
+      ...base.presentation!,
+      original_game: {
+        format_version: 1,
+        id: "original",
+        evidence_urls: ["https://example.com/original"],
+        source_editions: [
+          release("us", usTitle),
+          release("eu", euTitle),
+          release("foreign", "Another game"),
+          release("missing", "Release with no images"),
+        ],
+      },
+      media,
+    },
+  };
+  const read = vi
+    .spyOn(desktopApi, "catalogMediaThumbnail")
+    .mockImplementation(async (_port, _id, sha256) => ({
+      asset_sha256: sha256,
+      choice_revision: 0,
+      png_base64: png,
+    }));
+  const viewport = { width: window.innerWidth, height: window.innerHeight };
+  await page.viewport(390, 844);
+  try {
+    const view = (images: CatalogMediaAsset[], id = port.id) => (
+      <ArtworkProvider generation={7} listings={directory(images)}>
+        <button type="button" id="gallery-detail-back">
+          Back to game details
+        </button>
+        <CatalogMediaGallery
+          port={{ ...port, id, presentation: { ...port.presentation, media: images } }}
+          fallbackFocus={() => document.getElementById("gallery-detail-back")}
+        />
+      </ArtworkProvider>
+    );
+    const galleryView = await render(view(media));
+    const gallery = page.getByRole("region", { name: "Screenshots", exact: true });
+    const picker = gallery.getByRole("combobox", { name: /^Screenshot source/ });
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
+    expect(read).not.toHaveBeenCalled();
+    await picker.click();
+    await expect.poll(() => page.getByRole("option").elements()).toHaveLength(3);
+    await page.getByRole("option", { name: usTitle, exact: true }).click();
+    const thumbnail = gallery.getByRole("button", { name: /Enlarge screenshot 1: North American/ });
+    await expect.element(thumbnail).toBeEnabled();
+    await expect
+      .poll(() => gallery.element().querySelector("figcaption bdi")?.textContent)
+      .toBe(usTitle);
+    expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene"]);
+    await thumbnail.click();
+    const viewer = page.getByRole("dialog", { name: "North American scene" });
+    await expect.element(viewer.getByText(usTitle, { exact: true })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await expect.element(thumbnail).toHaveFocus();
+
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    const european = gallery.getByRole("button", { name: /Enlarge screenshot 1: European/ });
+    await expect.element(european).toBeEnabled();
+    await expect.element(thumbnail).not.toBeInTheDocument();
+    expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+
+    await european.click();
+    const europeanViewer = page.getByRole("dialog", { name: "European scene" });
+    await expect.element(europeanViewer).toBeVisible();
+    const changed = [us, { ...eu, sha256: "c".repeat(64) }, foreign];
+    await galleryView.rerender(view(changed));
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(picker).toHaveFocus();
+    await expect.element(european).toBeEnabled();
+
+    await european.click();
+    await expect.element(europeanViewer).toBeVisible();
+    const rescoped = {
+      ...changed[1]!,
+      subject: { kind: "port" as const, port_id: port.id },
+    };
+    await galleryView.rerender(view([us, rescoped, foreign]));
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(picker).toHaveFocus();
+    await expect.element(picker).toHaveAccessibleName("Screenshot source Available screenshots");
+    await expect.element(european).toBeEnabled();
+
+    await galleryView.rerender(view(changed));
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect.element(european).toBeEnabled();
+    await european.click();
+    await expect.element(europeanViewer).toBeVisible();
+    await galleryView.rerender(view([us, foreign]));
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(picker).toHaveFocus();
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
+    await galleryView.rerender(view(changed));
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(european).not.toBeInTheDocument();
+
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect.element(european).toBeEnabled();
+    await european.click();
+    await expect.element(europeanViewer).toBeVisible();
+    await galleryView.rerender(view([]));
+    await expect.element(gallery).not.toBeInTheDocument();
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: "Back to game details" })).toHaveFocus();
+    await galleryView.rerender(view(changed));
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect.element(european).toBeEnabled();
+    await galleryView.rerender(view(changed, "another-port"));
+    await expect
+      .element(picker)
+      .toHaveAccessibleName("Screenshot source Choose an original release");
+  } finally {
+    await page.viewport(viewport.width, viewport.height);
+  }
+});
+
 for (const theme of ["dark", "light"] as const) {
   for (const width of [320, 740, 1440]) {
     it(`keeps three mixed-aspect screenshots contained in ${theme} at ${width}px`, async () => {
@@ -196,6 +349,11 @@ it("shows source and edition attribution, navigates previews and returns focus t
     second = {
       ...image("second"),
       subject: { kind: "original" as const, game_id: "original", source_edition_id: "usa-v1" },
+    },
+    third = {
+      ...image("third"),
+      caption: "Owned third scene",
+      subject: second.subject,
     };
   vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async (_port, _id, sha256) => ({
     asset_sha256: sha256,
@@ -203,14 +361,14 @@ it("shows source and edition attribution, navigates previews and returns focus t
     png_base64: png,
   }));
   await render(
-    <ArtworkProvider generation={7} listings={directory([first, second])}>
+    <ArtworkProvider generation={7} listings={directory([first, second, third])}>
       <CatalogMediaGallery
         context={{ originalEditionId: "usa-v1" }}
         port={{
           ...portDefinition(),
           presentation: {
             ...portDefinition().presentation!,
-            media: [first, second],
+            media: [first, second, third],
             original_game: {
               format_version: 1,
               id: "original",
@@ -242,8 +400,19 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned second scene", exact: true }))
     .toBeVisible();
+  const viewer = page.getByRole("dialog");
+  const title = viewer.getByRole("heading", { name: "Owned second scene", exact: true }).element();
+  const description = viewer.getByText(/Screenshot 2 of 3/).element();
+  const close = viewer.getByRole("button", { name: "Close", exact: true }).element();
+  const titleBounds = title.getBoundingClientRect();
+  const outline = getComputedStyle(title);
+  const focusExtent = parseFloat(outline.outlineWidth) + parseFloat(outline.outlineOffset);
+  expect(titleBounds.right + focusExtent).toBeLessThanOrEqual(close.getBoundingClientRect().left);
+  expect(titleBounds.bottom + focusExtent).toBeLessThanOrEqual(
+    description.getBoundingClientRect().top,
+  );
   await expect
-    .element(page.getByRole("dialog").getByText(/Original release · usa-v1/))
+    .element(page.getByRole("dialog").getByText(/Original release · US release/))
     .toBeVisible();
   await expect
     .element(page.getByRole("dialog").getByRole("link", { name: "CC0-1.0", exact: true }))
@@ -259,6 +428,28 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
     .toBeVisible();
+  const root = document.documentElement;
+  const previousDirection = root.getAttribute("dir");
+  root.dir = "rtl";
+  try {
+    for (const name of ["Previous", "Next"]) {
+      const action = viewer.getByRole("button", { name, exact: true }).element();
+      expect(getComputedStyle(action.querySelector("svg")!).rotate).toBe("180deg");
+    }
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect
+      .element(viewer.getByRole("heading", { name: "Owned second scene", exact: true }))
+      .toBeVisible();
+    await firstChoice.click();
+    await expect.element(firstChoice).toHaveAttribute("aria-pressed", "true");
+    await userEvent.keyboard("{ArrowRight}");
+    await expect
+      .element(viewer.getByRole("heading", { name: "Owned third scene", exact: true }))
+      .toBeVisible();
+  } finally {
+    if (previousDirection === null) root.removeAttribute("dir");
+    else root.dir = previousDirection;
+  }
   await userEvent.keyboard("{Escape}");
   await expect.element(origin).toHaveFocus();
 });
@@ -669,6 +860,27 @@ it.each([true, false])(
         ? "continue-logo-240-container-synthetic"
         : "continue-horizontal-logo-cover-fallback-240-synthetic",
     );
+    const summary = hero.querySelector<HTMLElement>(".game-hero-credits > summary")!;
+    const firstCredit = summary.nextElementSibling!;
+    await userEvent.keyboard("{Tab}");
+    expect(document.activeElement).toBe(summary);
+    await userEvent.keyboard("{Enter}");
+    const focus = getComputedStyle(summary);
+    const outlineEnd =
+      summary.getBoundingClientRect().bottom +
+      Number.parseFloat(focus.outlineOffset) +
+      Number.parseFloat(focus.outlineWidth);
+    expect(summary.matches(":focus-visible")).toBe(true);
+    expect(focus.outlineStyle).toBe("solid");
+    expect(firstCredit.getBoundingClientRect().top - outlineEnd).toBeGreaterThanOrEqual(2);
+    await captureParityState(
+      compactLogo
+        ? "continue-240-focused-image-credits"
+        : "continue-240-fallback-focused-image-credits",
+    );
+    await userEvent.keyboard("{Enter}");
+    expect(summary.closest("details")?.open).toBe(false);
+    expect(document.activeElement).toBe(summary);
   },
 );
 

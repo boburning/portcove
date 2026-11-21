@@ -364,7 +364,12 @@ export function createDiscoveryTransport(
   budget: DiscoveryBudget,
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
+  options: { backoff?: "budget" | "origin" } = {},
 ) {
+  // Multi-provider enrichment shares resource accounting, but a provider's
+  // Retry-After must not suppress independent origins. Existing callers retain
+  // their batch-wide backoff unless they explicitly select this scope.
+  const backoffs = new Map<string, string>();
   // `limit` lets one named bounded list read exceed the 2 MiB default, never 8 MiB.
   const request = async (
     method: string,
@@ -374,6 +379,12 @@ export function createDiscoveryTransport(
     limit = 2 * 1024 * 1024,
   ) => {
     const target = new URL(url);
+    const backoff = backoffs.get(target.origin);
+    if (backoff && Date.parse(backoff) > budget.now())
+      throw new GitHubApiError(
+        "rate_limited",
+        "Provider backoff is active; resume after " + backoff,
+      );
     if (method !== "GET" || body !== undefined)
       throw new GitHubApiError(
         "request_refused",
@@ -462,7 +473,14 @@ export function createDiscoveryTransport(
           resetAt: new Date(reset * 1000).toISOString(),
         });
     }
-    if (typeof receipt.backoff_until === "string") budget.retainBackoff(receipt.backoff_until);
+    if (typeof receipt.backoff_until === "string") {
+      if (options.backoff === "origin") {
+        const until = Date.parse(receipt.backoff_until);
+        if (!Number.isFinite(until)) throw new Error("Invalid provider backoff");
+        if (until > budget.now() && (!backoff || until > Date.parse(backoff)))
+          backoffs.set(target.origin, receipt.backoff_until);
+      } else budget.retainBackoff(receipt.backoff_until);
+    }
     if (receipt.error)
       throw new GitHubApiError(
         "download_failed",

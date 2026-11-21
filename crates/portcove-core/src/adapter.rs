@@ -259,10 +259,10 @@ impl Adapter for StandardAdapter {
         checkpoint()?;
         crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::validate(port)?;
+            crate::managed_initialization::validate(port)?;
             if platform != Platform::WindowsX86_64 {
                 return Err(PortcoveError::unsupported(
-                    "managed TFE initialization requires Windows",
+                    "managed portable initialization requires Windows",
                 ));
             }
         }
@@ -274,6 +274,7 @@ impl Adapter for StandardAdapter {
         }
         let executable = selected_executable.to_path_buf();
         let user_data = library.user_dir(&port.id);
+        crate::runtime_path_policy::check_user_data_root(port, platform, &user_data)?;
         let library_path = crate::path::unicode(library.root(), "library root")?;
         let user_data_path = crate::path::unicode(&user_data, "user data")?;
         let mut environment = BTreeMap::from([
@@ -282,6 +283,18 @@ impl Adapter for StandardAdapter {
             ("PORTCOVE_USER_DATA".into(), user_data_path.clone()),
         ]);
         environment.extend(port.launch_environment.clone());
+        if self.0 == AdapterKind::NativePortable
+            && matches!(platform, Platform::WindowsX86_64 | Platform::LinuxX86_64)
+            && port.id == "corsixth-corsixth"
+            && port.release.provider == crate::ReleaseSource::Github
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case("CorsixTH/CorsixTH")
+        {
+            // CorsixTH's blank player name expects USER or USERNAME before its own PLAYER fallback.
+            environment.insert("USER".into(), "PLAYER".into());
+        }
         crate::native_temp::environment(port, platform, &mut environment)?;
         if let Some(variable) = &port.user_data_environment {
             environment.insert(variable.clone(), user_data_path.clone());
@@ -315,19 +328,13 @@ impl Adapter for StandardAdapter {
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
             && !crate::preparation::managed(port)
-            && let (Some(_), Some(filename)) = (source, &port.runtime_source_filename)
+            && source.is_some()
+            && let Some(path) = runtime_source_path(port, &working_directory, &user_data)
         {
-            let source_root = if self.0 == AdapterKind::N64RecompPortable
-                && port.user_data_environment.is_some()
-            {
-                &user_data
-            } else {
-                &working_directory
-            };
             if let Some(variable) = &port.source_environment {
                 environment.insert(
                     variable.clone(),
-                    crate::path::unicode(&source_root.join(filename), "materialized source")?,
+                    crate::path::unicode(&path, "materialized source")?,
                 );
             }
         }
@@ -386,7 +393,11 @@ impl Adapter for StandardAdapter {
             }
             _ => Vec::new(),
         };
-        let mut arguments = port.launch_arguments.clone();
+        let mut arguments = if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::arguments(port, &working_directory, checkpoint)?
+        } else {
+            port.launch_arguments.clone()
+        };
         arguments.extend(adapter_arguments);
         if platform == Platform::LinuxX86_64
             && port.external_profile_policy == Some(crate::ExternalProfilePolicy::Doom3LinuxV1)
@@ -412,6 +423,8 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                // A portable player's alternate game-folder mode can change where it writes.
+                || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || crate::native_portable_data::directory_name(port, platform).is_some()
@@ -450,10 +463,10 @@ impl Adapter for StandardAdapter {
         checkpoint()?;
         crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::validate(port)?;
+            crate::managed_initialization::validate(port)?;
             if platform != Platform::WindowsX86_64 {
                 return Err(PortcoveError::unsupported(
-                    "managed TFE initialization requires Windows",
+                    "managed portable initialization requires Windows",
                 ));
             }
         }
@@ -510,6 +523,23 @@ impl Adapter for StandardAdapter {
         if let Some(name) = &port.portable_marker_file {
             create_missing_portable_marker_file(&working_directory, name)?;
         }
+        if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::inspect(port, &working_directory, checkpoint)?;
+            let record = request.source_record.ok_or_else(|| {
+                PortcoveError::source("Chocolate requires its checked original IWAD")
+            })?;
+            if source != Some(record.path.as_path()) {
+                return Err(PortcoveError::verification(
+                    "Chocolate original changed its selected path",
+                ));
+            }
+            crate::managed_chocolate::require_original(
+                port,
+                &working_directory,
+                record,
+                checkpoint,
+            )?;
+        }
         let sealed_source = crate::preparation::source::sealed(library, port, install_root)?;
         let immutable_managed_psx_source = self.0 == AdapterKind::PsxRecompManaged
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
@@ -517,16 +547,9 @@ impl Adapter for StandardAdapter {
             && !sealed_source
             && !retained_setup_is_current
             && !crate::preparation::managed(port)
-            && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
+            && let Some(source) = source
+            && let Some(stored_source) = runtime_source_path(port, &working_directory, &user_data)
         {
-            let source_root = if self.0 == AdapterKind::N64RecompPortable
-                && port.user_data_environment.is_some()
-            {
-                &user_data
-            } else {
-                &working_directory
-            };
-            let stored_source = source_root.join(filename);
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -604,7 +627,7 @@ impl Adapter for StandardAdapter {
             )?;
             checkpoint()?;
         }
-        if port.managed_initialization.is_some() {
+        if port.managed_initialization.is_some() && !crate::managed_chocolate::applies(port) {
             let record = request.source_record.ok_or_else(|| {
                 PortcoveError::source("managed original data needs its checked registration")
             })?;
@@ -636,10 +659,26 @@ impl Adapter for StandardAdapter {
         }
         crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
         if port.managed_initialization.is_some() {
-            crate::managed_tfe::prepare(&working_directory, checkpoint)?;
+            crate::managed_initialization::prepare(port, &working_directory, checkpoint)?;
         }
         self.launch_spec_with_executable(request, checkpoint)
     }
+}
+
+pub(crate) fn runtime_source_path(
+    port: &PortDefinition,
+    working_directory: &Path,
+    user_data: &Path,
+) -> Option<PathBuf> {
+    let root =
+        if port.adapter == AdapterKind::N64RecompPortable && port.user_data_environment.is_some() {
+            user_data
+        } else {
+            working_directory
+        };
+    port.runtime_source_filename
+        .as_ref()
+        .map(|filename| root.join(filename))
 }
 
 fn managed_psx_bios(
@@ -1246,7 +1285,6 @@ pub(crate) fn prepare_runtime_source_set_member(
         return checkpoint();
     }
 
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
@@ -1983,12 +2021,13 @@ pub(crate) fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> 
     Ok(destination.with_file_name(format!("{name}.portcove-source.json")))
 }
 
+pub(crate) const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
 fn copy_runtime_source(
     source: &Path,
     destination: &Path,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     checkpoint()?;
     let extension = source
         .extension()
@@ -4383,6 +4422,68 @@ mod tests {
     use super::*;
     use crate::Catalog;
 
+    #[test]
+    fn managed_corsixth_uses_a_neutral_player_name_without_inheriting_the_account() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        std::fs::create_dir(&install).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let corsixth = catalog.port("corsixth-corsixth").unwrap();
+        let mut retained_windows = corsixth.clone();
+        retained_windows.external_profile_policy = None;
+        retained_windows.platforms = vec![Platform::WindowsX86_64];
+        let another_port = catalog.port("dethrace-labs-dethrace").unwrap();
+
+        for (port, platform, executable, expected) in [
+            (
+                corsixth,
+                Platform::LinuxX86_64,
+                "corsix-th.AppImage",
+                Some("PLAYER"),
+            ),
+            (
+                corsixth,
+                Platform::WindowsX86_64,
+                "CorsixTH.exe",
+                Some("PLAYER"),
+            ),
+            (
+                &retained_windows,
+                Platform::WindowsX86_64,
+                "CorsixTH.exe",
+                Some("PLAYER"),
+            ),
+            (another_port, Platform::WindowsX86_64, "dethrace.exe", None),
+        ] {
+            let executable = install.join(executable);
+            std::fs::write(&executable, b"test").unwrap();
+            let spec = standard(port.adapter)
+                .launch_spec_with_executable(
+                    LaunchSpecRequest {
+                        library: &library,
+                        port,
+                        platform,
+                        install_root: &install,
+                        selected_executable: &executable,
+                        source: None,
+                        source_record: None,
+                        disc_progress: None,
+                    },
+                    &|| Ok(()),
+                )
+                .unwrap();
+            let command = ChildProcessPolicy::game_command(&spec.process_spec(), &[]).unwrap();
+            let user = command
+                .get_envs()
+                .find(|(name, _)| *name == "USER")
+                .and_then(|(_, value)| value)
+                .and_then(|value| value.to_str());
+            assert_eq!(user, expected, "{platform:?} {}", port.id);
+            assert!(!command.get_envs().any(|(name, _)| name == "USERNAME"));
+        }
+    }
+
     fn launch_fixture_inventory(root: &Path) -> BTreeMap<PathBuf, Option<Vec<u8>>> {
         fn visit(root: &Path, directory: &Path, entries: &mut BTreeMap<PathBuf, Option<Vec<u8>>>) {
             for entry in std::fs::read_dir(directory).unwrap() {
@@ -5138,6 +5239,45 @@ mod tests {
         let destination = temporary.path().join("materialized.z64");
         prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
+    }
+
+    #[test]
+    fn native_portable_user_data_environment_keeps_open_surge_data_outside_the_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("version");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("opensurge.exe");
+        std::fs::write(&executable, b"player").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("surge-the-rabbit-opensurge").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::NativePortable)
+            .prepare_launch_with_executable(
+                LaunchSpecRequest {
+                    library: &library,
+                    port,
+                    platform: Platform::WindowsX86_64,
+                    install_root: &install,
+                    selected_executable: &executable,
+                    source: None,
+                    source_record: None,
+                    disc_progress: None,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+
+        let profile = library.user_dir(&port.id);
+        assert!(profile.is_dir());
+        assert_eq!(spec.working_directory, install);
+        assert_eq!(
+            spec.environment.get("OPENSURGE_USER_PATH"),
+            Some(&profile.to_string_lossy().into_owned())
+        );
+        assert!(spec.fixed_arguments_only);
+        assert!(spec.arguments.is_empty());
     }
 
     #[test]

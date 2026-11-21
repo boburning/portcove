@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "athelas-the-return-of-the-king-xbox",
+    "artwork": {
+      "game_id": 2973,
+      "cover_id": 94191,
+      "image_id": "co20of",
+      "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+      "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+      "match_kind": "underlying-game"
+    },
     "name": "The Lord of the Rings: The Return of the King — Original Xbox (Athelas ports/rotk-xbox)",
     "summary": "Use your own USA Xbox The Return of the King through the complete Athelas launcher. Preserve its separate ROTK-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Return of the King",
@@ -46,6 +54,24 @@
         {
           "title": "Keep versions, components and restrictions together",
           "instruction": "The selected package includes generated-HLSL shader warm-up seeds and pipeline records for this title, plus separately licensed components; keep their creating runtime and notices together. These are not a certificate for original disc bytes, source-to-binary reproduction, controller/gameplay behavior or save compatibility. First-version, rendering and other upstream limitations remain version-specific. No original game rights or another title’s acceptance are inherited."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-return-of-the-king",
+      "evidence_urls": [
+        "https://github.com/Shagg88/Athelas/blob/32e2ae97af97f457e5ab90fb4f765d326006c197/dist-files/README.txt",
+        "https://github.com/Shagg88/Athelas"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-return-of-the-king-xbox",
+          "title": "The Lord of the Rings: The Return of the King (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Shagg88/Athelas/blob/10d20319e54b1050f99bd61651165cb28041e585/README.md"
+          ]
         }
       ]
     }

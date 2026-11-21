@@ -54,6 +54,26 @@
           "instruction": "Keep the full creating installed directory, game/, user_data/, xmd.toml, effective logs, saves, profiles, mods, caches, backups and every custom root. Source installer uninstall explicitly deletes user_data; this guide offers no uninstall or deletion. Retain the installed copy and data before upstream maintenance and do not invoke that destructive uninstall as registration removal."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "x-men-destiny",
+      "evidence_urls": [
+        "https://github.com/florinp93/xmd-recompiled/releases",
+        "https://github.com/florinp93/xmd-recompiled",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/x-men-destiny-xmd-recompiled.json"
+      ],
+      "source_editions": [
+        {
+          "id": "x-men-destiny-xbox-360",
+          "title": "X-Men: Destiny (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/x-men-destiny-xmd-recompiled.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "X-Men: Destiny"
   }
 }

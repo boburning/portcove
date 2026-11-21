@@ -6,7 +6,7 @@
     "summary": "Register an independently permitted prepared Dragon Ball Z: Burst Limit Windows copy for your own exact US Xbox 360 disc, with external saves and upstream updates preserved.",
     "original_game_title": "Dragon Ball Z: Burst Limit",
     "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
     "artwork": {
@@ -62,6 +62,24 @@
         {
           "title": "Burst Limit data and profile locations",
           "instruction": "Keep burstlimit.toml, game_data_root/, mods/, textures, sounds, any shader_seed and actual log/capture roots beside the creating player. The Windows SDK defaults user data to the actual Documents known folder/burstlimit, with user_data_root override; caches normally live below that user root unless overridden. Preserve saves, online_identity.json, export/import archives in the executable-adjacent saves/ folder, backups and every custom cache/update/metadata/user-data root. Do not assume the export folder contains every live save or that other runtimes have compatible state."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-burst-limit",
+      "evidence_urls": [
+        "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
+        "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/8faff03f1cc316e123339111c3f7364876e63ab8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-burst-limit-xbox-360",
+          "title": "Dragon Ball Z: Burst Limit (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/40aaa4d6bf212239f9cdadebb85bf96e8e57b03c/README.md"
+          ]
         }
       ]
     }

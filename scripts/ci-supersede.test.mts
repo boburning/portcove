@@ -6,33 +6,95 @@ import {
   deferredWindowsRun,
   ownRunId,
   readyForReviewAction,
+  supersedeTiming,
   supersededRunIds,
+  waitForCancelledRun,
 } from "./ci-supersede.mts";
-import { workflowStep } from "./ci-workflow-fixture.mts";
+import { workflowJob, workflowStep } from "./ci-workflow-fixture.mts";
+import { isRecord } from "./runtime-values.mts";
 
 const run = (id: number, ...pulls: number[]) => ({
   id,
   pull_requests: pulls.map((number) => ({ number })),
 });
 
+void test("ready transition waits for queued cancellation gates beyond the ordinary budget", async () => {
+  // #8085 took 14m39s between accepted cancellation and terminal run state.
+  // Virtual time reproduces that delay without waiting or using GitHub.
+  const drainMs = (14 * 60 + 39) * 1000;
+  const simulate = async (action: string) => {
+    const timing = supersedeTiming(action);
+    let elapsed = 0;
+    let observations = 0;
+    const finished = waitForCancelledRun(
+      async () => {
+        observations++;
+        return { status: elapsed >= drainMs ? "completed" : "in_progress" };
+      },
+      { run: 8085, deadline: timing.clientMs - 20_000, pollMs: timing.pollMs },
+      {
+        now: () => elapsed,
+        sleep: async (milliseconds) => {
+          elapsed += milliseconds;
+        },
+      },
+    );
+    if (action === "ready_for_review") {
+      await finished;
+      assert.ok(elapsed >= drainMs && elapsed < timing.clientMs);
+      assert.ok(observations < 64);
+    } else {
+      await assert.rejects(finished, /did not finish cancelling; re-run all jobs/u);
+      assert.ok(elapsed < drainMs);
+    }
+  };
+  await simulate("synchronize");
+  await simulate("ready_for_review");
+});
+
+void test("an unfinished cancellation still expires within the finite ready budget", async () => {
+  const timing = supersedeTiming("ready_for_review");
+  let elapsed = 0;
+  let observations = 0;
+  await assert.rejects(
+    waitForCancelledRun(
+      async () => {
+        observations++;
+        return { status: "in_progress" };
+      },
+      { run: 8085, deadline: timing.clientMs - 20_000, pollMs: timing.pollMs },
+      {
+        now: () => elapsed,
+        sleep: async (milliseconds) => {
+          elapsed += milliseconds;
+        },
+      },
+    ),
+    /Run 8085 did not finish cancelling/u,
+  );
+  assert.ok(elapsed < timing.clientMs);
+  assert.ok(observations < 64);
+  // Normal polling fits the cap: two reads per classification poll, up to
+  // six discovery reads, the immediate cancellation observation and two writes.
+  // Transient transport retries can still exhaust the retained request cap.
+  assert.ok(Math.ceil(timing.clientMs / timing.pollMs) * 2 + 6 + 1 + 2 <= 64);
+});
+
 void test("a head's own run is its newest run for the pull request", () => {
   const listing = { workflow_runs: [run(5, 7), run(9, 8), run(8, 7)] };
-  assert.equal(ownRunId(listing, { number: 7 }), 8);
-  assert.equal(ownRunId(listing, { number: 99 }), undefined);
+  assert.equal(ownRunId(listing, 7), 8);
+  assert.equal(ownRunId(listing, 99), undefined);
 });
 
 void test("only older runs of the same pull request are superseded", () => {
   const queued = { workflow_runs: [run(3, 7), run(10, 7), run(4, 8)] };
   const active = { workflow_runs: [run(3, 7), run(6, 7), run(8, 7)] };
-  assert.deepEqual(supersededRunIds([queued, active], 8, { number: 7 }), [3, 6]);
+  assert.deepEqual(supersededRunIds([queued, active], 8, 7), [3, 6]);
 });
 
 void test("malformed run listings are refused", () => {
-  assert.throws(() => ownRunId({}, { number: 1 }), /malformed/u);
-  assert.throws(
-    () => supersededRunIds([{ workflow_runs: [{ id: "x" }] }], 2, { number: 1 }),
-    /identity/u,
-  );
+  assert.throws(() => ownRunId({}, 1), /malformed/u);
+  assert.throws(() => supersededRunIds([{ workflow_runs: [{ id: "x" }] }], 2, 1), /identity/u);
 });
 
 void test("the workflow installs the locked dependencies its script imports before running it", () => {
@@ -49,33 +111,21 @@ void test("the workflow installs the locked dependencies its script imports befo
   assert.ok(run > install, "dependencies must be installed before the script runs");
   assert.match(workflow, /--ignore-scripts/u);
   assert.match(workflow, /--ignore-pnpmfile/u);
+  assert.match(workflow, /types: \[synchronize, reopened, ready_for_review\]/u);
 });
 
-void test("runs GitHub left without pull_requests match by head branch and repository", () => {
-  const bare = (id: number, branch: string, repository: string) => ({
-    id,
-    head_branch: branch,
-    head_repository: { full_name: repository },
-    pull_requests: [],
-  });
-  const pull = { number: 7, headRef: "feature/x", headRepository: "owner/repo" };
+void test("GitHub must associate a run with exactly one PR before a mutation", () => {
   const listing = {
     workflow_runs: [
-      bare(3, "feature/x", "owner/repo"),
-      bare(5, "feature/x", "fork/repo"),
-      bare(6, "other", "owner/repo"),
-      bare(9, "feature/x", "owner/repo"),
+      run(2, 7),
+      run(3),
+      run(4, 7, 8),
+      run(5, 8),
+      { ...run(6), pull_requests: [{ number: 7 }, {}] },
     ],
   };
-  assert.equal(ownRunId(listing, pull), 9);
-  assert.deepEqual(supersededRunIds([listing], 9, pull), [3]);
-  // Without the head identity the fallback is off, so nothing is guessed.
-  assert.equal(ownRunId(listing, { number: 7 }), undefined);
-  // A run that names a different pull request never matches by branch.
-  const named = {
-    workflow_runs: [{ ...bare(4, "feature/x", "owner/repo"), pull_requests: [{ number: 99 }] }],
-  };
-  assert.deepEqual(supersededRunIds([named], 9, pull), []);
+  assert.equal(ownRunId(listing, 7), 2);
+  assert.deepEqual(supersededRunIds([listing], 8, 7), [2]);
 });
 
 void test("only a run that deferred its Windows partitions for a draft is re-run", () => {
@@ -222,8 +272,17 @@ void test("fast pull request producers stop at once when a newer head superseded
     "utf8",
   );
   const uses = "uses: ./.github/actions/stop-if-superseded";
-  // classify, the three Windows Rust producers and the Linux quality, frontend, browser and catalog producers.
-  assert.equal(ci.split(uses).length - 1, 8);
+  // Classifier, Windows Rust and helpers, Linux quality, frontend, browser and catalog.
+  assert.equal(ci.split(uses).length - 1, 9);
+  const helpers = workflowJob("windows_helpers");
+  assert.ok(Array.isArray(helpers.steps));
+  const stop: unknown = helpers.steps[1];
+  assert.ok(isRecord(stop));
+  assert.equal(stop.uses, "./.github/actions/stop-if-superseded");
+  assert.equal(
+    stop.if,
+    "${{ github.event_name == 'pull_request' && !inputs.force_qualification }}",
+  );
   for (const block of ci.split(uses).slice(1)) {
     assert.match(
       block,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "psp-web-recomp-snuri00-god-of-war-chains-of-olympus",
+    "artwork": {
+      "game_id": 552,
+      "cover_id": 157489,
+      "image_id": "co3dip",
+      "image_sha256": "f27631e5feb36c07892e1e97918fef5efcb47f133433e42a1b33ab7e07c8c49a",
+      "game_slug": "god-of-war-chains-of-olympus",
+      "match_kind": "underlying-game"
+    },
     "name": "God of War: Chains of Olympus — PSP Web Recomp (snuri00)",
     "original_game_title": "God of War: Chains of Olympus",
     "summary": "The project reports reaching combat in two Ready at Dawn titles while skipping movies. Browser saves are not directly compatible with encrypted PSP saves. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/snuri00/psp-web-recomp"
     },
-    "issue_number": 3006
+    "issue_number": 3006,
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-chains-of-olympus",
+      "evidence_urls": ["https://github.com/snuri00/psp-web-recomp"],
+      "source_editions": [
+        {
+          "id": "god-of-war-chains-of-olympus-playstation-portable",
+          "title": "God of War: Chains of Olympus (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/snuri00/psp-web-recomp/blob/37826ab881d9a593efb842fe47adfae2e9118b5d/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

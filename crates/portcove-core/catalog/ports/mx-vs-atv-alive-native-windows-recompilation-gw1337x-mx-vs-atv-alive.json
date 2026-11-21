@@ -4,6 +4,14 @@
     "id": "mx-vs-atv-alive-native-windows-recompilation-gw1337x-mx-vs-atv-alive",
     "name": "MX vs. ATV Alive — MX vs. ATV Alive — Native Windows Recompilation (gw1337x)",
     "original_game_title": "MX vs. ATV Alive",
+    "artwork": {
+      "game_id": 18266,
+      "cover_id": 100852,
+      "image_id": "co25tg",
+      "image_sha256": "387d2cd1b0b7dd69cec9f974ef35c7945cbece8d69630dc7673e90c538154126",
+      "game_slug": "mx-vs-atv-alive",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports working Short Track and Free Ride modes with partial single-player support. A 2K crash once damaged a save; keep a separate backup. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/gw1337x/mx-vs-atv-alive-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/gw1337x/mx-vs-atv-alive-recomp"
     },
-    "issue_number": 3262
+    "issue_number": 3262,
+    "original_game": {
+      "format_version": 1,
+      "id": "mx-vs-atv-alive",
+      "evidence_urls": ["https://github.com/gw1337x/mx-vs-atv-alive-recomp"],
+      "source_editions": [
+        {
+          "id": "mx-vs-atv-alive-xbox-360",
+          "title": "MX vs. ATV Alive (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/gw1337x/mx-vs-atv-alive-recomp/blob/f1bf96f76a9910e79beea76ec58ae2232504c591/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -439,6 +439,9 @@ void test("scan cleanup attempts every owned action and retains the primary scen
         throw error;
       },
       requireTrustedProbeCleanup,
+      openGameFileScan: async () => {
+        throw primary;
+      },
       reviewControls: () => ({
         button: (name: string) => name,
         click: async () => {
@@ -644,83 +647,92 @@ void test("history procfs disappearance retains narrow errors and live identitie
   );
 });
 
-void test("history fixture helpers import without installed desktop packages", async (t) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
-  const module = path.join(root, "apps/desktop/scripts/desktop-qualification-history-test.mts");
-  await mkdir(path.dirname(module), { recursive: true });
-  await mkdir(path.join(root, "scripts"));
-  await copyFile(
-    new URL("./runtime-values.mts", import.meta.url),
-    path.join(root, "scripts/runtime-values.mts"),
-  );
-  await copyFile(
-    new URL("../apps/desktop/scripts/browser-script.mts", import.meta.url),
-    path.join(root, "apps/desktop/scripts/browser-script.mts"),
-  );
-  await copyFile(
-    new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
-    module,
-  );
-  const result = spawnSync(
-    process.execPath,
-    ["--input-type=module", "-e", `await import(${JSON.stringify(pathToFileURL(module).href)})`],
-    { cwd: root, encoding: "utf8" },
-  );
-  assert.equal(result.status, 0, result.stderr);
-  const native = path.join(
-    root,
-    "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
-  );
-  await copyFile(
-    new URL(
-      "../apps/desktop/scripts/desktop-qualification-history.native.test.mts",
-      import.meta.url,
-    ),
-    native,
-  );
-  // The shared loader always replaces this adjacent transport boundary. Supply
-  // only its resolution identity; real schema admission remains forbidden.
-  await writeFile(path.join(root, "apps/desktop/scripts/transport-values.mts"), "export {};\n", {
-    flag: "wx",
-  });
-  await mkdir(path.join(root, "scripts/fixtures"));
-  await copyFile(
-    new URL("./fixtures/desktop-module-fixture.mts", import.meta.url),
-    path.join(root, "scripts/fixtures/desktop-module-fixture.mts"),
-  );
-  const catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
-  await mkdir(path.dirname(catalog), { recursive: true });
-  await copyFile(new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url), catalog);
-  const guard = path.join(root, "no-packages.mjs");
-  await writeFile(
-    guard,
-    `import {registerHooks,isBuiltin} from 'node:module';registerHooks({resolve(specifier,context,next){if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw Error('Optional package forbidden: '+specifier);return next(specifier,context);}});`,
-  );
-  const environment = { ...process.env };
-  delete environment.NODE_TEST_CONTEXT;
-  const execution = spawnSync(
-    process.execPath,
-    ["--import", pathToFileURL(guard).href, "--test", "--test-reporter=tap", native],
-    { cwd: root, env: environment, encoding: "utf8", timeout: 10000, maxBuffer: 1024 * 1024 },
-  );
-  assert.ifError(execution.error);
-  assert.equal(execution.status, 0, execution.stderr + execution.stdout);
-  const observed: string[] = [];
-  for (const line of execution.stdout.split("\n")) {
-    const match = /^ok\s+\d+\s+-\s+(.+)$/u.exec(line);
-    if (match?.[1]) observed.push(match[1]);
-  }
-  const expected = [
-    "serialized historical read hook forwards unmatched bodies and retains original fetch",
-    "historical cleanup retains malformed replies after all cleanup and preserves primitive primary failure",
-    "history restoration validation retains mandatory observations and narrow malformed-reply refusals",
-    "history cleanup joins independent window restoration and evidence before settlement",
-    "actual history scenario restores after its Linux failure or refuses other platforms before I/O",
-  ];
-  assert.deepEqual([...observed].sort(), [...expected].sort());
-  assert.match(execution.stdout, /^# skipped 0$/mu);
-});
+void test(
+  "history fixture helpers import without installed desktop packages",
+  { timeout: 60_000 },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-history-import-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const module = path.join(root, "apps/desktop/scripts/desktop-qualification-history-test.mts");
+    await mkdir(path.dirname(module), { recursive: true });
+    await mkdir(path.join(root, "scripts"));
+    await copyFile(
+      new URL("./runtime-values.mts", import.meta.url),
+      path.join(root, "scripts/runtime-values.mts"),
+    );
+    await copyFile(
+      new URL("../apps/desktop/scripts/browser-script.mts", import.meta.url),
+      path.join(root, "apps/desktop/scripts/browser-script.mts"),
+    );
+    await copyFile(
+      new URL("../apps/desktop/scripts/desktop-qualification-history-test.mts", import.meta.url),
+      module,
+    );
+    const result = spawnSync(
+      process.execPath,
+      ["--input-type=module", "-e", `await import(${JSON.stringify(pathToFileURL(module).href)})`],
+      { cwd: root, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const native = path.join(
+      root,
+      "apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+    );
+    await copyFile(
+      new URL(
+        "../apps/desktop/scripts/desktop-qualification-history.native.test.mts",
+        import.meta.url,
+      ),
+      native,
+    );
+    // The shared loader always replaces this adjacent transport boundary. Supply
+    // only its resolution identity; real schema admission remains forbidden.
+    await writeFile(path.join(root, "apps/desktop/scripts/transport-values.mts"), "export {};\n", {
+      flag: "wx",
+    });
+    await mkdir(path.join(root, "scripts/fixtures"));
+    await copyFile(
+      new URL("./fixtures/desktop-module-fixture.mts", import.meta.url),
+      path.join(root, "scripts/fixtures/desktop-module-fixture.mts"),
+    );
+    const catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+    await mkdir(path.dirname(catalog), { recursive: true });
+    await copyFile(
+      new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
+      catalog,
+    );
+    const guard = path.join(root, "no-packages.mjs");
+    await writeFile(
+      guard,
+      `import {registerHooks,isBuiltin} from 'node:module';registerHooks({resolve(specifier,context,next){if(!isBuiltin(specifier)&&!specifier.startsWith('.')&&!specifier.startsWith('file:')&&!specifier.startsWith('data:'))throw Error('Optional package forbidden: '+specifier);return next(specifier,context);}});`,
+    );
+    const environment = { ...process.env };
+    delete environment.NODE_TEST_CONTEXT;
+    const execution = spawnSync(
+      process.execPath,
+      ["--import", pathToFileURL(guard).href, "--test", "--test-reporter=tap", native],
+      // Retained local run exceeded the10s child safeguard while importing the
+      // real catalog-backed helpers. Keep finite room inside this case's60s limit.
+      { cwd: root, env: environment, encoding: "utf8", timeout: 30000, maxBuffer: 1024 * 1024 },
+    );
+    assert.ifError(execution.error);
+    assert.equal(execution.status, 0, execution.stderr + execution.stdout);
+    const observed: string[] = [];
+    for (const line of execution.stdout.split("\n")) {
+      const match = /^ok\s+\d+\s+-\s+(.+)$/u.exec(line);
+      if (match?.[1]) observed.push(match[1]);
+    }
+    const expected = [
+      "serialized historical read hook forwards unmatched bodies and retains original fetch",
+      "historical cleanup retains malformed replies after all cleanup and preserves primitive primary failure",
+      "history restoration validation retains mandatory observations and narrow malformed-reply refusals",
+      "history cleanup joins independent window restoration and evidence before settlement",
+      "actual history scenario restores after its Linux failure or refuses other platforms before I/O",
+    ];
+    assert.deepEqual([...observed].sort(), [...expected].sort());
+    assert.match(execution.stdout, /^# skipped 0$/mu);
+  },
+);
 
 void test(
   "history installation and lost-window failures retain original and restoration evidence",
@@ -1514,6 +1526,7 @@ void test("preferences recovery is standalone and preserves a malformed original
   assert.throws(() => resolveDesktopSelection({ scenarios: [id, "empty-library"] }), /standalone/);
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 360_000);
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-preferences-recovery-"));
   t.after(() => rm(output, { recursive: true, force: true }));
@@ -2975,6 +2988,43 @@ void test("reload is opt-in for restart and full profiles", () => {
   );
 });
 
+void test("only the measured six-case install and Steam aggregate receives its calibrated watchdog", () => {
+  const scenarios = [
+    "install-progress-cancellation",
+    "install-commit-refresh-recovery",
+    "native-staged-update-composition",
+    "native-reviewed-steam-entry-add-and-remove",
+    "native-reviewed-steam-batch-add",
+    "native-local-artwork-picker-and-recovery",
+  ];
+  for (const order of [scenarios, [...scenarios].reverse()]) {
+    const selection = resolveDesktopSelection({ scenarios: order });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(desktopHarnessDeadlineMs(selection), 1_800_000);
+  }
+  for (const [index, scenario] of scenarios.entries()) {
+    assert.equal(
+      desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios: [scenario] })),
+      index === 3 || index === 4 ? 600_000 : 180_000,
+      `Keep the standalone ${scenario} allowance`,
+    );
+    assert.equal(
+      desktopHarnessDeadlineMs(
+        resolveDesktopSelection({ scenarios: scenarios.filter((item) => item !== scenario) }),
+      ),
+      600_000,
+      "A smaller combination keeps its original allowance",
+    );
+  }
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: [...scenarios, "accessibility"] }),
+    ),
+    600_000,
+    "An unrelated larger selection does not inherit the exact aggregate calibration",
+  );
+});
+
 void test("large lifecycle profiles receive a bounded profile-scale watchdog", () => {
   assert.equal(
     desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "presentation" })),
@@ -2995,7 +3045,7 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
     ),
     600_000,
   );
-  assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 1_200_000);
+  assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 2_400_000);
 });
 
 void test("isolated reviewed backup chains retain the finite lifecycle allowance", () => {

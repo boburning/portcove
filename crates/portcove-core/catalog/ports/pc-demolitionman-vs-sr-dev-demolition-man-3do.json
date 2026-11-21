@@ -4,6 +4,14 @@
     "id": "pc-demolitionman-vs-sr-dev-demolition-man-3do",
     "name": "Demolition Man (3DO) — pc-demolitionman (vs-sr-dev)",
     "original_game_title": "Demolition Man (3DO)",
+    "artwork": {
+      "game_id": 4341,
+      "cover_id": 205186,
+      "image_id": "co4ebm",
+      "image_sha256": "2bbb833f69e2c635539053540c285c7dc70e4f36af188b19a0182819e7a252de",
+      "game_slug": "demolition-man",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental project. a 28-minute attract-mode run covering all level types and the first lightgun level/HUD; completion of the full campaign has not been confirmed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-demolitionman",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-demolitionman"
     },
-    "issue_number": 3594
+    "issue_number": 3594,
+    "original_game": {
+      "format_version": 1,
+      "id": "demolition-man-3do",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-demolitionman"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "project-eleven-theplayer14-11eyes-crossover",
+    "artwork": {
+      "game_id": 47396,
+      "cover_id": 596594,
+      "image_id": "cocsc2",
+      "image_sha256": "5761136747fe8350e8a35bfde34d199faa5268c87fad78d1dc2ac791019dfdf3",
+      "game_slug": "11-eyes-crossover",
+      "match_kind": "underlying-game"
+    },
     "name": "11eyes CrossOver — project-eleven (ThePlayer14)",
     "original_game_title": "11eyes CrossOver",
     "summary": "Experimental project. Source-build instructions exist. The extent of boot and gameplay support is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/ThePlayer14/project-eleven-recomp"
     },
-    "issue_number": 3294
+    "issue_number": 3294,
+    "original_game": {
+      "format_version": 1,
+      "id": "11eyes-crossover",
+      "evidence_urls": ["https://github.com/ThePlayer14/project-eleven-recomp"],
+      "source_editions": [
+        {
+          "id": "11eyes-crossover-xbox-360",
+          "title": "11eyes CrossOver (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ThePlayer14/project-eleven-recomp/blob/0e3ed718e33e5e2df570fc10bbab246cd28b28ba/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

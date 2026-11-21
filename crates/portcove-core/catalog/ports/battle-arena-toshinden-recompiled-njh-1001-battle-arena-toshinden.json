@@ -4,6 +4,14 @@
     "id": "battle-arena-toshinden-recompiled-njh-1001-battle-arena-toshinden",
     "name": "Battle Arena Toshinden — Battle Arena Toshinden Recompiled (NJH-1001)",
     "original_game_title": "Battle Arena Toshinden",
+    "artwork": {
+      "game_id": 1413,
+      "cover_id": 603720,
+      "image_id": "cocxu0",
+      "image_sha256": "ff23e8b57e39837e479e054456abc8ef6cea4f39183719072b3b852d3b95728a",
+      "game_slug": "battle-arena-toshinden",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project offers playable setup packages. Coverage of every fighter and mode is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/NJH-1001/BATRecomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/NJH-1001/BATRecomp"
     },
-    "issue_number": 3399
+    "issue_number": 3399,
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-arena-toshinden",
+      "evidence_urls": ["https://github.com/NJH-1001/BATRecomp"],
+      "source_editions": [
+        {
+          "id": "battle-arena-toshinden-playstation",
+          "title": "Battle Arena Toshinden (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/BATRecomp/blob/a27984137226dc23bc0ab75eb38b108262257995/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

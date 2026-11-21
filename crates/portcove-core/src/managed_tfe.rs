@@ -31,6 +31,11 @@ pub(crate) fn validate(port: &crate::PortDefinition) -> Result<()> {
             crate::managed_runtime_policy::validate_release_rules(port)?;
             true
         }
+        Some(crate::ManagedInitialization::ChocolateFamilyPortableV1) => {
+            return Err(PortcoveError::verification(
+                "Chocolate initialization requires its own closed recipe",
+            ));
+        }
         None => return Ok(()),
     };
     let sources = port

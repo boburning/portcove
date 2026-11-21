@@ -38,6 +38,24 @@
       "warnings": [
         "Use your own exact USA ROM. If you attach the prepared launcher, select z2rs-launcher.exe from the complete external package. Preserve %APPDATA%/z2rs and the ROM’s original path; the selected launcher does not establish full-game lifetime."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "zelda-ii-the-adventure-of-link",
+      "evidence_urls": [
+        "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md",
+        "https://github.com/troyedwardsjr/z2rs"
+      ],
+      "source_editions": [
+        {
+          "id": "zelda-ii-the-adventure-of-link-nes",
+          "title": "Zelda II: The Adventure of Link (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/troyedwardsjr/z2rs/blob/4c5e34418017cfda71ea0ca09c952ff93ba1591c/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

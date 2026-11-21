@@ -3,7 +3,7 @@
   "listing": {
     "id": "f-e-a-r-360-recompiled-juansolo457-f-e-a-r-f-e-a-r-files-xbox-360",
     "name": "F.E.A.R. (Xbox 360) — F.E.A.R. 360 Recompiled (Juansolo457)",
-    "original_game_title": "F.E.A.R. (Xbox 360)",
+    "original_game_title": "F.E.A.R.",
     "summary": "Build F.E.A.R. locally from your Xbox 360 files. Upstream reports campaign and Instant Action support; a full campaign and bonus mission remain unconfirmed, with rendering and performance issues. Native Linux is untested. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Juansolo457/fear360-recomp",
     "platforms": ["windows-x86-64"],
@@ -35,6 +35,21 @@
       "image_sha256": "282a51ceec2c6a0b092f7a357e2e2af93d81d5cdcaa1782f82edead9ea85d028",
       "game_slug": "fear--1",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-e-a-r",
+      "evidence_urls": ["https://github.com/Juansolo457/fear360-recomp"],
+      "source_editions": [
+        {
+          "id": "f-e-a-r-xbox-360",
+          "title": "F.E.A.R. (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/f-e-a-r-360-recompiled-juansolo457-f-e-a-r-f-e-a-r-files-xbox-360.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

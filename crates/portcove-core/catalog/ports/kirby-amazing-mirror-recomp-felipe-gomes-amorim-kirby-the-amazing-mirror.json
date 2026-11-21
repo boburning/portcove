@@ -35,6 +35,21 @@
       "image_sha256": "16aa7ad6eb9ef201aa1afe61572186965ec8e5a4a9097e84d07afcbfa652e321",
       "game_slug": "kirby-and-the-amazing-mirror",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-the-amazing-mirror",
+      "evidence_urls": ["https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp"],
+      "source_editions": [
+        {
+          "id": "kirby-the-amazing-mirror-game-boy-advance",
+          "title": "Kirby & The Amazing Mirror (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp/blob/2bb49d0631cb54d928d70f97e6aacf79a4b15fb6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

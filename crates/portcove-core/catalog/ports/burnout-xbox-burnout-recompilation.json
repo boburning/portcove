@@ -2,11 +2,19 @@
   "format_version": 1,
   "listing": {
     "id": "burnout-xbox-burnout-recompilation",
+    "artwork": {
+      "game_id": 3838,
+      "cover_id": 298365,
+      "image_id": "co6e7x",
+      "image_sha256": "0a1035b40a1ccc60fee6b289cc8bf7d66ab12affa10e8773a7da68bc8f5b7e04",
+      "game_slug": "burnout",
+      "match_kind": "underlying-game"
+    },
     "name": "Burnout (Xbox) (Burnout Recompilation)",
     "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
-    "original_game_title": "Burnout (Xbox)",
+    "original_game_title": "Burnout",
     "project_url": "https://github.com/Heromachine/Burnout-Recompilation",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Heromachine/Burnout-Recompilation",
     "issue_number": 2637,
@@ -39,6 +47,21 @@
         {
           "title": "Use permitted files and keep this copy recoverable",
           "instruction": "Retain applicable project and bundled-component notices, including the separate xboxrecomp MIT, xemu-derived GPL and tool licences. These do not grant original-game rights or permission to redistribute the locally generated game DLL. Removing registration preserves all external files. Portcove offers no external update, backup, rollback, conversion, migration, preparation or deletion. This early release has upstream-reported looping scrape audio and lighting limitations; those are not claimed repaired or independently tested here."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout",
+      "evidence_urls": ["https://github.com/Heromachine/Burnout-Recompilation"],
+      "source_editions": [
+        {
+          "id": "burnout-xbox",
+          "title": "Burnout (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Heromachine/Burnout-Recompilation/blob/1068afc478b28d6cc15f8d0ed325e156cf7c7848/README.md"
+          ]
         }
       ]
     }

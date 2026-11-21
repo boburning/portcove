@@ -201,6 +201,18 @@ pub struct PendingSetupRecord {
     pub reason: Option<String>,
 }
 
+impl PendingSetupRecord {
+    pub(crate) fn into_setup_download(self) -> crate::SetupDownloadSelection {
+        crate::SetupDownloadSelection {
+            release_id: self.artifact.release_id,
+            asset_id: self.artifact.asset_id,
+            release_tag: self.artifact.release_tag,
+            filename: self.artifact.name,
+            download_sha256: self.archive_sha256,
+        }
+    }
+}
+
 fn legacy_record_format() -> u8 {
     1
 }
@@ -707,17 +719,46 @@ impl PortcoveService {
                 .eq_ignore_ascii_case(repository.name())
         });
         let rolling_tag = definition.and_then(|port| port.release.rolling_tag.as_deref());
-        let (candidates, coverage, releases, selected) = provider
-            .options(
-                repository.name(),
-                selected_release_id.as_ref(),
-                channel,
-                rolling_tag,
-            )
-            .await?;
+        let platform = Platform::current()?;
+        let github_other_stream_prefixes = definition
+            .filter(|port| port.release.provider == crate::ReleaseSource::Github)
+            .map(|port| port.release.github_stream_exclusions(platform))
+            .unwrap_or_default();
+        // Shared observations only serve the non-managed browse window. They never
+        // enter the managed release resolver or the exact preview/download path.
+        let observed = match provider {
+            CatalogDownloadProvider::Github(provider) if self.catalog.port(port_id).is_err() => {
+                provider
+                    .observed_catalog_download_options(
+                        listing,
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                        time::OffsetDateTime::now_utc(),
+                    )
+                    .map(|(candidates, coverage, releases, selected)| {
+                        (candidates, coverage, releases, selected.map(Into::into))
+                    })
+            }
+            _ => None,
+        };
+        let reused_observation = observed.is_some();
+        let (candidates, coverage, releases, selected) = match observed {
+            Some(options) => options,
+            None => {
+                provider
+                    .options(
+                        repository.name(),
+                        selected_release_id.as_ref(),
+                        channel,
+                        rolling_tag,
+                        github_other_stream_prefixes,
+                    )
+                    .await?
+            }
+        };
         result.releases = releases;
         result.selected_release_id = selected.clone();
-        let platform = Platform::current()?;
         let hints = definition
             .and_then(|port| port.release.asset_hints.get(&platform))
             .or_else(|| listing.download_asset_hints.get(&platform))
@@ -750,6 +791,18 @@ impl PortcoveService {
         result.candidates = candidates;
         result.allowed = true;
         result.reason = coverage.reason(result.candidates.is_empty());
+        if reused_observation {
+            let observation = listing
+                .upstream_observation
+                .as_ref()
+                .expect("reused observation");
+            result.reason = Some(format!(
+                "Upstream metadata observed at {} (fresh until {}). Preview checks the selected file upstream before download. {}",
+                observation.observed_at.as_deref().unwrap_or_default(),
+                observation.fresh_until.as_deref().unwrap_or_default(),
+                result.reason.as_deref().unwrap_or_default(),
+            ));
+        }
         result.coverage = Some(coverage);
         result.default_destination_parent = directories::UserDirs::new().and_then(|directories| {
             let mut choices = vec![directories.home_dir().join("Games")];
@@ -771,6 +824,66 @@ impl PortcoveService {
         request: &CatalogDownloadRequest,
     ) -> Result<CatalogDownloadPreview> {
         self.catalog_download_preview_inner(request, None).await
+    }
+
+    /// Recheck the exact offered package before handing its notes to the browser.
+    pub async fn catalog_download_release_notes(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+    ) -> Result<String> {
+        self.catalog_download_release_notes_inner(
+            port_id,
+            release_id,
+            asset_id,
+            displayed_url,
+            None,
+        )
+        .await
+    }
+
+    async fn catalog_download_release_notes_inner(
+        &self,
+        port_id: &str,
+        release_id: &CatalogDownloadReleaseId,
+        asset_id: &CatalogDownloadAssetId,
+        displayed_url: &str,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<String> {
+        let listing = self.catalog.listing(port_id)?;
+        listing.validate()?;
+        self.require_download_available(port_id)?;
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
+        let release_url = provider
+            .candidate_release_notes_url(repository.name(), release_id, asset_id)
+            .await?;
+        if release_url != displayed_url {
+            return Err(PortcoveError::conflict(
+                "The selected release page changed. Check downloads again.",
+            ));
+        }
+        Ok(release_url)
+    }
+
+    fn catalog_download_source(
+        &self,
+        listing: &PortListing,
+        provider: Option<&CatalogDownloadProvider>,
+    ) -> Result<(CatalogDownloadRepository, CatalogDownloadProvider)> {
+        let repository = CatalogDownloadRepository::parse(
+            listing
+                .release_url
+                .as_deref()
+                .unwrap_or(&listing.project_url),
+        )?;
+        let provider = match provider {
+            Some(provider) => provider.clone(),
+            None => CatalogDownloadProvider::for_repository(&self.library, &repository)?,
+        };
+        provider.require_repository(&repository)?;
+        Ok((repository, provider))
     }
 
     #[cfg(test)]
@@ -795,22 +908,7 @@ impl PortcoveService {
         listing.validate()?;
         self.require_download_available(&request.port_id)?;
         let destination_path = self.download_destination(request)?;
-        let repository = CatalogDownloadRepository::parse(
-            listing
-                .release_url
-                .as_deref()
-                .unwrap_or(&listing.project_url),
-        )?;
-        let default_provider;
-        let provider = match provider {
-            Some(provider) => provider,
-            None => {
-                default_provider =
-                    CatalogDownloadProvider::for_repository(&self.library, &repository)?;
-                &default_provider
-            }
-        };
-        provider.require_repository(&repository)?;
+        let (repository, provider) = self.catalog_download_source(listing, provider)?;
         let artifact = provider
             .candidate(repository.name(), &request.release_id, &request.asset_id)
             .await?;
@@ -1014,6 +1112,8 @@ impl PortcoveService {
                 fs::set_permissions(stage.path(), fs::Permissions::from_mode(0o700))?;
             }
             self.require_download_destination(stage.path())?;
+            let mut listing = self.catalog.listing(&request.port_id)?.clone();
+            listing.media.retain(|asset| !asset.is_typed_igdb_scene());
             let mut record = PendingSetupRecord {
                 format_version: if preview.artifact.release_id.github_id().is_some() {
                     1
@@ -1022,7 +1122,7 @@ impl PortcoveService {
                 },
                 id: Uuid::new_v4().to_string(),
                 port_id: request.port_id.clone(),
-                listing: self.catalog.listing(&request.port_id)?.clone(),
+                listing,
                 path: preview.destination_path.clone(),
                 state: PendingSetupState::AttentionRequired,
                 artifact: preview.artifact.clone(),
@@ -1448,5 +1548,53 @@ impl PortcoveService {
             ));
         }
         Ok(stored.record.path)
+    }
+
+    /// Read-only browser handoff from the exact saved setup and its retained guide.
+    pub fn pending_setup_resource(
+        &self,
+        port_id: &str,
+        pending_id: &str,
+        url: &str,
+    ) -> Result<String> {
+        let (record, _) = self
+            .pending_setup_registration(port_id)?
+            .filter(|(record, _)| record.id == pending_id)
+            .ok_or_else(|| PortcoveError::conflict("pending setup changed or no longer exists"))?;
+        let listing = &record.listing;
+        let retains_guide = [
+            listing.setup_url.as_deref(),
+            listing
+                .manual_setup
+                .as_ref()
+                .and_then(|guide| guide.help_url.as_deref()),
+        ]
+        .contains(&Some(url));
+        let retains_release = url == record.artifact.release_url
+            && CatalogDownloadRepository::parse(
+                listing
+                    .release_url
+                    .as_deref()
+                    .unwrap_or(&listing.project_url),
+            )
+            .ok()
+            .and_then(|repository| repository.release_notes_url(&record.artifact.release_tag))
+            .is_some_and(|expected| expected == url);
+        if url.len() <= 4096
+            && url.trim() == url
+            && !url.chars().any(char::is_control)
+            && (retains_guide || retains_release)
+            && reqwest::Url::parse(url).is_ok_and(|parsed| {
+                parsed.scheme() == "https"
+                    && parsed.host_str().is_some()
+                    && parsed.username().is_empty()
+                    && parsed.password().is_none()
+            })
+        {
+            return Ok(url.to_owned());
+        }
+        Err(PortcoveError::usage(
+            "This link does not belong to the saved setup.",
+        ))
     }
 }

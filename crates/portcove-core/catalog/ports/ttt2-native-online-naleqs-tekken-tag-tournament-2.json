@@ -4,6 +4,14 @@
     "id": "ttt2-native-online-naleqs-tekken-tag-tournament-2",
     "name": "Tekken Tag Tournament 2 — TTT2 Native Online (naleqs)",
     "original_game_title": "Tekken Tag Tournament 2",
+    "artwork": {
+      "game_id": 1238,
+      "cover_id": 88292,
+      "image_id": "co1w4k",
+      "image_sha256": "cbab1d1d08cc84c2a8466a19ad6cc7223cfbbf0054c802d872cb9f058ee5e31a",
+      "game_slug": "tekken-tag-tournament-2",
+      "match_kind": "underlying-game"
+    },
     "summary": "This early build reaches native menus at 60 FPS, selection, intros, fights and local versus. Online play uses lockstep and input delay; rollback is unfinished. Music and voices are silent. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/naleqs/TTT2-native-online",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/naleqs/TTT2-native-online"
     },
-    "issue_number": 3164
+    "issue_number": 3164,
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-tag-tournament-2",
+      "evidence_urls": ["https://github.com/naleqs/TTT2-native-online"],
+      "source_editions": [
+        {
+          "id": "tekken-tag-tournament-2-xbox-360",
+          "title": "Tekken Tag Tournament 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ttt2-native-online-naleqs-tekken-tag-tournament-2.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

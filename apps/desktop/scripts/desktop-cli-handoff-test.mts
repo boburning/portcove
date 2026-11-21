@@ -63,7 +63,7 @@ export async function cliHandoffScenario({
     const { click } = reviewControls(browser);
     const open = async (portId: string, view: "Library" | "Discover") => {
       const port = transportValue("port", command(["catalog", "show", portId]));
-      if (view === "Discover") await openCatalogPortAfterRefresh(browser, port);
+      if (view === "Discover") await openCatalogPortAfterRefresh(browser, port, port.name);
       else {
         await browser.navigate().refresh();
         await selectPrimaryNavigation(browser, "Library");
@@ -95,13 +95,24 @@ export async function cliHandoffScenario({
       await click(technical);
     };
     await open("zelda64-recomp", "Library");
+    await browser.wait(
+      until.elementLocated(By.xpath('//*[@role="tab" and normalize-space(.)="Mods"]')),
+    );
     assert.deepEqual(
       await executeBrowserScript(browser, () =>
         Array.from(document.querySelectorAll("[data-detail-workspace] [role=tab]"), (tab) =>
           tab.textContent?.trim(),
         ),
       ),
-      ["Overview", "Game files", "Saves & backups", "Versions & updates", "Manage"],
+      [
+        "Overview",
+        "Game files",
+        "Mods",
+        "Saves & backups",
+        "Versions & updates",
+        "Game settings",
+        "Manage",
+      ],
     );
     await revealDetailSection(browser, "Versions & updates");
     const versionSummary = await browser

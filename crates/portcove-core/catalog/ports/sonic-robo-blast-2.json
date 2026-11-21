@@ -1,0 +1,76 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "sonic-robo-blast-2",
+    "name": "Sonic Robo Blast 2",
+    "original_game_title": "Sonic Robo Blast 2",
+    "summary": "Play Sonic Team Junior's 3D fan game with its bundled stages, characters, and music.",
+    "project_url": "https://github.com/STJr/SRB2",
+    "artwork": {
+      "game_id": 95508,
+      "cover_id": 297964,
+      "image_id": "co6dws",
+      "image_sha256": "07b6079390ebe07bc2f15bda62bc00146263a9414fcb84aee893335a0c06ac30",
+      "game_slug": "sonic-robo-blast-2",
+      "match_kind": "port"
+    },
+    "issue_number": 6738,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/STJr/SRB2/releases",
+    "setup_url": "https://flathub.org/apps/org.srb2.SRB2",
+    "download_block_reason": "Get the game from Sonic Team Junior or Flathub and update it through the same source.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Set up the Windows ZIP",
+          "instruction": "Choose the Full ZIP from the official release. Extract it to a writable folder and start the bundled 32-bit srb2win.exe. Keep the PK3 files, models, and DLLs beside the game."
+        },
+        {
+          "title": "Install on Linux",
+          "instruction": "Install org.srb2.SRB2 from Flathub on x86-64 or ARM64, then open Sonic Robo Blast 2 from your application menu."
+        },
+        {
+          "title": "Install the Mac app",
+          "instruction": "Open the official Mac disk image and copy Sonic Robo Blast 2.app to Applications. The app includes a universal executable for Intel and Apple Silicon. Start the copy in Applications."
+        }
+      ],
+      "warnings": [
+        "Close the game before copying saves, settings, or add-ons. Keep your existing profile until the replacement opens your save."
+      ],
+      "references": [
+        {
+          "title": "Find saves, settings, and add-ons",
+          "instruction": "Windows portable copies normally write beside srb2win.exe. Preserve the actual profile if you use -home or an existing profile elsewhere. The Mac app uses ~/srb2. The Flatpak profile is ~/.var/app/org.srb2.SRB2/.srb2. Keep the srb2sav*.ssg slots, gamedata.dat, config.cfg, and your add-ons."
+        },
+        {
+          "title": "Check Android availability",
+          "instruction": "The upstream Android port was discontinued. Older community Android releases are archived separately at SRB2-Mobile/SRB2-Android and may have different saves, controls, and compatibility from the desktop release."
+        }
+      ],
+      "help_url": "https://www.wiki.srb2.org/wiki/Sonic_Robo_Blast_2"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-robo-blast-2",
+      "evidence_urls": [
+        "https://www.wiki.srb2.org/wiki/Sonic_Robo_Blast_2",
+        "https://github.com/STJr/SRB2"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "sonic-robo-blast-2",
+    "origin": {
+      "project_url": "https://github.com/STJr/SRB2",
+      "repository": {
+        "host": "github.com",
+        "id": "17780491"
+      }
+    },
+    "decisions": []
+  }
+}

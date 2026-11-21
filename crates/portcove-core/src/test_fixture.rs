@@ -5,6 +5,15 @@ use std::{
 };
 
 #[cfg(test)]
+pub(crate) fn grow_catalog_evidence(document: &mut crate::CatalogDocument, bytes: usize) {
+    let evidence = &mut document.source_catalog.as_mut().unwrap().evidence;
+    let mut record = evidence.first().unwrap().clone();
+    record.id = "synthetic-catalog-capacity".into();
+    record.claim = "Synthetic capacity fixture. ".repeat(bytes.div_ceil(28));
+    evidence.push(record);
+}
+
+#[cfg(test)]
 pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     serde_json::json!({
         "provider":"gitlab", "repository":"example/game", "repository_id":7,
@@ -18,6 +27,28 @@ pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
             "assets_complete":true, "assets":[]
         }]
     })
+}
+
+pub(crate) fn retained_devilutionx_appimage_catalog() -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut document = catalog.authoritative_document();
+    for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        let linux = crate::Platform::LinuxX86_64;
+        port.release.linux_tar_xz = false;
+        port.linux_packaged_library = None;
+        port.release
+            .asset_hints
+            .insert(linux, vec!["devilutionx-linux-x86_64.appimage".into()]);
+        port.executable_hints
+            .insert(linux, vec!["devilutionx.AppImage".into()]);
+        port.reviewed_package_layouts.remove(&linux);
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
 pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
@@ -92,6 +123,36 @@ pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32
         .map_or(archive, |profile| profile.max(archive))
 }
 
+pub(crate) fn retained_manual_dhewm3_catalog(id: &str) -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let snapshot: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/retained-dhewm3-manual-2026-11-16.json"
+    ))
+    .unwrap();
+    let Some(retained) = snapshot["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == id)
+    else {
+        return catalog;
+    };
+    let mut document = catalog.authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap();
+    *port = serde_json::from_value(retained.clone()).unwrap();
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .contracts
+        .retain(|contract| contract.port_id != id);
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 pub(crate) fn definition_requirements(
     port: &crate::PortDefinition,
     default_version: u32,
@@ -117,6 +178,11 @@ pub(crate) fn definition_requirements(
             json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
         ];
     }
+    let default_version = if crate::preparation::source::native_relative(port) {
+        default_version.max(crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY)
+    } else {
+        default_version
+    };
     let default_version = if crate::persistence::requires_psx_retained_scope(port) {
         default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
     } else {
@@ -151,6 +217,16 @@ pub(crate) fn definition_requirements(
             .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
     {
         default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.linux_packaged_library.is_some() {
+        default_version.max(crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.mod_provider_bindings.is_some() {
+        default_version.max(crate::provider_binding::capability(port).unwrap().1)
     } else {
         default_version
     };
@@ -356,8 +432,10 @@ impl<'a> IndexedCatalogFixture<'a> {
         {
             // The newest staged-source requirement, so it stays first.
             crate::adapter::SNES_COPIER_HEADER_CAPABILITY
-        } else if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        } else if let Some((_, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(port)
+        {
+            minimum
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; it is the newest
             // staged-source requirement, so it stays first.
@@ -432,6 +510,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {

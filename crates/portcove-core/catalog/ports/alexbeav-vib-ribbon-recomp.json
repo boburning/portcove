@@ -56,14 +56,32 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["vib-ribbon-", "-windows-x64.zip"],
-      "linux-x86-64": ["vib-ribbon-", "-linux-x64.zip"],
       "macos-x86-64": ["vib-ribbon-", "-macos-x64.zip"],
       "macos-aarch64": ["vib-ribbon-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "vib-ribbon",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases",
+        "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "vib-ribbon-playstation",
+          "title": "Vib-Ribbon (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/2c59c02f2914b537675a7d5b2e8bb8c7c0be2bf9/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -101,7 +119,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own complete 8-track CHD for Vib-Ribbon (Europe, SCES-02873) and your retail SCPH-5552 BIOS. Portcove verifies the first data track and the track count, then builds a private player. The game mounts the complete CHD. Portcove retains the declared saves, replays, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries current player data. Intel and Apple silicon Macs use upstream setup. Native setup, audio playback and gameplay remain unobserved."
+      "manual_preparation": "Select your own complete 8-track CHD for Vib-Ribbon (Europe, SCES-02873) and your retail SCPH-5552 BIOS. Portcove verifies the first data track and the track count, then builds a private player. The game mounts the complete CHD. Portcove retains the declared saves, replays, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries current player data. Intel and Apple silicon Macs use upstream setup. Native setup, audio playback and gameplay remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not verified native setup, gameplay or save compatibility.",
+          "Native setup, audio playback and gameplay remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/releases"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

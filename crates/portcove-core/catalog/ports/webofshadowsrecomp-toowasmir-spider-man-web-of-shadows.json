@@ -4,6 +4,14 @@
     "id": "webofshadowsrecomp-toowasmir-spider-man-web-of-shadows",
     "name": "Spider-Man: Web of Shadows — WebOfShadowsRecomp (toowasmir)",
     "original_game_title": "Spider-Man: Web of Shadows",
+    "artwork": {
+      "game_id": 5181,
+      "cover_id": 272879,
+      "image_id": "co5ujz",
+      "image_sha256": "d6c86053f2b4d7e0f4718f7675162ae28e241f7a322b70a7687ab840ea94031d",
+      "game_slug": "spider-man-web-of-shadows",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes native-port features. The reviewed README does not establish full-game completion. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/toowasmir/WebOfShadowsRecomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/toowasmir/WebOfShadowsRecomp"
     },
-    "issue_number": 3131
+    "issue_number": 3131,
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-web-of-shadows",
+      "evidence_urls": [
+        "https://github.com/toowasmir/WebOfShadowsRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/webofshadowsrecomp-toowasmir-spider-man-web-of-shadows.json"
+      ],
+      "source_editions": [
+        {
+          "id": "spider-man-web-of-shadows-xbox-360",
+          "title": "Spider-Man: Web of Shadows (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/webofshadowsrecomp-toowasmir-spider-man-web-of-shadows.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

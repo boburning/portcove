@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wii-play-tanks-rebirth",
+    "artwork": {
+      "game_id": 357342,
+      "cover_id": 475001,
+      "image_id": "coa6ih",
+      "image_sha256": "dfada541d3c86d963393bb91d4ab568b91d83d2e6dbd33cd2737af5c2cd74a89",
+      "game_slug": "tanks-rebirth",
+      "match_kind": "port"
+    },
     "project_url": "https://github.com/RighteousRyan1/TanksRebirth",
     "name": "Tanks Rebirth",
     "summary": "A standalone recreation of Wii Play’s Tanks mode with upstream packages for Windows, Linux and Intel Mac.",
@@ -34,6 +42,27 @@
           "instruction": "Close the game and preserve My Games/Tanks Rebirth under the Documents folder used by .NET. This is where the player stores its saves, campaigns, mods and resource packs. Keep a known-working package to return to when trying another release."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tanks-rebirth",
+      "evidence_urls": [
+        "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
+        "https://github.com/RighteousRyan1/TanksRebirth",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wii-play-tanks-rebirth.json"
+      ],
+      "source_editions": [
+        {
+          "id": "tanks-rebirth-wii",
+          "title": "Tanks Rebirth (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/wii-play-tanks-rebirth.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Tanks Rebirth"
   }
 }

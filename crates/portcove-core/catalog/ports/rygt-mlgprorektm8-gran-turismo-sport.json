@@ -35,6 +35,12 @@
       "image_sha256": "799915bc463075cc3d9e541cf0b9c5653c7b296a32244dfb262cddbf1113b94c",
       "game_slug": "gran-turismo-sport",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-sport",
+      "evidence_urls": ["https://github.com/mlgprorektm8/RyGT"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

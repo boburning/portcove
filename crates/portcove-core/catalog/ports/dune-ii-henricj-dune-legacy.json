@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "dune-ii-henricj-dune-legacy",
+    "artwork": {
+      "game_id": 86,
+      "cover_id": 227952,
+      "image_id": "co4vw0",
+      "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+      "game_slug": "dune-ii-the-building-of-a-dynasty",
+      "match_kind": "underlying-game"
+    },
+    "name": "Dune II / Dune Legacy (henricj)",
+    "original_game_title": "Dune II",
+    "summary": "Play Dune II with henricj’s Dune Legacy fork using the PAK files from your original copy.",
+    "project_url": "https://github.com/henricj/dunelegacy",
+    "issue_number": 5909,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/henricj/dunelegacy/blob/v0.96.4-0.1.4/README.md#getting-started",
+    "release_url": "https://github.com/henricj/dunelegacy/releases/tag/v0.96.4-0.1.4",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the Windows ZIP for your processor",
+          "instruction": "Use the standard x64 ZIP for a 64-bit Intel or AMD PC. The publisher offers separate ARM64 and 32-bit x86 builds. The x64 AVX2 build requires an AVX2-capable processor. Extract the complete ZIP and keep its PAKs, locale files and maps with dunelegacy.exe."
+        },
+        {
+          "title": "Supply your original Dune II data",
+          "instruction": "Copy the original PAK files listed by the project to %APPDATA%/dunelegacy/data, or beside the Windows executable. Keep your original copy. The ZIP supplies LEGACY.PAK, OPENSD2.PAK and GFXHD.PAK for the fork. You still need the matching original files."
+        },
+        {
+          "title": "Find the Linux and Mac source routes",
+          "instruction": "The pinned release publishes Windows packages. Linux source is available with local build fixes required. The pinned zlib URL failed. The checked Linux build used CMake 3.31.8, the official zlib fossil archive matching the pinned SHA-512, and `-include vector` with GCC 15. Use $XDG_CONFIG_HOME/dunelegacy/data or the default ~/.config/dunelegacy/data for original PAKs. The tag has macOS source, with no Intel or Apple Silicon package from this release."
+        }
+      ],
+      "warnings": [
+        "The upstream package or your external build owns runtime replacement. Keep its profile, originals and custom maps before replacing the player."
+      ],
+      "references": [
+        {
+          "title": "Preserve the player profile",
+          "instruction": "Windows normally uses %APPDATA%/dunelegacy. The Linux source uses $XDG_CONFIG_HOME/dunelegacy, normally ~/.config/dunelegacy. Keep the actual profile with settings, save, mpsave, replay and any custom maps."
+        }
+      ]
+    },
+    "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+    "original_game": {
+      "format_version": 1,
+      "id": "dune-ii",
+      "evidence_urls": ["https://github.com/henricj/dunelegacy"],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dune-ii-henricj-dune-legacy",
+    "origin": {
+      "project_url": "https://github.com/henricj/dunelegacy",
+      "repository": {
+        "host": "github.com",
+        "id": "112470390"
+      }
+    },
+    "decisions": []
+  }
+}

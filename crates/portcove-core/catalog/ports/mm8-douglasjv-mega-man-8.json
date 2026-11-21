@@ -35,6 +35,12 @@
       "image_sha256": "79f8cdddb93133025bc98a5b4d91eabc7e209fa383d528beb668cf7f0bc3f007",
       "game_slug": "mega-man-8",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-8",
+      "evidence_urls": ["https://github.com/douglasjv/mm8"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

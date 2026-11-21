@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pgr2-recomp-hk21x-project-gotham-racing-2",
+    "artwork": {
+      "game_id": 3321,
+      "cover_id": 86420,
+      "image_id": "co1uok",
+      "image_sha256": "727a326bfe41b719324d18580ca6307b75de1d0c0a5adac956fa35e7396506f4",
+      "game_slug": "project-gotham-racing-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Project Gotham Racing 2 — pgr2-recomp (hk21x)",
     "original_game_title": "Project Gotham Racing 2",
     "summary": "Upstream reports boot, movies, menus, races in every mode tried, saves and System Link. This is not a demonstrated complete career/campaign. Sound-effect reverb/filters remain unmodeled; experimental 60 FPS races can dip in busy streets. The current README adds top-right Quit game and Alt+F4 exit controls. No Portcove setup, package, controller, networking or gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/hk21x/pgr2-recomp"
     },
-    "issue_number": 3625
+    "issue_number": 3625,
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-2",
+      "evidence_urls": ["https://github.com/hk21x/pgr2-recomp"],
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-2-xbox",
+          "title": "Project Gotham Racing 2 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/hk21x/pgr2-recomp/blob/20da98112aa4b82d8c8917dbcb97becebaf6fcca/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

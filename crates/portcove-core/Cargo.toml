@@ -63,6 +63,7 @@ tough.workspace = true
 tracing.workspace = true
 unicode-normalization.workspace = true
 uuid.workspace = true
+xxhash-rust.workspace = true
 zip.workspace = true
 
 [target.'cfg(unix)'.dependencies]
@@ -73,6 +74,7 @@ rustix.workspace = true
 windows-sys.workspace = true
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 sevenz-turbo = { workspace = true, features = ["compress"] }
 aws-lc-rs = "1.19.0"
 jiff = "0.2.39"

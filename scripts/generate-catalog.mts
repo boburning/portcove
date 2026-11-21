@@ -1,3 +1,7 @@
+import {
+  requireOriginalGameDecision,
+  checkOriginalGameConsistency,
+} from "./catalog-game-review.mts";
 import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
@@ -30,6 +34,10 @@ import {
   prepareCoverArtworkInOperations,
   prepareGameMediaInOperations,
 } from "./artwork-operations.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
 
 interface Difference {
@@ -42,6 +50,13 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 const outputPath = join(catalogRoot, "catalog.json");
 const listingsPath = join(catalogRoot, catalogSourceNames.listings);
+const managedSetupReviewPath = join(
+  root,
+  "apps",
+  "desktop",
+  "src",
+  "managed-setup-review.generated.json",
+);
 const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
 const routeTestRoot = join(root, "crates", "portcove-core", "src", "testdata");
 const routeTestPaths = {
@@ -366,21 +381,35 @@ function compatibilityFixtureReview(catalog: CurrentCatalog) {
   );
 }
 const authored = readCatalogSource(catalogRoot);
+// Repository completeness is an authoring/review gate, never a legacy runtime requirement.
+if (process.argv.includes("--check")) {
+  for (const record of authored.records) requireOriginalGameDecision(record, authored.records);
+  checkOriginalGameConsistency(authored.records, true);
+}
 const current = authored.catalog;
 // Listing-only entries can already own reviewed covers before gaining an
 // integration. Supply those accepted facts only to artwork preparation; Core's
 // accepted operational baseline and compatibility checks remain unchanged.
+const regionalCovers = new Map(
+  authored.records.flatMap(({ listing, igdb_regional_cover }) =>
+    igdb_regional_cover ? [[listing.id, igdb_regional_cover] as const] : [],
+  ),
+);
 const acceptedArtwork = {
   ...current,
   ports: [
-    ...current.ports,
+    ...current.ports.map((port) => {
+      const selection = regionalCovers.get(port.id);
+      return selection ? { ...port, igdb_regional_cover: selection } : port;
+    }),
     ...authored.records
       .filter(({ integration }) => !integration)
-      .map(({ listing }) => ({
+      .map(({ listing, igdb_regional_cover }) => ({
         id: listing.id,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
         name: listing.name,
         project_url: listing.project_url,
-        presentation: { artwork: listing.artwork },
+        presentation: { artwork: listing.artwork, collection_covers: listing.collection_covers },
       })),
   ],
 };
@@ -461,10 +490,12 @@ async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
-    fullProposal ? 4 * 1024 * 1024 : 8 * 1024 * 1024,
+    fullProposal ? 16 * 1024 * 1024 : 8 * 1024 * 1024,
   );
   const input = captured.document;
   validateCurrentCatalog(input);
+  if (input.ports.some((port) => Object.hasOwn(port, "igdb_regional_cover")))
+    throw new Error("IGDB regional cover selections belong in authored port records.");
   const identitiesFile = option("--identities");
   const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
   const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];
@@ -653,8 +684,49 @@ if (preparing) {
     throw new Error(
       `Review independent compatibility fixture before generation: ${JSON.stringify(compatibility.collections)}`,
     );
+  const releaseUrls = new Map(
+    authored.records.map(({ listing }) => [listing.id, listing.release_url]),
+  );
+  for (const port of current.ports) {
+    for (const finding of managedSetupReleaseAdvice(port, releaseUrls.get(port.id))) {
+      const { step, kind, literal } = finding;
+      process.stderr.write(
+        `Catalog authoring advice for ${port.id}, setup step ${step}: ${kind} ${JSON.stringify(literal)}. ${managedSetupReleaseAdviceText}\n`,
+      );
+    }
+  }
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
+  const managedSetupReview = Object.fromEntries(
+    authored.records.flatMap((record) => {
+      const { integration, listing, route_facts_v1, managed_setup_platform_warnings } = record;
+      const presentation = integration?.presentation;
+      const guide =
+        isRecord(presentation) && isRecord(presentation.manual_setup)
+          ? presentation.manual_setup
+          : undefined;
+      const managedNative = route_facts_v1?.managed_native;
+      if (!guide && !managedNative) return [];
+      const step: unknown = Array.isArray(guide?.steps)
+        ? guide.steps[0]
+        : managedNative?.preparation;
+      if (!isRecord(step) || typeof step.instruction !== "string")
+        throw new Error(`${listing.id} has no authored managed setup step.`);
+      return [
+        [
+          listing.id,
+          managed_setup_platform_warnings
+            ? {
+                note: step.instruction,
+                warnings: guide?.warnings ?? [],
+                platform_warnings: managed_setup_platform_warnings,
+              }
+            : step.instruction,
+        ],
+      ];
+    }),
+  );
+  const managedSetupReviewOutput = `${JSON.stringify(managedSetupReview, null, 2)}\n`;
   const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
   const routeTests = renderRouteTests(authored.records);
   const retainedTests = renderRetainedPreparedTests(routeTestRoot);
@@ -667,7 +739,8 @@ if (preparing) {
       readFileSync(routeTestPaths.retained, "utf8") !== retainedTests ||
       readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
-      readFileSync(listingsPath, "utf8") !== listingsOutput
+      readFileSync(listingsPath, "utf8") !== listingsOutput ||
+      readFileSync(managedSetupReviewPath, "utf8") !== managedSetupReviewOutput
     ) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
@@ -680,5 +753,6 @@ if (preparing) {
     writeFileSync(enrollmentPath, enrollmentOutput);
     writeFileSync(outputPath, output);
     writeFileSync(listingsPath, listingsOutput);
+    writeFileSync(managedSetupReviewPath, managedSetupReviewOutput);
   }
 }

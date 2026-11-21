@@ -1,3 +1,4 @@
+import { mountLibraryPort } from "./discover-test-helpers";
 import axe from "axe-core";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -45,7 +46,9 @@ async function mount(theme: "dark" | "light", width: number) {
     </LocalizationProvider>,
     { container: root },
   );
-  await expect.poll(() => root.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => root.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
   await document.fonts.ready;
   await expect
     .poll(() => [...root.querySelectorAll("img")].every((image) => image.complete))
@@ -59,7 +62,9 @@ it("audits the complete light desktop library and rows with all default axe rule
   const root = await mount("light", 1280);
   await auditAccessibility(root, "library/light/1280/covers", context);
   await page.getByRole("button", { name: "Compact rows", exact: true }).click();
-  expect(root.querySelectorAll(".collection-row")).toHaveLength(12);
+  expect(root.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")).toBe("12");
+  expect(root.querySelectorAll(".collection-row").length).toBeGreaterThan(0);
+  expect(root.querySelectorAll(".collection-row").length).toBeLessThanOrEqual(12);
   await auditAccessibility(root, "library/light/1280/rows", context);
 }, 45_000);
 
@@ -105,6 +110,7 @@ it("audits narrow dark navigation while preserving focus containment and return"
 
 it("audits the long-identity details state with all default rules", async (context) => {
   const root = await mount("dark", 320);
+  await mountLibraryPort("comparison-2");
   await page.getByRole("button", { name: /^View details for The Very Long Voyage/ }).click();
   await expect.element(page.getByRole("heading", { name: /^The Very Long Voyage/ })).toHaveFocus();
   const title = document.getElementById("port-detail-title")!;

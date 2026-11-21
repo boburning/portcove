@@ -19,9 +19,6 @@
     },
     "original_game_title": "MechCommander 2",
     "release_url": "https://github.com/alariq/mc2/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["mc2-win64-", ".zip"]
-    },
     "manual_setup": {
       "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
       "warnings": [
@@ -45,8 +42,18 @@
           "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mechcommander-2",
+      "evidence_urls": [
+        "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
+        "https://github.com/alariq/mc2"
+      ],
+      "source_editions": []
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -98,7 +105,16 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official Windows x64 package includes its game data and needs no original-file import or build. Portcove manages compatible runtime replacements and preserves local options.cfg, options.cfg.old, orgprefs.cfg and custom multiplayer data. Saves are external: back up your Windows user-profile folder/.mechcommander2/savegame separately; Portcove backups and runtime rollback do not include those saves. Generated texture and geometry caches, shader dumps and diagnostic files stay with each runtime version and are not carried into its replacement. Custom script output or custom data locations need separate preservation; unknown additions can block replacement until preserved. Runtime rollback carries current declared settings/custom data and does not rewind saves or guarantee older software can read newer data."
+      "manual_preparation": "The official Windows x64 package includes its game data and needs no original-file import or build. Portcove manages compatible runtime replacements and preserves local options.cfg, options.cfg.old, orgprefs.cfg and custom multiplayer data. Saves are external: back up your Windows user-profile folder/.mechcommander2/savegame separately; Portcove backups and runtime rollback do not include those saves. Generated texture and geometry caches, shader dumps and diagnostic files stay with each runtime version and are not carried into its replacement. Custom script output or custom data locations need separate preservation; unknown additions can block replacement until preserved. Runtime rollback carries current declared settings/custom data and does not rewind saves or guarantee older software can read newer data.",
+      "manual_setup": {
+        "warnings": ["Back up .mechcommander2/savegame in your Windows user profile separately."],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "The official Windows x64 ZIP includes the game data. Portcove installs the complete player from that package."
+          }
+        ]
+      }
     }
   }
 }

@@ -4,6 +4,16 @@ title: "[Bug] "
 projects:
   - boburning/1
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Use this form when something broke or behaved incorrectly.
+        If something worked but was hard, slow or confusing, or for an idea, use **Feedback**
+        instead. In Portcove, **Settings > About > Report a problem or send feedback** fills in
+        your version and platform for you.
+
+        This issue is public. Don't attach ROMs, disc images, other original game files or saves,
+        and remove personal folder paths, user names and credentials from text and screenshots.
   - type: textarea
     id: outcome
     attributes:
@@ -30,9 +40,14 @@ body:
     attributes:
       label: What did you expect to happen?
   - type: input
+    id: game
+    attributes:
+      label: Game or port, if it was about one
+  - type: input
     id: version
     attributes:
       label: Portcove version or commit
+      description: Shown in Portcove under Settings > About.
   - type: dropdown
     id: platform
     attributes:
@@ -51,7 +66,7 @@ body:
     id: evidence
     attributes:
       label: Logs, screenshots, and diagnostic evidence
-      description: Remove credentials and private local source paths before posting.
+      description: Remove credentials, user names and personal folder paths before posting. Don't attach original game files or saves.
   - type: textarea
     id: safety
     attributes:

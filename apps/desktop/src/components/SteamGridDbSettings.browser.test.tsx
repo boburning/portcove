@@ -1,17 +1,26 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
+import { StrictMode } from "react";
+import { captureParityState } from "../../test/parity-capture";
+import App from "../App";
 import { desktopApi } from "../api";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
+import { initializeLocalization, LocalizationProvider } from "../localization";
 import {
   listingSummary,
   resetSteamGridDbCheckForTests,
   SteamGridDbSettings,
 } from "./SteamGridDbSettings";
-import type { SteamGridDbListingReport } from "../types";
+import type { SteamGridDbKeyStatus, SteamGridDbListingReport } from "../types";
+import "../styles/index.css";
 
 let root: RenderResult;
 let container: HTMLDivElement;
+let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 beforeEach(async () => {
+  initializeLocalization(["en"]);
   resetSteamGridDbCheckForTests();
   container = document.createElement("div");
   document.body.append(container);
@@ -19,12 +28,34 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await cleanup();
+  transport?.dispose();
+  transport = undefined;
   container.remove();
   vi.restoreAllMocks();
+  localStorage.clear();
+  delete document.documentElement.dataset.theme;
 });
 
 const buttonNamed = (name: string) =>
   [...container.querySelectorAll("button")].find((item) => item.textContent === name);
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((accept, refuse) => {
+    resolve = accept;
+    reject = refuse;
+  });
+  return { promise, resolve, reject };
+}
+
+function settingsRow() {
+  const row = [...container.querySelectorAll<HTMLElement>('[data-slot="settings-row"]')].find(
+    (item) => item.querySelector("h2")?.textContent === "SteamGridDB artwork",
+  );
+  if (!row) throw new Error("Expected the actual SteamGridDB Settings row");
+  return row;
+}
 
 async function type(input: HTMLInputElement, value: string) {
   await act(async () => {
@@ -33,6 +64,285 @@ async function type(input: HTMLInputElement, value: string) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
+
+it("settles a refused setup read, retries once and preserves key input after a save refusal", async () => {
+  const first = deferred<SteamGridDbKeyStatus>();
+  const retry = deferred<SteamGridDbKeyStatus>();
+  const read = vi
+    .spyOn(desktopApi, "steamGridDbKeyStatus")
+    .mockReturnValueOnce(first.promise)
+    .mockReturnValueOnce(retry.promise);
+  const save = vi
+    .spyOn(desktopApi, "setSteamGridDbKey")
+    .mockRejectedValue(new Error("Controlled key save refused."));
+  const clear = vi.spyOn(desktopApi, "clearSteamGridDbKey");
+  await root.rerender(<SteamGridDbSettings generation={3} />);
+  const row = settingsRow();
+  await expect.element(page.elementLocator(row)).toHaveAttribute("aria-busy", "true");
+  expect(row.textContent).toContain("Checking SteamGridDB setup…");
+  expect(row.querySelector("input")).toBeNull();
+  await act(async () => first.reject(new Error("Controlled setup status refused.")));
+  await expect.element(page.elementLocator(row)).toHaveAttribute("aria-busy", "false");
+  expect(row.textContent).not.toContain("Checking SteamGridDB setup…");
+  expect(row.textContent).toContain("Couldn't check SteamGridDB setup.");
+  expect(row.querySelector("input")).toBeNull();
+  expect(buttonNamed("Remove key")).toBeUndefined();
+  const recovery = buttonNamed("Check setup again")!;
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "false");
+  recovery.focus();
+  await act(async () => {
+    recovery.click();
+    recovery.click();
+  });
+  expect(read).toHaveBeenCalledTimes(2);
+  await expect.element(page.elementLocator(row)).toHaveAttribute("aria-busy", "true");
+  expect(row.querySelector('[role="status"]')?.textContent).toBe("Checking SteamGridDB setup…");
+  expect(buttonNamed("Check setup again")).toBe(recovery);
+  await expect.element(page.elementLocator(recovery)).toHaveTextContent("Check setup again");
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "true");
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-disabled", "true");
+  await expect.element(page.elementLocator(recovery)).toHaveFocus();
+  expect(row.querySelector("input")).toBeNull();
+  await act(async () => retry.resolve({ configured: false }));
+  await expect.element(page.elementLocator(row)).toHaveAttribute("aria-busy", "false");
+  await expect.element(page.elementLocator(recovery)).toHaveAttribute("aria-busy", "false");
+  await expect.element(page.elementLocator(recovery)).toHaveFocus();
+  expect(row.querySelector('[role="alert"]')).toBeNull();
+  const input = row.querySelector<HTMLInputElement>("#steamgriddb-api-key")!;
+  expect(input.type).toBe("password");
+  await type(input, "synthetic-test-key-not-a-credential");
+  await act(async () => buttonNamed("Save key")!.click());
+  await vi.waitFor(() =>
+    expect(row.querySelector('[role="alert"]')?.textContent).toBe("Controlled key save refused."),
+  );
+  expect(input.value).toBe("synthetic-test-key-not-a-credential");
+  expect(row.textContent).not.toContain("synthetic-test-key-not-a-credential");
+  expect(save).toHaveBeenCalledExactlyOnceWith("synthetic-test-key-not-a-credential");
+  expect(clear).not.toHaveBeenCalled();
+});
+
+it("keeps the current StrictMode status read after a retired read rejects", async () => {
+  const retired = deferred<SteamGridDbKeyStatus>();
+  const current = deferred<SteamGridDbKeyStatus>();
+  const read = vi
+    .spyOn(desktopApi, "steamGridDbKeyStatus")
+    .mockReturnValueOnce(retired.promise)
+    .mockReturnValueOnce(current.promise);
+  await root.rerender(
+    <StrictMode>
+      <SteamGridDbSettings generation={3} />
+    </StrictMode>,
+  );
+  expect(read).toHaveBeenCalledTimes(2);
+  await act(async () => current.resolve({ configured: true }));
+  await expect.element(page.elementLocator(settingsRow())).toHaveAttribute("aria-busy", "false");
+  await act(async () => retired.reject(new Error("Retired setup status refused.")));
+  expect(settingsRow().textContent).not.toContain("Retired setup status refused.");
+  expect(settingsRow().querySelector('[role="alert"]')).toBeNull();
+  expect(buttonNamed("Remove key")?.disabled).toBe(false);
+});
+
+it("retains device key status across libraries while checking images in the current generation", async () => {
+  const pending = deferred<SteamGridDbKeyStatus>();
+  const read = vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockReturnValue(pending.promise);
+  const check = vi.spyOn(desktopApi, "checkSteamGridDbListings").mockResolvedValue({
+    checked_at: 1,
+    images: [],
+    stopped: null,
+    recorded: true,
+    skipped: 0,
+    removed: 0,
+    removal_deferred: 0,
+    removal_failed: 0,
+  });
+  await root.rerender(<SteamGridDbSettings generation={3} />);
+  await root.rerender(<SteamGridDbSettings generation={4} />);
+  await act(async () => pending.resolve({ configured: true }));
+  await act(async () => buttonNamed("Check SteamGridDB images")!.click());
+  expect(read).toHaveBeenCalledExactlyOnceWith();
+  expect(check).toHaveBeenCalledExactlyOnceWith(4);
+});
+
+it("ignores a read refusal after its Settings mount is replaced", async () => {
+  const retired = deferred<SteamGridDbKeyStatus>();
+  vi.spyOn(desktopApi, "steamGridDbKeyStatus")
+    .mockReturnValueOnce(retired.promise)
+    .mockResolvedValueOnce({ configured: false });
+  await root.rerender(<SteamGridDbSettings generation={3} />);
+  await root.rerender(null);
+  await root.rerender(<SteamGridDbSettings generation={4} />);
+  await vi.waitFor(() => expect(buttonNamed("Save key")).toBeDefined());
+  await act(async () => retired.reject(new Error("Outgoing status refused.")));
+  expect(settingsRow().querySelector('[role="alert"]')).toBeNull();
+  await expect.element(page.elementLocator(settingsRow())).toHaveAttribute("aria-busy", "false");
+});
+
+it.each([
+  ["dark", 960, 640],
+  ["light", 430, 780],
+] as const)(
+  "recovers the actual %s App Integrations setup status at %i×%i",
+  async (theme, width, height) => {
+    await page.viewport(width, height);
+    container.id = "root";
+    transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    const first = deferred<SteamGridDbKeyStatus>();
+    const retry = deferred<SteamGridDbKeyStatus>();
+    const read = vi
+      .spyOn(desktopApi, "steamGridDbKeyStatus")
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(retry.promise);
+    const save = vi.spyOn(desktopApi, "setSteamGridDbKey");
+    const clear = vi.spyOn(desktopApi, "clearSteamGridDbKey");
+    const diagnostic = `Controlled setup check refused: C:\\Synthetic\\${"x".repeat(200)}\\credential-store`;
+    try {
+      await root.rerender(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
+      );
+      await page.getByRole("button", { name: "Settings", exact: true }).click();
+      await page
+        .getByRole("navigation", { name: "Settings categories", exact: true })
+        .getByRole("button", { name: "Integrations", exact: true })
+        .click();
+      document.documentElement.dataset.theme = theme;
+      const row = settingsRow();
+      const scope = page.elementLocator(row);
+      row.scrollIntoView({ block: "center", inline: "nearest" });
+      await expect.element(scope).toHaveAttribute("aria-busy", "true");
+      await expect
+        .element(scope.getByRole("status"))
+        .toHaveTextContent("Checking SteamGridDB setup…");
+      expect(row.querySelector("input")).toBeNull();
+      await captureParityState("steamgriddb-setup-reading");
+      await act(async () => first.reject(new Error(diagnostic)));
+      await expect.element(scope).toHaveAttribute("aria-busy", "false");
+      await expect.element(scope.getByRole("alert")).toHaveTextContent(diagnostic);
+      await expect
+        .element(scope.getByRole("status"))
+        .toHaveTextContent(
+          "Couldn't check SteamGridDB setup. Check again to see whether a key is saved.",
+        );
+      const button = scope
+        .getByRole("button", { name: "Check setup again", exact: true })
+        .element();
+      button.scrollIntoView({ block: "center", inline: "nearest" });
+      const expectContainedRecovery = async () => {
+        expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+        await expect.element(page.elementLocator(button)).toBeVisible();
+        expect(button.isConnected).toBe(true);
+        const bounds = button.getBoundingClientRect();
+        expect(bounds.top).toBeGreaterThanOrEqual(0);
+        expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+      };
+      await expectContainedRecovery();
+      await captureParityState("steamgriddb-setup-refused");
+      await page.elementLocator(button).click();
+      await expect.element(scope).toHaveAttribute("aria-busy", "true");
+      await expect
+        .element(scope.getByRole("status"))
+        .toHaveTextContent("Checking SteamGridDB setup…");
+      expect(scope.getByRole("button", { name: "Check setup again", exact: true }).element()).toBe(
+        button,
+      );
+      await expect.element(page.elementLocator(button)).toHaveAttribute("aria-busy", "true");
+      await expect.element(page.elementLocator(button)).toHaveAttribute("aria-disabled", "true");
+      await expect.element(page.elementLocator(button)).toHaveFocus();
+      expect(read).toHaveBeenCalledTimes(2);
+      await expectContainedRecovery();
+      expect(row.querySelector("input")).toBeNull();
+      await captureParityState("steamgriddb-setup-retrying");
+      await act(async () => retry.resolve({ configured: theme === "dark" }));
+      await expect.element(scope).toHaveAttribute("aria-busy", "false");
+      await expect.element(page.elementLocator(button)).toHaveAttribute("aria-busy", "false");
+      await expect.element(page.elementLocator(button)).toHaveFocus();
+      await expect.element(scope.getByRole("alert")).not.toBeInTheDocument();
+      expect(
+        scope
+          .getByRole("button", { name: "Remove key", exact: true })
+          .elements()
+          .map((element) => (element as HTMLButtonElement).disabled),
+      ).toEqual(theme === "dark" ? [false] : []);
+      expect(
+        scope
+          .getByLabelText("SteamGridDB API key", { exact: true })
+          .elements()
+          .map((element) => element.getAttribute("type")),
+      ).toEqual(theme === "dark" ? [] : ["password"]);
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(save).not.toHaveBeenCalled();
+      expect(clear).not.toHaveBeenCalled();
+      row.scrollIntoView({ block: "center", inline: "nearest" });
+      expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+      await captureParityState("steamgriddb-setup-recovered");
+    } finally {
+      await act(async () => {
+        first.resolve({ configured: false });
+        retry.resolve({ configured: false });
+      });
+    }
+  },
+);
+
+it("shows the configured image-check progress and mixed summary in actual App Settings", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.dataset.theme = "dark";
+  container.id = "root";
+  transport = installInteractiveTransport("library", (message) => {
+    throw new Error(message);
+  });
+  vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: true });
+  const imageCheck = deferred<SteamGridDbListingReport>();
+  const check = vi
+    .spyOn(desktopApi, "checkSteamGridDbListings")
+    .mockReturnValue(imageCheck.promise);
+  await root.rerender(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+  );
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Settings categories", exact: true })
+    .getByRole("button", { name: "Integrations", exact: true })
+    .click();
+  document.documentElement.dataset.theme = "dark";
+  const row = settingsRow();
+  const scope = page.elementLocator(row);
+  await expect
+    .element(scope.getByRole("button", { name: "Check SteamGridDB images", exact: true }))
+    .toBeEnabled();
+  await scope.getByRole("button", { name: "Check SteamGridDB images", exact: true }).click();
+  await expect
+    .element(scope.getByRole("button", { name: "Checking SteamGridDB images…", exact: true }))
+    .toBeDisabled();
+  row.scrollIntoView({ block: "center", inline: "nearest" });
+  await captureParityState("steamgriddb-images-check-pending");
+  await act(async () =>
+    imageCheck.resolve({
+      checked_at: 1,
+      images: [
+        checked({ status: "listed" }),
+        checked({ status: "not_listed" }),
+        checked({ status: "unknown", reason: "unavailable" }),
+        checked({ status: "unknown", reason: "check_stopped" }, false),
+      ],
+      stopped: { reason: "time_limit" },
+      recorded: true,
+      ...counts,
+    }),
+  );
+  await expect.element(scope.getByText(/4 SteamGridDB images:/)).toBeVisible();
+  expect(check).toHaveBeenCalledExactlyOnceWith(1);
+  row.scrollIntoView({ block: "center", inline: "nearest" });
+  expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+  await captureParityState("steamgriddb-images-check-summary");
+});
 
 it("saves the player's own key without ever showing it back, then removes it", async () => {
   vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: false });

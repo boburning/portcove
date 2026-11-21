@@ -2,11 +2,22 @@
   "format_version": 1,
   "listing": {
     "id": "shihabal3amri-tekken-tag-tournament-2-pc",
+    "artwork": {
+      "game_id": 1238,
+      "cover_id": 88292,
+      "image_id": "co1w4k",
+      "image_sha256": "cbab1d1d08cc84c2a8466a19ad6cc7223cfbbf0054c802d872cb9f058ee5e31a",
+      "game_slug": "tekken-tag-tournament-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Tekken Tag Tournament 2 (tekken-tag-tournament-2-pc)",
     "summary": "A Tekken Tag Tournament 2 Windows 10/11 player installer. ttt2_setup.exe checks your own Xbox 360 disc and supported TU3, builds the PC version and prepares shaders. Separate ttt2-server Windows/Linux amd64 and Linux ARM64 packages host servers; they are not Linux players. The project’s claims of 59 fighters, rollback and ranked play are untested here. Its installer and server maintainers manage preparation, rather than Portcove. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Tekken Tag Tournament 2",
     "project_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
-    "platforms": [],
+    "download_asset_hints": {
+      "windows-x86-64": ["ttt2_setup.exe"]
+    },
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc",
     "issue_number": 2748,
@@ -37,6 +48,24 @@
       ],
       "warnings": [
         "Use the completed Tekken Tag Tournament 2.exe installation, not its setup or dedicated server. Preserve %LOCALAPPDATA%/TTT2Recomp and the complete game folder; own disc plus supported TU3 are required."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-tag-tournament-2",
+      "evidence_urls": [
+        "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/blob/e19ce43fe49ecd4b2e7887886e95625bca86a315/README.md",
+        "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc"
+      ],
+      "source_editions": [
+        {
+          "id": "tekken-tag-tournament-2-xbox-360",
+          "title": "Tekken Tag Tournament 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/shihabal3amri/tekken-tag-tournament-2-pc/blob/5ee6f7625027e317a49da9cde8abf7f11ddb7820/README.md"
+          ]
+        }
       ]
     }
   },

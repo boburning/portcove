@@ -2889,63 +2889,150 @@ fn unavailable_saved_roots_do_not_consume_the_available_root_budget() {
 }
 
 #[test]
-fn unavailable_saved_root_budget_keeps_online_and_empty_failure_boundaries() {
-    for reconnect in [true, false] {
-        let temporary = tempfile::tempdir().unwrap();
-        let payload = b"synthetic supported source";
-        let catalog = catalog(payload);
-        let library = crate::Library::open(temporary.path().join("library")).unwrap();
-        let first = temporary.path().join("selected-0");
-        fs::create_dir(&first).unwrap();
-        fs::write(first.join("source.z64"), payload).unwrap();
-        library.add_game_file_root(&first).unwrap();
-        let previous = super::build_game_file_scan(
-            &catalog,
-            &library,
-            &SourceDiscoveryLimits::default(),
-            &crate::OperationCoordinator::new("previous-root-budget", None),
-        )
-        .unwrap();
-        library.replace_game_file_scan_snapshot(&previous).unwrap();
-        for index in 1..9 {
-            let root = temporary.path().join(format!("selected-{index}"));
-            fs::create_dir(&root).unwrap();
-            library.add_game_file_root(&root).unwrap();
-            if !reconnect {
-                fs::remove_dir(root).unwrap();
-            }
-        }
-        if !reconnect {
-            fs::remove_file(first.join("source.z64")).unwrap();
-            fs::remove_dir(&first).unwrap();
-        }
-        let error = super::build_game_file_scan(
-            &catalog,
-            &library,
-            &SourceDiscoveryLimits::default(),
-            &crate::OperationCoordinator::new("failed-root-budget", None),
-        )
-        .unwrap_err();
-        assert_eq!(
-            error.code,
-            if reconnect {
-                ErrorCode::Usage
-            } else {
-                ErrorCode::SourceInvalid
-            }
-        );
-        assert!(
-            error
-                .message
-                .contains(if reconnect { "eight" } else { "no saved" })
-        );
-        assert_eq!(library.game_file_roots().unwrap().len(), 9);
-        assert_eq!(
-            serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap())
-                .unwrap(),
-            serde_json::to_value(&previous).unwrap()
-        );
+fn unavailable_saved_roots_preserve_the_previous_scan_when_none_are_online() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let first = temporary.path().join("selected-0");
+    fs::create_dir(&first).unwrap();
+    fs::write(first.join("source.z64"), payload).unwrap();
+    library.add_game_file_root(&first).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let previous = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for index in 1..9 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        fs::remove_dir(root).unwrap();
     }
+    fs::remove_file(first.join("source.z64")).unwrap();
+    fs::remove_dir(&first).unwrap();
+
+    let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+    assert!(error.message.contains("no saved"));
+    assert_eq!(library.game_file_roots().unwrap().len(), 9);
+    assert_eq!(
+        serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap()).unwrap(),
+        serde_json::to_value(&previous).unwrap()
+    );
+}
+
+#[test]
+fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    for index in 0..9 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("source.z64"), payload).unwrap();
+        library.add_game_file_root(&root).unwrap();
+    }
+    let oversized = temporary.path().join("selected-0").join("oversized.z64");
+    fs::write(&oversized, [0; 64]).unwrap();
+    let oversized = fs::canonicalize(oversized).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: payload.len() as u64,
+        ..SourceDiscoveryLimits::default()
+    };
+    let oversized_advisories = |report: &SourceDiscoveryReport| {
+        report
+            .issues
+            .iter()
+            .filter(|issue| {
+                issue.path.as_ref() == Some(&oversized)
+                    && issue.message == super::OVERSIZED_FILE_ISSUE
+            })
+            .count()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(oversized_advisories(&first.report), 1);
+    assert_eq!(first.report.searched_roots.len(), 9);
+    assert_eq!(first.report.files_hashed, 8);
+    let first_matches = first.matches.unwrap();
+    assert_eq!(first_matches.exact_matches, 16);
+    let coverage = first.coverage.unwrap();
+    assert!(coverage.can_resume);
+    assert!(!coverage.frontier_exhausted);
+    assert_eq!(coverage.pending_directories, 1);
+    drop(library);
+
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let finished = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
+    assert_eq!(reopened.game_file_roots().unwrap().len(), 9);
+    assert_eq!(finished.report.files_hashed, 9);
+    assert_eq!(oversized_advisories(&finished.report), 1);
+    let matches = finished.matches.unwrap();
+    assert_eq!(matches.scan_id, first_matches.scan_id);
+    assert_eq!(matches.exact_matches, 18);
+    let coverage = finished.coverage.unwrap();
+    assert!(!coverage.can_resume);
+    assert!(coverage.frontier_exhausted);
+}
+
+#[test]
+fn finishing_saved_folders_preserves_published_batches_after_cancellation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library_path = temporary.path().join("library");
+    let mut service = PortcoveService::new(crate::Library::open(&library_path).unwrap()).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    for index in 0..17 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("source.z64"), payload).unwrap();
+        service.library().add_game_file_root(&root).unwrap();
+    }
+    let limits = SourceDiscoveryLimits::default();
+    let first = service.scan_game_file_roots(&limits).unwrap();
+    assert_eq!(first.report.files_hashed, 8);
+    let scan_id = first.matches.unwrap().scan_id;
+    let result = service.finish_game_file_scan_with_progress(&scan_id, &limits, |event| {
+        if matches!(
+            &event.event,
+            crate::OperationEventKind::Progress { phase_id: Some(phase), completed: 2, .. }
+                if phase == "saved_folder_scan_checkpoints"
+        ) {
+            service.request_cancellation(&event.operation_id).unwrap();
+        }
+    });
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    drop(service);
+
+    let mut service = PortcoveService::new(crate::Library::open(&library_path).unwrap()).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let partial = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(partial.report.files_hashed, 16);
+    assert!(partial.coverage.unwrap().can_resume);
+    let replaced_id = uuid::Uuid::new_v4().to_string();
+    let error = service
+        .finish_game_file_scan_with_progress(&replaced_id, &limits, |_| {})
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let finished = service
+        .finish_game_file_scan_with_progress(&scan_id, &limits, |event| {
+            if matches!(
+                &event.event,
+                crate::OperationEventKind::Progress { phase_id: Some(phase), completed: 3, .. }
+                    if phase == "saved_folder_scan_checkpoints"
+            ) {
+                let next = service.scan_game_file_roots(&limits).unwrap();
+                assert_ne!(next.matches.unwrap().scan_id, scan_id);
+            }
+        })
+        .unwrap();
+    let latest = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_ne!(latest.matches.unwrap().scan_id, scan_id);
+    let matches = finished.matches.unwrap();
+    assert_eq!((matches.scan_id, matches.exact_matches), (scan_id, 34));
+    let coverage = finished.coverage.unwrap();
+    assert_eq!(coverage.batches, 3);
+    assert!(coverage.frontier_exhausted);
 }
 
 #[test]
@@ -3224,6 +3311,13 @@ fn directory_depth_entry_file_size_and_hash_budgets_bound_work() {
             .contains(&SourceDiscoveryLimit::FileSize)
     );
     assert_eq!(limited.hash_bytes, 0);
+    assert!(limited.issues.iter().any(|issue| {
+        issue
+            .path
+            .as_deref()
+            .is_some_and(|path| path.ends_with("child/source.z64"))
+            && issue.message.contains("per-file size limit")
+    }));
     selected.limits.max_file_bytes = 100;
     selected.limits.max_hash_bytes = payload.len() as u64 - 1;
     let limited = scan(&catalog(payload), &selected).unwrap();
@@ -4605,6 +4699,7 @@ fn paged_exact_matches(library: &crate::Library, limit: u32) -> Vec<crate::Sourc
                 offset: start,
                 limit,
                 root_id: None,
+                profile_id: None,
             })
             .unwrap();
         assert_eq!(page.offset, start);
@@ -4739,6 +4834,187 @@ fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
     .unwrap_err();
     assert_eq!(error.code, ErrorCode::Usage);
     assert!(error.message.contains("too many owned paths"));
+}
+
+#[test]
+fn oversized_saved_iso_can_be_checked_directly_for_declared_ps2_profiles() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    let root = temporary.path().canonicalize().unwrap();
+    for index in 0..9 {
+        let selected = root.join(format!("selected-{index}"));
+        fs::create_dir(&selected).unwrap();
+        library.add_game_file_root(&selected).unwrap();
+    }
+    let iso = root.join("selected-0").join("original.iso");
+    fs::write(&iso, b"synthetic disc for the existing pinned validator").unwrap();
+    let catalog = Catalog::embedded().unwrap();
+    let profiles = [
+        "opengoal-jak1-disc",
+        "opengoal-jak2-disc",
+        "opengoal-jak3-disc",
+    ];
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: 16,
+        ..Default::default()
+    };
+    let service = PortcoveService::new(library).unwrap();
+    let first = service.scan_game_file_roots(&limits).unwrap();
+    assert!(first.coverage.unwrap().can_resume);
+    let scan_id = first.matches.unwrap().scan_id;
+    drop(service);
+
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let service = PortcoveService::new(reopened).unwrap();
+    let finished = service
+        .finish_game_file_scan_with_progress(&scan_id, &limits, |_| {})
+        .unwrap();
+    assert!(finished.coverage.unwrap().frontier_exhausted);
+    assert_eq!(finished.matches.unwrap().scan_id, scan_id);
+    let saved = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(saved.matches.unwrap().scan_id, scan_id);
+    for report in [first.report, finished.report, saved.report] {
+        assert_eq!(report.files_hashed, 0);
+        let issues: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|issue| issue.path.as_deref() == Some(iso.as_path()))
+            .collect();
+        assert_eq!(issues.len(), 1);
+        let mut actual_profiles: Vec<_> = issues[0]
+            .direct_check_profiles
+            .iter()
+            .map(String::as_str)
+            .collect();
+        actual_profiles.sort_unstable();
+        assert_eq!(actual_profiles, profiles);
+    }
+    let inspection =
+        crate::source_inspection::inspect(&catalog, "opengoal-jak2-disc", &iso).unwrap();
+    assert_eq!(
+        inspection.validator.unwrap().result,
+        crate::SourceValidatorResult::NotRun
+    );
+    assert!(inspection.record.is_some());
+    let plan = service
+        .plan_source_import(
+            "opengoal-jak2-disc",
+            &iso,
+            crate::SourceImportMode::UseCurrentLocation,
+        )
+        .unwrap();
+    assert_eq!(plan.source.sha256, inspection.record.unwrap().sha256);
+}
+
+#[test]
+fn oversized_file_advisories_leave_room_for_a_late_owned_path() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temporary.path()).unwrap();
+    let first = root.join("first");
+    let owned = root.join("owned");
+    fs::create_dir(&first).unwrap();
+    fs::create_dir(&owned).unwrap();
+    let library = crate::Library::open(root.join("library")).unwrap();
+    library
+        .register_output_root(&crate::library::OutputRootRecord {
+            path: owned.clone(),
+            port_id: "sample".into(),
+            marker_id: uuid::Uuid::new_v4().to_string(),
+            volume_identity: "fixture".into(),
+        })
+        .unwrap();
+    let payload = b"supported original";
+    fs::write(first.join("original.z64"), payload).unwrap();
+    fs::write(owned.join("ignored.z64"), payload).unwrap();
+    for index in 0..64 {
+        fs::write(first.join(format!("large-{index}.z64")), [0; 64]).unwrap();
+    }
+    let mut selected = request(&first);
+    selected.roots.push(owned.clone());
+    selected.profile_ids = vec!["star-fox-64".into()];
+    selected.limits.max_file_bytes = payload.len() as u64;
+    let report = super::scan(
+        &catalog(payload),
+        &selected,
+        &crate::OperationCoordinator::new("late-owned-path", None),
+        // The registry changes after the initial exclusions are collected.
+        vec![],
+        Some(&library),
+    )
+    .unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.candidates[0].path, first.join("original.z64"));
+    assert_eq!(report.issues.len(), 64);
+    assert_eq!(report.issues_omitted, 1);
+    assert!(report.issues.iter().any(|issue| {
+        issue.path.as_ref() == Some(&owned) && issue.message.contains("managed game output")
+    }));
+}
+
+#[test]
+fn saved_scan_indexes_profiles_beyond_the_explicit_request_bound() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let first = b"earlier profile";
+    let last = b"later profile";
+    fs::write(root.join("first.z64"), first).unwrap();
+    fs::write(root.join("last.z64"), last).unwrap();
+
+    let mut document = catalog(first).document().clone();
+    document
+        .source_profiles
+        .retain(|profile| profile.id == "ocarina-of-time");
+    let mut profile = document.source_profiles[0].clone();
+    for index in 0..255 {
+        profile.id = format!("profile-{index:03}");
+        profile.accepted_sha256 = vec![hex::encode(Sha256::digest(index.to_string()))];
+        document.source_profiles.push(profile.clone());
+    }
+    profile.id = "zz-last".into();
+    profile.accepted_sha256 = vec![hex::encode(Sha256::digest(last))];
+    document.source_profiles.push(profile);
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let mut explicit = request(&root);
+    explicit.profile_ids = document
+        .source_profiles
+        .iter()
+        .map(|profile| profile.id.clone())
+        .collect();
+    assert_eq!(
+        scan(&catalog, &explicit).unwrap_err().code,
+        ErrorCode::Usage
+    );
+
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_entries: 1,
+        ..Default::default()
+    };
+    let partial = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(partial.report.searched_profiles.len(), 257);
+    assert_eq!(partial.report.files_hashed, 1);
+    assert!(partial.coverage.unwrap().can_resume);
+    drop(library);
+
+    let library = crate::Library::open(&library_path).unwrap();
+    let complete = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(complete.report.files_hashed, 2);
+    assert_eq!(
+        complete.report.hash_bytes,
+        (first.len() + last.len()) as u64
+    );
+    assert!(complete.coverage.unwrap().frontier_exhausted);
+    let matched = complete
+        .report
+        .candidates
+        .iter()
+        .map(|candidate| candidate.profile_id.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(matched, BTreeSet::from(["ocarina-of-time", "zz-last"]));
 }
 
 #[test]
@@ -6718,6 +6994,194 @@ fn more_matches_than_continuation_records_never_reach_checkpoint_storage() {
 }
 
 #[test]
+fn setup_review_projects_both_preliminary_paths_to_the_registered_spelling() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let original = root.join("game.iso");
+    fs::write(&original, b"synthetic retail disc candidate").unwrap();
+    let registration_path = if cfg!(windows) {
+        PathBuf::from(crate::path::comparable_windows_absolute(&original).unwrap())
+    } else {
+        original
+    };
+    let service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    service
+        .register_source("opengoal-jak1-disc", &registration_path)
+        .unwrap();
+    let registered = service
+        .library()
+        .source("opengoal-jak1-disc")
+        .unwrap()
+        .unwrap();
+    service.library().add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(
+        service.catalog(),
+        service.library(),
+        &SourceDiscoveryLimits::default(),
+    );
+    let matches = service
+        .game_file_scan_registered_matches(snapshot.matches.as_ref().unwrap())
+        .unwrap();
+    assert_eq!(matches.preliminary_selections.len(), 1);
+    let selection = &matches.preliminary_selections[0];
+    assert_eq!(selection.path, registered.path);
+    assert_eq!(selection.record.as_ref().unwrap().path, registered.path);
+    assert_eq!(selection.record.as_ref().unwrap().sha256, registered.sha256);
+}
+
+#[test]
+fn setup_review_preserves_registered_path_spelling_and_excludes_other_copies() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported setup source";
+    let original = root.join("game.z64");
+    let other = root.join("other.z64");
+    fs::write(&original, payload).unwrap();
+    fs::write(&other, payload).unwrap();
+    let registration_path = if cfg!(windows) {
+        crate::path::comparable_windows_absolute(&original)
+            .map(PathBuf::from)
+            .unwrap()
+    } else {
+        original.clone()
+    };
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    library.add_game_file_root(&root).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    service
+        .register_source("ocarina-of-time", &registration_path)
+        .unwrap();
+    let registered = service
+        .library()
+        .source("ocarina-of-time")
+        .unwrap()
+        .unwrap();
+    assert_eq!(registered.path, registration_path);
+    let (snapshot, _) = scan_to_end(
+        &catalog,
+        service.library(),
+        &SourceDiscoveryLimits::default(),
+    );
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert!(summary.preview_complete);
+    assert_eq!(summary.exact_matches, 4);
+    #[cfg(windows)]
+    assert!(
+        snapshot
+            .report
+            .candidates
+            .iter()
+            .all(|candidate| candidate.path != registered.path)
+    );
+    let matches = service.game_file_scan_registered_matches(summary).unwrap();
+    assert_eq!(matches.candidates.len(), 1);
+    assert_eq!(matches.candidates[0].path, registered.path);
+    assert_eq!(matches.candidates[0].sha256, registered.sha256);
+    assert_eq!(
+        serde_json::to_value(
+            service
+                .library()
+                .source("ocarina-of-time")
+                .unwrap()
+                .unwrap()
+        )
+        .unwrap(),
+        serde_json::to_value(&registered).unwrap()
+    );
+    let mut changed = registered.clone();
+    changed.sha256 = "0".repeat(64);
+    changed.storage_sha256 = changed.sha256.clone();
+    changed.observed_identity = None;
+    service.library().register_source(&changed).unwrap();
+    assert!(
+        service
+            .game_file_scan_registered_matches(summary)
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+}
+
+#[test]
+fn setup_review_reads_registered_matches_beyond_the_preview_for_the_expected_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported setup source";
+    for index in 0..257 {
+        fs::write(root.join(format!("game-{index:03}.z64")), payload).unwrap();
+    }
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let saved_root = library.add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert!(!summary.preview_complete);
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let page = service
+        .game_file_scan_matches(&crate::GameFileScanMatchQuery {
+            scan_id: Some(summary.scan_id.clone()),
+            kind: crate::GameFileScanMatchKind::Exact,
+            offset: snapshot.report.candidates.len() as u32,
+            limit: 1,
+            root_id: None,
+            profile_id: None,
+        })
+        .unwrap();
+    let candidate = &page.candidates[0];
+    service
+        .register_source(&candidate.profile_id, &candidate.path)
+        .unwrap();
+    let matches = service.game_file_scan_registered_matches(summary).unwrap();
+    assert_eq!(matches.candidates.len(), 1);
+    assert_eq!(matches.candidates[0].path, candidate.path);
+    assert_eq!(matches.candidates[0].sha256, candidate.sha256);
+    assert!(matches.preliminary_selections.is_empty());
+
+    let mut changed = candidate.clone();
+    changed.sha256 = "0".repeat(64);
+    changed.storage_sha256 = changed.sha256.clone();
+    changed.observed_identity = None;
+    service.library().register_source(&changed).unwrap();
+    assert!(
+        service
+            .game_file_scan_registered_matches(summary)
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    let changed_summary = crate::GameFileScanMatchSummary {
+        exact_matches: summary.exact_matches - 1,
+        ..summary.clone()
+    };
+    assert_eq!(
+        service
+            .game_file_scan_registered_matches(&changed_summary)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    service
+        .library()
+        .remove_game_file_root(&saved_root.id)
+        .unwrap();
+    assert_eq!(
+        service
+            .game_file_scan_registered_matches(summary)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+}
+
+#[test]
 fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
     let temporary = tempfile::tempdir().unwrap();
     let first = temporary.path().join("first");
@@ -6735,7 +7199,8 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
     let catalog = catalog(payload);
     let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
     let scan_id = snapshot.matches.as_ref().unwrap().scan_id.clone();
-    let service = PortcoveService::new(library).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
     let query = |offset, limit, root_id: Option<&str>, scan_id: Option<&str>| {
         service.game_file_scan_matches(&crate::GameFileScanMatchQuery {
             scan_id: scan_id.map(str::to_owned),
@@ -6743,6 +7208,7 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
             offset,
             limit,
             root_id: root_id.map(str::to_owned),
+            profile_id: None,
         })
     };
     let all = query(0, 512, None, Some(&scan_id)).unwrap();
@@ -6752,6 +7218,21 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
         serde_json::to_value(&all.candidates).unwrap(),
         serde_json::to_value(&snapshot.report.candidates).unwrap()
     );
+    let selected_profile = &all.candidates.last().unwrap().profile_id;
+    let filtered = service
+        .game_file_scan_matches(&crate::GameFileScanMatchQuery {
+            scan_id: Some(scan_id.clone()),
+            kind: crate::GameFileScanMatchKind::Exact,
+            offset: 0,
+            limit: 1,
+            root_id: Some(first_root.id.clone()),
+            profile_id: Some(selected_profile.clone()),
+        })
+        .unwrap();
+    assert_eq!(filtered.total, 2);
+    assert_eq!(filtered.next_offset, Some(1));
+    assert_eq!(&filtered.candidates[0].profile_id, selected_profile);
+    assert!(filtered.candidates[0].path.starts_with(&first_root.path));
     let page = query(2, 3, None, Some(&scan_id)).unwrap();
     assert_eq!(page.next_offset, Some(5));
     assert_eq!(
@@ -6778,6 +7259,7 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
             offset: 0,
             limit: 10,
             root_id: None,
+            profile_id: None,
         })
         .unwrap();
     assert_eq!(preliminary.total, 0);

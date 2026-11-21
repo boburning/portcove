@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "marathon-aleph-one",
+    "artwork": {
+      "game_id": 8709,
+      "cover_id": 272194,
+      "image_id": "co5u0y",
+      "image_sha256": "3bd435a19179213afd3b8d69bf4d1fcf670666365f73c08fc72663c1c127bb50",
+      "game_slug": "marathon",
+      "match_kind": "underlying-game"
+    },
     "name": "Marathon (Aleph One)",
     "summary": "Marathon uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
     "original_game_title": "Marathon",
@@ -39,6 +47,15 @@
     "download_asset_hints": {
       "macos-x86-64": ["Marathon-", "-Mac.dmg"],
       "macos-aarch64": ["Marathon-", "-Mac.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "marathon",
+      "evidence_urls": [
+        "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
+        "https://github.com/Aleph-One-Marathon/alephone"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -53,6 +70,7 @@
     },
     "decisions": []
   },
+  "alephone_pinned_windows_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -74,19 +92,7 @@
     },
     "executable_hints": {
       "windows-x86-64": ["Classic Marathon.exe"]
-    },
-    "persistent_paths": [],
-    "presentation": {
-      "installation_method": "portable-package",
-      "source_requirements": [],
-      "saves_and_settings": "external-user-owned"
-    },
-    "launch_arguments": ["."],
-    "launch_environment": {
-      "ALEPHONE_DATA": ";",
-      "ALEPHONE_DEFAULT_DATA": "."
-    },
-    "windows_runtime_path_policy": "relative-file-max-path"
+    }
   },
   "release_maintenance": {
     "reason": "The full scenario package and engine-only package overlap the provider’s current literal filename hints. Populated shared upstream profiles have not been qualified across runtime versions; Core does not own or migrate them. The incidental archive wrapper is derived from the retained exact player path, not pinned.",

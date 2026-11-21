@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { portDefinition, installedLaunchStatus } from "../test-fixtures";
 import { focusableControls } from "../focus";
 import { PortBrowser } from "./PortBrowser";
+import { page } from "vite-plus/test/browser";
 
 describe("Library card overflow", () => {
   let host: HTMLDivElement;
@@ -35,6 +36,7 @@ describe("Library card overflow", () => {
           view="library"
           ports={[port]}
           statuses={new Map()}
+          libraryCount={1}
           overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}
@@ -79,6 +81,7 @@ describe("Library card overflow", () => {
     const props = {
       view: "library" as const,
       ports: [port],
+      libraryCount: 1,
       overview: { installed: 1, ready: 0, needsSetup: 1, staged: 0 },
       filter: "all" as const,
       setFilter: vi.fn(),
@@ -126,6 +129,7 @@ describe("Library card overflow", () => {
           view="library"
           ports={[port]}
           statuses={new Map([[port.id, status]])}
+          libraryCount={1}
           overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
           filter="all"
           setFilter={vi.fn()}
@@ -168,6 +172,7 @@ describe("Library empty browsing context", () => {
             view="library"
             ports={query ? [] : [portDefinition()]}
             statuses={new Map()}
+            libraryCount={1}
             overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
             filter="all"
             query={query}
@@ -216,6 +221,7 @@ describe("Library empty browsing context", () => {
             view="catalog"
             ports={[port]}
             statuses={new Map()}
+            libraryCount={installed}
             overview={{ installed, ready: 0, needsSetup: 0, staged: 0 }}
             filter="all"
             setFilter={vi.fn()}
@@ -225,10 +231,24 @@ describe("Library empty browsing context", () => {
           />,
         ),
       );
+    host.style.width = "338px";
     await render(0);
     const introduction = host.querySelector('[aria-label="Connect your game files"]')!;
-    expect(introduction.textContent).toContain("Your originals stay in place");
-    await act(async () => introduction.querySelector<HTMLButtonElement>("button")!.click());
+    const description = introduction.querySelector("p")!;
+    const action = introduction.querySelector<HTMLButtonElement>("button")!;
+    expect(description.textContent).toContain("Your originals stay in place");
+    expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      description.getBoundingClientRect().bottom,
+    );
+    expect(description.getBoundingClientRect().width).toBeCloseTo(
+      introduction.getBoundingClientRect().width,
+    );
+
+    host.style.width = "736px";
+    expect(action.getBoundingClientRect().top).toBeLessThan(
+      description.getBoundingClientRect().bottom,
+    );
+    await act(async () => action.click());
     expect(connect).toHaveBeenCalledOnce();
     expect(select).not.toHaveBeenCalled();
     expect(host.textContent).toContain(port.name);
@@ -248,6 +268,7 @@ describe("Library empty browsing context", () => {
             view="library"
             ports={[]}
             statuses={new Map()}
+            libraryCount={0}
             overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
             filter={filter}
             query={query}
@@ -263,7 +284,7 @@ describe("Library empty browsing context", () => {
 
     await render("all", "unmatched title");
     const resultStatus = host.querySelector('[role="status"]');
-    expect(resultStatus?.textContent).toBe("0 in your library");
+    expect(resultStatus?.textContent).toBe("0 ports in your library");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Nothing in your library matches");
     expect(host.textContent).toContain(
@@ -297,3 +318,72 @@ describe("Library empty browsing context", () => {
     expect(host.textContent).not.toContain("Reset view");
   });
 });
+
+it.each([
+  { theme: "dark", width: 960, height: 640 },
+  { theme: "light", width: 430, height: 780 },
+] as const)(
+  "settles Library loading into truthful unavailable and empty states in $theme",
+  async ({ theme, width, height }) => {
+    const incoming = {
+      theme: document.documentElement.dataset.theme,
+      width: innerWidth,
+      height: innerHeight,
+    };
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const render = (loading: boolean, knownCandidates: boolean) =>
+      act(async () =>
+        root.render(
+          <PortBrowser
+            view="library"
+            ports={[]}
+            statuses={new Map()}
+            libraryCount={0}
+            overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+            filter="all"
+            setFilter={vi.fn()}
+            onSelect={vi.fn()}
+            setLibraryReadiness={vi.fn()}
+            libraryFilterCandidates={knownCandidates ? [] : undefined}
+            loading={loading}
+          />,
+        ),
+      );
+    const assertFits = () => {
+      expect(host.scrollWidth).toBeLessThanOrEqual(host.clientWidth + 1);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    };
+    try {
+      await page.viewport(width, height);
+      document.documentElement.dataset.theme = theme;
+      await render(true, false);
+      expect(host.textContent).toContain("Loading your port library");
+      expect(host.textContent).not.toContain("Ports unavailable");
+      expect(host.textContent).not.toContain("Your library is empty");
+      assertFits();
+      await captureParityState("library-pending-results");
+      await render(false, false);
+      expect(host.textContent).toContain("Ports unavailable");
+      expect(host.textContent).not.toContain("Loading your port library");
+      expect(host.textContent).not.toContain("Your library is empty");
+      assertFits();
+      await captureParityState("library-settled-unavailable-results");
+      await render(false, true);
+      expect(host.textContent).toContain("Your library is empty");
+      expect(host.textContent).not.toContain("Ports unavailable");
+      expect(host.textContent).not.toContain("Loading your port library");
+      assertFits();
+      await captureParityState("library-settled-empty-results");
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+      if (incoming.theme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = incoming.theme;
+      await page.viewport(incoming.width, incoming.height);
+    }
+  },
+);

@@ -35,6 +35,21 @@
       "image_sha256": "d9e7633646a8f846224aed52b3e772c4adda4c0a7219e28957d62a10ed58ea93",
       "game_slug": "ncaa-football-10",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ncaa-football-10",
+      "evidence_urls": ["https://github.com/awest813/NCAA-10-PSP-Recomp"],
+      "source_editions": [
+        {
+          "id": "ncaa-football-10-playstation-portable",
+          "title": "NCAA Football 10 (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/awest813/NCAA-10-PSP-Recomp/blob/ef7edd7bd6d19081e6ab471fe7b7421a54dd4c65/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

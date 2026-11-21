@@ -53,6 +53,24 @@
     "download_asset_hints": {
       "linux-x86-64": ["OpenOMF-", "-x86_64.AppImage"],
       "macos-aarch64": ["openomf_", "_macos", "_arm.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "one-must-fall-2097",
+      "evidence_urls": [
+        "https://github.com/omf2097/openomf/blob/master/PATHS.md",
+        "https://github.com/omf2097/openomf"
+      ],
+      "source_editions": [
+        {
+          "id": "one-must-fall-2097-pc",
+          "title": "One Must Fall: 2097 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/omf2097/openomf/blob/801d29720ae648c1e8675b8b34f0227950a8d819/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

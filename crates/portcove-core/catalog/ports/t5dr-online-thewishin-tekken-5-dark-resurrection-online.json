@@ -35,6 +35,21 @@
       "image_sha256": "960531b11ba3dbb93643eb7818a7db983b02d801a5c185527b22a72bdb134971",
       "game_slug": "tekken-5-dark-resurrection-online",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-5-dark-resurrection-online",
+      "evidence_urls": ["https://github.com/TheWishin/T5DROnline"],
+      "source_editions": [
+        {
+          "id": "tekken-5-dark-resurrection-online-playstation-3",
+          "title": "Tekken 5: Dark Resurrection Online (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/TheWishin/T5DROnline/blob/b6285ea423d01625323b52406dea81f92918e94e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

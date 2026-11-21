@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "petarov-alleycat-exe",
+    "artwork": {
+      "game_id": 23860,
+      "cover_id": 365732,
+      "image_id": "co7u78",
+      "image_sha256": "6f4f9f2d2032a22dd3a16faa261baec8ac4dfe0c217e9a011bbfc3210a613ee4",
+      "game_slug": "alley-cat",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/petarov/alleycat.exe",
     "name": "Alley Cat (Alley Cat x86-64 recomp)",
     "summary": "Alley Cat native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
@@ -33,6 +41,24 @@
         {
           "title": "Preserve actual settings and progress",
           "instruction": "The player stores fullscreen and PCjr settings in SDL’s per-user petarov/alleycat preferences folder. If that preferences location is unavailable, the reviewed source does not create a local runtime fallback. Before changing versions, close the game and preserve the actual preferences folder and a separate copy of the working runtime. You or upstream own runtime updates. Portcove does not manage, back up, restore, roll back or delete these external runtime or player-data files."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "alley-cat",
+      "evidence_urls": [
+        "https://github.com/petarov/alleycat.exe#readme",
+        "https://github.com/petarov/alleycat.exe"
+      ],
+      "source_editions": [
+        {
+          "id": "alley-cat-pc",
+          "title": "Alley Cat (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+          ]
         }
       ]
     }

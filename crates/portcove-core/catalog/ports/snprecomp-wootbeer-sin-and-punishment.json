@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "snprecomp-wootbeer-sin-and-punishment",
+    "artwork": {
+      "game_id": 1467,
+      "cover_id": 85687,
+      "image_id": "co1u47",
+      "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
+      "game_slug": "sin-and-punishment",
+      "match_kind": "underlying-game"
+    },
     "name": "Sin and Punishment — snprecomp (wootbeer)",
     "original_game_title": "Sin and Punishment",
     "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
@@ -34,11 +42,22 @@
     "issue_number": 3564,
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/wootbeer/snprecomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["SnPRecompiled-", "-windows.zip"],
-      "linux-x86-64": ["SnPRecompiled-", "-linux-x86_64.tar.gz"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": ["https://github.com/wootbeer/snprecomp"],
+      "source_editions": [
+        {
+          "id": "sin-and-punishment-nintendo-64",
+          "title": "Sin and Punishment (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/snprecomp/blob/6e76c24c84e6fc65faeae89e8e75d7fac92aba1f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -105,5 +124,6 @@
         "executables": ["snprecompiled", "snprecompiled.sh"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"]
 }

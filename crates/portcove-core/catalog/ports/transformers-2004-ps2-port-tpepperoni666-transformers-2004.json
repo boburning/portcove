@@ -6,6 +6,14 @@
     "original_game_title": "Transformers (2004)",
     "summary": "This native static game remains experimental. Exact gameplay completion has not been established by this review. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
+    "artwork": {
+      "game_id": 18361,
+      "cover_id": 79183,
+      "image_id": "co1p3j",
+      "image_sha256": "ca716070eebd3390f455bdf33ee4c05b81ebcad9963769a3c6d962bfbb0cd1c7",
+      "game_slug": "transformers",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port"
     },
-    "issue_number": 3071
+    "issue_number": 3071,
+    "original_game": {
+      "format_version": 1,
+      "id": "transformers-2004",
+      "evidence_urls": ["https://github.com/TPepperoni666/Transformers-2004-PS2-Port"],
+      "source_editions": [
+        {
+          "id": "transformers-2004-playstation-2",
+          "title": "Transformers (2004) (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TPepperoni666/Transformers-2004-PS2-Port/blob/6c4b43b14c503e755d3e1374b5d5e172cb77ae0c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

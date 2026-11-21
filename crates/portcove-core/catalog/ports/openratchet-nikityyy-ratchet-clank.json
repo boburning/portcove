@@ -6,6 +6,14 @@
     "original_game_title": "Ratchet & Clank",
     "summary": "The native app replaces platform services but retains PS2Recomp’s fallback game executor. Level 0, rendering and overlay checks do not establish complete gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Nikityyy/OpenRatchet",
+    "artwork": {
+      "game_id": 1289,
+      "cover_id": 79006,
+      "image_id": "co1oym",
+      "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
+      "game_slug": "ratchet-clank",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/Nikityyy/OpenRatchet"
     },
-    "issue_number": 3086
+    "issue_number": 3086,
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": ["https://github.com/Nikityyy/OpenRatchet"],
+      "source_editions": [
+        {
+          "id": "ratchet-and-clank-playstation-2",
+          "title": "Ratchet & Clank (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/openratchet-nikityyy-ratchet-clank.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

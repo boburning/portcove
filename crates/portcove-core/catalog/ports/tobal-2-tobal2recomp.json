@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tobal-2-tobal2recomp",
+    "artwork": {
+      "game_id": 1662,
+      "cover_id": 132433,
+      "image_id": "co2u6p",
+      "image_sha256": "08d7f103d74b0942761d440db123adf4c7f55a356be9c0fd3dc0fd0edbbb7faf",
+      "game_slug": "tobal-2",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/MatheusLeffa/Tobal2Recomp",
     "name": "Tobal 2 Recompiled",
     "summary": "Build Tobal 2 from your Japanese PlayStation disc using upstream’s Windows, Linux or Mac setup kit.",
@@ -28,6 +36,16 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/MatheusLeffa/Tobal2Recomp/releases/tag/v0.2.6"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tobal-2",
+      "evidence_urls": [
+        "https://github.com/MatheusLeffa/Tobal2Recomp/releases/tag/v0.2.6",
+        "https://github.com/MatheusLeffa/Tobal2Recomp"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Tobal 2"
   }
 }

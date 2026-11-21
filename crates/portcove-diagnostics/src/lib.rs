@@ -6,7 +6,7 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    sync::mpsc,
+    sync::{Arc, OnceLock, mpsc},
     time::{Duration, Instant},
 };
 
@@ -84,6 +84,7 @@ pub fn code_label(code: portcove_core::ErrorCode) -> &'static str {
 #[derive(Clone)]
 pub struct HostDiagnostics {
     directory: Option<PathBuf>,
+    support_directory: Arc<OnceLock<PathBuf>>,
     session_directory: Option<PathBuf>,
     session_id: uuid::Uuid,
     session_label: String,
@@ -125,9 +126,15 @@ impl HostDiagnostics {
                 debug,
             );
         }
-        Self::bootstrap(surface, debug, |session, surface| {
+        Self::bootstrap(surface, debug, |session, surface, support_directory| {
             let (configured, platform) = Self::configured_locations();
-            Self::prepare_locations(configured.as_deref(), platform.as_deref(), session, surface)
+            Self::prepare_locations(
+                configured.as_deref(),
+                platform.as_deref(),
+                session,
+                surface,
+                support_directory,
+            )
         })
     }
 
@@ -159,9 +166,13 @@ impl HostDiagnostics {
             qualification_prepared: true,
             ..host
         };
-        let Some(prepared) =
-            Self::prepare_locations(configured, platform, host.session_id, surface)
-        else {
+        let Some(prepared) = Self::prepare_locations(
+            configured,
+            platform,
+            host.session_id,
+            surface,
+            &host.support_directory,
+        ) else {
             return (host, None);
         };
         host.start_prepared(prepared)
@@ -172,6 +183,7 @@ impl HostDiagnostics {
         platform: Option<&Path>,
         session: uuid::Uuid,
         surface: Surface,
+        support_directory: &OnceLock<PathBuf>,
     ) -> Option<Prepared> {
         for (index, preference) in [configured, platform].into_iter().enumerate() {
             let Some(preference) = preference else {
@@ -184,6 +196,10 @@ impl HostDiagnostics {
             let Ok(directory) = portcove_core::prepare_support_log_directory(&directory) else {
                 continue;
             };
+            // Publish only the selected, safely prepared root. Session allocation
+            // may outlive startup's deadline; explicit export can still use this
+            // root without reviving its logging session or choosing another path.
+            let _ = support_directory.set(directory.clone());
             let mut prepared = Self::prepare_session(directory, session, surface);
             prepared.fallback = index == 1 && configured.is_some();
             return Some(prepared);
@@ -233,53 +249,110 @@ impl HostDiagnostics {
             return host.start_prepared(prepared);
         }
         let directory = directory.to_owned();
-        Self::bootstrap(surface, debug, move |session, surface| {
-            if !directory.is_absolute() {
-                return None;
-            }
-            let directory = portcove_core::prepare_support_log_directory(&directory).ok()?;
-            Some(Self::prepare_session(directory, session, surface))
-        })
+        Self::bootstrap(
+            surface,
+            debug,
+            move |session, surface, support_directory| {
+                Self::prepare_in(&directory, session, surface, support_directory)
+            },
+        )
+    }
+
+    fn prepare_in(
+        directory: &Path,
+        session: uuid::Uuid,
+        surface: Surface,
+        support_directory: &OnceLock<PathBuf>,
+    ) -> Option<Prepared> {
+        if !directory.is_absolute() {
+            return None;
+        }
+        let directory = portcove_core::prepare_support_log_directory(directory).ok()?;
+        let _ = support_directory.set(directory.clone());
+        Some(Self::prepare_session(directory, session, surface))
+    }
+
+    /// Owned consumer regression fixture using the ordinary bootstrap deadline.
+    /// The finite gate delays preparation, never prepares a sink outside that deadline.
+    #[cfg(feature = "qualification-fixtures")]
+    #[doc(hidden)]
+    pub fn start_in_with_delayed_preparation(
+        directory: &Path,
+        surface: Surface,
+        release: mpsc::Receiver<()>,
+    ) -> (
+        Self,
+        Option<writer::Guard>,
+        Option<std::thread::JoinHandle<()>>,
+    ) {
+        let directory = directory.to_owned();
+        Self::bootstrap_worker(
+            surface,
+            false,
+            move |session, surface, support_directory| {
+                release.recv_timeout(Duration::from_secs(5)).ok()?;
+                Self::prepare_in(&directory, session, surface, support_directory)
+            },
+        )
     }
 
     fn bootstrap(
         surface: Surface,
         debug: bool,
-        prepare: impl FnOnce(uuid::Uuid, Surface) -> Option<Prepared> + Send + 'static,
+        prepare: impl FnOnce(uuid::Uuid, Surface, &OnceLock<PathBuf>) -> Option<Prepared>
+        + Send
+        + 'static,
     ) -> (Self, Option<writer::Guard>) {
+        let (host, guard, _worker) = Self::bootstrap_worker(surface, debug, prepare);
+        // Ordinary startup never joins potentially blocked diagnostic OS work.
+        (host, guard)
+    }
+
+    fn bootstrap_worker(
+        surface: Surface,
+        debug: bool,
+        prepare: impl FnOnce(uuid::Uuid, Surface, &OnceLock<PathBuf>) -> Option<Prepared>
+        + Send
+        + 'static,
+    ) -> (
+        Self,
+        Option<writer::Guard>,
+        Option<std::thread::JoinHandle<()>>,
+    ) {
         let mut host = Self::disabled(surface, debug);
         let session = host.session_id;
+        let support_directory = Arc::clone(&host.support_directory);
         let deadline = Instant::now() + Duration::from_millis(BOOTSTRAP_TIMEOUT_MS);
         let (sender, receiver) = mpsc::sync_channel(1);
         let worker = std::thread::Builder::new()
             .name("portcove-diagnostic-bootstrap".into())
             .spawn(move || {
-                let prepared = prepare(session, surface);
+                let prepared = prepare(session, surface, &support_directory);
                 // One owned value and one nonblocking send. A timed-out receiver
                 // discards the allocation here, releasing its lease only after
                 // blocked preparation has returned. No writer runs on this thread.
                 let _ = sender.try_send(prepared);
             });
-        if worker.is_err() {
-            return (host, None);
-        }
-        // Never join a bootstrap thread that could still be inside an OS call.
-        drop(worker);
+        let Ok(worker) = worker else {
+            return (host, None, None);
+        };
         let result = receiver.recv_timeout(deadline.saturating_duration_since(Instant::now()));
         if Instant::now() >= deadline || matches!(result, Err(mpsc::RecvTimeoutError::Timeout)) {
             host.bootstrap_timed_out = true;
-            return (host, None);
+            return (host, None, Some(worker));
         }
-        match result {
+        let (host, guard) = match result {
             Ok(Some(prepared)) => host.start_prepared(prepared),
             Ok(None) | Err(_) => (host, None),
-        }
+        };
+        (host, guard, Some(worker))
     }
 
     fn disabled(surface: Surface, debug: bool) -> Self {
         let session_id = uuid::Uuid::new_v4();
         Self {
             directory: None,
+            support_directory: Arc::new(OnceLock::new()),
             session_directory: None,
             session_id,
             session_label: session_id.to_string(),
@@ -295,6 +368,7 @@ impl HostDiagnostics {
     }
 
     fn start_prepared(mut self, prepared: Prepared) -> (Self, Option<writer::Guard>) {
+        let _ = self.support_directory.set(prepared.directory.clone());
         self.directory = Some(prepared.directory);
         self.sessions = prepared.report;
         self.fallback = prepared.fallback;
@@ -338,6 +412,13 @@ impl HostDiagnostics {
     pub fn directory(&self) -> Option<&Path> {
         self.directory.as_deref()
     }
+    /// The immutable validated export destination, independent of writer readiness.
+    /// A late bootstrap may publish this root, but never starts a late writer.
+    /// No preference/environment or filesystem lookup is performed by this read.
+    pub fn support_directory(&self) -> Option<&Path> {
+        self.support_directory.get().map(PathBuf::as_path)
+    }
+
     pub fn session_directory(&self) -> Option<&Path> {
         self.session_directory.as_deref()
     }

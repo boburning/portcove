@@ -6,7 +6,15 @@
     "summary": "Windows x64 upstream-prepared native player for Jet Moto 2: Championship Edition USA (SCUS-94167). Complete upstream .NET 10 generation/build first, then register build/JetMoto2Recomp.exe; the root JetMoto2.exe setup launcher starts a separate player and exits. Preserve the creating build directory, disc, settings and memory cards. Upstream reports bounded racing progress; sound/CD music, saving and wider gameplay remain untested.",
     "original_game_title": "Jet Moto 2: Championship Edition",
     "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
-    "platforms": [],
+    "artwork": {
+      "game_id": 45214,
+      "cover_id": 127597,
+      "image_id": "co2qgd",
+      "image_sha256": "c474a5bfd714a0447928ec5254cce8bb03cd941e503b3f466941ec6467c2af1b",
+      "game_slug": "jet-moto-2",
+      "match_kind": "underlying-game"
+    },
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
     "issue_number": 2825,
@@ -49,6 +57,24 @@
         {
           "title": "Respect the early-release limits",
           "instruction": "Upstream reports a completed Slickrock Gorge race, with sound/CD music, memory-card saving, other tracks, season, gamepad and two-player play untested. Menu art can extend beyond the right edge. Optional JM2 diagnostic/input/cheat environment features are outside this route. Keep the project and RecompOne notices; their MIT grants do not grant original game content. Upstream states that this early release was tested only on Windows 11 x64; this is its reported test scope, not Portcove qualification for Windows 10 or another host."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-moto-2-championship-edition",
+      "evidence_urls": [
+        "https://github.com/goodshepherd23/JetMoto2-Recomp",
+        "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-moto-2-championship-edition-playstation",
+          "title": "Jet Moto 2: Championship Edition (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/goodshepherd23/JetMoto2-Recomp/blob/cd14d8727d16c1da12cf1da547de3f5b8d6b473b/README.md"
+          ]
         }
       ]
     }

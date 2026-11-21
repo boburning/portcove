@@ -7,7 +7,7 @@
     "project_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
     "issue_number": 319,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
     "original_game_title": "Castlevania: Symphony of the Night",
@@ -51,6 +51,24 @@
       "image_sha256": "cecb4ca6ff14641c5396d5d57c282c502479d630cd64f098b0c3311c1bdd0a2f",
       "game_slug": "castlevania-symphony-of-the-night",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-symphony-of-the-night",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
+        "https://github.com/BlackLabelHQ/SymphonyRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "castlevania-symphony-of-the-night-playstation",
+          "title": "Castlevania: Symphony of the Night (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/2deead5dc5f03f656c4ed625c1865fad5a544b8f/README.md"
+          ]
+        }
+      ]
     }
   }
 }

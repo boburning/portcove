@@ -42,9 +42,14 @@
         "Back up the actual upstream profile before replacing the runtime. The Linux ZIP normally uses ~/.config/fheroes2 for settings and ~/.local/share/fheroes2 for data, including files/save and custom maps. If you set XDG_CONFIG_HOME or XDG_DATA_HOME, preserve those actual locations and use absolute paths outside the runtime folder. Flatpak, Mac and Android keep their own profiles."
       ]
     },
-    "download_asset_hints": {
-      "linux-x86-64": ["fheroes2_ubuntu_x86-64_SDL2.zip"],
-      "macos-x86-64": ["fheroes2_macos_x86-64_SDL2.zip"]
+    "original_game": {
+      "format_version": 1,
+      "id": "heroes-of-might-and-magic-ii",
+      "evidence_urls": [
+        "https://github.com/ihhub/fheroes2",
+        "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -133,5 +138,6 @@
         "Keep a separate backup of the actual external fheroes2 profile, including files/save, settings and custom maps. Use a separately prepared copy for custom profile or resource locations. Real save compatibility across versions remains unverified."
       ]
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["linux-x86-64", "macos-x86-64"]
 }

@@ -2,9 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+    "artwork": {
+      "game_id": 153,
+      "cover_id": 248980,
+      "image_id": "co5c44",
+      "image_sha256": "345b83219a614f9c5f4c6b3cb97f56eacc151aa47f71a92cc3864e2fb7f52128",
+      "game_slug": "star-wars-jedi-knight-jedi-academy",
+      "match_kind": "underlying-game"
+    },
     "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
     "summary": "Use the official OpenJK campaign player on Windows or Linux with your matching patched Jedi Academy data.",
-    "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
+    "original_game_title": "Star Wars Jedi Knight: Jedi Academy",
     "project_url": "https://github.com/JACoders/OpenJK",
     "availability": "packages",
     "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
@@ -60,7 +68,16 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-jedi-knight-jedi-academy",
+      "evidence_urls": [
+        "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
+        "https://github.com/JACoders/OpenJK"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

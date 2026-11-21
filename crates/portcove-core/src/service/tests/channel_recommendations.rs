@@ -280,6 +280,59 @@ fn native_channel_footprints_include_pending_and_uninterpreted_external_records(
 }
 
 #[test]
+fn saved_package_lookup_checks_the_requested_channel_before_preferring_active() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service = fixture(temporary.path(), Some(ReleaseChannel::Beta));
+    let mut status = service.status(NATIVE_ID).unwrap();
+    let platform = Platform::WindowsX86_64;
+    let port = service.catalog.port(NATIVE_ID).unwrap();
+    let legacy = InstallRecord {
+        id: "stable".into(),
+        port_id: NATIVE_ID.into(),
+        version: "v1.2.3".into(),
+        path: temporary.path().join("stable-runtime"),
+        channel: ReleaseChannel::Stable,
+        installed_at: 0,
+        verified: true,
+        staged: false,
+        artifact: ArtifactIdentity {
+            asset_name: "fixture.zip".into(),
+            sha256: "a".repeat(64),
+            size: 1,
+        },
+        runtime: None,
+        manifest_sha256: String::new(),
+        selected_executable: "sopwith.exe".into(),
+    };
+    status.active = Some(legacy.clone());
+    status.staged = Some(InstallRecord {
+        id: "beta".into(),
+        path: temporary.path().join("missing-beta-runtime"),
+        channel: ReleaseChannel::Beta,
+        staged: true,
+        manifest_sha256: "b".repeat(64),
+        ..legacy
+    });
+    // An identified but missing Beta manifest makes the receipt read visible.
+    // The valid legacy Stable row must neither conceal nor read it.
+    assert!(
+        PortcoveService::saved_package_variant(port, ReleaseChannel::Stable, platform, &status)
+            .unwrap()
+            .is_none()
+    );
+    let beta =
+        PortcoveService::saved_package_variant(port, ReleaseChannel::Beta, platform, &status)
+            .unwrap_err();
+    assert!(beta.message.contains("manifest is missing"));
+    status.active.as_mut().unwrap().channel = ReleaseChannel::Beta;
+    assert!(
+        PortcoveService::saved_package_variant(port, ReleaseChannel::Beta, platform, &status)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
 fn retained_and_staged_rows_without_settings_keep_legacy_channel() {
     let temporary = tempfile::tempdir().unwrap();
     for staged in [false, true] {

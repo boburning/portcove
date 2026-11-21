@@ -6,7 +6,7 @@
     "original_game_title": "The Legend of Zelda: Ocarina of Time",
     "summary": "Experimental project. Title-screen and optional widescreen screenshot; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/polaco1782/v64recomp",
     "manual_setup": {
@@ -45,6 +45,24 @@
       "image_sha256": "1af50c5c3feeb1edba00661abafbd61d0f4f67d259e43729ec5e9f09c197afa3",
       "game_slug": "the-legend-of-zelda-ocarina-of-time",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Shipwright/blob/de1ab1b63383c15f694a7c551300cccc28c63365/README.md",
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-ocarina-of-time-nintendo-64",
+          "title": "The Legend of Zelda: Ocarina of Time (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/v64recomp-oot-us-v12-polaco1782-the-legend-of-zelda-ocarina-of-time.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

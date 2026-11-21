@@ -171,6 +171,23 @@ unreadable logs never establish native acceptance. Failure or an exceeded retent
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
 
+### Linux prerequisite calibration
+
+The permanent `linux-preparation-continuity` route keeps its Ubuntu 22.04 host,
+two existing native selections and 10-minute observation step. Its prerequisite
+step now requests the maintained archive-mirror preference and a 1,200-second APT
+install allowance inside a 30-minute step. The job grows from 60 to 75 minutes,
+retaining its previous 45-minute allowance outside prerequisites. No Windows
+selection or product deadline changes.
+
+The calibration follows temporary qualification run `44395415654/1` on Ubuntu
+24.04: its package index passed, but downloads exhausted the 600-second install
+budget (exit 124) before any application build or native journey. That failed
+attempt is not evidence of the permanent route running. The maintained mirror
+preference selectively rewrites supported Azure entries, without guaranteeing an
+EC2 mirror replacement. Timeout statuses 124/137 still refuse mirror retry on
+possibly interrupted package state; intentional recovery uses a fresh runner.
+
 ## Normal-app presentation and interface sizing
 
 The fixed manual `presentation` operation in `native-design-compatibility.yml`
@@ -214,10 +231,23 @@ checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
 the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
 at 60) and unchanged product deadlines.
 
-Six bounded groups retain the entire maintained `owned-lifecycle` selection and
-its dependency closure: ready/return/preferences, preparation recovery,
-backup/removal, singleton and batch Steam, source intake/removal/pickers, and
-adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+Seven bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, game update review, preparation
+recovery, backup/removal, singleton and batch Steam, source intake/removal/pickers,
+and adoption/library/CLI handoff. The game update review has its own group because
+its offered release comes from the owned install fixture's direct manifest on
+127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
+keep the plain build and maintained catalog. Run 43743277016 showed the live
+anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
+local session sees the fixture definition only in the app and the preparation seed.
+Moving the review left owned-ready at eight executed scenarios, below the count that
+granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
+180 s default, so its release-channel restart journey now keeps that allowance, and
+the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
+That run also stopped two uncalibrated owned-ready waits behind debug-build workspace
+refreshes: a restored launch hold returning to Try launch (10 s) and a failed
+verification re-enabling its action (5 s). Both are calibrated to 60 s.
+The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through
@@ -228,6 +258,32 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+
+The owned Windows preparation harness waits for initial Library content within
+its existing 60-second reload envelope before locating the exact game action.
+Discover setup uses a player-visible search before selecting the exact port ID,
+so an offscreen virtualized card is not mistaken for missing content. Copy consent
+and workspace readback have named 60-second settlement waits; these are harness
+budgets, not product deadlines or proof that a copy succeeded.
+
+The install readback probe allows the independent scheduled catalog refresh while
+still requiring one install command and one fixture download. Steam batch review
+checks the singular one-game label before root/profile selection and the plural
+zero/two-game flow. Preliminary setup checks its scoped live selection count and
+exact fixture checkbox, independently of the changing catalog size. Artwork
+reload keeps its request observers, verifies the real workspace still contains
+the exact owned definition and discovery listing, then
+searches by name before selecting its exact ID. It does not disable catalog
+updates or replace catalog authority.
+
+If the held preparation case fails, it requests cancellation only for its captured
+new operation in the owned library. Request acknowledgment is followed by the exact
+authoritative terminal and, for retained failed or cancelled work, Core's read-only
+preparation cleanup preview, which requires proven process quiescence. The harness
+discards no private state. Unknown operation identity or an unjoined worker stops
+the remaining run through the existing driver teardown. A joined failure remains
+failed; cleanup and preservation observations do not replace its original assertion.
+
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the
 application correctly refuses to start there. With owner approval (#4879: runtime

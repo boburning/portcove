@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gamepad2, FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
 import { desktopApi } from "../api";
+import { focusAndReveal } from "../focus";
 import { pickSteamFolder } from "../file-picker";
 import type {
   PortDefinition,
@@ -146,21 +147,23 @@ export function SteamEntryDialog({
   generation,
   installed,
   close,
+  initialProfile,
 }: {
   port: PortDefinition;
   generation: number;
   installed: boolean;
   close: () => void;
+  initialProfile?: Pick<SteamBatchSelection, "steamRoot" | "steamUserId" | "includeArtwork">;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
-  const [steamRoot, setSteamRoot] = useState("");
-  const [steamUserId, setSteamUserId] = useState("");
+  const [steamRoot, setSteamRoot] = useState(initialProfile?.steamRoot ?? "");
+  const [steamUserId, setSteamUserId] = useState(initialProfile?.steamUserId ?? "");
   const [review, setReview] = useState<SteamEntryReview>();
   const [result, setResult] = useState<SteamEntryApplyResult>();
   const [artworkReview, setArtworkReview] = useState<SteamArtworkReview>();
   const [artworkResult, setArtworkResult] = useState<SteamArtworkApplyResult>();
   const [replaceArtwork, setReplaceArtwork] = useState(false);
-  const [includeArtwork, setIncludeArtwork] = useState(true);
+  const [includeArtwork, setIncludeArtwork] = useState(initialProfile?.includeArtwork ?? true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
   const dismiss = () => {
@@ -528,13 +531,19 @@ export function SteamBatchEntryDialog({
   ports,
   generation,
   close,
+  allowSingle = false,
 }: {
   ports: PortDefinition[];
   generation: number;
   close: () => void;
+  allowSingle?: boolean;
 }) {
-  const cancelButton = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const applyButton = useRef<HTMLButtonElement>(null);
+  const reviewButton = useRef<HTMLButtonElement>(null);
+  const restoreReviewFocus = useRef(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [singlePort, setSinglePort] = useState<PortDefinition>();
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
   const [review, setReview] = useState<SteamBatchReview>();
@@ -543,11 +552,26 @@ export function SteamBatchEntryDialog({
   const [includeArtwork, setIncludeArtwork] = useState(true);
   const [pending, setPending] = useState<"review" | "apply">();
   const [error, setError] = useState<string>();
+  const [writeDeclined, setWriteDeclined] = useState(false);
+  useLayoutEffect(() => {
+    const button = applyButton.current;
+    if (writeDeclined && button === document.activeElement) focusAndReveal(button);
+  }, [writeDeclined]);
+  useLayoutEffect(() => {
+    if (error === undefined || pending || !restoreReviewFocus.current) return;
+    restoreReviewFocus.current = false;
+    const target = reviewButton.current;
+    const active = document.activeElement;
+    if (target && (active === document.body || active === target.closest('[role="dialog"]'))) {
+      focusAndReveal(target);
+    }
+  }, [error, pending]);
   const resetReview = () => {
     setReview(undefined);
     setReviewedSelection(undefined);
     setResult(undefined);
     setError(undefined);
+    setWriteDeclined(false);
   };
   const dismiss = () => {
     if (pending !== "apply") close();
@@ -576,6 +600,7 @@ export function SteamBatchEntryDialog({
     if (!review || !reviewedSelection || pending) return;
     setPending("apply");
     setError(undefined);
+    setWriteDeclined(false);
     try {
       const applied = await desktopApi.applySteamBatchAdd(
         reviewedSelection,
@@ -586,14 +611,32 @@ export function SteamBatchEntryDialog({
       if (applied) {
         setResult(applied);
         setReview(undefined);
+      } else {
+        setWriteDeclined(true);
       }
     } catch (value) {
+      const button = applyButton.current;
+      restoreReviewFocus.current = button !== null && document.activeElement === button;
       resetReview();
       setError(errorText(value));
     } finally {
       setPending(undefined);
     }
   };
+  const selectedPort =
+    allowSingle && selectedIds.length === 1
+      ? ports.find((port) => port.id === selectedIds[0])
+      : undefined;
+  if (singlePort)
+    return (
+      <SteamEntryDialog
+        port={singlePort}
+        generation={generation}
+        installed
+        initialProfile={{ steamRoot, steamUserId, includeArtwork }}
+        close={() => setSinglePort(undefined)}
+      />
+    );
   return (
     <Dialog
       open
@@ -602,17 +645,18 @@ export function SteamBatchEntryDialog({
       }}
     >
       <DialogContent
-        initialFocus={cancelButton}
+        initialFocus={heading}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="steam-batch-description"
       >
-        <DialogTitle id="steam-batch-title" className="mb-2 text-xl">
+        <DialogTitle ref={heading} tabIndex={-1} id="steam-batch-title" className="mb-2 text-xl">
           Add selected games to Steam
         </DialogTitle>
         <DialogDescription id="steam-batch-description" className="mb-4 leading-relaxed">
-          Select at least two installed games to add or repair their shortcuts in one selected local
-          Steam profile.
+          {allowSingle
+            ? "Choose one or more installed games to add or repair shortcuts in a local Steam profile."
+            : "Select at least two installed games to add or repair their shortcuts in one selected local Steam profile."}
         </DialogDescription>
         {!result && (
           <>
@@ -661,29 +705,29 @@ export function SteamBatchEntryDialog({
         {pending === "review" && <p role="status">Inspecting selected games and Steam profile…</p>}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch />}
+        {writeDeclined && <p role="status">Steam shortcut changes were cancelled.</p>}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
-          <Button
-            ref={cancelButton}
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {result ? "Close" : "Cancel"}
           </Button>
           {!review && !result && (
             <Button
+              ref={reviewButton}
               data-focusable
               disabled={
-                selectedIds.length < 2 ||
-                !steamRoot.trim() ||
-                !steamUserId.trim() ||
-                Boolean(pending)
+                !selectedPort &&
+                (selectedIds.length < 2 ||
+                  !steamRoot.trim() ||
+                  !steamUserId.trim() ||
+                  Boolean(pending))
               }
-              onClick={() => void loadReview()}
+              onClick={() => {
+                if (selectedPort) setSinglePort(selectedPort);
+                else void loadReview();
+              }}
             >
-              Review selected shortcuts
+              {selectedPort ? "Review selected game" : "Review selected shortcuts"}
             </Button>
           )}
           {review && (
@@ -698,9 +742,12 @@ export function SteamBatchEntryDialog({
               </Button>
               {review.writes_required && (
                 <Button
+                  ref={applyButton}
                   data-focusable
                   variant="primary"
                   disabled={Boolean(pending) || review.steam_client_state !== "closed"}
+                  aria-busy={pending === "apply"}
+                  focusableWhenDisabled={pending === "apply"}
                   onClick={() => void apply()}
                 >
                   {pending === "apply" ? "Updating shortcuts…" : "Add or repair selected shortcuts"}
@@ -733,6 +780,9 @@ function SteamProfileFields({
   setSteamUserId: (value: string) => void;
   resetReview: () => void;
 }) {
+  const [installations, setInstallations] = useState<string[]>();
+  const [discovering, setDiscovering] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState<string>();
   const [profiles, setProfiles] = useState<string[]>();
   const [listing, setListing] = useState(false);
   const [listError, setListError] = useState<string>();
@@ -745,6 +795,7 @@ function SteamProfileFields({
   );
   const changeRoot = (value: string) => {
     requestId.current += 1;
+    setDiscovering(false);
     setListing(false);
     setProfiles(undefined);
     setListError(undefined);
@@ -757,8 +808,23 @@ function SteamProfileFields({
     const selected = await pickSteamFolder(steamRoot);
     if (selected && requestId.current === currentRequest) changeRoot(selected);
   };
+  const findInstallations = async () => {
+    if (discovering || listing) return;
+    const currentRequest = ++requestId.current;
+    setDiscovering(true);
+    setInstallations(undefined);
+    setDiscoveryError(undefined);
+    try {
+      const roots = await desktopApi.discoverSteamClientRoots(generation);
+      if (requestId.current === currentRequest) setInstallations(roots);
+    } catch (error) {
+      if (requestId.current === currentRequest) setDiscoveryError(errorText(error));
+    } finally {
+      if (requestId.current === currentRequest) setDiscovering(false);
+    }
+  };
   const findProfiles = async () => {
-    if (!steamRoot.trim() || listing) return;
+    if (!steamRoot.trim() || listing || discovering) return;
     const currentRequest = ++requestId.current;
     setListing(true);
     setProfiles(undefined);
@@ -779,12 +845,12 @@ function SteamProfileFields({
           <Input
             data-focusable
             id={`${idPrefix}-installation`}
+            dir="ltr"
             value={steamRoot}
             disabled={pending}
             onChange={(event) => {
               changeRoot(event.target.value);
             }}
-            placeholder="C:\\Program Files (x86)\\Steam"
           />
           <Button
             data-focusable
@@ -800,7 +866,43 @@ function SteamProfileFields({
       <Button
         data-focusable
         variant="outline"
-        disabled={pending || listing || !steamRoot.trim()}
+        disabled={pending || discovering || listing}
+        onClick={() => void findInstallations()}
+      >
+        {discovering ? "Finding Steam installations…" : "Find Steam installations"}
+      </Button>
+      {discoveryError && <p role="alert">{discoveryError}</p>}
+      {installations && (
+        <div role="group" aria-label="Local Steam installations">
+          {installations.length === 0 ? (
+            <p>
+              No local Steam installations with profiles found. You can choose a folder manually.
+            </p>
+          ) : (
+            <ActionRow>
+              {installations.map((root) => (
+                <Button
+                  key={root}
+                  data-focusable
+                  variant={root === steamRoot ? "selected" : "outline"}
+                  disabled={pending}
+                  aria-pressed={root === steamRoot}
+                  className="h-auto min-w-0 text-start [overflow-wrap:anywhere] whitespace-normal"
+                  onClick={() => changeRoot(root)}
+                >
+                  <bdi className="path-value" dir="ltr">
+                    {root}
+                  </bdi>
+                </Button>
+              ))}
+            </ActionRow>
+          )}
+        </div>
+      )}
+      <Button
+        data-focusable
+        variant="outline"
+        disabled={pending || listing || discovering || !steamRoot.trim()}
         onClick={() => void findProfiles()}
       >
         {listing ? "Finding profiles…" : "Find local profiles"}
@@ -884,11 +986,17 @@ function SteamEntryResult({ result, batch }: { result: SteamEntryApplyResult; ba
         <strong>{message}</strong>
       </p>
       <p className="[overflow-wrap:anywhere]">
-        Shortcut file: <code>{result.shortcuts_path}</code>
+        Shortcut file:{" "}
+        <code className="path-value block" dir="ltr">
+          {result.shortcuts_path}
+        </code>
       </p>
       {result.backup_path && (
         <p className="[overflow-wrap:anywhere]">
-          Backup: <code>{result.backup_path}</code>
+          Backup:{" "}
+          <code className="path-value block" dir="ltr">
+            {result.backup_path}
+          </code>
         </p>
       )}
       {result.artwork.length > 0 && (
@@ -1010,15 +1118,24 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
         <dl className="grid gap-3 wrap-anywhere">
           <div>
             <dt>Shortcut file</dt>
-            <dd>{review.shortcuts_path}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.shortcuts_path}
+            </dd>
           </div>
           <div>
             <dt>Portcove library</dt>
-            <dd>{review.library_root}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.library_root}
+            </dd>
           </div>
           <div>
             <dt>Standalone CLI</dt>
-            <dd>{review.cli_path ?? "Not required for this removal review"}</dd>
+            <dd
+              className={review.cli_path ? "path-value" : undefined}
+              dir={review.cli_path ? "ltr" : undefined}
+            >
+              {review.cli_path ?? "Not required for this removal review"}
+            </dd>
           </div>
           {review.cli_sha256 && (
             <div>
@@ -1146,7 +1263,9 @@ function SteamArtworkReviewDetails({
           </div>
           <div>
             <dt>Artwork folder</dt>
-            <dd>{review.grid_path}</dd>
+            <dd className="path-value" dir="ltr">
+              {review.grid_path}
+            </dd>
           </div>
           {review.app_id !== null && review.app_id !== undefined && (
             <div>
@@ -1183,7 +1302,10 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
       </ul>
       {result.backup_paths.map((path) => (
         <p className="[overflow-wrap:anywhere]" key={path}>
-          Backup: <code>{path}</code>
+          Backup:{" "}
+          <code className="path-value block" dir="ltr">
+            {path}
+          </code>
         </p>
       ))}
     </section>

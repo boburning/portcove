@@ -40,6 +40,7 @@ interface RefreshObservations {
   failure_text?: string;
   after_cards?: number;
   commands?: string[];
+  retry_commands?: string[];
   failure?: string;
   probe?: { installed: false } | { injected: number; commands: string[]; restored: boolean };
 }
@@ -93,6 +94,9 @@ import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { By, until, type WebElement } from "selenium-webdriver";
 import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
+import { observeVisibleTarget } from "./browser-readiness.mts";
+import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
+import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 
 export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => {
   const runtime = window as RefreshWindow;
@@ -176,6 +180,15 @@ export const restoreWorkspaceRefreshProbe = (): NonNullable<RefreshObservations[
   delete runtime.__portcoveRefreshProbe;
   return result;
 };
+
+/** Retry must read current state without repeating any operation. */
+export function assertReadOnlyWorkspaceRetry(commands: readonly string[]) {
+  assert.ok(commands.includes("get_workspace_snapshot"), JSON.stringify(commands));
+  assert.ok(
+    commands.every((command) => command.startsWith("get_") || command.startsWith("plugin:")),
+    JSON.stringify(commands),
+  );
+}
 
 export const installExternalReconciliationProbe = () => {
   const runtime = window as RefreshWindow;
@@ -438,11 +451,15 @@ export async function workspaceRefreshScenario({
         30_000,
         "Retry refresh did not become available after the failed refresh settled",
       );
-      // Release the held failure only for the retry itself.
-      await executeBrowserScript(browser, () => {
+      // The probe's library-change event also schedules standing setup, and
+      // startup's catalog check can finish during capture. Keep the full trace,
+      // but attribute only commands after this marker to the player's retry.
+      const retryStart = await executeBrowserScript(browser, () => {
         const runtime = window as RefreshWindow;
         if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
+        const start = runtime.__portcoveRefreshProbe.calls.length;
         runtime.__portcoveRefreshProbe.holding = false;
+        return start;
       });
       await currentRetry.click();
       await browser.wait(until.stalenessOf(currentRetry), 10_000);
@@ -473,8 +490,8 @@ export async function workspaceRefreshScenario({
         })) >= 1,
       );
       // The failed read and the retry read, plus any visible-idle poll (every 10 s,
-      // use-workspace-data.ts) or focus refetch in between. Every command stays
-      // read-only below, so a retry still never repeats a mutation.
+      // use-workspace-data.ts) or focus refetch in between. The retry's own
+      // command slice is checked separately from background work during capture.
       assert.ok(
         observations.commands.filter((command) => command === "get_workspace_snapshot").length >= 2,
         JSON.stringify(observations.commands),
@@ -484,15 +501,8 @@ export async function workspaceRefreshScenario({
           .length,
         1,
       );
-      assert.ok(
-        observations.commands.every(
-          (command: string) =>
-            command.startsWith("get_") ||
-            command.startsWith("plugin:") ||
-            command === "discover_orphaned_operations",
-        ),
-        JSON.stringify(observations.commands),
-      );
+      observations.retry_commands = observations.commands.slice(retryStart);
+      assertReadOnlyWorkspaceRetry(observations.retry_commands);
     } catch (error) {
       observations.failure = errorMessage(error);
       throw error;
@@ -747,12 +757,68 @@ export async function workspaceRefreshScenario({
           return probe.formatInjections;
         });
         assert.ok(sourceFormat.injections > 0);
-        const screenshot = path.join(output, "native-source-format-guidance.png");
-        await writeFile(screenshot, await browser.takeScreenshot(), {
-          encoding: "base64",
-          flag: "wx",
+        const selector = ".detail-panel #detail-game-actions";
+        const actions = await browser.findElement(By.css(selector));
+        const preparedTarget = await prepareCaptureTarget({
+          target: selector,
+          label: "Incompatible source guidance and game-file recovery",
+          scroll: () =>
+            executeBrowserScript(
+              browser,
+              (element) =>
+                element.scrollIntoView({
+                  block: "center",
+                  inline: "nearest",
+                  behavior: "instant",
+                }),
+              actions,
+            ),
+          observe: () =>
+            executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
         });
-        artifacts.push(screenshot);
+        const capture = await captureSettledVisual({
+          browser,
+          output,
+          name: "native-source-format-guidance",
+          scenario: "native-external-cli-reconciliation",
+          target: selector,
+          observeTarget: async () => {
+            const state = await executeBrowserScript(
+              browser,
+              observeVisibleTarget,
+              selector,
+              "visual" as const,
+            );
+            requireUnchangedCaptureTarget(preparedTarget.observation, state);
+            return { ...state, capture_target_preflight: preparedTarget };
+          },
+          readiness: () =>
+            executeBrowserScript(
+              browser,
+              (target, guidance) => {
+                const region = document.querySelector(target);
+                const recovery = [
+                  ...(region?.querySelectorAll(".primary-actions button") ?? []),
+                ].find((button) => button.textContent?.trim() === "Select game files");
+                return {
+                  ready: Boolean(
+                    document.fonts.status === "loaded" &&
+                    [...(region?.querySelectorAll('[role="status"]') ?? [])].some(
+                      (status) => status.textContent?.trim() === guidance,
+                    ) &&
+                    recovery instanceof HTMLButtonElement &&
+                    !recovery.matches(":disabled") &&
+                    recovery.getAttribute("aria-disabled") !== "true",
+                  ),
+                  guidance,
+                  recovery_action: "Select game files",
+                };
+              },
+              selector,
+              expected,
+            ),
+        });
+        artifacts.push(capture.image.path, capture.receipt);
         await captureAccessibilityReport(
           browser,
           path.join(output, "source-format-accessibility.json"),

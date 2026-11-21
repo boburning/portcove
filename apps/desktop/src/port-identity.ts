@@ -12,8 +12,14 @@ export function gameTitle(port: PortIdentity): string {
 
 export function gameProjectLabel(port: PortIdentity): string | undefined {
   const variant = port.presentation?.variant_label?.trim();
-  if (!port.presentation?.original_game_title?.trim() && !variant) return undefined;
-  return variant ? `${port.name} · ${variant}` : port.name;
+  const title = gameTitle(port).trim();
+  const prefix = `${title} — `;
+  let project = port.name;
+  while (project.trim().startsWith(prefix)) {
+    project = project.trim().slice(prefix.length);
+  }
+  if (title === project.trim() || project.trim() === `${title} —`) return variant || undefined;
+  return variant ? `${project} · ${variant}` : project;
 }
 
 export function gameIdentityLabel(port: PortIdentity): string {

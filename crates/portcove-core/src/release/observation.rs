@@ -345,6 +345,7 @@ fn project_channel(
         port.release.rolling_tag.as_deref(),
         |release| {
             !release.provider.draft
+                && super::github_tag_in_stream(port, platform, &release.provider.tag_name)
                 // Uncollected assets cannot establish that this release belongs
                 // to another platform's stream. Stop at that unknown candidate.
                 && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
@@ -435,12 +436,16 @@ fn project_channel(
     let (candidate, asset, sha256) = if let Some(hold) = &port.managed_acquisition_hold
         && hold.excludes(&candidate.provider.tag_name, &sha256)
     {
+        output
+            .hold_reasons
+            .push("reviewed-artifact-excluded".into());
         let fallback = select_channel_candidate(
             releases,
             channel,
             port.release.rolling_tag.as_deref(),
             |release| {
                 !release.provider.draft
+                    && super::github_tag_in_stream(port, platform, &release.provider.tag_name)
                     && (covered_assets.is_some_and(|covered| !covered.contains(&release.id))
                         || (super::native_release_applies_to_platform(
                             port,

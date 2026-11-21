@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-odamex",
+    "name": "Doom / Odamex",
+    "original_game_title": "Doom",
+    "summary": "Play Doom or Freedoom with the Odamex client and keep its saves and settings with your upstream installation.",
+    "project_url": "https://github.com/odamex/odamex",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5669,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/odamex/odamex#readme",
+    "release_url": "https://github.com/odamex/odamex/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your game data",
+          "instruction": "Use an IWAD from your own Doom installation or a freely available Freedoom IWAD. Keep the supplied odamex.wad with the upstream client. It contains engine resources and the client still needs your IWAD."
+        },
+        {
+          "title": "Start Odamex on Windows",
+          "instruction": "Extract the complete x64 ZIP. Open odamex.exe for the client or odalaunch.exe for the launcher. The publisher also offers a 32-bit ZIP. Put your own IWAD where the launcher can select it, or pass -iwad followed by the quoted path to the client."
+        },
+        {
+          "title": "Start Odamex on Linux",
+          "instruction": "Install net.odamex.Odamex from Flathub for x86-64 or ARM64. Use the desktop launcher or run flatpak run net.odamex.Odamex client -iwad followed by the path to your IWAD. The publisher also provides separate Flatpak bundles for both architectures."
+        },
+        {
+          "title": "Start Odamex on a Mac",
+          "instruction": "Open the publisher’s universal disk image and keep the complete app folder together. Choose Odamex.app for the client or odalaunch.app for the launcher. Both Intel and Apple Silicon client slices in 12.3.0 require macOS 11 or later."
+        }
+      ],
+      "warnings": [
+        "Package replacement and preservation stay with the package manager or your external installation. Online play requires compatible game data and server settings."
+      ],
+      "help_url": "https://flathub.org/apps/net.odamex.Odamex",
+      "references": [
+        {
+          "title": "Preserve the client profile",
+          "instruction": "The inspected Linux publisher Flatpak uses ~/.odamex for settings, logs and saved games. Preserve the actual profile and its matching IWAD before changing engines or packages."
+        }
+      ]
+    },
+    "download_block_reason": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy."
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-odamex",
+    "origin": {
+      "project_url": "https://github.com/odamex/odamex",
+      "repository": {
+        "host": "github.com",
+        "id": "32036562"
+      }
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://flathub.org/apps/net.odamex.Odamex",
+      "https://github.com/odamex/odamex"
+    ]
+  }
+}

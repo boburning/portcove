@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "seal-team-sealteam-source-port",
+    "artwork": {
+      "game_id": 14510,
+      "cover_id": 329278,
+      "image_id": "co722m",
+      "image_sha256": "2c53f3d2789b52fcc90fea3b9ef7e6a0ed62ce750b006355219a0d6ae68b0885",
+      "game_slug": "seal-team",
+      "match_kind": "underlying-game"
+    },
     "name": "SEAL Team / SealTeam Source Port",
     "original_game_title": "SEAL Team",
     "summary": "Play the DOS game SEAL Team on a current desktop with the files from your own installation.",
@@ -43,6 +51,12 @@
       "linux-x86-64": ["SealTeam-", "-linux-x64.tar.gz"],
       "macos-x86-64": ["SealTeam-", "-macos-universal.zip"],
       "macos-aarch64": ["SealTeam-", "-macos-universal.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "seal-team",
+      "evidence_urls": ["https://github.com/PlasticCog/SealTeam-Source-Port"],
+      "source_editions": []
     }
   }
 }

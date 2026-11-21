@@ -13,17 +13,37 @@
  */
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isRecord } from "./runtime-values.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
   partialProgressRules,
 } from "./catalog-upstream-observer.mts";
 
+import {
+  inputEvidenceKey,
+  type OriginalSourceProgress,
+  readOriginalSourceProgress,
+  selectOriginalSourceTarget,
+} from "./upstream-original-recognition.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
+import {
+  planN64OriginalBindings,
+  prepareN64OriginalContractAmendment,
+} from "./n64-original-binding-candidates.mts";
+
+import { thunderstoreRegistrySubject } from "./upstream-mod-provider-registry.mts";
+
 const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
 // Most push runs are gated and never observe, so a day can hold many candidates.
-const candidateLimit = 24;
+const candidateLimitPerEvent = 24;
+// Bounded eight-MiB artifact decoding/validation can exceed sixty seconds on a
+// contended host. This finite CPU/harness budget does not extend provider reads.
+import { observerRecordBudgetMs } from "./observer-snapshot-records.mts";
+const upstreamCheckpointReadBudgetMs = observerRecordBudgetMs;
 
 /** A validated catalog checkpoint and the catalog its producer observed. */
 export interface UpstreamInput {
@@ -40,6 +60,22 @@ export interface UpstreamGap {
   message: string;
   exception_key?: string | null;
   exception_rule?: string | null;
+  source_coverage?: {
+    retained: (UpstreamSourceFact & { scope: SourceScope })[];
+    incomplete: UpstreamSourceGap[];
+  };
+}
+
+type SourceScope = "listing" | "operational" | "operational-and-listing";
+
+interface UpstreamSourceGap {
+  source_key: string;
+  provider: string;
+  repository: string;
+  scope: SourceScope;
+  code: string;
+  exception_key: string | null;
+  exception_rule: string | null;
 }
 
 export interface UpstreamObservation {
@@ -53,11 +89,248 @@ export interface UpstreamObservation {
 
 const failedSubject = "source:upstream-observer-checkpoint";
 
+export interface ManagedReleaseCandidate {
+  candidate_key: string;
+  platform: string;
+  channel: string;
+  release_id: number | null;
+  tag: string;
+  published_at: string | null;
+  state: "eligible" | "pending";
+  hold_reasons: string[];
+}
+
+/** One retained Core result per offered target. A reviewed fallback is a
+ * different artifact and cannot make the current candidate eligible. */
+function managedReleaseCandidates(
+  policy: Record<string, unknown>,
+  source: {
+    provider: string;
+    repositoryId: number;
+    portId: string;
+    channels: readonly string[];
+    release: unknown;
+  },
+): ManagedReleaseCandidate[] | undefined {
+  const { provider, repositoryId, portId, channels, release } = source;
+  if (
+    !["github", "gitlab"].includes(provider) ||
+    !channels.length ||
+    !Array.isArray(policy.projections) ||
+    policy.projections.length > 12
+  )
+    return undefined;
+  const curated = isRecord(release) && isRecord(release.curated) ? release.curated : {};
+  const candidates: ManagedReleaseCandidate[] = [];
+  const targets = new Set<string>();
+  for (const row of policy.projections) {
+    if (
+      !isRecord(row) ||
+      typeof row.platform !== "string" ||
+      !["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(row.platform) ||
+      Object.hasOwn(curated, row.platform) ||
+      typeof row.channel !== "string" ||
+      !channels.includes(row.channel) ||
+      !isRecord(row.channel_candidate)
+    )
+      continue;
+    const candidate = row.channel_candidate;
+    const { tag, published_at } = candidate;
+    const releaseId =
+      typeof candidate.id === "number" && Number.isSafeInteger(candidate.id) && candidate.id > 0
+        ? candidate.id
+        : null;
+    if (
+      typeof tag !== "string" ||
+      !tag.length ||
+      tag.length > 512 ||
+      /\p{Cc}/u.test(tag) ||
+      (provider === "github" && releaseId === null)
+    )
+      continue;
+    const target = `${row.platform}/${row.channel}`;
+    if (targets.has(target)) return undefined;
+    targets.add(target);
+    const selected = isRecord(row.latest_eligible) ? row.latest_eligible : null;
+    const exact =
+      selected !== null &&
+      isRecord(selected.release) &&
+      selected.release.version === tag &&
+      (provider === "github"
+        ? selected.release_id === releaseId
+        : isRecord(selected.identity) && selected.identity.tag === tag);
+    const holdReasons: unknown[] = Array.isArray(row.hold_reasons) ? row.hold_reasons : [];
+    candidates.push({
+      candidate_key: createHash("sha256")
+        .update(
+          JSON.stringify([
+            portId,
+            provider,
+            repositoryId,
+            releaseId ?? tag,
+            row.platform,
+            row.channel,
+          ]),
+        )
+        .digest("hex"),
+      platform: row.platform,
+      channel: row.channel,
+      release_id: releaseId,
+      tag,
+      published_at:
+        typeof published_at === "string" && Number.isFinite(Date.parse(published_at))
+          ? new Date(published_at).toISOString()
+          : null,
+      state: exact ? "eligible" : "pending",
+      hold_reasons: holdReasons
+        .filter((reason): reason is string => typeof reason === "string" && reason.length <= 512)
+        .slice(0, 16)
+        .sort(),
+    });
+  }
+  return candidates.sort(
+    (left, right) =>
+      left.platform.localeCompare(right.platform) || left.channel.localeCompare(right.channel),
+  );
+}
+
+const eligibilityWindowMs = 30 * 24 * 60 * 60 * 1000;
+
+type RetainedCandidateObservation = Pick<
+  ManagedReleaseCandidate,
+  "state" | "published_at" | "hold_reasons"
+>;
+
+/** Measures retained observer eligibility. The store clock bounds when eligibility
+ * was recorded; it cannot locate the instant of availability to a released client. */
+export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: Date) {
+  const end = now.getTime();
+  const start = end - eligibilityWindowMs;
+  let firstRecorded = Infinity;
+  let lastRecorded = -Infinity;
+  const series = new Map<
+    string,
+    {
+      latest: RetainedCandidateObservation;
+      recorded: number;
+      eligibleAt: number | null;
+      firstPendingAt: number;
+      lastEligibleAt: number;
+    }
+  >();
+  for (const row of rows) {
+    if (
+      !isRecord(row) ||
+      typeof row.candidate_key !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(row.candidate_key) ||
+      (row.state !== "pending" && row.state !== "eligible") ||
+      typeof row.recorded_at !== "string" ||
+      !Array.isArray(row.hold_reasons) ||
+      !row.hold_reasons.every((reason) => typeof reason === "string")
+    )
+      continue;
+    const recorded = Date.parse(row.recorded_at);
+    if (!(recorded >= start && recorded <= end)) continue;
+    firstRecorded = Math.min(firstRecorded, recorded);
+    lastRecorded = Math.max(lastRecorded, recorded);
+    const candidate: RetainedCandidateObservation = {
+      state: row.state,
+      published_at: typeof row.published_at === "string" ? row.published_at : null,
+      hold_reasons: row.hold_reasons,
+    };
+    const previous = series.get(row.candidate_key);
+    const eligibleTimes = [
+      previous?.eligibleAt ?? null,
+      row.state === "eligible" ? recorded : null,
+    ].filter((value): value is number => value !== null);
+    series.set(row.candidate_key, {
+      latest: previous && previous.recorded > recorded ? previous.latest : candidate,
+      recorded: Math.max(previous?.recorded ?? recorded, recorded),
+      eligibleAt: eligibleTimes.length ? Math.min(...eligibleTimes) : null,
+      firstPendingAt: Math.min(
+        previous?.firstPendingAt ?? Infinity,
+        row.state === "pending" ? recorded : Infinity,
+      ),
+      lastEligibleAt: Math.max(
+        previous?.lastEligibleAt ?? -Infinity,
+        row.state === "eligible" ? recorded : -Infinity,
+      ),
+    });
+  }
+  const recent = [...series.values()].filter(({ latest }) => {
+    const published = latest.published_at ? Date.parse(latest.published_at) : NaN;
+    return published >= start && published <= end;
+  });
+  const eligible = recent.filter(({ latest }) => latest.state === "eligible");
+  const held = recent.filter(({ latest }) => latest.state === "pending");
+  const pendingAges = held.map(({ latest }) => end - Date.parse(latest.published_at!));
+  const lags = eligible
+    .map(({ latest, eligibleAt }) => eligibleAt! - Date.parse(latest.published_at!))
+    .filter((lag) => lag >= 0)
+    .sort((left, right) => left - right);
+  const reasons = new Map<string, number>();
+  let pendingWithoutReason = 0;
+  let pendingWithOtherReason = 0;
+  for (const { latest } of held) {
+    const recordedReasons = new Set(latest.hold_reasons.filter((reason) => reason.trim().length));
+    if (!recordedReasons.size) pendingWithoutReason++;
+    if (
+      [...recordedReasons].some(
+        (reason) =>
+          reason !== "asset-missing-or-ambiguous" && reason !== "reviewed-artifact-excluded",
+      )
+    )
+      pendingWithOtherReason++;
+    for (const reason of recordedReasons) reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+  }
+  return {
+    from: new Date(start).toISOString(),
+    through: now.toISOString(),
+    first_recorded_evidence_at: Number.isFinite(firstRecorded)
+      ? new Date(firstRecorded).toISOString()
+      : null,
+    last_recorded_evidence_at: Number.isFinite(lastRecorded)
+      ? new Date(lastRecorded).toISOString()
+      : null,
+    distinct_candidates: recent.length,
+    eligible_candidates: eligible.length,
+    pending_candidates: held.length,
+    pending_without_recorded_hold_reason: pendingWithoutReason,
+    pending_with_other_recorded_hold_reason: pendingWithOtherReason,
+    observed_pending_candidates: recent.filter(({ firstPendingAt }) =>
+      Number.isFinite(firstPendingAt),
+    ).length,
+    observed_pending_to_eligible_candidates: recent.filter(
+      ({ firstPendingAt, lastEligibleAt }) => firstPendingAt < lastEligibleAt,
+    ).length,
+    unknown_publication_times: [...series.values()].filter(
+      ({ latest }) => !latest.published_at || !Number.isFinite(Date.parse(latest.published_at)),
+    ).length,
+    oldest_pending_age_ms: pendingAges.length ? Math.max(...pendingAges) : null,
+    hold_reasons: [...reasons.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, distinct_candidates]) => ({ reason, distinct_candidates })),
+    publication_to_recorded_eligibility_ms: lags.length
+      ? {
+          samples: lags.length,
+          median:
+            (lags[Math.floor((lags.length - 1) / 2)]! + lags[Math.ceil((lags.length - 1) / 2)]!) /
+            2,
+          max: lags.at(-1)!,
+        }
+      : null,
+    released_client_unattended_availability: null,
+    human_interventions: null,
+    signed_automatic_repairs: null,
+    operating_cost: null,
+  };
+}
+
 /**
  * Per-port observer facts and coverage from one catalog checkpoint and the
  * catalog it observed. Each port's payload lists its observation sources with
- * stable facts only; per-observation clocks, sequences, cursors, retry state
- * and Core policy outputs (which embed observation clocks) are never stored.
+ * stable facts only. Retain exact managed candidate identities and their
+ * policy-projected result without copying the full policy or its observation clock.
  * A port is a fact only when every source serving it has a completed policy
  * for it; otherwise it is a coverage gap. The observer also lists a port as
  * held when one of its declarations is not observable while another source
@@ -68,12 +341,18 @@ const failedSubject = "source:upstream-observer-checkpoint";
 export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.now()) {
   const state = validateCatalogObserverCheckpoint(checkpoint, now);
   const { sources, held, port_ids: portIds } = catalogObservationSources(catalog);
+  const rawCatalog = isRecord(catalog) ? catalog : {};
+  const definitions = new Map<string, Record<string, unknown>>();
+  for (const port of (Array.isArray(rawCatalog.ports) ? rawCatalog.ports : []) as unknown[]) {
+    if (isRecord(port) && typeof port.id === "string") definitions.set(port.id, port);
+  }
   const heldReasons = new Map<string, string[]>();
   for (const { port_id, reason } of held)
     heldReasons.set(port_id, [...new Set([...(heldReasons.get(port_id) ?? []), reason])].sort());
   const served = new Set(sources.flatMap((source) => source.ports.map((port) => port.id)));
-  const entries = new Map<string, UpstreamSourceFact[]>();
+  const entries = new Map<string, (UpstreamSourceFact & { scope: SourceScope })[]>();
   const gaps = new Map<string, UpstreamGap>();
+  const incomplete = new Map<string, UpstreamSourceGap[]>();
   const gap = (id: string, value: Omit<UpstreamGap, "subject_key">) => {
     // One gap per port: unserved `held` first, then the first incomplete source in catalog order.
     if (!gaps.has(`port:${id}`)) gaps.set(`port:${id}`, { subject_key: `port:${id}`, ...value });
@@ -87,6 +366,12 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
   for (const source of sources) {
     const progress = state.sources[source.key];
     for (const port of source.ports) {
+      const scope: SourceScope =
+        port.kind === "listing"
+          ? "listing"
+          : port.listing
+            ? "operational-and-listing"
+            : "operational";
       const policy = progress?.last_complete_policies.find(
         (candidate) => candidate.port_id === port.id,
       );
@@ -94,25 +379,31 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         exception_key: progress?.exception_key ?? null,
         exception_rule: progress?.exception_key ? (progress.exception_rule ?? null) : null,
       };
-      if (!progress || (progress.completed_scope_sha256 === null && !policy)) {
+      if (!progress || progress.completed_scope_sha256 === null || !policy) {
+        const neverCompleted = !progress || (progress.completed_scope_sha256 === null && !policy);
+        const code =
+          neverCompleted &&
+          !progress?.last_complete_facts_sha256 &&
+          !progress?.last_complete_policies.length
+            ? "unobserved"
+            : "scope-changed";
         gap(port.id, {
-          code:
-            progress?.last_complete_facts_sha256 || progress?.last_complete_policies.length
-              ? "scope-changed"
-              : "unobserved",
-          message:
-            "The observer has not completed this port's source for its current scope; prior facts stay current.",
+          code,
+          message: neverCompleted
+            ? "The observer has not completed this port's source for its current scope; prior facts stay current."
+            : "The observer's last completion does not cover this port's current source scope; prior facts stay current.",
           ...exception,
         });
-        continue;
-      }
-      if (progress.completed_scope_sha256 === null || !policy) {
-        gap(port.id, {
-          code: "scope-changed",
-          message:
-            "The observer's last completion does not cover this port's current source scope; prior facts stay current.",
+        const sourcesForPort = incomplete.get(port.id) ?? [];
+        sourcesForPort.push({
+          source_key: source.key,
+          provider: source.provider ?? "github",
+          repository: source.repository,
+          scope,
+          code,
           ...exception,
         });
+        incomplete.set(port.id, sourcesForPort);
         continue;
       }
       // A routine partial-progress stop keeps the completed scope; storing it would churn.
@@ -120,10 +411,52 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
         typeof progress.exception_rule === "string" &&
         partialProgressRules.includes(progress.exception_rule);
       const exceptionKey = routine ? null : progress.exception_key;
+      const candidates =
+        port.kind !== "listing" && progress.repository_id !== null
+          ? managedReleaseCandidates(policy, {
+              provider: source.provider ?? "github",
+              repositoryId: progress.repository_id,
+              portId: port.id,
+              channels: port.channels,
+              release: port.release,
+            })
+          : undefined;
+      const family = port.original_source_family;
+      const evidenceKey = family ? inputEvidenceKey(family) : undefined;
+      const inputEvidence =
+        family && evidenceKey && progress.repository_id !== null
+          ? readOriginalSourceProgress(
+              policy[evidenceKey],
+              { repository: source.repository, repository_id: progress.repository_id },
+              family,
+            )
+          : undefined;
+      const n64Target =
+        family === "n64-recomp" && progress.repository_id !== null && !exceptionKey
+          ? selectOriginalSourceTarget(policy, source.repository, progress.repository_id)
+          : undefined;
+      const bindingPlan =
+        n64Target && inputEvidence?.last_complete?.binding === orderedJsonSha256(n64Target)
+          ? planN64OriginalBindings(
+              definitions.get(port.id),
+              rawCatalog.source_catalog,
+              inputEvidence,
+            )
+          : undefined;
+      const contractAmendment =
+        bindingPlan && inputEvidence
+          ? prepareN64OriginalContractAmendment(
+              definitions.get(port.id),
+              rawCatalog.source_catalog,
+              inputEvidence,
+              [...definitions.values()],
+            )
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
           source_key: source.key,
+          scope,
           provider: progress.provider ?? "github",
           repository: progress.repository,
           repository_id: progress.repository_id,
@@ -136,27 +469,59 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
             typeof policy.catalog_definition_sha256 === "string"
               ? policy.catalog_definition_sha256
               : null,
+          ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
+          ...(evidenceKey && inputEvidence ? { [evidenceKey]: inputEvidence } : {}),
+          ...(bindingPlan ? { n64_original_binding_plan: bindingPlan } : {}),
+          ...(contractAmendment ? { n64_original_contract_amendment: contractAmendment } : {}),
         },
       ]);
     }
   }
   const facts = new Map<string, unknown>();
-  for (const id of [...portIds].sort())
-    if (!gaps.has(`port:${id}`) && entries.has(id))
-      facts.set(`port:${id}`, {
+  for (const id of [...portIds].sort()) {
+    const subject = `port:${id}`;
+    const retained = entries.get(id) ?? [];
+    const missing = incomplete.get(id) ?? [];
+    const currentGap = gaps.get(subject);
+    if (currentGap && retained.length + missing.length > 1) {
+      currentGap.source_coverage = {
+        retained: retained.sort(bySourceKey),
+        incomplete: missing.sort(bySourceKey),
+      };
+    }
+    if (!currentGap && retained.length)
+      facts.set(subject, {
         ...(heldReasons.has(id) ? { held_reasons: heldReasons.get(id) } : {}),
-        sources: entries
-          .get(id)!
-          .sort((left, right) => (left.source_key < right.source_key ? -1 : 1)),
+        sources: retained.sort(bySourceKey).map(({ scope: _scope, ...source }) => source),
       });
+  }
   // The observer's catalog mapping partitions every port into a fact or a gap.
   if (facts.size + gaps.size !== portIds.length)
     throw new MaintenanceStoreError("Unsupported observer catalog mapping");
+  const registry = state.mod_provider_registry;
+  if (registry) {
+    const complete = registry.last_complete;
+    if (registry.exception || !complete || Date.parse(complete.expires_at) <= now)
+      gaps.set(thunderstoreRegistrySubject, {
+        subject_key: thunderstoreRegistrySubject,
+        code: registry.exception ?? (complete ? "stale" : "unobserved"),
+        message:
+          "Current Thunderstore registry coverage is unknown. Prior community facts stay current.",
+      });
+    else {
+      const { observed_at: _clock, expires_at: _expiry, ...semantic } = complete;
+      facts.set(thunderstoreRegistrySubject, semantic);
+    }
+  }
   return {
-    expected: portIds.length,
+    expected: portIds.length + Number(registry !== undefined),
     facts,
     gaps: [...gaps.values()].sort((left, right) => (left.subject_key < right.subject_key ? -1 : 1)),
   };
+}
+
+function bySourceKey(left: { source_key: string }, right: { source_key: string }) {
+  return left.source_key.localeCompare(right.source_key);
 }
 
 /**
@@ -220,11 +585,14 @@ export interface UpstreamTransport {
 }
 
 /** The maintained GitHub client and artifact transfer under the local developer credential. */
-async function githubTransport(): Promise<UpstreamTransport> {
+async function githubTransport(
+  producerEventCount: number,
+  timeBudgetMs = 120_000,
+): Promise<UpstreamTransport> {
   const { createGitHubClient } = await import("./github-client.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { downloadGitHubArtifactArchive } = await import("./github-artifact-download.mts");
-  const deadline = performance.now() + 120_000;
+  const deadline = performance.now() + timeBudgetMs;
   const credential = localDeveloperCredential({
     deadline,
     command: process.env.PORTCOVE_ROADMAP_GH,
@@ -241,7 +609,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
       url.pathname.startsWith(`${prefix}/actions/`) &&
       !url.pathname.endsWith("/zip"),
     reserve() {
-      if (++requests > 2 + candidateLimit + 6)
+      if (++requests > producerEventCount * (1 + candidateLimitPerEvent) + 6)
         throw new MaintenanceStoreError("Upstream-observation lookup exceeded its request budget");
       return { consumeBytes() {}, settle() {} };
     },
@@ -255,6 +623,7 @@ async function githubTransport(): Promise<UpstreamTransport> {
         credential,
         deadline: Math.min(deadline, performance.now() + 110_000),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
       }),
   };
 }
@@ -273,16 +642,19 @@ export async function readUpstreamObservations(
     await import("./release-run-artifact-inventory.mts");
   const { producerEvents, observerStreamingSnapshotLimit, readRecoverableObserverSnapshotArchive } =
     await import("./observer-checkpoint-artifact.mts");
-  const transport = options.transport ?? (await githubTransport());
+  const transport = options.transport ?? (await githubTransport(producerEvents.length));
   const get = transport.read;
-  // One server-filtered window per producer trigger, merged newest-first.
+  // Keep each producer window. A burst of admission-only pushes must not
+  // displace a scheduled snapshot when the windows are merged newest-first.
   const runs: WorkflowRun[] = [];
   for (const event of producerEvents) {
     const window = (
       await get(
-        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimit}`,
+        `actions/workflows/configured-upstream-observer.yml/runs?event=${event}&branch=main&status=completed&per_page=${candidateLimitPerEvent}`,
       )
     ).workflow_runs as WorkflowRun[];
+    if (!Array.isArray(window) || window.length > candidateLimitPerEvent)
+      throw new MaintenanceStoreError("The observer run inventory exceeds its producer window");
     for (const run of window) {
       if (
         run.event !== event ||
@@ -297,9 +669,9 @@ export async function readUpstreamObservations(
   }
   runs.sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
   // Snapshots are retained for one day and admitted for twenty-four hours.
-  const candidates = runs
-    .filter(({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000)
-    .slice(0, candidateLimit);
+  const candidates = runs.filter(
+    ({ created_at }) => Date.now() - Date.parse(created_at) <= 24 * 3600000,
+  );
   for (const run of candidates) {
     // A failed run can still carry a complete snapshot; other conclusions never do.
     if (!["success", "failure"].includes(String(run.conclusion))) continue;
@@ -355,13 +727,16 @@ export async function readUpstreamObservations(
         "The observer checkpoint artifact does not match its recorded digest",
       );
     let snapshot;
+    let checkpoint;
+    const deadline = Date.now() + upstreamCheckpointReadBudgetMs;
     try {
       snapshot = await readRecoverableObserverSnapshotArchive(
         archive,
         config,
         Date.now(),
-        Date.now() + 60_000,
+        deadline,
       );
+      checkpoint = decodeStoredObserverCheckpoint(snapshot.files[checkpointMember], deadline);
     } catch (error) {
       throw new MaintenanceStoreError(
         error instanceof Error ? error.message : "Observer snapshot validation failed",
@@ -389,7 +764,7 @@ export async function readUpstreamObservations(
     return {
       revision: `upstream-observer-run:${run.id}-${run.run_attempt}@${run.head_sha}#sha256:${digest}`,
       config_sha256: config,
-      checkpoint: snapshot.files[checkpointMember],
+      checkpoint,
       catalog: { ...operational, listings: listings.listings },
     };
   }
@@ -409,10 +784,25 @@ export interface UpstreamSourceFact {
   exception_key: string | null;
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
+  managed_release_candidates?: ManagedReleaseCandidate[];
+  original_recognition?: OriginalSourceProgress;
+  n64_game_entries?: OriginalSourceProgress;
+  n64_original_binding_plan?: NonNullable<ReturnType<typeof planN64OriginalBindings>>;
+  n64_original_contract_amendment?: NonNullable<
+    ReturnType<typeof prepareN64OriginalContractAmendment>
+  >;
 }
 
 const storedSources = (payload: unknown) =>
   (payload as { sources?: UpstreamSourceFact[] } | null)?.sources ?? [];
+
+function sourcesForReport(payload: unknown, gap?: UpstreamGap | null) {
+  const sources = new Map<string, UpstreamSourceFact & { scope?: SourceScope }>(
+    storedSources(payload).map((source) => [source.source_key, source]),
+  );
+  for (const source of gap?.source_coverage?.retained ?? []) sources.set(source.source_key, source);
+  return sources;
+}
 
 /**
  * Observer exceptions recorded for a port's sources, as the report shows them:
@@ -422,21 +812,30 @@ const storedSources = (payload: unknown) =>
  * and stay quiet; an exception without a recorded rule stays visible.
  */
 export function upstreamAttention(payload: unknown, gap?: unknown) {
-  return upstreamExceptions(payload, gap).map(
-    (source) =>
-      `upstream observer exception: ${source.exception_rule ?? "unrecorded rule"}${"repository" in source ? ` (${source.repository})` : ""}`,
-  );
+  return upstreamExceptions(payload, gap).map((source) => {
+    const name =
+      "scope" in source
+        ? `${source.provider} ${source.repository}`
+        : "repository" in source
+          ? source.repository
+          : null;
+    return `upstream observer exception: ${source.exception_rule ?? "unrecorded rule"}${name ? ` (${name})` : ""}`;
+  });
 }
 
 /** The excepted sources and gap behind {@link upstreamAttention}, structured. */
 export function upstreamExceptions(
   payload: unknown,
   gap?: unknown,
-): (UpstreamSourceFact | UpstreamGap)[] {
+): (UpstreamSourceFact | UpstreamSourceGap | UpstreamGap)[] {
   const latestGap = gap as UpstreamGap | null | undefined;
+  const coverage = latestGap?.source_coverage;
+  const sources = coverage
+    ? [...coverage.retained, ...coverage.incomplete]
+    : storedSources(payload);
   return [
-    ...storedSources(payload).filter((source) => source.exception_key !== null),
-    ...(typeof latestGap?.exception_key === "string" ? [latestGap] : []),
+    ...sources.filter((source) => source.exception_key !== null),
+    ...(!coverage && typeof latestGap?.exception_key === "string" ? [latestGap] : []),
   ].filter(
     (source) =>
       source.exception_rule === null ||
@@ -451,17 +850,184 @@ export function upstreamExceptions(
  * names its source-level gap and `gap` comes from the run before it.
  */
 export function upstreamSummary(payload: unknown, gap: unknown, attempt?: string | null) {
-  const code = (gap as UpstreamGap | null | undefined)?.code;
+  const latestGap = gap as UpstreamGap | null | undefined;
+  const coverage = latestGap?.source_coverage;
+  const checkpointState = coverage
+    ? coverage.retained.length
+      ? "partial source coverage"
+      : "incomplete source coverage"
+    : latestGap?.code;
+  const sources = sourcesForReport(payload, latestGap);
   return (
     [
-      ...storedSources(payload).map(
-        (source) =>
-          `${source.repository}: facts ${(source.last_complete_facts_sha256 ?? "unknown").slice(0, 12)}, last change ${source.last_change_at ?? "not recorded"}`,
-      ),
+      ...[...sources.values()].map((source) => {
+        const context = source.scope
+          ? `${source.provider} ${source.repository} (${source.scope})`
+          : coverage
+            ? `${source.provider} ${source.repository} (previous observation)`
+            : source.repository;
+        return `${context}: facts ${(source.last_complete_facts_sha256 ?? "unknown").slice(0, 12)}, last change ${source.last_change_at ?? "not recorded"}`;
+      }),
       attempt ? `latest attempt failed: ${attempt}` : "",
-      code ? `${attempt ? "previous checkpoint" : "latest checkpoint"}: ${code}` : "",
+      checkpointState
+        ? `${attempt ? "previous checkpoint" : "latest checkpoint"}: ${checkpointState}`
+        : "",
+      ...(coverage?.incomplete ?? []).map(
+        (source) => `${source.provider} ${source.repository} (${source.scope}): ${source.code}`,
+      ),
     ]
       .filter(Boolean)
       .join("; ") || null
   );
+}
+
+function githubJobTime(value: unknown) {
+  if (typeof value !== "string") return null;
+  const parts = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,3}))?Z$/u.exec(value);
+  if (!parts) return null;
+  const canonical = `${parts[1]}.${(parts[2] ?? "").padEnd(3, "0")}Z`;
+  const parsed = Date.parse(canonical);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString() === canonical ? parsed : null;
+}
+
+/** Resource use of the exact observer attempt cited by an inventory report. */
+export async function readObserverOperatingUsage(
+  report: unknown,
+  transport?: Pick<UpstreamTransport, "read">,
+) {
+  if (
+    !isRecord(report) ||
+    report.format !== "portcove-maintenance-inventory" ||
+    !Array.isArray(report.runs)
+  )
+    throw new MaintenanceStoreError("A maintenance inventory report is required");
+  const rows = (report.runs as unknown[]).filter(
+    (run) => isRecord(run) && run.source === "upstream-observations",
+  );
+  const run = rows[0];
+  const binding =
+    rows.length === 1 && isRecord(run) && typeof run.source_revision === "string"
+      ? /^upstream-observer-run:([1-9][0-9]{0,15})-([1-9][0-9]{0,8})@([a-f0-9]{40})#(sha256:[a-f0-9]{64})$/u.exec(
+          run.source_revision,
+        )
+      : null;
+  if (!binding || !isRecord(run) || !["complete", "partial"].includes(String(run.coverage)))
+    throw new MaintenanceStoreError("No digest-bound imported observer attempt is recorded");
+  const [, runId, attempt, source, artifactDigest] = binding;
+  const id = Number(runId);
+  const attemptNumber = Number(attempt);
+  if (!Number.isSafeInteger(id)) throw new MaintenanceStoreError("Invalid observer run identity");
+  const { read } = transport ?? (await githubTransport(0, 45_000));
+  const prefix = `actions/runs/${runId}`;
+  const attemptPath = `${prefix}/attempts/${attempt}`;
+  const [attemptFacts, inventory, artifacts] = await Promise.all([
+    read(attemptPath),
+    read(`${attemptPath}/jobs?per_page=100`),
+    read(`${prefix}/artifacts?per_page=100`),
+  ]);
+  if (
+    attemptFacts.id !== id ||
+    attemptFacts.run_attempt !== attemptNumber ||
+    attemptFacts.head_sha !== source ||
+    attemptFacts.path !== workflowPath ||
+    attemptFacts.head_branch !== "main" ||
+    !isRecord(attemptFacts.head_repository) ||
+    attemptFacts.head_repository.full_name !== repository ||
+    (attemptFacts.event !== "push" && attemptFacts.event !== "schedule") ||
+    attemptFacts.status !== "completed" ||
+    (attemptFacts.conclusion !== "success" && attemptFacts.conclusion !== "failure")
+  )
+    throw new MaintenanceStoreError("Observer usage attempt differs from the imported evidence");
+  if (
+    !Array.isArray(inventory.jobs) ||
+    inventory.total_count !== inventory.jobs.length ||
+    inventory.jobs.length > 100 ||
+    !Array.isArray(artifacts.artifacts) ||
+    artifacts.total_count !== artifacts.artifacts.length ||
+    artifacts.artifacts.length > 100
+  )
+    throw new MaintenanceStoreError("Observer usage inventory is incomplete");
+
+  const checkpointName = new RegExp(
+    `^upstream-observer-checkpoint-[a-f0-9]{64}-${runId}-${attempt}$`,
+    "u",
+  );
+  const matching = (artifacts.artifacts as unknown[]).filter(
+    (item) => isRecord(item) && typeof item.name === "string" && checkpointName.test(item.name),
+  );
+  const checkpoint = matching[0];
+  if (
+    matching.length !== 1 ||
+    !isRecord(checkpoint) ||
+    !Number.isSafeInteger(checkpoint.id) ||
+    Number(checkpoint.id) < 1 ||
+    checkpoint.digest !== artifactDigest ||
+    !Number.isSafeInteger(checkpoint.size_in_bytes) ||
+    Number(checkpoint.size_in_bytes) < 22 ||
+    !isRecord(checkpoint.workflow_run) ||
+    checkpoint.workflow_run.id !== id ||
+    checkpoint.workflow_run.head_sha !== source
+  )
+    throw new MaintenanceStoreError("Observer usage checkpoint differs from the report digest");
+
+  const seen = new Set<number>();
+  const observationCompletions: (number | null)[] = [];
+  const executed: { id: number; name: string; conclusion: string; seconds: number | null }[] = [];
+  for (const job of inventory.jobs as unknown[]) {
+    if (
+      !isRecord(job) ||
+      typeof job.id !== "number" ||
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      seen.has(job.id) ||
+      job.run_id !== id ||
+      job.run_attempt !== attemptNumber ||
+      job.head_sha !== source ||
+      job.status !== "completed" ||
+      typeof job.conclusion !== "string" ||
+      typeof job.name !== "string" ||
+      !job.name.length ||
+      job.name.length > 200
+    )
+      throw new MaintenanceStoreError("Observer job identity differs from the imported attempt");
+    seen.add(job.id);
+    if (job.conclusion === "skipped") continue;
+    const start = githubJobTime(job.started_at);
+    const end = githubJobTime(job.completed_at);
+    const measured = start !== null && end !== null && end >= start;
+    if (job.name === "observe") observationCompletions.push(measured ? end : null);
+    executed.push({
+      id: job.id,
+      name: job.name,
+      conclusion: job.conclusion,
+      seconds: measured ? (end - start) / 1000 : null,
+    });
+  }
+  if (!executed.some(({ name }) => name === "observe"))
+    throw new MaintenanceStoreError("Imported observer attempt did not execute observation");
+  const measured = executed.filter(({ seconds }) => seconds !== null);
+  const observationCompletion =
+    observationCompletions.length === 1 ? observationCompletions[0] : null;
+  return {
+    format_version: 1,
+    kind: "maintenance-observer-operating-usage",
+    scope: "one-imported-observer-attempt",
+    source_revision: run.source_revision,
+    producer: {
+      id,
+      attempt: attemptNumber,
+      source,
+      event: attemptFacts.event,
+      conclusion: attemptFacts.conclusion,
+    },
+    checkpoint: { id: checkpoint.id, digest: artifactDigest, bytes: checkpoint.size_in_bytes },
+    executed_jobs: executed,
+    observation_finished_at:
+      observationCompletion != null ? new Date(observationCompletion).toISOString() : null,
+    unmeasured_jobs: executed.length - measured.length,
+    observed_runner_seconds: measured.length
+      ? measured.reduce((total, job) => total + (job.seconds ?? 0), 0)
+      : null,
+    billed_cost_usd: null,
+  };
 }

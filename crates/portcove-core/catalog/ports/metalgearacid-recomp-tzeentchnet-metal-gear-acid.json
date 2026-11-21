@@ -35,6 +35,21 @@
       "image_sha256": "b00309c8e2516b2eea310ab294af8c4ba87efb50d6caf1c4548a504991bb4c0b",
       "game_slug": "metal-gear-acid",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-acid",
+      "evidence_urls": ["https://github.com/Tzeentchnet/MetalGearAcid-Recomp"],
+      "source_editions": [
+        {
+          "id": "metal-gear-acid-playstation-portable",
+          "title": "Metal Gear Acid (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Tzeentchnet/MetalGearAcid-Recomp/blob/22b3c625f05f0bef6928309c1efeda4ce4b98017/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

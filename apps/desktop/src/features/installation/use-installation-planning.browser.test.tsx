@@ -45,6 +45,7 @@ function Fixture({
   generation = 1,
   registeredSource,
   sourcePath = "",
+  adoptionPerform = perform,
 }: {
   port?: string | null;
   channel?: "stable" | "beta";
@@ -53,6 +54,7 @@ function Fixture({
   generation?: number;
   registeredSource?: SourceRecord;
   sourcePath?: string;
+  adoptionPerform?: Perform;
 }) {
   install = useInstallPlanning(
     port ?? undefined,
@@ -69,7 +71,7 @@ function Fixture({
     registeredSource,
     sourcePath,
   );
-  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, perform, done, [
+  adoption = useAdoptionPlanning(path, port ?? undefined, open, generation, adoptionPerform, done, [
     { ...portDefinition(), id: "first", name: "Game first" },
     { ...portDefinition(), id: "second", name: "Game second" },
   ]);
@@ -157,6 +159,52 @@ describe("current review intent", () => {
     expect(plan).toHaveBeenCalledTimes(1);
     expect(install.sourceReference).toBeUndefined();
   });
+
+  it.each(["matches", "changed BIOS", "changed library"])(
+    "binds a selected setup continuation to its accepted inputs when context %s",
+    async (scenario) => {
+      const bios: SourceRecord = {
+        profile_id: "bios",
+        path: "D:/saved-bios.bin",
+        sha256: "a".repeat(64),
+        size: 64,
+        storage_sha256: "a".repeat(64),
+        storage_size: 64,
+        updated_at: 1,
+      };
+      const expected = { generation: 1, game: undefined, bios };
+      const current = {
+        ...expected,
+        generation: scenario === "changed library" ? 2 : 1,
+        bios: scenario === "changed BIOS" ? { ...bios, path: "D:/other-bios.bin" } : bios,
+      };
+      const review = vi.fn().mockResolvedValue(undefined);
+      let continueSetup!: () => void;
+      function Continuation() {
+        const selection = useSetupReviewSelection();
+        continueSetup = () => selection.requestReview("first", "stable", undefined, expected);
+        usePendingSetupReview(
+          selection,
+          "first",
+          "first",
+          {
+            ...portStatus(),
+            port_id: "first",
+            port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+          },
+          undefined,
+          review,
+          "",
+          vi.fn(),
+          current,
+        );
+        return null;
+      }
+      await act(async () => root.render(createElement(Continuation)));
+      await act(async () => continueSetup());
+      expect(review).toHaveBeenCalledTimes(scenario === "matches" ? 1 : 0);
+    },
+  );
 
   it.each(["", "D:/previous-choice.z64"])(
     "completes a queued saved-file choice across source draft %j and automatic prefill",
@@ -602,5 +650,42 @@ describe("current review intent", () => {
       pending.resolve(null);
       await first;
     });
+  });
+
+  it("does not revive a readback phase after its review identity is invalidated", async () => {
+    vi.spyOn(desktopApi, "previewAdoption").mockResolvedValue({
+      selected_port_id: "first",
+      plan_sha256: "reviewed",
+    } as Preview);
+    vi.spyOn(desktopApi, "adopt").mockResolvedValue(null);
+    const readback = deferred<void>();
+    const adoptionPerform: Perform = async (name, task, options) => {
+      const result = await perform(name, task, options);
+      if (name === "adopt") await readback.promise;
+      return result;
+    };
+    await render({ adoptionPerform });
+    await act(async () => adoption.review());
+    let pending!: Promise<void>;
+    try {
+      await act(async () => {
+        pending = adoption.adopt();
+      });
+      expect(adoption.applying).toBe(true);
+      expect(adoption.refreshing).toBe(true);
+      await render({ adoptionPerform, generation: 2 });
+      expect(adoption.refreshing).toBe(false);
+      await render({ adoptionPerform });
+      expect(adoption.refreshing).toBe(false);
+    } finally {
+      await act(async () => {
+        readback.resolve();
+        await pending;
+      });
+    }
+    expect(adoption.applying).toBe(false);
+    expect(adoption.refreshing).toBe(false);
+    expect(done).not.toHaveBeenCalled();
+    expect(desktopApi.adopt).toHaveBeenCalledOnce();
   });
 });

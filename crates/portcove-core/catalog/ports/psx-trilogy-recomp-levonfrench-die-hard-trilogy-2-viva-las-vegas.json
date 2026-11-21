@@ -35,6 +35,21 @@
       "image_sha256": "8370752e2f25f6d787166c91d74c0f5a770016aea829f6be9c958428211db185",
       "game_slug": "die-hard-trilogy-2-viva-las-vegas",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "die-hard-trilogy-2-viva-las-vegas",
+      "evidence_urls": ["https://github.com/LevonFrench/PSX-Trilogy-Recomp"],
+      "source_editions": [
+        {
+          "id": "die-hard-trilogy-2-viva-las-vegas-playstation",
+          "title": "Die Hard Trilogy 2: Viva Las Vegas (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/LevonFrench/PSX-Trilogy-Recomp/blob/1ea118bb0ee7698e6bad8a6779421e13c1663374/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

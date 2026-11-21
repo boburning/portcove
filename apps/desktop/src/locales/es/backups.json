@@ -104,6 +104,7 @@
   },
   "protection": {
     "backupCheckDetails": "Detalles de la comprobación de la copia de seguridad",
+    "backupDateUnavailable": "Fecha registrada no disponible",
     "backupIdentifier": "Identificador de la copia de seguridad",
     "candidate": "<code/> · {{state}}",
     "checking": "Comprobando la información de las copias de seguridad. La información cargada anteriormente puede estar desactualizada.",
@@ -176,6 +177,7 @@
     "failure": "La operación no se completó. Revisa la copia de seguridad y los datos actuales antes de volver a intentarlo.",
     "restoring": "Restaurando la copia de seguridad…",
     "reviewAgain": "Revisar de nuevo",
+    "selectionChanged": "Esta revisión ya no coincide con la copia de seguridad seleccionada. Ciérrala y actualiza el historial de copias de seguridad.",
     "titleDelete": "Revisar la eliminación de la copia de seguridad",
     "titleRestore": "Revisar la restauración de la copia de seguridad"
   },

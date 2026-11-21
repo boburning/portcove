@@ -4,6 +4,14 @@
     "id": "dominorecomp-nikeymikey-no-one-can-stop-mr-domino",
     "name": "No One Can Stop Mr. Domino — DominoRecomp (nikeymikey)",
     "original_game_title": "No One Can Stop Mr. Domino",
+    "artwork": {
+      "game_id": 4107,
+      "cover_id": 136757,
+      "image_id": "co2xit",
+      "image_sha256": "5d09273674b2a0180eae7e6c038e5634c9509bbf27a9714725627ce32a3e29e9",
+      "game_slug": "no-one-can-stop-mr-domino",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental MrDomino source project. Upstream reports correct-speed startup and native overlay caching across six stages, but the game remains incomplete. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikeymikey/DominoRecomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/nikeymikey/DominoRecomp"
     },
-    "issue_number": 3542
+    "issue_number": 3542,
+    "original_game": {
+      "format_version": 1,
+      "id": "no-one-can-stop-mr-domino",
+      "evidence_urls": ["https://github.com/nikeymikey/DominoRecomp"],
+      "source_editions": [
+        {
+          "id": "no-one-can-stop-mr-domino-playstation",
+          "title": "No One Can Stop Mr. Domino (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/nikeymikey/DominoRecomp/blob/c3e14bec9bc90723a7c5c53054b196015234e5cc/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -1,0 +1,70 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "prehistorik-2-pre2-port",
+    "name": "Prehistorik 2 / pre2_port",
+    "summary": "Play Prehistorik 2 with missingno7’s native engine and your original DOS game data.",
+    "original_game_title": "Prehistorik 2",
+    "project_url": "https://github.com/missingno7/pre2_port",
+    "artwork": {
+      "game_id": 10718,
+      "cover_id": 101179,
+      "image_id": "co262j",
+      "image_sha256": "e11855426e499c00b7377fa294af67fca9976cca983db10571ee7187bf54054d",
+      "game_slug": "prehistorik-2",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5673,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "download_block_reason": "The Windows and Android packages embed an initialized data block extracted from the original game, including font data. The Android package also includes an icon derived from an original sprite. Portcove Download requires permission covering these materials or replacement packages without them.",
+    "setup_url": "https://github.com/missingno7/pre2_port/blob/v0.4.0/README.md#getting-started--how-to-actually-run-it",
+    "release_url": "https://github.com/missingno7/pre2_port/releases/tag/v0.4.0",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a working copy of your original data",
+          "instruction": "Copy the SQZ and TRK files from your own Prehistorik 2 DOS installation into a writable folder. Check that the folder contains SPRITES.SQZ. You can leave the old DOS executable in the original installation."
+        },
+        {
+          "title": "Start the Windows x64 engine",
+          "instruction": "If you already have permission to use the Windows package, extract it to a separate folder and keep pre2native.exe with its _internal folder. Run pre2native.exe --game-root followed by the quoted path to your writable data copy. The packaged engine includes its Python runtime."
+        }
+      ],
+      "warnings": ["Keep your original game files separate from the writable working copy."],
+      "references": [
+        {
+          "title": "Keep your desktop settings and progress",
+          "instruction": "Close the game and copy pre2native_settings.json and pre2native_progress.json from the folder you passed to --game-root before replacing that folder. Keep the runtime, your original files, and the writable data copy separate."
+        },
+        {
+          "title": "Run from source on Linux or Mac",
+          "instruction": "This release provides no Linux or Mac desktop package. If you have permission to use the source, the publisher’s guide uses Python 3.11 or later with NumPy and pygame. Pass your writable data copy to scripts/play_native.py with --game-root."
+        },
+        {
+          "title": "Android ARM64 availability",
+          "instruction": "If you already have permission to use the Android ARM64 package, use its folder picker to import your own SQZ and TRK files. The app stores settings and level progress with its imported copy. Verify a separate copy of pre2native_settings.json and pre2native_progress.json before clearing app data or uninstalling."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "prehistorik-2",
+      "evidence_urls": ["https://github.com/missingno7/pre2_port"],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "prehistorik-2-pre2-port",
+    "origin": {
+      "project_url": "https://github.com/missingno7/pre2_port",
+      "repository": {
+        "host": "github.com",
+        "id": "1274475018"
+      }
+    },
+    "decisions": []
+  }
+}

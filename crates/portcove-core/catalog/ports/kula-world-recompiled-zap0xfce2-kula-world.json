@@ -1,9 +1,27 @@
 {
   "format_version": 1,
+  "igdb_regional_cover": {
+    "game_id": 9678,
+    "slug": "roll-away",
+    "name": "Roll Away",
+    "platform_id": 7,
+    "localization_id": 2707,
+    "region_id": 4,
+    "cover_id": 264069,
+    "image_id": "co5nr9"
+  },
   "listing": {
     "id": "kula-world-recompiled-zap0xfce2-kula-world",
     "name": "Kula World — Kula World Recompiled (zap0xfce2)",
     "original_game_title": "Kula World",
+    "artwork": {
+      "game_id": 9678,
+      "cover_id": 264069,
+      "image_id": "co5nr9",
+      "image_sha256": "7367e87d511717f8a0fcc5329932eec893711304eea1c4ac3a96a28a9bcc4454",
+      "game_slug": "roll-away",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
     "listed_at": "2026-10-25",
@@ -27,7 +45,20 @@
       ],
       "help_url": "https://github.com/zap0xfce2/Kula-World-Recompiled"
     },
-    "issue_number": 3387
+    "issue_number": 3387,
+    "original_game": {
+      "format_version": 1,
+      "id": "kula-world",
+      "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"],
+      "source_editions": [
+        {
+          "id": "kula-world-playstation-europe-sces-01000",
+          "title": "Kula World (Europe, SCES-01000)",
+          "system": "playstation",
+          "evidence_urls": ["https://github.com/zap0xfce2/Kula-World-Recompiled"]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

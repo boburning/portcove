@@ -1,8 +1,8 @@
 # Portcove documentation
 
-Start with the task you want to complete. Player guides describe the current
-product and its limits; contributor contracts explain the owners, checks and
-evidence behind it. Live work remains in GitHub issues and the Roadmap Project.
+Choose the task you want to complete. Player guides explain what Portcove does
+today. Contributor guides explain who owns each part, what to test, and what to
+record. Find current work in GitHub issues and the Roadmap Project.
 
 ## Play and manage games
 
@@ -15,33 +15,32 @@ evidence behind it. Live work remains in GitHub issues and the Roadmap Project.
 | Upgrade Portcove or recover an application update                  | [Upgrade procedure](UPGRADING.md) and [observed update/recovery journey](media/application-update/README.md)        |
 | Understand a term or a verification claim                          | [Glossary](../GLOSSARY.md) and [content-design rules](CONTENT-DESIGN.md)                                            |
 
-Discover in Desktop and `portcove catalog listings` show the full descriptive
-directory, including projects without managed definitions. `catalog list`,
-`show` and `export` inspect strict operational definitions; listing visibility
-alone does not establish installability, compatible game files, tested gameplay
-or managed update/backup ownership. See [catalog and support](../README.md#catalog-and-support).
+Discover and `portcove catalog listings` show the full catalog of projects.
+For definitions that describe how Portcove manages a port, use `catalog list`,
+`show`, or `export`. Check each entry for install options, compatible game files,
+gameplay tests, and who manages updates and backups.
+See [catalog and support](../README.md#catalog-and-support).
 
 <a id="connect-another-launcher"></a>
 
 ## Integration authors
 
-Start with [integration levels and boundaries](INTEGRATIONS.md), then follow the
-[external-author task path](INTEGRATION-AUTHOR.md): select a compatible packaged
-CLI, discover capabilities and schemas, inspect isolated data, review a plan,
-execute an authorized operation, diagnose the result and read authoritative
-state back. The [CLI guide](CLI.md) owns current commands; the
-[schema-history reference](reference/cli-schema-history.md) explains version
-boundaries. Published Alpha 2 has an older API than current source examples.
+Read the [integration levels](INTEGRATIONS.md). Follow the
+[external-author guide](INTEGRATION-AUTHOR.md) to choose a compatible CLI and
+inspect its capabilities and schemas. Use an isolated library to try the
+workflow. Review the plan before you run an authorized operation. Check its
+result, then ask the CLI for the current state. The [CLI guide](CLI.md) lists
+current commands. The [schema history](reference/cli-schema-history.md) shows
+when they changed. Check the API and capabilities of the CLI you chose.
 
 ## Published technical previews
 
-- [Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
-  is the current immutable prerelease. Read its
-  [reviewed notes](releases/0.1.0-alpha.2-release-notes.md) and the
-  [Alpha 1 to Alpha 2 upgrade procedure](UPGRADING.md).
-- [Portcove 0.1.0-alpha.1](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.1)
-  remains available with its [reviewed notes](releases/0.1.0-alpha.1-release-notes.md)
-  and frozen evidence.
+Use [Download and verify Portcove](DOWNLOADS.md#published-previews) for the
+versioned preview, nightly builds and platform-specific CLI availability. Each
+[GitHub release](https://github.com/boburning/portcove/releases) lists its actual
+packages and checksums. The [Alpha release records](releases/README.md) and
+[Alpha migration instructions](UPGRADING.md#historical-alpha-1-to-alpha-2-migration)
+remain available for older libraries.
 
 | Authority                                                                                                                           | Owns                                                                                                                                                        | Does not own                                             |
 | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
@@ -66,8 +65,10 @@ Project item until implemented; dated outcomes remain historical evidence.
 | Tool bootstrap, repository skills, native desktop sessions, or retained evidence   | [Development tooling and repository skills](DEVELOPMENT-TOOLS.md)                                                                                                                                                 |
 | Agent delegation, reviewer models, or model recommendation upkeep                  | [Agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection)                                                                                                                                               |
 | Workspace layout, caches, worktrees, or cleanup                                    | [Development storage](DEVELOPMENT-STORAGE.md)                                                                                                                                                                     |
+| Make a port work with launchers                                                    | [Game-author quick start](INTEGRATION-AUTHOR.md#make-your-port-work-with-launchers)                                                                                                                               |
 | Catalog admission, port qualification, or support facts                            | [Per-ID authoring, admission and qualification](CATALOG.md#adding-or-changing-a-port)                                                                                                                             |
 | Definition delivery or catalog signing                                             | [Definition delivery](DEFINITION-DELIVERY.md) and [signed catalog delivery](SIGNED-CATALOG.md)                                                                                                                    |
+| Read-only public game discovery and comparison pages                               | [Generated public catalog](PUBLIC-CATALOG.md)                                                                                                                                                                     |
 | CLI or external frontend integration                                               | [CLI machine contract](CLI.md), [integration contract](INTEGRATIONS.md), and [integration author guide](INTEGRATION-AUTHOR.md)                                                                                    |
 | Repository rules or hosted settings                                                | [Repository settings](REPOSITORY-SETTINGS.md)                                                                                                                                                                     |
 | Security reports or vulnerability boundaries                                       | [Security policy](../SECURITY.md)                                                                                                                                                                                 |
@@ -119,11 +120,11 @@ measured Node, frontend unit, or Chromium branches with retained source mappings
 
 ## Historical evidence
 
-Dated audits, completed migrations, and qualification or release evidence that
-remain useful live under [`docs/archive/`](archive/). Obsolete planning sources
-remain available through Git history and must not be treated as current
-authority. Release-readiness snapshots are immutable outputs under
-[`docs/releases/`](releases/) and do not replace the live Project.
+Look in [qualification](qualification/) for dated port and platform observations,
+[evidence](evidence/) for captured application journeys, and [reviews](reviews/)
+for copy and product reviews. Each record identifies the build, host or inputs it
+covered. Use [archive](archive/) for older audits and migrations, [release
+records](releases/) for frozen release evidence and the live Project for current work.
 
 The [September 1 GUI competitive review](GUI-COMPETITIVE-REVIEW.md) and
 [former UI implementation contract](UI-UX-IMPLEMENTATION.md) preserve historical
@@ -136,3 +137,7 @@ Representative historical starting points include the
 and [September 4 UX audit](archive/2026-09-04-ux-copy-content-interaction-audit.md).
 The [September 25 desktop capability and state inventory](archive/2026-09-25-desktop-capability-state-inventory.md)
 maps the current #206 destinations and names the remaining evidence limits.
+
+The [November 17 original-game catalog review](archive/2026-11-17-game-first-catalog-review.md)
+records the complete audited identity relationships and explicit boundary decisions
+for #8076; current delivery and application acceptance remain on the issue.

@@ -35,6 +35,12 @@
       "image_sha256": "b640c2bd96d3a99155be1ea3a938b2e18c22fcf029f9505ed29a3bbd8ff2dc21",
       "game_slug": "intelligent-qube",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "intelligent-qube",
+      "evidence_urls": ["https://github.com/thiccboi2/IQRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

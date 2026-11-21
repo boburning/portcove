@@ -4,9 +4,9 @@
     "id": "resident-evil-code-veronica-x-ps2-recvx-enhanced-port",
     "name": "Resident Evil Code: Veronica X (PS2) (RECVX Enhanced Port)",
     "summary": "Attach an independently permitted, prepared RECVX Enhanced Port Windows x86 player with your own NTSC-U SLUS-20184 ISO. Preserve the actual save/card and mod roots; optional co-op services, HD packs and upstream update successors remain separate.",
-    "original_game_title": "Resident Evil Code: Veronica X (PS2)",
+    "original_game_title": "Resident Evil Code: Veronica X",
     "project_url": "https://github.com/aikatore/recvx-enhanced-port",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/aikatore/recvx-enhanced-port",
     "artwork": {
@@ -49,6 +49,24 @@
       ],
       "warnings": [
         "Use the normal Windows x86 player with the exact NTSC-U ISO. Preserve the actual save/card/CWD layout; HD packs, co-op servers and update successors are separate boundaries."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-code-veronica-x",
+      "evidence_urls": [
+        "https://github.com/aikatore/recvx-enhanced-port/blob/e8c8f8097ccc082c635d7ed7d6ad50073bc73227/README.md",
+        "https://github.com/aikatore/recvx-enhanced-port"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-code-veronica-x-playstation-2",
+          "title": "Resident Evil Code: Veronica X (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/aikatore/recvx-enhanced-port/blob/8a1b6f066f9aab03618a428c575e034c2769da55/README.md"
+          ]
+        }
       ]
     }
   },

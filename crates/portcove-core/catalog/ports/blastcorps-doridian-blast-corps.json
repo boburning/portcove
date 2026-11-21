@@ -35,6 +35,25 @@
       "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
       "game_slug": "blast-corps",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-corps",
+      "evidence_urls": [
+        "https://github.com/Doridian/DozerEncore",
+        "https://api.github.com/repositories/1363091017",
+        "https://api.github.com/repos/Doridian/BlastCorps"
+      ],
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Doridian/DozerEncore/blob/c979ff5c0bd2ec6631dbfaa4e535f7e0a2b46dfb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

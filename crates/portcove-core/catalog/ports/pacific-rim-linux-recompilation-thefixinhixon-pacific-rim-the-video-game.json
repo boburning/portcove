@@ -4,6 +4,14 @@
     "id": "pacific-rim-linux-recompilation-thefixinhixon-pacific-rim-the-video-game",
     "name": "Pacific Rim: The Video Game — Pacific Rim — Linux Recompilation (thefixinhixon)",
     "original_game_title": "Pacific Rim: The Video Game",
+    "artwork": {
+      "game_id": 3763,
+      "cover_id": 3926,
+      "image_id": "cebi19ssrt4annkpkiug",
+      "image_sha256": "bffd771e856c33ceaa52b35b67a80c052072dcc199f99a00710e34af189d8723",
+      "game_slug": "pacific-rim",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports Linux gameplay, DLC and saves, with fault and shared-memory fixes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/PacificRimRecomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/thefixinhixon/PacificRimRecomp"
     },
-    "issue_number": 3249
+    "issue_number": 3249,
+    "original_game": {
+      "format_version": 1,
+      "id": "pacific-rim-the-video-game",
+      "evidence_urls": ["https://github.com/thefixinhixon/PacificRimRecomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

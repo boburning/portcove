@@ -5,8 +5,16 @@
     "name": "SimCity (UrbanRecomp Enhanced)",
     "summary": "An enhanced fork of blackerking/UrbanRecomp for the 1991 SNES SimCity, separate from PC SimCity and SimCity 2000. The project excludes its CPU interpreter from normal releases and keeps it for reference builds. Some cheats and full-game/device coverage are unconfirmed. The project offers Windows/Linux x64, universal macOS, Android ARM64/x86-64 and unsigned iOS ARM64 builds; iOS needs your own signing. Use your own compatible SNES ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage installation and updates; release files are not qualified packages in Portcove. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "SimCity",
+    "artwork": {
+      "game_id": 180001,
+      "cover_id": 199307,
+      "image_id": "co49sb",
+      "image_sha256": "943c6cca82e3b48dc78005bc5ec6cca2ab54b09a6370c2f5bd1255f78d98bb5b",
+      "game_slug": "simcity--2",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/kandowontu2/UrbanRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/kandowontu2/UrbanRecomp",
     "issue_number": 2851,
@@ -36,6 +44,24 @@
         {
           "title": "Preserve the data folder and complete save set",
           "instruction": "The portable wrapper normally runs its child with the portable EXE folder as data working directory. Keep sc-settings.ini, keybinds.ini, the selected original and location, save states, mods, diagnostics and the complete save set there. The US SRAM file is urbanrecomp-us.srm with its .bak; Enhanced also keeps matching .population and .world sidecars. Keep them together with their creating runtime. Preserve actual SC_PORTABLE_DATA_DIR or SC_SRAM_PATH locations when independently configured; registration does not recreate a per-shell environment, move data or certify cross-version state compatibility. Original-derived translation/scenario data remain your upstream preparation and permission responsibility."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "simcity",
+      "evidence_urls": [
+        "https://github.com/kandowontu2/UrbanRecomp",
+        "https://github.com/kandowontu2/UrbanRecomp/blob/ba47b80a8887f6a3f15dd5ab173818d9aa2e8b55/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "simcity-super-nintendo",
+          "title": "SimCity (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/UrbanRecomp/blob/f1ac9045c13ca89c255c47e8545479755ecea241/README.md"
+          ]
         }
       ]
     }

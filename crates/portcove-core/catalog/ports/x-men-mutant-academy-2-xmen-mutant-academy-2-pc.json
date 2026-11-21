@@ -7,7 +7,7 @@
     "project_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
     "issue_number": 356,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GTTeancum/xmen-mutant-academy-2-pc",
     "artwork": {
@@ -46,6 +46,13 @@
       "warnings": [
         "Use only a copy and components you are permitted to use. This conditional existing-copy guide does not clear the selected fresh-acquisition hold or certify a package, full original image, gameplay, real-save compatibility, installed-client, managed or protected acceptance. Preserve unknown files and all custom roots."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "x-men-mutant-academy-2",
+      "evidence_urls": ["https://github.com/GTTeancum/xmen-mutant-academy-2-pc"],
+      "source_editions": []
+    },
+    "original_game_title": "X-Men: Mutant Academy 2"
   }
 }

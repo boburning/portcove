@@ -207,6 +207,7 @@ it.each([undefined, null, { launchable: false, pending_setup: false, blockers: [
             view="library"
             ports={[port]}
             statuses={statuses}
+            libraryCount={summarizeLibrary([port], statuses).installed}
             overview={summarizeLibrary([port], statuses)}
             recent={{ port, status }}
             filter="all"
@@ -260,6 +261,7 @@ it("restores Continue only after a new positive core assessment without changing
           view="library"
           ports={[port]}
           statuses={new Map([[port.id, status]])}
+          libraryCount={summarizeLibrary([port], new Map([[port.id, status]])).installed}
           overview={summarizeLibrary([port], new Map([[port.id, status]]))}
           recent={{ port, status }}
           filter="all"

@@ -1127,7 +1127,7 @@ fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
     assert_eq!(listed["data"].as_array().unwrap().len(), 2);
     assert_eq!(
         listed["data"][0]["official_url"],
-        "https://docs.mamedev.org/tools/chdman.html"
+        "https://www.mamedev.org/release.html"
     );
     assert!(!library.exists());
     assert!(!preferences.exists());
@@ -3031,6 +3031,47 @@ fn capabilities_are_one_clean_versioned_json_document() {
         response["data"]["product_version"],
         env!("CARGO_PKG_VERSION")
     );
+}
+
+#[test]
+fn capabilities_include_the_registered_public_command_paths() {
+    let root = tempfile::tempdir().unwrap();
+    let response = json_stdout(&portcove(root.path(), &["--json", "capabilities"]));
+    let commands = response["data"]["commands"].as_array().unwrap();
+    for id in [
+        "dat.list",
+        "dat.add",
+        "dat.remove",
+        "output.show",
+        "output.preview",
+        "external.select-preview",
+        "catalog.inspect-package-shape",
+    ] {
+        let mut args: Vec<_> = id.split('.').collect();
+        args.push("--help");
+        assert!(portcove(root.path(), &args).status.success(), "{id}");
+        assert!(commands.iter().any(|value| value == id), "{id}");
+    }
+    assert!(commands.iter().any(|value| value == "remove.preview"));
+    assert!(commands.iter().all(|value| value != "remove-preview"));
+    assert!(commands.iter().any(|value| value == "external.review"));
+    assert!(!commands.iter().any(|value| {
+        value
+            .as_str()
+            .unwrap()
+            .starts_with("installation.qualification-")
+    }));
+    let unique: std::collections::HashSet<_> = commands
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect();
+    assert_eq!(unique.len(), commands.len());
+    for old in portcove_core::CapabilityDocument::current().commands {
+        assert!(
+            unique.contains(old.as_str()),
+            "previous CLI capability {old}"
+        );
+    }
 }
 
 #[test]

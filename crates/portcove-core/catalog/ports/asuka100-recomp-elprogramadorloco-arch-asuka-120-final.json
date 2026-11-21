@@ -4,6 +4,14 @@
     "id": "asuka100-recomp-elprogramadorloco-arch-asuka-120-final",
     "name": "Asuka 120% Final — asuka100-recomp (elprogramadorloco-arch)",
     "original_game_title": "Asuka 120% Final",
+    "artwork": {
+      "game_id": 77780,
+      "cover_id": 209859,
+      "image_id": "co4hxf",
+      "image_sha256": "1822261a44849b9716d52fe5754734e66dadaee324125d0c9e8ffede94edd87f",
+      "game_slug": "asuka-120-percent-final-burning-fest",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes a local native run. A complete playthrough is unconfirmed; Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/elprogramadorloco-arch/asuka100-recomp"
     },
-    "issue_number": 3509
+    "issue_number": 3509,
+    "original_game": {
+      "format_version": 1,
+      "id": "asuka-120-final",
+      "evidence_urls": ["https://github.com/elprogramadorloco-arch/asuka100-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

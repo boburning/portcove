@@ -122,6 +122,8 @@
       "detail": "Portcove te avisa cuando se puede instalar, y de nuevo solo si cambia su configuración. No se instala nada.",
       "label": "Avisarme cuando esté listo"
     },
+    "readAgain": "Volver a leer",
+    "reading": "Leyendo opciones…",
     "setUpWhenReady": {
       "detail": "Portcove lo instala sin volver a preguntar cuando sus archivos y requisitos están listos. Nunca inicia el juego. Elige otra opción para desactivarlo.",
       "label": "Configurarlo cuando esté listo"
@@ -148,12 +150,14 @@
     "route": "Opción de configuración o inicio"
   },
   "ready": {
-    "dismiss": "Descartar <game/>",
+    "dismiss": "Descartar",
+    "dismissFailed": "No se pudo confirmar que se descartara el aviso. Elige Descartar de nuevo.",
+    "dismissing": "Descartando…",
     "heading": "Listos para ti",
     "installable": "<game/> está listo para instalarse.",
     "label": "Juegos listos para ti",
-    "reviewSetup": "Revisar la configuración de <game/>",
-    "reviewUpdate": "Revisar la actualización de <game/>",
+    "reviewSetup": "Revisar configuración",
+    "reviewUpdate": "Revisar actualización",
     "update": "<game/> tiene una actualización disponible: <version/>. No se descargó ni cambió nada.",
     "updateUnknownVersion": "<game/> tiene una actualización disponible: una versión más reciente. No se descargó ni cambió nada."
   },

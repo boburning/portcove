@@ -248,6 +248,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         external_profile_policy,
         windows_shipwright_persistence,
         windows_tracked_handoff,
+        linux_packaged_library,
         mod_package_policy,
         game_settings,
         managed_shared_preferences,
@@ -273,6 +274,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         setup_marker,
         setup_output_paths,
         upstream_status: _,
+        upstream_active_reviewed: _,
+        mod_provider_bindings: _,
+        legacy_mod_provider_held: _,
         managed_acquisition_hold: _,
         reviewed_package_layouts: _,
         presentation: _,
@@ -281,6 +285,8 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // package layouts above, so accepting one leaves installed identities intact.
     let release = crate::ReleaseSpec {
         accepted_uploaders: Vec::new(),
+        github_other_stream_tag_prefixes: Default::default(),
+        reviewed_package_choices_v2: None,
         ..release.clone()
     };
     let mut compatibility = serde_json::json!({
@@ -355,6 +361,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // A tracked handoff changes how long a session holds the installation.
     if *windows_tracked_handoff {
         compatibility["windows_tracked_handoff"] = serde_json::json!(true);
+    }
+    if let Some(library) = linux_packaged_library {
+        compatibility["linux_packaged_library"] = serde_json::json!(library);
     }
     compatibility
 }

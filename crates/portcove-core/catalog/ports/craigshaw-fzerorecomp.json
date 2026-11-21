@@ -33,7 +33,25 @@
       "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
     },
     "original_game_title": "F-Zero",
-    "platforms": ["macos-aarch64"]
+    "platforms": ["macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero",
+      "evidence_urls": [
+        "https://github.com/craigshaw/FZeroRecomp#readme",
+        "https://github.com/craigshaw/FZeroRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "f-zero-super-nintendo",
+          "title": "F-Zero (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/craigshaw/FZeroRecomp/blob/5f37c22c7a2acef8b341545e9f2a4c5a4463990b/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

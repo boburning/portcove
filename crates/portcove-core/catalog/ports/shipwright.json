@@ -39,6 +39,15 @@
         "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
       ],
       "help_url": "https://github.com/HarbourMasters/Shipwright/releases"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Shipwright/blob/de1ab1b63383c15f694a7c551300cccc28c63365/README.md",
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+      ],
+      "source_editions": []
     }
   },
   "integration": {
@@ -76,7 +85,16 @@
           "verification": "catalog-rules"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install with Portcove",
+            "instruction": "Use a compatible Ocarina of Time game file you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete."
+          }
+        ],
+        "warnings": []
+      }
     },
     "game_settings": {
       "format_version": 1,

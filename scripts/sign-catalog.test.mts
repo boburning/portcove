@@ -335,31 +335,39 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   const bounds = catalogSizeBounds(
     readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
   );
-  assert.deepEqual(bounds, { current: 16777216, legacy: 4194304, percent: 85 });
+  assert.deepEqual(bounds, { current: 16777216, percent: 85 });
   assert.throws(
     () =>
       catalogSizeBounds(
-        "const MAX_CATALOG_BYTES: usize = 4;\nconst LEGACY_MAX_CATALOG_BYTES: usize = 8;\nconst CATALOG_GROWTH_CEILING_PERCENT: usize = 85;",
+        "const MAX_CATALOG_BYTES: usize = 4;\nconst CATALOG_SUPPORTED_CAPACITY_PERCENT: usize = 100;",
       ),
     /Invalid/u,
   );
   const small = { ports: [{ id: "one", summary: 'é "quoted"' }] };
   const passing = catalogSizeGuard(100, small, bounds);
+  assert.equal(
+    catalogSizeGuard(
+      5 * 1024 * 1024,
+      { ports: [{ id: "one", summary: "a".repeat(5 * 1024 * 1024) }] },
+      bounds,
+    ).ok,
+    true,
+  );
   assert.equal(passing.ok, true);
   assert.deepEqual(
     passing.rows.map((row) => [row.name, row.basis, row.ceiling]),
     [
-      ["generated catalog.json bytes", "current bound", 14260633],
-      ["compact catalog bytes", "legacy floor", 3565158],
-      ["escaped signed envelope bytes (unsigned placeholder)", "legacy floor", 3565158],
+      ["generated catalog.json bytes", "generated input bound", 14260633],
+      ["compact catalog bytes", "catalog input bound", 14260633],
+      ["escaped signed envelope bytes (unsigned placeholder)", "signed envelope bound", 14260633],
     ],
   );
   assert.match(
     formatCatalogSizeGuard(passing),
-    /^ok {3}compact catalog bytes: \d+ of 3565158 \(85% of the legacy floor 4194304\); headroom \d+;/mu,
+    /^ok {3}compact catalog bytes: \d+ of 14260633 \(85% of the catalog input bound 16777216\); headroom \d+/mu,
   );
   // Escaping alone can carry the envelope past the margin while the compact bytes still fit.
-  const escaped = { ports: [{ id: "one", summary: '"'.repeat(900000) }] };
+  const escaped = { ports: [{ id: "one", summary: '"'.repeat(3600000) }] };
   const failing = catalogSizeGuard(100, escaped, bounds);
   assert.equal(failing.ok, false);
   assert.deepEqual(
@@ -387,6 +395,49 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   });
   assert.equal(accepted.status, 0, accepted.stderr);
   assert.equal(accepted.stdout.trim().split("\n").length, 3);
+});
+
+void test("legacy signer refuses reviewed package choices before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  for (const declaration of [
+    {
+      repository_id: 42,
+      prefix: "fixture_",
+      choices: {
+        "mingw64-cross": "_win-mingw64-cross.zip",
+        "msvc64-142": "_win-msvc64-142.zip",
+      },
+    },
+    null,
+  ]) {
+    writeFileSync(
+      item.catalog,
+      JSON.stringify({ ports: [{ release: { reviewed_package_choices_v2: declaration } }] }),
+    );
+    const result = item.run();
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Format-1 signed catalogs cannot deliver reviewed package choices/u,
+    );
+    assert.equal(existsSync(item.output), false);
+  }
+});
+
+void test("legacy signer refuses a mod provider withdrawal before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(
+    item.catalog,
+    JSON.stringify({ ports: [{ id: "shipwright", mod_provider_bindings: [] }] }),
+  );
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver mod provider bindings/u);
+  assert.equal(existsSync(item.output), false);
 });
 
 void test("legacy signer refuses Shipwright working-directory persistence before key access", (t) => {

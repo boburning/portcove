@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+    "artwork": {
+      "game_id": 400431,
+      "cover_id": 560622,
+      "image_id": "coc0ku",
+      "image_sha256": "48fb01b4132a136ffc701224d19a905ae57df29a218fd948903db71dcb1774c8",
+      "game_slug": "star-wars-x-wing-vs-tie-fighter-balance-of-power-campaigns",
+      "match_kind": "underlying-game"
+    },
     "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
     "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
     "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
@@ -41,6 +49,15 @@
     "download_asset_hints": {
       "linux-x86-64": ["-linux-x86_64-release.tar.xz"],
       "macos-aarch64": ["-macos-arm64-release.dmg"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md",
+        "https://github.com/elyosh/OpenXvT"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -55,6 +72,7 @@
     },
     "decisions": []
   },
+  "openx_portable_v1": "1367490590",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -78,18 +96,12 @@
       }
     },
     "release": {
-      "repository": "elyosh/OpenXvT",
-      "asset_hints": {
-        "windows-x86-64": ["-windows-x86_64-release.zip"],
-        "linux-x86-64": ["-linux-x86_64-release.tar.xz"]
-      },
-      "linux_tar_xz": true
+      "repository": "elyosh/OpenXvT"
     },
     "executable_hints": {
       "windows-x86-64": ["OpenXvT.exe"],
       "linux-x86-64": ["OpenXvT"]
     },
-    "persistent_paths": ["config.yaml"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

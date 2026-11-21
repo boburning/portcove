@@ -1,0 +1,235 @@
+{
+  "contract_schema": 1,
+  "representation": "catalog_projection",
+  "catalog": {
+    "ports": [
+      {
+        "adapter": "n64-recomp-portable",
+        "automated_tested_platforms": [],
+        "bios_source_profile": null,
+        "bundled_runtime": {},
+        "channels": [
+          "stable"
+        ],
+        "executable_hints": {
+          "windows-x86-64": [
+            "ChameleonTwistJPRecompiled.exe"
+          ]
+        },
+        "id": "chameleon-twist-jp-recompiled",
+        "launch_arguments": [],
+        "launch_environment": {},
+        "launch_from_install_root": false,
+        "manually_validated_platforms": [],
+        "name": "Chameleon Twist JP Recompiled",
+        "persistent_file_patterns": [],
+        "persistent_paths": [
+          "mods",
+          "saves",
+          "general.json",
+          "general.json.bak",
+          "general.json.temp",
+          "graphics.json",
+          "graphics.json.bak",
+          "graphics.json.temp",
+          "controls.json",
+          "controls.json.bak",
+          "controls.json.temp",
+          "sound.json",
+          "sound.json.bak",
+          "sound.json.temp",
+          "ChameleonTwistJP.z64"
+        ],
+        "platforms": [
+          "windows-x86-64"
+        ],
+        "portable_marker": true,
+        "presentation": {
+          "installation_method": "portable-recompilation",
+          "original_game": {
+            "evidence_urls": [
+              "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
+              "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
+            ],
+            "format_version": 1,
+            "id": "chameleon-twist",
+            "source_editions": [
+              {
+                "evidence_urls": [
+                  "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/f7d171462776e2dbf893206a96c2f55692bce559/README.md"
+                ],
+                "id": "chameleon-twist-nintendo-64",
+                "system": "nintendo-64",
+                "title": "Chameleon Twist (Nintendo 64)"
+              }
+            ]
+          },
+          "original_game_title": "Chameleon Twist",
+          "saves_and_settings": "portcove-managed",
+          "source_requirements": [
+            {
+              "label": "Chameleon Twist Japanese original",
+              "profile_id": "chameleon-twist-jp",
+              "role": "game",
+              "verification": "catalog-identity"
+            }
+          ]
+        },
+        "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
+        "release": {
+          "asset_hints": {
+            "windows-x86-64": [
+              "ChameleonTwistJPRecompiled.zip"
+            ]
+          },
+          "curated": {
+            "windows-x86-64": {
+              "acquisition_evidence": {
+                "sha256": "1837a049e0183bdbe20b51186c325e628b1c8a98f1650877c367a7c189686a94",
+                "url": "https://github.com/boburning/portcove/blob/5be1e93a6bbe2a4b8d318fb239eb0b0807f92b1a/docs/qualification/chameleon-twist-jp-acquisition-evidence-2026-10-18.json"
+              },
+              "acquisition_host": "github.com",
+              "acquisition_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/releases/download/v0.1/ChameleonTwistJPRecompiled.zip",
+              "asset_id": 213295268,
+              "commit_sha1": "a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9",
+              "distribution_basis": "Direct upstream acquisition only. Pinned project COPYING is GPLv3 and README requires a separately supplied Japanese original with no game assets in releases. No mirror, bundled-ROM or blanket third-party redistribution right is proposed.",
+              "distribution_evidence": {
+                "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+                "url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/COPYING"
+              },
+              "filename": "ChameleonTwistJPRecompiled.zip",
+              "independent_review": {
+                "sha256": "04e8bebe587383f43b9e346f2c85b361abe74452dee0a1731066050404f4da9d",
+                "url": "https://github.com/boburning/portcove/blob/5be1e93a6bbe2a4b8d318fb239eb0b0807f92b1a/docs/qualification/chameleon-twist-jp-independent-review-2026-10-18.md"
+              },
+              "platform": "windows-x86-64",
+              "protected_acceptance": {
+                "sha256": "80f1d36fb10ac47db199038c25c8a32337fd930f98661854c6ab6630d14940a0",
+                "url": "https://github.com/boburning/portcove/blob/f4d6d8ec279d0248e52ccc3175259cd8226b4f70/docs/qualification/chameleon-twist-jp-exact-byte-acceptance-2026-10-21.md"
+              },
+              "record_version": 1,
+              "release_id": 190757282,
+              "repository": "Rainchus/ChameleonTwist1-JP-Recomp",
+              "route": "github-release-asset",
+              "sha256": "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+              "size": 23929489,
+              "tag": "v0.1",
+              "upstream_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp"
+            }
+          },
+          "direct": {},
+          "provider": "github",
+          "repository": "Rainchus/ChameleonTwist1-JP-Recomp",
+          "rolling_tag": null,
+          "user_prepared": {}
+        },
+        "runtime_mutable_paths": [],
+        "runtime_source_filename": "ChameleonTwistJP.z64",
+        "runtime_source_hashes": {},
+        "runtime_source_materialization": "n64-big-endian",
+        "runtime_source_set": [],
+        "runtime_subdirectory": null,
+        "setup_arguments": [],
+        "setup_executable_hints": {},
+        "setup_marker": null,
+        "setup_output_paths": [],
+        "source_environment": null,
+        "source_profile": "chameleon-twist-jp",
+        "summary": "Native Japanese Chameleon Twist recompilation; requires a separately supplied original.",
+        "support_tier": "beta",
+        "upstream_status": "active",
+        "user_data_environment": null
+      }
+    ],
+    "schema_version": 2,
+    "source_catalog": {
+      "contracts": [
+        {
+          "admission_mode": "enforced",
+          "aliases": [],
+          "applicability": [
+            {
+              "artifact_sha256": "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+              "upstream_ref": "v0.1"
+            }
+          ],
+          "authority_ref": "a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9",
+          "evidence_gap": null,
+          "evidence_ids": [
+            "chameleon-twist-jp-v0-1-source-contract"
+          ],
+          "id": "chameleon-twist-jp-recompiled-game-source",
+          "immutable_review_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/src/main/main.cpp",
+          "live_review_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/main/src/main/main.cpp",
+          "port_id": "chameleon-twist-jp-recompiled",
+          "profile_id": "chameleon-twist-jp",
+          "reviewed_at": "2026-10-17",
+          "role": "game",
+          "supported_variant_ids": [
+            "japan-reviewed"
+          ],
+          "tombstones": [],
+          "validator_contract_id": null
+        }
+      ],
+      "evidence": [
+        {
+          "authority": "Rainchus Chameleon Twist JP Recompiled",
+          "authority_ref": "a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9",
+          "claim": "Pinned upstream whole big-endian XXH3 game identity, coupled with retained 2026-10-11 source capture SHA1 and exact XXH3 equality. No new original read or current availability claim.",
+          "id": "chameleon-twist-jp-v0-1-source-contract",
+          "immutable_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/src/main/main.cpp",
+          "live_url": null,
+          "reviewed_at": "2026-10-17",
+          "role": "upstream_support"
+        }
+      ],
+      "identities": [
+        {
+          "aliases": [],
+          "evidence_gap": null,
+          "id": "chameleon-twist-jp",
+          "kind": "file",
+          "label": "Chameleon Twist Japanese original",
+          "tombstones": [],
+          "variants": [
+            {
+              "evidence_ids": [
+                "chameleon-twist-jp-v0-1-source-contract"
+              ],
+              "id": "japan-reviewed",
+              "product_codes": [],
+              "region": "Japan",
+              "representations": [
+                {
+                  "evidence_ids": [
+                    "chameleon-twist-jp-v0-1-source-contract"
+                  ],
+                  "extensions": [
+                    "z64",
+                    "n64",
+                    "v64"
+                  ],
+                  "id": "canonical-rom",
+                  "identities": [
+                    {
+                      "crc32": null,
+                      "scope": "canonical-n64-big-endian",
+                      "sha1": "a1faf5c4ca961ab2c029c84ecfa556755e7f70c8",
+                      "sha256": null
+                    }
+                  ],
+                  "kind": "canonical-n64"
+                }
+              ],
+              "revision": null,
+              "title": "Chameleon Twist"
+            }
+          ]
+        }
+      ],
+      "qualification": [],
+      "validators": []
+    }
+  }
+}

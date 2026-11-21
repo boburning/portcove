@@ -1,4 +1,5 @@
 import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts";
+import { issueFreeCatalogIds } from "./roadmap-qualification.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -194,6 +195,55 @@ void test("one-port-one-issue coverage rejects missing duplicate grouped and dra
       [first],
     ).some((value) => value.includes("not in the Project")),
   );
+});
+
+void test("issue-free catalog coverage requires a matching reviewed listing and preserves Project checks", () => {
+  const url = "https://github.com/example/game";
+  const original_game = {
+    format_version: 1,
+    id: "game",
+    evidence_urls: [url],
+    source_editions: [],
+  };
+  const catalog = {
+    ports: [
+      { id: "unowned", project_url: url },
+      { id: "owned", project_url: url },
+      { id: "other-source", project_url: url },
+      { id: "unreviewed", project_url: url },
+    ],
+  };
+  const directory = {
+    listings: [
+      { id: "unowned", project_url: url, original_game },
+      { id: "owned", project_url: url, original_game, issue_number: 20 },
+      { id: "other-source", project_url: "https://github.com/other/game", original_game },
+      { id: "unreviewed", project_url: url },
+    ],
+  };
+  const issueFree = issueFreeCatalogIds(catalog, directory);
+  assert.deepEqual([...issueFree], ["unowned"]);
+  assert.deepEqual(
+    validatePortIssueCoverage(catalog, [], "boburning/portcove", [], issueFree),
+    ["owned", "other-source", "unreviewed"].map(
+      (id) => `Catalog port lacks a canonical Project issue: ${id}`,
+    ),
+  );
+  const duplicateClaims = [31, 32].map((number) => ({
+    number,
+    title: `[Port] Fixture ${number}`,
+    url: `https://github.com/boburning/portcove/issues/${number}`,
+    body: renderPortIssueBody({ title: "Fixture", upstream: url, catalogId: "unowned" }),
+  }));
+  const errors = validatePortIssueCoverage(
+    catalog,
+    [],
+    "boburning/portcove",
+    duplicateClaims,
+    issueFree,
+  );
+  assert(errors.some((error) => error.includes("Two live issues represent catalog ID unowned")));
+  assert(errors.some((error) => error.includes("is not in the Project")));
 });
 
 void test("intake permits integration completion without inventing gameplay qualification", () => {
@@ -971,3 +1021,188 @@ Preserve this contributor text.`;
     );
   });
 }
+const listingClaimCases = [
+  "listing",
+  "listing-upstream",
+  "listing-ambiguous",
+  "listing-unknown",
+  "listing-unclaimed",
+  "listing-wrong-game",
+  "listing-malformed",
+  "exact-with-listing",
+  "exact-conflict",
+  "marker-conflict",
+] as const;
+const listingClaimRefusals: Partial<Record<(typeof listingClaimCases)[number], RegExp>> = {
+  "listing-upstream": /upstream differs from catalog listed-port/,
+  "listing-ambiguous": /claimed by multiple catalog listings: listed-port, sibling-port/,
+  "listing-wrong-game": /title does not name the game of catalog listing sibling-port/,
+  "listing-malformed": /claimed by a malformed catalog listing/,
+  "exact-conflict": /identifies catalog listed-port but listing sibling-port claims it/,
+  "marker-conflict": /identifies catalog listed-port but listing sibling-port claims it/,
+};
+for (const claim of listingClaimCases) {
+  void test(`normalize-port ${claim} catalog listing issue claim`, async () => {
+    const calls: IntakeCall[] = [];
+    const mockedConfig = structuredClone(config);
+    mockedConfig.project.number = 7;
+    const key =
+      claim === "exact-with-listing" || claim === "exact-conflict" ? "listed-port" : "research-key";
+    let body = renderPortIssueBody({
+      title: "Listed Port",
+      upstream: "https://github.com/example/listed-port",
+      ...(claim === "marker-conflict" ? { catalogId: "listed-port" } : { portKey: key }),
+    });
+    const initialBody = body;
+    const issue = () => ({
+      node_id: "I_listed",
+      html_url: "https://github.com/boburning/portcove/issues/42",
+      number: 42,
+      title: "[Port] Listed Port",
+      body,
+      state: "OPEN",
+      parent: null,
+    });
+    const client = await sdkRoadmap(mockedConfig, {
+      allowMutations: true,
+      rest: ({ method, endpoint, body: payload }) => {
+        calls.push({ method, endpoint, body: payload });
+        if (method === "GET" && endpoint === "users/boburning")
+          return { type: "User", node_id: "OWNER" };
+        assert.equal(endpoint, "repos/boburning/portcove/issues/42");
+        if (method === "PATCH") {
+          const value = fixtureObject(payload);
+          assert.ok(typeof value.body === "string");
+          body = value.body;
+        } else assert.equal(method, "GET");
+        return issue();
+      },
+      graphql: (query, variables) => {
+        calls.push({ method: "POST", endpoint: "graphql", query, variables });
+        if (query.includes("projectV2(number:")) return projectData("PVT_project", 7, []);
+        throw new Error(`Unexpected normalization operation ${query}`);
+      },
+    });
+    client.repositoryIssues = async () =>
+      await fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
+    const readInventory = client.readInventory.bind(client);
+    client.readInventory = async (query, variables, select, identity) =>
+      query.includes("projectItems(")
+        ? [{ id: "PVTI_listed", isArchived: false, project: { id: "PVT_project" } }]
+        : await readInventory(query, variables, select, identity);
+    client.directProjectItem = async () => ({
+      id: "PVTI_listed",
+      content: { ...issue(), type: "Issue", url: issue().html_url },
+      fieldValues: [
+        ["Status", "Ready"],
+        ["Priority", "High"],
+        ["Horizon", "Next"],
+        ["Target release", "Alpha 2"],
+        ["Work type", "Port"],
+        ["Workstream", "Sources and ROM validation"],
+        ["Platform", "Windows"],
+        ["Port stage", "Cataloged"],
+        ["Effort", "M"],
+      ].map(([name, value]) => ({ name: value, field: { name } })),
+    });
+    const catalog = {
+      ports: [
+        {
+          id: "listed-port",
+          project_url:
+            claim === "listing-upstream"
+              ? "https://github.com/example/other-project"
+              : "https://github.com/Example/Listed-Port.git",
+        },
+        { id: "sibling-port", project_url: "https://github.com/example/listed-port" },
+      ],
+    };
+    const siblingClaims = [
+      "listing-ambiguous",
+      "listing-wrong-game",
+      "exact-conflict",
+      "marker-conflict",
+    ].includes(claim);
+    const listings = [
+      {
+        // A listing for a research-only port has no catalog.json entry yet.
+        id:
+          claim === "listing-unknown"
+            ? "research-only-port"
+            : claim === "listing-malformed"
+              ? 7
+              : "listed-port",
+        name: "Listed Port / Native",
+        original_game_title: "Listed Port",
+        issue_number:
+          claim === "listing-unclaimed" || (siblingClaims && claim !== "listing-ambiguous")
+            ? 41
+            : 42,
+      },
+      {
+        // Shares the upstream but names another game.
+        id: "sibling-port",
+        name: "Sibling Game / Native",
+        original_game_title: "Sibling Game",
+        issue_number: siblingClaims ? 42 : 43,
+      },
+    ];
+    const run = async () => await client.normalizePortIssue({ number: 42, catalog, listings });
+    const refusal = listingClaimRefusals[claim];
+    if (refusal) {
+      await assert.rejects(run, refusal);
+      assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+      assert.equal(body, initialBody);
+      return;
+    }
+    const first = await run();
+    const unlinked = claim === "listing-unclaimed" || claim === "listing-unknown";
+    // An unlinked captured body is already canonical, so only a link rewrites it.
+    assert.equal(first.bodyChanged, !unlinked);
+    assert.equal(first.projectItemAdded, false);
+    assert.deepEqual(first.fieldsChanged, []);
+    if (unlinked) {
+      assert.match(body, /<!-- portcove-port-key: research-key -->/u);
+      assert.doesNotMatch(body, /<!-- portcove-catalog-id:/u);
+    } else {
+      assert.match(body, /<!-- portcove-catalog-id: listed-port -->/u);
+      assert.doesNotMatch(body, /<!-- portcove-port-key:|<!-- portcove-research:/u);
+    }
+    const second = await run();
+    assert.equal(second.bodyChanged, false);
+    assert.equal(calls.filter((call) => call.method === "PATCH").length, unlinked ? 0 : 1);
+    assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 0);
+  });
+}
+
+void test("direct port intake retains reviewed source-title ownership after original-game display cleanup", () => {
+  const upstream = "https://github.com/example/portable";
+  const existing = {
+    number: 17,
+    title: "[Port] Super Mario Advance 2 / Portable Project",
+    state: "CLOSED",
+    body: `Underlying game: **Super Mario Advance 2**.\nGitHub repository ID: 42.\n<!-- portcove-port -->\n<!-- portcove-port-key: portable-old -->\n<!-- portcove-upstream: ${upstream} -->`,
+  };
+  const records = [
+    {
+      format_version: 1 as const,
+      listing: {
+        id: "portable-old",
+        name: "Portable Project",
+        summary: "Retained source edition.",
+        project_url: upstream,
+        issue_number: 17,
+        original_game_title: "Super Mario World",
+      },
+    },
+  ];
+  const matches = findPortIssueDuplicates([existing], {
+    title: existing.title,
+    upstream,
+    portKey: "portable-new",
+    repositoryIdentity: { id: 42, game: "Super Mario Advance 2" },
+    catalogRecords: records,
+  });
+  assert.equal(matches.length, 1);
+  assert.ok(matches[0]!.reasons.some((reason) => reason.startsWith("normalized title")));
+});

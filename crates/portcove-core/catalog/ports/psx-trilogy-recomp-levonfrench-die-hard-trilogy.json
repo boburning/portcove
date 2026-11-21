@@ -35,6 +35,21 @@
       "image_sha256": "02a4599930c063a7b299791af4d31cc0f70bb331ff3e8dea42d3e7ee552559e6",
       "game_slug": "die-hard-trilogy",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "die-hard-trilogy",
+      "evidence_urls": ["https://github.com/LevonFrench/PSX-Trilogy-Recomp"],
+      "source_editions": [
+        {
+          "id": "die-hard-trilogy-playstation",
+          "title": "Die Hard Trilogy (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/LevonFrench/PSX-Trilogy-Recomp/blob/1ea118bb0ee7698e6bad8a6779421e13c1663374/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

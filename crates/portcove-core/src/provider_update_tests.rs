@@ -32,6 +32,7 @@ fn world() -> (tempfile::TempDir, PortcoveService, String) {
         native_id: id.into(),
         native_version: None,
         provider: Some(ProviderPackageRef {
+            binding: None,
             provider: "gamebanana".into(),
             project: project.into(),
             file: Some(file.into()),
@@ -41,6 +42,7 @@ fn world() -> (tempfile::TempDir, PortcoveService, String) {
         size: 10,
         enabled: true,
         requires: Vec::new(),
+        provider_requires: Vec::new(),
     };
     let request = ProfileRevisionRequest {
         expected_revision: 1,
@@ -188,4 +190,81 @@ async fn an_unreadable_installed_identity_is_reported_not_dropped() {
     drop(temporary);
     assert_eq!(observations.len(), 1);
     assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+}
+
+#[tokio::test]
+async fn an_unknown_provider_flag_never_claims_a_mod_is_current_or_removed() {
+    let body = serde_json::json!({
+        "_sName": "HD Link", "_sVersion": "2.0", "_bIsObsolete": false,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 777},
+        "_aFiles": [{"_idRow": 11, "_sFile": "pack-11.zip", "_nFilesize": 10,
+            "_tsDateAdded": 11}]
+    })
+    .to_string();
+    let observations = observe(vec![json_response(&body)]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+    assert!(observations[0].newer_files.is_empty());
+    assert!(
+        observations[0]
+            .reason
+            .as_deref()
+            .unwrap()
+            .contains("did not confirm")
+    );
+}
+
+#[tokio::test]
+async fn an_older_unconfirmed_file_does_not_hide_a_confirmed_update() {
+    let body = serde_json::json!({
+        "_sName": "HD Link", "_sVersion": "2.0", "_bIsObsolete": false,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 777},
+        "_aFiles": [
+            {"_idRow": 5, "_sFile": "pack-5.zip", "_nFilesize": 10, "_tsDateAdded": 5},
+            {"_idRow": 10, "_sFile": "pack-10.zip", "_nFilesize": 10, "_tsDateAdded": 10, "_bIsArchived": false},
+            {"_idRow": 11, "_sFile": "pack-11.zip", "_nFilesize": 10, "_tsDateAdded": 11, "_bIsArchived": false}
+        ]
+    });
+    let observations = observe(vec![json_response(&body.to_string())]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::NewerFiles);
+    let [update] = observations[0].newer_files.as_slice() else {
+        panic!("expected exactly one known newer file");
+    };
+    assert_eq!(update.file_id, "11");
+}
+
+#[tokio::test]
+async fn a_project_returned_for_another_game_cannot_offer_an_update() {
+    let other = json_response(
+        r#"{"_sName":"Wrong game","_sVersion":"3","_aGame":{"_idRow":999},"_bIsObsolete":false,"_aFiles":[{"_idRow":12,"_sFile":"pack.zip","_nFilesize":10,"_bIsArchived":false}]}"#,
+    );
+    let observations = observe(vec![other]).await;
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+    assert!(observations[0].newer_files.is_empty());
+    assert!(
+        observations[0]
+            .reason
+            .as_deref()
+            .unwrap()
+            .contains("association")
+    );
+}
+
+#[tokio::test]
+async fn an_explicitly_withdrawn_binding_remains_visible_as_unavailable() {
+    let (_temporary, mut service, profile) = world();
+    let mut document = service.catalog().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "starship")
+        .unwrap();
+    port.mod_provider_bindings = Some(Vec::new());
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let observations = service
+        .check_provider_updates("starship", &profile)
+        .await
+        .unwrap();
+    assert_eq!(observations.len(), 1);
+    assert_eq!(observations[0].state, ProviderUpdateState::Unavailable);
+    assert_eq!(observations[0].provider.provider, "gamebanana");
 }

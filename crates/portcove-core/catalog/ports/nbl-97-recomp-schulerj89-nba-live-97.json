@@ -35,6 +35,12 @@
       "image_sha256": "7094fd87a407c422dd0c5efcb85bf633a82b4d879c26a2f6991916f5f29eedac",
       "game_slug": "nba-live-97",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nba-live-97",
+      "evidence_urls": ["https://github.com/schulerj89/nbl-97-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

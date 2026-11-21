@@ -4,6 +4,14 @@
     "id": "ben10omniverserecomp-andrebrumdev-ben-10-omniverse",
     "name": "Ben 10: Omniverse — Ben10OmniverseRecomp (andrebrumdev)",
     "original_game_title": "Ben 10: Omniverse",
+    "artwork": {
+      "game_id": 2800,
+      "cover_id": 198089,
+      "image_id": "co48uh",
+      "image_sha256": "650b28dd6d85f5643bed5864c52045ff2f01107bafe2788ced9c8ff4777fcb4e",
+      "game_slug": "ben-10-omniverse",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports startup, logos and video, with 27–59 FPS measured on an M5 Air. Exact mission coverage is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/andrebrumdev/ben10-omniverse-recomp"
     },
-    "issue_number": 3385
+    "issue_number": 3385,
+    "original_game": {
+      "format_version": 1,
+      "id": "ben-10-omniverse",
+      "evidence_urls": ["https://github.com/andrebrumdev/ben10-omniverse-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

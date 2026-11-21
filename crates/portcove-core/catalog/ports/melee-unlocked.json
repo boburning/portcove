@@ -7,7 +7,7 @@
     "project_url": "https://github.com/Hero88go/melee-unlocked",
     "issue_number": 814,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Hero88go/melee-unlocked",
     "artwork": {
@@ -41,6 +41,16 @@
         "Original game data and NVIDIA/Intel/Slippi and other components retain their separate terms. This handoff does not qualify online matches, mod/save compatibility, generated output, gameplay or the optional other engine."
       ],
       "help_url": "https://github.com/Hero88go/melee-unlocked#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-melee",
+      "evidence_urls": [
+        "https://github.com/Hero88go/melee-unlocked#readme",
+        "https://github.com/Hero88go/melee-unlocked"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Smash Bros. Melee"
   }
 }

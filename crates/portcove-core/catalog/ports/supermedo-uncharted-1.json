@@ -4,7 +4,15 @@
     "id": "supermedo-uncharted-1",
     "name": "Uncharted: Drakes Fortune — PS4 remaster (Supermedo uncharted_pc)",
     "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Fortune before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
-    "original_game_title": "Uncharted: Drakes Fortune",
+    "original_game_title": "Uncharted: Drake’s Fortune",
+    "artwork": {
+      "game_id": 41878,
+      "cover_id": 86366,
+      "image_id": "co1un2",
+      "image_sha256": "b525931c961c2d511b9d6fea7df37b2036accc81e3f4bb0dde97818782b8aaae",
+      "game_slug": "uncharted-drakes-fortune-remastered",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Supermedo/uncharted_pc",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -42,6 +50,15 @@
       "warnings": [
         "Choose Drake’s Fortune in the shared upstream launcher before Play; the saved --play shortcut is collection-global and closing the GUI can leave a child running."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "uncharted-drakes-fortune",
+      "evidence_urls": [
+        "https://github.com/Supermedo/uncharted_pc/blob/bbd1b3ac1019b22c332d059fda0cecb5a96c0bd9/README.md",
+        "https://github.com/Supermedo/uncharted_pc"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

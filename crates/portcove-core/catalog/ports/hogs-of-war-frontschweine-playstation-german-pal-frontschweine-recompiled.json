@@ -4,9 +4,17 @@
     "id": "hogs-of-war-frontschweine-playstation-german-pal-frontschweine-recompiled",
     "name": "Hogs of War / Frontschweine (PlayStation German PAL) (Frontschweine Recompiled)",
     "summary": "Windows x64 native player for Frontschweine / Hogs of War German PAL (SLES-02767), prepared locally from your own disc using upstream tools. Finish generation and rebuild first, then select build/Frontschweine_Recompiled.exe with its complete runtime. Preserve saves, mods, extracted data and overlay caches. Upstream owns preparation and replacement; other regions and Portcove-managed builds are not offered.",
-    "original_game_title": "Hogs of War / Frontschweine (PlayStation German PAL)",
+    "original_game_title": "Hogs of War",
     "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
-    "platforms": [],
+    "artwork": {
+      "game_id": 8877,
+      "cover_id": 256413,
+      "image_id": "co5hul",
+      "image_sha256": "d540fd15fde75ce18bf79074deb2a0a837defac72fb2638ce45c7fc4cbdb503e",
+      "game_slug": "hogs-of-war",
+      "match_kind": "underlying-game"
+    },
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
     "issue_number": 2680,
@@ -51,6 +59,15 @@
         "Use an independently permitted completed native copy for the noncommercial purposes allowed by its components.",
         "Setup, PGO, optional netplay and rebuilding remain upstream operations; save compatibility is not promised."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hogs-of-war",
+      "evidence_urls": [
+        "https://github.com/Nero2611/FrontschweineRecomp",
+        "https://github.com/Nero2611/FrontschweineRecomp/blob/b8041f3be0db2bd4799b30ae83f27b1f1c1a6a9e/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

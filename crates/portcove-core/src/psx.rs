@@ -499,6 +499,16 @@ where
     F: FnMut(OperationEvent),
 {
     let artifact = toolchain_artifact(platform)?;
+    let _acquisition = loop {
+        operation.checkpoint()?;
+        match library.try_lock_psx_toolchain_acquisition() {
+            Ok(lock) => break lock,
+            Err(error) if error.code == crate::ErrorCode::Conflict => {
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let destination = library
         .toolchains_dir()
         .join("cmake-clang-v1")
@@ -526,19 +536,14 @@ where
         "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v{TOOLCHAIN_VERSION}/{}",
         artifact.name
     );
-    let client = crate::install::default_download_client()?;
     let asset = crate::ReleaseAsset {
         name: artifact.name.into(),
         url,
         size: artifact.size,
         sha256: artifact.sha256.into(),
     };
-    crate::Installer::download_with_client(
-        &client,
-        &asset,
-        &archive_path,
-        operation,
-        &mut |mut event| {
+    crate::Installer::new(library.clone())?
+        .download_psx_toolchain(&asset, &archive_path, operation, &mut |mut event| {
             if let crate::OperationEventKind::Progress {
                 phase, phase_id, ..
             } = &mut event.event
@@ -547,9 +552,8 @@ where
                 *phase_id = Some(phase.clone());
             }
             emit(event);
-        },
-    )
-    .await?;
+        })
+        .await?;
     let extraction_guard = guard.clone();
     let extraction_operation = operation.clone();
     let extraction_root = unpacked.clone();

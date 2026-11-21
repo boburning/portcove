@@ -241,7 +241,7 @@ pub(crate) struct RestoreOperation {
     pub(crate) staged_data: PathBuf,
     pub(crate) user_root: PathBuf,
     pub(crate) previous_data: PathBuf,
-    input_manifest: Option<PathBuf>,
+    pub(crate) input_manifest: Option<PathBuf>,
 }
 
 impl RestoreOperation {
@@ -290,6 +290,7 @@ impl RestoreOperation {
                 (RestorePhase::Unverified, RestorePhase::ReadyToPublish)
                     | (RestorePhase::ReadyToPublish, RestorePhase::Published)
                     | (RestorePhase::Published, RestorePhase::Committed)
+                    | (RestorePhase::Committed, RestorePhase::CleanupPending)
             )
         {
             return Err(PortcoveError::state(
@@ -459,7 +460,7 @@ impl BackupDeletionOperation {
     }
 }
 
-const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+pub(super) const BACKUP_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
 const BACKUP_PREPARATION_MARKER: &str = "preparation.json";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -656,11 +657,14 @@ impl PortcoveService {
         let result: Result<BackupRecord> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "backup")?;
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             // An interrupted retention prune must not block a player's own backup.
             self.resume_pending_backup_deletions(port_id);
             self.require_completed_backup_deletion(port_id)?;
             self.collect_active_user_data_if_launched(port_id)?;
-            self.create_backup_locked(port_id)
+            let backup = self.create_backup_locked(port_id)?;
+            self.record_native_settings_backup(&backup)?;
+            Ok(backup)
         })();
         self.finish_activity(activity, result)
     }
@@ -698,20 +702,6 @@ impl PortcoveService {
             port_id,
             None,
             Some(overlay),
-            UnknownFileScope::Automatic,
-            None,
-        )
-    }
-
-    fn create_backup_locked_labeled(
-        &self,
-        port_id: &str,
-        label: crate::AutomaticSnapshotLabel,
-    ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(
-            port_id,
-            Some(label),
-            None,
             UnknownFileScope::Automatic,
             None,
         )
@@ -818,15 +808,15 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::BackupStagingCreated)?;
             let mut stats = BackupStats::default();
-            if !source_exists {
-                // Only unknown files remain to protect; restore sees no saves.
-                fs::create_dir(staging_path.join("data"))?;
-            } else if let Some(overlay) = overlay {
+            if let Some(overlay) = overlay {
                 let merged = staging_path.join("overlay");
                 copy_backup_tree(&source, &merged, &source, &mut BackupStats::default())?;
                 overlay(&merged)?;
                 copy_backup_tree(&merged, &staging_path.join("data"), &merged, &mut stats)?;
                 fs::remove_dir_all(&merged)?;
+            } else if !source_exists {
+                // Only unknown files remain to protect; restore sees no saves.
+                fs::create_dir(staging_path.join("data"))?;
             } else {
                 copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             }
@@ -1390,6 +1380,7 @@ impl PortcoveService {
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
         if action == BackupAction::Restore {
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             self.require_completed_restore(port_id)?;
             // Read-only: a deletion the restore itself finishes under its port lock
             // does not stop the review; any other one still does.
@@ -1530,6 +1521,53 @@ impl PortcoveService {
         })
     }
 
+    /// Finishes only operation-owned cleanup after the published snapshot and
+    /// setup have been checked and synchronized.
+    pub(crate) fn finish_restore_cleanup(
+        &self,
+        store: &OperationStore,
+        operation: &mut LifecycleOperation,
+    ) -> Result<()> {
+        let mut restore = self.validate_restore_operation(operation)?;
+        let previous_exists = restore.previous_data.try_exists()?;
+        // Legacy unbound committed journals can omit the replacement flag.
+        let can_remove_previous = restore.phase == RestorePhase::Committed
+            && (restore.replaces_existing_data || restore.input_manifest.is_none());
+        if !matches!(
+            restore.phase,
+            RestorePhase::Committed | RestorePhase::CleanupPending
+        ) || !restore.user_root.try_exists()?
+            || restore.staged_data.try_exists()?
+            || (previous_exists && !can_remove_previous)
+        {
+            return Err(PortcoveError::conflict(
+                "restore cleanup paths do not match the committed operation",
+            ));
+        }
+
+        if restore.phase == RestorePhase::Committed {
+            if previous_exists {
+                fs::remove_dir_all(&restore.previous_data)?;
+                crate::durability::sync_publication(&restore.recovery_root)?;
+            }
+            restore.advance(RestorePhase::CleanupPending, operation, store)?;
+        } else {
+            // Cleanup could already have removed the receipt. The durable phase
+            // authorizes finishing private cleanup, never another publication.
+            if let Some(input) = &restore.input_manifest
+                && input.try_exists()?
+            {
+                self.require_restore_snapshot_authority(operation, &restore.user_root)?;
+            }
+            self.require_restore_profile_projection(&operation.port_id, &restore.user_root)?;
+        }
+        if restore.recovery_root.try_exists()? {
+            fs::remove_dir_all(&restore.recovery_root)?;
+        }
+        store.remove(&operation.id)?;
+        Ok(())
+    }
+
     pub fn restore_backup(
         &self,
         port_id: &str,
@@ -1559,6 +1597,7 @@ impl PortcoveService {
         let result = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "restore-backup")?;
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             self.require_completed_restore(port_id)?;
             // An interrupted retention prune must not block restoring saves.
             self.resume_pending_backup_deletions(port_id);
@@ -1644,6 +1683,7 @@ impl PortcoveService {
                 ));
             }
             self.preflight_psx_mod_restores(port_id, &staged_data)?;
+            self.require_restore_profile_projection(port_id, &staged_data)?;
             self.require_direct_backup_snapshot(
                 port_id,
                 &staged_data,
@@ -1663,12 +1703,24 @@ impl PortcoveService {
                 None
             };
             lifecycle.activate = user_root.exists();
-            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest)?;
+            let settings_deletion = self.prepare_restore_settings_deletion(
+                &lifecycle,
+                &staged_data,
+                &user_root,
+                manifest.partitioned_data_v1.as_deref(),
+                &restored_backup,
+                &reviewed_manifest,
+            )?;
+            self.retain_restore_manifest(&mut lifecycle, &reviewed_manifest, settings_deletion)?;
             let mut restore = self.validate_restore_operation(&lifecycle)?;
             let require_reviewed_data = |operation: &LifecycleOperation| -> Result<()> {
                 require_reviewed_manifest()?;
                 self.require_restore_snapshot_authority(operation, &staged_data)?;
                 self.preflight_psx_mod_restores(port_id, &staged_data)?;
+                self.require_restore_profile_projection(port_id, &staged_data)?;
+                if user_root.try_exists()? {
+                    self.require_restore_profile_projection(port_id, &user_root)?;
+                }
                 if self.collectible_data_review(port_id)? != reviewed_runtime
                     || self.canonical_data_review(port_id)? != collected_canonical
                 {
@@ -1709,16 +1761,19 @@ impl PortcoveService {
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
             self.validate_restore_operation(&lifecycle)?;
             self.require_restore_snapshot_authority(&lifecycle, &user_root)?;
+            self.require_restore_profile_projection(port_id, &user_root)?;
+            if previous_data.try_exists()? {
+                self.require_restore_profile_projection(port_id, &previous_data)?;
+            }
             self.synchronize_restored_user_data(port_id)?;
+            self.finish_restore_settings_deletion(
+                &lifecycle,
+                &previous_data,
+                &user_root,
+                restore.input_manifest.as_deref(),
+            )?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
-            self.validate_restore_operation(&lifecycle)?;
-            if previous_data.exists() {
-                fs::remove_dir_all(&previous_data)?;
-            }
-            if recovery_root.exists() {
-                fs::remove_dir_all(&recovery_root)?;
-            }
-            store.remove(&lifecycle.id)?;
+            self.finish_restore_cleanup(&store, &mut lifecycle)?;
             Ok(RestoreResult {
                 restored_backup,
                 safety_backup,
@@ -1885,13 +1940,14 @@ impl PortcoveService {
     /// failure returns an error, so the caller stops before it mutates anything.
     pub(super) fn snapshot_before_version_change(
         &self,
-        port_id: &str,
         kind: VersionChangeKind,
         contract_install: &InstallRecord,
         from_version: Option<&str>,
         to_version: &str,
         collect_first: bool,
+        overlay: Option<&SnapshotOverlay<'_>>,
     ) -> Result<SnapshotOutcome> {
+        let port_id = &contract_install.port_id;
         if !self.library.automatic_snapshots_enabled()? {
             return Ok(SnapshotOutcome::Disabled);
         }
@@ -1927,7 +1983,13 @@ impl PortcoveService {
                 from_version: from_version.map(str::to_owned),
                 to_version: to_version.to_owned(),
             };
-            match self.create_backup_locked_labeled(port_id, label) {
+            match self.create_backup_snapshot(
+                port_id,
+                Some(label),
+                overlay,
+                UnknownFileScope::Automatic,
+                None,
+            ) {
                 Ok(_) => {
                     let pruned = self.prune_automatic_snapshots(port_id);
                     Ok(SnapshotOutcome::Created { pruned })

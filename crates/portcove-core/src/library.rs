@@ -51,6 +51,8 @@ struct RetainedUserSelectedListing {
     listing: crate::PortListing,
 }
 
+// Retained registrations can include the escaped catalog and a separate record.
+pub(crate) const MAX_RETAINED_REGISTRATION_BYTES: u64 = 32 * 1024 * 1024;
 const USER_SELECTED_LISTING_FORMAT: &str = "portcove-user-selected-listing";
 
 fn external_runtime_row_sha256(port_id: &str, record: &str, catalog: &str) -> Result<String> {
@@ -75,9 +77,15 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Funding links are directory descriptions for the same reason; the current
         // directory supplies them again while it lists the project.
         listing.funding_urls = None;
+        // Implementation explanations are directory-only too. Keep earlier strict
+        // retained-listing readers compatible without changing their launch contract.
+        listing.implementation = None;
+        listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
-            format_version: if listing.compatibility.is_some() {
+            format_version: if listing.collection_covers.is_some() {
+                4
+            } else if listing.compatibility.is_some() {
                 3
             } else if listing
                 .manual_setup
@@ -102,7 +110,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(&catalog.authoritative_document())?)
+    Ok(serde_json::to_string(
+        &crate::installed_contract::legacy_retained_document(catalog, port_id, None),
+    )?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -116,10 +126,17 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             .manual_setup
             .as_ref()
             .is_some_and(|guide| !guide.references.is_empty());
-        if !matches!(retained.format_version, 1..=3)
+        if !matches!(retained.format_version, 1..=4)
+            || (retained.format_version == 4 && retained.listing.collection_covers.is_none())
+            || (retained.format_version < 4 && retained.listing.collection_covers.is_some())
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
+            || retained
+                .listing
+                .media
+                .iter()
+                .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -279,6 +296,8 @@ impl StoredInstallRow {
 pub struct Library {
     root: PathBuf,
     authorizations: AuthorizationStore,
+    pub(crate) artwork_catalog:
+        std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -447,7 +466,7 @@ impl LibraryChangeObserver {
     }
 }
 
-fn data_version(connection: &Connection) -> Result<i64> {
+pub(crate) fn data_version(connection: &Connection) -> Result<i64> {
     Ok(connection.query_row("PRAGMA data_version", [], |row| row.get(0))?)
 }
 
@@ -723,6 +742,38 @@ impl Library {
         Self::initialize(root.to_path_buf(), lease)
     }
 
+    /// Bind an existing current library without layout creation or migration.
+    pub(crate) fn open_current_for_recovery_bundle(root: &Path) -> Result<Self> {
+        fn require_current(root: &Path) -> Result<()> {
+            if crate::library_authority::authority(root)?.is_some() {
+                return Err(PortcoveError::conflict(
+                    "finish library relocation or recovery before creating a bundle",
+                ));
+            }
+            crate::import_journal::check_open(root)?;
+            if database::requires_migration(root)? {
+                return Err(PortcoveError::conflict(
+                    "open and update the library before creating a recovery bundle",
+                ));
+            }
+            Ok(())
+        }
+
+        crate::path::unicode(root, "recovery source library")?;
+        require_current(root)?;
+        let lease = std::sync::Arc::new(crate::library_access::LibraryLease::with_access(
+            root,
+            crate::library_access::LibraryAccess::Exclusive,
+        )?);
+        require_current(root)?;
+        Ok(Self {
+            root: root.to_path_buf(),
+            authorizations: AuthorizationStore::default(),
+            artwork_catalog: Default::default(),
+            _lease: lease,
+        })
+    }
+
     pub(crate) fn initialize(
         root: PathBuf,
         lease: std::sync::Arc<crate::library_access::LibraryLease>,
@@ -731,6 +782,7 @@ impl Library {
         let library = Self {
             root,
             authorizations: AuthorizationStore::default(),
+            artwork_catalog: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -912,7 +964,7 @@ impl Library {
     pub(crate) fn recovery_dir(&self) -> PathBuf {
         self.root.join("recovery")
     }
-    fn locks_dir(&self) -> PathBuf {
+    pub(crate) fn locks_dir(&self) -> PathBuf {
         self.root.join("locks")
     }
 
@@ -1013,6 +1065,19 @@ impl Library {
         })
     }
 
+    pub(crate) fn try_lock_psx_toolchain_acquisition(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("psx-toolchain-acquire.lock"),
+        )?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(
+                "psx-toolchain-acquire",
+                "PS1 toolchain",
+                "acquire-toolchain",
+            )?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
@@ -1043,8 +1108,10 @@ impl Library {
         operation_id: &str,
     ) -> Result<PortOperationGuard> {
         let owned: bool = self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2 AND kind='settings_change')",
-            rusqlite::params![operation_id, port_id], |row| row.get(0),
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE id=?1 AND port_id=?2
+             AND (kind='settings_change' OR (kind='activate' AND game_settings_json IS NOT NULL)))",
+            rusqlite::params![operation_id, port_id],
+            |row| row.get(0),
         )?;
         if !owned {
             return Err(PortcoveError::verification(
@@ -1103,7 +1170,8 @@ impl Library {
 
     fn require_settings_recovery_owner(&self, port_id: &str, allowed: Option<&str>) -> Result<()> {
         let blocked: bool = self.connection()?.query_row(
-            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND kind='settings_change' AND (?2 IS NULL OR id<>?2))",
+            "SELECT EXISTS(SELECT 1 FROM lifecycle_operations WHERE port_id=?1 AND (?2 IS NULL OR id<>?2)
+             AND (kind='settings_change' OR (kind='activate' AND game_settings_json IS NOT NULL)))",
             rusqlite::params![port_id, allowed], |row| row.get(0),
         )?;
         if blocked {
@@ -2109,7 +2177,11 @@ impl Library {
     }
 
     pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
-        Self::write_source(&self.connection()?, source)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        Self::write_source(&transaction, source)?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
@@ -2140,7 +2212,7 @@ impl Library {
                 observed_identity_json
             ],
         )?;
-        Ok(())
+        crate::source_instances::record(connection, source)
     }
 
     pub fn source(&self, profile_id: &str) -> Result<Option<SourceRecord>> {
@@ -2180,25 +2252,37 @@ impl Library {
         let mut profile_ids = profile_ids.to_vec();
         profile_ids.sort_unstable();
         profile_ids.dedup();
-        let connection = self.connection()?;
-        let sql = format!(
-            "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
-             FROM sources
-             WHERE profile_id IN ({})
-             ORDER BY profile_id",
-            sql_placeholders(profile_ids.len())
-        );
-        let mut statement = connection.prepare(&sql)?;
-        let rows =
-            statement.query_map(params_from_iter(&profile_ids), StoredSourceRow::from_row)?;
-        rows.map(|row| row?.into_record()).collect()
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let mut records = Vec::new();
+        for batch in profile_ids.chunks(256) {
+            let sql = format!(
+                "SELECT profile_id, path, sha256, size, storage_sha256, storage_size, updated_at, observed_identity_json
+                 FROM sources
+                 WHERE profile_id IN ({})
+                 ORDER BY profile_id",
+                sql_placeholders(batch.len())
+            );
+            let mut statement = transaction.prepare(&sql)?;
+            let rows = statement.query_map(params_from_iter(batch), StoredSourceRow::from_row)?;
+            for row in rows {
+                records.push(row?.into_record()?);
+            }
+        }
+        transaction.commit()?;
+        Ok(records)
     }
 
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
-        Ok(self
-            .connection()?
-            .execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?
-            > 0)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(source) = Self::source_from(&transaction, profile_id)? else {
+            return Ok(false);
+        };
+        crate::source_instances::forget(&transaction, &source)?;
+        transaction.execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?;
+        transaction.commit()?;
+        Ok(true)
     }
 
     pub fn ensure_settings(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<()> {
@@ -2442,6 +2526,9 @@ impl Library {
         activate: bool,
         expected_external_row_sha256: Option<&str>,
     ) -> Result<()> {
+        if activate {
+            crate::profile_file_preservation::require_idle(self, &install.port_id)?;
+        }
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if let Some(expected) = expected_external_row_sha256 {
@@ -2496,6 +2583,7 @@ impl Library {
             params![install.port_id, install.channel.to_string()],
         )?;
         if activate {
+            crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
@@ -2561,6 +2649,7 @@ impl Library {
         install: &InstallRecord,
         original_id: &str,
     ) -> Result<()> {
+        crate::profile_file_preservation::require_idle(self, &install.port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let current: Option<String> = transaction.query_row(
@@ -2577,6 +2666,7 @@ impl Library {
             ));
         }
         Self::write_install(&transaction, install, false)?;
+        crate::profile::follow_active_install(&transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -2599,8 +2689,14 @@ impl Library {
         &self,
         port_id: &str,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
-        let row = self
-            .connection()?
+        Self::external_runtime_with_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn external_runtime_with_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
+        let row = connection
             .query_row(
                 "SELECT record_json, retained_catalog_json FROM external_runtime_registrations
              WHERE port_id=?1",
@@ -2672,7 +2768,7 @@ impl Library {
         port_id: &str,
         budget: &mut u64,
     ) -> Result<Option<(ExternalRuntimeRecord, Catalog)>> {
-        let ceiling = (*budget).min(crate::signed_catalog::MAX_CATALOG_BYTES as u64);
+        let ceiling = (*budget).min(MAX_RETAINED_REGISTRATION_BYTES);
         if ceiling == 0 {
             return Err(PortcoveError::unsupported(
                 "browsing metadata budget reached",
@@ -2721,21 +2817,22 @@ impl Library {
         record: &ExternalRuntimeRecord,
         retained_catalog: &Catalog,
     ) -> Result<()> {
-        self.register_external_runtime_finishing_setup(record, retained_catalog, None)
+        self.register_external_runtime_finishing_setup(record.clone(), retained_catalog, None)
+            .map(|_| ())
     }
 
     pub(crate) fn register_external_runtime_finishing_setup(
         &self,
-        record: &ExternalRuntimeRecord,
+        mut record: ExternalRuntimeRecord,
         retained_catalog: &Catalog,
         pending: Option<(&str, &str)>,
-    ) -> Result<()> {
+    ) -> Result<ExternalRuntimeRecord> {
         if retained_catalog.listing(&record.port_id).is_err() {
             return Err(PortcoveError::state(
                 "external runtime and retained port identities differ",
             ));
         }
-        check_external_preferences_binding(record, retained_catalog)?;
+        check_external_preferences_binding(&record, retained_catalog)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let existing: bool = transaction.query_row(
@@ -2756,24 +2853,26 @@ impl Library {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
-        match (pending, pending_row.as_ref()) {
-            (None, None) => {}
+        record.setup_download = match (pending, pending_row.as_ref()) {
+            (None, None) => None,
             (Some((expected_id, expected_json)), Some((id, json)))
-                if id == expected_id && json == expected_json && record.user_selected.is_some() => {
+                if id == expected_id && json == expected_json && record.user_selected.is_some() =>
+            {
+                Some(serde_json::from_str::<crate::PendingSetupRecord>(json)?.into_setup_download())
             }
             _ => {
                 return Err(PortcoveError::conflict(
                     "pending setup changed after the selected executable was reviewed",
                 ));
             }
-        }
+        };
         transaction.execute(
             "INSERT INTO external_runtime_registrations
              (port_id, record_json, retained_catalog_json, registered_at)
              VALUES (?1, ?2, ?3, ?4)",
             params![
                 record.port_id,
-                serde_json::to_string(record)?,
+                serde_json::to_string(&record)?,
                 encode_external_catalog(retained_catalog, &record.port_id)?,
                 record.registered_at,
             ],
@@ -2790,7 +2889,7 @@ impl Library {
             }
         }
         transaction.commit()?;
-        Ok(())
+        Ok(record)
     }
 
     /// Replace location and freshly acknowledged preferences only. Preserve the
@@ -2942,7 +3041,12 @@ impl Library {
         match (pending, pending_row.as_ref()) {
             (None, None) => {}
             (Some((expected_id, expected_json)), Some((id, json)))
-                if user_selected && id == expected_id && json == expected_json => {}
+                if user_selected && id == expected_id && json == expected_json =>
+            {
+                record.setup_download = Some(
+                    serde_json::from_str::<crate::PendingSetupRecord>(json)?.into_setup_download(),
+                );
+            }
             _ => {
                 return Err(PortcoveError::conflict(
                     "pending setup changed after the replacement was reviewed",
@@ -3117,13 +3221,22 @@ impl Library {
         let ports_per_query = status_ports_per_query(connection)?;
 
         let mut settings = HashMap::new();
+        let mut carry_outcomes = HashMap::new();
         for port_ids in port_ids.chunks(ports_per_query) {
             metrics.record_query();
             let sql = format!(
-                "SELECT port_id, channel, update_policy, active_install_id, previous_install_id
-                 FROM port_settings
-                 WHERE port_id IN ({})",
-                sql_placeholders(port_ids.len())
+                "SELECT s.port_id, s.channel, s.update_policy, s.active_install_id,
+                        s.previous_install_id, c.from_install_id, c.outcome
+                 FROM port_settings s
+                 LEFT JOIN carried_file_outcomes c ON c.port_id=s.port_id
+                    AND c.to_install_id=s.active_install_id AND c.format={}
+                    AND typeof(c.outcome)='text'
+                    AND typeof(c.from_install_id)='text'
+                    AND length(CAST(c.outcome AS BLOB)) <= 65536
+                    AND length(CAST(c.from_install_id AS BLOB)) BETWEEN 1 AND 4096
+                 WHERE s.port_id IN ({})",
+                crate::carry_ledger::ROW_FORMAT,
+                sql_placeholders(port_ids.len()),
             );
             let mut statement = connection.prepare(&sql)?;
             let rows = statement.query_map(params_from_iter(port_ids), |row| {
@@ -3135,11 +3248,18 @@ impl Library {
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
                     ),
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, Option<String>>(6)?,
                 ))
             })?;
             for row in rows {
-                let (port_id, setting) = row?;
+                let (port_id, setting, from, outcome) = row?;
                 metrics.settings_row_count += 1;
+                if let (Some(from), Some(outcome)) = (from, outcome) {
+                    if let Some(outcome) = crate::carried_files::decode_outcome(&outcome) {
+                        carry_outcomes.insert(port_id.clone(), (from, outcome));
+                    }
+                }
                 settings.insert(port_id, setting);
             }
         }
@@ -3282,7 +3402,26 @@ impl Library {
                     .cloned();
                 let staged = staged.get(port_id).and_then(|id| installs.get(id)).cloned();
                 let history = launch_history.get(port_id).copied();
+                let carried_files = active.as_ref().and_then(|target| {
+                    let (from_id, outcome) = carry_outcomes.get(port_id)?;
+                    if target.port_id != *port_id || from_id == &target.id {
+                        return None;
+                    }
+                    let source = installs
+                        .get(from_id)
+                        .filter(|source| source.port_id == *port_id);
+                    Some(crate::CarriedFilesStatus {
+                        from_install_id: from_id.clone(),
+                        to_install_id: target.id.clone(),
+                        from_version: source.map(|source| source.version.clone()),
+                        from_path: source.map(|source| source.path.clone()),
+                        to_version: target.version.clone(),
+                        to_path: target.path.clone(),
+                        outcome: outcome.clone(),
+                    })
+                });
                 Ok(PortStatus {
+                    carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
@@ -3400,6 +3539,22 @@ impl Library {
         Ok((installs, metrics))
     }
 
+    pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
+                    artifact_name, artifact_sha256, artifact_size, manifest_sha256,
+                    selected_executable, runtime_json
+             FROM installs WHERE port_id=?1 ORDER BY rowid",
+        )?;
+        let rows = statement.query_map([port_id], StoredInstallRow::from_row)?;
+        rows.map(|row| {
+            row.map_err(Into::into)
+                .and_then(StoredInstallRow::into_record)
+        })
+        .collect()
+    }
+
     pub(crate) fn port_install_paths(&self, port_id: &str) -> Result<Vec<PathBuf>> {
         let connection = self.connection()?;
         let mut statement = connection.prepare(
@@ -3413,6 +3568,7 @@ impl Library {
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let (active_id, previous_id): (Option<String>, Option<String>) = transaction
@@ -3426,16 +3582,35 @@ impl Library {
         let previous_id = previous_id.ok_or_else(|| {
             PortcoveError::not_found(format!("{port_id} has no rollback version"))
         })?;
+        let previous = Self::install_by_id(&transaction, Some(&previous_id))?
+            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))?;
+        crate::profile::follow_active_install(&transaction, &previous)?;
         transaction.execute(
             "UPDATE port_settings SET active_install_id=?2, previous_install_id=?3 WHERE port_id=?1",
             params![port_id, previous_id, active_id],
         )?;
         transaction.commit()?;
-        Self::install_by_id(&connection, Some(&previous_id))?
-            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))
+        Ok(previous)
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
+        self.activate_staged_with_identity(port_id, None)
+    }
+
+    pub(crate) fn activate_staged_exact(
+        &self,
+        previous: &InstallRecord,
+        target: &InstallRecord,
+    ) -> Result<InstallRecord> {
+        self.activate_staged_with_identity(&target.port_id, Some((previous, target)))
+    }
+
+    fn activate_staged_with_identity(
+        &self,
+        port_id: &str,
+        expected: Option<(&InstallRecord, &InstallRecord)>,
+    ) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let staged_id: String = transaction
@@ -3446,6 +3621,27 @@ impl Library {
             )
             .optional()?
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        let staged = Self::install_by_id(&transaction, Some(&staged_id))?
+            .ok_or_else(|| PortcoveError::state("staged version disappeared during activation"))?;
+        if let Some((previous, target)) = expected {
+            let active_id: Option<String> = transaction.query_row(
+                "SELECT active_install_id FROM port_settings WHERE port_id=?1",
+                [port_id],
+                |row| row.get(0),
+            )?;
+            let active = Self::install_by_id(&transaction, active_id.as_deref())?;
+            if !active
+                .as_ref()
+                .is_some_and(|active| crate::recovery::same_activation_install(active, previous))
+                || !crate::recovery::same_activation_install(&staged, target)
+                || !staged.verified
+            {
+                return Err(PortcoveError::conflict(
+                    "the active or staged install changed before the settings activation commit",
+                ));
+            }
+        }
+        crate::profile::follow_active_install(&transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id = CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -3460,6 +3656,7 @@ impl Library {
     }
 
     pub fn remove_port(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         crate::retained_build::require_no_references(&transaction, port_id)?;
@@ -3619,6 +3816,29 @@ mod tests {
                 .funding_urls
                 .is_none()
         );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_directory_implementation_descriptions() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"described-project", "name":"Described project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "implementation":{"format_version":1,"methods":[{"kind":"source-port","evidence_urls":["https://example.com/source"]}],"dependencies":[]}
+        })).unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "described-project").unwrap();
+        assert!(!content.contains("implementation"), "{content}");
+        let envelope: serde_json::Value = serde_json::from_str(&content).unwrap();
+        assert_eq!(envelope["format_version"], 1);
+        let retained = decode_external_catalog(&content, "described-project").unwrap();
+        assert!(
+            retained
+                .listing("described-project")
+                .unwrap()
+                .implementation
+                .is_none()
+        );
+        assert!(retained.ports().is_empty());
     }
 
     #[test]
@@ -4918,6 +5138,11 @@ mod tests {
             library.port_install_paths("target").unwrap(),
             [temporary.path().join("target")]
         );
+        let installs = library.installs_for_port("target").unwrap();
+        assert_eq!(installs.len(), 1);
+        assert_eq!(installs[0].id, "target-install");
+        assert!(library.installs_for_port("absent").unwrap().is_empty());
+        assert!(library.installs_for_port("unrelated").is_err());
         assert!(library.all_installs().is_err());
     }
 

@@ -29,6 +29,9 @@ enum Command {
     AssembleDefinitionRepository {
         config: PathBuf,
     },
+    CheckDefinitionPublicationContext {
+        config: PathBuf,
+    },
     VerifyDefinitionRepository {
         config: PathBuf,
     },
@@ -162,6 +165,16 @@ fn run(command: Command) -> Result<(), Box<dyn std::error::Error>> {
                 ),
             )?;
             println!("{}", serde_json::to_string(&report)?);
+        }
+        Command::CheckDefinitionPublicationContext { config } => {
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?
+                .block_on(
+                    portcove_release_tools::definition_repository::check_definition_publication_context(
+                        &config,
+                    ),
+                )?;
         }
         Command::SignDefinitionRole { role, config } => {
             let runtime = tokio::runtime::Builder::new_current_thread()

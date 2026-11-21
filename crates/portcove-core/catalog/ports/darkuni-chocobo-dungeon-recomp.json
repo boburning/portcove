@@ -1,7 +1,16 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "darkuni-chocobo-dungeon-recomp",
+    "artwork": {
+      "game_id": 18069,
+      "cover_id": 315284,
+      "image_id": "co6r9w",
+      "image_sha256": "b53f4826c68fcd2d8d13672a78b07a03c1bb0390b61a166bf396327d8b0a88f9",
+      "game_slug": "final-fantasy-fables-chocobos-dungeon",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
     "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
@@ -34,8 +43,23 @@
     },
     "release_url": "https://github.com/darkuni/chocobo-dungeon-recomp/releases",
     "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["ChocoboDungeon-", "-win64.zip"]
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-fables-chocobos-dungeon",
+      "evidence_urls": [
+        "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md",
+        "https://github.com/darkuni/chocobo-dungeon-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-fables-chocobos-dungeon-wii",
+          "title": "Final Fantasy Fables: Chocobo’s Dungeon (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -58,12 +82,7 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. Without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted, failed or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code or its bundled DejaVu Sans Mono bitmap font. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups, so backups include the extracted game files. If you start chocobo.exe yourself with a path to an extracted folder, that copy runs outside Portcove and keeps its saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["chocobo.exe"]
-      }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

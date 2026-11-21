@@ -220,6 +220,19 @@ pub(crate) fn write_bytes_atomically_with_prefix(
     replace: bool,
     prefix: Option<&str>,
 ) -> Result<()> {
+    write_bytes_atomically_checked(destination, bytes, replace, prefix, || Ok(()))
+}
+
+/// Checks a destination precondition after flushing the staged bytes and
+/// immediately before publishing them. A vacant destination still uses
+/// no-clobber publication.
+pub(crate) fn write_bytes_atomically_checked(
+    destination: &Path,
+    bytes: &[u8],
+    replace: bool,
+    prefix: Option<&str>,
+    check_destination: impl FnOnce() -> Result<()>,
+) -> Result<()> {
     use std::io::Write;
     let destination = tempfile_destination(destination)?;
     let destination = destination.as_path();
@@ -235,6 +248,7 @@ pub(crate) fn write_bytes_atomically_with_prefix(
     };
     temporary.write_all(bytes)?;
     temporary.as_file().sync_all()?;
+    check_destination()?;
     let result = if replace {
         temporary.persist(destination)
     } else {

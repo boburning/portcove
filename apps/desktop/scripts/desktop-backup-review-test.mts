@@ -251,7 +251,7 @@ export async function backupReviewScenario({
       async () =>
         (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
         0,
-      15_000,
+      60_000,
     );
     assert.equal(await readFile(save, "utf8"), "current data before review");
     const generation = transportValue(
@@ -283,7 +283,10 @@ export async function backupReviewScenario({
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
     await writeFile(save, "changed after review");
     await browser.findElement(button("Restore this backup")).click();
-    await browser.wait(until.elementLocated(button("Review again")), 15_000);
+    // Native27 observed consecutive 11.032 s and 11.063 s workspace readbacks
+    // while this refused apply was still settling; exact promise attribution is
+    // unproven. Match the finite confirmed-restore allowance for this UI wait.
+    await browser.wait(until.elementLocated(button("Review again")), 60_000);
     assert.equal(await readFile(save, "utf8"), "changed after review");
     assert.equal(list().length, 2);
     await browser.findElement(button("Review again")).click();

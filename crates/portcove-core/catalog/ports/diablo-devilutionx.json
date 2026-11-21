@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "diablo-devilutionx",
+    "artwork": {
+      "game_id": 125,
+      "cover_id": 161304,
+      "image_id": "co3ggo",
+      "image_sha256": "514e501260b0929c26bc55653acff593099b98a5d4f83ad2c04a00f026778440",
+      "game_slug": "diablo",
+      "match_kind": "underlying-game"
+    },
     "name": "Diablo (DevilutionX)",
     "summary": "Play Diablo through DevilutionX with your matching original game files.",
     "original_game_title": "Diablo",
@@ -13,8 +21,6 @@
     "release_url": "https://github.com/diasurgical/DevilutionX/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
-      "linux-x86-64": ["devilutionx-linux-x86_64.appimage"],
       "macos-x86-64": ["devilutionx-macOS-universal.dmg"],
       "macos-aarch64": ["devilutionx-macOS-universal.dmg"]
     },
@@ -46,7 +52,7 @@
       "references": [
         {
           "title": "Choose a DevilutionX route on Linux",
-          "instruction": "The managed x86-64 route uses the official AppImage and the original-file chooser. The reviewed AppImage needs glibc 2.34 or later and a working FUSE setup. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
+          "instruction": "A new managed x86-64 installation uses the official tar.xz and the original-file chooser. Install your distribution’s SDL2 and SDL2_image libraries first. Existing managed AppImages keep their own runtime and profile. For a new managed copy, use a separate library and keep your old originals and saves. For a separate upstream-owned x86-64 copy, make the complete AppImage executable and keep it outside the Portcove library. Place your matching MPQ in $XDG_DATA_HOME/diasurgical/devilution (normally ~/.local/share/diasurgical/devilution). For shareware, use spawn.mpq and add the literal argument --spawn. Keep the default data path because an explicit --data-dir can hide the engine archive bundled in AppImage 1.5.5. Open the prepared copy upstream first. Then select the AppImage and its containing folder for external registration. Review the arguments and choose Play separately. For the x86-64 tar.xz, extract it into a new setup folder with Portcove Download or your archive tool, keep the complete package and start devilutionx.sh. On Linux ARM64 use the separate AArch64 tar.xz, install the needed SDL2 and SDL2_image libraries, and start devilutionx from the extracted folder. Use the game mode that matches your original data."
         },
         {
           "title": "Prepare DevilutionX on Mac",
@@ -58,7 +64,25 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "diablo",
+      "evidence_urls": [
+        "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md",
+        "https://github.com/diasurgical/DevilutionX"
+      ],
+      "source_editions": [
+        {
+          "id": "diablo-pc",
+          "title": "Diablo (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/diablo-devilutionx.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -72,6 +96,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -81,16 +106,17 @@
     "manually_validated_platforms": [],
     "release": {
       "repository": "diasurgical/DevilutionX",
+      "linux_tar_xz": true,
       "asset_hints": {
         "windows-x86-64": ["devilutionx-windows-x86_64.zip"],
-        "linux-x86-64": ["devilutionx-linux-x86_64.appimage"]
+        "linux-x86-64": ["devilutionx-linux-x86_64.tar.xz"]
       }
     },
     "executable_hints": {
       "windows-x86-64": ["devilutionx.exe"],
-      "linux-x86-64": ["devilutionx.AppImage"]
+      "linux-x86-64": ["devilutionx"]
     },
-    "windows_runtime_path_policy": "relative-file-max-path",
+    "linux_packaged_library": "discord_game_sdk.so",
     "source_profile": "diablo-devilutionx-retail-originals",
     "runtime_source_set": [
       {
@@ -108,8 +134,6 @@
       "--config-dir",
       "profile"
     ],
-    "persistent_paths": ["profile"],
-    "windows_temp_directory": "profile",
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [
@@ -121,13 +145,30 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose original game files",
+            "instruction": "Choose a folder or ZIP containing the matching DIABDAT.MPQ from your own original Diablo."
+          }
+        ],
+        "warnings": [
+          "On Linux x86-64, the tar.xz player needs glibc 2.34 or later, SDL2 and SDL2_image. Keep any existing AppImage installation and its profile. Use a separate library to try this package."
+        ],
+        "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
+      },
       "manual_preparation": "Select a folder or ZIP containing your complete matching DIABDAT.MPQ through the original-file chooser. This managed offer accepts the reviewed complete original set; other editions, the shareware demo and optional class archives use the separate upstream-owned route. Originals are not included. Upstream may also read recognized outside data locations; Core does not own or back up those files. Portcove prepares verified immutable copies under originals beside the player, and keeps settings, characters, stash, screenshots, demos and temporary data under the separate profile folder. Play uses the selected Diablo mode. Keep Diablo and Hellfire in their own entries and profiles; character conversion, cross-mode saves and older-reader compatibility are not established. Do not change this entry’s original set in place. Existing registrations stay externally owned; this offer does not adopt their populated runtime, original files or profile. Use a separate library or independently owned upstream copy for another original set, profile or owner. Preserve the creating runtime and current profile before changing versions. Outside-tree paths and unclaimed inside-tree modifications are outside this managed scope and can hold maintenance. Removal preserves the declared profile and external originals; retained profile data requires its creating contract before reuse."
     },
     "reviewed_package_layouts": {
       "windows-x86-64": {
         "directories": ["license"],
         "executables": ["devilutionx.exe"]
+      },
+      "linux-x86-64": {
+        "directories": [],
+        "executables": ["devilutionx", "devilutionx.sh"]
       }
     }
-  }
+  },
+  "native_managed_profile_v1": true
 }

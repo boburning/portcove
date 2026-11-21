@@ -55,7 +55,7 @@ function projectUrl(value: unknown): string {
     throw new Error("Lineage references must be credential-free HTTPS URLs.");
   return url.href;
 }
-function identityUrl(value: string) {
+export function identityUrl(value: string) {
   const url = new URL(projectUrl(value));
   // GitHub repository names are case-insensitive. Other hosts retain their path semantics.
   if (
@@ -243,14 +243,15 @@ export function assessUpstreamLineage(port: PortIdentity): {
     value.format_version !== 1 ||
     !text(value.target_key, 128) ||
     !stableId.test(value.target_key) ||
-    !Number.isSafeInteger(port.listing.issue_number) ||
-    Number(port.listing.issue_number) < 1 ||
     !Array.isArray(value.decisions) ||
     value.decisions.length > 64
   )
-    throw new Error(
-      "Lineage requires format 1, a stable target, canonical issue and bounded decisions.",
-    );
+    throw new Error("Lineage requires format 1, a stable target and bounded decisions.");
+  if (
+    value.decisions.length &&
+    (!Number.isSafeInteger(port.listing.issue_number) || Number(port.listing.issue_number) < 1)
+  )
+    throw new Error("Lineage decisions require a canonical issue.");
   let current = identity(value.origin);
   const lineage = value as unknown as UpstreamLineage;
   const history = [current];

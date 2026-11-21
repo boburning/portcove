@@ -20,10 +20,6 @@
     "original_game_title": "Banjo-Tooie",
     "release_url": "https://github.com/Vidanox/BanjoTooieRecompiled/releases",
     "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["BanjoTooieRecompiled-", "windows-x64.zip"],
-      "linux-x86-64": ["BanjoTooieRecompiled-", "linux-x64.tar.gz"]
-    },
     "manual_setup": {
       "steps": [
         {
@@ -46,8 +42,27 @@
           "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. It holds the copied original bt.n64.us.1.0.z64, saves, settings and mods. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep a working copy before replacing the player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-tooie",
+      "evidence_urls": [
+        "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
+        "https://github.com/Vidanox/BanjoTooieRecompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "banjo-tooie-nintendo-64",
+          "title": "Banjo-Tooie (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

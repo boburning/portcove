@@ -1,4 +1,4 @@
-//! Host-local proof that a retained definition was admitted before portability.
+//! Host-local proof of retained definition and saved package choice admissions.
 //!
 //! The retained manifest preserves exact semantics, but its serialized admission identity is not
 //! independently authoritative. This receipt binds those semantics to an operating-system secure
@@ -16,6 +16,7 @@ use crate::{Catalog, LibraryMetadata, PortcoveError, Result};
 const CREDENTIAL_SERVICE: &str = "io.github.portcove.Portcove";
 #[cfg(not(test))]
 const CREDENTIAL_USER: &str = "portability-authority-v1";
+const EMBEDDED_CHOICE_ROLE: &str = "embedded-package-choice";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -44,6 +45,11 @@ impl PortabilityAdmission {
         let Some(selection) = catalog.definition_selection(&install.port_id) else {
             return Ok(None);
         };
+        if role == EMBEDDED_CHOICE_ROLE {
+            return Err(PortcoveError::verification(
+                "portability authority has an invalid selection role",
+            ));
+        }
         Ok(Some(Self {
             install_id: install.id.clone(),
             port_id: install.port_id.clone(),
@@ -51,6 +57,22 @@ impl PortabilityAdmission {
             selection_sha256: hex::encode(Sha256::digest(serde_json::to_vec(selection)?)),
             role: role.into(),
         }))
+    }
+
+    pub(crate) fn from_embedded_choice(
+        install: &crate::InstallRecord,
+        choice: &crate::ManagedPackageVariant,
+    ) -> Result<Self> {
+        Ok(Self {
+            install_id: install.id.clone(),
+            port_id: install.port_id.clone(),
+            manifest_sha256: install.manifest_sha256.clone(),
+            selection_sha256: hex::encode(Sha256::digest(serde_json::to_vec(&(
+                "Portcove embedded package choice portability v1",
+                choice,
+            ))?)),
+            role: EMBEDDED_CHOICE_ROLE.into(),
+        })
     }
 }
 
@@ -65,7 +87,19 @@ impl PortabilityAuthority {
 
 /// Oldest reader contract that can carry this metadata without dropping state.
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
-    if metadata.artwork.as_ref().is_some_and(|artwork| {
+    if !metadata.source_instances.is_empty()
+        || metadata.source_references.iter().any(|source| {
+            crate::portability::saved_inbox_relative(&metadata.original_root, &source.path)
+                .is_some()
+        })
+    {
+        12
+    } else if crate::profile::has_retired_history(
+        &metadata.profiles,
+        &metadata.retained_build_references,
+    ) {
+        11
+    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
         !artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty()
     }) {
         10
@@ -114,8 +148,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=10) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=10) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=12) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=12) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
@@ -141,6 +175,30 @@ pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmissi
     ))
 }
 
+/// Independent host proof for recovery-bundle publication and its staged intent.
+/// These documents cannot supply an installation's portability admissions.
+pub(crate) fn sign_recovery_bundle(domain: &'static str, body: &impl Serialize) -> Result<String> {
+    let key = load_or_create_key()?;
+    Ok(hmac_sha256(&key, &serde_json::to_vec(&(domain, body))?))
+}
+
+pub(crate) fn verify_recovery_bundle(
+    domain: &'static str,
+    body: &impl Serialize,
+    signature: &str,
+) -> Result<()> {
+    let key = load_key()?.ok_or_else(|| {
+        PortcoveError::verification("this host cannot verify the recovery bundle receipt")
+    })?;
+    let expected = hmac_sha256(&key, &serde_json::to_vec(&(domain, body))?);
+    if !constant_time_eq(expected.as_bytes(), signature.as_bytes()) {
+        return Err(PortcoveError::verification(
+            "recovery bundle receipt did not match its recorded identity",
+        ));
+    }
+    Ok(())
+}
+
 fn canonical_entries(mut entries: Vec<PortabilityAdmission>) -> Result<Vec<PortabilityAdmission>> {
     entries.sort_by(|left, right| left.install_id.cmp(&right.install_id));
     if entries
@@ -151,10 +209,12 @@ fn canonical_entries(mut entries: Vec<PortabilityAdmission>) -> Result<Vec<Porta
             "portability authority repeats an installation identity",
         ));
     }
-    if entries
-        .iter()
-        .any(|entry| !matches!(entry.role.as_str(), "active" | "previous"))
-    {
+    if entries.iter().any(|entry| {
+        !matches!(
+            entry.role.as_str(),
+            "active" | "previous" | EMBEDDED_CHOICE_ROLE
+        )
+    }) {
         return Err(PortcoveError::verification(
             "portability authority has an invalid selection role",
         ));

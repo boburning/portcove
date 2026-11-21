@@ -2,9 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "baldur-s-gate-ii-original-gemrb",
+    "artwork": {
+      "game_id": 6,
+      "cover_id": 329139,
+      "image_id": "co71yr",
+      "image_sha256": "43f883b7fc3d81c7edde48abc6be26739f0e4102e5192088d41efd1f25b4780a",
+      "game_slug": "baldurs-gate-ii-shadows-of-amn",
+      "match_kind": "underlying-game"
+    },
     "name": "Baldur's Gate II (original) (GemRB)",
     "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
-    "original_game_title": "Baldur's Gate II (original)",
+    "original_game_title": "Baldur’s Gate II: Shadows of Amn",
     "project_url": "https://github.com/gemrb/gemrb",
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -50,7 +58,18 @@
         }
       ]
     },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "baldur-s-gate-ii",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
+        "https://gemrb.org/Install.html",
+        "https://github.com/gemrb/gemrb",
+        "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -64,6 +83,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -73,19 +93,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "gemrb/gemrb",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "gemrb/gemrb"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

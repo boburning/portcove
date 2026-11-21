@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "p3p3ds-endercodezz-persona-3-portable",
+    "artwork": {
+      "game_id": 11416,
+      "cover_id": 76535,
+      "image_id": "co1n1z",
+      "image_sha256": "cbbb713244506cfbcfd541a15de399f7a95c5580ad94e9779bd644c0f2089421",
+      "game_slug": "persona-3-portable",
+      "match_kind": "underlying-game"
+    },
     "name": "Persona 3 Portable — P3P3DS (endercodezz)",
     "original_game_title": "Persona 3 Portable",
     "summary": "The project reports an early playable New 3DS build at 28–30 FPS in the field and 16-25 FPS in battles. Sound and the opening movie are absent. Headless PC images do not establish a desktop player. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/endercodezz/P3P3DS"
     },
-    "issue_number": 3104
+    "issue_number": 3104,
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-portable",
+      "evidence_urls": ["https://github.com/endercodezz/P3P3DS"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

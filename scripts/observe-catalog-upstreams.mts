@@ -18,6 +18,7 @@ import type { GitHubRequestPolicy } from "./github-client.mts";
 import type { ObserveOptions } from "./upstream-observer.mts";
 import type { CatalogObserverCheckpoint } from "./catalog-upstream-observer.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import { downloadGitHubWorkflowStepLog } from "./github-artifact-download.mts";
 import { isRecord } from "./runtime-values.mts";
 import { advanceCatalogObservations } from "./catalog-upstream-observer.mts";
 import {
@@ -32,6 +33,7 @@ import {
 import {
   observationHash,
   readObserverMetadata,
+  observerGitHubRateLimit,
   ObservationFailure,
   validateObserverConfig,
 } from "./upstream-observer.mts";
@@ -43,6 +45,7 @@ import {
   observerStreamingSnapshotLimit,
 } from "./observer-checkpoint-artifact.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
+import { isUpstreamBuildMetadataUrl } from "./upstream-github-build-output.mts";
 
 const defaultRoot = fileURLToPath(new URL("../", import.meta.url));
 
@@ -55,7 +58,7 @@ function repositoryMetadataReader(
 ) {
   let sdk: ReturnType<typeof createGitHubClient> | undefined;
   const failed = new Map<string, GitHubRequestPolicy>();
-  return async (repository: string) => {
+  return async (repository: string, sourceEndpoint?: string) => {
     if (!sdk) {
       const credential = localDeveloperCredential({ deadline: scope.deadline });
       sdk = createGitHubClient({
@@ -68,10 +71,21 @@ function repositoryMetadataReader(
           : {}),
         headers: { accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
         allowRequest: (method, url) =>
-          method === "GET" && /^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname),
+          method === "GET" &&
+          (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
+            isUpstreamBuildMetadataUrl(url) ||
+            /^\/repos\/[^/]+\/[^/]+\/git\/(?:ref\/tags\/[^/]+|tags\/[a-f0-9]{40})$/u.test(
+              url.pathname,
+            ) ||
+            ((/^\/repos\/[^/]+\/[^/]+\/contents\/(?:docs\/supportedHashes\.json|src\/main\/main\.cpp|lib\/N64ModernRuntime|librecomp\/src\/recomp\.cpp)$/u.test(
+              url.pathname,
+            ) ||
+              url.pathname === "/repos/N64Recomp/N64ModernRuntime/contents/thirdparty/xxHash" ||
+              /^\/repos\/Cyan4973\/xxHash\/contents\/(?:xxh3|xxhash)\.h$/u.test(url.pathname)) &&
+              /^\?ref=[a-f0-9]{40}$/u.test(url.search))),
       });
     }
-    const endpoint = `/repos/${repository}`;
+    const endpoint = sourceEndpoint ?? `/repos/${repository}`;
     const policy = failed.get(endpoint) ?? { replay: "once" as const, attempts: 0 };
     failed.set(endpoint, policy);
     const response = await readObserverMetadata(await sdk, endpoint, policy);
@@ -174,12 +188,14 @@ export async function runCatalogUpstreams(
     project?: typeof projectObservation;
     projectProvider?: typeof projectProviderObservation;
     providerFetch?: typeof fetch;
+    modProviderRegistryFetch?: typeof fetch;
     inspectCatalog?: typeof inspectCatalogDefinitions;
     repositoryMetadata?: (repository: string) => Promise<GitHubMetadataResponse>;
     log?: (value: string) => void;
     deadline?: number;
     excludedSources?: ReadonlySet<string>;
     requestLimit?: number;
+    reserveExpiredListingTurn?: boolean;
     prioritizeConfigured?: boolean;
     scheduledPrioritySources?: ReadonlySet<string>;
     handoff?: { directory: string; sizes: Map<string, number>; bytes: number };
@@ -209,7 +225,7 @@ export async function runCatalogUpstreams(
 
   const catalogInput = await readBoundedEvidenceFile(
     path.join(root, "crates/portcove-core/catalog/catalog.json"),
-    4 * 1024 * 1024,
+    16 * 1024 * 1024,
   );
   const operational: unknown = JSON.parse(catalogInput.bytes.toString("utf8"));
   const listingInput = await readBoundedEvidenceFile(
@@ -228,14 +244,14 @@ export async function runCatalogUpstreams(
     path.join(root, "work/upstream-observer", observationHash(config));
   const statePath = path.join(root, "work/upstream-observer/catalog/checkpoint.json");
   await mkdir(path.dirname(statePath), { recursive: true });
-  const repositoryMetadata =
-    runtime.repositoryMetadata ??
-    repositoryMetadataReader(
-      config.budget.response_bytes,
-      githubScope,
-      observationToken,
-      runtime.observer?.signal,
-    );
+  const githubMetadata = repositoryMetadataReader(
+    config.budget.response_bytes,
+    githubScope,
+    observationToken,
+    runtime.observer?.signal,
+  );
+  const repositoryMetadata = runtime.repositoryMetadata ?? githubMetadata;
+  let stepLogCredential: ReturnType<typeof localDeveloperCredential> | undefined;
   let health: unknown = null;
   try {
     health = await boundedJson(
@@ -310,11 +326,15 @@ export async function runCatalogUpstreams(
       deadline: operationDeadline,
       ...(runtime.excludedSources ? { excludedSources: runtime.excludedSources } : {}),
       ...(runtime.requestLimit === undefined ? {} : { requestLimit: runtime.requestLimit }),
+      reserveExpiredListingTurn: runtime.reserveExpiredListingTurn === true,
       prioritizeConfigured: runtime.prioritizeConfigured === true,
       ...(runtime.scheduledPrioritySources
         ? { scheduledPrioritySources: runtime.scheduledPrioritySources }
         : {}),
       ...runtime.observer,
+      ...(runtime.modProviderRegistryFetch
+        ? { modProviderRegistryFetch: runtime.modProviderRegistryFetch }
+        : {}),
       githubScope,
       policyIdentity: coreIdentity.sha256,
       definitionHash: (portId) => definitionHashes.get(portId) ?? "",
@@ -398,6 +418,78 @@ export async function runCatalogUpstreams(
                 ? "Primary repository identity transport is unavailable; retry a bounded fresh lookup without changing the retained source."
                 : `Primary repository identity returned HTTP ${error.status}; preserve the declared source and reconcile its current primary-provider availability.`,
             );
+          throw error;
+        }
+      },
+      observeN64Runtime: true,
+      readN64BuildStepLog: async (repository, job, step, account) => {
+        const deadline = Math.min(githubScope.deadline, performance.now() + 20_000);
+        stepLogCredential ??= localDeveloperCredential({ deadline });
+        try {
+          return await downloadGitHubWorkflowStepLog(
+            "repos/" + repository + "/actions/jobs/" + job + "/steps/" + step + "/logs",
+            {
+              credential: stepLogCredential,
+              deadline,
+              maxBytes: Math.min(512 * 1024, config.budget.response_bytes),
+              ...(runtime.observer?.signal ? { signal: runtime.observer.signal } : {}),
+              lookup: {
+                reserve() {
+                  account.admitRequest();
+                  return {
+                    consumeBytes: (bytes) => account.consumeResponseBytes(bytes),
+                    settle(attempt) {
+                      if (attempt.dispatched)
+                        account.observeResponse(new Response(null, { headers: attempt.headers }));
+                    },
+                  };
+                },
+              },
+            },
+            (bytes) => account.consumeResponseBytes(bytes),
+          );
+        } catch (error) {
+          if (error instanceof GitHubApiError && error.code === "rate_limited")
+            throw observerGitHubRateLimit(error, now());
+          throw error;
+        }
+      },
+      readOriginalRecognition: async (repository, endpoint, account) => {
+        account.admitRequest();
+        try {
+          const response = await githubMetadata(repository, endpoint);
+          account.observeResponse(
+            new Response(null, { headers: Object.fromEntries(response.headers) }),
+          );
+          account.consumeResponseBytes(response.bodyBytes ?? null);
+          if (
+            response.status !== 200 ||
+            response.bodyBytes === undefined ||
+            response.bodyBytes > config.budget.response_bytes
+          )
+            throw new ObservationFailure(
+              "original-source-unavailable",
+              "Exact original recognition metadata is unavailable",
+            );
+          return response.body;
+        } catch (error) {
+          if (error instanceof GitHubApiError) {
+            const deferred =
+              error.code === "rate_limited" ? observerGitHubRateLimit(error, now()) : null;
+            try {
+              account.consumeResponseBytes(error.responseBytes);
+            } catch (chargeError) {
+              if (
+                !(
+                  deferred &&
+                  chargeError instanceof ObservationFailure &&
+                  chargeError.rule === "budget"
+                )
+              )
+                throw chargeError;
+            }
+            if (deferred) throw deferred;
+          }
           throw error;
         }
       },
@@ -631,7 +723,7 @@ export async function runCatalogOpportunity(
       readBoundedEvidenceFile(path.join(root, "release/upstream-observer.json"), 16384),
       readBoundedEvidenceFile(
         path.join(root, "crates/portcove-core/catalog/catalog.json"),
-        4 * 1024 * 1024,
+        16 * 1024 * 1024,
       ),
       readBoundedEvidenceFile(
         path.join(root, "crates/portcove-core/catalog/listings.json"),
@@ -689,12 +781,15 @@ export async function runCatalogOpportunity(
     await appendFile(process.env.GITHUB_OUTPUT, `catalog_handoff_directory=${handoff.directory}\n`);
   }
   try {
+    const { modProviderRegistryFetch, ...batchRuntime } = runtime;
     let prioritizeConfigured = true;
     const result = await continueCatalogBatches(
       async (excluded, requestLimit) => {
         await assertInputs();
         const batch = await runCatalogUpstreams(fixedArgs, {
-          ...runtime,
+          ...batchRuntime,
+          // One registry request per hosted opportunity, including partial responses.
+          ...(prioritizeConfigured && modProviderRegistryFetch ? { modProviderRegistryFetch } : {}),
           observer: {
             ...runtime.observer,
             githubScope,
@@ -704,6 +799,7 @@ export async function runCatalogOpportunity(
           handoff,
           excludedSources: excluded,
           requestLimit,
+          reserveExpiredListingTurn: true,
           prioritizeConfigured,
           handoffByteLimit: hostedHandoffByteLimit,
           log: () => {},
@@ -820,10 +916,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       );
     const result =
       deadline === undefined
-        ? await runCatalogUpstreams(process.argv.slice(2))
+        ? await runCatalogUpstreams(process.argv.slice(2), { modProviderRegistryFetch: fetch })
         : await runCatalogOpportunity(process.argv.slice(2), {
             deadline: Date.parse(deadline),
             scheduledPrioritySources,
+            modProviderRegistryFetch: fetch,
           });
     if (process.env.GITHUB_OUTPUT && deadline === undefined) {
       if (/[\r\n]/u.test(result.handoff_directory)) throw new Error("Invalid artifact output path");

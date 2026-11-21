@@ -4,13 +4,24 @@ import { parse } from "yaml";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { Script } from "node:vm";
+import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { execFileSync } from "node:child_process";
 import {
   addWithdrawn,
+  appReleaseMatrix,
+  appReleaseProfile,
+  assertAppReleaseAssets,
   assertNewerThanTags,
   assertVersionUnclaimed,
   buildFeed,
   classifyRelease,
+  collectAppReleaseBundles,
+  findRelease,
+  listReleases,
+  readReleaseById,
+  readMainCiConclusions,
+  mainCiConclusion,
   compareVersions,
   isWithdrawn,
   nextPreviewVersion,
@@ -21,6 +32,7 @@ import {
   publishedReleases,
   quietMentions,
   readWorkspaceVersion,
+  renderAppReleaseDownloadSection,
   replacementCandidates,
   stampVersion,
   tagRelease,
@@ -436,6 +448,7 @@ function nightlyRunner(state: {
   describe?: string | null;
   history?: string[];
   tagged?: Record<string, string>;
+  preProfile?: string[];
   workspace?: string;
 }) {
   const head = "c".repeat(40);
@@ -447,7 +460,13 @@ function nightlyRunner(state: {
     if (args[0] === "rev-parse") return head;
     if (args[0] === "rev-list") return history.join("\n");
     if (args[0] === "show") {
-      shown.push(args[1]!);
+      const spec = args[1]!;
+      if (spec.endsWith(":scripts/app-release.mts")) {
+        return state.preProfile?.some((sha) => spec.startsWith(sha))
+          ? 'command === "stamp"'
+          : 'command === "build-matrix"; command === "collect-bundles"';
+      }
+      shown.push(spec);
       return `[workspace]\nmembers = []\n\n[workspace.package]\nversion = "${state.workspace ?? "0.1.0"}"\n`;
     }
     if (args[0] === "tag" && args[1] === "--points-at")
@@ -468,6 +487,15 @@ const conclusions =
   (map: Record<string, string>) =>
   (sha: string): Promise<string> =>
     Promise.resolve(map[sha] ?? "");
+
+void test("a green pre-profile ancestor cannot strand a nightly preview tag", async () => {
+  const old = "d".repeat(40);
+  const fake = nightlyRunner({ preProfile: [old] });
+  const result = await nightlyPreview(conclusions({ [old]: "success" }), fake.run);
+  assert.ok("skipped" in result);
+  assert.match(result.skipped, /ddddddddd predates the release profile/u);
+  assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
+});
 
 void test("the nightly preview tags a CI-green untagged main once and lists its new commits", async () => {
   const ok = nightlyRunner({});
@@ -597,29 +625,130 @@ void test("a busy main tags the newest CI-green commit and stops querying CI the
   assert.equal((picked as { commit: string }).commit, failed.history[1]);
 });
 
-void test("each main commit takes the conclusion of its newest CI run and attempt", () => {
-  const run = (id: number, sha: string, conclusion: string | null, attempt = 1, name = "CI") => ({
-    id,
-    head_sha: sha,
-    conclusion,
-    run_attempt: attempt,
-    name,
-  });
+const ciRun = (id: number, sha: string, conclusion: string | null, attempt = 1) => ({
+  id,
+  head_sha: sha,
+  head_branch: "main",
+  head_repository: { full_name: "boburning/portcove" },
+  path: ".github/workflows/ci.yml",
+  event: "push",
+  status: "completed",
+  conclusion,
+  run_attempt: attempt,
+  name: "CI",
+});
+
+void test("each main commit takes the conclusion of its newest scoped CI run and attempt", () => {
+  const [cancelled, failed, retried, foreign, unfinished] = ["a", "b", "c", "d", "e"].map((value) =>
+    value.repeat(40),
+  );
   const result = newestConclusions([
-    run(3, "a", "cancelled"),
-    run(1, "b", "success"),
-    run(2, "b", "failure"),
-    run(4, "c", "failure", 1),
-    run(4, "c", "success", 2),
-    run(5, "d", "success", 1, "Upstream health"),
-    run(6, "e", null),
+    ciRun(3, cancelled!, "cancelled"),
+    ciRun(2, failed!, "failure"),
+    ciRun(1, failed!, "success"),
+    ciRun(4, retried!, "success", 2),
+    ciRun(4, retried!, "failure", 1),
+    ciRun(4, retried!, "success", 2),
+    { ...ciRun(5, foreign!, "success"), name: "Upstream health" },
+    { ...ciRun(6, foreign!, "success"), path: ".github/workflows/other.yml" },
+    { ...ciRun(7, foreign!, "success"), event: "pull_request" },
+    { ...ciRun(8, foreign!, "success"), head_branch: "feature/topic" },
+    { ...ciRun(9, foreign!, "success"), head_repository: { full_name: "somebody/portcove" } },
+    { ...ciRun(10, unfinished!, "success"), status: "in_progress" },
   ]);
   assert.deepEqual(Object.fromEntries(result), {
-    a: "cancelled",
-    b: "failure",
-    c: "success",
-    e: "",
+    [cancelled!]: "cancelled",
+    [failed!]: "failure",
+    [retried!]: "success",
+    [unfinished!]: "",
   });
+});
+
+void test("two bounded main CI views recover a green run omitted by a stale completion filter", async () => {
+  const omitted = ciRun(44541874760, "d0917f53ec42ab9a4c692f33570f25373b7dc6ef", "success");
+  const older = ciRun(44540826069, "f4256f25615d75acc081afb984ab4195288db881", "success");
+  const shared = ciRun(44542766363, "b".repeat(40), "failure");
+  const pending = Array.from({ length: nightlyLookback - 2 }, (_, i) => ({
+    ...ciRun(44543000000 + i, i.toString(16).padStart(40, "0"), null),
+    status: "queued",
+  }));
+  const views: string[] = [];
+  const api = await fixtureGitHub(({ method, endpoint }) => {
+    assert.equal(method, "GET");
+    const [route, query] = endpoint.split("?");
+    assert.equal(route, "repos/boburning/portcove/actions/workflows/ci.yml/runs");
+    const filters = new URLSearchParams(query);
+    const status = filters.get("status");
+    filters.delete("status");
+    assert.deepEqual(Object.fromEntries(filters), {
+      branch: "main",
+      event: "push",
+      per_page: "100",
+    });
+    views.push(status ?? "all");
+    assert.ok(status === "completed" || status === null);
+    return { workflow_runs: status ? [shared, older] : [...pending, shared, omitted] };
+  });
+  const result = await readMainCiConclusions(api);
+  assert.deepEqual(views.sort(), ["all", "completed"]);
+  assert.equal(result.get(omitted.head_sha), "success");
+  assert.equal(result.get(older.head_sha), "success");
+  assert.equal(result.get(shared.head_sha), "failure");
+  assert.ok(pending.every((row) => result.get(row.head_sha) === ""));
+});
+
+void test("unresolved run and retry conflicts cannot revive a stale successful CI result", () => {
+  const green = ciRun(5, "a".repeat(40), "success");
+  const other = "b".repeat(40);
+  const dispute = (row: typeof green & { conclusion: string | null }) =>
+    newestConclusions([green, row]);
+  for (const [run, reason] of [
+    [{ ...green, conclusion: "failure" }, /main CI inventory disagrees about run attempt 5\/1/],
+    [
+      { ...green, status: "queued", conclusion: null },
+      /main CI inventory disagrees about run attempt 5\/1/,
+    ],
+    [
+      { ...green, run_attempt: 2, status: "queued", conclusion: null },
+      /main CI success is superseded by an unfinished attempt/,
+    ],
+    [
+      { ...green, run_attempt: 2, head_sha: other },
+      /main CI inventory disagrees about the commit for run 5/,
+    ],
+  ] as const)
+    assert.throws(() => mainCiConclusion(dispute(run), green.head_sha), reason);
+  assert.throws(
+    () => mainCiConclusion(dispute({ ...green, run_attempt: 2, head_sha: other }), other),
+    /main CI inventory disagrees about the commit for run 5/,
+  );
+  assert.equal(
+    mainCiConclusion(dispute({ ...green, run_attempt: 2, conclusion: "failure" }), green.head_sha),
+    "failure",
+  );
+});
+
+void test("a stale older retry does not stop an independently verified newer nightly candidate", async () => {
+  const run = nightlyRunner({});
+  const older = ciRun(17, run.history[1]!, "success");
+  const unfinished = { ...older, run_attempt: 2, status: "queued", conclusion: null };
+  const recent = ciRun(18, run.head, "success");
+  const view = newestConclusions([older, unfinished, recent]);
+  const tagged = await nightlyPreview(async (sha) => mainCiConclusion(view, sha), run.run);
+  assert.ok("commit" in tagged);
+  assert.equal(tagged.commit, run.head);
+
+  const earlier = nightlyRunner({});
+  const belowDispute = newestConclusions([
+    older,
+    unfinished,
+    ciRun(16, earlier.history[2]!, "success"),
+  ]);
+  await assert.rejects(
+    nightlyPreview(async (sha) => mainCiConclusion(belowDispute, sha), earlier.run),
+    /main CI success is superseded by an unfinished attempt/,
+  );
+  assert.ok(earlier.calls.every((command) => command[1] !== "push" && command[2] !== "-a"));
 });
 
 void test("the withdrawn list is a sorted unique version array that the feed publisher honours", () => {
@@ -982,6 +1111,7 @@ void test("withdraw retries a rejected gh-pages push on top of the newer branch"
 });
 
 type WorkflowStep = {
+  "timeout-minutes"?: number;
   name?: string;
   if?: string;
   uses?: string;
@@ -991,27 +1121,166 @@ type WorkflowStep = {
 };
 type WorkflowJob = {
   if?: string;
-  strategy?: { matrix?: { include?: Array<{ label: string; os: string }> } };
+  strategy?: { matrix?: string };
   uses?: string;
   secrets?: string | Record<string, string>;
   with?: Record<string, unknown>;
   env?: Record<string, unknown>;
-  environment?: string | { name?: string; url?: string };
+  environment?: string | { name?: string; url?: string; deployment?: boolean };
   permissions?: Record<string, string>;
   steps?: WorkflowStep[];
 };
-type Workflow = { on: Record<string, unknown>; jobs: Record<string, WorkflowJob> };
+type Workflow = {
+  on: Record<string, unknown>;
+  permissions?: Record<string, string>;
+  jobs: Record<string, WorkflowJob>;
+};
 
 const workflowsDirectory = path.join(import.meta.dirname, "..", ".github", "workflows");
 const readWorkflow = async (name: string) =>
   parse(await readFile(path.join(workflowsDirectory, name), "utf8")) as Workflow;
 
+void test("the release requires every desktop bundle, signature and standalone CLI archive", async () => {
+  const version = "0.1.0-preview.7";
+  const names = [
+    "Portcove_0.1.0-preview.7_x64-setup.exe",
+    "Portcove_0.1.0-preview.7_x64-setup.exe.sig",
+    "Portcove_0.1.0-preview.7_amd64.AppImage",
+    "Portcove_0.1.0-preview.7_amd64.AppImage.sig",
+    "Portcove_0.1.0-preview.7_universal.app.tar.gz",
+    "Portcove_0.1.0-preview.7_universal.app.tar.gz.sig",
+    "Portcove_0.1.0-preview.7_universal.dmg",
+    "portcove-cli-0.1.0-preview.7-windows-x86_64.zip",
+    "portcove-cli-0.1.0-preview.7-linux-x86_64.tar.gz",
+    "portcove-cli-0.1.0-preview.7-macos-aarch64.tar.gz",
+    "portcove-cli-0.1.0-preview.7-macos-x86_64.tar.gz",
+    "SHA256SUMS",
+  ];
+  const section = await renderAppReleaseDownloadSection(`nightly-${version}`, version, names, 100);
+  assert.match(section, /Channel: Nightly Preview/u);
+  assert.match(section, /Linux x86-64.*AppImage.*run directly/u);
+  assert.match(section, /Apple Silicon and Intel.*Desktop disk image/u);
+  assert.match(section, /universal\.app\.tar\.gz.*is for the macOS updater/u);
+  assert.match(section, /SHA256SUMS.*nightly-0\.1\.0-preview\.7/u);
+  assert.match(section, /\.\/portcove --json capabilities/u);
+  assert.match(section, /schema_version/u);
+  assert.equal([...section.matchAll(/Standalone CLI \(extract and run, API 100\)/gu)].length, 4);
+  await assert.rejects(
+    renderAppReleaseDownloadSection(`v${version}`, version, names, 0),
+    /invalid CLI API version/u,
+  );
+  for (const name of names.filter((name) => !name.endsWith(".sig"))) {
+    assert.ok(section.includes(`/releases/download/nightly-${version}/${name}`));
+  }
+  await assert.rejects(
+    renderAppReleaseDownloadSection("nightly-0.1.0-preview.6", version, names, 100),
+    /tag and version disagree/u,
+  );
+  await assert.rejects(
+    renderAppReleaseDownloadSection(
+      `v${version}`,
+      version,
+      names.filter((name) => !name.includes("cli-")),
+      100,
+    ),
+    /missing:.*portcove-cli/u,
+  );
+  await assertAppReleaseAssets(version, names);
+  for (const missing of names) {
+    await assert.rejects(
+      assertAppReleaseAssets(
+        version,
+        names.filter((name) => name !== missing),
+      ),
+      (error: Error) => error.message.includes(`missing: ${missing}; unexpected: none`),
+    );
+  }
+  await assert.rejects(
+    assertAppReleaseAssets(version, [...names, "stale.zip"]),
+    /unexpected: stale.zip/u,
+  );
+});
+
+void test("collects the universal bundle and preserves a one-platform CLI inventory", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-app-profile-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const version = "0.1.0-preview.7";
+  const dist = path.join(root, "dist");
+  const bundle = path.join(root, "target/universal-apple-darwin/release/bundle");
+  await mkdir(path.join(bundle, "macos"), { recursive: true });
+  await mkdir(path.join(bundle, "dmg"));
+  await writeFile(path.join(bundle, "macos/Portcove.app.tar.gz"), "archive");
+  const dmg = `Portcove_${version}_universal.dmg`;
+  const updater = `Portcove_${version}_universal.app.tar.gz`;
+  await writeFile(path.join(bundle, "dmg", dmg), "disk image");
+  assert.throws(
+    () => collectAppReleaseBundles(root, dist, "macos-universal", version),
+    /Portcove\.app\.tar\.gz\.sig/u,
+  );
+  const signaturePath = path.join(bundle, "macos/Portcove.app.tar.gz.sig");
+  await writeFile(signaturePath, "  \n");
+  assert.throws(
+    () => collectAppReleaseBundles(root, dist, "macos-universal", version),
+    /missing signed updater asset signature/u,
+  );
+  await writeFile(signaturePath, "signature");
+  collectAppReleaseBundles(root, dist, "macos-universal", version);
+  assert.deepEqual((await readdir(dist)).sort(), [dmg, updater, `${updater}.sig`].sort());
+
+  const mac = appReleaseProfile.find(({ label }) => label === "macos-universal")!;
+  const feed = buildFeed({
+    version,
+    notes: "",
+    pubDate: "",
+    assetsDir: dist,
+    downloadBase: "https://example.test",
+    profile: [mac],
+  });
+  assert.deepEqual(feed.platforms, {
+    "darwin-aarch64": { signature: "signature", url: `https://example.test/${updater}` },
+    "darwin-x86_64": { signature: "signature", url: `https://example.test/${updater}` },
+  });
+
+  const profile = appReleaseProfile.map((target) =>
+    target.label === "windows-x86_64" ? target : { ...target, cliTargets: {} },
+  );
+  const names = [
+    dmg,
+    updater,
+    `${updater}.sig`,
+    "SHA256SUMS",
+    `portcove-cli-${version}-windows-x86_64.zip`,
+    `Portcove_${version}_x64-setup.exe`,
+    `Portcove_${version}_x64-setup.exe.sig`,
+    `Portcove_${version}_amd64.AppImage`,
+    `Portcove_${version}_amd64.AppImage.sig`,
+  ];
+  const notes = await renderAppReleaseDownloadSection(`v${version}`, version, names, 100, profile);
+  assert.equal(notes.match(/Standalone CLI \(extract and run, API 100\)/gu)?.length, 1);
+  assert.match(notes, /Standalone CLI.*windows-x86_64\.zip/u);
+  assert.match(notes, /Apple Silicon and Intel.*Desktop disk image/u);
+  await assert.rejects(
+    assertAppReleaseAssets(
+      version,
+      [...names, `portcove-cli-${version}-linux-x86_64.tar.gz`],
+      profile,
+    ),
+    /unexpected:/u,
+  );
+});
+
 void test("the Linux AppImage build checks its WebKitGTK floor before bundling", async () => {
   const workflow = await readWorkflow("app-release-build.yml");
   const build = workflow.jobs.build!;
   assert.equal(
-    build.strategy?.matrix?.include?.find(({ label }) => label === "linux-x86_64")?.os,
+    appReleaseMatrix().include.find(({ label }) => label === "linux-x86_64")?.os,
     "ubuntu-24.04",
+  );
+  assert.equal(build.strategy?.matrix, "${{ fromJSON(needs.plan.outputs.matrix) }}");
+  assert.match(workflow.jobs.plan!.steps!.at(-1)?.run ?? "", /app-release\.mts build-matrix/u);
+  assert.match(
+    build.steps!.find(({ name }) => name === "Collect release assets")?.run ?? "",
+    /collect-bundles/u,
   );
   const steps = build.steps!;
   const prerequisites = steps.findIndex(
@@ -1020,6 +1289,11 @@ void test("the Linux AppImage build checks its WebKitGTK floor before bundling",
   const bundle = steps.findIndex((step) => step.run?.includes("pnpm tauri build"));
   assert.ok(prerequisites >= 0 && prerequisites < bundle);
   assert.equal(steps[prerequisites]?.if, "runner.os == 'Linux'");
+  assert.equal(steps[prerequisites]?.["timeout-minutes"], 28);
+  assert.match(
+    steps[prerequisites]?.run ?? "",
+    /install-linux-desktop-prerequisites\.sh --prefer-archive-mirror --install-timeout-seconds=600/u,
+  );
   assert.match(
     steps[prerequisites]?.run ?? "",
     /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u,
@@ -1065,7 +1339,10 @@ void test("release workflows keep the signing key behind owner tags and main", a
   // The shared jobs check their inputs before the signing step runs.
   assert.deepEqual(Object.keys(build.on), ["workflow_call"]);
   const buildSteps = build.jobs.build!.steps!;
-  assert.equal(build.jobs.build!.environment, "${{ inputs.environment }}");
+  assert.deepEqual(build.jobs.build!.environment, {
+    name: "${{ inputs.environment }}",
+    deployment: false,
+  });
   const verify = buildSteps.findIndex((step) =>
     step.run?.includes("app-release.mts verify-inputs"),
   );
@@ -1149,4 +1426,203 @@ void test("release workflows keep the signing key behind owner tags and main", a
         assert.ok(["app-release.yml", "nightly-preview.yml"].includes(name), `${name}:${id}`);
     }
   }
+});
+
+void test("lists the complete provider inventory at 999, 1000 and 1001 releases", async () => {
+  for (const count of [999, 1000, 1001]) {
+    const releases = Array.from({ length: count }, (_, index) => ({
+      id: index + 1,
+      tag_name: `v0.0.${index + 1}`,
+      draft: index === count - 1,
+      assets: [],
+    }));
+    const fallback = (status: number) =>
+      new Response(JSON.stringify({ message: "fixture" }), {
+        status,
+        headers: { "content-type": "application/json" },
+      });
+    const endpoint = "https://api.github.com/repositories/1354613114/releases";
+    const endpoints: string[] = [];
+    let interrupt = false;
+    const api = await fixtureGitHub(({ endpoint: route }) => {
+      endpoints.push(route);
+      if (route.includes("/tags/")) return route.endsWith("v0.0.1") ? releases[0] : fallback(404);
+      if (route.endsWith(`/releases/${count}`)) return releases.at(-1);
+      const page = Number(new URL(route, "https://api.github.com").searchParams.get("page") ?? 1);
+      if (interrupt && page === 2) return fallback(500);
+      const more = page * 100 < releases.length;
+      return new Response(JSON.stringify(releases.slice((page - 1) * 100, page * 100)), {
+        headers: {
+          "content-type": "application/json",
+          ...(more ? { link: `<${endpoint}?per_page=100&page=${page + 1}>; rel="next"` } : {}),
+        },
+      });
+    });
+    assert.equal((await findRelease(api, "v0.0.1"))?.id, 1);
+    assert.equal(endpoints.length, 1, "published lookup reads the exact tag");
+    assert.equal((await listReleases(api)).length, count);
+    assert.equal((await findRelease(api, `v0.0.${count}`))?.draft, true);
+    assert.equal(await findRelease(api, "absent"), null);
+    interrupt = true;
+    await assert.rejects(findRelease(api, "absent"), /inventory is incomplete/u);
+    const observed = endpoints.length;
+    assert.equal((await readReleaseById(api, count, `v0.0.${count}`)).id, count);
+    assert.equal(endpoints.length - observed, 1, "retry reads the known ID directly");
+  }
+});
+
+void test("nightly reporter isolates issue permissions and replays the triggering attempt", async () => {
+  const monitor = await readWorkflow("nightly-failure-report.yml");
+  assert.deepEqual(monitor.on.workflow_run, {
+    workflows: ["Nightly preview"],
+    types: ["completed"],
+    branches: ["main"],
+  });
+  assert.deepEqual(monitor.permissions, {});
+  const job = monitor.jobs.report!;
+  assert.deepEqual(job.permissions, { actions: "read", checks: "read", issues: "write" });
+  assert.match(job.if ?? "", /head_repository\.full_name == github\.repository/u);
+  const step = job.steps?.[0];
+  assert.equal(job.steps?.length, 1);
+  assert.ok(step);
+  assert.match(step.uses ?? "", /^actions\/github-script@[a-f0-9]{40}$/u);
+  const script = step.with?.script;
+  assert.ok(typeof script === "string");
+  assert.doesNotMatch(script, /secrets\.|actions\/checkout|publish --tag/u);
+  const execute = new Script(`(async () => {\n${script}\n})()`);
+
+  const run = {
+    id: 44324930784,
+    run_number: 7,
+    run_attempt: 2,
+    path: ".github/workflows/nightly-preview.yml",
+    head_repository: { full_name: "boburning/portcove", owner: { id: 43177418 } },
+    head_branch: "main",
+    status: "completed",
+    conclusion: "cancelled",
+    event: "schedule",
+    head_sha: "a".repeat(40),
+    created_at: "2026-11-18T14:30:00Z",
+    updated_at: "2026-11-18T15:00:00Z",
+  };
+  const oldBody = "<!-- portcove-nightly-failure-run:44324930784 -->\nOriginal incident.";
+  const issue = { number: 8176, state: "closed", body: oldBody, user: { id: 43177418 } };
+  const forgedIssue = { ...issue, number: 123, user: { id: 42 } };
+  const forgedComment = {
+    body: "<!-- portcove-nightly-failure-attempt:44324930784:2 -->",
+    user: { id: 42 },
+  };
+  const comments: Array<{ body: string; user: { id: number } }> = [];
+  const warnings: string[] = [];
+  let existing = true;
+  let reopenCount = 0;
+  let created: { body: string; assignees: string[] } | undefined;
+  let botIssue:
+    | { number: number; body: string; user: { id: number }; assignees: Array<{ login: string }> }
+    | undefined;
+  let jobsAvailable = true;
+  let assignmentAvailable = false;
+  const github = {
+    paginate: (route: string, params: { attempt_number?: number; issue_number?: number }) => {
+      switch (route) {
+        case "issues":
+          if (existing) return [forgedIssue, issue];
+          return botIssue ? [forgedIssue, botIssue] : [forgedIssue];
+        case "comments":
+          assert.equal(params.issue_number, 8176);
+          return [forgedComment, ...comments];
+        case "jobs":
+          assert.equal(params.attempt_number, 2);
+          if (!jobsAvailable) throw new Error("Job lookup unavailable");
+          return [
+            {
+              id: 134874555631,
+              name: "release / Build macos-universal",
+              conclusion: "cancelled",
+              steps: [],
+            },
+            {
+              id: 134874555632,
+              name: "release / Build windows-x86_64",
+              conclusion: "failure",
+              steps: [{ name: "Build bundles", conclusion: "failure" }],
+            },
+          ];
+        case "annotations":
+          return [
+            { annotation_level: "warning", message: "Do not publish raw annotations" },
+            {
+              annotation_level: "failure",
+              message:
+                "The job was not acquired by Runner of type hosted even after multiple attempts",
+            },
+          ];
+        default:
+          throw new Error("Unexpected route " + route);
+      }
+    },
+    rest: {
+      actions: { listJobsForWorkflowRunAttempt: "jobs" },
+      checks: { listAnnotations: "annotations" },
+      issues: {
+        listForRepo: "issues",
+        listComments: "comments",
+        update: (params: { issue_number: number; state: string }) => {
+          assert.equal(params.issue_number, 8176);
+          assert.equal(params.state, "open");
+          reopenCount++;
+        },
+        createComment: (params: { issue_number: number; body: string }) => {
+          assert.equal(params.issue_number, 8176);
+          comments.push({ body: params.body, user: { id: 41898282 } });
+        },
+        create: (params: { body: string; assignees: string[] }) => {
+          created = params;
+          botIssue = { number: 8183, body: params.body, user: { id: 41898282 }, assignees: [] };
+          return { data: botIssue };
+        },
+        addAssignees: (params: { issue_number: number; assignees: string[] }) => {
+          assert.equal(params.issue_number, 8183);
+          assert.equal(params.assignees.join(","), "boburning");
+          if (!assignmentAvailable) throw new Error("Assignment temporarily unavailable");
+          assert.ok(botIssue);
+          botIssue.assignees.push({ login: "boburning" });
+          return { data: botIssue };
+        },
+      },
+    },
+  };
+  const replay = async () => {
+    await execute.runInNewContext({
+      github,
+      context: { repo: { owner: "boburning", repo: "portcove" }, payload: { workflow_run: run } },
+      core: {
+        warning: (message: string) => warnings.push(message),
+        summary: { addRaw: () => ({ write: async () => {} }) },
+      },
+      process: { env: { GITHUB_SERVER_URL: "https://github.com" } },
+    });
+  };
+
+  await replay();
+  await replay();
+  assert.equal(reopenCount, 1);
+  assert.equal(comments.length, 1);
+  assert.equal(issue.body, oldBody);
+  assert.match(comments[0]!.body, /\/attempts\/2/u);
+  assert.match(comments[0]!.body, /never acquired a hosted runner.*\/job\/134874555631/u);
+  assert.match(comments[0]!.body, /Build bundles.*\/job\/134874555632/u);
+  assert.doesNotMatch(comments[0]!.body, /Do not publish raw annotations/u);
+
+  existing = false;
+  jobsAvailable = false;
+  await assert.rejects(replay(), /Assignment temporarily unavailable/u);
+  assert.equal(warnings.length, 1);
+  assert.equal(created?.assignees.join(","), "boburning");
+  assert.match(created?.body ?? "", /GitHub did not provide job metadata/u);
+  assignmentAvailable = true;
+  await replay();
+  assert.deepEqual(botIssue?.assignees, [{ login: "boburning" }]);
+  assert.equal(warnings.length, 1);
+  assert.equal(comments.length, 1);
 });

@@ -35,6 +35,8 @@ type Overlay =
   | { file: string; deleted: true; sha256?: never };
 const steps: Step[] = [];
 const source = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+const documentPath = "docs/clean-prose-control.md";
+const referringPath = "docs/clean-prose-referrer.md";
 const env: NodeJS.ProcessEnv = { ...process.env, CI: "true", VP_GIT_HOOKS: "0" };
 const inheritedPath = Object.entries(env).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
 for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
@@ -48,8 +50,8 @@ for (const key of Object.keys(env))
   if (key.toLowerCase() === "pnpm_config_store_dir") delete env[key];
 const git = (...args: string[]) =>
   execFileSync("git", args, { cwd: fixture, env, encoding: "utf8", windowsHide: true }).trim();
-const commit = () => {
-  git("add", "docs/GUI-COMPETITIVE-REVIEW.md");
+const commit = (...files: string[]) => {
+  git("add", "--", ...(files.length ? files : [documentPath]));
   git(
     "-c",
     "core.hooksPath=",
@@ -123,9 +125,11 @@ try {
   assert(!existsSync(path.join(fixture, "apps/desktop/node_modules")));
   env.PORTCOVE_MERGE_BASE = source;
   env.PORTCOVE_HEAD_SHA = source;
-  env.PORTCOVE_PROSE_FILES = JSON.stringify(["docs/GUI-COMPETITIVE-REVIEW.md"]);
-  const document = path.join(fixture, "docs/GUI-COMPETITIVE-REVIEW.md");
-  const original = readFileSync(document, "utf8");
+  env.PORTCOVE_PROSE_FILES = JSON.stringify([documentPath]);
+  const document = path.join(fixture, documentPath);
+  const original = "# Prose control\n";
+  writeFileSync(document, original);
+  commit();
   rmSync(document);
   commit();
   assert.equal(
@@ -134,6 +138,20 @@ try {
   );
   assert.equal(check("deleted-only").status, 0);
   assert(!existsSync(path.join(fixture, "node_modules")));
+  writeFileSync(document, original);
+  writeFileSync(
+    path.join(fixture, referringPath),
+    "# Prose referrer\n\n[Prose control](clean-prose-control.md)\n",
+  );
+  commit(documentPath, referringPath);
+  rmSync(document);
+  commit();
+  const brokenInbound = check("deleted-with-inbound-link");
+  assert.notEqual(brokenInbound.status, 0);
+  assert.match(
+    output(brokenInbound),
+    /Broken local link: docs\/clean-prose-referrer\.md -> clean-prose-control\.md/,
+  );
   writeFileSync(document, original + "\nClean prose prerequisite control.\n");
   commit();
   assert.equal(

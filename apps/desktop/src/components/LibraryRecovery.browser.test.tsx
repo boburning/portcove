@@ -1,6 +1,6 @@
 import { captureParityState } from "../../test/parity-capture";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { LibraryRecovery } from "./LibraryRecovery";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -95,8 +95,13 @@ it("excludes duplicate export and reports only the metadata receipt, never a bac
   const action = page.getByRole("button", { name: "Export library information", exact: true });
   const button = action.element();
   if (!(button instanceof HTMLButtonElement)) throw new Error("Expected an export button");
+  button.focus();
   button.click();
   button.click();
+  const pending = page.getByRole("button", { name: "Exporting library information…", exact: true });
+  await expect.element(pending).toHaveFocus();
+  await expect.element(pending).toHaveAttribute("aria-busy", "true");
+  await userEvent.keyboard("{Enter}");
   expect(exportMetadata).toHaveBeenCalledOnce();
   finish({ path: "E:/owned/نسخة/metadata.json", sha256: "a".repeat(64), size: 20 });
   await expect
@@ -104,26 +109,38 @@ it("excludes duplicate export and reports only the metadata receipt, never a bac
     .toMatchTextContent("Content has not been copied or verified");
   await expect.element(page.getByRole("status")).toMatchTextContent("E:/owned/نسخة/metadata.json");
   expect(document.querySelector('[role="status"] code')!.getAttribute("dir")).toBe("ltr");
+  await expect.element(action).toHaveFocus();
 });
 
 it("recovers from export failure and treats picker cancellation as no new receipt", async () => {
+  let cancel!: (value: undefined) => void;
+  const selection = new Promise<undefined>((resolve) => {
+    cancel = resolve;
+  });
   const exportMetadata = vi
     .fn()
     .mockRejectedValueOnce(new Error("Disk unavailable"))
-    .mockResolvedValueOnce(undefined);
+    .mockReturnValueOnce(selection);
   await render(guide(exportMetadata).element);
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
-  await page.getByRole("button", { name: "Export library information", exact: true }).click();
-  await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
+  const action = page.getByRole("button", { name: "Export library information", exact: true });
+  const feedback = page.getByText("Library information export did not finish: Disk unavailable");
+  await action.click();
+  await expect.element(feedback).toBeVisible();
+  await expect.element(action).toHaveFocus();
+  expect(action.element().getAttribute("aria-describedby")).toBe(feedback.element().id);
   expectSeparatedRecoverySteps();
   await captureParityState("library-metadata-export-failure");
-  await page.getByRole("button", { name: "Export library information", exact: true }).click();
+  await userEvent.keyboard("{Enter}");
   await expect
-    .element(page.getByRole("button", { name: "Export library information", exact: true }))
-    .toBeEnabled();
+    .element(page.getByRole("button", { name: "Exporting library information…", exact: true }))
+    .toHaveFocus();
+  cancel(undefined);
+  await expect.element(action).toHaveFocus();
+  await expect.element(action).toBeEnabled();
   expect(exportMetadata).toHaveBeenCalledTimes(2);
-  expect(document.querySelector('[role="status"]')).toBeNull();
-  expect(document.querySelector('[role="alert"]')).toBeNull();
+  await expect.element(page.getByRole("status")).not.toBeInTheDocument();
+  await expect.element(feedback).not.toBeInTheDocument();
 });
 
 it.each(["dark", "light"])(
@@ -131,8 +148,11 @@ it.each(["dark", "light"])(
   async (theme) => {
     await page.viewport(240, 800);
     document.documentElement.dataset.theme = theme;
+    const longPath = `E:/owned/${"x".repeat(160)}/نسخة/metadata.json`;
     await render(
-      <main style={{ padding: 16 }}>{guide(vi.fn(async () => undefined)).element}</main>,
+      <main style={{ padding: 16 }}>
+        {guide(async () => ({ path: longPath, sha256: "a".repeat(64), size: 20 })).element}
+      </main>,
     );
     await page.getByText("Prepare a recovery copy", { exact: true }).click();
     const overrides = document.createElement("style");
@@ -142,9 +162,14 @@ it.each(["dark", "light"])(
     try {
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
       expectSeparatedRecoverySteps();
-      await expect
-        .element(page.getByRole("button", { name: "Export library information", exact: true }))
-        .toBeEnabled();
+      const exportButton = page.getByRole("button", {
+        name: "Export library information",
+        exact: true,
+      });
+      await expect.element(exportButton).toBeEnabled();
+      await exportButton.click();
+      await expect.element(page.getByRole("status")).toMatchTextContent(longPath);
+      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(241);
     } finally {
       overrides.remove();
       delete document.documentElement.dataset.theme;

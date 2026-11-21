@@ -6,6 +6,14 @@
     "original_game_title": "Action Man: Mission Xtreme",
     "summary": "Research project. Upstream preview boots/plays tested parts; full playthrough not verified. Linux virtual-display-only and Windows cross-compile evidence must not become physical/native host gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+    "artwork": {
+      "game_id": 28090,
+      "cover_id": 104988,
+      "image_id": "co290c",
+      "image_sha256": "ad8a31130aa9ab6c63dd55d82a0f35bc4a7c4d4583d847b81f2ff7bb079f0946",
+      "game_slug": "action-man-operation-extreme",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/GnomeChimpsky/ActionManRecomp"
     },
-    "issue_number": 3439
+    "issue_number": 3439,
+    "original_game": {
+      "format_version": 1,
+      "id": "action-man-mission-xtreme",
+      "evidence_urls": ["https://github.com/GnomeChimpsky/ActionManRecomp"],
+      "source_editions": [
+        {
+          "id": "action-man-mission-xtreme-playstation",
+          "title": "Action Man: Mission Xtreme (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/GnomeChimpsky/ActionManRecomp/blob/4ff247c4d0ac2dfc23d6047958ae06a73ee48972/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

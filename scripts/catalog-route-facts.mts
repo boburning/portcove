@@ -115,6 +115,16 @@ export function checkRouteFacts(
       throw new Error("Managed native facts need an explicit preparation action.");
     fields(managed, ["preparation", "warnings"]);
     fields(managed.preparation, ["title", "instruction"]);
+    const verifiedOriginals =
+      typeof integration?.source_profile === "string" &&
+      Array.isArray(integration.runtime_source_set) &&
+      integration.runtime_source_set.length > 0 &&
+      isRecord(integration.presentation) &&
+      isRecord(integration.presentation.manual_setup);
+    if (integration?.source_profile != null && !verifiedOriginals)
+      throw new Error(
+        "Managed native facts require an integration without a Core source binding or an explicit original-file setup.",
+      );
     if (
       !text(managed.preparation.title, 256) ||
       !text(managed.preparation.instruction) ||
@@ -122,11 +132,10 @@ export function checkRouteFacts(
       integration?.adapter !== "native-portable" ||
       !isRecord(integration.release) ||
       integration.release.provider !== "github" ||
-      !Array.isArray(integration.persistent_paths) ||
-      integration.source_profile != null
+      (!verifiedOriginals && !Array.isArray(integration.persistent_paths))
     )
       throw new Error(
-        "Managed native facts require an existing native-portable GitHub contract without a Core source binding and bounded preparation/warnings.",
+        "Managed native facts require an existing native-portable GitHub contract with explicit preparation and ownership facts.",
       );
     if (
       !isRecord(integration.executable_hints) ||
@@ -134,8 +143,9 @@ export function checkRouteFacts(
       !integration.executable_hints["windows-x86-64"].includes(executable)
     )
       throw new Error("Managed executable facts disagree with the operational declaration.");
-  } else if (integration !== undefined && integration.adapter !== "staged-source-portable")
+  } else if (integration !== undefined && integration.adapter !== "staged-source-portable") {
     throw new Error("A managed declaration needs its explicit managed route facts.");
+  }
 }
 
 export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
@@ -152,9 +162,21 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   )
     throw new Error("Route facts require a concrete bespoke guide envelope.");
   const player = resolvedPlayer(facts, record.integration);
+  const integration = record.integration;
+  const separateUnixRegistration =
+    record.listing.platforms?.includes("windows-x86-64") &&
+    integration !== undefined &&
+    isRecord(integration.release) &&
+    integration.release.provider === "user-prepared" &&
+    Array.isArray(integration.platforms) &&
+    !integration.platforms.includes("windows-x86-64") &&
+    integration.platforms.some(
+      (platform) =>
+        platform === "linux-x86-64" || platform === "macos-x86-64" || platform === "macos-aarch64",
+    );
   const selector: Step = {
     title:
-      facts.managed_native && record.listing.platforms?.length
+      (facts.managed_native && record.listing.platforms?.length) || separateUnixRegistration
         ? "Select the prepared Windows player"
         : "Select the prepared player",
     instruction: selectionInstruction(player.executable, player.arguments),
@@ -162,21 +184,21 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
   const steps: unknown[] = guide.steps;
   const warnings: unknown[] = guide.warnings;
   const references: unknown[] = guide.references ?? [];
-  const addedSteps = facts.managed_native ? 2 : 1;
-  const addedReferences = facts.managed_native ? 3 : 2;
+  const manualManaged =
+    facts.managed_native && projected.integration?.source_profile == null
+      ? facts.managed_native
+      : undefined;
+  const addedSteps = manualManaged ? 2 : 1;
+  const addedReferences = manualManaged ? 3 : 2;
   if (
     steps.length + references.length + addedSteps + addedReferences > 8 ||
-    warnings.length + (facts.managed_native?.warnings.length ?? 0) > 8
+    warnings.length + (manualManaged?.warnings.length ?? 0) > 8
   )
     throw new Error(
       "Expanded route guide exceeds the concrete guide's eight-entry bound; combine related bespoke instructions before generation.",
     );
-  guide.steps = [
-    ...(facts.managed_native ? [facts.managed_native.preparation] : []),
-    ...steps,
-    selector,
-  ];
-  guide.warnings = [...warnings, ...(facts.managed_native?.warnings ?? [])];
+  guide.steps = [...(manualManaged ? [manualManaged.preparation] : []), ...steps, selector];
+  guide.warnings = [...warnings, ...(manualManaged?.warnings ?? [])];
   guide.references = [
     ...references,
     { title: "Registration ownership and removal", instruction: registrationOwnership },
@@ -185,7 +207,7 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
       instruction: `You and upstream own the external copy's data: ${player.data_locations.join("; ")}. Back up these locations separately; registration does not migrate or certify their compatibility.`,
     },
   ];
-  if (facts.managed_native) {
+  if (manualManaged) {
     const integration = projected.integration!;
     const localPaths = integration.persistent_paths as string[];
     const preservation = localPaths.length
@@ -197,10 +219,10 @@ export function projectRouteFacts(record: AuthoredPort): AuthoredPort {
     });
     const presentation = isRecord(integration.presentation) ? integration.presentation : {};
     presentation.manual_preparation = [
-      facts.managed_native.preparation.instruction,
+      manualManaged.preparation.instruction,
       managedOwnership,
       preservation,
-      ...facts.managed_native.warnings,
+      ...manualManaged.warnings,
     ].join(" ");
     integration.presentation = presentation;
   }

@@ -102,7 +102,7 @@ interface CachedPage {
   link: string;
   body: unknown;
   sha256: string;
-  representation?: "observer-facts-v1";
+  representation?: "observer-facts-v1" | "observer-facts-v2";
   facts_sha256?: string;
 }
 export interface ObserverRequestOptions {
@@ -349,6 +349,28 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
     );
   return;
 }
+export function observerGitHubRateLimit(error: GitHubApiError, now: number): ObservationFailure {
+  const retry = error.retryAfter;
+  const required =
+    retry && /^\d+$/u.test(retry) ? now + Number(retry) * 1000 : Date.parse(retry ?? "");
+  const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
+  const resume = Math.max(
+    now + 60_000,
+    Number.isFinite(required) ? required : 0,
+    Number.isFinite(reset) ? reset : 0,
+  );
+  requireFact(
+    Number.isFinite(resume) && resume <= 8.64e15,
+    "invalid-metadata",
+    "provider retry clock is invalid",
+  );
+  return new ObservationFailure(
+    "rate-limit",
+    "provider rate limit defers observation without advancing the last complete snapshot",
+    new Date(resume).toISOString(),
+  );
+}
+
 export function validateObserverConfig(config: unknown): ObserverConfig {
   assertObserverConfig(config);
   return config;
@@ -396,22 +418,77 @@ function timestamp(value: unknown, label: string, nullable = false) {
 }
 
 function downloadUrl(value: unknown, config: { repository: string }, tag: string, name: string) {
-  const url = new URL(textFact(value, "asset URL", 4096));
-  const expected = `/${config.repository}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(name)}`;
+  const observed = textFact(value, "asset URL", 4096);
+  const url = new URL(observed);
+  const prefix = `/${config.repository}/releases/download/`;
+  const filename = encodeURIComponent(name);
+  const encodedPath = `${prefix}${encodeURIComponent(tag)}/${filename}`;
+  const tagSegments = tag.split("/");
+  // GitHub's asset metadata can keep slashes literal in an exact release tag.
+  const matchingSegmentedTag =
+    tagSegments.length > 1 &&
+    tagSegments.every((segment) => segment !== "" && segment !== "." && segment !== "..") &&
+    url.pathname === `${prefix}${tagSegments.map(encodeURIComponent).join("/")}/${filename}`;
   requireFact(
     url.origin === "https://github.com" &&
       !url.username &&
       !url.password &&
       !url.search &&
       !url.hash &&
-      url.pathname === expected,
+      (url.pathname === encodedPath || matchingSegmentedTag),
     "asset-scope",
     "asset URL does not match the configured repository, tag and filename",
   );
-  return textFact(value, "asset URL", 4096);
+  return { observed, encoded: `${url.origin}${encodedPath}` };
+}
+
+/** Older descriptive readers require one exact encoded tag segment. */
+export function compatibleGithubListingAssetUrl(
+  value: string,
+  repository: string,
+  tag: string,
+  name: string,
+) {
+  if (!tag.includes("/")) return value;
+  try {
+    return downloadUrl(value, { repository }, tag, name).encoded;
+  } catch (error) {
+    // Leave an invalid observation to the existing Core verification boundary.
+    if (
+      error instanceof ObservationFailure ||
+      error instanceof TypeError ||
+      error instanceof URIError
+    )
+      return value;
+    throw error;
+  }
 }
 
 export function assetFact(asset: unknown, config: { repository: string }, tag: string) {
+  return checkedAssetFact(asset, config, tag, "uploaded");
+}
+
+// GitHub's dedicated release asset collection can retain failed-upload placeholders.
+// Keep their exact typed metadata in page proofs, including across pagination and
+// continuation, while excluding them from every observed package candidate.
+function collectedAssetFact(asset: unknown, config: { repository: string }, tag: string) {
+  return isRecord(asset) && asset.state === "starter"
+    ? checkedAssetFact(asset, config, tag, "starter")
+    : assetFact(asset, config, tag);
+}
+
+function isUploadedAsset(
+  asset: ReturnType<typeof collectedAssetFact>,
+): asset is ReturnType<typeof assetFact> {
+  return asset.state === "uploaded";
+}
+
+function checkedAssetFact<State extends "uploaded" | "starter">(
+  asset: unknown,
+  config: { repository: string },
+  tag: string,
+  state: State,
+) {
   requireFact(isRecord(asset), "invalid-metadata", "invalid asset object");
   const name = textFact(asset.name, "asset filename", 255);
   requireFact(
@@ -423,7 +500,7 @@ export function assetFact(asset: unknown, config: { repository: string }, tag: s
     typeof asset.size === "number" &&
       Number.isSafeInteger(asset.size) &&
       asset.size >= 0 &&
-      asset.state === "uploaded",
+      asset.state === state,
     "invalid-metadata",
     "asset size or upload state is invalid",
   );
@@ -438,9 +515,9 @@ export function assetFact(asset: unknown, config: { repository: string }, tag: s
     id: identity(asset.id, "asset"),
     name,
     size: asset.size,
-    state: asset.state,
+    state,
     digest: asset.digest ?? null,
-    browser_download_url: downloadUrl(asset.browser_download_url, config, tag, name),
+    browser_download_url: downloadUrl(asset.browser_download_url, config, tag, name).observed,
     created_at: timestamp(asset.created_at, "asset creation"),
     updated_at: timestamp(asset.updated_at, "asset update"),
   };
@@ -773,7 +850,13 @@ function observerPageFacts(
     }
   }
   requireFact(tags.size === 1, "invalid-checkpoint", "asset release context differs");
-  return body.map((asset: unknown) => assetFact(asset, config, [...tags][0]!));
+  return body.map((asset: unknown) => collectedAssetFact(asset, config, [...tags][0]!));
+}
+
+function observerPageRepresentation(body: unknown) {
+  return Array.isArray(body) && body.some((row) => isRecord(row) && row.state === "starter")
+    ? "observer-facts-v2"
+    : "observer-facts-v1";
 }
 
 function validatedPage(
@@ -802,9 +885,16 @@ function validatedPage(
   );
   if (projected) {
     requireFact(
-      page.representation === "observer-facts-v1" &&
-        page.facts_sha256 === observationHash(page.body) &&
-        page.facts_sha256 === observationHash(observerPageFacts(address, page.body, config, pages)),
+      (page.representation === "observer-facts-v1" ||
+        page.representation === "observer-facts-v2") &&
+        page.facts_sha256 === observationHash(page.body),
+      "invalid-checkpoint",
+      "projected page facts or schema differ",
+    );
+    const facts = observerPageFacts(address, page.body, config, pages);
+    requireFact(
+      page.representation === observerPageRepresentation(facts) &&
+        page.facts_sha256 === observationHash(facts),
       "invalid-checkpoint",
       "projected page facts or schema differ",
     );
@@ -829,7 +919,7 @@ function compactPage(
   return {
     ...page,
     body,
-    representation: "observer-facts-v1",
+    representation: observerPageRepresentation(body),
     facts_sha256: observationHash(body),
   };
 }
@@ -1140,10 +1230,10 @@ export function reusableProviderObservation(
   const assets = new Set<number>();
   for (const release of releases) {
     if (!selected.includes(release.id)) continue;
-    release.assets = collection(`${root}/releases/${release.id}/assets`).map((value) =>
-      assetFact(value, config, release.tag_name),
+    const collected = collection(`${root}/releases/${release.id}/assets`).map((value) =>
+      collectedAssetFact(value, config, release.tag_name),
     );
-    for (const asset of release.assets) {
+    for (const asset of collected) {
       requireFact(
         !assets.has(asset.id),
         "invalid-checkpoint",
@@ -1151,6 +1241,7 @@ export function reusableProviderObservation(
       );
       assets.add(asset.id);
     }
+    release.assets = collected.filter(isUploadedAsset);
   }
   const checksum_sidecars = Object.entries(proof.pages)
     .flatMap(([url, page]) => {
@@ -1337,11 +1428,10 @@ export async function observeUpstream(
       await sleep(milliseconds);
     },
     reserve: () => {
-      if (now() >= deadline || consumed.requests >= config.budget.requests)
-        throw new GitHubApiError(
-          "budget_exhausted",
-          "observation request or time budget exhausted",
-        );
+      if (now() >= deadline)
+        throw new GitHubApiError("deadline_exceeded", "observation deadline exhausted");
+      if (consumed.requests >= config.budget.requests)
+        throw new GitHubApiError("budget_exhausted", "observation request count exhausted");
       try {
         options.admitRequest?.();
       } catch {
@@ -1370,6 +1460,20 @@ export async function observeUpstream(
         },
       };
     },
+  }).catch((error: unknown) => {
+    if (error instanceof GitHubApiError) {
+      if (error.code === "deadline_exceeded")
+        throw new ObservationFailure(
+          "budget",
+          "Observation opportunity exhausted before provider setup",
+        );
+      if (error.code === "cancelled")
+        throw new ObservationFailure(
+          "cancelled",
+          "Observation cancelled; retain the exact continuation",
+        );
+    }
+    throw error;
   });
 
   async function requestChecksum(
@@ -1613,11 +1717,13 @@ export async function observeUpstream(
       requireFact(previous, "invalid-checkpoint", "continued page is missing");
       return { url, value: previous };
     }
-    const policy: GitHubRequestPolicy = failedReads.get(url) ?? {
-      replay: "safe-read",
-      attempts: 0,
-      maxAttempts: config.budget.retries + 1,
-    };
+    const retainedPolicy = failedReads.get(url);
+    // The observer's fair turns can decline admission before the SDK charges an
+    // attempt. Such a deferral must not age the later admitted request.
+    const policy: GitHubRequestPolicy =
+      retainedPolicy && retainedPolicy.attempts > 0
+        ? retainedPolicy
+        : { replay: "safe-read", attempts: 0, maxAttempts: config.budget.retries + 1 };
     failedReads.set(url, policy);
     try {
       const response = await sdk.request({
@@ -1678,28 +1784,19 @@ export async function observeUpstream(
         );
       if (error instanceof GitHubApiError) {
         if (error.code === "rate_limited") {
-          const retry = error.retryAfter;
-          const required =
-            retry && /^\d+$/u.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry ?? "");
-          const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
-          const resume = Math.max(
-            now() + 60_000,
-            Number.isFinite(required) ? required : 0,
-            Number.isFinite(reset) ? reset : 0,
-          );
-          requireFact(
-            Number.isFinite(resume) && resume <= 8.64e15,
-            "invalid-metadata",
-            "provider retry clock is invalid",
-          );
-          throw new ObservationFailure(
-            "rate-limit",
-            "provider rate limit defers observation without advancing the last complete snapshot",
-            new Date(resume).toISOString(),
-          );
+          throw observerGitHubRateLimit(error, now());
         }
-        if (["response_limit", "budget_exhausted", "deadline_exceeded"].includes(error.code))
-          throw new ObservationFailure("budget", "provider response byte or time budget exhausted");
+        if (error.code === "response_limit")
+          throw new ObservationFailure(
+            "budget",
+            "provider response exceeds the per-response byte limit",
+          );
+        if (error.code === "deadline_exceeded")
+          throw new ObservationFailure("budget", "provider request exceeded its available time");
+        // Only the local reservation above emits this code. Preserve its reason
+        // so a declined request and a failed byte charge remain distinguishable.
+        if (error.code === "budget_exhausted")
+          throw new ObservationFailure("budget", error.message);
         if (error.code === "invalid_response")
           throw new ObservationFailure(
             "invalid-metadata",
@@ -1871,7 +1968,8 @@ export async function observeUpstream(
       for (const release of releases) {
         if (collected.has(release.id) || (selectedAssets && !selectedAssets.has(release.id)))
           continue;
-        const normalizeAsset = (asset: unknown) => assetFact(asset, config, release.tag_name);
+        const normalizeAsset = (asset: unknown) =>
+          collectedAssetFact(asset, config, release.tag_name);
         const assets = (
           await collection(`${repositoryPath}/releases/${release.id}/assets`, normalizeAsset)
         ).map(normalizeAsset);
@@ -1886,7 +1984,7 @@ export async function observeUpstream(
           }
           assetIds.add(asset.id);
         }
-        release.assets = assets;
+        release.assets = assets.filter(isUploadedAsset);
         collected.add(release.id);
       }
       if (!selectedAssets) break;

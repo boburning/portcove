@@ -51,8 +51,27 @@
           "instruction": "Wheel Wizard and upstream retain preparation, repair and runtime replacement. Direct player registration does not run their provenance checks, moved-install healing or install-operation lock. Close every actual player and preserve all working files and data before upstream repair or updates. Removing the registration removes only Portcove metadata and preserves all external files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-wii",
+      "evidence_urls": [
+        "https://github.com/patchzyy/Wiicompiled#installing",
+        "https://github.com/patchzyy/Wiicompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-kart-wii-wii",
+          "title": "Mario Kart Wii (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/patchzyy/Wiicompiled/blob/549b14aefe3c28e716f3fc04630e14cc96d1de16/README.md"
+          ]
+        }
+      ]
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -62,19 +81,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "patchzyy/Wiicompiled",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "patchzyy/Wiicompiled"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

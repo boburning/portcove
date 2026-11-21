@@ -35,6 +35,21 @@
       "image_sha256": "b5120abd3cfe847e4246c2e93f43cf21ab003aec5e85255baa95d4a592579acf",
       "game_slug": "crisis-core-final-fantasy-vii",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crisis-core-final-fantasy-vii",
+      "evidence_urls": ["https://github.com/AdamFull/ff7ccrecomp"],
+      "source_editions": [
+        {
+          "id": "crisis-core-final-fantasy-vii-playstation-portable",
+          "title": "Crisis Core: Final Fantasy VII (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/AdamFull/ff7ccrecomp/blob/09c775d49bf1dbde4d8df860f19169d68d134ea0/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

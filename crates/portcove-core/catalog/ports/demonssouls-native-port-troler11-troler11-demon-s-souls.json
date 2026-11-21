@@ -4,6 +4,14 @@
     "id": "demonssouls-native-port-troler11-troler11-demon-s-souls",
     "name": "Demon's Souls — DemonsSouls native port (troler11) (troler11)",
     "original_game_title": "Demon's Souls",
+    "artwork": {
+      "game_id": 5619,
+      "cover_id": 103412,
+      "image_id": "co27sk",
+      "image_sha256": "65f71553ad5995532f8dbf93e6b10058f1b05372335ddf0cae4e44f69011bb0b",
+      "game_slug": "demon-s-souls",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports a playable tutorial and saving, with only short tests beyond the tutorial. A full playthrough is unconfirmed; particle and sky defects remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/troler11/demons-souls-port-pc",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/troler11/demons-souls-port-pc"
     },
-    "issue_number": 3374
+    "issue_number": 3374,
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": ["https://github.com/troler11/demons-souls-port-pc"],
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/troler11/demons-souls-port-pc/blob/debad67441803fd38ece8a922493b3d9ac9e35d4/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

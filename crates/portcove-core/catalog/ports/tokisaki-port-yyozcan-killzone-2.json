@@ -35,6 +35,21 @@
       "image_sha256": "6afc91b2d293807ddc6ee9b4412ad62ff03cd8ffe59c647d85c0e90db5860eb5",
       "game_slug": "killzone-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone-2",
+      "evidence_urls": ["https://github.com/YYOzcan/tokisaki-port"],
+      "source_editions": [
+        {
+          "id": "killzone-2-playstation-3",
+          "title": "Killzone 2 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/YYOzcan/tokisaki-port/blob/786c46bf27e947bcf3c355be77a22901e61d3a89/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

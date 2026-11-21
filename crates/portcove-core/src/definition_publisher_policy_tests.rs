@@ -67,7 +67,7 @@ async fn managed_github_scope_admits_only_its_coupled_lifecycle() {
         .into_eligible()
         .unwrap();
     let identity = library
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -190,7 +190,9 @@ async fn availability_only_definition_cannot_be_adopted_into_retained_lifecycle_
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     let service = PortcoveService::new(library.clone()).unwrap();
     assert_eq!(
         service
@@ -289,7 +291,9 @@ async fn prepared_adoption_revocation_survives_rejection_and_interrupted_restart
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         let service = PortcoveService::with_faults(
             library.clone(),
             std::sync::Arc::new(RevokePreparedAdoption {
@@ -450,7 +454,7 @@ async fn protected_policy_enables_exact_availability_but_no_acquisition_operatio
         .into_eligible()
         .unwrap();
     let identity = library
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -549,7 +553,7 @@ async fn admitted_authority_cannot_return_to_an_empty_replay_floor() {
         .into_eligible()
         .unwrap();
     let identity = library
-        .select_definition_candidate(eligible)
+        .select_definition_candidate_fixture(eligible)
         .unwrap()
         .selected
         .unwrap();
@@ -645,7 +649,11 @@ async fn revocation_requires_no_candidate_and_invalidates_assessed_selection() {
             .apply_definition_publisher_policy(&revoked, None)
             .unwrap()
     );
-    assert!(library.select_definition_candidate(eligible).is_err());
+    assert!(
+        library
+            .select_definition_candidate_fixture(eligible)
+            .is_err()
+    );
     assert_eq!(
         library
             .assess_definition_candidate(&candidate, "official", ID)
@@ -865,7 +873,9 @@ async fn managed_fixture_before_admission(
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     let catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
         &library.connection().unwrap(),
         &authored,
@@ -2910,7 +2920,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 .unwrap()
                 .into_eligible()
                 .unwrap();
-            library.select_definition_candidate(eligible).unwrap();
+            library
+                .select_definition_candidate_fixture(eligible)
+                .unwrap();
             catalog = library.load_catalog().unwrap().0;
             phase("second admission");
         }
@@ -3142,7 +3154,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         // Observe the unchanged selected catalog once. Launch assessments are
         // read from durable state by each status call; they do not replace the
         // selected catalog. Actual launch attempts below still reopen service.
@@ -3413,7 +3427,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 .unwrap()
                 .into_eligible()
                 .unwrap();
-            library.select_definition_candidate(eligible).unwrap();
+            library
+                .select_definition_candidate_fixture(eligible)
+                .unwrap();
         }
         let current = library.load_catalog().unwrap().0;
         policy::acquisition_scope(&library, &current, ID)
@@ -3519,7 +3535,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         .unwrap()
         .into_eligible()
         .unwrap();
-    library.select_definition_candidate(eligible).unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
     let current_catalog = library.load_catalog().unwrap().0;
     policy::acquisition_scope(&library, &current_catalog, ID)
         .unwrap()
@@ -4332,7 +4350,92 @@ async fn curated_installer_boundary_fixture(
                     .unwrap_err();
                 assert_eq!(refused.code, crate::ErrorCode::Verification);
                 assert!(refused.message.contains("SHA-256"));
+                let evidence = std::path::PathBuf::from(&refused.details["quarantine_path"]);
+                let cache = library.downloads_dir().join("curated-v1");
+                assert_eq!(evidence.parent(), Some(cache.as_path()));
+                assert!(
+                    evidence
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with(".partial-")
+                );
+                assert_eq!(std::fs::read(&evidence).unwrap(), changed_bytes);
+                assert!(!cache.join(format!("{}.asset", record.sha256)).exists());
+                let worker = crate::curated_cache::CacheWorker::new(
+                    &scope,
+                    &resolved.release.asset,
+                    &crate::OperationCoordinator::new("verify", None),
+                );
+                let observed = hex::encode(Sha256::digest(&changed_bytes));
+                let duplicate = worker
+                    .quarantine_download(
+                        &evidence,
+                        &observed,
+                        PortcoveError::verification("same refused download"),
+                    )
+                    .await;
+                assert_eq!(
+                    std::path::Path::new(&duplicate.details["quarantine_path"]),
+                    evidence
+                );
+                assert!(!duplicate.details.contains_key("quarantine_error"));
+                let mut collision = observed.clone();
+                collision.replace_range(63.., if observed.ends_with('0') { "1" } else { "0" });
+                let different = worker
+                    .quarantine_download(
+                        &evidence,
+                        &collision,
+                        PortcoveError::verification("different refused download"),
+                    )
+                    .await;
+                assert_eq!(different.message, "different refused download");
+                assert!(different.details.contains_key("quarantine_error"));
+                assert!(!different.details.contains_key("quarantine_path"));
+
+                // The private source can change after the first complete hash.
+                // Refuse the original operation without keeping a different sample.
+                let missing = hex::encode(Sha256::digest(b"a different observed replacement"));
+                let stale_source = worker
+                    .quarantine_download(
+                        &evidence,
+                        &missing,
+                        PortcoveError::verification("original transfer refused"),
+                    )
+                    .await;
+                assert_eq!(stale_source.message, "original transfer refused");
+                assert!(stale_source.details.contains_key("quarantine_error"));
+                assert!(!stale_source.details.contains_key("quarantine_path"));
+                assert_eq!(std::fs::read_dir(&cache).unwrap().count(), 1);
+                assert!(
+                    !worker
+                        .restore(&library.root().join("rejected-must-stay-inactive"))
+                        .await
+                        .unwrap()
+                );
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+
+                // A corrected endpoint can supply the originally admitted bytes.
+                server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+                server.json(release.clone());
+                server.json(tag.clone());
+                server.bytes(&bytes);
+                let recovered = installer
+                    .install(
+                        request(resolved.clone(), "-original-returned"),
+                        &crate::OperationCoordinator::new("install", None),
+                        |_| {},
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(recovered.artifact.sha256, record.sha256);
+                assert_eq!(
+                    std::fs::read(cache.join(format!("{}.asset", record.sha256))).unwrap(),
+                    bytes
+                );
+                assert_eq!(std::fs::read(&evidence).unwrap(), changed_bytes);
                 assert!(server.responses.lock().unwrap().is_empty());
                 return;
             }
@@ -4613,7 +4716,9 @@ async fn curated_installer_boundary_fixture(
                     .unwrap()
                     .into_eligible()
                     .unwrap();
-                library.select_definition_candidate(eligible).unwrap();
+                library
+                    .select_definition_candidate_fixture(eligible)
+                    .unwrap();
                 let (current_catalog, _) = library.load_catalog().unwrap();
                 // Bind the baseline to the new policy so withdrawal's retained
                 // use is not mistaken for a missing or stale launch-check hold.
@@ -4791,11 +4896,39 @@ async fn curated_installer_boundary_fixture(
             .await
             .unwrap_err();
             assert!(refusal.message.contains("SHA-256"));
-            assert_eq!(
-                std::fs::read(&cached).unwrap(),
-                corrupted,
-                "failed cache evidence must remain"
+            assert!(!cached.exists());
+            let quarantine = std::path::Path::new(&refusal.details["quarantine_path"]);
+            assert_eq!(std::fs::read(quarantine).unwrap(), corrupted);
+            let retry = crate::curated_cache::CacheWorker::new(
+                &scope,
+                &resolved.release.asset,
+                &crate::operation::OperationCoordinator::new("install", None),
             );
+            assert!(
+                !retry
+                    .restore(&library.root().join("retry.zip"))
+                    .await
+                    .unwrap()
+            );
+            let approved = library.root().join("approved-curated-archive.zip");
+            std::fs::write(&approved, &bytes).unwrap();
+            assert!(retry.retain(&approved).await.unwrap());
+            let restored = library.root().join("approved-retry-copy.zip");
+            assert!(retry.restore(&restored).await.unwrap());
+            assert_eq!(std::fs::read(&restored).unwrap(), bytes);
+            assert_eq!(std::fs::read(quarantine).unwrap(), corrupted);
+            let truncated = &bytes[..bytes.len() - 1];
+            std::fs::write(&cached, truncated).unwrap();
+            let refusal = retry
+                .restore(&library.root().join("short.zip"))
+                .await
+                .unwrap_err();
+            assert_eq!(refusal.code, crate::ErrorCode::Verification);
+            assert_eq!(
+                std::fs::read(&refusal.details["quarantine_path"]).unwrap(),
+                truncated
+            );
+            assert!(!cached.exists());
             phase("corrupted cache restore complete");
             phase("installed verification after corruption begin");
             assert!(installer.verify(&installed).unwrap().valid);
@@ -5574,7 +5707,9 @@ async fn managed_ordinary_lifecycle(
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
 
         phase(&format!("revision-{definition_revision}:select:complete"));
         phase(&format!("revision-{definition_revision}:reopen:start"));
@@ -5651,7 +5786,9 @@ async fn managed_ordinary_lifecycle(
                 .unwrap()
                 .into_eligible()
                 .unwrap();
-            library.select_definition_candidate(eligible).unwrap();
+            library
+                .select_definition_candidate_fixture(eligible)
+                .unwrap();
             let after = PortcoveService::new(library.clone())
                 .unwrap()
                 .status(ID)
@@ -5832,7 +5969,9 @@ async fn managed_compatible_corrections_refuse_old_acquisition_and_changed_retai
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         require_retained_launch();
         for operation in [
             DefinitionOperation::Install,
@@ -6507,7 +6646,9 @@ async fn curated_preparation_fixture(
             .unwrap()
             .into_eligible()
             .unwrap();
-        library.select_definition_candidate(eligible).unwrap();
+        library
+            .select_definition_candidate_fixture(eligible)
+            .unwrap();
         catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
             &library.connection().unwrap(),
             &catalog,

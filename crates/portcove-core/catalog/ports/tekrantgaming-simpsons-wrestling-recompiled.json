@@ -3,12 +3,12 @@
   "listing": {
     "id": "tekrantgaming-simpsons-wrestling-recompiled",
     "name": "The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming)",
-    "summary": "Explore The Simpsons Wrestling / Simpsons Wrestling Recompiled (TekRantGaming) and follow the upstream project for requirements, downloads and setup.",
+    "summary": "Play The Simpsons Wrestling using your own North American PlayStation disc image.",
     "project_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
     "issue_number": 1883,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64"],
-    "availability": "unknown",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
     "setup_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled",
     "artwork": {
       "game_id": 2841,
@@ -40,11 +40,75 @@
         {
           "title": "Keep component and acceptance limits",
           "instruction": "The exact psxrecomp fork revision retains PolyForm Noncommercial 1.0.0; keep those restrictions distinct from title/launcher, OpenBIOS, fonts and other library notices. Original game artwork, text and audio remain separate content rights, even when the launcher reads them from your own disc. Upstream owns configuration, replacement and recovery; close the actual game, preserve populated data and review/relink changed bytes. Upstream campaign, controller and two-player claims are not observations here. No installed/native, real-save restore, Supported or managed lifecycle acceptance is asserted."
+        },
+        {
+          "title": "Play on Linux",
+          "instruction": "Make the Linux x86-64 AppImage executable on a system with glibc 2.38 or newer and OpenGL 3.3. Start the AppImage and choose Browse for the .cue file on the Game page. Keep the matching BIN files beside the CUE. On later starts, the project launcher can reuse that CUE when you press PLAY."
         }
       ],
       "warnings": [
         "Register the native game inside game/ after upstream configuration, with the exact own CUE. The top-level launcher detaches; preserve all launcher-written settings, per-player cards and noncommercial framework terms."
+      ],
+      "references": [
+        {
+          "title": "Keep the Linux files and update through the project",
+          "instruction": "The AppImage creates SimpsonsWrestling-data beside it or falls back to XDG_DATA_HOME/SimpsonsWrestlingRecompiled, normally under ~/.local/share. Back up the actual game/saves folder and launcher settings. Use the launcher’s About page to find saves or update the AppImage. Keep the launcher available for changing controls or the disc. Once the disc is configured, you can turn off the launcher. Hold Shift at startup to reopen it."
+        }
       ]
-    }
+    },
+    "release_url": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["SimpsonsWrestling-", "windows-x64.zip"],
+      "linux-x86-64": ["SimpsonsWrestling-", "linux-x86_64.AppImage"]
+    },
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "tekrant-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.0",
+          "artifact_sha256": "d4906a62dd5c84fd99c2ada1e408cd79ac98d0d0f2435e5744f2179665a17325",
+          "edition": "PlayStation USA SLUS-01227 CUE and BIN",
+          "explanation": "The project launcher opens and checks the USA CUE with its BIN files. Later starts open the project launcher again, which reuses the selected disc when you press Play. The launcher starts a separate game process and exits. Turn off the launcher for direct starts after setup, or hold Shift at startup to reopen settings.",
+          "provenance": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md#getting-started",
+          "observed_at": 1795044630,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "opens-project-launcher",
+            "repeat_launch": "opens-project-launcher"
+          }
+        },
+        {
+          "id": "tekrant-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.0",
+          "artifact_sha256": "ace0939105301765ccb02940d3ab9aefa42dcaceee4cfa9ad993cb659c7a4086",
+          "edition": "PlayStation USA SLUS-01227 CUE and BIN",
+          "explanation": "The project launcher opens and checks the USA CUE with its BIN files. Later starts open the project launcher again, which reuses the selected disc when you press Play. The launcher starts a separate game process and exits. Turn off the launcher for direct starts after setup, or hold Shift at startup to reopen settings.",
+          "provenance": "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md#getting-started",
+          "observed_at": 1795044630,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "opens-project-launcher",
+            "repeat_launch": "opens-project-launcher"
+          }
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-simpsons-wrestling",
+      "evidence_urls": [
+        "https://github.com/TekRantGaming/simpsons-wrestling-recompiled/blob/2534cebf328cc9f3ac231b74c696532b9b5420b4/README.md",
+        "https://github.com/TekRantGaming/simpsons-wrestling-recompiled"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "The Simpsons Wrestling"
   }
 }

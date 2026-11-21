@@ -115,6 +115,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Status
             | CatalogCommand::ListingStatus
             | CatalogCommand::InspectProposal { .. }
+            | CatalogCommand::CanonicalDefinitionProjection { .. }
             | CatalogCommand::InspectTargets { .. }
             | CatalogCommand::InspectDefinitionDelivery
             | CatalogCommand::InspectPackageLayout { .. }
@@ -153,7 +154,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 | GameFileRootCommand::Snapshot
                 | GameFileRootCommand::Matches(_)
                 | GameFileRootCommand::Profiles { .. }
-                | GameFileRootCommand::Stores => ReadOnly,
+                | GameFileRootCommand::Stores { .. } => ReadOnly,
                 GameFileRootCommand::Scan(_)
                 | GameFileRootCommand::Add { .. }
                 | GameFileRootCommand::Relink { .. }
@@ -418,8 +419,10 @@ mod tests {
             "catalog show p",
             "catalog status",
             "catalog inspect-proposal file",
+            "catalog canonical-definition-projection file",
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog inspect-package-drift file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",
@@ -435,6 +438,7 @@ mod tests {
             "source roots matches",
             "source roots profiles --root r",
             "source roots stores",
+            "source roots stores --profile bstone-aliens-of-gold-originals",
             "external preview p dir",
             "external removal-preview p",
             "installation plan p",

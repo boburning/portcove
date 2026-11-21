@@ -6,7 +6,7 @@
     "summary": "Set up X-COM: Terror from the Deep through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "X-COM: Terror from the Deep",
     "project_url": "https://github.com/OpenXcom/OpenXcom",
-    "availability": "unknown",
+    "availability": "packages",
     "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
     "artwork": {
       "game_id": 25,
@@ -33,8 +33,12 @@
           "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
         },
         {
-          "title": "Choose an official nightly package",
-          "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. Download the Linux x64 or Mac artifact. On Linux unpack the ZIP and start the AppImage. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+          "title": "Choose the Windows nightly package",
+          "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. On Windows x64 download the Windows artifact, then extract the inner win64 ZIP into a dedicated folder. Keep its DLLs and data directories with OpenXcom.exe and open the player from that folder. The same artifact offers a separate win32 ZIP and an upstream installer."
+        },
+        {
+          "title": "Choose the Linux or Mac nightly package",
+          "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
         },
         {
           "title": "Prepare this title’s original data",
@@ -52,12 +56,18 @@
         },
         {
           "title": "Back up the actual OpenXcom profile",
-          "instruction": "On Linux keep ~/.local/share/openxcom and ~/.config/openxcom or their XDG overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
+          "instruction": "On Linux back up the active user and config folders shown in openxcom.log. The user folder can be ~/.local/share/openxcom or ~/.openxcom. Also keep ~/.config/openxcom or any XDG or command-line overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
         }
       ]
     },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml"
+    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
+    "original_game": {
+      "format_version": 1,
+      "id": "x-com-terror-from-the-deep",
+      "evidence_urls": ["https://openxcom.org/", "https://github.com/OpenXcom/OpenXcom"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -71,6 +81,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -80,19 +91,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "OpenXcom/OpenXcom",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "OpenXcom/OpenXcom"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

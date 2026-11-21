@@ -56,6 +56,7 @@ export interface DiscoveryLead {
   search_families?: string[];
   /** Curated community lists that named this repository; provenance only. */
   external_lists?: string[];
+  external_change?: { fingerprint: string; observed_at: string };
   release_hint?: { assets_observed: boolean; observed_at: string; evidence: string };
 }
 export interface LeadState {
@@ -135,6 +136,14 @@ export function parseLeadState(value: unknown): LeadState {
       !["pending", "researched", "held", "no-change", "canonical"].includes(String(raw.status))
     )
       throw new Error("Invalid retained lead identity");
+    if (
+      raw.external_change !== undefined &&
+      (!isRecord(raw.external_change) ||
+        typeof raw.external_change.fingerprint !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(raw.external_change.fingerprint) ||
+        !clock(raw.external_change.observed_at))
+    )
+      throw new Error("Invalid external lead change");
     if (raw.created_at !== undefined && !clock(raw.created_at))
       throw new Error("Invalid retained repository creation clock");
     if (
@@ -291,6 +300,7 @@ export function retainLeadResults(
               : {}),
             ...(old?.search_families ? { search_families: old.search_families } : {}),
             ...(old?.external_lists ? { external_lists: old.external_lists } : {}),
+            ...(old?.external_change ? { external_change: old.external_change } : {}),
           };
     if (family)
       next.records[String(id)]!.search_families = [
@@ -312,6 +322,13 @@ export function linkExternalHints(state: LeadState, observedAt: string): LeadSta
     if (hint.host !== "github") continue;
     const lead = paths.get(key.slice(19));
     if (!lead) continue;
+    if (
+      hint.source_change &&
+      hint.source_change.fingerprint !== lead.external_change?.fingerprint
+    ) {
+      lead.external_change = hint.source_change;
+      lead.status = "pending";
+    }
     lead.external_lists = [...new Set([...(lead.external_lists ?? []), ...hint.lists])].sort();
     if (hint.resolution?.status !== "queued" || hint.resolution.id !== lead.id)
       hint.resolution = { status: "queued", id: lead.id, checked_at: observedAt };
@@ -510,7 +527,7 @@ export function pendingLeads(
       (r) =>
         (["pending", "researched"].includes(r.status) ||
           (r.checked_at && now - Date.parse(r.checked_at) >= 7 * 86400000)) &&
-        !known.has(r.url.toLowerCase()),
+        (!known.has(r.url.toLowerCase()) || r.external_change !== undefined),
     )
     .sort(
       (a, b) =>

@@ -4,8 +4,9 @@
 //! here writes, moves or deletes anything inside a store's folder.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::{Component, Path, PathBuf},
+    sync::OnceLock,
 };
 
 use schemars::JsonSchema;
@@ -42,12 +43,24 @@ pub enum GameStore {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StoreGameInstall {
     pub store: GameStore,
+    /// Stable store product identity when the installation metadata supplies one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub product_id: Option<String>,
     /// The store's title for the game; a label, never an identity.
     pub title: String,
     /// Canonical existing folder.
     pub path: PathBuf,
     /// The saved game-file folder at exactly this path, when there is one.
     pub saved_root_id: Option<String>,
+    /// Reviewed search hint. The source profile still verifies the actual files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_folder: Option<StoreOriginalFolder>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct StoreOriginalFolder {
+    pub profile_id: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -68,6 +81,7 @@ pub struct StoreGameInstalls {
 pub struct RegisteredStoreInstall {
     pub title: String,
     pub path: PathBuf,
+    pub product_id: Option<String>,
 }
 
 /// Host facts behind store detection. Production reads the registry and
@@ -121,21 +135,89 @@ pub(crate) fn default_host() -> std::sync::Arc<dyn StoreInstallHost> {
     }
 }
 
+/// A reviewed hint for one source identity and store product. Shipped with the
+/// application alongside its original-file definitions.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoreOriginalLayout {
+    store: GameStore,
+    product_id: String,
+    profile_id: String,
+    relative_directory: Option<String>,
+    required_directories: Vec<String>,
+}
+
+fn parse_store_original_layouts(document: &str) -> Result<Vec<StoreOriginalLayout>> {
+    let rows: Vec<StoreOriginalLayout> = serde_json::from_str(document)?;
+    let mut identities = BTreeSet::new();
+    if rows.len() > 1024 {
+        return Err(PortcoveError::verification(
+            "store original layouts exceed their row limit",
+        ));
+    }
+    for row in &rows {
+        if row.store == GameStore::Epic
+            || product_number(&row.product_id)
+                .is_none_or(|number| number.to_string() != row.product_id)
+            || row.profile_id.is_empty()
+            || row.profile_id.len() > 128
+            || !row
+                .profile_id
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            || !identities.insert((row.store, &row.product_id, &row.profile_id))
+            || row.required_directories.len() > 16
+        {
+            return Err(PortcoveError::verification(
+                "invalid or duplicate store original layout",
+            ));
+        }
+        for directory in row
+            .relative_directory
+            .iter()
+            .chain(&row.required_directories)
+        {
+            crate::archive::validate_relative_path(directory, false)?;
+        }
+    }
+    Ok(rows)
+}
+
+fn embedded_store_original_layouts() -> &'static [StoreOriginalLayout] {
+    static LAYOUTS: OnceLock<Vec<StoreOriginalLayout>> = OnceLock::new();
+    LAYOUTS.get_or_init(|| {
+        parse_store_original_layouts(include_str!("../catalog/store-original-layouts.json"))
+            .unwrap_or_else(|error| {
+                tracing::error!(message = %error, "could not load bundled store original layouts");
+                Vec::new()
+            })
+    })
+}
+
 /// What a detection found, including folders that must never lose files
 /// through a Move even when no single install names them.
 #[derive(Debug, Default)]
-struct Detection {
+struct Detection<'a> {
     report: StoreGameInstalls,
     protected: Vec<(GameStore, PathBuf)>,
-    seen: BTreeSet<String>,
+    seen: BTreeMap<String, Option<usize>>,
+    requested_profile: Option<String>,
+    layouts: &'a [StoreOriginalLayout],
 }
 
-impl Detection {
+impl Detection<'_> {
     fn skip(&mut self) {
         self.report.skipped_entries = self.report.skipped_entries.saturating_add(1);
     }
 
-    fn add(&mut self, store: GameStore, title: &str, path: &Path) {
+    fn add(&mut self, store: GameStore, title: &str, path: &Path, product_id: Option<String>) {
+        let candidate = original_folder(
+            self.layouts,
+            store,
+            product_id.as_deref(),
+            path,
+            self.requested_profile.as_deref(),
+        );
         let Some(path) = existing_folder(path) else {
             self.skip();
             return;
@@ -144,12 +226,21 @@ impl Detection {
             self.skip();
             return;
         };
-        if !self.seen.insert(path_key(&text)) {
+        let key = path_key(&text);
+        if let Some(index) = self.seen.get(&key) {
+            if let Some(row) = index.and_then(|index| self.report.installs.get_mut(index))
+                && row.store == store
+                && row.product_id != product_id
+            {
+                row.product_id = None;
+                row.original_folder = None;
+            }
             return;
         }
         // Protect the folder from a Move even past the listing bound.
         self.protected.push((store, path.clone()));
         if self.report.installs.len() >= MAX_INSTALLS {
+            self.seen.insert(key, None);
             self.report.limited = true;
             return;
         }
@@ -159,21 +250,45 @@ impl Detection {
                     .and_then(|name| clean_title(&name.to_string_lossy()))
             })
             .unwrap_or_default();
+        self.seen.insert(key, Some(self.report.installs.len()));
         self.report.installs.push(StoreGameInstall {
             store,
+            product_id,
             title,
             path,
             saved_root_id: None,
+            original_folder: candidate,
         });
     }
 }
 
-fn detect(host: &dyn StoreInstallHost) -> Detection {
-    let mut detection = Detection::default();
+fn detect(host: &dyn StoreInstallHost) -> Detection<'static> {
+    detect_for_profile(host, None)
+}
+
+fn detect_for_profile(host: &dyn StoreInstallHost, profile_id: Option<&str>) -> Detection<'static> {
+    detect_with_layouts(host, profile_id, embedded_store_original_layouts())
+}
+
+fn detect_with_layouts<'a>(
+    host: &dyn StoreInstallHost,
+    profile_id: Option<&str>,
+    layouts: &'a [StoreOriginalLayout],
+) -> Detection<'a> {
+    let mut detection = Detection {
+        requested_profile: profile_id.map(str::to_owned),
+        layouts,
+        ..Detection::default()
+    };
     detection.report.checked_stores = host.checked_stores();
     detect_steam(host, &mut detection);
     for install in host.gog_registered_installs() {
-        detection.add(GameStore::Gog, &install.title, &install.path);
+        detection.add(
+            GameStore::Gog,
+            &install.title,
+            &install.path,
+            install.product_id,
+        );
     }
     for directory in host.epic_manifest_dirs() {
         detect_epic(&directory, &mut detection);
@@ -188,14 +303,14 @@ fn detect(host: &dyn StoreInstallHost) -> Detection {
     detection
 }
 
-fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
+fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection<'_>) {
     // Canonical `steamapps` folders, kept as resolved so a linked or
     // differently cased folder is still read and protected as itself.
     let mut libraries = Vec::<PathBuf>::new();
     let mut library_keys = BTreeSet::new();
     // `listed` libraries come from Steam's own list, so a bad entry counts as
     // skipped; default client locations are often simply absent.
-    let mut push_library = |path: &Path, listed: bool, detection: &mut Detection| {
+    let mut push_library = |path: &Path, listed: bool, detection: &mut Detection<'_>| {
         let Some(steamapps) = existing_folder(&path.join("steamapps")) else {
             if listed {
                 detection.skip();
@@ -247,7 +362,7 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
                 detection.skip();
                 continue;
             };
-            let Some((title, installdir)) = steam_app_manifest(&text) else {
+            let Some((title, installdir, app_id)) = steam_app_manifest(&text) else {
                 detection.skip();
                 continue;
             };
@@ -259,12 +374,22 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
                 GameStore::Steam,
                 &title,
                 &steamapps.join("common").join(installdir),
+                app_id
+                    .filter(|id| {
+                        manifest
+                            .file_stem()
+                            .and_then(|name| name.to_str())
+                            .and_then(|name| name.strip_prefix("appmanifest_"))
+                            .and_then(product_number)
+                            == Some(*id)
+                    })
+                    .map(|id| id.to_string()),
             );
         }
     }
 }
 
-fn detect_epic(directory: &Path, detection: &mut Detection) {
+fn detect_epic(directory: &Path, detection: &mut Detection<'_>) {
     for manifest in manifest_files(directory, detection, |name| name.ends_with(".item")) {
         let Some(item) = read_text(&manifest)
             .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
@@ -288,14 +413,28 @@ fn detect_epic(directory: &Path, detection: &mut Detection) {
             detection.skip();
             continue;
         };
-        detection.add(GameStore::Epic, title, Path::new(location));
+        let token = |field| {
+            item.get(field)
+                .and_then(serde_json::Value::as_str)
+                .filter(|text| {
+                    !text.is_empty()
+                        && text.len() <= 128
+                        && text.bytes().all(|byte| {
+                            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
+                        })
+                })
+        };
+        let product_id = token("CatalogNamespace")
+            .zip(token("CatalogItemId"))
+            .map(|(namespace, item)| format!("{namespace}:{item}"));
+        detection.add(GameStore::Epic, title, Path::new(location), product_id);
     }
 }
 
 /// Bounded, sorted regular files whose names `accept` admits.
 fn manifest_files(
     directory: &Path,
-    detection: &mut Detection,
+    detection: &mut Detection<'_>,
     accept: impl Fn(&str) -> bool,
 ) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(directory) else {
@@ -405,8 +544,7 @@ fn vdf_tokens(text: &str) -> Option<Vec<VdfToken>> {
 }
 
 /// Key/value string pairs with their nesting depth (1 = inside the root block).
-fn vdf_pairs(text: &str) -> Option<Vec<(usize, String, String)>> {
-    let tokens = vdf_tokens(text)?;
+fn vdf_pairs(tokens: &[VdfToken]) -> Option<Vec<(usize, String, String)>> {
     let mut pairs = Vec::new();
     let mut depth = 0_usize;
     let mut index = 0;
@@ -432,7 +570,7 @@ fn vdf_pairs(text: &str) -> Option<Vec<(usize, String, String)>> {
 /// current (`"path"` inside numbered blocks) and the older (numbered string
 /// values) layouts.
 fn steam_library_paths(text: &str) -> Vec<PathBuf> {
-    let Some(pairs) = vdf_pairs(text) else {
+    let Some(pairs) = vdf_tokens(text).and_then(|tokens| vdf_pairs(&tokens)) else {
         return Vec::new();
     };
     pairs
@@ -446,8 +584,16 @@ fn steam_library_paths(text: &str) -> Vec<PathBuf> {
 }
 
 /// `(name, installdir)` from a Steam `appmanifest_*.acf`.
-fn steam_app_manifest(text: &str) -> Option<(String, String)> {
-    let pairs = vdf_pairs(text)?;
+fn product_number(text: &str) -> Option<u64> {
+    if text.is_empty() || text.len() > 20 || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u64>().ok().filter(|id| *id != 0)
+}
+
+fn steam_app_manifest(text: &str) -> Option<(String, String, Option<u64>)> {
+    let tokens = vdf_tokens(text)?;
+    let pairs = vdf_pairs(&tokens)?;
     let field = |name: &str| {
         pairs
             .iter()
@@ -455,7 +601,87 @@ fn steam_app_manifest(text: &str) -> Option<(String, String)> {
             .map(|(_, _, value)| value.clone())
     };
     let installdir = field("installdir").filter(|value| !value.is_empty())?;
-    Some((field("name").unwrap_or_default(), installdir))
+    let mut ids = pairs
+        .iter()
+        .filter(|(depth, key, _)| *depth == 1 && key.eq_ignore_ascii_case("appid"));
+    let id = ids.next().and_then(|(_, _, value)| product_number(value));
+    let unique_directory = pairs
+        .iter()
+        .filter(|(depth, key, _)| *depth == 1 && key.eq_ignore_ascii_case("installdir"))
+        .count()
+        == 1;
+    let app_id = if ids.next().is_none() && unique_directory && single_app_state(&tokens) {
+        id
+    } else {
+        None
+    };
+    Some((field("name").unwrap_or_default(), installdir, app_id))
+}
+
+fn single_app_state(tokens: &[VdfToken]) -> bool {
+    let [
+        VdfToken::Text(name),
+        VdfToken::Open,
+        body @ ..,
+        VdfToken::Close,
+    ] = tokens
+    else {
+        return false;
+    };
+    if !name.eq_ignore_ascii_case("AppState") {
+        return false;
+    }
+    let mut depth = 1;
+    for token in body {
+        match token {
+            VdfToken::Open => depth += 1,
+            VdfToken::Close => depth -= 1,
+            VdfToken::Text(_) => {}
+        }
+        if depth == 0 {
+            return false;
+        }
+    }
+    depth == 1
+}
+
+fn original_folder(
+    layouts: &[StoreOriginalLayout],
+    store: GameStore,
+    product_id: Option<&str>,
+    install_path: &Path,
+    requested_profile: Option<&str>,
+) -> Option<StoreOriginalFolder> {
+    let product_id = product_id?;
+    let mut matching = layouts.iter().filter(|row| {
+        row.store == store
+            && row.product_id == product_id
+            && requested_profile.is_none_or(|profile| profile == row.profile_id)
+    });
+    let layout = matching.next()?;
+    // Anthologies only produce an original-folder hint after the player has
+    // selected a specific source profile.
+    if matching.next().is_some() {
+        return None;
+    }
+    let directory = install_path.join(layout.relative_directory.as_deref().unwrap_or(""));
+    crate::path::refuse_symlink_ancestors(&directory).ok()?;
+    let install = existing_folder(install_path)?;
+    let path = existing_folder(&directory)?;
+    if !inside(&path, &install) {
+        return None;
+    }
+    for name in &layout.required_directories {
+        let required = path.join(name);
+        crate::path::refuse_symlink_ancestors(&required).ok()?;
+        if !required.is_dir() {
+            return None;
+        }
+    }
+    Some(StoreOriginalFolder {
+        profile_id: layout.profile_id.clone(),
+        path,
+    })
 }
 
 fn inside(path: &Path, folder: &Path) -> bool {
@@ -493,7 +719,21 @@ impl PortcoveService {
     /// Game folders Steam, GOG and Epic installed on this computer, read from
     /// the stores' own metadata. Reads only; failures leave a shorter list.
     pub fn store_game_installs(&self) -> Result<StoreGameInstalls> {
-        let mut report = detect(self.store_install_host()).report;
+        self.store_game_installs_with_profile(None)
+    }
+
+    /// Query a selected game's original profile, including store bundles that
+    /// contain more than one game's data. A hint still does not admit the files.
+    pub fn store_game_installs_for_profile(&self, profile_id: &str) -> Result<StoreGameInstalls> {
+        self.catalog().source_profile(profile_id)?;
+        self.store_game_installs_with_profile(Some(profile_id))
+    }
+
+    fn store_game_installs_with_profile(
+        &self,
+        profile_id: Option<&str>,
+    ) -> Result<StoreGameInstalls> {
+        let mut report = detect_for_profile(self.store_install_host(), profile_id).report;
         let library = std::fs::canonicalize(self.library().root())
             .unwrap_or_else(|_| self.library().root().to_path_buf());
         let home = directories::BaseDirs::new()
@@ -507,6 +747,11 @@ impl PortcoveService {
             .saturating_add(u32::try_from(before - report.installs.len()).unwrap_or(u32::MAX));
         let roots = self.library().game_file_roots()?;
         for install in &mut report.installs {
+            if install.original_folder.as_ref().is_some_and(|original| {
+                self.catalog().source_profile(&original.profile_id).is_err()
+            }) {
+                install.original_folder = None;
+            }
             let key = path_key(&install.path.to_string_lossy());
             install.saved_root_id = roots
                 .iter()
@@ -634,7 +879,7 @@ mod windows {
         },
     };
 
-    use super::RegisteredStoreInstall;
+    use super::{RegisteredStoreInstall, product_number};
 
     const MAX_SUBKEYS: u32 = 4_096;
     const MAX_NAME_UNITS: usize = 256;
@@ -767,6 +1012,7 @@ mod windows {
                 installs.push(RegisteredStoreInstall {
                     title: string(&game, "gameName").unwrap_or_default(),
                     path: PathBuf::from(path),
+                    product_id: product_number(&name).map(|id| id.to_string()),
                 });
             }
         }

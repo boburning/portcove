@@ -275,13 +275,21 @@ pub(crate) fn copy_ordinary_file(source: &Path, destination: &Path) -> Result<()
 /// Refuse a rounding destination before publishing the private replacement.
 pub(crate) fn preserve_modified_time(output: &fs::File, source: &fs::Metadata) -> Result<()> {
     let modified = source.modified()?;
-    output.set_times(fs::FileTimes::new().set_modified(modified))?;
-    if output.metadata()?.modified()? != modified {
+    if !set_and_check_modified_time(output, modified)? {
         return Err(PortcoveError::unsupported(
             "destination cannot preserve the exact player-data modification time",
         ));
     }
     Ok(())
+}
+
+/// Keep destination IO errors distinct from reading the source's timestamp.
+pub(crate) fn set_and_check_modified_time(
+    output: &fs::File,
+    modified: std::time::SystemTime,
+) -> std::io::Result<bool> {
+    output.set_times(fs::FileTimes::new().set_modified(modified))?;
+    Ok(output.metadata()?.modified()? == modified)
 }
 
 pub(crate) fn modified_stamp(metadata: &fs::Metadata) -> Result<String> {

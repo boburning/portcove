@@ -163,12 +163,26 @@ accepted catalog/listing/pending union. Organization writes preserve unknown
 records, use canonical library identity and compare revisions within the existing
 atomic 64 KiB host preference boundary.
 
-Details retain mounted Game files, Saves, Versions & updates and Manage owners
-alongside Overview. Manage exposes existing artwork, Steam, CLI, output,
-verification, removal and reviewed managed-route controls. First-launch setup
-statements bind the exact managed/external installation and do not grant Core
-launch permission. Notice choices affect Library/sidebar update notices; manual
-update review and staged activation remain available.
+Game Detail keeps the original game, selected port, installation, version,
+readiness and primary play or setup action in its header. Overview shows the
+game artwork and credits. The other sections use a compact header with the
+same identity and actions. A labeled section selector replaces the tab row in
+narrow detail panes and uses the same destinations. Game files shows current
+requirements and file controls directly. Mods and Game settings each use the active managed
+installation. The detail sections stay mounted while the player switches
+between tasks. Saves & backups puts effective coverage and current actions
+before the history.
+
+Add games owns scan progress, matches, setup reviews and batch installation.
+Settings → Game files keeps saved folders, source health, DAT references and
+disc tools together. Its scan link opens the active or recorded scan in Add
+games and returns to the same Settings action. A game’s Game files section
+continues to use the exact port and library generation for checks and relinking.
+
+Discover uses the original-game grouping identity. The chooser shows setup and
+file requirements, the comparison basis, freshness, and applicable report
+summaries before individual reports. Comparison settings and detailed reports
+remain available.
 
 The recent strip uses actual successful launch history and Core launch eligibility.
 Dedicated immutable update acquisition owns a bounded archive journal and can

@@ -13,6 +13,7 @@ export type DefinitionRefresh = Generated.TransportOutputs["definition_refresh"]
 
 export type { ReleaseChannel } from "./transport-types.generated";
 export type { OriginalGameIdentity } from "./transport-types.generated";
+export type { IgdbArtwork } from "./transport-types.generated";
 export type { CatalogMediaAsset } from "./transport-types.generated";
 
 export type { UpdatePolicy } from "./transport-types.generated";
@@ -70,9 +71,29 @@ export type GameSettingChange = Requests.TransportInputs["game_setting_change"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
 export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
 export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];
+export type ModSetupOriginalReview = Generated.TransportOutputs["profile_original_review"];
+export type ModSetupOriginalTarget = {
+  generation: number;
+  portId: string;
+  profileId: string;
+  expectedRevision: number;
+  requirementId: string;
+};
 export type ModSetup = ModSetupView["profile"];
+export type ModUpdatePolicy = ModSetup["intent"]["update_policy"];
+export type ModAutoUpdateCheck = NonNullable<ModSetupsView["last_automatic_checks"]>[number];
+export type ProviderUpdateObservation = Generated.TransportOutputs["provider_update_observation"];
 export type ModSetupRevision = Generated.TransportOutputs["profile_revision"];
+export type ModSetupRecoveryBuild =
+  Generated.TransportOutputs["retained_build_resolution"]["history"][number];
+export type ModSetupRetirementPreview =
+  Generated.TransportOutputs["retained_build_retirement_preview"];
+export type ModSetupRecoveryPlan = Generated.TransportOutputs["profile_recovery_plan"];
+export type ModFilePreservationPlan = Generated.TransportOutputs["mod_file_preservation_plan"];
+export type ModFilePreservationResult = Generated.TransportOutputs["mod_file_preservation_result"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
+export type ModSetupDraftPreview = Generated.TransportOutputs["mod_setup_draft_preview"];
+export type ProviderCatalog = Generated.TransportOutputs["provider_catalog"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
 export type ProviderInstallPlan = Generated.TransportOutputs["provider_install_plan"];
@@ -171,6 +192,8 @@ export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]
 >;
 export type GameFileScanMatchPage = Generated.TransportOutputs["desktop_game_file_scan_match_page"];
+export type GameFileScanRegisteredMatches =
+  Generated.TransportOutputs["desktop_game_file_scan_registered_matches"];
 export type StoreGameInstalls = Generated.TransportOutputs["desktop_store_game_installs"];
 export type GameFileScanMatchQuery = Requests.TransportInputs["desktop_game_file_scan_match_query"];
 

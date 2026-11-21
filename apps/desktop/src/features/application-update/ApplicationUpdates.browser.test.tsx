@@ -1,3 +1,4 @@
+import { captureParityState } from "../../../test/parity-capture";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { afterEach, beforeAll, expect, it, vi } from "vite-plus/test";
@@ -40,6 +41,8 @@ beforeAll(() => {
 afterEach(async () => {
   await cleanup();
   vi.restoreAllMocks();
+  document.documentElement.removeAttribute("data-theme");
+  await page.viewport(1280, 800);
 });
 
 it("saves the channel and automatic checks immediately", async () => {
@@ -67,6 +70,8 @@ it("saves the channel and automatic checks immediately", async () => {
 });
 
 it("installs the reviewed version with progress and shows a busy-library refusal", async () => {
+  await page.viewport(430, 780);
+  document.documentElement.dataset.theme = "light";
   vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue(available);
   vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
     channel: "beta",
@@ -90,11 +95,18 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await page.getByRole("button", { name: "Download and restart", exact: true }).click();
   expect(install).toHaveBeenCalledExactlyOnceWith("0.2.0", 7, expect.any(Function));
   await expect.element(page.getByText("Starting the download…")).toBeVisible();
+  await expect.element(page.getByText("Updating Portcove…", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByText("Portcove 0.2.0 is ready to download.", { exact: true }))
+    .not.toBeInTheDocument();
   report?.({ phase: "downloading", downloaded_bytes: 1024 * 1024, total_bytes: 4 * 1024 * 1024 });
   await expect.element(page.getByText("Downloading 1.0 MiB of 4.0 MiB…")).toBeVisible();
   await expect
     .element(page.getByRole("button", { name: "Check for updates", exact: true }))
     .toBeDisabled();
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  await expect.element(page.getByText("Updating Portcove…", { exact: true })).toBeVisible();
+  await captureParityState("application-update-controlled-progress");
   refuse?.({
     ...failureReport(),
     code: "conflict",
@@ -108,4 +120,41 @@ it("installs the reviewed version with progress and shows a busy-library refusal
   await expect
     .element(page.getByRole("button", { name: "Download and restart", exact: true }))
     .toBeEnabled();
+  await expect
+    .element(page.getByText("Portcove 0.2.0 is ready to download.", { exact: true }))
+    .toBeVisible();
+  const alert = page.getByRole("alert").element();
+  alert.scrollIntoView({ block: "center", inline: "nearest" });
+  const alertBounds = alert.getBoundingClientRect();
+  expect(alertBounds.top).toBeGreaterThanOrEqual(0);
+  expect(alertBounds.bottom).toBeLessThanOrEqual(innerHeight);
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+  await captureParityState("application-update-settled-refusal");
+});
+
+it("shows a host-reported update as active without inventing local download progress", async () => {
+  await page.viewport(960, 800);
+  document.documentElement.dataset.theme = "dark";
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue({
+    ...available,
+    installing: true,
+  });
+  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
+    channel: "beta",
+    automatic_checks: true,
+  });
+  const install = vi.spyOn(desktopApi, "installApplicationUpdate");
+  await render(<Fixture />);
+  await expect.element(page.getByText("Updating Portcove…", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByText("Portcove 0.2.0 is ready to download.", { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByText("Starting the download…", { exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Download and restart", exact: true }))
+    .toBeDisabled();
+  expect(install).not.toHaveBeenCalled();
+  await captureParityState("application-update-host-active");
 });

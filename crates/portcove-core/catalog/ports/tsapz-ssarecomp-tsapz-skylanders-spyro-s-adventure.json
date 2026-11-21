@@ -4,10 +4,18 @@
     "id": "tsapz-ssarecomp-tsapz-skylanders-spyro-s-adventure",
     "name": "Skylanders: Spyro's Adventure — tsapZ SSARecomp (tsapZ)",
     "original_game_title": "Skylanders: Spyro's Adventure",
+    "artwork": {
+      "game_id": 1585,
+      "cover_id": 91751,
+      "image_id": "co1ysn",
+      "image_sha256": "c490cdf9018772d5a7048349548e19f5ce7f601fecafb5b3b1ba193e8d3d3115",
+      "game_slug": "skylanders-spyro-s-adventure",
+      "match_kind": "underlying-game"
+    },
     "summary": "Chapter 1 is reported to work. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SSARecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/tsapZ/SSARecomp",
     "manual_setup": {
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/tsapZ/SSARecomp"
     },
-    "issue_number": 3155
+    "issue_number": 3155,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-spyros-adventure",
+      "evidence_urls": [
+        "https://github.com/tsapZ/SSARecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-ssarecomp-tsapz-skylanders-spyro-s-adventure.json"
+      ],
+      "source_editions": [
+        {
+          "id": "skylanders-spyros-adventure-xbox-360",
+          "title": "Skylanders: Spyro's Adventure (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-ssarecomp-tsapz-skylanders-spyro-s-adventure.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

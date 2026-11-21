@@ -6,7 +6,7 @@
     "original_game_title": "Turok: Dinosaur Hunter",
     "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/polaco1782/v64recomp",
     "manual_setup": {
@@ -45,6 +45,21 @@
       "image_sha256": "d51269fe67527570a2fac654cca072f2d759f28f84bcf6e9969d89f602156d94",
       "game_slug": "turok-dinosaur-hunter",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-dinosaur-hunter",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": [
+        {
+          "id": "turok-dinosaur-hunter-nintendo-64",
+          "title": "Turok: Dinosaur Hunter (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/v64recomp-turok-us-v12-polaco1782-turok-dinosaur-hunter.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

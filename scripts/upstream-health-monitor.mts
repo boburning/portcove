@@ -28,7 +28,7 @@ const workflow = ".github/workflows/upstream-health.yml";
 const mainRef = "refs/heads/main";
 const checkpointBytes = 16 * 1024 * 1024;
 // Physical byte envelopes bound retained inventories; batch operation bounds stay separate.
-const catalogBytes = 4 * 1024 * 1024;
+const catalogBytes = 16 * 1024 * 1024;
 export const healthFreshnessMs = 24 * 60 * 60 * 1000;
 
 type Collection = Awaited<ReturnType<typeof collectRepositoryHealth>>;
@@ -1121,7 +1121,7 @@ async function main(): Promise<void> {
       );
       const catalog = await boundedJson(
         path.join(root, "crates/portcove-core/catalog/catalog.json"),
-        4 * 1024 * 1024,
+        catalogBytes,
       );
       const deadline =
         process.env.HEALTH_DEADLINE_MS === undefined && !execution.actions

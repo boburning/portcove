@@ -2,13 +2,20 @@
   "format_version": 1,
   "listing": {
     "id": "celeste-64-fragments-of-the-mountain",
+    "artwork": {
+      "game_id": 284430,
+      "cover_id": 358960,
+      "image_id": "co7oz4",
+      "image_sha256": "98c0527ec93c5bfb4dfc0145123b11fba721b0f0d12a5b7d9f9ba351d21d7b31",
+      "game_slug": "celeste-64-fragments-of-the-mountain",
+      "match_kind": "underlying-game"
+    },
     "name": "Celeste 64: Fragments of the Mountain",
     "summary": "Explore a 3D mountain in a short standalone game from the Celeste developers.",
     "project_url": "https://github.com/EXOK/Celeste64",
     "issue_number": 6126,
     "listed_at": "2026-11-14",
     "original_game_title": "Celeste 64: Fragments of the Mountain",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "release_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
     "download_asset_hints": {
@@ -28,7 +35,7 @@
         },
         {
           "title": "Extract the complete folder and start Celeste 64",
-          "instruction": "Run Celeste64.exe on Windows or Celeste64 on Linux and Mac, with its containing folder as the start folder. Keep Content/ and the adjacent libraries with the player. The official package includes the game and needs no separate Celeste installation."
+          "instruction": "Keep Content/ and the adjacent libraries with the player. The official package includes the game. In Portcove, select Celeste64.exe on Windows or Celeste64 on Linux and Mac. Choose its containing folder as the working directory. Keep any arguments you already use. Review the registration, then choose Play."
         }
       ],
       "references": [
@@ -37,6 +44,34 @@
           "instruction": "Keep the Celeste64 user data folder in Roaming AppData on Windows, in XDG_DATA_HOME or ~/.local/share on Linux, or in Library/Application Support on Mac. Preserve save.json and the other settings files there when replacing the extracted game folder."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "celeste-64-fragments-of-the-mountain",
+      "evidence_urls": [
+        "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
+        "https://github.com/EXOK/Celeste64"
+      ],
+      "source_editions": []
+    }
+  },
+  "external_registration_v1": true,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "EXOK/Celeste64"
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Extract the official package for your computer and keep the complete folder. Select Celeste64.exe on Windows or Celeste64 on Linux and Mac. Use the containing folder as the working directory and keep your existing arguments. You manage the game files, updates and backups. Removing the Portcove registration leaves the game, saves and settings in place."
     }
   }
 }

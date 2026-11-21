@@ -7,7 +7,7 @@
     "project_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
     "issue_number": 1840,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
     "original_game_title": "The Legend of Zelda",
@@ -47,6 +47,24 @@
       "image_sha256": "813d808e276489e374104f0b476b44d4ae8ad9c73e72c262310d4c829878f37c",
       "game_slug": "the-legend-of-zelda",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda",
+      "evidence_urls": [
+        "https://github.com/mstan/LegendOfZeldaNESRecomp",
+        "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/07c3004786f36b73e58fe00bfece9ad648ba7d96/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-nes",
+          "title": "The Legend of Zelda (NES)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/b8b227065a96cc680f900410fafd9db6499148c1/README.md"
+          ]
+        }
+      ]
     }
   }
 }

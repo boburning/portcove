@@ -54,6 +54,24 @@
           "instruction": "Use the project’s tools to update this copy. Close the game and helpers, preserve the whole working folder including sf64.o2r, mods, saves, starship.cfg.json and any legacy config.json, then prepare an update separately before changing launch details. Portcove offers launch and registration removal; it does not offer managed updates, backups, rollback, migration or deletion for these external files. Removing the registration preserves them. Any existing managed installation retains its own management and integrity checks."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Starship/blob/cb19785b51698185a688e17ba1a34c7889195bdb/README.md",
+        "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-64-nintendo-64",
+          "title": "Star Fox 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

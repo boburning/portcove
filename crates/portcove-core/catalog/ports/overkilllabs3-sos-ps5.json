@@ -5,6 +5,14 @@
     "name": "God of War: Sons of Sparta (Sons Of Sparta PS5 Native)",
     "summary": "Attach an independently permitted, already prepared God of War: Sons of Sparta Windows copy through its waiting upstream launcher. Your own exact PS5 data and generated game remain upstream-managed; preserve _sd and the complete prepared folder.",
     "original_game_title": "God of War: Sons of Sparta",
+    "artwork": {
+      "game_id": 389443,
+      "cover_id": 537131,
+      "image_id": "cobigb",
+      "image_sha256": "868ab94a5a5967e969c7e82e752fa5a3768594c73b69a293b491f609b92d7bcb",
+      "game_slug": "god-of-war-sons-of-sparta",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/OverkillLabs3/SoS-PS5",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -41,6 +49,26 @@
       ],
       "warnings": [
         "Keep exact original and prepared-game files plus _sd. The published launcher and relinker alone are not a complete playable game; other versions and native acceptance remain unqualified."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-sons-of-sparta",
+      "evidence_urls": [
+        "https://github.com/OverkillLabs3/SoS-PS5/blob/b62c32c618b57bbc82461eb9df61a66fb3bb1315/README.md",
+        "https://github.com/OverkillLabs3/SoS-PS5",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/overkilllabs3-sos-ps5.json"
+      ],
+      "source_editions": [
+        {
+          "id": "god-of-war-sons-of-sparta-pc",
+          "title": "God of War: Sons of Sparta (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OverkillLabs3/SoS-PS5/blob/b62c32c618b57bbc82461eb9df61a66fb3bb1315/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/overkilllabs3-sos-ps5.json"
+          ]
+        }
       ]
     }
   },

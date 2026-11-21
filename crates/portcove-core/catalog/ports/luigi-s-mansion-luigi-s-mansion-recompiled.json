@@ -5,6 +5,14 @@
     "name": "Luigi's Mansion (Luigi's Mansion Recompiled)",
     "summary": "Attach an independently permitted, prepared Luigi’s Mansion Recompiled Windows player with its supported USA or PAL rev0 disc and locally built module. Preserve regional cards, both-disc overlays and actual system/portable data; upstream folder moves can remove the former root.",
     "original_game_title": "Luigi's Mansion",
+    "artwork": {
+      "game_id": 2485,
+      "cover_id": 89101,
+      "image_id": "co1wr1",
+      "image_sha256": "b8e7dc5883d4c3c523f75c3d558fa5d119da65196f8ad3c32e477685cb3f6601",
+      "game_slug": "luigi-s-mansion",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/rob646464/luigis-mansion-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -37,6 +45,24 @@
       ],
       "warnings": [
         "Preserve the actual regional cards and both sides of any system/portable data move before startup. First-use builds, automatic stale-module rebuilding and recovery remain upstream-owned."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "luigi-s-mansion",
+      "evidence_urls": [
+        "https://github.com/rob646464/luigis-mansion-recompiled/blob/d448095305b81d9bcace330c2259e666805140ef/README.md",
+        "https://github.com/rob646464/luigis-mansion-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "luigi-s-mansion-nintendo-gamecube",
+          "title": "Luigi's Mansion (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/rob646464/luigis-mansion-recompiled/blob/4605e9b2de9fd344d480223eb00abe1b6ed13f08/README.md"
+          ]
+        }
       ]
     }
   },

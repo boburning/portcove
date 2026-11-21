@@ -71,11 +71,15 @@ fn observation_keeps_the_excluded_candidate_distinct_from_the_reviewed_fallback(
     let selected = &projection.latest_eligible.as_ref().unwrap().release;
     assert_eq!(selected.version, reviewed.version);
     assert_eq!(selected.asset.sha256, reviewed.sha256);
+    assert_eq!(projection.hold_reasons, ["reviewed-artifact-excluded"]);
 
     hold.reviewed_artifacts.clear();
     let report = inspect_cvlod_with_hold(facts, Some(hold))?;
     assert!(report.projections[0].latest_eligible.is_none());
-    assert_eq!(report.projections[0].hold_reasons, ["no-reviewed-fallback"]);
+    assert_eq!(
+        report.projections[0].hold_reasons,
+        ["reviewed-artifact-excluded", "no-reviewed-fallback"]
+    );
     Ok(())
 }
 
@@ -459,6 +463,73 @@ fn checksum_observation_requests_exact_sources_and_resolves_without_authoring_ch
 }
 
 #[test]
+fn same_release_late_linux_checksum_changes_only_its_platform_projection() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    let windows = Platform::WindowsX86_64;
+    let linux = Platform::LinuxX86_64;
+    port.platforms = vec![windows, linux];
+    port.channels = vec![ReleaseChannel::Stable];
+    port.release
+        .asset_hints
+        .insert(linux, vec!["game-linux-x64".into()]);
+    let mut release = release(1, "v1");
+    for (id, name) in [
+        (11, "game-linux-x64.tar.gz"),
+        (12, "game-linux-x64.tar.gz.sha256"),
+    ] {
+        let mut asset = release["assets"][0].clone();
+        asset["id"] = json!(id);
+        asset["name"] = json!(name);
+        asset["digest"] = Value::Null;
+        asset["browser_download_url"] = json!(format!(
+            "https://github.com/HarbourMasters/Shipwright/releases/download/v1/{name}"
+        ));
+        release["assets"].as_array_mut().unwrap().push(asset);
+    }
+    let mut document = envelope(vec![release])?;
+    let pending = inspect(&port, &document)?;
+    let projection = |report: &UpstreamObservationReport, platform| {
+        report
+            .projections
+            .iter()
+            .position(|entry| entry.platform == platform && entry.channel == ReleaseChannel::Stable)
+            .unwrap()
+    };
+    let win = projection(&pending, windows);
+    let lx = projection(&pending, linux);
+    assert_eq!(
+        pending.projections[lx].hold_reasons,
+        ["checksum-observation-incomplete"]
+    );
+    assert_eq!(pending.projections[lx].checksum_sources[0].asset_id, 12);
+    let windows_before = pending.projections[win].latest_eligible.as_ref().unwrap();
+
+    let digest = "b".repeat(64);
+    document["facts"]["checksum_sidecars"] = json!([{ "release_id":1, "asset_id":12, "text":format!("{digest}  game-linux-x64.tar.gz\n") }]);
+    document["facts_sha256"] = json_digest(&document["facts"])?.into();
+    let complete = inspect(&port, &document)?;
+    assert_ne!(pending.facts_sha256, complete.facts_sha256);
+    assert_eq!(
+        pending.catalog_definition_sha256,
+        complete.catalog_definition_sha256
+    );
+    assert!(complete.projections[lx].hold_reasons.is_empty());
+    let linux_after = complete.projections[lx].latest_eligible.as_ref().unwrap();
+    assert_eq!((linux_after.release_id, linux_after.asset_id), (1, 11));
+    assert_eq!(linux_after.release.version, "v1");
+    assert_eq!(linux_after.release.asset.sha256, digest);
+    let windows_after = complete.projections[win].latest_eligible.as_ref().unwrap();
+    assert_eq!(windows_before.release_id, windows_after.release_id);
+    assert_eq!(windows_before.asset_id, windows_after.asset_id);
+    assert_eq!(windows_before.release.asset, windows_after.release.asset);
+    assert_eq!(
+        serde_json::to_string(&complete)?,
+        serde_json::to_string(&inspect(&port, &document)?)?
+    );
+    Ok(())
+}
+
+#[test]
 fn observations_use_shared_game_channels_and_preserve_unverified_evidence() -> Result<()> {
     let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
     port.platforms = vec![Platform::WindowsX86_64];
@@ -800,6 +871,135 @@ fn scoped_observations_keep_core_channel_selection_and_require_asset_coverage() 
     assert!(!scoped.evidence.provider_authenticated);
     assert!(!scoped.evidence.artifact_bytes_verified);
     assert!(!scoped.evidence.catalog_admission_assessed);
+    Ok(())
+}
+
+#[test]
+fn managed_desktop_streams_skip_real_add_on_and_foreign_release_headers() -> Result<()> {
+    let catalog = crate::Catalog::embedded()?;
+    let dude = [
+        "doom-3-classic-dude-doom-3-unified-development-engine",
+        "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+    ];
+    let wario = ["mstan-wariowaretwistedrecomp"];
+    let cases = [
+        (
+            &dude[..],
+            Platform::WindowsX86_64,
+            ReleaseChannel::Stable,
+            &[
+                (446416764, "baked-pbr-v1"),
+                (435773723, "baked-ao-v1"),
+                (443250877, "v0.9.9"),
+            ][..],
+            443250877,
+        ),
+        (
+            &dude[..],
+            Platform::LinuxX86_64,
+            ReleaseChannel::Stable,
+            &[
+                (446416764, "baked-pbr-v1"),
+                (435773723, "baked-ao-v1"),
+                (443250877, "v0.9.9"),
+            ][..],
+            443250877,
+        ),
+        (
+            &wario[..],
+            Platform::WindowsX86_64,
+            ReleaseChannel::Beta,
+            &[
+                (445709228, "android-v0.0.6-rc.1"),
+                (445873873, "linux-v0.0.6-rc.1"),
+                (416692479, "v0.0.2"),
+            ][..],
+            416692479,
+        ),
+    ];
+    for (ids, platform, channel, headers, expected) in cases {
+        let releases: Vec<super::super::GithubRelease> = serde_json::from_value(Value::Array(headers.iter().map(|(id, tag)| json!({
+            "id": id, "tag_name":tag, "draft":false, "prerelease":channel == ReleaseChannel::Beta, "assets":[]
+        })).collect::<Vec<_>>()))?;
+        for id in ids {
+            let port = catalog.port(id)?;
+            let selected = select_channel_candidate(
+                &releases,
+                channel,
+                None,
+                |release| super::super::native_release_applies_to_platform(port, platform, release),
+                is_beta_release,
+                |release| release.tag_name.as_str(),
+            );
+            assert_eq!(
+                selected.and_then(|release| release.id),
+                Some(expected),
+                "{id}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn reviewed_other_stream_skips_headers_but_an_unrelated_pending_tag_still_holds() -> Result<()> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    let platform = Platform::WindowsX86_64;
+    port.platforms = vec![platform];
+    port.channels = vec![ReleaseChannel::Stable];
+    port.release
+        .github_other_stream_tag_prefixes
+        .insert(platform, vec!["baked-pbr-".into()]);
+    port.release.validate_github_streams(&port.platforms)?;
+    assert!(
+        port.release
+            .validate_github_streams(&[Platform::LinuxX86_64])
+            .is_err()
+    );
+
+    let mut other_stream = release(2, "baked-pbr-v1");
+    other_stream["assets"] = json!([]);
+    let mut document = envelope(vec![other_stream, release(1, "1.0.0")])?;
+    document["format"] = json!(2);
+    document["coverage"] = json!({ "kind": "channel-candidate-assets", "complete_release_headers": true, "asset_release_ids": [1] });
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let releases: Vec<super::super::GithubRelease> =
+        serde_json::from_value(document["facts"]["releases"].clone())?;
+    assert!(!super::super::native_release_applies_to_platform(
+        &port,
+        platform,
+        &releases[0]
+    ));
+    let selected = inspect(&port, &document)?;
+    assert_eq!(
+        selected.projections[0].latest_observed.as_ref().unwrap().id,
+        2
+    );
+    assert_eq!(
+        selected.projections[0]
+            .latest_eligible
+            .as_ref()
+            .unwrap()
+            .release_id,
+        1
+    );
+
+    document["facts"]["releases"][0]["tag_name"] = json!("2.0.0");
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let pending = inspect(&port, &document)?;
+    assert_eq!(
+        pending.projections[0]
+            .channel_candidate
+            .as_ref()
+            .unwrap()
+            .id,
+        2
+    );
+    assert!(pending.projections[0].latest_eligible.is_none());
+    assert_eq!(
+        pending.projections[0].hold_reasons,
+        ["release-asset-observation-incomplete"]
+    );
     Ok(())
 }
 

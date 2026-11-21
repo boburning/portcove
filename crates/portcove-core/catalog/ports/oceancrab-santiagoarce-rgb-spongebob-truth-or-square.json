@@ -4,6 +4,14 @@
     "id": "oceancrab-santiagoarce-rgb-spongebob-truth-or-square",
     "name": "SpongeBob: Truth or Square — OceanCrab (santiagoarce-rgb)",
     "original_game_title": "SpongeBob: Truth or Square",
+    "artwork": {
+      "game_id": 295596,
+      "cover_id": 431872,
+      "image_id": "co998g",
+      "image_sha256": "57ace73d5c700c7ce85240404cb76189008448d1020f64c09c9cfb61fc0572a2",
+      "game_slug": "spongebobs-truth-or-square",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports boot, main-loop, rendering and audio work. Input and rendering improvements are still planned; interactive gameplay is not yet available. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/santiagoarce-rgb/OceanCrab",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/santiagoarce-rgb/OceanCrab"
     },
-    "issue_number": 3108
+    "issue_number": 3108,
+    "original_game": {
+      "format_version": 1,
+      "id": "spongebob-truth-or-square",
+      "evidence_urls": ["https://github.com/santiagoarce-rgb/OceanCrab"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -4,6 +4,14 @@
     "id": "kon-houkago-live-recompiled-edgx73-k-on-houkago-live",
     "name": "K-On! Houkago Live!! — KOn-Houkago-Live-Recompiled (EDGX73)",
     "original_game_title": "K-On! Houkago Live!!",
+    "artwork": {
+      "game_id": 38485,
+      "cover_id": 193182,
+      "image_id": "co4526",
+      "image_sha256": "db334c82c638bea8998726dd54fe3ba7974bc62c358c0eaa0185ded90f2a0379",
+      "game_slug": "k-on-houkago-live",
+      "match_kind": "underlying-game"
+    },
     "summary": "This is an early native-player release. Full-game compatibility has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/EDGX73/KOn-Houkago-Live-Recompiled"
     },
-    "issue_number": 3105
+    "issue_number": 3105,
+    "original_game": {
+      "format_version": 1,
+      "id": "k-on-houkago-live",
+      "evidence_urls": ["https://github.com/EDGX73/KOn-Houkago-Live-Recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -5,6 +5,14 @@
     "project_url": "https://github.com/sacredbanana/lab3d-sdl",
     "name": "Ken’s Labyrinth / LAB3D/SDL",
     "original_game_title": "Ken’s Labyrinth",
+    "artwork": {
+      "game_id": 8743,
+      "cover_id": 419835,
+      "image_id": "co8zy3",
+      "image_sha256": "f0c00424aed86fefb0064e6f74e05cc449cee311ce294b70caced13af47229b3",
+      "game_slug": "kens-labyrinth",
+      "match_kind": "underlying-game"
+    },
     "summary": "Explore Ken’s Labyrinth in a native player with the original game versions and the Walken prerelease.",
     "issue_number": 6129,
     "listed_at": "2026-11-14",
@@ -31,6 +39,25 @@
       ],
       "warnings": [
         "The Linux system package can place gamedata in a system-owned directory. Use the writable portable copy for saving game progress."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kens-labyrinth",
+      "evidence_urls": [
+        "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
+        "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
+        "https://github.com/sacredbanana/lab3d-sdl"
+      ],
+      "source_editions": [
+        {
+          "id": "kens-labyrinth-pc",
+          "title": "Ken’s Labyrinth (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sacredbanana/lab3d-sdl/blob/d657e6b6921324763c87ae185982aaf376b6fe07/README.md"
+          ]
+        }
       ]
     }
   }

@@ -35,6 +35,21 @@
       "image_sha256": "b0a71b0ee7339829c1f6bbc7c64b5ec9a1728a0b6d832f4b2af3a1b33cfe58cd",
       "game_slug": "bust-a-groove-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "bust-a-groove-2",
+      "evidence_urls": ["https://github.com/betinn/BustAGroove2-Recomp"],
+      "source_editions": [
+        {
+          "id": "bust-a-groove-2-playstation",
+          "title": "Bust A Groove 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/betinn/BustAGroove2-Recomp/blob/090a4e4213965140e3f8f46df27bfbaa1d939228/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

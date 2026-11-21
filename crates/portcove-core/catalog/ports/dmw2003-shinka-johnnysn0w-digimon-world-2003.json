@@ -35,6 +35,21 @@
       "image_sha256": "749fda15ec94cf39a3fd9b294100b690d6701c5c15cde76a3997657e56fe1662",
       "game_slug": "digimon-world-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": ["https://github.com/JohnnySn0w/dmw2003-shinka"],
+      "source_editions": [
+        {
+          "id": "digimon-world-2003-playstation",
+          "title": "Digimon World 2003 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/dmw2003-shinka-johnnysn0w-digimon-world-2003.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

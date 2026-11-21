@@ -3,7 +3,7 @@
   "listing": {
     "id": "need-for-speed-ii-special-edition-nfsiise",
     "name": "Need for Speed II: Special Edition (NFSIISE)",
-    "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: This is a wrapper around retained original code, rather than a complete source reconstruction. Exact original binaries, assets and host architecture must match the project’s requirements. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README. Portcove setup/gameplay not verified.",
+    "summary": "Run Need for Speed II: Special Edition with the project’s wrapper and data from your own Special Edition installation. The project has Windows and Linux releases. Match the program and libraries to its supported build, and keep the original fedata and gamedata folders together.",
     "original_game_title": "Need for Speed II: Special Edition",
     "project_url": "https://github.com/zaps166/NFSIISE",
     "platforms": [],
@@ -46,7 +46,22 @@
       "warnings": [
         "Use only a copy and components you are already permitted to use. Engine licensing does not grant original-game, music, mod, middleware or redistribution rights.",
         "Before changing versions, keep a copy of the working game and every data and profile folder it uses. Another executable may use those same folders."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The Windows wrapper uses x86 code and matching DLLs. The project also documents Unix and macOS source builds, with macOS support through Mojave. Supported non-Windows CPUs, disc language, patch and original binary fingerprint have not been confirmed."
+        }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-ii-special-edition",
+      "evidence_urls": [
+        "https://github.com/zaps166/NFSIISE/tree/6fc5caf24e9cf3d411da3ea87552babaf09253a6",
+        "https://github.com/zaps166/NFSIISE"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

@@ -14,7 +14,7 @@ pub(crate) fn validate_definition_transition(
     let baseline = baseline.authoritative_document();
     let candidate = candidate.authoritative_document();
     if baseline.schema_version != candidate.schema_version {
-        return Err(out_of_scope("catalog schema changed"));
+        return Err(baseline_drift("catalog schema changed"));
     }
 
     let baseline_ports = values_by_id(&baseline.ports, |port| &port.id)?;
@@ -24,14 +24,14 @@ pub(crate) fn validate_definition_transition(
     }
     for (id, value) in &baseline_ports {
         if *id != selected_port_id && candidate_ports.get(id) != Some(value) {
-            return Err(out_of_scope("an unrelated port changed or was removed"));
+            return Err(baseline_drift("an unrelated port changed or was removed"));
         }
     }
     if candidate_ports
         .keys()
         .any(|id| !baseline_ports.contains_key(id) && *id != selected_port_id)
     {
-        return Err(out_of_scope("more than the selected port was added"));
+        return Err(baseline_drift("more than the selected port was added"));
     }
     let baseline_order = baseline
         .ports
@@ -46,11 +46,9 @@ pub(crate) fn validate_definition_transition(
         .map(|port| port.id.as_str())
         .collect::<Vec<_>>();
     if baseline_order != candidate_order {
-        return Err(out_of_scope("unrelated port ordering changed"));
+        return Err(baseline_drift("unrelated port ordering changed"));
     }
-    validate_acquisition_hold_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
-    validate_package_layout_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
-    validate_accepted_uploader_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
+    validate_subject_safety(&baseline.ports, &candidate.ports, selected_port_id)?;
 
     match (
         baseline.source_catalog.as_ref(),
@@ -62,6 +60,245 @@ pub(crate) fn validate_definition_transition(
         }
         _ => Err(out_of_scope("source authority presence changed")),
     }
+}
+
+fn validate_subject_safety(
+    baseline: &[crate::PortDefinition],
+    candidate: &[crate::PortDefinition],
+    selected_port_id: &str,
+) -> Result<()> {
+    if let Some(previous) = baseline.iter().find(|port| port.id == selected_port_id)
+        && let Some(next) = candidate.iter().find(|port| port.id == selected_port_id)
+    {
+        crate::provider_binding::validate_successor(previous, next)?;
+    }
+    validate_acquisition_hold_transition(baseline, candidate, selected_port_id)?;
+    validate_package_layout_transition(baseline, candidate, selected_port_id)?;
+    validate_accepted_uploader_transition(baseline, candidate, selected_port_id)?;
+
+    Ok(())
+}
+
+/// A committed predecessor is already an exact typed snapshot. Its unrelated
+/// rows and embedded schema no longer determine the new catalog baseline.
+pub(crate) fn validate_retained_subject_successor(
+    predecessor: &Catalog,
+    successor: &Catalog,
+    selected: &str,
+) -> Result<()> {
+    predecessor.port(selected)?;
+    successor.port(selected)?;
+    validate_subject_safety(predecessor.ports(), successor.ports(), selected)?;
+    let Some(prior) = predecessor.source_catalog() else {
+        return Ok(());
+    };
+    let next = successor
+        .source_catalog()
+        .ok_or_else(|| out_of_scope("retained subject lost source authority"))?;
+    let prior = subject_source_records(prior, selected);
+    require_existing_records(
+        &values_by_id(&prior.evidence, |value| &value.id)?,
+        &values_by_id(&next.evidence, |value| &value.id)?,
+        "source evidence",
+    )?;
+    require_existing_records(
+        &values_by_id(&prior.identities, |value| &value.id)?,
+        &values_by_id(&next.identities, |value| &value.id)?,
+        "source identity",
+    )?;
+    require_existing_records(
+        &values_by_id(&prior.validators, |value| &value.id)?,
+        &values_by_id(&next.validators, |value| &value.id)?,
+        "source validator",
+    )
+}
+
+pub(crate) fn validate_historical_source_overlap(
+    historical: &Catalog,
+    effective: &Catalog,
+    selected: &str,
+) -> Result<()> {
+    if let (Some(historical), Some(effective)) =
+        (historical.source_catalog(), effective.source_catalog())
+    {
+        let mut scoped = subject_source_records(historical, selected);
+        merge_immutable_records(&mut scoped.evidence, &effective.evidence, |value| &value.id)?;
+        merge_immutable_records(&mut scoped.identities, &effective.identities, |value| {
+            &value.id
+        })?;
+        merge_immutable_records(&mut scoped.validators, &effective.validators, |value| {
+            &value.id
+        })?;
+    }
+    Ok(())
+}
+
+fn subject_source_records(graph: &SourceCatalog, selected: &str) -> SourceCatalog {
+    let mut scope = SourceCatalog {
+        evidence: Vec::new(),
+        identities: Vec::new(),
+        contracts: graph
+            .contracts
+            .iter()
+            .filter(|row| row.port_id == selected)
+            .cloned()
+            .collect(),
+        validators: Vec::new(),
+        qualification: graph
+            .qualification
+            .iter()
+            .filter(|row| row.scope.port_id == selected)
+            .cloned()
+            .collect(),
+    };
+    let profile_ids: HashSet<_> = scope
+        .contracts
+        .iter()
+        .map(|row| row.profile_id.as_str())
+        .collect();
+    scope.identities.extend(
+        graph
+            .identities
+            .iter()
+            .filter(|row| profile_ids.contains(row.id.as_str()))
+            .cloned(),
+    );
+    let mut validators: HashSet<_> = scope
+        .contracts
+        .iter()
+        .filter_map(|row| row.validator_contract_id.as_deref())
+        .collect();
+    let mut evidence: HashSet<_> = scope
+        .contracts
+        .iter()
+        .flat_map(|row| row.evidence_ids.iter().map(String::as_str))
+        .collect();
+    for variant in scope
+        .identities
+        .iter()
+        .flat_map(|identity| &identity.variants)
+    {
+        evidence.extend(variant.evidence_ids.iter().map(String::as_str));
+        for representation in &variant.representations {
+            evidence.extend(representation.evidence_ids.iter().map(String::as_str));
+            if let SourceRepresentationKind::PinnedValidator {
+                validator_contract_id,
+            } = &representation.kind
+            {
+                validators.insert(validator_contract_id);
+            }
+        }
+    }
+    scope.validators.extend(
+        graph
+            .validators
+            .iter()
+            .filter(|row| validators.contains(row.id.as_str()))
+            .cloned(),
+    );
+    evidence.extend(
+        scope
+            .validators
+            .iter()
+            .flat_map(|row| row.evidence_ids.iter().map(String::as_str)),
+    );
+    evidence.extend(
+        scope
+            .qualification
+            .iter()
+            .flat_map(|row| row.evidence_ids.iter().map(String::as_str)),
+    );
+    scope.evidence.extend(
+        graph
+            .evidence
+            .iter()
+            .filter(|row| evidence.contains(row.id.as_str()))
+            .cloned(),
+    );
+    scope
+}
+
+/// Combine one already-validated subject with previously validated unrelated
+/// selections. A legacy full projection can only contribute its selected port
+/// and in-scope source graph. It cannot replace another selection's document.
+pub(crate) fn compose_verified_definition(
+    effective: &Catalog,
+    scoped: &Catalog,
+    selected: &str,
+) -> Result<Catalog> {
+    let mut document = effective.authoritative_document();
+    let port = scoped.port(selected)?.clone();
+    if let Some(prior) = document.ports.iter_mut().find(|value| value.id == selected) {
+        *prior = port;
+    } else {
+        document.ports.push(port);
+    }
+    match (document.source_catalog.as_mut(), scoped.source_catalog()) {
+        (Some(effective), Some(scoped)) => {
+            merge_immutable_records(&mut effective.evidence, &scoped.evidence, |value| &value.id)?;
+            merge_immutable_records(&mut effective.identities, &scoped.identities, |value| {
+                &value.id
+            })?;
+            merge_immutable_records(&mut effective.validators, &scoped.validators, |value| {
+                &value.id
+            })?;
+            effective
+                .contracts
+                .retain(|value| value.port_id != selected);
+            effective.contracts.extend(
+                scoped
+                    .contracts
+                    .iter()
+                    .filter(|value| value.port_id == selected)
+                    .cloned(),
+            );
+            effective
+                .qualification
+                .retain(|value| value.scope.port_id != selected);
+            effective.qualification.extend(
+                scoped
+                    .qualification
+                    .iter()
+                    .filter(|value| value.scope.port_id == selected)
+                    .cloned(),
+            );
+        }
+        (None, None) => {}
+        _ => return Err(out_of_scope("source authority presence changed")),
+    }
+    let mut catalog = Catalog::from_document(document)?;
+    catalog.retain_embedded_file_patterns(effective, selected)?;
+    catalog.retain_unrelated_upstream_reviews(effective, selected);
+    validate_definition_transition(effective, &catalog, selected)?;
+    catalog.retain_cached_definition_selections(effective);
+    catalog.retain_independent_definition_selection(scoped, selected)?;
+    Ok(catalog)
+}
+
+fn merge_immutable_records<T: Clone + PartialEq>(
+    effective: &mut Vec<T>,
+    scoped: &[T],
+    id: impl Fn(&T) -> &str,
+) -> Result<()> {
+    let positions: HashMap<_, _> = effective
+        .iter()
+        .enumerate()
+        .map(|(position, record)| (id(record), position))
+        .collect();
+    let mut added = Vec::new();
+    for record in scoped {
+        match positions.get(id(record)) {
+            Some(position) if &effective[*position] != record => {
+                return Err(out_of_scope(
+                    "independently selected source records conflict",
+                ));
+            }
+            Some(_) => {}
+            None => added.push(record.clone()),
+        }
+    }
+    effective.extend(added);
+    Ok(())
 }
 
 /// A selected definition may keep or narrow an existing managed acquisition
@@ -179,17 +416,50 @@ fn validate_source_transition(
     let baseline_validators = values_by_id(&baseline.validators, |value| &value.id)?;
     let candidate_validators = values_by_id(&candidate.validators, |value| &value.id)?;
 
-    require_existing_records(&baseline_evidence, &candidate_evidence, "source evidence")?;
-    require_existing_records(
-        &baseline_identities,
-        &candidate_identities,
-        "source identity",
-    )?;
-    require_existing_records(
-        &baseline_validators,
-        &candidate_validators,
-        "source validator",
-    )?;
+    let immutable_frame =
+        require_existing_records(&baseline_evidence, &candidate_evidence, "source evidence")
+            .and_then(|()| {
+                require_existing_records(
+                    &baseline_identities,
+                    &candidate_identities,
+                    "source identity",
+                )
+            })
+            .and_then(|()| {
+                require_existing_records(
+                    &baseline_validators,
+                    &candidate_validators,
+                    "source validator",
+                )
+            });
+    if let Err(error) = immutable_frame {
+        let prior = subject_source_records(baseline, selected_port_id);
+        let proposed = subject_source_records(candidate, selected_port_id);
+        let scoped_change = changed_owned_records(
+            &prior.evidence,
+            &proposed.evidence,
+            &baseline_evidence,
+            &candidate_evidence,
+            |row| &row.id,
+        ) || changed_owned_records(
+            &prior.identities,
+            &proposed.identities,
+            &baseline_identities,
+            &candidate_identities,
+            |row| &row.id,
+        ) || changed_owned_records(
+            &prior.validators,
+            &proposed.validators,
+            &baseline_validators,
+            &candidate_validators,
+            |row| &row.id,
+        );
+        return Err(if scoped_change {
+            error
+        } else {
+            error.detail("definition_baseline_drift", "true")
+        });
+    }
     require_existing_order(
         baseline.evidence.iter().map(|value| value.id.as_str()),
         candidate
@@ -225,7 +495,7 @@ fn validate_source_transition(
             && candidate_contracts.get(contract.id.as_str())
                 != baseline_contracts.get(contract.id.as_str())
         {
-            return Err(out_of_scope(
+            return Err(baseline_drift(
                 "an unrelated source contract changed or was removed",
             ));
         }
@@ -234,7 +504,7 @@ fn validate_source_transition(
         let unchanged = baseline_contracts.get(contract.id.as_str())
             == candidate_contracts.get(contract.id.as_str());
         if !unchanged && contract.port_id != selected_port_id {
-            return Err(out_of_scope("a changed source contract is not selected"));
+            return Err(baseline_drift("a changed source contract is not selected"));
         }
     }
     require_existing_order(
@@ -264,7 +534,7 @@ fn validate_source_transition(
         .map(serde_json::to_value)
         .collect::<std::result::Result<Vec<_>, _>>()?;
     if baseline_qualification != candidate_qualification {
-        return Err(out_of_scope("unrelated source qualification changed"));
+        return Err(baseline_drift("unrelated source qualification changed"));
     }
 
     let selected_contracts = candidate
@@ -376,6 +646,21 @@ fn values_by_id<'a, T: Serialize>(
         .collect()
 }
 
+fn changed_owned_records<T>(
+    prior: &[T],
+    proposed: &[T],
+    baseline: &HashMap<&str, serde_json::Value>,
+    candidate: &HashMap<&str, serde_json::Value>,
+    id: impl Fn(&T) -> &str,
+) -> bool {
+    prior.iter().chain(proposed).any(|record| {
+        let id = id(record);
+        baseline
+            .get(id)
+            .is_some_and(|value| candidate.get(id) != Some(value))
+    })
+}
+
 fn require_existing_records(
     baseline: &HashMap<&str, serde_json::Value>,
     candidate: &HashMap<&str, serde_json::Value>,
@@ -401,6 +686,10 @@ fn require_existing_order<'a>(
         return Err(out_of_scope(format!("existing {label} ordering changed")));
     }
     Ok(())
+}
+
+fn baseline_drift(message: impl Into<String>) -> PortcoveError {
+    out_of_scope(message).detail("definition_baseline_drift", "true")
 }
 
 fn out_of_scope(message: impl Into<String>) -> PortcoveError {
@@ -575,6 +864,7 @@ mod tests {
         let platform = crate::Platform::WindowsX86_64;
         let layout = |name: &str| crate::ReviewedPackageLayout {
             ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
             directories: vec![],
             executables: vec![name.to_owned()],
         };

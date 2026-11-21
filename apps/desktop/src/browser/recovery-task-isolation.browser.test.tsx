@@ -114,12 +114,17 @@ it("keeps another port's retained cleanup identity through cancelled review and 
   ];
   const openRetained = async () => {
     await navigateTo("Activity");
-    const summary = page.getByText("Orchard Quest · Unfinished setup files", { exact: true });
-    if (!summary.element().closest("details")?.open) await summary.click();
-    expect(
-      document.querySelector(`[data-recovery-operation="${retained.operation_id}"]`)?.textContent,
-    ).toContain(retained.operation_id);
-    await page.getByRole("button", { name: "Review unfinished setup files", exact: true }).click();
+    await expect
+      .poll(() => document.querySelector(`[data-recovery-operation="${retained.operation_id}"]`))
+      .not.toBeNull();
+    const row = page.elementLocator(
+      document.querySelector(`[data-recovery-operation="${retained.operation_id}"]`)!,
+    );
+    await expect
+      .element(row.getByRole("heading", { name: "Orchard Quest · Unfinished setup files" }))
+      .toBeVisible();
+    expect(row.element().querySelector("details")?.open).toBe(false);
+    await row.getByRole("button", { name: "Review unfinished setup files", exact: true }).click();
     const account = page.getByRole("dialog", {
       name: "Files left by unfinished setup",
       exact: true,
@@ -224,3 +229,42 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     expect(remove).not.toHaveBeenCalled();
   }
 }, 60_000);
+
+it("opens Manage from the Activity recovery row and restores focus to that row", async () => {
+  transport = installInteractiveTransport("library", (message) => {
+    throw Error(message);
+  });
+  vi.spyOn(desktopApi, "doctor").mockResolvedValue({
+    ...doctor,
+    repair: {
+      generated_at: 1,
+      items: [
+        {
+          kind: "missing_registered_path",
+          port_id: "sample",
+          operation_id: null,
+          path: "fixture/library/moved",
+          message: "Recorded installation is missing",
+          proposed_action: "Review the installation.",
+        },
+      ],
+    },
+  });
+  const root = document.createElement("div");
+  root.id = "root";
+  document.body.append(root);
+  initializeLocalization(["en"]);
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container: root },
+  );
+  await navigateTo("Activity");
+  const action = page.getByRole("button", { name: "Review game installation", exact: true });
+  await action.click();
+  await expect.element(page.getByRole("heading", { name: "Manage", exact: true })).toHaveFocus();
+  await expect.element(page.getByRole("tabpanel", { name: "Manage", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to Activity", exact: true }).click();
+  await expect.element(action).toHaveFocus();
+});

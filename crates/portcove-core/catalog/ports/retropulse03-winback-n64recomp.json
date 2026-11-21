@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "retropulse03-winback-n64recomp",
+    "artwork": {
+      "game_id": 47680,
+      "cover_id": 78624,
+      "image_id": "co1oo0",
+      "image_sha256": "699ea0aab212fba7fdf8dbf33c333accca4a9c2491ddbf9a2faf9def215c7596",
+      "game_slug": "winback-covert-operations",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/RetroPulse03/WinBackRecomp",
     "name": "WinBack: Covert Operations (WinBack Recompiled)",
     "summary": "A Windows port of WinBack: Covert Operations. Set it up with your original US Nintendo 64 game file.",
@@ -26,6 +34,24 @@
         {
           "title": "Setup instructions for the inspected release",
           "instruction": "https://github.com/RetroPulse03/WinBackRecomp/releases/tag/v0.2.0"
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "winback-covert-operations",
+      "evidence_urls": [
+        "https://github.com/RetroPulse03/WinBackRecomp/blob/83d35d08f0839e3084d915f1177dc70e8d03cb96/README.md",
+        "https://github.com/RetroPulse03/WinBackRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "winback-covert-operations-nintendo-64",
+          "title": "WinBack: Covert Operations (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RetroPulse03/WinBackRecomp/blob/e6deb9c8c3e07884cd930a416201b98a1346b250/README.md"
+          ]
         }
       ]
     }

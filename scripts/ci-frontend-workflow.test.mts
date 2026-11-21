@@ -74,7 +74,7 @@ async function browserUploadConfiguration() {
   return { config: config.toJS() as unknown, action: action.toJS() as unknown };
 }
 
-void test("shared browser uploader preserves the original three caller contracts structurally", async () => {
+void test("shared browser uploader preserves artifact contracts and portability cancellation evidence", async () => {
   const { config, action } = await browserUploadConfiguration();
   const baseline: unknown = JSON.parse(
     await readFile(new URL("./fixtures/browser-upload-baseline.json", import.meta.url), "utf8"),
@@ -82,8 +82,20 @@ void test("shared browser uploader preserves the original three caller contracts
   assert.ok(isRecord(baseline) && Array.isArray(baseline.rows));
   assert.equal(baseline.rows.length, 3);
   for (const row of baseline.rows) {
-    assert.ok(isRecord(row) && typeof row.job === "string");
-    assert.deepEqual(resolveBrowserUpload(config, action, row.job), row.step);
+    assert.ok(isRecord(row) && typeof row.job === "string" && isRecord(row.step));
+    // Preserve the historical oracle. This explicit extension retains the same
+    // artifact identity and paths when a portability deadline cancels the job.
+    if (row.job === "frontend_portability") assert.equal(row.step.if, "failure()");
+    const expected =
+      row.job === "frontend_portability"
+        ? { ...row.step, if: "failure() || cancelled()" }
+        : row.step;
+    const upload = resolveBrowserUpload(config, action, row.job);
+    assert.ok(typeof upload.with.path === "string");
+    const modsScreenshots = "outputs/mod-workspace-fixture/**/*.png\n";
+    assert.ok(upload.with.path.includes(modsScreenshots), row.job);
+    upload.with.path = upload.with.path.replace(modsScreenshots, "");
+    assert.deepEqual(upload, expected);
   }
   // Equivalent YAML layout is accepted; semantic changes must fail the oracle.
   const roundTrip: unknown = JSON.parse(JSON.stringify(config));
@@ -514,7 +526,7 @@ void test("full frontend qualification provisions browser artifacts before compo
     ["contributor", "frontend_portability"],
   ] as const) {
     const step = resolveBrowserUpload(config, action, id);
-    assert.equal(step.if, name === "contributor" ? "failure()" : "always()");
+    assert.equal(step.if, name === "contributor" ? "failure() || cancelled()" : "always()");
     assert.match(String(step.with.name), new RegExp(`^browser-traces-${name}-`));
     assert.ok(typeof step.with.path === "string");
     const upload = step.with.path;
@@ -725,7 +737,17 @@ void test("native recovery and Unix custody changes retain macOS no-global porta
         }),
       /Expected macOS ARM64/u,
     );
-  assert.equal(job["timeout-minutes"], 25);
+  assert.equal(job["timeout-minutes"], 45);
+  const verifyStep: unknown = job.steps.find(
+    (step) => isRecord(step) && step.run === "pnpm verify:frontend",
+  );
+  assert.ok(isRecord(verifyStep));
+  assert.equal(verifyStep["timeout-minutes"], 35);
+  const diagnosticsStep: unknown = job.steps.find(
+    (step) => isRecord(step) && step.uses === "./.github/actions/retain-browser-diagnostics",
+  );
+  assert.ok(isRecord(diagnosticsStep));
+  assert.equal(diagnosticsStep.if, "failure() || cancelled()");
   assert.ok(typeof job.if === "string");
   const ordinaryInputs = Array.from(
     job.if.matchAll(/contains\(needs\.classify\.outputs\.files_json, '([^']+)'\)/gu),
@@ -745,6 +767,7 @@ void test("native recovery and Unix custody changes retain macOS no-global porta
       "apps/desktop/src/components/AdoptionModal.browser.test.tsx",
       "apps/desktop/src/components/Artwork.browser.test.tsx",
       "apps/desktop/src/browser/workspace-feedback-user-intent.browser.test.tsx",
+      "apps/desktop/src/browser/adaptive-shell.browser.test.tsx",
     ]),
   );
 });

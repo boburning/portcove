@@ -35,6 +35,21 @@
       "image_sha256": "4433b62aad4b6eb383b78541b23242c395a35fa426c5f50d217d605c19312291",
       "game_slug": "yu-gi-oh-forbidden-memories",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": ["https://github.com/TechX1320/FM-Recomp"],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-forbidden-memories-playstation",
+          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechX1320/FM-Recomp/blob/9c98e5c6d966555f0aace75216449510ac124d1e/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

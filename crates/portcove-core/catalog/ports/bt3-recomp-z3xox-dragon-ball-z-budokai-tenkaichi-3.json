@@ -35,6 +35,21 @@
       "image_sha256": "de2b6d3f72f73f60dc65f4fa1e99ddb7d2d6c8b2834842a40af4f97024dac973",
       "game_slug": "dragon-ball-z-budokai-tenkaichi-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-budokai-tenkaichi-3",
+      "evidence_urls": ["https://github.com/z3xox/BT3-Recomp"],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-budokai-tenkaichi-3-playstation-2",
+          "title": "Dragon Ball Z: Budokai Tenkaichi 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/z3xox/BT3-Recomp/blob/e22a34beb564e2d0f32bd60b02f0a95d9645ddcc/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

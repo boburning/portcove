@@ -420,6 +420,13 @@
         "minimum": 0,
         "type": "integer"
       },
+      "profile_id": {
+        "description": "Only matches for this source profile.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "root_id": {
         "description": "Only matches inside this saved folder.",
         "type": [

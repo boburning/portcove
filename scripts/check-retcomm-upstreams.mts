@@ -15,7 +15,7 @@ Options:
 
 Environment:
   RETCOMM_CATALOG_DIR  Read a local RetComM catalog instead of GitHub.
-  RETCOMM_CATALOG_REF  Remote catalog revision (default: main).
+  RETCOMM_CATALOG_REF  Remote catalog revision (default: repository default branch).
 
 RetComM-Launcher is not used as a release source. These checks do not establish
 gameplay observations or qualify independent pinned artifacts.
@@ -26,6 +26,7 @@ Example:
   process.exit(0);
 }
 
+const { resolveRetcommRevision, retcommTitlePaths } = await import("./retcomm-index.mts");
 const catalogPath = new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url);
 const mappingPath = new URL("./retcomm-psx-upstreams.json", import.meta.url);
 import type {
@@ -55,7 +56,8 @@ const rawMappings: unknown = JSON.parse(await readFile(mappingPath, "utf8"));
 if (!isRecord(rawMappings)) throw new Error("Invalid RetComM mappings");
 const mappings = Object.fromEntries(
   Object.entries(rawMappings).map(([id, title]) => {
-    if (typeof title !== "string") throw new Error(`Invalid RetComM title mapping: ${id}`);
+    if (typeof title !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/u.test(title))
+      throw new Error(`Invalid RetComM title mapping: ${id}`);
     return [id, title];
   }),
 );
@@ -234,18 +236,63 @@ for (const portId of mappedPortIds) {
 }
 
 const localCatalogDir = process.env.RETCOMM_CATALOG_DIR;
-const ref = process.env.RETCOMM_CATALOG_REF ?? "main";
 const rawHeaders = { "User-Agent": "Portcove-RetComM-upstream-audit" };
+const ref = process.env.RETCOMM_CATALOG_REF || undefined;
+
+async function readRetcommJson(url: string): Promise<unknown> {
+  const response = await fetch(url, { headers: rawHeaders, signal: AbortSignal.timeout(15_000) });
+  if (!response.ok) throw new Error(`RetComM catalog returned ${response.status} for ${url}`);
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("RetComM catalog response has no body");
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const result = await reader.read();
+      if (result.done) break;
+      const value: unknown = result.value;
+      if (!(value instanceof Uint8Array)) throw new Error("RetComM returned a non-byte response");
+      size += value.byteLength;
+      if (size > 4 * 1024 * 1024) throw new Error("RetComM response exceeded 4 MiB");
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+}
+
+let remoteIndex: ReturnType<typeof openRemoteIndex> | undefined;
+async function openRemoteIndex() {
+  const identity = await resolveRetcommRevision(
+    (endpoint) => readRetcommJson(`https://api.github.com/${endpoint}`),
+    ref,
+  );
+  const base = `https://raw.githubusercontent.com/${identity.repository}/${identity.revision}`;
+  const paths = retcommTitlePaths(await readRetcommJson(`${base}/index.json`));
+  return { ...identity, base, paths };
+}
 
 async function loadRetcommTitle(titleId: string): Promise<unknown> {
-  const relativeCandidates = [
-    join("titles", "psx", `${titleId}.json`),
-    join("titles", `${titleId}.json`),
-  ];
   if (localCatalogDir) {
-    for (const relative of relativeCandidates) {
+    let rawIndex: string | undefined;
+    try {
+      rawIndex = await readFile(join(localCatalogDir, "index.json"), "utf8");
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") throw error;
+    }
+    if (rawIndex !== undefined) {
+      const item = retcommTitlePaths(JSON.parse(rawIndex) as unknown).get(`psx:${titleId}`);
+      if (!item) throw new Error(`RetComM index has no PSX title manifest for ${titleId}`);
+      return JSON.parse(await readFile(join(localCatalogDir, item.path), "utf8")) as unknown;
+    }
+    // Keep the historic local snapshot format readable without an index.
+    for (const relative of [
+      join("titles", "psx", `${titleId}.json`),
+      join("titles", `${titleId}.json`),
+    ]) {
       try {
-        return JSON.parse(await readFile(join(localCatalogDir, relative), "utf8"));
+        return JSON.parse(await readFile(join(localCatalogDir, relative), "utf8")) as unknown;
       } catch (error) {
         if (errorCode(error) !== "ENOENT") throw error;
       }
@@ -253,15 +300,10 @@ async function loadRetcommTitle(titleId: string): Promise<unknown> {
     throw new Error(`RetComM catalog has no PSX title manifest for ${titleId}`);
   }
 
-  for (const relative of relativeCandidates) {
-    const url = `https://raw.githubusercontent.com/TechnicallyComputers/retcomm-catalog/${encodeURIComponent(ref)}/${relative.replaceAll("\\", "/")}`;
-    const response = await fetch(url, { headers: rawHeaders, signal: AbortSignal.timeout(15_000) });
-    if (response.ok) return response.json();
-    if (response.status !== 404) {
-      throw new Error(`RetComM catalog returned ${response.status} for ${titleId}`);
-    }
-  }
-  throw new Error(`RetComM catalog returned 404 for ${titleId}`);
+  const index = await (remoteIndex ??= openRemoteIndex());
+  const item = index.paths.get(`psx:${titleId}`);
+  if (!item) throw new Error(`RetComM index has no PSX title manifest for ${titleId}`);
+  return readRetcommJson(`${index.base}/${item.path}`);
 }
 
 const portsDirectory = new URL("../crates/portcove-core/catalog/ports/", import.meta.url);
@@ -378,7 +420,9 @@ if (offline) {
     `Checked ${count} local PlayStation upstream mapping${count === 1 ? "" : "s"}. Live upstream checks were not run. RetComM-Launcher is not used as a release source.`,
   );
 } else {
-  const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
+  const resolved = remoteIndex ? await remoteIndex : undefined;
+  const source =
+    localCatalogDir ?? (resolved ? `${resolved.repository}@${resolved.revision}` : "RetComM");
   const checkedPorts = psxPorts.filter(
     (port) => mappedPortIds.has(port.id) && (selectedIds === null || selectedIds.includes(port.id)),
   );

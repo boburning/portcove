@@ -22,6 +22,7 @@ pub(super) struct ManagedLaunchInputs {
     /// A registered optional game source was changed or unreadable, so this launch
     /// proceeds without it and unpacks nothing.
     optional_source_skipped: bool,
+    n64_input_proof: Option<crate::source_inspection::N64ReleaseInputProof>,
 }
 
 impl PortcoveService {
@@ -58,11 +59,19 @@ impl PortcoveService {
                 "launch installation belongs to another port",
             ));
         }
-        let catalog = self.installed_catalog(active)?;
+        self.managed_install_root(&active.port_id, &active.path)?;
+        let retained = Installer::new(self.library.clone())?.retained_catalog(active)?;
+        let has_retained = retained.is_some();
+        let catalog = self.installed_catalog_or_fallback(active, retained)?;
         let port = catalog.port(&active.port_id)?;
-        crate::install::check_retained_runtime_paths(active, &active.path)?;
+        crate::install::check_retained_launch_destination(active, &active.path)?;
         self.require_installed_shared_preferences(active)?;
         self.require_ghostship_install_data_compatibility(active, None)?;
+        crate::runtime_path_policy::check_user_data_root(
+            port,
+            Platform::current()?,
+            &self.library.user_dir(&port.id),
+        )?;
         let qualification = self.installed_mutability_qualification(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         checkpoint()?;
@@ -81,61 +90,80 @@ impl PortcoveService {
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
+        let release = (active.version.as_str(), active.artifact.sha256.as_str());
+        let n64_input_required = has_retained
+            && crate::source_inspection::n64_release_input(&catalog, &port.id, release).is_some();
         let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
             })?;
-            let source = Some(
-                crate::source_inspection::inspect_with_checkpoint(
-                    &catalog,
-                    profile_id,
-                    path,
-                    &checkpoint,
-                )?
-                .require_admitted_record()?,
-            );
+            let source = crate::source_inspection::inspect_with_checkpoint(
+                &catalog,
+                profile_id,
+                path,
+                &checkpoint,
+            )?
+            .require_admitted_record()?;
+            if let Some(binding) = self.pinned_original(&port.id, profile_id, &active.id)? {
+                crate::profile_originals::require_original_bytes(&binding, &source)?;
+            }
             checkpoint()?;
-            source
-        } else if self_contained {
+            Some(source)
+        } else if self_contained && !n64_input_required {
             // The installed data holds every game input; the original is
             // needed only to repair, rebuild or prepare again.
             None
         } else if let Some(profile) = &port.source_profile {
-            match self.library.source(profile)? {
-                // An optional source whose file has gone is treated as absent: nothing is
-                // unpacked and the runtime and its persistent files stay as they are.
-                Some(record)
-                    if port.optional_game_source && super::source_file_is_gone(&record.path) =>
+            let source = self
+                .pinned_original(&port.id, profile, &active.id)
+                .and_then(|binding| match binding {
+                    Some(binding) => self.registered_profile_original(&binding).map(Some),
+                    None => self.library.source(profile),
+                })
+                .and_then(|source| match source {
+                    Some(record)
+                        if port.optional_game_source
+                            && super::source_file_is_gone(&record.path) =>
+                    {
+                        Ok(None)
+                    }
+                    Some(record) => {
+                        Self::verify_source_record_with_checkpoint(&catalog, &record, &checkpoint)?;
+                        Ok(Some(record))
+                    }
+                    None => Ok(None),
+                });
+            match source {
+                Ok(source) => source,
+                // A missing or changed optional original is not used. The
+                // existing unpacked data stays the only fallback.
+                Err(error)
+                    if port.optional_game_source
+                        && matches!(
+                            error.code,
+                            crate::ErrorCode::NotFound
+                                | crate::ErrorCode::Verification
+                                | crate::ErrorCode::SourceInvalid
+                                | crate::ErrorCode::State
+                        ) =>
                 {
+                    optional_source_skipped = true;
                     None
                 }
-                Some(_) => {
-                    match self.verified_source_record_with_checkpoint(
-                        &catalog,
-                        profile,
-                        &checkpoint,
-                    ) {
-                        Ok(record) => Some(record),
-                        // A changed or unreadable optional source is not used; cancellation
-                        // and conflicts still end the launch (an I/O failure is a state error).
-                        Err(error)
-                            if port.optional_game_source
-                                && matches!(
-                                    error.code,
-                                    crate::ErrorCode::Verification
-                                        | crate::ErrorCode::SourceInvalid
-                                        | crate::ErrorCode::State
-                                ) =>
-                        {
-                            optional_source_skipped = true;
-                            None
-                        }
-                        Err(error) => return Err(error),
-                    }
-                }
-                None => None,
+                Err(error) => return Err(error),
             }
+        } else {
+            None
+        };
+        let n64_input_proof = if n64_input_required {
+            crate::source_inspection::verify_n64_release_input(
+                &catalog,
+                &port.id,
+                source.as_ref(),
+                release,
+                &checkpoint,
+            )?
         } else {
             None
         };
@@ -190,7 +218,43 @@ impl PortcoveService {
             source,
             bios,
             optional_source_skipped,
+            n64_input_proof,
         })
+    }
+
+    fn check_chocolate_launch_data(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source: Option<&SourceRecord>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        if !crate::managed_chocolate::applies(port) {
+            return Ok(());
+        }
+        let source = source
+            .ok_or_else(|| PortcoveError::source("Chocolate requires its checked original IWAD"))?;
+        let canonical = self.library.user_dir(&port.id);
+        crate::managed_chocolate::require_original(port, &canonical, source, checkpoint)?;
+        crate::managed_chocolate::require_original(port, &active.path, source, checkpoint)?;
+        Ok(())
+    }
+
+    pub(super) fn recheck_chocolate_launch_data(
+        &self,
+        port: &PortDefinition,
+        active: &InstallRecord,
+        source_override: Option<&Path>,
+        operation: Option<&OperationCoordinator>,
+    ) -> Result<()> {
+        let inputs =
+            self.observe_managed_launch_inputs(port, active, source_override, operation)?;
+        self.check_chocolate_launch_data(
+            inputs.catalog.port(&active.port_id)?,
+            active,
+            inputs.source.as_ref(),
+            &|| operation.map_or(Ok(()), OperationCoordinator::checkpoint),
+        )
     }
 
     #[cfg(test)]
@@ -230,9 +294,12 @@ impl PortcoveService {
             source,
             bios,
             optional_source_skipped,
+            n64_input_proof,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
+        self.require_selected_loader_for_install(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
+        self.check_chocolate_launch_data(port, active, source.as_ref(), &checkpoint)?;
         if active.path.join(LAUNCH_MARKER).is_file()
             || crate::persistence::collect_before_first_launch(port)
         {
@@ -290,6 +357,15 @@ impl PortcoveService {
             spec.environment.remove("SHIP_HOME");
             self.require_ghostship_legacy_runtime_archive(active, &spec.working_directory)?;
         }
+        if let Some(proof) = n64_input_proof {
+            let path = crate::adapter::runtime_source_path(
+                port,
+                &spec.working_directory,
+                &self.library.user_dir(&port.id),
+            )
+            .ok_or_else(|| PortcoveError::state("N64 release input omitted its runtime file"))?;
+            proof.require_materialized(&path, &checkpoint)?;
+        }
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;
         if let Some(source) = &source {
@@ -299,6 +375,16 @@ impl PortcoveService {
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         self.refresh_upstream_setup_manifest(port, active, &spec.working_directory)?;
         crate::preparation::require_manual_setup(port, active)?;
+        if Platform::current()? == Platform::LinuxX86_64
+            && let Some(library) = port.linux_packaged_library.as_deref()
+        {
+            Installer::new(self.library.clone())?.bind_linux_packaged_library(
+                active,
+                library,
+                &mut spec,
+                &checkpoint,
+            )?;
+        }
         checkpoint()?;
         if let Some(disc) = disc {
             // Last, after every refusal: the count comes from the retained

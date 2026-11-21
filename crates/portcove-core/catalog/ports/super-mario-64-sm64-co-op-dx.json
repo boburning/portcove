@@ -1,6 +1,75 @@
 {
   "format_version": 1,
   "listing": {
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "coop-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.5.1",
+          "artifact_sha256": "2a98c40acb2a46d30cde89f3072c039b641dbdf977985f9e82a040615f1b2381",
+          "explanation": "The game shows its ROM setup screen when it cannot find a valid US Super Mario 64 ROM. It reuses a valid copy in the same profile on later starts and enters its own Host, Join and Options menu. The upstream updater can open if an update is available.",
+          "provenance": "https://github.com/coop-deluxe/sm64coopdx/blob/v1.5.1/src/pc/pc_main.c",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "coop-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.5.1",
+          "artifact_sha256": "4229f82fc4395e78faf192c910ffcfcc1d70f59a558cadf0f63ae548901fa5f5",
+          "explanation": "The game shows its ROM setup screen when it cannot find a valid US Super Mario 64 ROM. It reuses a valid copy in the same profile on later starts and enters its own Host, Join and Options menu. The upstream updater can open if an update is available.",
+          "provenance": "https://github.com/coop-deluxe/sm64coopdx/blob/v1.5.1/src/pc/pc_main.c",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "coop-entry-macos-x86-64",
+          "feature": "launch",
+          "platform": "macos-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.5.1",
+          "artifact_sha256": "665e82a486b1477b22cb9d0320120a961d0cbf3904f188a0ab7bb8ab137343c7",
+          "explanation": "The game shows its ROM setup screen when it cannot find a valid US Super Mario 64 ROM. It reuses a valid copy in the same profile on later starts and enters its own Host, Join and Options menu. The upstream updater can open if an update is available.",
+          "provenance": "https://github.com/coop-deluxe/sm64coopdx/blob/v1.5.1/src/pc/pc_main.c",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "coop-entry-macos-aarch64",
+          "feature": "launch",
+          "platform": "macos-aarch64",
+          "route": "upstream-setup",
+          "release": "v1.5.1",
+          "artifact_sha256": "bd1ce33b4886cbfab125095f4211889ca77628b8e481136b08f8148d7e415680",
+          "explanation": "The game shows its ROM setup screen when it cannot find a valid US Super Mario 64 ROM. It reuses a valid copy in the same profile on later starts and enters its own Host, Join and Options menu. The upstream updater can open if an update is available.",
+          "provenance": "https://github.com/coop-deluxe/sm64coopdx/blob/v1.5.1/src/pc/pc_main.c",
+          "observed_at": 1795035532,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        }
+      ]
+    },
     "id": "super-mario-64-sm64-co-op-dx",
     "name": "Super Mario 64 / SM64 Co-op DX",
     "summary": "Use an upstream-prepared Super Mario 64 / SM64 Co-op DX player with matching originals; runtime maintenance and player data stay upstream-owned.",
@@ -76,6 +145,7 @@
       "macos-aarch64": ["sm64coopdx_macOS_ARM.zip"]
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -85,19 +155,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "coop-deluxe/sm64coopdx",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "coop-deluxe/sm64coopdx"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

@@ -45,7 +45,17 @@
       "warnings": [
         "Add only the completed Launcher.exe with its full prepared root and supplied launcher script. Keep every disc root’s .recomp-storage, pending recovery journal and private build/configuration files; the release ZIP is not a prebuilt game."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive-xtreme-beach-volleyball",
+      "evidence_urls": [
+        "https://github.com/NoRain211/doaxvb-re",
+        "https://github.com/NoRain211/doaxvb-re/blob/1503f1574914e3d8a39aa01086ada0b058923da8/README.md"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dead or Alive Xtreme Beach Volleyball"
   },
   "upstream_lineage": {
     "format_version": 1,

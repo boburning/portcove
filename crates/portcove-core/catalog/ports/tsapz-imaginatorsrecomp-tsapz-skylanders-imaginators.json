@@ -2,12 +2,20 @@
   "format_version": 1,
   "listing": {
     "id": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
+    "artwork": {
+      "game_id": 19576,
+      "cover_id": 94971,
+      "image_id": "co21a3",
+      "image_sha256": "ceb090daa63dbc80e1f66f190a81872dc89faebd0552775eaab8c9103a5cddb4",
+      "game_slug": "skylanders-imaginators",
+      "match_kind": "underlying-game"
+    },
     "name": "Skylanders: Imaginators — tsapZ ImaginatorsRecomp (tsapZ)",
     "original_game_title": "Skylanders: Imaginators",
     "summary": "Firstlevelplays; later parts of the game have not been played; German PS3 text is optional,voices are experimental;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/ImaginatorsRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/tsapZ/ImaginatorsRecomp",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/tsapZ/ImaginatorsRecomp"
     },
-    "issue_number": 3150
+    "issue_number": 3150,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-imaginators",
+      "evidence_urls": ["https://github.com/tsapZ/ImaginatorsRecomp"],
+      "source_editions": [
+        {
+          "id": "skylanders-imaginators-xbox-360",
+          "title": "Skylanders: Imaginators (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/tsapZ/ImaginatorsRecomp/blob/524944024c303520cefaa89321f31811a0f81548/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

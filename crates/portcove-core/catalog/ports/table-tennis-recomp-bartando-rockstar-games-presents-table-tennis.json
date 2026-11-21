@@ -6,7 +6,7 @@
     "original_game_title": "Rockstar Games Presents Table Tennis",
     "summary": "The project reaches a match on Apple Silicon and PS5, with tested LAN crossplay. Timing acceleration, shader stutter and rally-correctness issues remain. Windows has had less testing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/bartando/ttrecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/bartando/ttrecomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "512af1e90d933acea84e17303348cec279dac19e9bc51cfac0097e633d9d4fa5",
       "game_slug": "rockstar-games-presents-table-tennis",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rockstar-games-presents-table-tennis",
+      "evidence_urls": ["https://github.com/bartando/ttrecomp"],
+      "source_editions": [
+        {
+          "id": "rockstar-games-presents-table-tennis-xbox-360",
+          "title": "Rockstar Games Presents Table Tennis (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/bartando/ttrecomp/blob/7cdfaa7450a2ed3ee5bd26c8ac7118c18382ae67/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

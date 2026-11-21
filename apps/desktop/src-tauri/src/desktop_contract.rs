@@ -82,6 +82,17 @@ pub(crate) struct BackupReview {
     pub(crate) persistent_data_path: PathBuf,
 }
 
+/// A recipe review's display data and its exact Core-owned import plan.
+/// JavaScript numbers cannot preserve every JSON number representation, so
+/// only the unchanged serialized plan is sent back for Core to verify and use.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct RecipeImportReview {
+    pub(crate) plan: portcove_core::RecipeImportPlan,
+    pub(crate) serialized_plan: String,
+    /// Exact native text in the same order as `plan.recipe.settings`.
+    pub(crate) setting_values: Vec<String>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct CliCommandContext {
     pub(crate) library_root: PathBuf,
@@ -434,6 +445,7 @@ pub fn export_transport_schemas() -> Value {
             "locale_preference": output::<DesktopLocalePreference>(),
             "library_organization": output::<portcove_core::LibraryOrganization>(),
             "backup_review": output::<BackupReview>(),
+            "recipe_import_review": output::<RecipeImportReview>(),
             "cli_command_context": output::<CliCommandContext>(),
             "desktop_error": output::<DesktopError>(),
             "update_check_outcome": output::<BatchOutcome<UpdateCheck>>(),
@@ -468,6 +480,7 @@ pub fn export_transport_schemas() -> Value {
             "source_reuse_review": output::<portcove_core::SourceReuseReview>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
             "game_file_scan_match_page": output::<portcove_core::GameFileScanMatchPage>(),
+            "game_file_scan_registered_matches": output::<portcove_core::GameFileScanRegisteredMatches>(),
             "store_game_installs": output::<portcove_core::StoreGameInstalls>(),
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),

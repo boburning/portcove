@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "mdomangue26-thebigs2",
+    "artwork": {
+      "game_id": 4716,
+      "cover_id": 280042,
+      "image_id": "co602y",
+      "image_sha256": "fa5b03274ab0a31993a02f5bc6bce86d3ef64984f1fc9e26057a2883e66669a2",
+      "game_slug": "the-bigs-2",
+      "match_kind": "underlying-game"
+    },
     "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
     "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
     "original_game_title": "The Bigs 2",
@@ -41,6 +49,24 @@
       ],
       "warnings": [
         "Preserve the active portable saves/configuration or external runtime paths. Wine-only upstream package testing is not Windows or complete-game qualification."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-bigs-2",
+      "evidence_urls": [
+        "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
+        "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-bigs-2-xbox-360",
+          "title": "The Bigs 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/2162b8da19ff3eabf785432ad7832f0332222fd3/README.md"
+          ]
+        }
       ]
     }
   },

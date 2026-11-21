@@ -23,6 +23,7 @@ import {
   validatePortStageSemantics,
 } from "./roadmap.mts";
 import type { RoadmapRequestScope } from "./roadmap.mts";
+import { issueFreeCatalogIds } from "./roadmap-qualification.mts";
 import { sourceProvenancePortIdentity, sourceProvenancePortIssues } from "./roadmap-issue.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -207,6 +208,7 @@ function collection(value: unknown): RoadmapIssueItem[] {
 
 interface AuditInput {
   catalogText: string;
+  listingDirectory?: unknown;
   issues: unknown;
   projectItems?: unknown;
   pullRequests?: readonly RoadmapIssueItem[];
@@ -599,6 +601,7 @@ function catalogDuplicateObservations(catalog: AuditCatalog) {
 
 export function buildSourceProvenanceAudit({
   catalogText,
+  listingDirectory,
   issues,
   projectItems = [],
   pullRequests = [],
@@ -617,6 +620,8 @@ export function buildSourceProvenanceAudit({
     throw new Error("baseCommit and generatorCommit must be full Git commit IDs");
   }
   const catalog = auditCatalog(JSON.parse(catalogText));
+  const issueFreeIds =
+    listingDirectory === undefined ? undefined : issueFreeCatalogIds(catalog, listingDirectory);
   const source = catalog.source_catalog ?? {
     evidence: [],
     identities: [],
@@ -689,6 +694,7 @@ export function buildSourceProvenanceAudit({
         title: port.name ?? port.title ?? port.id,
         issue: issueNumber(issue),
         issueUrl: issue?.url ?? null,
+        issueFree: issueFreeIds?.has(port.id) === true,
         contracts: contracts.map((contract) => contract.id).sort(),
         deterministicIdentity:
           contractStates.length > 0 && contractStates.every((state) => state.complete),
@@ -717,7 +723,13 @@ export function buildSourceProvenanceAudit({
       projectItems,
     ),
     ...catalogDuplicateObservations(catalog),
-    ...validatePortIssueCoverage(catalog, repositoryProjectIssues, repository, allIssues),
+    ...validatePortIssueCoverage(
+      catalog,
+      repositoryProjectIssues,
+      repository,
+      allIssues,
+      issueFreeIds,
+    ),
     ...validatePortStageSemantics(catalog, repositoryProjectIssues).errors,
     ...missingEvidence.map((id) => `Missing source evidence reference: ${diagnosticText(id)}`),
   ];
@@ -787,8 +799,9 @@ function tableCell(value: unknown) {
     .trim();
 }
 
-function issueLink(entry: { issueUrl: string | null; issue: number | null }) {
-  return entry.issueUrl ? `[#${entry.issue}](${entry.issueUrl})` : "Missing";
+function issueLink(entry: { issueUrl: string | null; issue: number | null; issueFree: boolean }) {
+  if (entry.issueUrl) return `[#${entry.issue}](${entry.issueUrl})`;
+  return entry.issueFree ? "Issue-free" : "Missing";
 }
 
 export function renderSourceProvenanceAudit(audit: ReturnType<typeof buildSourceProvenanceAudit>) {
@@ -983,6 +996,13 @@ export async function runSourceProvenanceAudit(
   const catalogText = await readFile(catalogPath, "utf8");
   const audit = buildSourceProvenanceAudit({
     catalogText,
+    ...(catalogPath === defaultCatalogPath
+      ? {
+          listingDirectory: JSON.parse(
+            await readFile(path.join(path.dirname(catalogPath), "listings.json"), "utf8"),
+          ) as unknown,
+        }
+      : {}),
     ...input,
     generatedAt: options["generated-at"],
     baseCommit: options["base-commit"],

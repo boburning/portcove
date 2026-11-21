@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-afterburner-climax-recomp",
+    "artwork": {
+      "game_id": 20085,
+      "cover_id": 117692,
+      "image_id": "co2it8",
+      "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
+      "game_slug": "after-burner-climax",
+      "match_kind": "underlying-game"
+    },
     "name": "After Burner Climax (darkuni Recomp)",
     "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
@@ -35,10 +43,25 @@
       "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
     },
     "release_url": "https://github.com/darkuni/afterburner-climax-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["AfterBurnerClimax-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "after-burner-climax",
+      "evidence_urls": [
+        "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md",
+        "https://github.com/darkuni/afterburner-climax-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -69,5 +92,6 @@
       }
     },
     "windows_tracked_handoff": true
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

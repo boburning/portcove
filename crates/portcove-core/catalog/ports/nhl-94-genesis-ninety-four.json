@@ -38,6 +38,24 @@
       "warnings": [
         "Keep the original retail ROM and actual working-directory data. Cartridge SRAM, states, modified rosters and online session compatibility are separate."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nhl-94-genesis",
+      "evidence_urls": [
+        "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md",
+        "https://github.com/1nputs/ninety-four"
+      ],
+      "source_editions": [
+        {
+          "id": "nhl-94-genesis-mega-drive-genesis",
+          "title": "NHL '94 (Genesis) (Genesis / Mega Drive)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/1nputs/ninety-four/blob/1b0b30e7bf6ee4e66ab33ef10acbeec55442b021/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

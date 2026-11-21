@@ -278,7 +278,7 @@ jobs:
   linux_preparation_continuity:
     if: ${{ inputs.operation == 'linux-preparation-continuity' && inputs.runner == 'ubuntu-22.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -320,9 +320,9 @@ jobs:
           }, null, 2) + '\n', { flag: 'wx' });
           NODE
       - name: Install the existing disposable Linux prerequisites
-        timeout-minutes: 15
+        timeout-minutes: 30
         run: |
-          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver
+          ./scripts/install-linux-desktop-prerequisites.sh --include-webdriver --prefer-archive-mirror --install-timeout-seconds=1200
           version=$(node -p "require('./.config/tool-bootstrap.json').desktop.tauri_driver")
           cargo install tauri-driver --locked --version "$version" \
             --root "$RUNNER_TEMP/slice3-native-driver" \
@@ -622,11 +622,15 @@ jobs:
               - native-external-cli-reconciliation
               - native-ready-detail-composition
               - native-game-return-continuity
-              - native-game-update-review
               - native-missing-readiness-recovery
               - native-retained-contract-repair-state
               - native-update-settings-save-without-execution
               - native-release-channel-selection-and-restart
+          # Serves its offered release from the owned install fixture instead of the
+          # live provider API, so it builds with qualification fixtures (#4879).
+          - selection: owned-update-review
+            scenarios:
+              - native-game-update-review
           - selection: owned-recovery
             scenarios:
               - native-preparation-cancellation

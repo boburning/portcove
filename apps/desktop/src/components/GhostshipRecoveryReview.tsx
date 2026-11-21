@@ -62,7 +62,7 @@ export function GhostshipRecoveryReview({
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
   const { t } = useAppTranslation("backups");
-  const cancel = useRef<HTMLButtonElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
   const {
     preview: plan,
     pending,
@@ -95,13 +95,15 @@ export function GhostshipRecoveryReview({
       }}
     >
       <DialogContent
-        initialFocus={cancel}
+        initialFocus={title}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="ghostship-recovery-description"
         finalFocus={finalFocus}
       >
-        <DialogTitle>{t("ghostship.title")}</DialogTitle>
+        <DialogTitle ref={title} tabIndex={-1}>
+          {t("ghostship.title")}
+        </DialogTitle>
         <DialogDescription id="ghostship-recovery-description">
           {t("ghostship.description")}
         </DialogDescription>
@@ -134,13 +136,7 @@ export function GhostshipRecoveryReview({
         )}
         <ActionReviewFailure error={error} />
         <DialogFooter>
-          <Button
-            ref={cancel}
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {t("ghostship.cancel")}
           </Button>
           {!plan && (

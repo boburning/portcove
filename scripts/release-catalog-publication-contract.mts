@@ -206,8 +206,19 @@ export const catalogPublicationInventory = (files: ReadonlyMap<string, Buffer>) 
 /** Validates byte binding only. Semantic projection comes from the actual Core
  * invocation, never this parser or a caller-supplied success flag. */
 export const catalogListingTarget = "policy/official/catalog.listings.json";
-/** Only the fixed descriptive target and its consistent-snapshot retained copies receive this larger bound. */
+export const catalogDefinitionIndexBytes = 4 * 1024 ** 2;
+export const catalogDefinitionContentBytes = 16 * 1024 ** 2;
+export function isCatalogDefinitionContent(name: string) {
+  return /^(?:(?:prior\/)?targets\/[a-f0-9]{64}\.|bundle\/)?sha256\/[a-f0-9]{64}\.json$/u.test(
+    name,
+  );
+}
+
+/** Target-specific bounds for the current bundle and retained consistent snapshots. */
 export function catalogListingContextFileBound(name: string) {
+  if (isCatalogDefinitionContent(name)) return catalogDefinitionContentBytes;
+  if (/^(?:(?:prior\/)?targets\/[a-f0-9]{64}\.|bundle\/)?definitions\/index\.json$/u.test(name))
+    return catalogDefinitionIndexBytes;
   return name === catalogListingTarget ||
     name === `bundle/${catalogListingTarget}` ||
     /^(?:prior\/)?targets\/[a-f0-9]{64}\.policy\/official\/catalog\.listings\.json$/u.test(name)

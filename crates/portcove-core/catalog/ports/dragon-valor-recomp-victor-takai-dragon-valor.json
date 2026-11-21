@@ -6,7 +6,7 @@
     "original_game_title": "Dragon Valor",
     "summary": "Experimental Dragon Valor port with disc selection, settings and widescreen options. A complete two-disc playthrough has not been confirmed. Follow the local source-build instructions below; Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/victor-takai/dragon-valor-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/victor-takai/dragon-valor-recomp",
     "manual_setup": {
@@ -35,6 +35,12 @@
       "image_sha256": "33baf828680c04b7bde6afb9d3c6b95dc8cc60afdd99d80f8cc0584f793d67b9",
       "game_slug": "dragon-valor",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-valor",
+      "evidence_urls": ["https://github.com/victor-takai/dragon-valor-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

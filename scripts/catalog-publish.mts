@@ -170,6 +170,16 @@ export const assemblyConfig = {
   output: "repository",
 };
 
+/** Visitor pages are not TUF repository inputs. Preserve the existing prior
+ * repository files while keeping the whole site's digest as the write guard. */
+export function copyPriorRepository(site: string, output: string) {
+  mkdirSync(output, { recursive: true });
+  for (const name of readdirSync(site)) {
+    if (name === "browse") continue;
+    cpSync(path.join(site, name), path.join(output, name), { recursive: true });
+  }
+}
+
 function write(file: string, value: unknown) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -230,6 +240,19 @@ export function sameTargets(a: Record<string, string>, b: Record<string, string>
   return keys.join("\n") === Object.keys(b).sort().join("\n") && keys.every((k) => a[k] === b[k]);
 }
 
+/** The sole dynamic descriptive target is derived after the conditional build.
+ * Scheduled/manual publications refresh its existing observer input; canonical
+ * input changes are also detected by the public-catalog source fingerprint. */
+export function sameStaticPublicationTargets(
+  bundle: Record<string, string>,
+  published: Record<string, string>,
+) {
+  const previous = { ...published };
+  if (!Object.hasOwn(bundle, "policy/official/catalog.listings.json"))
+    delete previous["policy/official/catalog.listings.json"];
+  return sameTargets(bundle, previous);
+}
+
 /** True when the published timestamp is absent or expires within `hours`. */
 export function renewalDue(site: string | null, now: Date, hours: number) {
   if (!site || !existsSync(path.join(site, "metadata", "timestamp.json"))) return true;
@@ -242,8 +265,8 @@ export function renewalDue(site: string | null, now: Date, hours: number) {
 }
 
 /** The newest first-parent `main` commit whose newest `CI` push run succeeded. */
-export function newestGreen(history: readonly string[], conclusions: ReadonlyMap<string, string>) {
-  return history.find((sha) => conclusions.get(sha) === "success") ?? null;
+export function newestGreen(history: readonly string[], conclusion: (sha: string) => string) {
+  return history.find((sha) => conclusion(sha) === "success") ?? null;
 }
 
 function flag(args: string[], name: string) {
@@ -259,7 +282,7 @@ async function main(argv: string[]) {
     // Scheduled and manual runs publish the newest CI-green main commit.
     const token = process.env.GH_TOKEN;
     if (!token) throw new Error("GH_TOKEN is required");
-    const { mainCiConclusions } = await import("./app-release.mts");
+    const { mainCiConclusion, mainCiConclusions } = await import("./app-release.mts");
     const history = execFileSync(
       "git",
       ["rev-list", "--first-parent", "-n", "100", "origin/main"],
@@ -269,7 +292,8 @@ async function main(argv: string[]) {
     )
       .split("\n")
       .filter(Boolean);
-    const commit = newestGreen(history, await mainCiConclusions(token));
+    const conclusions = await mainCiConclusions(token);
+    const commit = newestGreen(history, (sha) => mainCiConclusion(conclusions, sha));
     if (!commit) throw new Error("no CI-green commit among the latest 100 main commits");
     console.log(`commit=${commit}`);
   } else if (command === "prepare") {
@@ -287,9 +311,12 @@ async function main(argv: string[]) {
     );
     const site = prior === "none" || !existsSync(prior) ? null : prior;
     const versions = priorVersions(site);
-    if (versions) cpSync(site!, path.join(work, "prior"), { recursive: true });
+    if (versions) copyPriorRepository(site!, path.join(work, "prior"));
+    if (versions && existsSync(path.join(site!, "browse")))
+      cpSync(path.join(site!, "browse"), path.join(work, "prior-browse"), { recursive: true });
     const plan = planPublication(versions, new Date());
     write(path.join(work, "plan.json"), plan);
+    write(path.join(work, "context.json"), contextConfig(work, new Date()));
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);
     console.error(`Catalog plan: ${JSON.stringify(plan.versions)} (prior site: ${plan.prior})`);
   } else if (command === "sign-config") {
@@ -305,10 +332,12 @@ async function main(argv: string[]) {
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     write(path.join(work, "assembly.json"), assemblyConfig);
   } else if (command === "unchanged") {
-    // Prints true when the published site already serves exactly this bundle.
+    // Compare fixed reviewed inputs; the sole derived listing target refreshes on the existing cadence.
     const site = flag(args, "prior");
     const published = site === "none" || !existsSync(site) ? {} : publishedTargets(site);
-    console.log(String(sameTargets(bundleTargets(flag(args, "bundle")), published)));
+    console.log(
+      String(sameStaticPublicationTargets(bundleTargets(flag(args, "bundle")), published)),
+    );
   } else if (command === "renewal-due") {
     const site = flag(args, "prior");
     console.log(

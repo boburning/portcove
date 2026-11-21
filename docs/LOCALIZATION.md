@@ -1,20 +1,20 @@
 # Desktop localization
 
-Saved-location impact distinguishes entry counts from game titles and includes
-game/port identity for affected entries. The host resolves its own native-dialog
-names. Full Unicode paths remain visible and wrap inline. A bounded native
-summary points to the complete inline set instead of silently omitting entries.
+Count affected entries separately from game titles. Show the game and port for
+each affected entry. The host supplies the names in native dialogs. Show the
+full Unicode path and wrap it across lines. If the native summary has a size
+limit, point readers to the complete list.
 
-Library distinguishes game title, port project/variant and library entry count.
-Separate ports for one game remain separate entries. Search labels identify
-Library or Discover. Covers/Compact rows preserve full identity; expanding
-strings wrap without changing artwork proportions. Current update decisions stay
-distinct from Future update preferences. These English labels add no supported
-locale; engineering pseudo-locales remain tests.
+In Library, keep the game title, port project or variant, and entry count
+distinct. Keep separate entries for different ports of one game. Search labels
+name Library or Discover. Covers and Compact rows show the full identity. Wrap
+long text without changing artwork proportions. Keep the current update
+decision separate from Future update preferences. English remains the
+supported language. Engineering pseudo-locales are for tests.
 
 Navigation copy is Library / Discover / Activity / Settings. Activity sections are Tasks, Game updates and History, as specified by the [current composition contract](INTEGRATED-UI-DESIGN.md) and [design system](DESIGN-SYSTEM.md#activity-and-contextual-task-feedback). These display labels do not rename serialized route IDs. Contextual task messages must retain complete action and target identity; an operation ID is not translated or inferred from a display name. English remains the supported product language; engineering locales do not become release commitments through this presentation change. Preserve the existing bounded namespace-migration scope below.
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Localize the display labels **Stable**, **Preview** and **Rolling**. Preserve the [wire values and CLI aliases](CLI.md#release-channels).
 
 Portcove's desktop localization foundation is an offline presentation concern. React owns translated copy and live direction; the Tauri adapter persists the user's optional locale choice through `HostPreferenceStore`. Core and CLI machine-readable output remain English and unchanged unless their owning contracts are revised separately.
 
@@ -46,6 +46,12 @@ and unsafe counts select explicit unavailable phrases. It accepts resource keys,
 not inline message dictionaries. This adds no supported product language.
 
 ## Runtime ownership
+
+The version-switch file result uses the existing `detail` namespace. Recorded
+counts remain distinct from legacy path examples with unknown totals. Version
+and path values stay literal in direction-aware containers; an unavailable
+earlier folder is translated text, not a fabricated path. This disclosure adds
+no supported locale or file action.
 
 - A saved `null` locale means `System default`; explicit supported values are canonical BCP 47 tags. Core validates bounded tag syntax but does not decide which product locales exist.
 - The React resolver accepts an explicitly saved `ar-XB` preference and the English language family. Unsupported, malformed, missing, or removed locales safely resolve to English. System locales, including `ar-XB`, do not select the engineering preview.
@@ -178,6 +184,9 @@ unless the copy change is intended and reviewed.
 | Discover cards and port comparison: card and identity labels with plural project counts, chip titles, favorites, drop targets, actions, and comparison headings, ownership and empty states (game and project names, system, platform and channel labels stay exact)                 | `features/browsing/GroupedDiscover.tsx`                    | `browsing`          |
 | Game settings panel and review: heading, unavailable states, editor hints and validation, review dialog, value labels and the installation-changed error (thrown already translated; setting and choice labels stay catalog data, Core failures stay verbatim)                       | `components/GameSettingsPanel.tsx`                         | `gameSettings`      |
 | Setups and mods: heading, explanations, mod-list sync notes, setup rows with plural counts, mod toggles, add and copy actions, outcomes and the app-owned game-changed error as a typed code (setup names, mod ids and provider names stay exact; Core failures stay verbatim)       | `components/ModSetupsControl.tsx`                          | `gameSettings`      |
+| Create a named clean setup                                                                                                                                                                                                                                                           | `components/CreateCleanModSetup.tsx`                       | `gameSettings`      |
+| Exact setup recovery review                                                                                                                                                                                                                                                          | `components/ModSetupRecovery.tsx`                          | `gameSettings`      |
+| Retained runtime retirement review                                                                                                                                                                                                                                                   | `components/ModSetupRuntimeRetirement.tsx`                 | `gameSettings`      |
 | GameBanana mods for a setup: find, files, review and install, stale and refusal states, plural counts (provider names, file names, versions and digests stay exact; Core failures stay verbatim)                                                                                     | `components/ModProviderBrowser.tsx`                        | `gameSettings`      |
 | Discover card observations (readiness, acquisition and setup-route text follow their producers' migrations)                                                                                                                                                                          | `features/port-actions/BrowsePortObservations.tsx`         | `browsing`          |
 | Navigation hints (keyboard key names stay literal)                                                                                                                                                                                                                                   | `components/ui.tsx`                                        | `common`            |

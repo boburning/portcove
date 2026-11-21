@@ -69,6 +69,32 @@ fn sanitizes_names_and_caps_stored_header_text() {
 }
 
 #[test]
+fn reports_logiqx_format_failures_with_exact_parser_details() {
+    for (bytes, expected) in [
+        ("not a DAT", "it isn’t a complete Logiqx datafile"),
+        ("<catalog/>", "it isn’t a Logiqx datafile"),
+    ] {
+        let report = parse_dat(bytes.as_bytes()).unwrap_err().report();
+        assert_eq!(report.code, crate::ErrorCode::SourceInvalid);
+        assert_eq!(
+            report.presentation.technical_context["dat_problem"],
+            "logiqx_format"
+        );
+        assert_eq!(
+            report.presentation.technical_message,
+            format!("this DAT file can’t be used: {expected}")
+        );
+    }
+    let other = parse_dat(b"<datafile/>").unwrap_err().report();
+    assert!(
+        !other
+            .presentation
+            .technical_context
+            .contains_key("dat_problem")
+    );
+}
+
+#[test]
 fn refuses_entities_malformed_and_unbounded_documents_with_fixed_messages() {
     let cases = [
         (

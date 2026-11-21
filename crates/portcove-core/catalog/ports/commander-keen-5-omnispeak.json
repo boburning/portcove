@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "commander-keen-5-omnispeak",
+    "artwork": {
+      "game_id": 2445,
+      "cover_id": 100804,
+      "image_id": "co25s4",
+      "image_sha256": "8796a86f3e2722a7af5018e5d75b91879d334752596525c3785bb6ddd2455a63",
+      "game_slug": "commander-keen-in-goodbye-galaxy-the-armageddon-machine",
+      "match_kind": "underlying-game"
+    },
     "name": "Commander Keen 5 (Omnispeak)",
     "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 5",
@@ -47,7 +55,25 @@
     "download_asset_hints": {
       "windows-x86-64": ["omnispeak-win64-", ".zip"]
     },
-    "platforms": ["linux-x86-64"]
+    "platforms": ["linux-x86-64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "commander-keen-5",
+      "evidence_urls": [
+        "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
+        "https://github.com/sulix/omnispeak"
+      ],
+      "source_editions": [
+        {
+          "id": "commander-keen-5-pc",
+          "title": "Commander Keen 5 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -61,6 +87,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -70,19 +97,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "sulix/omnispeak",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "sulix/omnispeak"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

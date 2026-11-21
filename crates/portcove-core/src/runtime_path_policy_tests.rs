@@ -1,6 +1,67 @@
 use super::*;
 
 #[test]
+fn diablo_windows_kit_checks_its_bundled_manifest_at_the_proposed_destination() {
+    let port = "alexbeav-diablo-recomp";
+    let artifact = "ea3aa940848e0f5c450d54ab11fea5961ac82f2afbc3c5e5de873e91b7fe063d";
+    let windows = Some(Platform::WindowsX86_64);
+    // The two managed runtime directory lengths in the native #435 receipt
+    // include the separator and build-portcove. Longest member adds 69 units.
+    let runtime_component = "build-portcove".len() + 1;
+    let short = "x".repeat(131 - runtime_component);
+    let long = "x".repeat(226 - runtime_component);
+    check_artifact_destination(port, artifact, windows, Path::new(&short)).unwrap();
+    assert!(check_artifact_destination(port, artifact, windows, Path::new(&long)).is_err());
+    check_artifact_destination(
+        port,
+        artifact,
+        Some(Platform::LinuxX86_64),
+        Path::new(&long),
+    )
+    .unwrap();
+    check_artifact_destination(port, &"a".repeat(64), windows, Path::new(&long)).unwrap();
+    check_artifact_destination("sibling", artifact, windows, Path::new(&long)).unwrap();
+    let unicode = "🎮".repeat(100);
+    assert!(check_artifact_destination(port, artifact, windows, Path::new(&unicode)).is_err());
+}
+
+#[test]
+fn windows_native_originals_preserve_the_narrow_path_guard() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut ports = catalog
+        .ports()
+        .iter()
+        .filter(|port| {
+            crate::preparation::source::native(port)
+                && port.windows_runtime_path_policy
+                    == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        })
+        .peekable();
+    assert!(
+        ports.peek().is_some(),
+        "fixture needs a guarded native original-file route"
+    );
+    for port in ports {
+        validate(port).unwrap();
+        let members = || {
+            port.runtime_source_set
+                .iter()
+                .map(|member| member.destination.as_str())
+        };
+        let long_root = "x".repeat(253);
+        check(port, Platform::WindowsX86_64, Path::new(&long_root)).unwrap();
+        check_package_paths(port, Platform::WindowsX86_64, Path::new("Games"), members()).unwrap();
+        for root in [Path::new("Gümes"), Path::new(&long_root)] {
+            assert!(check_package_paths(port, Platform::WindowsX86_64, root, members()).is_err());
+            check_package_paths(port, Platform::LinuxX86_64, root, members()).unwrap();
+        }
+        let mut invalid = port.clone();
+        invalid.runtime_source_set.clear();
+        assert!(validate(&invalid).is_err());
+    }
+}
+
+#[test]
 fn libultraship_relative_file_policy_is_windows_scoped_and_checks_all_members() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("2ship2harkinian").unwrap().clone();
@@ -543,4 +604,33 @@ fn native_policy_checks_packaged_data_beyond_selected_executable() {
     bad.windows_runtime_path_policy = Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
     validate(&bad).unwrap();
     assert_eq!(minimum_capability(&bad), 7);
+}
+
+#[test]
+fn open_surge_windows_profile_guard_uses_the_retained_binding() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("surge-the-rabbit-opensurge").unwrap().clone();
+    let profile = |suffix| {
+        format!(
+            r"{}:\Game library{suffix}\user\surge-the-rabbit-opensurge",
+            'D'
+        )
+    };
+    let plain = profile("");
+    let unicode = profile(" Ω");
+    let plain = Path::new(&plain);
+    let unicode = Path::new(&unicode);
+
+    // Old retained definitions already declare this environment binding.
+    assert!(port.windows_runtime_path_policy.is_none());
+    check_user_data_root(&port, Platform::WindowsX86_64, plain).unwrap();
+    let error = check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert_eq!(
+        error.presentation().presentation_key,
+        "opensurge_user_data_path_unsupported"
+    );
+    check_user_data_root(&port, Platform::LinuxX86_64, unicode).unwrap();
+    port.user_data_environment = None;
+    check_user_data_root(&port, Platform::WindowsX86_64, unicode).unwrap();
 }

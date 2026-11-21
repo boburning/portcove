@@ -1,10 +1,16 @@
 import { ArrowLeft, ArrowRight, Expand } from "lucide-react";
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useArtworkVisibility, useCatalogMedia } from "../artwork";
 import { useAppTranslation } from "../localization";
-import { heroMediaCandidates, type HeroMediaPort, type HeroMediaContext } from "../hero-media";
+import {
+  heroMediaCandidates,
+  screenshotEditions,
+  type HeroMediaPort,
+  type HeroMediaContext,
+} from "../hero-media";
 import type { CatalogMediaAsset } from "../types";
+import { ChoiceSelect } from "./ChoiceSelect";
 import { ExternalLink } from "./ExternalLink";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -81,22 +87,23 @@ function MediaPreview({
 }
 
 function Screenshot({
-  portId,
+  port,
   media,
   index,
   onOpen,
 }: {
-  portId: string;
+  port: HeroMediaPort;
   media: CatalogMediaAsset;
   index: number;
   onOpen: (element: HTMLButtonElement) => void;
 }) {
+  const portId = port.id;
   const { t } = useAppTranslation("browsing");
-  const { element, visible } = useArtworkVisibility();
-  const { display, retry } = useCatalogMedia(portId, media, visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display, retry } = useCatalogMedia(portId, media, visible, priority);
   return (
     <figure ref={element} className="m-0 min-w-0">
-      {display.error ? (
+      {!display.image && display.error ? (
         <div className="grid gap-2 rounded-pc-md border border-pc-border p-3 text-sm">
           <span>
             <Trans
@@ -140,7 +147,7 @@ function Screenshot({
       )}
       <figcaption className="mt-2 grid gap-1 text-xs">
         <span>{media.caption}</span>
-        <MediaCredit media={media} />
+        <MediaCredit media={media} port={port} />
       </figcaption>
     </figure>
   );
@@ -181,41 +188,111 @@ function ScreenshotChoice({
 export function CatalogMediaGallery({
   port,
   context = {},
+  fallbackFocus,
 }: {
   port: HeroMediaPort;
   context?: HeroMediaContext;
+  fallbackFocus?: () => HTMLElement | null | undefined;
+}) {
+  return (
+    <ScreenshotGallery
+      key={JSON.stringify([port.id, port.presentation?.original_game?.id])}
+      port={port}
+      context={context}
+      fallbackFocus={fallbackFocus}
+    />
+  );
+}
+
+const defaultScreenshotSource = "available";
+
+function screenshotKey({ id, sha256, subject }: CatalogMediaAsset) {
+  const scope =
+    subject.kind === "port"
+      ? [subject.kind, subject.port_id]
+      : [subject.kind, subject.game_id, subject.source_edition_id];
+  return JSON.stringify([scope, id, sha256]);
+}
+
+function ScreenshotGallery({
+  port,
+  context,
+  fallbackFocus,
+}: {
+  port: HeroMediaPort;
+  context: HeroMediaContext;
+  fallbackFocus?: (() => HTMLElement | null | undefined) | undefined;
 }) {
   const { t } = useAppTranslation("browsing");
   const portId = port.id;
-  const shots = heroMediaCandidates(port, context).screenshots;
+  const defaultShots = heroMediaCandidates(port, context).screenshots;
+  const editions = screenshotEditions(port);
+  const [source, setSource] = useState(defaultScreenshotSource);
+  const edition = editions.find(({ id }) => source === `edition:${id}`);
+  const shots = edition
+    ? heroMediaCandidates(port, { originalEditionId: edition.id }).screenshots.filter(
+        ({ subject }) => subject.kind === "original" && subject.source_edition_id === edition.id,
+      )
+    : defaultShots;
   const [selected, setSelected] = useState<string>();
   const origin = useRef<HTMLButtonElement | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  const index = shots.findIndex((asset) => asset.id === selected);
+  const galleryHeading = useRef<HTMLHeadingElement>(null);
+  const pickerId = useId();
+  const index = shots.findIndex((asset) => screenshotKey(asset) === selected);
   const active = shots[index];
-  if (!shots.length) return null;
-  const change = (delta: number) =>
-    setSelected(shots[(index + delta + shots.length) % shots.length]!.id);
+  // A catalog refresh can withdraw a release or change an image's admitted identity.
+  if (!edition && source !== defaultScreenshotSource) setSource(defaultScreenshotSource);
+  if (selected && !active) setSelected(undefined);
+  const change = (delta: number) => {
+    const next = shots[(index + delta + shots.length) % shots.length];
+    if (next) setSelected(screenshotKey(next));
+  };
   return (
-    <section
-      className="catalog-media mb-7 min-w-0 [overflow-wrap:anywhere]"
-      aria-label={t("media.screenshots")}
-    >
-      <h3 className="mb-4 text-base">{t("media.screenshots")}</h3>
-      <div className="media-gallery-grid grid gap-4">
-        {shots.map((asset, position) => (
-          <Screenshot
-            key={`${asset.id}:${asset.sha256}`}
-            portId={portId}
-            media={asset}
-            index={position}
-            onOpen={(element) => {
-              origin.current = element;
-              setSelected(asset.id);
-            }}
-          />
-        ))}
-      </div>
+    <>
+      {(shots.length > 0 || editions.length > 0) && (
+        <section
+          className="catalog-media mb-7 min-w-0 [overflow-wrap:anywhere]"
+          aria-label={t("media.screenshots")}
+        >
+          <h3 ref={galleryHeading} tabIndex={-1} className="mb-4 text-base">
+            {t("media.screenshots")}
+          </h3>
+          {editions.length > 0 && (
+            <div className="mb-4">
+              <ChoiceSelect
+                label={t("media.screenshotSource")}
+                triggerId={pickerId}
+                value={edition ? source : defaultScreenshotSource}
+                options={[
+                  {
+                    value: defaultScreenshotSource,
+                    label: defaultShots.length
+                      ? t("media.availableScreenshots")
+                      : t("media.chooseRelease"),
+                  },
+                  ...editions.map(({ id, title }) => ({ value: `edition:${id}`, label: title })),
+                ]}
+                onChange={setSource}
+              />
+            </div>
+          )}
+          <div className="media-gallery-grid grid gap-4">
+            {shots.map((asset, position) => (
+              <Screenshot
+                key={screenshotKey(asset)}
+                port={port}
+                media={asset}
+                index={position}
+                onOpen={(element) => {
+                  origin.current = element;
+                  setSelected(screenshotKey(asset));
+                }}
+              />
+            ))}
+          </div>
+        </section>
+      )}
       <Dialog
         open={Boolean(active)}
         onOpenChange={(open) => {
@@ -226,20 +303,32 @@ export function CatalogMediaGallery({
           reviewSize="large"
           initialFocus={heading}
           finalFocus={() =>
-            origin.current?.isConnected && !origin.current.closest("[hidden], [inert]")
-              ? origin.current
-              : undefined
+            [
+              origin.current,
+              document.getElementById(pickerId),
+              galleryHeading.current,
+              fallbackFocus?.(),
+            ].find(
+              (element) =>
+                element?.isConnected &&
+                !element.closest("[hidden], [inert]") &&
+                element.getClientRects().length > 0,
+            ) ?? undefined
           }
           onKeyDown={(event) => {
             if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
               event.preventDefault();
-              change(event.key === "ArrowRight" ? 1 : -1);
+              const nextKey =
+                getComputedStyle(event.currentTarget).direction === "rtl"
+                  ? "ArrowLeft"
+                  : "ArrowRight";
+              change(event.key === nextKey ? 1 : -1);
             }
           }}
         >
           {active && (
             <>
-              <DialogTitle ref={heading} tabIndex={-1}>
+              <DialogTitle ref={heading} tabIndex={-1} className="me-12 mb-2">
                 {active.caption}
               </DialogTitle>
               <DialogDescription>
@@ -251,17 +340,17 @@ export function CatalogMediaGallery({
               <div className="media-filmstrip" role="group" aria-label={t("media.choose")}>
                 {shots.map((asset, position) => (
                   <ScreenshotChoice
-                    key={`${asset.id}:${asset.sha256}`}
+                    key={screenshotKey(asset)}
                     portId={portId}
                     media={asset}
                     index={position}
                     selected={position === index}
-                    onSelect={() => setSelected(asset.id)}
+                    onSelect={() => setSelected(screenshotKey(asset))}
                   />
                 ))}
               </div>
               <div className="mt-4">
-                <MediaCredit media={active} />
+                <MediaCredit media={active} port={port} />
               </div>
               <p className="mt-3 text-xs text-pc-muted-foreground">
                 {active.subject.kind === "original"
@@ -270,19 +359,19 @@ export function CatalogMediaGallery({
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                 <Button variant="outline" disabled={shots.length < 2} onClick={() => change(-1)}>
-                  <Icon glyph={ArrowLeft} />
+                  <Icon glyph={ArrowLeft} className="rtl:rotate-180" />
                   {t("media.previous")}
                 </Button>
                 <ExternalLink href={active.url}>{t("media.openOriginal")}</ExternalLink>
                 <Button variant="outline" disabled={shots.length < 2} onClick={() => change(1)}>
                   {t("media.next")}
-                  <Icon glyph={ArrowRight} />
+                  <Icon glyph={ArrowRight} className="rtl:rotate-180" />
                 </Button>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
-    </section>
+    </>
   );
 }

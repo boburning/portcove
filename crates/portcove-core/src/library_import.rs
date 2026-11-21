@@ -90,7 +90,15 @@ impl PortabilityCatalogs {
                     .detail("install_id", &install.id));
                 }
             }
-            let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
+            let (retained, choice) =
+                crate::install::portable_install_contract(&absolute, &embedded)?;
+            if let Some(choice) = choice {
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_embedded_choice(
+                        install, &choice,
+                    )?,
+                );
+            }
             if let Some(identity) = retained
                 .as_ref()
                 .and_then(|catalog| catalog.definition_selection(&install.port_id))
@@ -318,8 +326,12 @@ impl PortcoveService {
                 .port(&install.port_id)?
                 .windows_runtime_path_policy
                 == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+                || crate::runtime_path_policy::has_bundled_manifest_path_limit(
+                    &install.port_id,
+                    &install.artifact.sha256,
+                )
             {
-                crate::install::check_retained_runtime_paths(
+                crate::install::check_retained_launch_destination(
                     &observed,
                     &destination_root.join(relative),
                 )?;
@@ -343,20 +355,7 @@ impl PortcoveService {
                 "import destination overlaps the metadata export",
             ));
         }
-        let content = metadata
-            .content_roots
-            .iter()
-            .map(|root| {
-                Ok(LibraryTreePlan {
-                    kind: root.kind,
-                    relative_path: root.relative_path.clone(),
-                    copy: crate::library_transfer::reviewed_tree(
-                        &content_root.join(&root.relative_path),
-                    )?,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
+        let content = crate::library_transfer::plan_portable_content(&metadata, &content_root)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size
@@ -424,7 +423,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=10) {
+    if !matches!(metadata.schema_version, 1..=12) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -456,7 +455,7 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3..=10) => {
+        (Some(artwork), 3..=12) => {
             if metadata.schema_version < 10
                 && (!artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty())
             {
@@ -516,6 +515,40 @@ pub(crate) fn validate_metadata(
         {
             return Err(PortcoveError::verification(
                 "metadata has an invalid or repeated source reference",
+            ));
+        }
+    }
+    if !metadata.source_instances.is_empty() && metadata.schema_version < 12 {
+        return Err(PortcoveError::verification(
+            "original instances require library metadata schema 12",
+        ));
+    }
+    let mut identities = metadata
+        .source_references
+        .iter()
+        .map(|source| {
+            crate::source_instances::identity(&crate::profile::bind_original(
+                &source.profile_id,
+                source,
+            ))
+        })
+        .collect::<Result<BTreeSet<_>>>()?;
+    for source in &metadata.source_instances {
+        catalogs.require_source_profile(&source.profile_id)?;
+        if let Some(identity) = &source.observed_identity {
+            identity.validate_for_record(source)?;
+        }
+        let identity = crate::source_instances::identity(&crate::profile::bind_original(
+            &source.profile_id,
+            source,
+        ))?;
+        if !identities.insert(identity)
+            || source.path.as_os_str().is_empty()
+            || !sha256(&source.sha256)
+            || !sha256(&source.storage_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "metadata has an invalid or repeated original instance",
             ));
         }
     }
@@ -600,19 +633,23 @@ pub(crate) fn validate_metadata(
 fn retained_references_by_install(
     metadata: &LibraryMetadata,
 ) -> Result<BTreeMap<&str, Vec<&crate::RetainedBuildReference>>> {
-    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=10) {
+    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=12) {
         return Err(PortcoveError::verification(
             "profiles require library metadata schema 6",
         ));
     }
-    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7..=10) {
+    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7..=12) {
         return Err(PortcoveError::verification(
             "library memberships require library metadata schema 7",
         ));
     }
     crate::library_membership::validate_export(&metadata.library_memberships)?;
-    crate::profile::validate_export(&metadata.profiles, &metadata.retained_build_references)?;
-    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=10)
+    crate::profile::validate_export(
+        &metadata.profiles,
+        &metadata.retained_build_references,
+        metadata.schema_version >= 11,
+    )?;
+    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=12)
     {
         return Err(PortcoveError::verification(
             "retained build references require library metadata schema 5",

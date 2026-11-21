@@ -3,7 +3,7 @@ import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
-import { executeBrowserScript } from "./browser-script.mts";
+import { addGamesRouteXPath, executeBrowserScript } from "./browser-script.mts";
 import {
   captureSettledVisual,
   observePreparationCompletion,
@@ -36,7 +36,8 @@ import {
   observeCompletionReturnFocus,
 } from "./desktop-completion-focus.mts";
 
-import type { WebDriver } from "selenium-webdriver";
+import type { Locator, WebDriver } from "selenium-webdriver";
+import type { ReviewClickOptions, WebKitPointerObservation } from "./desktop-review-controls.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { nativeGameFileFolderPicker } from "./desktop-native-confirmation.mts";
 import type { PreparationObservation } from "../../../scripts/native-readiness.mts";
@@ -82,6 +83,7 @@ type CompletionCapture = Awaited<
 >;
 interface CompletionObservations {
   sources: SourceRecord[] | undefined;
+  pointer_inputs?: WebKitPointerObservation[];
   completed_sources?: unknown;
   geometry?: Record<string, CompletionCapture["observation"]>;
   folder_picker_cancel?: PickerResult;
@@ -230,7 +232,9 @@ export async function selectedSetupCompletionScenario({
     const setupOrigin = "add-games-folders-setup";
     const setupHeading = "add-games-folders-heading";
     let generation: number;
-    const { button, click } = reviewControls(browser);
+    const { button } = reviewControls(browser);
+    let clickOptions: ReviewClickOptions = {};
+    const click = (locator: Locator) => reviewControls(browser, clickOptions).click(locator);
     const coreEnvironment = {
       ...process.env,
       PORTCOVE_QUALIFICATION_CATALOG: fixture.catalogPath,
@@ -307,6 +311,7 @@ export async function selectedSetupCompletionScenario({
         (item) =>
           item.operation === operation && item.target_id === port.id && item.status === terminal,
       );
+    const connectFolderAction = '[aria-label="Connect your game files"] > button';
     const screenshot = async (name: string) => {
       const targets: Readonly<Record<string, string>> = {
         "initial-folder-connection": '[aria-label="Connect your game files"]',
@@ -318,19 +323,19 @@ export async function selectedSetupCompletionScenario({
       };
       const target = targets[name] ?? '[aria-labelledby="install-review-title"]';
       const enlargedTargets: Readonly<Record<string, string>> = {
-        "initial-folder-connection": '[aria-label="Connect your game files"] h2',
+        "initial-folder-connection": connectFolderAction,
         "connected-folder-management": "#game-file-libraries-heading",
         "selected-setup-prepared": '[data-task-owner] > [data-slot="current-state-summary"] h3',
         "selected-setup-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-queue-return": '[aria-label="Selected setup reviews"] > h3',
         "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"] > h3',
       };
-      // Full panels deliberately scroll at 400%. Capture an identified bounded
-      // heading; retain the full-panel readiness and complete-target validator.
+      // Full panels deliberately scroll at 400%. Capture a bounded heading or
+      // primary action, keeping full-panel readiness and complete-target validation.
       const captureTarget = enlargedTargets[name] ?? "#install-review-title";
       const preparedTarget = await prepareCaptureTarget({
         target: captureTarget,
-        label: `400% ${name} heading`,
+        label: `400% ${name} target`,
         scroll: () =>
           executeBrowserScript(
             browser,
@@ -404,7 +409,7 @@ export async function selectedSetupCompletionScenario({
           ? "Folder connections use the actual native picker; the bounded scan pre-state uses the CLI"
           : "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",
-        "400% viewport captures target identified headings; scrollable full panels are exercised through their controls, not claimed wholly visible",
+        "400% viewport captures use identified headings or actions; scrollable full panels are exercised through their controls, not claimed wholly visible",
       ],
       port_id: port.id,
       observations: { sources: undefined },
@@ -468,6 +473,13 @@ export async function selectedSetupCompletionScenario({
           ),
         10_000,
       );
+      if (process.platform === "linux")
+        clickOptions = {
+          dispatch: "webkit-window-pointer",
+          pageZoom: 4,
+          baselineViewport: { width: baseline.width, height: baseline.height },
+          observe: (observation) => (report.observations.pointer_inputs ??= []).push(observation),
+        };
       await enlargedStage("folder-connection");
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
@@ -475,7 +487,7 @@ export async function selectedSetupCompletionScenario({
       async function connectSetupFolderWithNativePicker() {
         assert.ok(typeof chooseGameFileFolder === "function");
         assert.deepEqual(await read("get_game_file_roots"), []);
-        const connection = By.css('[aria-label="Connect your game files"] button');
+        const connection = By.css(connectFolderAction);
         await browser.wait(until.elementLocated(connection), 5_000);
         await screenshot("initial-folder-connection");
         await click(connection);
@@ -588,7 +600,7 @@ export async function selectedSetupCompletionScenario({
         await connectSetupFolderWithNativePicker();
       }
       {
-        await selectPrimaryNavigation(browser, "Library");
+        await selectPrimaryNavigation(browser, "Library", clickOptions);
         await click(button("Add games"));
         await browser.wait(
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
@@ -596,11 +608,11 @@ export async function selectedSetupCompletionScenario({
         );
         await enlargedStage("choose-inputs");
         // Add games sends game choice to Discover, where the exact port is chosen.
-        await click(By.css('button[aria-label="Browse games"]'));
+        await click(By.xpath(addGamesRouteXPath("Browse games")));
         const query = await browser.wait(until.elementLocated(By.id("port-search")), 5_000);
         await query.sendKeys(port.name);
-        await clearCatalogFilters(browser);
-        await selectCatalogPort(browser, port.id);
+        await clearCatalogFilters(browser, clickOptions);
+        await selectCatalogPort(browser, port.id, clickOptions);
         {
           await browser.wait(
             () =>
@@ -635,13 +647,13 @@ export async function selectedSetupCompletionScenario({
           artifacts.push(receipt);
         }
         // Add games keeps its workspace while the player browses elsewhere.
-        await selectPrimaryNavigation(browser, "Settings");
-        await selectPrimaryNavigation(browser, "Library");
+        await selectPrimaryNavigation(browser, "Settings", clickOptions);
+        await selectPrimaryNavigation(browser, "Library", clickOptions);
         await browser.wait(
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
           5_000,
         );
-        await click(By.css('button[aria-label="Scan a folder"]'));
+        await click(By.xpath(addGamesRouteXPath("Scan a folder")));
       }
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       await enlargedStage("scan-and-recognize");
@@ -686,7 +698,7 @@ export async function selectedSetupCompletionScenario({
       report.observations.continued_scan = snapshot;
       assert.deepEqual(
         snapshot.report.candidates.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       assert.deepEqual(await read("get_sources"), [], "Discovery must not register inputs");
       await click(
@@ -994,7 +1006,8 @@ export async function selectedSetupCompletionScenario({
       }
 
       await openInstall();
-      await browser.findElement(install).click();
+      if (clickOptions.dispatch === "webkit-window-pointer") await click(install);
+      else await browser.findElement(install).click();
       await browser.wait(() => (fixture.requests[0]?.bytes_sent ?? 0) > 0, 15_000);
       const running = required(await browser.wait(() => activity("install", "running"), 15_000));
       assert.equal(required(running.cancellation).requested, false);
@@ -1016,7 +1029,8 @@ export async function selectedSetupCompletionScenario({
 
       await browser.wait(until.elementLocated(button("Review installation")), 15_000);
       await openInstall();
-      await browser.findElement(install).click();
+      if (clickOptions.dispatch === "webkit-window-pointer") await click(install);
+      else await browser.findElement(install).click();
       const installedActivity = required(
         await browser.wait(() => activity("install", "succeeded"), 30_000),
       );
@@ -1201,8 +1215,8 @@ export async function selectedSetupCompletionScenario({
       assert.match(await browser.findElement(queue).getText(), /\b2 selected\b/);
       await screenshot("selected-setup-queue-return");
       await enlargedStage("returned-selection");
-      await selectPrimaryNavigation(browser, "Settings");
-      await selectGameFilesSettings(browser);
+      await selectPrimaryNavigation(browser, "Settings", clickOptions);
+      await selectGameFilesSettings(browser, clickOptions);
       const sourceHealthRow = `.source-health-row[data-source-profile="${owned.profiles[0]}"]`;
       await click(
         By.xpath(
@@ -1243,7 +1257,7 @@ export async function selectedSetupCompletionScenario({
         [],
         "The visible source result must not retain prohibited or unresolved ARIA attributes",
       );
-      await selectPrimaryNavigation(browser, "Library");
+      await selectPrimaryNavigation(browser, "Library", clickOptions);
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       assert.match(await browser.findElement(queue).getText(), /\b2 selected\b/);
       // The game remains registered outside this new root. Only a newly found
@@ -1391,7 +1405,7 @@ export async function selectedSetupCompletionScenario({
       ]);
       assert.deepEqual(
         biosPlan.source_requirements.map((item) => item.profile_id).sort(),
-        [...owned.profiles].sort(),
+        owned.profiles.toSorted(),
       );
       assert.ok(biosPlan.source_requirements.every((item) => item.registered));
       assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);
@@ -1462,7 +1476,7 @@ export async function selectedSetupCompletionScenario({
         "Restart did not restore native enlargement",
       );
       generation = await selectedSetupGeneration(invoke);
-      const { button: restartButton, click: restartClick } = reviewControls(browser);
+      const { button: restartButton, click: restartClick } = reviewControls(browser, clickOptions);
       assert.deepEqual(await read("get_sources"), biosSources);
       assert.deepEqual(await read("get_game_file_roots"), rootsBeforeRestart);
       const restoredSnapshot = required(await read("get_game_file_scan_snapshot"));
@@ -1481,8 +1495,8 @@ export async function selectedSetupCompletionScenario({
         ),
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
-      await selectPrimaryNavigation(browser, "Settings");
-      await selectGameFilesSettings(browser);
+      await selectPrimaryNavigation(browser, "Settings", clickOptions);
+      await selectGameFilesSettings(browser, clickOptions);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await browser.wait(
         async () => {

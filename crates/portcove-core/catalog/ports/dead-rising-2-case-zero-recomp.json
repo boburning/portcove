@@ -8,7 +8,7 @@
     "issue_number": 1121,
     "listed_at": "2026-10-23",
     "funding_urls": ["https://github.com/sponsors/wivi514"],
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
     "artwork": {
@@ -51,6 +51,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files."
+    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-rising-2-case-zero",
+      "evidence_urls": [
+        "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
+        "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp/tree/b3895adbe68fdc8fb56bf5c195b9e82028fbbd82"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Dead Rising 2: Case Zero"
   }
 }

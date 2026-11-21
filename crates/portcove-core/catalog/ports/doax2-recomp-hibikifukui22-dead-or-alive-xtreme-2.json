@@ -35,6 +35,21 @@
       "image_sha256": "b133fa50512b6eed441c1c76beb11d4cb5194ff76cf6b97a9c04225dfbb62cbb",
       "game_slug": "dead-or-alive-xtreme-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive-xtreme-2",
+      "evidence_urls": ["https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation"],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-xtreme-2-xbox-360",
+          "title": "Dead or Alive Xtreme 2 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/hibikifukui22/Dead-or-Alive-Xtreme-2-Recompilation/blob/eab2531cf93ba706a6d19f0e6643023f6830daf8/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

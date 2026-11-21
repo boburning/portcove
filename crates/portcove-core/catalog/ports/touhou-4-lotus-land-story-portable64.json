@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "touhou-4-lotus-land-story-portable64",
+    "artwork": {
+      "game_id": 45964,
+      "cover_id": 217575,
+      "image_id": "co4nvr",
+      "image_sha256": "f32a4573b6f8f10dceacef3bbe57797253a94262417436d35f833df7d597f26c",
+      "game_slug": "touhou-gensoukyou-lotus-land-story",
+      "match_kind": "underlying-game"
+    },
     "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
     "original_game_title": "Touhou Gensokyo: Lotus Land Story",
     "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
@@ -41,6 +49,15 @@
           "instruction": "Keep MIKO.CFG and GENSOU.SCR together under your effective save directory. The bundled launchers use save-normal and save-no-life-loss. A direct run without --save-dir uses %LOCALAPPDATA%/TH04 on Windows or $XDG_DATA_HOME/th04 on Linux, usually ~/.local/share/th04. Close the game before replacing its player."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-gensokyo-lotus-land-story",
+      "evidence_urls": [
+        "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+        "https://github.com/N0zoM1z0/th04"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "doom-dsda-doom",
+    "name": "Doom / DSDA-Doom",
+    "original_game_title": "Doom",
+    "summary": "Play Doom or Freedoom in DSDA-Doom, a source port with tools for recording and replaying speedruns.",
+    "project_url": "https://github.com/dsda-org/dsda-doom",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5665,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/dsda-org/dsda-doom#readme",
+    "release_url": "https://github.com/dsda-org/dsda-doom/releases",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your game data",
+          "instruction": "Use the IWAD from your own Doom installation or a freely available Freedoom IWAD. Pass -iwad followed by the path to that file. Keep the supplied dsda-doom.wad with the engine. It supplies engine resources. Heretic and Hexen require their own IWADs and follow the upstream setup instructions."
+        },
+        {
+          "title": "Start DSDA-Doom on Windows",
+          "instruction": "Extract the complete publisher x64 ZIP. From that directory, run dsda-doom.exe with your IWAD."
+        },
+        {
+          "title": "Start DSDA-Doom on Linux",
+          "instruction": "Use your distribution’s dsda-doom package if available. If you already have the publisher’s x86-64 AppImage, make it executable and run it with your IWAD. Without FUSE, extract it with --appimage-extract and run AppRun from the complete extracted directory. Install your distribution’s JACK client library if the player reports libjack.so.0 missing."
+        },
+        {
+          "title": "Start DSDA-Doom on a Mac",
+          "instruction": "The publisher’s v0.30.1 universal ZIP has a Terminal executable for Intel and Apple Silicon. Both slices require macOS 26 or later. Keep dsda-doom and dsda-doom.wad together and run ./dsda-doom with your IWAD. Homebrew also packages DSDA-Doom for Apple Silicon and Linux, including Linux ARM64."
+        }
+      ],
+      "warnings": [
+        "The package manager or your external installation owns updates. The player owns its save and settings files."
+      ],
+      "help_url": "https://formulae.brew.sh/formula/dsda-doom",
+      "references": [
+        {
+          "title": "Keep the profile and matching runtime",
+          "instruction": "On Linux preserve $XDG_DATA_HOME/dsda-doom, normally ~/.local/share/dsda-doom. It holds dsda-doom.cfg and per-IWAD saves and statistics in dsda_doom_data. Keep the engine version, IWAD and any add-ons used by a save or demo when changing packages."
+        }
+      ]
+    },
+    "download_block_reason": "The publisher archives bundle a soundfont and game sounds whose redistribution terms need verification. Use a distribution package or the upstream project for an external copy."
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "doom-dsda-doom",
+    "origin": {
+      "project_url": "https://github.com/dsda-org/dsda-doom",
+      "repository": {
+        "host": "github.com",
+        "id": "330042722"
+      }
+    },
+    "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The authored source/setup scope explicitly permits Doom or Freedoom originals, with per-IWAD game/save choices. This broad engine record is not scoped to one original game.",
+    "evidence_urls": [
+      "https://formulae.brew.sh/formula/dsda-doom",
+      "https://github.com/dsda-org/dsda-doom"
+    ]
+  }
+}
