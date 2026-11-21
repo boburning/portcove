@@ -340,6 +340,37 @@ void test("successor preview needs exact evidence and revokes eligibility on dri
   assert.equal(report.authority, "none");
   assert.equal(report.physical_and_human_evidence_inherited, false);
   assert.equal(report.candidates[0]?.decision, "eligible_for_review");
+  const historical = {
+    ...proposal,
+    historical_anchor: {
+      owner_attestation_url:
+        "https://github.com/boburning/portcove/issues/76#issuecomment-5540821043",
+      automation_url: "https://github.com/boburning/portcove/pull/229",
+      owner_attestation: { ...receipt("hands_on"), scope: anchor },
+      automation: { ...receipt("automated_lifecycle"), scope: anchor },
+    },
+  };
+  const historicalCatalog = {
+    ...baseline,
+    source_catalog: { ...baseline.source_catalog, qualification: [successorAutomation] },
+  };
+  const candidate = previewQualificationSuccessors(historicalCatalog, [historical]).candidates[0];
+  assert.equal(candidate?.decision, "eligible_for_review");
+  assert.equal(
+    candidate && "anchor_evidence" in candidate && candidate.anchor_evidence,
+    "historical_receipts_for_review",
+  );
+  const wrongBytes = {
+    ...historical,
+    historical_anchor: {
+      ...historical.historical_anchor,
+      owner_attestation: receipt("hands_on"),
+    },
+  };
+  assert.equal(
+    previewQualificationSuccessors(historicalCatalog, [wrongBytes]).candidates[0]?.decision,
+    "unassessed",
+  );
   assert.equal(previewQualificationSuccessors(baseline).candidates[0]?.decision, "unassessed");
   const cases = [
     [{ rule: "other" }, "preview_rule_changed"],
@@ -373,7 +404,7 @@ void test("successor preview needs exact evidence and revokes eligibility on dri
     assert.equal(candidate && "reason" in candidate && candidate.reason, reason);
   }
   for (const [qualification, reason] of [
-    [[automation, successorAutomation], "exact_supported_anchor_missing"],
+    [[automation, successorAutomation], "exact_anchor_evidence_missing"],
     [[automation, handsOn], "exact_successor_lifecycle_not_passed"],
     [
       [

@@ -5,6 +5,11 @@ import { isRecord } from "./runtime-values.mts";
 
 const rule = "managed-successor-preview-v1";
 const digest = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+const canonicalReceipt = (value: unknown) =>
+  typeof value === "string" &&
+  /^https:\/\/github\.com\/boburning\/portcove\/(?:issues\/[1-9][0-9]*(?:#issuecomment-[1-9][0-9]*)?|pull\/[1-9][0-9]*)$/u.test(
+    value,
+  );
 const nonempty = (value: unknown) => typeof value === "string" && value.trim().length > 0;
 const rows = (value: unknown) => (Array.isArray(value) ? value.filter(isRecord) : []);
 
@@ -115,7 +120,7 @@ function evaluateCase(
     )
   )
     return { decision: "refuse", reason: "anchor_release_binding_missing" };
-  const supported = ["automated_lifecycle", "hands_on"].every((kind) =>
+  const structuredAnchor = ["automated_lifecycle", "hands_on"].every((kind) =>
     hasReviewedPass(records, anchor, kind, evidenceIds),
   );
   if (
@@ -126,13 +131,21 @@ function evaluateCase(
     )
   )
     return { decision: "refuse", reason: "exact_known_failure" };
-  if (!supported) return { decision: "refuse", reason: "exact_supported_anchor_missing" };
   const priorCoordinates = coordinates(proposal.anchor_coordinates);
   const nextCoordinates = coordinates(proposal.successor_coordinates);
   if (!priorCoordinates || !nextCoordinates)
     return { decision: "unassessed", reason: "coordinate_evidence_missing" };
   if (!isDeepStrictEqual(priorCoordinates, nextCoordinates))
     return { decision: "refuse", reason: "setup_launch_or_data_changed" };
+  const historical = proposal.historical_anchor;
+  const historicalAnchor =
+    isRecord(historical) &&
+    canonicalReceipt(historical.owner_attestation_url) &&
+    canonicalReceipt(historical.automation_url) &&
+    evidenceMatches(historical.owner_attestation, anchor, "hands_on", priorCoordinates) &&
+    evidenceMatches(historical.automation, anchor, "automated_lifecycle", priorCoordinates);
+  if (!structuredAnchor && !historicalAnchor)
+    return { decision: "unassessed", reason: "exact_anchor_evidence_missing" };
   if (
     !isRecord(proposal.selection) ||
     proposal.selection.outcome !== "selected" ||
@@ -150,7 +163,12 @@ function evaluateCase(
     !hasReviewedPass(records, successor, "automated_lifecycle", evidenceIds)
   )
     return { decision: "refuse", reason: "exact_successor_lifecycle_not_passed" };
-  return { decision: "eligible_for_review", inherited_from: anchorRef, candidate_ref: nextRef };
+  return {
+    decision: "eligible_for_review",
+    anchor_evidence: structuredAnchor ? "scoped_catalog_records" : "historical_receipts_for_review",
+    inherited_from: anchorRef,
+    candidate_ref: nextRef,
+  };
 }
 
 export function previewQualificationSuccessors(catalog: unknown, inputs: unknown = []) {
@@ -198,22 +216,41 @@ export function previewQualificationSuccessors(catalog: unknown, inputs: unknown
     });
   });
   if (used.size !== proposals.length) throw new Error("Case is outside the preview population");
+  const legacy = ports.filter(
+    (port) =>
+      Array.isArray(port.platforms) &&
+      Array.isArray(port.automated_tested_platforms) &&
+      Array.isArray(port.manually_validated_platforms) &&
+      port.platforms.includes("windows-x86-64") &&
+      port.automated_tested_platforms.includes("windows-x86-64") &&
+      port.manually_validated_platforms.includes("windows-x86-64"),
+  );
+  const providerSelectors = ports.filter(
+    (port) =>
+      isRecord(port.release) &&
+      (port.release.provider === undefined ||
+        port.release.provider === "github" ||
+        port.release.provider === "gitlab") &&
+      nonempty(port.release.repository),
+  );
   return {
     rule,
     authority: "none",
     physical_and_human_evidence_inherited: false,
     operational_ports: ports.length,
-    historical_supported_ports: ports.filter(
-      (port) =>
-        Array.isArray(port.platforms) &&
-        Array.isArray(port.automated_tested_platforms) &&
-        Array.isArray(port.manually_validated_platforms) &&
-        port.platforms.some(
-          (platform: unknown) =>
-            (port.automated_tested_platforms as unknown[]).includes(platform) &&
-            (port.manually_validated_platforms as unknown[]).includes(platform),
-        ),
+    legacy_windows_intersection_ports: legacy.length,
+    declared_provider_selector_ports: providerSelectors.length,
+    declared_provider_selector_platforms: providerSelectors.reduce(
+      (count, port) => count + (Array.isArray(port.platforms) ? port.platforms.length : 0),
+      0,
+    ),
+    legacy_ports_with_declared_provider_selector: legacy.filter((port) =>
+      providerSelectors.includes(port),
     ).length,
+    legacy_ports_in_source_contract_pilot: legacy.filter((port) =>
+      contracts.some((contract) => contract.port_id === port.id),
+    ).length,
+    preview_population: "enforced_dynamic_game_source_contracts",
     scoped_records: records.length,
     scoped_hands_on_passes: records.filter(
       (record) => record.kind === "hands_on" && record.outcome === "passed",
