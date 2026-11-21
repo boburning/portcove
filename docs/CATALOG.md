@@ -2914,13 +2914,33 @@ conditional match from those inputs as historical evidence for review.
 A platform-only note or later release digest leaves the exact anchor
 unassessed. The output keeps table coverage separate from historical evidence.
 
-The proposed policy requires explicit owner approval under #4849. If approved,
-project a distinct “Supported (inherited from vX)” claim only for the exact
-qualifying successor and platform. Keep physical and human observations on the
-original artifact. Reevaluate on any new release, failed check or changed
-check contract. Remove the inherited claim on evidence loss, withdrawal,
-failure or drift. This proposal leaves #315 admission and every current
-support claim under their existing authority.
+### Scoped successor support
+
+The owner approved the policy under #4849 for the same platform, with reviewed
+hands-on and lifecycle evidence for the predecessor. Core derives “Supported
+(inherited from vX)” for the exact currently observed successor. The label is
+a read-model fact shown in status, Desktop details, and exact implementation
+listings. It does not create an operation grant, migrate old evidence, or record
+a hands-on pass for the newer release.
+
+An official scoped managed GitHub definition needs the existing independent
+#315 admission for the exact selected successor. The current selector
+observation must match its tag, channel, and artifact name, size and digest.
+The reviewed successor lifecycle record also binds the admitted release and
+asset IDs, the current operational definition digest, and equal setup, launch
+and player-data fingerprints. Each supported source variant and
+representation for that platform needs the exact paired evidence under the
+same check contract and from the same predecessor. The successor needs its
+own structural integrity and automated lifecycle passes. Physical observations
+stay on the preceding artifact.
+
+Core omits the label when the rule, definition, selected release, coordinates,
+or source scope changes, or when exact known failure, current package drift,
+expired admission, withdrawal or revocation makes the claim inapplicable.
+Preview tooling and historical crosswalk rows never become support by
+themselves. No current production row qualifies. First production use requires
+a released reader check and an authorized producer that can bind the existing
+protected publication process to complete, reviewed evidence.
 
 ### Qualification evidence preparation
 

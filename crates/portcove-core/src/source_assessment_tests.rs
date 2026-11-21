@@ -27,6 +27,7 @@ fn evidence() -> SourceEvidence {
         portcove_version: Some("0.1.0-alpha.1".into()),
         portcove_commit: None,
         method: "synthetic test".into(),
+        successor_support: None,
         evidence_ids: vec!["fixture-evidence".into()],
     }
 }

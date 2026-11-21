@@ -1243,7 +1243,26 @@ impl PortcoveService {
             status,
             retained_catalog.as_ref().ok().and_then(Option::as_ref),
         )?;
+        let status = self.with_inherited_support(catalog, port, status);
         self.with_port_actions(port, status, &registered_sources)
+    }
+
+    fn with_inherited_support(
+        &self,
+        catalog: &Catalog,
+        port: &PortDefinition,
+        mut status: PortStatus,
+    ) -> PortStatus {
+        status.inherited_support =
+            crate::successor_support::inherited_support(&self.library, catalog, port, &status)
+                .and_then(|claim| {
+                    let observed = &status.last_update_check.as_ref()?.check.release;
+                    self.current_package_shape_refusal(port, claim.platform, observed)
+                        .ok()?
+                        .is_none()
+                        .then_some(claim)
+                });
+        status
     }
 
     pub fn statuses(&self) -> Result<Vec<PortStatus>> {
@@ -1407,6 +1426,7 @@ impl PortcoveService {
                     status,
                     retained_catalog.as_ref().ok().and_then(Option::as_ref),
                 )?;
+                let status = self.with_inherited_support(catalog, port, status);
                 self.with_port_actions(port, status, &registered_sources)
                     .map(|status| self.with_rollback_assessment(status))
             })

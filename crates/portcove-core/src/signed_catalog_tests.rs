@@ -117,6 +117,7 @@ fn append_exact_qualification(payload: &mut SignedCatalogPayload) -> crate::Sour
         portcove_version: Some("0.1.0-alpha.1".into()),
         portcove_commit: Some("a".repeat(40)),
         method: "isolated signed-catalog fixture".into(),
+        successor_support: None,
         evidence_ids: vec![qualification_evidence_id.into()],
     };
     source_catalog.qualification.push(record.clone());

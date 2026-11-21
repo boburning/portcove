@@ -106,6 +106,7 @@ import {
   installationMethodLabel,
   installationMethodLabels,
   platformLabel,
+  inheritedSupportLabel,
   releaseChannelPresentation,
 } from "../view-model";
 import { BackupHistory } from "./BackupHistory";
@@ -4024,6 +4025,9 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
         detailsContext={[model.backups, model.backupProtection, model.backupReadState]}
       />
       <ImplementationFacts port={model.displayPort ?? model.port} />
+      {model.status?.inherited_support && (
+        <p className="mt-4 text-sm">{inheritedSupportLabel(model.status.inherited_support)}</p>
+      )}
       <details className="mt-6">
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />

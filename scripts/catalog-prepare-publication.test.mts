@@ -126,6 +126,16 @@ void test("a locally reconstructed Chameleon projection preserves the exact reta
   });
 });
 
+void test("successor support evidence stays outside protected preparation until its reader and producer qualify", async () => {
+  const f = await fixture();
+  const candidate = JSON.parse(f.projection.toString("utf8"));
+  candidate.catalog.source_catalog.qualification = [{ successor_support: {} }];
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, json(candidate)),
+    /successor support publication requires the released reader and reviewed evidence producer/u,
+  );
+});
+
 void test("a generated route assembles deterministically and retains Chameleon content", async () => {
   const f = await fixture();
   const once = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);

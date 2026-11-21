@@ -1,6 +1,6 @@
 import type * as Requests from "./transport-input-types.generated";
 import type * as Events from "./transport-event-types.generated";
-import type { PortStatus } from "./transport-types.generated";
+
 import type * as Generated from "./transport-types.generated";
 export type PortCapabilityReport = Generated.TransportOutputs["port_capability_report"];
 
@@ -103,7 +103,12 @@ export type { SourceHealth } from "./transport-types.generated";
 
 export type ReadinessBlocker = NonNullable<PortStatus["readiness"]>["blockers"][number];
 
-export type { PortStatus } from "./transport-types.generated";
+export type InheritedSupport = {
+  inherited_from: string;
+  successor_version: string;
+  platform: Generated.PortDefinition["platforms"][number];
+};
+export type PortStatus = Generated.PortStatus & { inherited_support?: InheritedSupport | null };
 
 export type { ActivityOperation } from "./transport-types.generated";
 

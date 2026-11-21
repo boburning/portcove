@@ -31,6 +31,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../com
 import { gameIdentityLabel, gameProjectLabel } from "../../port-identity";
 import {
   platformLabel,
+  inheritedSupportLabel,
   installationMethodLabel,
   releaseChannelPresentation,
   type DetailDestination,
@@ -854,6 +855,11 @@ function DiscoverGameMetadata({
   return (
     <div className="discover-game-metadata grid content-start gap-2">
       {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
+      {exact && status?.inherited_support && (
+        <p className="text-xs text-pc-muted-foreground">
+          {inheritedSupportLabel(status.inherited_support)}
+        </p>
+      )}
       {/* Most catalog ports offer only Stable; that chip does not help choose a game.
           Preview, Rolling, mixed channels and a differing selected channel stay visible. */}
       {/* On a known device, platform chips repeat on every card; show only the

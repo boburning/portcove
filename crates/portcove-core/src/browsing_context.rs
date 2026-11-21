@@ -530,6 +530,7 @@ mod tests {
             readiness: None,
             last_update_check: None,
             definition_operations: Vec::new(),
+            inherited_support: None,
             port_actions: Vec::new(),
         }
     }

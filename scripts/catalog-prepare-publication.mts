@@ -135,6 +135,18 @@ export function assembleReviewedPublication(
   portId: string,
   projection: Buffer,
 ) {
+  const prepared = document(projection);
+  const sources = isRecord(prepared.catalog) ? prepared.catalog.source_catalog : null;
+  if (
+    isRecord(sources) &&
+    Array.isArray(sources.qualification) &&
+    sources.qualification.some(
+      (record) => isRecord(record) && Object.hasOwn(record, "successor_support"),
+    )
+  )
+    throw new Error(
+      "successor support publication requires the released reader and reviewed evidence producer",
+    );
   const before = definitions(prior);
   const after = definitions(reviewed);
   const selected = after.get(portId);
