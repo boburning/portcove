@@ -105,6 +105,7 @@ it("reserves no gallery for absent media", async () => {
   expect(read).not.toHaveBeenCalled();
 });
 
+// The hosted shard reached the first enabled thumbnail near its 15 s deadline.
 it("lets players browse reviewed releases without an applicable installed edition", async () => {
   const release = (id: string, title: string) => ({
     id,
@@ -269,7 +270,7 @@ it("lets players browse reviewed releases without an applicable installed editio
   } finally {
     await page.viewport(viewport.width, viewport.height);
   }
-});
+}, 45_000);
 
 for (const theme of ["dark", "light"] as const) {
   for (const width of [320, 740, 1440]) {
