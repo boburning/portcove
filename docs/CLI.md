@@ -2945,7 +2945,9 @@ refused. Setup changes preserve unfamiliar files and directories in Mods and
 require review before proceeding. Portcove deploys the selected owned files and
 leaves the game's own enabled state and order settings to Daggerfall Unity.
 If an optional dependency is also enabled, Portcove holds the change until that
-combination has reviewed ordering behavior.
+combination has reviewed ordering behavior. Before switching or restoring a setup,
+close any copy of Daggerfall Unity you started outside Portcove and let it
+finish saving.
 
 #### Unattended updates
 
