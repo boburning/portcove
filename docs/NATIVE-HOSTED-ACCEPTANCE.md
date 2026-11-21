@@ -224,6 +224,13 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The manual `reviewed-backups` operation runs only the existing `owned-backups`
+matrix entry on Windows. It uses the same exact source, interactive session,
+qualification fixtures and evidence retention as `product-workflows`. The full
+product matrix still runs all of its original entries. The focused operation
+requests reviewed backup restore and deletion plus reviewed installed-game
+removal. The harness still resolves and checks their setup prerequisites.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
