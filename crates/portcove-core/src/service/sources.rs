@@ -513,7 +513,8 @@ impl PortcoveService {
     pub(super) fn has_saved_n64_original_to_recheck(
         &self,
         port: &crate::PortDefinition,
-        install_id: &str,
+        install_id: Option<&str>,
+        healthy_default: Option<&SourceRecord>,
     ) -> Result<bool> {
         let Some(profile) = port.source_profile.as_deref() else {
             return Ok(false);
@@ -525,7 +526,9 @@ impl PortcoveService {
                     && std::fs::File::open(&source.path).is_ok()
             })
         };
-        if let Some(binding) = self.pinned_original(&port.id, profile, install_id)? {
+        if let Some(install_id) = install_id
+            && let Some(binding) = self.pinned_original(&port.id, profile, install_id)?
+        {
             return Ok(available(&self.registered_profile_original(&binding)?));
         }
         let candidates = crate::source_instances::list_limited(
@@ -534,7 +537,13 @@ impl PortcoveService {
             MAX_SAVED_N64_ORIGINALS + 1,
         )?;
         Ok(candidates.len() <= MAX_SAVED_N64_ORIGINALS as usize
-            && candidates.iter().any(|(_, candidate)| available(candidate)))
+            && candidates.iter().any(|(_, candidate)| {
+                healthy_default.is_none_or(|current| {
+                    current.sha256 != candidate.sha256
+                        || current.storage_sha256 != candidate.storage_sha256
+                        || current.path != candidate.path
+                }) && available(candidate)
+            }))
     }
 
     pub(super) fn verified_source_record_with_checkpoint(
@@ -654,6 +663,11 @@ mod tests {
 
         service.replace_catalog_for_test(migrated.clone());
         let port = service.catalog().port(PORT).unwrap();
+        assert!(
+            !service
+                .has_saved_n64_original_to_recheck(port, None, Some(&older))
+                .unwrap()
+        );
         let operation = OperationCoordinator::new("n64-release-migration", None);
         let _guard = service.library().try_lock_port(PORT, "install").unwrap();
         for release in [
@@ -682,6 +696,12 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_ne!(newer.sha256, older.sha256);
+        assert!(
+            service
+                .has_saved_n64_original_to_recheck(port, None, Some(&newer))
+                .unwrap()
+        );
+
         assert_eq!(
             service.library().source(PROFILE).unwrap().unwrap().sha256,
             newer.sha256

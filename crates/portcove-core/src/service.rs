@@ -2198,21 +2198,23 @@ impl PortcoveService {
                 )
             })
             .transpose()?;
-        if matches!(
-            source,
-            Some(
-                SourceHealth::Unregistered
-                    | SourceHealth::Missing
-                    | SourceHealth::Unreadable
-                    | SourceHealth::Changed
-            )
-        ) && retained_catalog.is_some()
+        let default_original = port
+            .source_profile
+            .as_ref()
+            .and_then(|profile| registered_sources.get(profile));
+        // Readiness only checks prior instances for availability. Launch verifies the
+        // selected instance against the retained release under the N64 read budget.
+        let recheck_saved_original = installed
+            && retained_catalog.is_some()
             && self.uses_migrated_n64_original(catalog, port)
-            && let Some(active) = &status.active
             && self
-                .has_saved_n64_original_to_recheck(port, &active.id)
-                .unwrap_or(false)
-        {
+                .has_saved_n64_original_to_recheck(
+                    port,
+                    status.active.as_ref().map(|active| active.id.as_str()),
+                    default_original.filter(|_| source == Some(SourceHealth::Current)),
+                )
+                .unwrap_or(false);
+        if recheck_saved_original {
             source = Some(SourceHealth::NotChecked);
         }
         let bios = port
@@ -2263,10 +2265,12 @@ impl PortcoveService {
                     .get(&platform)
                     .is_some_and(|runtime| runtime.source_directory_environment)
             });
-        if matches!(
-            source,
-            Some(SourceHealth::Current | SourceHealth::NotChecked)
-        ) && requires_source_directory
+        if !recheck_saved_original
+            && matches!(
+                source,
+                Some(SourceHealth::Current | SourceHealth::NotChecked)
+            )
+            && requires_source_directory
             && port
                 .source_profile
                 .as_ref()
@@ -2275,17 +2279,19 @@ impl PortcoveService {
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
-        if matches!(
-            source,
-            Some(SourceHealth::Current | SourceHealth::NotChecked)
-        ) && required_source_extension
-            .as_deref()
-            .is_some_and(|extension| {
-                port.source_profile
-                    .as_ref()
-                    .and_then(|profile| registered_sources.get(profile))
-                    .is_some_and(|record| !source_path_has_extension(&record.path, extension))
-            })
+        if !recheck_saved_original
+            && matches!(
+                source,
+                Some(SourceHealth::Current | SourceHealth::NotChecked)
+            )
+            && required_source_extension
+                .as_deref()
+                .is_some_and(|extension| {
+                    port.source_profile
+                        .as_ref()
+                        .and_then(|profile| registered_sources.get(profile))
+                        .is_some_and(|record| !source_path_has_extension(&record.path, extension))
+                })
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
@@ -2305,7 +2311,8 @@ impl PortcoveService {
             {
                 blockers.push(LaunchBlocker::MissingRuntime);
             }
-            if (required_source_extension.is_some() || requires_source_directory)
+            if !recheck_saved_original
+                && (required_source_extension.is_some() || requires_source_directory)
                 && port
                     .source_profile
                     .as_ref()
@@ -2329,7 +2336,7 @@ impl PortcoveService {
                     .source_profile
                     .as_ref()
                     .and_then(|profile| registered_sources.get(profile));
-                let source = if self_contained {
+                let source = if self_contained || recheck_saved_original {
                     crate::preparation::ReceiptSource::NotConsulted
                 } else {
                     source.into()
