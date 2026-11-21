@@ -156,6 +156,26 @@ separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
 Checkpoint segments preserve the exact legacy artifact and every immutable
 carrier body. Compact publication still requires explicit activation.
 
+The protected catalog Prepare job can opt into released-reader selection with
+`--official-released-reader` on `scripts/listing-observation-delivery.mts`.
+This reads the existing Preview update pointer and withdrawal list from a single
+`gh-pages` commit. That pointer also follows newer Beta and Stable versions.
+The reader verifies the immutable Release attestation for the exact Linux x86-64
+CLI archive, SHA256SUMS and tag object. The peeled source must be on protected
+main. The capability probe runs only the bounded regular executable member and
+uses a private working directory and a credential-free environment. The report
+retains the source commit, release and asset IDs, and archive digest.
+
+Until a verified release reports both the required format and compact carrier,
+ordinary legacy renewal continues. A current signed legacy target is required
+for first activation. If a compatible release cannot be verified for a
+format increase, renewal preserves both exact signed targets. When Prepare
+selects a new carrier or format, Publish rechecks the exact release selection
+and withdrawal state at each fresh Pages base. A racing withdrawal forces the
+normal fast-forward push to retry against the new base. The catalog signer and
+publication gates are the same for this route. The Prepare workflow must opt in after review, using a
+GitHub CLI that supports `gh release verify-asset`.
+
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
 before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
 could still read signed timestamp 45, but its proposed directory exceeded the

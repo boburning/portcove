@@ -1,4 +1,5 @@
 /** Existing observer facts -> the existing signed descriptive target. No executable authority. */
+import { acquireCatalogReleasedReader } from "./catalog-released-reader.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
@@ -235,7 +236,7 @@ function compactDirectoryFormat(canonical: Directory, previous: Delivery | null)
   );
 }
 
-export function requireCompactListingReader(report: unknown, format: number) {
+function compactListingReaderVersion(report: unknown, format: number) {
   if (
     !isRecord(report) ||
     report.ok !== true ||
@@ -243,19 +244,28 @@ export function requireCompactListingReader(report: unknown, format: number) {
     !isRecord(report.data) ||
     report.data.product !== "Portcove" ||
     typeof report.data.product_version !== "string" ||
-    !report.data.product_version.length ||
-    !Array.isArray(report.data.listing_delivery_carriers) ||
-    !report.data.listing_delivery_carriers.includes(compactListingCarrier) ||
-    !Array.isArray(report.data.listing_formats) ||
-    !report.data.listing_formats.includes(format)
+    !report.data.product_version.length
   )
+    throw new Error("Invalid reviewed released CLI capabilities");
+  if (
+    Array.isArray(report.data.listing_delivery_carriers) &&
+    report.data.listing_delivery_carriers.includes(compactListingCarrier) &&
+    Array.isArray(report.data.listing_formats) &&
+    report.data.listing_formats.includes(format)
+  )
+    return report.data.product_version;
+}
+
+export function requireCompactListingReader(report: unknown, format: number) {
+  const version = compactListingReaderVersion(report, format);
+  if (!version)
     throw new Error(
       "The reviewed released CLI must support " +
         compactListingCarrier +
         " and listing format " +
         format,
     );
-  return report.data.product_version;
+  return version;
 }
 
 export function projectListingDelivery(
@@ -556,6 +566,10 @@ export async function priorListingForRenewal(
     maximum,
   );
   if (hash(wire) !== identity) throw new Error("Historical listing target digest differs");
+  return retainedListingRenewal(wire, canonicalRecords, carrier);
+}
+
+function retainedListingRenewal(wire: Buffer, canonicalRecords: number, carrier: string) {
   const { bytes, document: old } = readDeliveryCarrier(wire, carrier);
   return {
     bytes,
@@ -603,6 +617,8 @@ export async function prepareObservationBundle(options: {
   offlineTargets: string;
   observe?: boolean;
   compact?: boolean;
+  compactIfCapable?: boolean;
+  officialReleasedReader?: boolean;
   releasedReader?: { cli: string; sha256: string };
   readObservation?: () => Promise<UpstreamInput>;
   readScummvmObservation?: () => Promise<ScummvmGameDataObservation>;
@@ -674,7 +690,7 @@ export async function prepareObservationBundle(options: {
       );
       previousWire = await verifiedPriorListing(prior, report, previousCarrier);
       previous = previousWire ? readDeliveryCarrier(previousWire, previousCarrier).bytes : null;
-      if (useCompact)
+      if (useCompact || options.compactIfCapable || options.officialReleasedReader)
         retainedLegacy = priorCompact ? await verifiedPriorListing(prior, report) : previous;
     } catch (error) {
       // The signer authenticates the historical target before renewal. Never use
@@ -700,6 +716,85 @@ export async function prepareObservationBundle(options: {
     throw new Error("Compact listing publication requires a retained legacy listing");
   if (authoredLegacy && (!priorCompact || !retainedLegacy))
     throw new Error("Reviewed legacy withdrawal requires existing compact and legacy targets");
+  const previousDocument = previous
+    ? delivery(parseCatalogSource(previous.toString("utf8")))
+    : null;
+  const automatic =
+    !options.compact && (options.compactIfCapable || options.officialReleasedReader);
+  const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
+  let officialReader: Awaited<ReturnType<typeof acquireCatalogReleasedReader>> | undefined;
+  let releasedReader: { version: string; sha256: string } | undefined;
+  if (
+    !renewal &&
+    (useCompact || (automatic && retainedLegacy)) &&
+    (!priorCompact || candidateFormat > (previousDocument?.directory.format_version ?? 0))
+  ) {
+    try {
+      officialReader = options.officialReleasedReader
+        ? await acquireCatalogReleasedReader(workspace)
+        : undefined;
+      const reviewedReader = officialReader ?? options.releasedReader;
+      if (!reviewedReader || !/^[a-f0-9]{64}$/u.test(reviewedReader.sha256))
+        throw new Error(
+          "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
+        );
+      const bytes = await readControllerToolFile(reviewedReader.cli);
+      const digest = hash(bytes);
+      if (digest !== reviewedReader.sha256)
+        throw new Error("Reviewed released CLI SHA-256 differs");
+      const frozen = path.join(
+        workspace,
+        process.platform === "win32" ? "released-reader.exe" : "released-reader",
+      );
+      writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
+      const probeEnv = Object.fromEntries(
+        [
+          "PATH",
+          "HOME",
+          "USERPROFILE",
+          "APPDATA",
+          "LOCALAPPDATA",
+          "XDG_CONFIG_HOME",
+          "XDG_CACHE_HOME",
+          "XDG_DATA_HOME",
+          "XDG_STATE_HOME",
+          "PORTCOVE_PREFERENCES",
+          "SystemRoot",
+        ].map((name) => [name, environment[name]]),
+      );
+      const probeTemp = path.join(workspace, "reader-temp");
+      mkdirSync(probeTemp);
+      Object.assign(probeEnv, { TEMP: probeTemp, TMP: probeTemp, TMPDIR: probeTemp });
+      const report: unknown = JSON.parse(
+        execFileSync(frozen, ["--json", "capabilities"], {
+          cwd: workspace,
+          env: probeEnv,
+          timeout: 30000,
+          maxBuffer: 1024 * 1024,
+          encoding: "utf8",
+        }),
+      );
+      const version = requireCompactListingReader(report, candidateFormat);
+      if (officialReader && version !== officialReader.version)
+        throw new Error("Released CLI capabilities version differs from its official release");
+      useCompact = true;
+      releasedReader = { version, sha256: digest };
+    } catch (cause) {
+      if (!automatic) throw cause;
+      diagnostics.push(
+        "Verified compatible released CLI unavailable; retaining prior listing format",
+      );
+      if (priorCompact) {
+        if (!previousWire || !retainedLegacy)
+          throw new Error("Compact renewal requires both authenticated prior targets", { cause });
+        renewal = retainedListingRenewal(
+          previousWire,
+          canonical.listings.length,
+          compactListingDeliveryTarget,
+        );
+      }
+    }
+  }
   if (authoredLegacy && retainedLegacy && !authoredLegacy.equals(retainedLegacy)) {
     if (renewal) {
       diagnostics.push("Deferred the authored withdrawal until the exact signed prior is current");
@@ -712,46 +807,11 @@ export async function prepareObservationBundle(options: {
       retainedLegacy = authoredLegacy;
     }
   }
-  const previousDocument = previous
-    ? delivery(parseCatalogSource(previous.toString("utf8")))
-    : null;
   const format = renewal
     ? delivery(parseCatalogSource(renewal.bytes.toString("utf8"))).directory.format_version
     : useCompact
-      ? compactDirectoryFormat(canonical, previousDocument)
+      ? candidateFormat
       : legacyListingFormat;
-  let releasedReader: { version: string; sha256: string } | undefined;
-  if (
-    !renewal &&
-    useCompact &&
-    (!priorCompact || format > (previousDocument?.directory.format_version ?? 0))
-  ) {
-    if (!options.releasedReader || !/^[a-f0-9]{64}$/u.test(options.releasedReader.sha256))
-      throw new Error(
-        "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
-      );
-    const bytes = await readControllerToolFile(options.releasedReader.cli);
-    const digest = hash(bytes);
-    if (digest !== options.releasedReader.sha256)
-      throw new Error("Reviewed released CLI SHA-256 differs");
-    const frozen = path.join(
-      workspace,
-      process.platform === "win32" ? "released-reader.exe" : "released-reader",
-    );
-    writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
-    const report: unknown = JSON.parse(
-      execFileSync(frozen, ["--json", "capabilities"], {
-        env: environment,
-        timeout: 30000,
-        maxBuffer: 1024 * 1024,
-        encoding: "utf8",
-      }),
-    );
-    releasedReader = {
-      version: requireCompactListingReader(report, format),
-      sha256: digest,
-    };
-  }
   let compatible: Directory | undefined;
   if (!renewal) {
     const baseline: unknown = JSON.parse(
@@ -871,7 +931,9 @@ export async function prepareObservationBundle(options: {
       throw new Error("Reviewed legacy listing input changed during projection");
     unlinkSync(destination);
   }
-  writeFileSync(destination, retainedLegacy ?? projected.bytes, { flag: "wx" });
+  writeFileSync(destination, (useCompact ? retainedLegacy : null) ?? projected.bytes, {
+    flag: "wx",
+  });
   if (compactWire) {
     writeFileSync(path.join(bundle, compactListingDeliveryTarget), compactWire, { flag: "wx" });
     cli(["--json", "catalog", "inspect-definition-publication", bundle]);
@@ -881,6 +943,15 @@ export async function prepareObservationBundle(options: {
     revision: projected.revision,
     listing_format: format,
     ...(releasedReader ? { released_reader: releasedReader } : {}),
+    ...(officialReader ? { released_reader_source: officialReader.receipt } : {}),
+    ...(releasedReader && officialReader
+      ? {
+          released_reader_activation: {
+            version: officialReader.version,
+            tag: officialReader.receipt.tag,
+          },
+        }
+      : {}),
     changed: projected.changed,
     retained: projected.retained,
     updated: projected.updated,
@@ -942,6 +1013,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "offline-targets": { type: "string" },
       offline: { type: "boolean", default: false },
       compact: { type: "boolean", default: false },
+      "compact-if-capable": { type: "boolean", default: false },
+      "official-released-reader": { type: "boolean", default: false },
       "released-reader": { type: "string" },
       "released-reader-sha256": { type: "string" },
     },
@@ -959,6 +1032,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!values[key]) throw new Error(`--${key} is required`);
   if (Boolean(values["released-reader"]) !== Boolean(values["released-reader-sha256"]))
     throw new Error("--released-reader and --released-reader-sha256 are required together");
+  if (values["official-released-reader"] && (values["released-reader"] || values.compact))
+    throw new Error(
+      "--official-released-reader selects official verification and conditional first activation",
+    );
   console.log(
     JSON.stringify(
       await prepareObservationBundle({
@@ -973,6 +1050,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
         compact: values.compact,
+        compactIfCapable: values["compact-if-capable"],
+        officialReleasedReader: values["official-released-reader"],
         ...(values["released-reader"] && values["released-reader-sha256"]
           ? {
               releasedReader: {
