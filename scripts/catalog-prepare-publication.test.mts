@@ -29,7 +29,7 @@ function heldProjection() {
     new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url),
   );
   const template = json({
-    contract_schema: 1,
+    contract_schema: 3,
     representation: "catalog_projection",
     catalog: { schema_version: 2, source_catalog: {}, ports: [] },
   });
@@ -49,6 +49,7 @@ async function fixture() {
   // This held fixture exercises assembly only. It supplies no reviewed Shipwright
   // authority. Actual Core inspection still owns every schema and scope check.
   const held = json({
+    definition_schema: 3,
     namespace: "official",
     stable_id: heldId,
     revision: 1,
@@ -164,6 +165,45 @@ void test("a generated route assembles deterministically and retains Chameleon c
         Buffer.concat([f.projection, Buffer.from(" ")]),
       ),
     /projection digest differs/u,
+  );
+});
+
+void test("an authored loader reaches preparation with one schema 3 entry and leaf", async () => {
+  const f = await fixture();
+  const prepared = assembleReviewedPublication(f.prior, f.next, heldId, f.projection);
+  const projection = JSON.parse(prepared.contents.toString()) as {
+    catalog: {
+      ports: {
+        mod_loader: { contract: unknown; repository: string };
+        release: { repository: string };
+      }[];
+    };
+  };
+  const [port] = projection.catalog.ports;
+  assert.ok(port);
+  assert.deepEqual(port.mod_loader.contract, { id: "libultraship", version: "1" });
+  assert.equal(port.mod_loader.repository, port.release.repository);
+  assert.equal(prepared.files.get(f.projectionTarget), prepared.contents);
+
+  const legacyTemplate = JSON.parse(f.template.toString()) as Record<string, unknown>;
+  for (const previousSchema of [1, 2]) {
+    legacyTemplate.contract_schema = previousSchema;
+    assert.throws(
+      () => generatedPublicationProjection(f.catalog, heldId, json(legacyTemplate)),
+      /native mod loaders require catalog projection schema 3/u,
+    );
+  }
+  const entry = JSON.parse(f.next.get(f.heldTarget)!.toString()) as Record<string, unknown>;
+  entry.definition_schema = 2;
+  assert.throws(
+    () =>
+      assembleReviewedPublication(
+        f.prior,
+        new Map([...f.next, [f.heldTarget, json(entry)]]),
+        heldId,
+        f.projection,
+      ),
+    /definition and generated projection schemas differ/u,
   );
 });
 
