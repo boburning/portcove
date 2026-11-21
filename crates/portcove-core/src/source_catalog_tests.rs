@@ -180,7 +180,7 @@ fn successor_coordinates_compare_actual_definition_and_source_facts() {
     port.bios_source_profile = None;
     let platform = crate::Platform::WindowsX86_64;
     let mut sources = fixture();
-    let compute = |port, sources: &SourceCatalog| {
+    let compute = |port: &crate::PortDefinition, sources: &SourceCatalog| {
         crate::successor_support::compatibility_coordinates(
             &embedded,
             port,
