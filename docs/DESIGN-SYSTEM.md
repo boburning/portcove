@@ -1240,7 +1240,11 @@ Game updates expose direct Update now and Download for later entry actions;
 Prepare for later remains an advanced choice. An entry action requests the Core
 plan before confirmation. Inside review, Core's matching archive digest enables an
 explicit archive download from the release and file details already displayed.
-Core revalidates that digest before downloading. Compact mode and saved policy
+Core revalidates that digest before downloading. Versions labels a staged
+runtime as a prepared update and keeps it distinct from a stored archive.
+An unavailable installation read does not imply an uninstalled game.
+For player-selected launch details, Versions explains external ownership
+without showing the internal registration version. Compact mode and saved policy
 preserve the player's current choice. Initial controls remain mounted while review
 hides them, so cancellation restores the initiating control when available. A
 connected contextual region is the fallback. A downloaded update remains separate
