@@ -1730,6 +1730,14 @@ export class HostedIntakeBridge {
       for (const { comment } of amendments) await this.fresh(comment);
     };
     const assertCurrentAuditRequest = (comments: Comment[], expected?: Comment) => {
+      const originals = comments.filter((comment) => comment.id === request.id);
+      if (
+        originals.length !== 1 ||
+        originals[0]?.user.login !== this.client.config.owner ||
+        originals[0].body !== request.body ||
+        !originals[0].body.startsWith(hostedRequestMarker)
+      )
+        throw new Error("The scheduled audit request is unavailable or has changed");
       if (expected) {
         const receipts = comments.filter(
           (comment) =>

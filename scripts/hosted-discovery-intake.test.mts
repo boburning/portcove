@@ -2304,6 +2304,23 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       /original owner action/iu,
     );
     assert.equal(comment.body, original);
+    const readQueue = f.bridge.comments.bind(f.bridge);
+    for (const changed of [
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.filter((entry) => entry.id !== f.request.id),
+      (queue: Awaited<ReturnType<typeof readQueue>>) =>
+        queue.map((entry) =>
+          entry.id === f.request.id ? { ...entry, body: `Withdrawn\n${entry.body}` } : entry,
+        ),
+    ]) {
+      f.bridge.comments = async () => changed(await readQueue());
+      await assert.rejects(
+        f.bridge.process(f.request, f.all(), { auditOnly: true, scheduledBinding, verifyOrigin }),
+        /scheduled audit request is unavailable or has changed/u,
+      );
+      assert.equal(comment.body, original);
+    }
+    f.bridge.comments = readQueue;
     const duplicate = { ...comment, id: comment.id + 1000 };
     await assert.rejects(
       f.bridge.process(f.request, [...f.all(), duplicate], {
