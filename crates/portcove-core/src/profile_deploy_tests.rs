@@ -4188,6 +4188,48 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
         recovered.activate_profile(PORT, &profile.id).unwrap();
         assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
     }
+    struct StopAfterCleanupPark;
+    impl crate::operation::LifecycleFaultInjector for StopAfterCleanupPark {
+        fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
+            if point == crate::operation::LifecycleFaultPoint::DfuSaveDuplicateCleanup {
+                return Err(PortcoveError::state(
+                    "fixture stopped before duplicate cleanup",
+                ));
+            }
+            Ok(())
+        }
+    }
+    let cleanup_interrupted = PortcoveService::with_faults(
+        reopened.library().clone(),
+        std::sync::Arc::new(StopAfterCleanupPark),
+    )
+    .unwrap();
+    let error = cleanup_interrupted
+        .activate_profile(PORT, &clean.id)
+        .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("fixture stopped before duplicate cleanup")
+    );
+    assert!(!runtime_progress.exists());
+    let journal: serde_json::Value =
+        serde_json::from_slice(&fs::read(projection.journal()).unwrap()).unwrap();
+    let id = journal["dfu_save_park"]["id"].as_str().unwrap();
+    let cleanup = path.join(format!(".portcove-dfu-save-cleanup-{id}"));
+    assert_eq!(
+        fs::read(cleanup.join("progress")).unwrap(),
+        b"keep newer progress"
+    );
+    fs::remove_file(cleanup.join("progress")).unwrap();
+    drop(cleanup_interrupted);
+    let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
+    recovered.activate_profile(PORT, &clean.id).unwrap();
+    assert!(!cleanup.exists());
+    assert!(!runtime_progress.exists());
+    assert!(!projection.journal().exists());
+    recovered.activate_profile(PORT, &profile.id).unwrap();
+    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
 }
 
 #[test]

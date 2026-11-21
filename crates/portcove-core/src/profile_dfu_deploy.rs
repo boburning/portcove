@@ -369,6 +369,20 @@ fn save_group_digest(group: &crate::AdoptionCopyPlan) -> Result<String> {
     Ok(crate::signed_catalog::digest(&serde_json::to_vec(group)?))
 }
 
+fn clean_parked_duplicate(root: &Path, path: &Path) -> Result<()> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    if !fs::symlink_metadata(path)?.is_dir() {
+        return Err(save_group_drift().detail("preserved", path.display().to_string()));
+    }
+    // Only a UUID-bound cleanup coordinate is eligible. Bound the remaining
+    // tree before recursive deletion, including retries after partial cleanup.
+    observed_save_group(path)?;
+    fs::remove_dir_all(path).map_err(|error| {
+        PortcoveError::from(error).detail("preserved", path.display().to_string())
+    })?;
+    crate::durability::sync_publication(root)
+}
+
 fn save_group_drift() -> PortcoveError {
     PortcoveError::conflict(
         "Daggerfall Unity runtime progress differs from the selected setup; preserve it and review the save group",
@@ -451,6 +465,8 @@ impl PortcoveService {
             .transpose()?;
         let parked_path =
             |park: &SavePark| root.join(format!(".portcove-dfu-save-park-{}", park.id));
+        let cleanup_path =
+            |park: &SavePark| root.join(format!(".portcove-dfu-save-cleanup-{}", park.id));
         let hold = |path: &Path| save_group_drift().detail("preserved", path.display().to_string());
 
         // Recovery checks the named parked state before interpreting an absent
@@ -464,6 +480,15 @@ impl PortcoveService {
                     != Some(record.preimage_sha256.as_str())
             {
                 return Err(hold(&path));
+            }
+            let cleanup = cleanup_path(record);
+            crate::path::refuse_symlink_ancestors(&cleanup)?;
+            if cleanup.try_exists()? {
+                crate::path::refuse_symlink_ancestors(&path)?;
+                if path.try_exists()? || live != next {
+                    return Err(hold(&cleanup));
+                }
+                return clean_parked_duplicate(&root, &cleanup);
             }
             let observed = observed_save_group(&path)
                 .map_err(|error| error.detail("preserved", path.display().to_string()))?;
@@ -524,6 +549,7 @@ impl PortcoveService {
                 record
             };
             let path = parked_path(&record);
+            park = Some(record);
             crate::path::refuse_symlink_ancestors(&path)?;
             self.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark,
@@ -556,11 +582,15 @@ impl PortcoveService {
             {
                 return Err(hold(&path));
             }
+            let cleanup = cleanup_path(park.as_ref().ok_or_else(|| hold(&path))?);
             crate::path::refuse_symlink_ancestors(&path)?;
-            fs::remove_dir_all(&path).map_err(|error| {
-                PortcoveError::from(error).detail("preserved", path.display().to_string())
-            })?;
+            crate::path::refuse_symlink_ancestors(&cleanup)?;
+            crate::durability::rename_noreplace(&path, &cleanup)?;
             crate::durability::sync_publication(&root)?;
+            self.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::DfuSaveDuplicateCleanup,
+            )?;
+            clean_parked_duplicate(&root, &cleanup)?;
         }
         Ok(())
     }
@@ -608,6 +638,7 @@ impl PortcoveService {
                 "Daggerfall Unity loader is unavailable for the retained build",
             ));
         };
+        crate::profile_loader::verify_dfu_runtime_for_mutation(self, install, &next.build)?;
         let owned_root = crate::output_root::validate_install_path(
             &self.library,
             &install.port_id,
@@ -684,6 +715,7 @@ impl PortcoveService {
             .ok_or_else(|| {
                 PortcoveError::conflict("Daggerfall Unity runtime changed after review")
             })?;
+        crate::profile_loader::verify_dfu_runtime_for_mutation(self, &install, &revision.build)?;
         let runtime = Layout {
             user: crate::output_root::validate_install_path(
                 &self.library,

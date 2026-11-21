@@ -953,6 +953,7 @@ pub(crate) enum LifecycleFaultPoint {
     RestoreManifestRecordLoaded,
     DfuDepartingSaveGroupBeforePark,
     DfuDepartingSaveGroupParked,
+    DfuSaveDuplicateCleanup,
     RestoreAuthorized,
     RestorePrepared,
     RestorePublished,

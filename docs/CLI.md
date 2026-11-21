@@ -2933,9 +2933,11 @@ For Daggerfall Unity, select the original release ZIP for your platform or
 its original `.dfmod` file. A ZIP must contain a single `Mods/*.dfmod` bundle.
 If the ZIP changes after review, review it again before applying.
 Portcove accepts only the reviewed data-only texture bundle format and
-requires the matching Windows or Linux version of the managed
-`v1.1.1-cve-2025` runtime in its existing `Portable.txt` mode. Nexus account
-registration is independent of this local file path.
+requires a compatible managed Windows or Linux runtime in its existing
+`Portable.txt` mode. The review covers the `v1.1.1-cve-2025` packages.
+An ordinarily accepted package from the same repository may also qualify when
+its complete immutable runtime payload matches the reviewed platform payload.
+Nexus account registration is independent of this local file path.
 
 Portcove checks the exact package, native filename, title and GUID. Executable
 code, unsupported bundle contents and unresolved loader identities are
