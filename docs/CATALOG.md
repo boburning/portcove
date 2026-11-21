@@ -2428,6 +2428,14 @@ programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
 
+An integration can retain up to four predecessor layouts per platform under
+`reviewed_predecessor_package_layouts_v1`. Each fingerprint applies to the exact
+verified GitHub repository, release, asset, tag, channel, filename, size and
+digest in the normal acquisition. The current full layout applies to other
+eligible packages. Portcove compares one complete layout and keeps the existing
+download rules, player release selection and retained install contracts.
+Signed delivery requires native-portable capability 42.
+
 An independently reviewed managed GitHub archive with only the selected root
 executable and no fingerprinted directories can declare
 `reviewed_flat_package_layout_v1` as the ordered list of reviewed platforms.

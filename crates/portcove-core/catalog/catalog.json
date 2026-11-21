@@ -62100,6 +62100,45 @@
         "dethrace.log",
         "DIAGNOST.TXT"
       ],
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "bin",
+            "share"
+          ],
+          "executables": [
+            "bin/dethrace"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "dethrace.exe"
+          ]
+        }
+      },
+      "reviewed_predecessor_package_layouts_v1": {
+        "linux-x86-64": [
+          {
+            "repository_id": 218399932,
+            "release_id": 289197402,
+            "asset_id": 360374771,
+            "tag": "v0.10.1",
+            "channel": "stable",
+            "artifact": {
+              "asset_name": "dethrace-v0.10.1-linux-x64.tar.gz",
+              "sha256": "a99081ad6f79d2e19cbe69fa4605153ce6e3f396bf01834b925d790bde4c940e",
+              "size": 5497771
+            },
+            "layout": {
+              "directories": [],
+              "executables": [
+                "dethrace"
+              ]
+            }
+          }
+        ]
+      },
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
@@ -62152,20 +62191,6 @@
           "image_sha256": "37c005bc0bc73af82a8b2fb6d367c1d639395f6804cb064088773581d2b9264f",
           "game_slug": "carmageddon",
           "match_kind": "underlying-game"
-        }
-      },
-      "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "directories": [],
-          "executables": [
-            "dethrace"
-          ]
-        },
-        "windows-x86-64": {
-          "directories": [],
-          "executables": [
-            "dethrace.exe"
-          ]
         }
       }
     },

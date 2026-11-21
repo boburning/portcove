@@ -504,7 +504,7 @@ void test("reviewed flat package authoring preserves ordered fingerprints and ex
   const { records } = readCatalogSource(catalogRoot);
   const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
   const family = records.filter((record) => record.reviewed_flat_package_layout_v1);
-  assert.equal(family.length, 13);
+  assert.equal(family.length, 12);
   for (const record of family) {
     assert.equal(
       JSON.stringify(projectAuthoredPort(record)),
@@ -532,6 +532,7 @@ void test("reviewed flat package authoring preserves ordered fingerprints and ex
   assert.throws(() => checkedAuthoredPort(duplicate), /already owns reviewed_package_layouts/u);
   for (const id of [
     "mdk-sdl-nemo22",
+    "dethrace-labs-dethrace",
     "blake-stone-aliens-of-gold-bstone",
     "bstoney-yt-mercenaries-2-decompilation",
   ]) {

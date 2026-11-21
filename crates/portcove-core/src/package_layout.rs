@@ -24,11 +24,16 @@ pub(crate) const MACOS_LIBRARY_FILTER_CAPABILITY: u32 = 30;
 pub(crate) const PORTABLE_DATA_LAYOUT_CAPABILITY: u32 = 32;
 pub(crate) const OPENMOHAA_PREPARED_LAYOUT_CAPABILITY: u32 = 33;
 pub(crate) const LINUX_PROGRAM_FORMAT_CAPABILITY: u32 = 36;
+pub(crate) const PREDECESSOR_LAYOUT_CAPABILITY: u32 = 42;
 
 /// The newest native-portable reader the route's reviewed layouts need.
 pub(crate) fn layout_capability(port: &PortDefinition) -> u32 {
     let layouts = &port.reviewed_package_layouts;
     [
+        (
+            !port.reviewed_predecessor_package_layouts_v1.is_empty(),
+            PREDECESSOR_LAYOUT_CAPABILITY,
+        ),
         (
             layouts.keys().any(|&platform| {
                 crate::native_external_profile::openmohaa::requires_zip(port, platform)
@@ -262,7 +267,98 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             )));
         }
     }
+    for (&platform, predecessors) in &port.reviewed_predecessor_package_layouts_v1 {
+        let invalid = || {
+            PortcoveError::verification("invalid reviewed predecessor package layout")
+                .detail("port_id", &port.id)
+        };
+        let current = port
+            .reviewed_package_layouts
+            .get(&platform)
+            .ok_or_else(invalid)?;
+        if port.adapter != crate::AdapterKind::NativePortable
+            || port.release.provider != crate::ReleaseSource::Github
+            || port.release.curated.contains_key(&platform)
+            || port.release.user_prepared.contains_key(&platform)
+            || crate::runtime::native_mac_bundle_tar_xz(port, platform)
+            || crate::native_external_profile::openmohaa::requires_zip(port, platform)
+            || crate::native_portable_data::directory_name(port, platform).is_some()
+            || !(1..=4).contains(&predecessors.len())
+        {
+            return Err(invalid());
+        }
+        let mut identities = BTreeSet::new();
+        let valid_token = |value: &str| {
+            !value.is_empty()
+                && value.len() <= 128
+                && value
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+                && crate::archive::validate_relative_path(value, false).is_ok()
+        };
+        for rule in predecessors {
+            if ![rule.repository_id, rule.release_id, rule.asset_id]
+                .into_iter()
+                .all(|id| (1..=9_007_199_254_740_991).contains(&id))
+                || !identities.insert((rule.repository_id, rule.asset_id))
+                || !port.channels.contains(&rule.channel)
+                || !valid_token(&rule.tag)
+                || !valid_token(&rule.artifact.asset_name)
+                || rule.artifact.size == 0
+                || crate::archive::validate_download_progress(0, rule.artifact.size).is_err()
+                || rule.artifact.sha256.len() != 64
+                || !rule
+                    .artifact
+                    .sha256
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                || PackageProgramFilter::of(Some(&rule.layout))
+                    != PackageProgramFilter::of(Some(current))
+                || !valid_layout(&rule.layout)
+            {
+                return Err(invalid());
+            }
+        }
+    }
     Ok(())
+}
+
+pub(crate) fn layout_for_acquisition<'a>(
+    port: &'a PortDefinition,
+    platform: Platform,
+    acquisition: Option<(&crate::ScopedResolvedRelease, &crate::ArtifactIdentity)>,
+) -> Option<&'a ReviewedPackageLayout> {
+    acquisition
+        .and_then(|(resolution, artifact)| {
+            resolution
+                .require_selection(port, platform, resolution.release.channel)
+                .ok()?;
+            let identity = resolution.github_identity.as_ref()?;
+            port.reviewed_predecessor_package_layouts_v1
+                .get(&platform)?
+                .iter()
+                .find(|rule| {
+                    rule.repository_id == identity.repository_id
+                        && rule.release_id == identity.release_id
+                        && rule.asset_id == identity.asset_id
+                        && rule.tag == identity.tag
+                        && identity
+                            .repository
+                            .eq_ignore_ascii_case(&port.release.repository)
+                        && rule.channel == resolution.release.channel
+                        && rule.tag == resolution.release.version
+                        && rule.artifact.asset_name == artifact.asset_name
+                        && rule.artifact.size == artifact.size
+                        && rule.artifact.sha256.eq_ignore_ascii_case(&artifact.sha256)
+                        && resolution.release.asset.url
+                            == format!(
+                                "https://github.com/{}/releases/download/{}/{}",
+                                identity.repository, rule.tag, rule.artifact.asset_name,
+                            )
+                })
+                .map(|rule| &rule.layout)
+        })
+        .or_else(|| port.reviewed_package_layouts.get(&platform))
 }
 
 pub(crate) fn require_reviewed_layout(
@@ -270,8 +366,9 @@ pub(crate) fn require_reviewed_layout(
     platform: Platform,
     payload_root: &Path,
     portable_data: Option<&Path>,
+    acquisition: Option<(&crate::ScopedResolvedRelease, &crate::ArtifactIdentity)>,
 ) -> Result<()> {
-    let Some(reviewed) = port.reviewed_package_layouts.get(&platform) else {
+    let Some(reviewed) = layout_for_acquisition(port, platform, acquisition) else {
         return Ok(());
     };
     let root = if crate::runtime::native_mac_bundle_tar_xz(port, platform) {
@@ -1165,6 +1262,110 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn predecessor_layout_requires_exact_acquisition_and_rejects_mixed_payloads() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("dethrace-labs-dethrace").unwrap();
+        let platform = Platform::LinuxX86_64;
+        let rule = &port.reviewed_predecessor_package_layouts_v1[&platform][0];
+        let old = package(Some("old-wrapper"), &["dethrace", "LICENSE"]);
+        let nested = package(Some("new-wrapper"), &["bin/dethrace", "share/doc/LICENSE"]);
+        let mixed = package(
+            Some("mixed-wrapper"),
+            &["dethrace", "bin/dethrace", "share/doc/LICENSE"],
+        );
+        for (root, programs) in [
+            (old.path().join("old-wrapper"), &["dethrace"][..]),
+            (nested.path().join("new-wrapper"), &["bin/dethrace"][..]),
+            (
+                mixed.path().join("mixed-wrapper"),
+                &["dethrace", "bin/dethrace"][..],
+            ),
+        ] {
+            for path in programs {
+                crate::permissions::normalize_archive_entry(&root.join(path), false, true).unwrap();
+            }
+        }
+        let resolve = |port: &crate::PortDefinition| {
+            let mut proof = crate::ScopedResolvedRelease::legacy(crate::ResolvedRelease {
+                version: rule.tag.clone(),
+                channel: rule.channel,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: rule.artifact.asset_name.clone(),
+                    url: format!(
+                        "https://github.com/{}/releases/download/{}/{}",
+                        port.release.repository, rule.tag, rule.artifact.asset_name
+                    ),
+                    size: rule.artifact.size,
+                    sha256: rule.artifact.sha256.clone(),
+                },
+                uploader_continuity: None,
+            })
+            .for_selection(port, platform, rule.channel)
+            .unwrap();
+            proof.github_identity = Some(crate::definition_acquisition::GithubArtifactIdentity {
+                repository: port.release.repository.clone(),
+                repository_id: rule.repository_id,
+                release_id: rule.release_id,
+                asset_id: rule.asset_id,
+                tag: rule.tag.clone(),
+            });
+            proof
+        };
+        let proof = resolve(port);
+        assert!(require_reviewed_layout(port, platform, nested.path(), None, None).is_ok());
+        assert!(require_reviewed_layout(port, platform, old.path(), None, None).is_err());
+        let require_predecessor = |root: &Path, proof, artifact| {
+            require_reviewed_layout(port, platform, root, None, Some((proof, artifact)))
+        };
+        require_predecessor(old.path(), &proof, &rule.artifact).unwrap();
+        let qualification =
+            crate::install::InstallQualification::from_port(port, platform).unwrap();
+        let observed = |root, layout| {
+            crate::package_shape::record_for_install(
+                port,
+                &qualification,
+                platform,
+                root,
+                &rule.artifact.sha256,
+                None,
+                layout,
+            )
+        };
+        let selected = layout_for_acquisition(port, platform, Some((&proof, &rule.artifact)));
+        assert!(!crate::package_shape::withholds_release(
+            &observed(old.path(), selected).verdict
+        ));
+        assert!(crate::package_shape::withholds_release(
+            &observed(old.path(), None).verdict
+        ));
+        assert!(!crate::package_shape::withholds_release(
+            &observed(nested.path(), None).verdict
+        ));
+        assert!(require_predecessor(nested.path(), &proof, &rule.artifact).is_err());
+        assert!(require_predecessor(mixed.path(), &proof, &rule.artifact).is_err());
+        let mut wrong_artifact = rule.artifact.clone();
+        wrong_artifact.sha256 = "0".repeat(64);
+        assert!(require_predecessor(old.path(), &proof, &wrong_artifact).is_err());
+        wrong_artifact = rule.artifact.clone();
+        wrong_artifact.asset_name = "renamed.tar.gz".into();
+        assert!(require_predecessor(old.path(), &proof, &wrong_artifact).is_err());
+        let mut wrong_proof = resolve(port);
+        wrong_proof.github_identity.as_mut().unwrap().asset_id += 1;
+        assert!(require_predecessor(old.path(), &wrong_proof, &rule.artifact).is_err());
+        let mut redirected = resolve(port);
+        redirected.release.asset.url = "https://example.invalid/redirected.tar.gz".into();
+        assert!(require_predecessor(old.path(), &redirected, &rule.artifact).is_err());
+        let mut other = port.clone();
+        other.id = "other-catalog-scope".into();
+        assert!(require_predecessor(old.path(), &resolve(&other), &rule.artifact).is_err());
+        let mut inapplicable = port.clone();
+        inapplicable.adapter = crate::AdapterKind::N64RecompPortable;
+        assert!(validate(&inapplicable).is_err());
+    }
+
     #[test]
     fn an_unreviewed_platform_has_no_layout_requirement() {
         let mut port = crate::Catalog::embedded()
@@ -1176,7 +1377,8 @@ mod tests {
         port.reviewed_package_layouts.clear();
         let anything = package(None, &["whatever.exe"]);
         assert!(
-            require_reviewed_layout(&port, Platform::WindowsX86_64, anything.path(), None).is_ok()
+            require_reviewed_layout(&port, Platform::WindowsX86_64, anything.path(), None, None)
+                .is_ok()
         );
     }
 
@@ -1191,7 +1393,10 @@ mod tests {
         port.reviewed_package_layouts
             .insert(Platform::WindowsX86_64, reviewed());
         let same = package(Some("game-2.0"), REVIEWED_FILES);
-        assert!(require_reviewed_layout(&port, Platform::WindowsX86_64, same.path(), None).is_ok());
+        assert!(
+            require_reviewed_layout(&port, Platform::WindowsX86_64, same.path(), None, None)
+                .is_ok()
+        );
         let drifted = package(
             Some("game-2.0"),
             &[
@@ -1201,8 +1406,9 @@ mod tests {
                 "lib/helper.dll",
             ],
         );
-        let refusal = require_reviewed_layout(&port, Platform::WindowsX86_64, drifted.path(), None)
-            .unwrap_err();
+        let refusal =
+            require_reviewed_layout(&port, Platform::WindowsX86_64, drifted.path(), None, None)
+                .unwrap_err();
         assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
         assert!(
             refusal.message.contains("updater.exe"),

@@ -1128,6 +1128,11 @@ pub struct PortDefinition {
     /// layout is held for review instead of installing as an ordinary update.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub reviewed_package_layouts: BTreeMap<Platform, ReviewedPackageLayout>,
+    /// Alternate full layouts for exact independently resolved GitHub artifacts.
+    /// They never select a package or authorize an acquisition.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_predecessor_package_layouts_v1:
+        BTreeMap<Platform, Vec<ReviewedPredecessorPackageLayout>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
 }
@@ -1175,6 +1180,18 @@ pub struct ReviewedPackageLayout {
     /// Lowercase package-relative paths (with `/`) of every program or script at
     /// any depth, sorted.
     pub executables: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedPredecessorPackageLayout {
+    pub repository_id: u64,
+    pub release_id: u64,
+    pub asset_id: u64,
+    pub tag: String,
+    pub channel: ReleaseChannel,
+    pub artifact: ArtifactIdentity,
+    pub layout: ReviewedPackageLayout,
 }
 
 /// Holds fresh managed acquisition and adoption for one route. Installed copies

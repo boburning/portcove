@@ -810,6 +810,25 @@ fn reviewed_package_layouts_require_a_capable_native_reader() {
 }
 
 #[test]
+fn reviewed_predecessor_layouts_require_the_new_reader_even_when_retained() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("dethrace-labs-dethrace").unwrap();
+    let mut entry = entry_for_port(port);
+    let capability = crate::package_layout::PREDECESSOR_LAYOUT_CAPABILITY;
+    let inspect_retained = |entry: &serde_json::Value| {
+        let bytes = serde_json::to_vec(entry).unwrap();
+        index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes)
+    };
+    entry["required_capabilities"][0]["minimum_version"] = json!(41);
+    entry["required_capabilities"][0]["maximum_version"] = json!(capability);
+    assert!(inspect(&entry).is_err());
+    assert!(inspect_retained(&entry).is_err());
+    entry["required_capabilities"][0]["minimum_version"] = json!(capability);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(inspect_retained(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn n64_platform_runtime_subdirectories_require_version_6_and_are_n64_only() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::N64RecompPortable;

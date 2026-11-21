@@ -848,6 +848,7 @@ pub(crate) fn evaluate(
     sha256: &str,
     observed: &PackageShape,
     local: Option<&LocalBaseline>,
+    reviewed_layout: Option<&crate::ReviewedPackageLayout>,
 ) -> (ShapeVerdict, ShapeProvenance) {
     let entry = preferred_generated_entry(generated_table(), &port.id, platform, sha256);
     if let Some(entry) = entry
@@ -866,7 +867,15 @@ pub(crate) fn evaluate(
             ShapeProvenance::Unreviewed,
         );
     }
-    evaluate_with_generated_entry(entry, port, platform, sha256, observed, local)
+    evaluate_with_generated_entry(
+        entry,
+        port,
+        platform,
+        sha256,
+        observed,
+        local,
+        reviewed_layout,
+    )
 }
 
 fn preferred_generated_entry<'a>(
@@ -902,7 +911,7 @@ fn evaluate_with_table(
     local: Option<&LocalBaseline>,
 ) -> (ShapeVerdict, ShapeProvenance) {
     let entry = preferred_generated_entry(table, &port.id, platform, sha256);
-    evaluate_with_generated_entry(entry, port, platform, sha256, observed, local)
+    evaluate_with_generated_entry(entry, port, platform, sha256, observed, local, None)
 }
 
 fn evaluate_with_generated_entry(
@@ -912,6 +921,7 @@ fn evaluate_with_generated_entry(
     sha256: &str,
     observed: &PackageShape,
     local: Option<&LocalBaseline>,
+    reviewed_layout: Option<&crate::ReviewedPackageLayout>,
 ) -> (ShapeVerdict, ShapeProvenance) {
     if let Some(entry) = entry {
         let exact = entry.sha256.eq_ignore_ascii_case(sha256);
@@ -924,7 +934,7 @@ fn evaluate_with_generated_entry(
         };
         return (verdict, provenance);
     }
-    if let Some(layout) = port.reviewed_package_layouts.get(&platform) {
+    if let Some(layout) = reviewed_layout.or_else(|| port.reviewed_package_layouts.get(&platform)) {
         let reviewed = PackageShape {
             programs: Some(layout.executables.clone()),
             top_directories: Some(layout.directories.clone()),
@@ -1043,12 +1053,14 @@ pub(crate) fn record_for_install(
     payload: &Path,
     sha256: &str,
     local: Option<&LocalBaseline>,
+    reviewed_layout: Option<&crate::ReviewedPackageLayout>,
 ) -> PackageShapeRecord {
     let observed = roots(port, qualification, platform, payload)
         .and_then(|roots| derive(port, platform, &roots));
     match observed {
         Ok(shape) => {
-            let (verdict, provenance) = evaluate(port, platform, sha256, &shape, local);
+            let (verdict, provenance) =
+                evaluate(port, platform, sha256, &shape, local, reviewed_layout);
             PackageShapeRecord {
                 shape_version: SHAPE_VERSION,
                 shape: Some(shape),
@@ -1100,7 +1112,7 @@ pub fn inspect_package_shape_archive(
     crate::native_external_profile::openmohaa::prepare_package(port, platform, &payload)?;
     let roots = roots(port, &qualification, platform, &payload)?;
     let shape = derive(port, platform, &roots)?;
-    let (verdict, provenance) = evaluate(port, platform, expected_sha256, &shape, None);
+    let (verdict, provenance) = evaluate(port, platform, expected_sha256, &shape, None, None);
     Ok(PackageShapeInspection {
         port_id: port.id.clone(),
         platform,
