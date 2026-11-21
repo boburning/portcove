@@ -4309,30 +4309,60 @@ try {
       await option.sendKeys(Key.ENTER);
       await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
     };
-    await selectPrimaryNavigation(browser, "Library");
-    for (const route of ["Library", "Discover"] as const) {
-      if (route === "Discover") await selectPrimaryNavigation(browser, route);
+    const localFind: string[] = [];
+    for (const [route, destination] of [
+      ["Library", "library"],
+      ["Discover", "catalog"],
+    ] as const) {
+      await selectPrimaryNavigation(browser, route);
+      const searchState = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (route) => {
+              if (document.querySelector("#port-search")) return "search";
+              const headings = [...document.querySelectorAll("main h2")];
+              return (
+                route === "Library" &&
+                headings.some((item) => item.textContent?.trim() === "Your library is empty") &&
+                "empty-library"
+              );
+            },
+            route,
+          ),
+        30_000,
+        "The current collection did not finish opening",
+      );
+      const focused = await browser.switchTo().activeElement();
       assert.notEqual(
-        await executeBrowserScript(browser, () => document.activeElement?.id),
+        await focused.getAttribute("id"),
         "port-search",
         "The current search must start unfocused",
       );
       await shortcut("f");
-      await browser.wait(
-        () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
-        5_000,
-        `Find did not focus the current ${route} search`,
-      );
+      if (searchState === "search") {
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the current " + route + " search",
+        );
+        localFind.push(destination);
+      } else {
+        assert.equal(
+          await (await browser.switchTo().activeElement()).getId(),
+          await focused.getId(),
+          "Find without a search must preserve focus",
+        );
+        assert.equal(searchState, "empty-library");
+        localFind.push("empty-library");
+      }
+      assert.equal((await browser.findElements(palette)).length, 0);
       const selected = await executeBrowserScript(browser, () =>
         document
           .querySelector('[data-navigation-destination][aria-current="page"]')
           ?.getAttribute("data-navigation-destination"),
       );
-      assert.equal(
-        selected,
-        route === "Library" ? "library" : "catalog",
-        "Find must preserve the current catalog route",
-      );
+      assert.equal(selected, destination, "Find must preserve the current catalog route");
     }
     const categories = [
       ["appearance", "Appearance"],
@@ -4576,7 +4606,7 @@ try {
       commandEvidence,
       JSON.stringify(
         {
-          local_find: ["library", "catalog"],
+          local_find: localFind,
           focused_settings_headings: categories.map(([id]) => id),
           contextual_port: "ghostship",
           contextual_tab: "Game files",
