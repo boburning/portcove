@@ -2444,6 +2444,29 @@ fn verify_n64_release_input_with_budget(
     }))
 }
 
+pub(crate) fn inspect_n64_original(
+    catalog: &Catalog,
+    profile_id: &str,
+    path: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SourceRecord> {
+    checkpoint()?;
+    crate::path::unicode(path, "source")?;
+    if catalog.source_profile(profile_id)?.kind != SourceKind::File {
+        return Err(PortcoveError::unsupported(
+            "N64 original requires a file source profile",
+        ));
+    }
+    inspect_file(
+        catalog,
+        profile_id,
+        &std::path::absolute(path)?,
+        MAXIMUM_N64_INPUT_BYTES,
+        &mut n64_input_hash_budget(checkpoint),
+    )?
+    .require_admitted_record()
+}
+
 pub(crate) fn verify_saved_n64_original(
     catalog: &Catalog,
     port_id: &str,
