@@ -5036,7 +5036,12 @@ test("hosted cover proposals require the exact committed declaration and admitte
   });
   const directory = {
     listings: [
-      { id: "native-one", project_url: "https://example.com/port", artwork: artwork("old") },
+      {
+        id: "native-one",
+        project_url: "https://example.com/port",
+        original_game_title: "Known Original",
+        artwork: artwork("old"),
+      },
       { id: "native-two", collection_covers: [artwork("changed")] },
     ],
   };
@@ -5155,6 +5160,36 @@ test("hosted cover proposals require the exact committed declaration and admitte
   assert.equal(reopened.apply(directory.listings[0]!).artwork, undefined);
   const [gone] = proposals;
   assert.ok(gone);
+  const renamed = {
+    ...directory.listings[0]!,
+    original_game_title: "Different Original",
+  };
+  assert.deepEqual(reopened.apply(renamed).artwork, artwork("old"));
+  assert.deepEqual(applicableCoverHealth({ listings: [renamed] }, evidence), []);
+  const positiveFacts = new Map([
+    [
+      "port:native-one@old",
+      {
+        artwork: artwork("old"),
+        status: "unchanged",
+        observed_at: "2026-11-22T12:05:00.000Z",
+      },
+    ],
+  ]);
+  const crossTitleRecovery = applicableCoverHealth(
+    { listings: [renamed] },
+    {
+      ...evidence,
+      facts: positiveFacts,
+    },
+  );
+  assert.deepEqual(crossTitleRecovery, []);
+  assert.equal(
+    advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, crossTitleRecovery).apply(
+      directory.listings[0]!,
+    ).artwork,
+    undefined,
+  );
   const restored = advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, [
     { ...gone, observed_at: "2026-11-22T12:05:00.000Z", status: "verified_accepted_bytes" },
   ]);

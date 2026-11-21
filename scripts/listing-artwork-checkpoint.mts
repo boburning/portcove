@@ -30,6 +30,7 @@ export function coverDeclarationScope(row: Record<string, unknown>, artwork: unk
   return orderedJsonSha256([
     row.id,
     row.project_url ?? null,
+    row.original_game_title ?? null,
     row.original_game ?? null,
     Array.isArray(row.collection_covers) ? "collection" : "single",
     artwork,
