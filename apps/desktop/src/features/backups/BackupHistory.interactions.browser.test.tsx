@@ -855,7 +855,7 @@ it("waits for current degraded inventory rather than a pending or failed read no
       return predicate();
     },
   };
-  const { waitForDegradedInventory, degradedInventorySelector } =
+  const { currentDegradedBackupActions, waitForDegradedInventory, degradedInventorySelector } =
     await import("../../../scripts/desktop-backup-inventory-observer.mts");
   const current = (count: number) =>
     waitForDegradedInventory(
@@ -893,16 +893,27 @@ it("waits for current degraded inventory rather than a pending or failed read no
         />
       </section>,
     );
+  const [backup] = backups;
+  expect(backup).toBeDefined();
+  if (!backup) throw new Error("Expected an owned backup fixture");
+  const exactActions = (digest = backup.sha256) =>
+    currentDegradedBackupActions(degradedInventorySelector, 1, backup.id, digest);
   for (const status of ["pending", "failed"] as const) {
     await render(status);
     expect(container.querySelectorAll(".backup-inventory-notice")).toHaveLength(2);
     expect(await current(1)).toBe(false);
+    expect(exactActions()).toBe(false);
   }
   await render("idle");
   expect(await current(1)).toBe(false);
   await render("current");
   expect(await current(2)).toBe(false);
   expect(await current(1)).toBeTruthy();
+  expect(exactActions()).toBe(true);
+  expect(exactActions("b".repeat(64))).toBe(false);
+  await render("pending");
+  expect(exactActions()).toBe(false);
+
   vi.spyOn(desktopApi, "backups").mockResolvedValueOnce({
     port_id: "sample",
     state: "degraded",

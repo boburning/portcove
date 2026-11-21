@@ -51,6 +51,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
 const backupSectionSelector = '[aria-labelledby="detail-saves-and-storage"]';
 import {
+  currentDegradedBackupActions,
   degradedInventorySelector,
   waitForDegradedInventory,
 } from "./desktop-backup-inventory-observer.mts";
@@ -416,8 +417,8 @@ export async function backupReviewScenario({
     const degraded = inventory(port.id);
     assert.equal(degraded.state, "degraded");
     assert.deepEqual(
-      degraded.backups.map((item) => item.id),
-      [other.id],
+      degraded.backups.map(({ id, sha256 }) => ({ id, sha256 })),
+      [{ id: other.id, sha256: other.sha256 }],
     );
     assert.equal(degraded.problems.length, 1);
     assert.ok(degraded.problems[0]);
@@ -428,14 +429,20 @@ export async function backupReviewScenario({
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
     assert.ok((await degradedNotice.getText()).includes(degraded.problems[0].proposed_action));
     await observeProtection("native-protection-degraded-history");
-    const usableRow = await row(other.id);
-    assert.equal(
-      await usableRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
-      true,
-    );
-    assert.equal(
-      await usableRow.findElement(By.css('button[aria-label^="Delete backup"]')).isEnabled(),
-      true,
+    // Workspace refresh can invalidate history during the protection capture.
+    // Check both actions on the exact current row in one browser observation.
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          currentDegradedBackupActions,
+          degradedInventorySelector,
+          degraded.problems.length,
+          other.id,
+          other.sha256,
+        ),
+      60_000,
+      "Current degraded history must allow Restore and Delete for the exact usable backup",
     );
     await capture("native-degraded-backup-inventory", degradedInventorySelector);
 
