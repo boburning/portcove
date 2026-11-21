@@ -192,7 +192,7 @@ async fn catalog_revalidates_then_shares_backoff_across_services_and_games() {
 }
 
 #[test]
-#[ignore = "requires externally retained JakMods feed snapshots"]
+#[ignore = "requires the two retained upstream JakMods feed snapshots for the explicit replay in docs/CLI.md"]
 fn real_before_and_served_feed_addition_appears_only_for_jak1() {
     let root = std::path::PathBuf::from(
         std::env::var_os("PORTCOVE_JAKMODS_REPLAY").expect("snapshot directory"),
