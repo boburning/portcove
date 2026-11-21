@@ -1,9 +1,12 @@
 use super::*;
 
 pub(crate) fn fixture_port() -> (PortDefinition, SourceProfile) {
-    let port = CartridgeBuildRecipe::YoshisCookieNesCycle110
-        .historical_port()
-        .unwrap();
+    let port = crate::historical_artifacts::cartridge_definition(
+        "yoshis-cookie-recomp",
+        CartridgeBuildRecipe::YoshisCookieNesCycle110,
+    )
+    .unwrap()
+    .unwrap();
     let catalog = crate::Catalog::embedded().unwrap();
     let profile = catalog
         .source_profile(port.source_profile.as_deref().unwrap())
@@ -105,15 +108,29 @@ fn retired_indexed_definition_is_interpreted_only_as_retained_state() {
 
 #[test]
 fn known_development_runtime_definitions_remain_lossless_retained_inputs() {
-    for recipe in [
-        CartridgeBuildRecipe::YoshisCookieNesCycle110,
-        CartridgeBuildRecipe::DrMarioNesCycle130Usa,
-        CartridgeBuildRecipe::EarthBoundSnesSourceV1,
-        CartridgeBuildRecipe::Render96UsSourceV1,
-        CartridgeBuildRecipe::GundamWingSnesSourceV1,
-        CartridgeBuildRecipe::CvlodSourceV1,
+    for (id, recipe) in [
+        (
+            "yoshis-cookie-recomp",
+            CartridgeBuildRecipe::YoshisCookieNesCycle110,
+        ),
+        (
+            "dr-mario-nes-recomp",
+            CartridgeBuildRecipe::DrMarioNesCycle130Usa,
+        ),
+        (
+            "earthbound-recomp",
+            CartridgeBuildRecipe::EarthBoundSnesSourceV1,
+        ),
+        ("render96ex", CartridgeBuildRecipe::Render96UsSourceV1),
+        (
+            "gundam-wing-endless-duel-recomp",
+            CartridgeBuildRecipe::GundamWingSnesSourceV1,
+        ),
+        ("cvlod-recomp", CartridgeBuildRecipe::CvlodSourceV1),
     ] {
-        let historical = recipe.historical_port().unwrap();
+        let historical = crate::historical_artifacts::cartridge_definition(id, recipe)
+            .unwrap()
+            .unwrap();
         let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
         *document
             .ports
@@ -169,7 +186,11 @@ fn historical_runtime_reader_rejects_changed_execution_source_and_ownership() {
     assert!(serde_json::from_str::<CartridgeBuildRecipe>("\"unknown-build-v1\"").is_err());
     let retired: CartridgeBuildRecipe =
         serde_json::from_str("\"advance-wars-gba-source-cb3facb53b6b-usa-rev1\"").unwrap();
-    assert!(retired.historical_port().is_err());
+    assert!(
+        crate::historical_artifacts::cartridge_definition("advance-wars", retired)
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]

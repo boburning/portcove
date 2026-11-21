@@ -9,9 +9,8 @@ use uuid::Uuid;
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortcoveError, ReleaseAsset, Result, SourceRecord,
-    adapter::hash_file,
-    archive::extract_archive_with_checkpoint,
-    psx_tool_artifacts::{self, ToolchainArtifact},
+    adapter::hash_file, archive::extract_archive_with_checkpoint,
+    psx_tool_artifacts::ToolchainArtifact,
 };
 
 #[cfg(test)]
@@ -1969,7 +1968,7 @@ fn macos_toolchain_sdk(
 
 #[cfg(test)]
 fn toolchain_artifact(platform: Platform) -> Result<&'static ToolchainArtifact> {
-    psx_tool_artifacts::embedded(platform)
+    crate::psx_tool_artifacts::embedded(platform)
 }
 fn validate_toolchain(
     root: &Path,
@@ -2656,7 +2655,7 @@ mod tests {
         let (result, quiesced) = prepare_install(
             &staging,
             preparation,
-            psx_tool_artifacts::embedded(Platform::current().unwrap()).unwrap(),
+            crate::psx_tool_artifacts::embedded(Platform::current().unwrap()).unwrap(),
             &OperationCoordinator::new("owned-input-validation", None),
         );
         let error = result.unwrap_err();
@@ -2955,7 +2954,7 @@ mod tests {
                 let (result, quiesced) = prepare_install(
                     temporary.path(),
                     &preparation,
-                    psx_tool_artifacts::embedded(Platform::current().unwrap()).unwrap(),
+                    crate::psx_tool_artifacts::embedded(Platform::current().unwrap()).unwrap(),
                     &OperationCoordinator::new("owned-valid-input", None),
                 );
                 let error = result.unwrap_err();

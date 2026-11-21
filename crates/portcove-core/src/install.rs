@@ -12,21 +12,18 @@ use crate::{
     ResolvedRelease, Result, RuntimeIdentity, RuntimeOrigin,
     adapter::{hash_file, walk_files},
     archive::{
-        extract_archive_with_checkpoint, extract_tar_xz_with_checkpoint,
-        validate_download_progress, validate_download_size,
+        extract_archive_with_checkpoint, extract_tar_xz_with_checkpoint, validate_download_size,
     },
     operation::{
         LifecycleFaultInjector, LifecycleFaultPoint, LifecycleOperation, LifecycleOperationKind,
         LifecyclePhase, NoLifecycleFaults, OperationStore,
     },
 };
-use futures_util::StreamExt;
 
 const LINUX_PACKAGED_LIBRARY_DIRECTORY: &str = "linux-libraries";
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tokio::io::AsyncWriteExt;
 
 mod partial_download;
 mod transfer;

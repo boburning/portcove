@@ -71,24 +71,24 @@ async fn reviewed_dialects_resolve_exact_assets_and_verify_the_stream() {
         (
             "github-v3",
             "https://api.forge.test/repos/group/fixture",
-            "/releases/tags/stable%2Freviewed",
+            "releases/tags/stable%2Freviewed",
         ),
         (
             "gitlab-v4",
             "https://api.forge.test/api/v4/projects/group%2Fnested%2Ffixture",
-            "/releases/stable%2Freviewed",
+            "releases/stable%2Freviewed",
         ),
         (
             "forgejo-v1",
             "https://other-instance.test/api/v1/repos/group/fixture",
-            "/releases/tags/stable%2Freviewed",
+            "releases/tags/stable%2Freviewed",
         ),
     ] {
         let (instance, artifact) = fixture(dialect);
         let route = instance.route(&artifact).unwrap();
         let (result, urls) = resolve_fixture(&route, |_| {}).await;
         result.unwrap();
-        assert_eq!(urls, [base.to_owned(), format!("{base}{leaf}")]);
+        assert_eq!(urls, [base.to_owned(), format!("{base}/{leaf}")]);
         let asset = Url::parse("https://assets.reviewed.test/fixture.zip").unwrap();
         assert!(allows_asset(&instance.asset_hosts, &asset));
         let staging = tempfile::tempdir().unwrap();
