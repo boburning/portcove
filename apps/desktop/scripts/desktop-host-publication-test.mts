@@ -24,6 +24,7 @@ import {
   selectCatalogPort,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
+import { executeBrowserScript } from "./browser-script.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { CapturedNativeProcess } from "./desktop-owned-native-session.mts";
@@ -253,9 +254,38 @@ export async function hostPublicationScenario(context: Context) {
       };
       const activeSource = await confirmActiveSource();
       const storage = async () => {
+        const status = transportValue(
+          "desktop_bootstrap_status",
+          success(await invoke("get_bootstrap_status")),
+        );
+        assert.equal(status.ready, true);
+        assert.ok(status.library_root && samePath(status.library_root, library));
         await browser.wait(
           until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
           60_000,
+        );
+        // Startup navigation can mount while the initial workspace reader still
+        // holds a shared lease. Observe the actual Library result before opening Settings.
+        await selectPrimaryNavigation(browser, "Library");
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (generation) => {
+                const main = document.querySelector("main[data-workspace-continuity-scope]");
+                const raw = main?.getAttribute("data-workspace-continuity-scope");
+                const scope: unknown = raw ? JSON.parse(raw) : null;
+                return (
+                  Array.isArray(scope) &&
+                  scope[0] === generation &&
+                  scope[1] === "library" &&
+                  Boolean(main?.querySelector("[data-library-port-ids], .empty-state"))
+                );
+              },
+              status.generation,
+            ),
+          60_000,
+          "The exact recovery source Library must finish its first workspace read",
         );
         await selectPrimaryNavigation(browser, "Settings");
         await reviewControls(browser).click(button("Library and storage"));
