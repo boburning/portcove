@@ -116,7 +116,7 @@ import {
   selectPrimaryNavigation,
   reviewControls,
   selectCatalogPort,
-  openCatalogFilters,
+  openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
@@ -3647,7 +3647,7 @@ try {
       ]),
     ].sort();
     const channelChoice = async (channel: string) => {
-      const panel = await openCatalogFilters(browser);
+      const panel = await openMoreCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
       const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
       if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -4292,7 +4292,7 @@ try {
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
-    const filters = await openCatalogFilters(browser);
+    const filters = await openMoreCatalogFilters(browser);
     const channelChoices = await filters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );

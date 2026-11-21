@@ -1004,7 +1004,10 @@ All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
 affects only that inspection and leaves the index and other inspections unchanged.
 Other catalog ports preserve the self-contained legacy graph; their presence does
-not admit additional indexed definitions. `DefinitionCatalogProjection` retains
+not admit additional indexed definitions. Package-only settings belong to the
+selected port. Older complete projections omit those settings from unrelated
+ports. At selection, the effective catalog keeps any package-only settings
+already admitted for those ports. `DefinitionCatalogProjection` retains
 the exact entry and contract bytes alongside the validated catalog. This is pure
 supplied-content interpretation, with no I/O, signing, publisher grant, selection
 or installation. Its validated catalog now carries the selected port's exact
@@ -1916,12 +1919,18 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The complete target is bounded to 8 MiB, each listing
+The legacy target is bounded to 8 MiB, each listing
 uses the existing descriptive validator, and both lists are bounded to 10,000
 identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
+
+The compact target uses the same delegation and an 8 MiB authenticated carrier.
+A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
+of decoded directory data. Compact parsing checks each record separately and
+accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including
 acquisition restrictions; package observations and metadata enrichment cannot

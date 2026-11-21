@@ -1788,6 +1788,13 @@ identity; a failed review keeps focus inside the dialog.
 
 ## Backup review presentation
 
+Core includes an optional `recovery_review` in backup inventory. Desktop uses
+it to offer the historical recovery review for the selected snapshot. The
+Windows Ghostship reader looks up the backup and retained install ID in the
+library’s qualification records. The locked plan verifies the complete seal
+and current contents before consent. Ordinary backup records and retained
+plan fingerprints omit the inventory hint.
+
 Core owns backup selection, payload/user-data fingerprints, single-use authorization,
 per-port exclusion and journal recovery. Desktop exposes a generation-bound review
 that combines the existing core preview with its saved-data path. Its custom restore
