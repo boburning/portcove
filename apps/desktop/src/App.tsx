@@ -1338,7 +1338,7 @@ type WorkspaceFeedbackModel = Pick<
   | "renderPreferenceFailure"
 > & {
   ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity">;
-  model: Pick<WorkspaceModel["model"], "statusMap">;
+  model: Pick<WorkspaceModel["model"], "entries" | "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
 
@@ -1381,6 +1381,7 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
         openExternalGame={(record) => {
           const { target } = record.context;
           if (
+            !model.model.entries.some((entry) => entry.id === target.id) ||
             !canOpenExternalRegistration(
               record,
               model.model.statusMap.get(target.id),
