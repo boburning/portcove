@@ -1785,7 +1785,9 @@ export async function preparationScenarios({
           ? current
           : false;
       },
-      15_000,
+      // On hosted Windows the first post-prepare workspace read failed after
+      // 30.5 s and its retry took another 19.5 s (run 44940812838).
+      60_000,
       "Prepared Core state did not reach the rendered trial-launch action",
     );
     assert.ok(trial, "Rendered trial-launch action must be available");
