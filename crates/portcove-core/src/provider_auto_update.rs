@@ -257,7 +257,7 @@ fn hold_reason(
         ));
     }
     // Recomp mods' entries are not compared (which mod wins is not established).
-    if crate::native_mod_list::recomp_game(&plan.port_id).is_some() {
+    if layout.recomp_game().is_some() {
         return None;
     }
     let staged = ProviderInstallMode::Automatic.staging(layout, &plan.plan_sha256);
