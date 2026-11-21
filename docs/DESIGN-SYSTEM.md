@@ -190,7 +190,13 @@ history and relaunches that installation; it does not load a save automatically.
 Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
 851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
 filmstrip with an exposed current selection; per-slot attribution,
-errors and lightbox focus remain with the media owner. Forced colors suppress
+errors and lightbox focus remain with the media owner. **Screenshot source**
+offers original releases with reviewed images. The gallery loads these images
+when the player chooses a release. That choice applies only to this gallery.
+Original screenshots show the release title in the thumbnail and viewer.
+When a refresh changes the active screenshot's bytes or admitted subject, the viewer
+closes and focus returns to a surviving control.
+Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
@@ -380,7 +386,10 @@ Display game release streams as **Stable**, **Preview** and **Rolling**. Use the
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply. Geometry must remain stable across those states, transitions must name intentional properties rather than use `transition-all`, and forced-colors presentation must retain visible system-compatible outlines, borders, and meaning.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
-- External-installation folder choices and open reviews belong to the selected game, library generation, and registration; a context change discards them, and late or superseded picker results cannot open a new review.
+- External launch drafts retain the program, start folder and arguments when the
+  player leaves and returns to the same details in the current library workspace.
+  Replacing the library or launch target retires the old draft. Returning to an
+  editor requires a fresh review. Ignore late picker results from a retired context.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
 - Logs use monospace type, severity text plus icon and color, concise primary explanations, expandable technical details, and copy affordances.
 

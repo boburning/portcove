@@ -967,10 +967,19 @@ impl Catalog {
                 if let Some(game) = &presentation.original_game {
                     game.validate()?;
                 }
+                let media = presentation.media.as_deref().unwrap_or_default();
+                if media
+                    .iter()
+                    .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                {
+                    return Err(PortcoveError::unsupported(
+                        "IGDB backgrounds and screenshots belong in listing format 13",
+                    ));
+                }
                 crate::catalog_media::validate_catalog_media(
                     &port.id,
                     presentation.original_game.as_ref(),
-                    presentation.media.as_deref().unwrap_or_default(),
+                    media,
                 )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),

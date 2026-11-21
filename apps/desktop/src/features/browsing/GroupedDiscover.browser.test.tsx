@@ -13,6 +13,7 @@ import { InvocationOwnerProvider } from "../operations/invocation-owner";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import { useOperationState } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
+import { comparisonFixture } from "../recommendations/comparison-test-fixture";
 import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
 import { prepareCaptureTarget } from "../../../test/capture-target";
@@ -212,6 +213,108 @@ it("updates shared card translations and pending actions without remounting the 
   expect(host.querySelector("article")).toBe(card);
   expect(action.textContent).toBe(idleLabel);
 });
+
+it.each([
+  ["recommended", /Suggested starting point/, /Comparing Fixture original on Windows/],
+  [
+    "uncertain",
+    /don’t have enough information to suggest a port/,
+    /Choose a game edition to compare/,
+  ],
+  ["failed", /couldn’t load this comparison/, /Comparing the selected game on this device/],
+] as const)(
+  "shows the %s decision in the grouped comparison before opening settings",
+  async (outcome, message, scope) => {
+    const sample = portDefinition();
+    const first = {
+      ...sample,
+      id: "first-port",
+      name: "First project",
+      presentation: {
+        ...sample.presentation,
+        original_game_title: "Fixture original",
+        original_game: {
+          format_version: 1 as const,
+          id: "fixture-game",
+          evidence_urls: [],
+          source_editions: [],
+        },
+      },
+    };
+    const alternative = { ...first, id: "alternate-port", name: "Alternate project" };
+    const ports = [first, alternative];
+    const report = comparisonFixture(first.id);
+    report.ports[0]!.name = first.name;
+    const held = "This version cannot be prepared on the selected device.";
+    report.ports.push({
+      ...comparisonFixture(alternative.id).ports[0]!,
+      name: alternative.name,
+      operation: { kind: "held", reason: held },
+    });
+    if (outcome === "recommended") {
+      report.assessment = {
+        ...report.assessment!,
+        status: "recommended-starting-point",
+        recommended: report.assessment!.candidates[0]!.scope,
+      };
+    } else {
+      report.edition_id = null;
+      report.editions.push({
+        ...report.editions[0]!,
+        id: "second-edition",
+        title: "Second edition",
+      });
+      report.assessment = { ...report.assessment!, status: "insufficient-evidence" };
+    }
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(async () => {
+      await pending;
+      if (outcome === "failed") throw new Error("Unavailable fixture");
+      return report;
+    });
+    const onSelect = vi.fn();
+    await act(async () =>
+      root.render(
+        <OperationPresentationProvider generation={7} pending={new Map()}>
+          <main data-focus-region="workspace">
+            <GroupedDiscover
+              all={ports}
+              matching={ports}
+              statuses={new Map()}
+              onSelect={onSelect}
+            />
+          </main>
+        </OperationPresentationProvider>,
+      ),
+    );
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>(".discover-game-actions button")!.click(),
+    );
+    const dialog = page.getByRole("dialog", { name: "Fixture original" });
+    const decision = dialog.getByRole("region", { name: "Comparison options" });
+    await expect.element(decision.getByText("Refreshing the selected comparison…")).toBeVisible();
+
+    await act(async () => finish());
+    await expect.element(decision.getByText(message)).toBeVisible();
+    await expect.element(decision.getByText(scope)).toBeVisible();
+    const heldReason = dialog.getByText(held);
+    expect(heldReason.query() instanceof HTMLElement && heldReason.query()!.checkVisibility()).toBe(
+      outcome !== "failed",
+    );
+
+    const settings = document.querySelector<HTMLDetailsElement>(
+      '[role="dialog"] .comparison-settings',
+    );
+    expect(settings?.open).toBe(false);
+    await page
+      .elementLocator(document.querySelector('[data-discover-port-id="alternate-port"]')!)
+      .click();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(alternative.id, expect.any(String));
+  },
+);
 
 it.each(["control", "origin"] as const)(
   "returns comparison focus to the current deep card after column regrouping: %s identity",

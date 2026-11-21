@@ -36,6 +36,7 @@ const listings = listingsDirectory as unknown as {
   listings: { id: string; manual_setup?: ListingGuide }[];
 };
 import { catalogEntries } from "../features/browsing/catalog-entry";
+import { SetupLaunchDraftsProvider } from "../features/browsing/setup-launch-drafts";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
 import { SelfServiceSetup } from "./SelfServiceSetup";
@@ -200,6 +201,122 @@ it("retains external launch drafts across detail tabs and reviews the same targe
   );
   expect(document.body.textContent).toContain("Fixture review reached");
   expect(apply).not.toHaveBeenCalled();
+});
+
+it("retains external launch inputs after a failed review and reopening the detail", async () => {
+  const executable = "C:/Player/External/game.exe";
+  const directory = "C:/Player/Retained directory";
+  const argumentLines = "--fullscreen\n\nC:/My Games/Level one";
+  const preview = vi
+    .spyOn(desktopApi, "previewUserSelectedRuntime")
+    .mockRejectedValue(new Error("Folder changed before review"));
+  const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+  const status = portStatus();
+  const pending: PendingSetupRecord = {
+    id: "downloaded-draft-transition",
+    reason: null,
+    port_id: port.id,
+    listing: { ...(proposals.listings[0] as PortListing), id: port.id },
+    path: "C:/Player/Downloaded game",
+    state: "downloaded",
+    downloaded_at: "2026-11-20T00:00:00Z",
+    archive_sha256: "a".repeat(64),
+    artifact: {
+      release_id: 1,
+      asset_id: 2,
+      release_tag: "v1",
+      name: "game.zip",
+      size: 1024,
+      release_url: "https://example.com/v1",
+      download_url: "https://example.com/game.zip",
+      can_extract: true,
+      sha256: null,
+    },
+  };
+  const discover = vi.spyOn(desktopApi, "discoverSetupLaunchTargets").mockResolvedValue({
+    port_id: port.id,
+    pending_id: pending.id,
+    candidates: [],
+    complete: true,
+    entries_checked: 0,
+    explanation: "No suggested program",
+    recommended_executable: null,
+  });
+  const view = (
+    generation: number,
+    details = true,
+    initialDirectory?: string,
+    pendingSetup?: PendingSetupRecord,
+  ) => (
+    <SetupLaunchDraftsProvider key={generation}>
+      {details ? (
+        <UserSelectedRuntimeControl
+          port={pendingSetup ? { ...port, pendingSetup } : port}
+          status={status}
+          listingStatus={{
+            port_id: port.id,
+            status,
+            actions: [{ action: "attach-existing", allowed: true }],
+          }}
+          generation={generation}
+          libraryRoot="C:/Portcove"
+          initialDirectory={initialDirectory}
+          busy={false}
+        />
+      ) : (
+        <h1>Library</h1>
+      )}
+    </SetupLaunchDraftsProvider>
+  );
+  const startFolder = page.getByRole("textbox", { name: "Start in folder", exact: true });
+  const launchOptions = page.getByRole("textbox", { name: /^Launch options/ });
+  const openArguments = () => page.getByText("Advanced launch options", { exact: true }).click();
+  const expectedArguments = ["--fullscreen", "", "C:/My Games/Level one"];
+
+  await root.rerender(view(7));
+  await click("Choose game executable…");
+  await startFolder.fill(directory);
+  await openArguments();
+  await launchOptions.fill(argumentLines);
+  await click("Review launch details");
+  await expect
+    .element(page.getByText("Folder changed before review", { exact: true }))
+    .toBeVisible();
+  await click("Cancel");
+
+  await root.rerender(view(7, false));
+  await expect.element(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
+  await root.rerender(view(7));
+  await expect.element(startFolder).toHaveValue(directory);
+  await openArguments();
+  await expect.element(launchOptions).toHaveValue(argumentLines);
+  expect(preview).toHaveBeenCalledOnce();
+  await click("Review launch details");
+  expect(preview.mock.calls).toEqual([
+    [port.id, executable, directory, expectedArguments, 7],
+    [port.id, executable, directory, expectedArguments, 7],
+  ]);
+  expect(register).not.toHaveBeenCalled();
+  await click("Cancel");
+
+  await root.rerender(view(7, true, "C:/A different target"));
+  await expect.element(startFolder).toHaveValue("C:/A different target");
+  await root.rerender(view(7));
+  await expect.element(startFolder).toHaveValue("");
+
+  await click("Choose game executable…");
+  await startFolder.fill(directory);
+  await root.rerender(view(7, true, pending.path, pending));
+  await expect.poll(() => discover.mock.calls).toEqual([[port.id, pending.id, 7]]);
+  await root.rerender(view(7));
+  await expect.element(startFolder).toHaveValue("");
+
+  await click("Choose game executable…");
+  await startFolder.fill(directory);
+  await root.rerender(view(8));
+  await expect.element(startFolder).toHaveValue("");
+  expect(preview).toHaveBeenCalledTimes(2);
 });
 
 it("registers a listing-only identity only when Core offers the action", async () => {

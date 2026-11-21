@@ -431,8 +431,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 13. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -441,8 +440,11 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
@@ -2712,6 +2714,27 @@ projects link to their source for separate setup. [JakMods setup](https://jakmod
 Download counts belong to one release asset. A missing count stays unknown.
 Cached results show their last confirmed time. An unavailable feed without
 cached data returns an error.
+
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
 
 ### Installing from GameBanana and Thunderstore
 
