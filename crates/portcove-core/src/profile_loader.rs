@@ -16,7 +16,7 @@ use crate::{
 
 pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
 pub(crate) const DFU_MODS: &str = "DaggerfallUnity_Data/StreamingAssets/Mods";
-pub(crate) const DFU_CAPABILITY: u32 = 40;
+pub(crate) const DFU_CAPABILITY: u32 = 41;
 const DFU_REPOSITORY: &str = "Interkarma/daggerfall-unity";
 const DFU_TAG: &str = "v1.1.1-cve-2025";
 const DFU_SETTINGS: &str = "PortableAppdata/Mods/GameData/Mods.json";

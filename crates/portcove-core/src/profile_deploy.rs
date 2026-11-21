@@ -750,6 +750,8 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
             // Shipwright 9.3.1 creates this empty file when it creates mods/.
             // It is shared runtime scaffolding and deployment leaves it in place.
             None if metadata.is_file() && is_runtime_mod_marker(layout, &name, metadata.len()) => {}
+            None if layout.dfu_platform.is_some()
+                && dfu_deploy::is_shipped_scaffold(&entry.path(), &name) => {}
             _ => observation.unmanaged.push(name),
         }
     }
@@ -1173,9 +1175,11 @@ fn require_exact_managed_packages(
                     }) {
                         return Err(hold().detail("changed_package", name));
                     }
-                } else if !(ship_loader
+                } else if !((ship_loader
                     && name == "custom_mod_files_go_here.txt"
                     && crate::external_runtime::hash_stable_regular(&path, 0, &|| Ok(())).is_ok())
+                    || (layout.dfu_platform.is_some()
+                        && dfu_deploy::is_shipped_scaffold(&path, name)))
                 {
                     return Err(hold().detail("unknown_package", name));
                 }
@@ -1214,6 +1218,11 @@ impl PortcoveService {
             || profile::profile_by_id(&connection, port_id, &profile_id)?.current_revision != number
         {
             return Err(restore_projection_hold(&revision).detail("setup_change_pending", "true"));
+        }
+        if layout.dfu_platform.is_some()
+            && !self.require_dfu_backup_mode(&layout, &revision, root)?
+        {
+            return Ok(());
         }
         require_exact_managed_packages(root, &layout, &revision, || {
             restore_projection_hold(&revision)

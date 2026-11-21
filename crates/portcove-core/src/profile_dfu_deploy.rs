@@ -86,6 +86,18 @@ fn receipt_revision(
     .transpose()
 }
 
+// This optional scaffold is identical in both reviewed v1.1.1-cve-2025
+// runtime packages. Layout enables this exception only for that admitted loader.
+pub(super) fn is_shipped_scaffold(path: &Path, name: &str) -> bool {
+    name == "readme.txt"
+        && crate::external_runtime::hash_stable_regular(path, 73, &|| Ok(())).is_ok_and(
+            |(hash, size)| {
+                size == 73
+                    && hash == "e896aba38a1c16b82649240db3c58ec69fd888bb6bc409ebd40d0f3483a68f9e"
+            },
+        )
+}
+
 fn portable_marker(path: &Path) -> Result<bool> {
     crate::path::refuse_symlink_ancestors(path)?;
     match fs::symlink_metadata(path) {
@@ -122,15 +134,27 @@ pub(super) fn stage_local_zip(source: &Path, destination: &Path) -> Result<(Path
         metadata: 64 * 1024,
         ..crate::zip_read::CARTRIDGE
     };
-    let mut archive = crate::zip_read::open(Cursor::new(bytes), limits, &mut |_| Ok(()))?;
+    let mut archive =
+        crate::zip_read::open(Cursor::new(bytes.as_slice()), limits, &mut |_| Ok(()))?;
+    crate::zip_read::require_contiguous_local_records(
+        &bytes,
+        archive.central_directory_start(),
+        archive.len(),
+    )?;
     let mut candidate = None;
     for index in 0..archive.len() {
-        let entry = archive.by_index(index).map_err(|_| invalid())?;
+        let entry = archive.by_index_raw(index).map_err(|_| invalid())?;
         let name = entry.name().map_err(|_| invalid())?;
         let directory = entry.is_dir();
         let kind = entry.unix_mode().unwrap_or_default() & 0o170000;
-        let (_, _) = crate::archive::validate_relative_path(name, directory)?;
-        if directory && name == "Mods/" && entry.size() == 0 && matches!(kind, 0 | 0o040000) {
+        let (_, _) = crate::archive::validate_relative_path(name.as_ref(), directory)?;
+        if directory
+            && name == "Mods/"
+            && entry.size() == 0
+            && entry.compressed_size() == 0
+            && entry.compression() == zip::CompressionMethod::Stored
+            && matches!(kind, 0 | 0o040000)
+        {
             continue;
         }
         let leaf = name
@@ -149,7 +173,7 @@ pub(super) fn stage_local_zip(source: &Path, destination: &Path) -> Result<(Path
         {
             return Err(invalid());
         }
-        candidate = Some((index, name.to_owned(), leaf.to_owned(), entry.size()));
+        candidate = Some((index, name.to_string(), leaf.to_owned(), entry.size()));
     }
     let (index, member, leaf, size) = candidate.ok_or_else(invalid)?;
     let mut member_bytes = Vec::new();
@@ -342,13 +366,17 @@ impl PortcoveService {
     /// The extra runtime root is derived from the retained executable contract;
     /// it is never taken from the archive, a caller path or the profile JSON.
     fn dfu_save_root(&self, revision: &ProfileRevision) -> Result<PathBuf> {
+        let install = self.dfu_retained_install(revision)?;
+        crate::output_root::validate_install_path(&self.library, &install.port_id, &install.path)
+    }
+
+    fn dfu_retained_install(&self, revision: &ProfileRevision) -> Result<crate::InstallRecord> {
         let connection = self.library.connection()?;
-        let install = crate::Library::install_by_id(&connection, Some(&revision.build.install_id))?
+        crate::Library::install_by_id(&connection, Some(&revision.build.install_id))?
             .filter(|install| revision.build.matches_install(install))
             .ok_or_else(|| {
                 PortcoveError::conflict("Daggerfall Unity runtime changed before save preparation")
-            })?;
-        crate::output_root::validate_install_path(&self.library, &install.port_id, &install.path)
+            })
     }
 
     pub(super) fn preflight_dfu_save_switch(
@@ -409,10 +437,24 @@ impl PortcoveService {
         if observed_save_group(&active)? != live || observed_save_group(&previous)? != old {
             return Err(save_group_drift());
         }
-        if live.is_some() {
-            crate::durability::rename_noreplace(&active, &staging.path().join("departing"))?;
+        let departed = if live.is_some() {
+            let preserved = staging.keep();
+            let departed = preserved.join("departing");
+            crate::durability::rename_noreplace(&active, &departed)?;
             crate::durability::sync_publication(&root)?;
-        }
+            if observed_save_group(&departed)? != live {
+                // Reattach the exact moved state so recovery continues to see
+                // the newer progress. Keep the private copy if reattach fails.
+                crate::durability::rename_noreplace(&departed, &active).map_err(|_| {
+                    save_group_drift().detail("preserved", preserved.display().to_string())
+                })?;
+                crate::durability::sync_publication(&root)?;
+                return Err(save_group_drift());
+            }
+            Some((preserved, departed))
+        } else {
+            None
+        };
         if next.is_some() {
             crate::durability::rename_noreplace(&staged, &active)?;
             crate::durability::sync_publication(&root)?;
@@ -420,7 +462,34 @@ impl PortcoveService {
         if observed_save_group(&active)? != next {
             return Err(save_group_drift());
         }
+        if let Some((preserved, departed)) = departed {
+            if observed_save_group(&departed)? != live {
+                return Err(save_group_drift().detail("preserved", preserved.display().to_string()));
+            }
+            crate::path::refuse_symlink_ancestors(&departed)?;
+            fs::remove_dir_all(&preserved)?;
+        }
         Ok(())
+    }
+
+    pub(super) fn require_dfu_backup_mode(
+        &self,
+        layout: &Layout,
+        revision: &ProfileRevision,
+        root: &Path,
+    ) -> Result<bool> {
+        let install = self.dfu_retained_install(revision)?;
+        let receipt = read_receipt(&receipt_path(layout, &install)?)?;
+        let connection = self.library.connection()?;
+        let applied = receipt_revision(&connection, receipt.applied.as_ref(), &install)?;
+        let pending = receipt_revision(&connection, receipt.pending.as_ref(), &install)?;
+        if applied.is_none() && pending.is_none() && enabled(revision).next().is_none() {
+            return Ok(false);
+        }
+        if !portable_marker(&root.join("Portable.txt"))? {
+            return Err(restore_projection_hold(revision).detail("portable_marker", "missing"));
+        }
+        Ok(true)
     }
 
     pub(crate) fn dfu_restore_projection(

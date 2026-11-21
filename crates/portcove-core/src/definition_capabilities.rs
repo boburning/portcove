@@ -1046,6 +1046,20 @@ mod tests {
     }
 
     #[test]
+    fn daggerfall_unity_requires_a_reader_newer_than_packaged_linux_libraries() {
+        let request = request("native-portable", 41, 41);
+        let older = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::NativePortable
+                    || entry.contract_version <= crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
+            })
+            .collect::<Vec<_>>();
+        assert!(check_definition_capabilities(&request).unwrap().compatible);
+        assert!(!check_with_inventory(&request, &older).unwrap().compatible);
+    }
+
+    #[test]
     fn reviewed_provider_bindings_require_a_version_newer_than_package_shape() {
         for (template, adapter, binding_version) in [
             (

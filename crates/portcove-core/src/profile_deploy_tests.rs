@@ -3814,6 +3814,24 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     );
     fs::remove_file(&unmanaged).unwrap();
     fs::remove_dir(unmanaged.parent().unwrap()).unwrap();
+    let scaffold = b"Please copy any .dfmod packages into this folder before running the game.";
+    let runtime_scaffold = live_mods.join("readme.txt");
+    let canonical_scaffold = user
+        .join(crate::profile_loader::DFU_MODS)
+        .join("readme.txt");
+    fs::create_dir_all(canonical_scaffold.parent().unwrap()).unwrap();
+    fs::write(&canonical_scaffold, scaffold).unwrap();
+    fs::write(&runtime_scaffold, b"player-authored note").unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
+    assert_eq!(
+        fs::read(&runtime_scaffold).unwrap(),
+        b"player-authored note"
+    );
+    fs::write(&runtime_scaffold, scaffold).unwrap();
 
     let raw = service
         .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
@@ -3851,6 +3869,15 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
             .plan_local_mod_package(PORT, &profile.id, &ambiguous, 1)
             .is_err()
     );
+    let mut inconsistent = wrapper.to_vec();
+    // The first local record is the zero-length Mods/ directory.
+    inconsistent[30] = b'm';
+    fs::write(&candidate, inconsistent).unwrap();
+    assert!(
+        service
+            .plan_local_mod_package(PORT, &profile.id, &candidate, 1)
+            .is_err()
+    );
     fs::write(&candidate, wrapper).unwrap();
     assert!(!review.needs_code_permission);
     let applied = service
@@ -3867,6 +3894,23 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     service
         .require_restore_profile_projection(PORT, &user)
         .unwrap();
+    let marker = user.join("Portable.txt");
+    fs::remove_file(&marker).unwrap();
+    assert!(
+        service
+            .require_restore_profile_projection(PORT, &user)
+            .is_err()
+    );
+    fs::write(&marker, b"invalid").unwrap();
+    assert!(
+        service
+            .require_restore_profile_projection(PORT, &user)
+            .is_err()
+    );
+    fs::write(&marker, []).unwrap();
+    service
+        .require_restore_profile_projection(PORT, &user)
+        .unwrap();
 
     let clean = service
         .create_clean_profile(PORT, &profile.id, "Clean", applied.revision)
@@ -3874,7 +3918,8 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     service.activate_profile(PORT, &clean.id).unwrap();
     let reopened = PortcoveService::new_read_only(library).unwrap();
     reopened.dfu_restore_projection(&install, &path).unwrap();
-    assert!(live_mods.is_dir());
+    assert_eq!(fs::read(&runtime_scaffold).unwrap(), scaffold);
+    assert_eq!(fs::read(&canonical_scaffold).unwrap(), scaffold);
     assert!(!runtime_mod.exists());
     assert!(!canonical_mod.exists());
     assert!(!user.join("PortableAppdata/progress").exists());
