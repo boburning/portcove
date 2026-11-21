@@ -5251,6 +5251,13 @@
         },
         "type": "array"
       },
+      "listing_delivery_carriers": {
+        "description": "Independently negotiated signed-directory transport representations.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
       "listing_formats": {
         "items": {
           "format": "uint32",
@@ -19673,6 +19680,13 @@
       "activate": {
         "type": "boolean"
       },
+      "archive_only_plan_sha256": {
+        "description": "Archive-only review for the same candidate. Acquisition still revalidates it.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "assessment": {
         "$ref": "#/$defs/PortActionAssessment",
         "description": "Read-only decision for this exact reviewed candidate, not authorization."
@@ -27634,6 +27648,13 @@
           "null"
         ]
       },
+      "transport_target_sha256": {
+        "description": "Digest of the authenticated compact transport target, when applicable.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "withdrawn_ids": {
         "items": {
           "type": "string"
@@ -34267,6 +34288,13 @@
             "type": "boolean"
           },
           "target_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transport_target_sha256": {
+            "description": "Digest of the authenticated compact transport target, when applicable.",
             "type": [
               "string",
               "null"
