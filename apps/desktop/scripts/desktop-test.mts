@@ -116,6 +116,7 @@ import {
   selectPrimaryNavigation,
   reviewControls,
   selectCatalogPort,
+  openCatalogFilters,
   openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
@@ -152,9 +153,9 @@ import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
 import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
-import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
+import { activityOutsideCatalog, catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { createImageRefusal } from "./desktop-cover-observations.mts";
-import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
+import { defaultCoverScenario, reviewedScreenshotScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -3933,6 +3934,15 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
+  await reviewedScreenshotScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    library,
+    artifacts,
+    capture: captureScenarioScreenshot,
+  });
   for (const cacheConditions of [true, false]) {
     await defaultCoverScenario({
       browser,
@@ -4297,10 +4307,20 @@ try {
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
-    const filters = await openMoreCatalogFilters(browser);
-    const channelChoices = await filters.findElement(
+    const filters = await openCatalogFilters(browser);
+    const moreFilters = await filters.findElement(By.css("details.catalog-filter-advanced"));
+    const summary = await moreFilters.findElement(By.css("summary"));
+    const channelChoices = await moreFilters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );
+    if ((await moreFilters.getAttribute("open")) !== null) await summary.sendKeys(Key.ENTER);
+    await browser.wait(until.elementIsNotVisible(channelChoices), 5_000);
+    const routine = await filters.findElement(
+      By.css('button[aria-label="Device eligibility: All"]'),
+    );
+    assert.ok(await routine.isDisplayed(), "Routine device eligibility must stay visible");
+    await summary.sendKeys(Key.ENTER);
+    await browser.wait(until.elementIsVisible(channelChoices), 5_000);
     await clickVisible(browser, channelChoices);
     const selectedFilter = await browser.wait(
       until.elementLocated(
@@ -4741,8 +4761,12 @@ try {
     assert.equal(initialStatus.checking, false);
     assert.equal(initialStatus.installing, false);
     assert.equal(initialStatus.available, null);
-    const activities = await invoke("get_activities");
-    assert.ok(activities.ok);
+    const activity = async () => activityOutsideCatalog(success(await invoke("get_activities")));
+    const activitiesBefore = await activity();
+    const assertNoApplicationUpdate = async () => {
+      assert.deepEqual(await activity(), activitiesBefore);
+      assert.deepEqual(success(await invoke("get_application_update_status")), initialStatus);
+    };
 
     await selectSettingsCategory("updates");
     const channel = By.xpath(
@@ -4783,8 +4807,7 @@ try {
       15_000,
       "turning off automatic checks was not saved",
     );
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-    assert.equal(success(await invoke("get_application_update_status")).available, null);
+    await assertNoApplicationUpdate();
 
     await refreshSettings("updates");
     await browser.wait(until.elementLocated(channel), 15_000);
@@ -4810,7 +4833,7 @@ try {
       channel: "beta",
       automatic_checks: true,
     });
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
+    await assertNoApplicationUpdate();
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {

@@ -287,6 +287,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     with?: Record<string, unknown>;
   };
   type Job = {
+    uses?: string;
     if?: string;
     permissions?: unknown;
     secrets?: Record<string, string>;
@@ -316,6 +317,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
   assert.deepEqual(Object.keys(workflow.jobs), [
+    "reconcile-intake-receipts",
     "collect",
     "resume-intake-audits",
     "restore-proof",
@@ -334,6 +336,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       "utf8",
     ),
   ) as { jobs: { intake: Job } };
+  const receiptWorker = workflow.jobs["reconcile-intake-receipts"]!;
+  assert.equal(
+    receiptWorker.uses,
+    undefined,
+    "read-only receipt job has no reusable permission floor",
+  );
+  assert.deepEqual(receiptWorker.permissions, { contents: "read", issues: "read" });
+  assert.equal(receiptWorker.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
+  assert.equal(resume.uses, "./.github/workflows/hosted-discovery-intake.yml");
+  assert.deepEqual(resume.permissions, worker.jobs.intake.permissions);
+  assert.doesNotMatch(JSON.stringify(receiptWorker.steps), /secrets.PORTCOVE_ROADMAP_TOKEN/u);
+  assert.match(
+    JSON.stringify(receiptWorker.steps),
+    /"REPOSITORY_TOKEN":"\$\{\{ github.token \}\}"/u,
+  );
+  const jobConcurrency = (job: Job) =>
+    (job as Job & { concurrency: { group: string } }).concurrency.group;
+  assert.notEqual(jobConcurrency(receiptWorker), jobConcurrency(worker.jobs.intake));
   const checkout = worker.jobs.intake.steps.find((step) =>
     step.uses?.startsWith("actions/checkout@"),
   );
@@ -343,7 +363,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   );
   assert.equal(
     collect!.if,
-    "github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'",
+    "${{ !cancelled() && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}",
   );
   assert.deepEqual(collect!.permissions, { contents: "read", actions: "read", issues: "read" });
   assert.deepEqual(restoreProof!.permissions, { contents: "read" });
@@ -386,6 +406,8 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.equal(collection.env!.PORTCOVE_DISCOVERY_DATABASE_URL, undefined);
+  assert.doesNotMatch(collection.run!, /--reconcile-intake/u);
   assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
   assert.match(
@@ -407,7 +429,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--delivery",
     "--upstream",
     "--hosted-intake",
-    "--reconcile-intake",
+    "--intake-receipt-revision",
     "--targets",
     "--reassess changed",
   ])
@@ -418,19 +440,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(render.env, undefined);
   assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
-  const finalReceiptCheck = collect!.steps.at(-1)!;
-  assert.equal(finalReceiptCheck.name, "Check original intake receipt reconciliation");
-  assert.match(finalReceiptCheck.run!, /hosted_intake.receipts.status/u);
-  assert.ok(
-    collect!.steps
-      .slice(0, -1)
-      .some((step) => step.name === "Retain the backup for independent restore proof"),
+  assert.equal(
+    collect!.steps.at(-1)?.name,
+    "Check that collection kept the reconciled intake fence",
   );
+  assert.match(collect!.steps.at(-1)?.run ?? "", /receipt_fence == "verified"/u);
   assert.ok(
-    collect!.steps
-      .slice(0, -1)
-      .some((step) => step.name === "Retain the report, digest and evidence"),
+    collect!.steps.some((step) => step.name === "Retain the backup for independent restore proof"),
   );
+  assert.ok(collect!.steps.some((step) => step.name === "Retain the report, digest and evidence"));
+  const workerExecute = worker.jobs.intake.steps.find((step) =>
+    step.run?.includes("node scripts/hosted-discovery-intake-runner.mts"),
+  );
+  assert.ok(workerExecute);
+  assert.match(
+    workerExecute.env!.PORTCOVE_DISCOVERY_DATABASE_URL!,
+    /secrets.PORTCOVE_DISCOVERY_DATABASE_URL/u,
+  );
+  assert.match(workerExecute.env!.HOSTED_INTAKE_MODE!, /inputs.mode/u);
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
@@ -2680,7 +2707,11 @@ void test(
       updated_at: "2026-11-11T00:00:00Z",
       comments_sha256: "c".repeat(64),
     });
-    const collectWith = (requests: HostedRequestStatus[] | Error, platform = "linux-x86-64") => {
+    const collectWith = (
+      requests: HostedRequestStatus[] | Error,
+      platform = "linux-x86-64",
+      intakeReceiptRevision?: string,
+    ) => {
       const previous = JSON.parse(readFileSync(responses, "utf8")) as Record<string, unknown>;
       writeFileSync(responses, JSON.stringify({ ...previous, hostPlatform: platform }));
       return collect({
@@ -2691,6 +2722,7 @@ void test(
           requests instanceof Error
             ? Promise.reject(requests)
             : Promise.resolve({ queue: queue(), requests }),
+        intakeReceiptRevision,
         environment: collector,
         runner: "fixture",
       });
@@ -2990,10 +3022,20 @@ void test(
       });
     const reconcile = (row: HostedRequestStatus) =>
       reconcileIntakeHandoffReceipts(executor, async () => ({ queue: queue(), requests: [row] }));
-    assert.deepEqual(
-      (await reconcile(finish())).completed,
-      [],
-      "missing required durable checkpoint",
+    const missing = await reconcile(finish());
+    assert.deepEqual(missing.completed, [], "missing required durable checkpoint");
+    assert.equal(missing.pending, 1);
+    const changedQueue = await collectWith(
+      [request(10), blocked(20), finish()],
+      "linux-x86-64",
+      "hosted-intake:older-queue",
+    );
+    assert.equal(changedQueue.hosted_intake?.receipt_fence, "deferred");
+    assert.equal(changedQueue.hosted_intake?.coverage, "partial");
+    assert.equal(
+      operations().find(({ id }) => id === plan("hosted-intake-holds", 40, 2))?.state,
+      "planned",
+      "collector must preserve the original plan while the executor lacks the exact receipt",
     );
     const legacy = { ...proof, checkpoint_required: false };
     assert.deepEqual(
@@ -3035,6 +3077,7 @@ void test(
     );
     const agreed = finish({ executor_receipt: { ...proof, body_sha256: receiptDigest } });
     const result = await reconcile(agreed);
+    assert.equal(result.pending, 0);
     assert.deepEqual(result.completed, [
       {
         operation_id: plan("hosted-intake-holds", 40, 2),

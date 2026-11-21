@@ -6,7 +6,9 @@ import {
   hostedIntakeObservation,
   hostedIntakeRevision,
   hostedIntakeSummary,
+  ReceiptReconciliationFailure,
 } from "./maintenance-hosted-intake.mts";
+import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 
@@ -196,8 +198,22 @@ void test("scheduled receipt recovery shares the native read and retains source 
   assert.equal(failure.failed, false);
   assert.equal(failure.facts.size, 3);
   assert.deepEqual(failure.auditContinuations, [ticket]);
-  assert.deepEqual(failure.receipts, { status: "failed" });
+  assert.deepEqual(failure.receipts, { status: "failed", reason: "unexpected" });
   assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
+  const held = await hostedIntakeObservation(collect, async () => ({
+    inspected: 2,
+    completed: ["independent receipt"],
+    pending: 1,
+  }));
+  assert.deepEqual(held.auditContinuations, [ticket]);
+  assert.deepEqual(held.receipts, {
+    status: "failed",
+    reason: "proof-pending",
+    inspected: 2,
+    completed: ["independent receipt"],
+    pending: 1,
+  });
+  assert.equal(held.gaps[0]?.code, "intake-receipt-fence");
   let calls = 0;
   const partial = await hostedIntakeObservation(
     async () =>
@@ -229,6 +245,27 @@ void test("scheduled receipt recovery shares the native read and retains source 
   );
   assert.deepEqual(unavailable.receipts, { status: "unavailable" });
   assert.equal(calls, 0);
+});
+
+void test("receipt failure reports its phase and role denial without leaking store text", async () => {
+  const failure = await hostedIntakeObservation(
+    async () => read([row(10)]),
+    async () => {
+      throw new ReceiptReconciliationFailure(
+        "read-plans",
+        new MaintenanceStoreError(
+          'psql exited 3: permission denied to set role "portcove_maintenance_executor"; private receipt',
+        ),
+      );
+    },
+  );
+  assert.deepEqual(failure.receipts, {
+    status: "failed",
+    phase: "read-plans",
+    reason: "executor-role-denied",
+  });
+  assert.doesNotMatch(JSON.stringify(failure), /private receipt/u);
+  assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
 });
 
 void test("attention reuses the executor classification and withdrawn requests stay quiet", () => {
