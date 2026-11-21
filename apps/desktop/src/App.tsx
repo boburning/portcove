@@ -13,7 +13,9 @@ import {
   replaceRegisteredSource,
 } from "./features/source-health/source-actions";
 import desktopPackage from "../package.json";
+import { detailSections } from "./features/game-details/detail-sections";
 import { AddGames } from "./components/AddGames";
+import { SavedScanFeedback, savedScanSummary } from "./components/SavedScanFeedback";
 import { useAppTranslation } from "./localization";
 import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { InterfaceSizeProvider } from "./InterfaceSize";
@@ -69,7 +71,11 @@ import {
   revealSettingsHeading,
   settingsCategoryForTarget,
 } from "./features/app-shell/focus-settings-target";
-import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
+import {
+  GameFileScanProvider,
+  useGameFileScanObserver,
+  type ScanResultRequest,
+} from "./features/game-file-discovery/use-game-file-scan";
 import {
   SetupReviewSelectionProvider,
   useSetupReviewSelection,
@@ -719,6 +725,7 @@ function useWorkspace(props: WorkspaceProps) {
     open: openPortDetails,
     replace: switchPortDetails,
     opening: detailOpening,
+    captureReturn: captureDetailReturn,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   useStartupPlayRequest({
     ready: Boolean(data.catalog),
@@ -729,7 +736,14 @@ function useWorkspace(props: WorkspaceProps) {
   });
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
-  const [scanRequest, setScanRequest] = useState(0);
+  const [scanRequest, setScanRequest] = useState<ScanResultRequest>();
+  const [scanOrigin, setScanOrigin] = useState<{
+    view: View;
+    game?: string | undefined;
+    resumeDetail?: (() => void) | undefined;
+    history: boolean;
+    identity: string;
+  }>();
   const [addGamesStarted, setAddGamesStarted] = useState(false);
   const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
   const organizationKey = ui.view === "catalog" ? "catalog" : "library";
@@ -777,35 +791,65 @@ function useWorkspace(props: WorkspaceProps) {
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
   };
-  const openAddGamesFrom = (fromSettings: boolean) => {
+  const openAddGamesFrom = (fromSettings: boolean, focusHeading = true) => {
     setAddGamesFromSettings(fromSettings);
     addGamesReturn.current = workspaceScrollTop(workspace.current);
     setAddGamesStarted(true);
     setAddGamesOpen(true);
     setPrimaryView("library");
+    if (!focusHeading) return;
     requestAnimationFrame(() => {
       scrollWorkspaceTo(workspace.current, 0);
       workspace.current?.querySelector<HTMLElement>("h1")?.focus();
     });
   };
-  const openAddGames = () => openAddGamesFrom(false);
+  const openAddGames = () => {
+    setScanOrigin(undefined);
+    setScanRequest((request) => request && { sequence: request.sequence });
+    openAddGamesFrom(false);
+  };
   const openGameFileScan = () => {
-    setScanRequest((request) => request + 1);
+    setScanOrigin(undefined);
+    setScanRequest((request) => ({ sequence: (request?.sequence ?? 0) + 1 }));
     openAddGamesFrom(true);
+  };
+  const openSavedScanResult = (identity: string) => {
+    const section =
+      workspace.current?.querySelector<HTMLElement>("[data-detail-section]")?.dataset.detailSection;
+    setScanOrigin({
+      view: ui.view,
+      game: model.entry?.id,
+      resumeDetail: captureDetailReturn(detailSections.find((candidate) => candidate === section)),
+      history: ui.activitySection === "history",
+      identity,
+    });
+    setScanRequest((request) => ({ sequence: (request?.sequence ?? 0) + 1, expected: identity }));
+    openAddGamesFrom(false, false);
   };
   const closeAddGames = () => {
     setAddGamesOpen(false);
-    if (addGamesFromSettings) {
+    setScanRequest((request) => request && { sequence: request.sequence });
+    setScanOrigin(undefined);
+    if (scanOrigin) {
+      setPrimaryView(scanOrigin.view, scanOrigin.history ? "history" : undefined);
+      if (scanOrigin.game && availablePortIds?.has(scanOrigin.game)) scanOrigin.resumeDetail?.();
+    } else if (addGamesFromSettings) {
       ui.setSettingsCategory("game-files");
       setPrimaryView("settings");
     }
     requestAnimationFrame(() => {
       scrollWorkspaceTo(workspace.current, addGamesReturn.current);
-      workspace.current
-        ?.querySelector<HTMLElement>(
-          addGamesFromSettings ? "[data-open-game-file-scan]" : "[data-add-games-trigger]",
-        )
-        ?.focus({ preventScroll: true });
+      const target = scanOrigin
+        ? [
+            ...(workspace.current?.querySelectorAll<HTMLElement>("[data-scan-result-trigger]") ??
+              []),
+          ].find((item) => item.dataset.scanResultTrigger === scanOrigin.identity)
+        : workspace.current?.querySelector<HTMLElement>(
+            addGamesFromSettings ? "[data-open-game-file-scan]" : "[data-add-games-trigger]",
+          );
+      (target ?? workspace.current?.querySelector<HTMLElement>("h1"))?.focus({
+        preventScroll: true,
+      });
     });
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
@@ -929,7 +973,18 @@ function useWorkspace(props: WorkspaceProps) {
       <div className="add-games-heading grid justify-items-start gap-2">
         <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
           <ArrowLeft aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
-          {addGamesFromSettings ? "Back to Game files settings" : "Back to Library"}
+          {scanOrigin
+            ? scanOrigin.game
+              ? "Back to game"
+              : {
+                  library: "Back to Library",
+                  catalog: "Back to Discover",
+                  updates: "Back to Activity",
+                  settings: "Back to Settings",
+                }[scanOrigin.view]
+            : addGamesFromSettings
+              ? "Back to Game files settings"
+              : "Back to Library"}
         </Button>
         <h1 tabIndex={-1}>Add games</h1>
       </div>
@@ -1217,6 +1272,7 @@ function useWorkspace(props: WorkspaceProps) {
     setPrimaryView,
     closeAddGames,
     scanRequest,
+    openSavedScanResult,
     commandSurface,
     controller,
     reviewApplicationUpdate,
@@ -1370,6 +1426,8 @@ type WorkspaceFeedbackModel = Pick<
   | "operations"
   | "data"
   | "openPortDetails"
+  | "openSavedScanResult"
+  | "addGamesOpen"
   | "setPrimaryView"
   | "applicationUpdate"
   | "reviewApplicationUpdate"
@@ -1382,9 +1440,13 @@ type WorkspaceFeedbackModel = Pick<
 };
 
 function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
+  const { t } = useAppTranslation("gameFiles");
+  const scan = useGameFileScanObserver(model.bootstrap.generation);
+  const savedScan = scan.scanning ? undefined : scan.receipt?.snapshot;
   return (
     <div className="flow-root min-w-0" data-workspace-feedback>
       <StatusLayer
+        scanResultAnnouncement={savedScan ? savedScanSummary(t, savedScan) : undefined}
         invocations={model.operations.invocations}
         operationEvents={model.operations.operationEvents}
         dismissInvocation={model.operations.dismissInvocation}
@@ -1454,6 +1516,11 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
             dismiss={model.dismissApplicationUpdateNotice}
           />
         }
+      />
+      <SavedScanFeedback
+        snapshot={savedScan}
+        show={!model.addGamesOpen || model.ui.view !== "library" || Boolean(model.ui.selectedId)}
+        open={model.openSavedScanResult}
       />
       <WorkspaceRefreshNotice
         failure={model.data.refreshFailure}
