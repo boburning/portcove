@@ -314,7 +314,8 @@ pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 pub use library::{
-    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
+    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, LibrarySelectionContents,
+    LibrarySelectionTarget, PortOperationGuard,
 };
 pub use library_import::LibraryImportPlan;
 pub use library_membership::{

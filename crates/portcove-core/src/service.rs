@@ -7605,6 +7605,7 @@ impl PortcoveService {
                 install_root,
                 &persistent_root,
                 &user_root,
+                excluded,
             )?
         {
             return Ok(copied);

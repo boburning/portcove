@@ -21,6 +21,26 @@ use crate::{
     database,
 };
 
+/// The files recognized during a read-only library selection check.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LibrarySelectionContents {
+    EmptyDirectory,
+    ExistingDatabase,
+    RecoveryRecords,
+    NewDefaultDirectory,
+}
+
+/// Read-only evidence about a candidate. Compatibility is checked when it opens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibrarySelectionTarget {
+    pub root: PathBuf,
+    pub contents: LibrarySelectionContents,
+    pub relocated_to: Option<PathBuf>,
+}
+
 struct StoredSourceRow {
     profile_id: String,
     path: String,
@@ -110,9 +130,16 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(
-        &crate::installed_contract::legacy_retained_document(catalog, port_id, None),
-    )?)
+    let mut document = crate::installed_contract::legacy_retained_document(catalog, port_id, None);
+    if let Some(port) = document.ports.iter_mut().find(|port| port.id == port_id)
+        && port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+    {
+        port.game_settings = None;
+    }
+    Ok(serde_json::to_string(&document)?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -632,6 +659,12 @@ impl Library {
     /// Empty directories and recognizable Portcove roots are accepted; unrelated
     /// nonempty directories are left untouched.
     pub fn validate_selection_target(root: &Path) -> Result<PathBuf> {
+        Ok(Self::inspect_selection_target(root)?.root)
+    }
+
+    /// Read the same bounded directory evidence used by validation, without
+    /// opening or initializing a library.
+    pub fn inspect_selection_target(root: &Path) -> Result<LibrarySelectionTarget> {
         crate::path::unicode(root, "library root")?;
         if !root.is_absolute() {
             return Err(PortcoveError::usage("library root must be absolute"));
@@ -676,19 +709,29 @@ impl Library {
         let recovery_present = [".portcove-authority.json", ".portcove-import.json"]
             .iter()
             .any(|name| canonical.join(name).exists());
-        let recovery_recognized = if recovery_present {
-            crate::library_authority::open_target(&canonical)?;
-            true
+        let relocated_to = if recovery_present {
+            crate::library_authority::open_target(&canonical)?
         } else {
-            false
+            None
         };
-        if nonempty && !database_recognized && !recovery_recognized {
+        if nonempty && !database_recognized && !recovery_present {
             return Err(PortcoveError::conflict(
                 "selected directory is nonempty and is not a recognizable Portcove library",
             )
             .detail("library_root", canonical.display().to_string()));
         }
-        Ok(canonical)
+        let contents = if recovery_present {
+            LibrarySelectionContents::RecoveryRecords
+        } else if database_recognized {
+            LibrarySelectionContents::ExistingDatabase
+        } else {
+            LibrarySelectionContents::EmptyDirectory
+        };
+        Ok(LibrarySelectionTarget {
+            root: canonical,
+            contents,
+            relocated_to,
+        })
     }
 
     /// After the adapter drops its current state, an exclusive lease proves that
@@ -702,11 +745,30 @@ impl Library {
     }
 
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let mut root = root.into();
+        Self::open_with_relocation(root.into(), true)
+    }
+
+    /// Open the selected directory without following a relocation discovered
+    /// after the player reviewed the target.
+    pub fn open_reviewed_selection(root: impl Into<PathBuf>) -> Result<Self> {
+        Self::open_with_relocation(root.into(), false)
+    }
+
+    fn open_with_relocation(mut root: PathBuf, follow_relocation: bool) -> Result<Self> {
+        let target = |root: &Path| -> Result<Option<PathBuf>> {
+            let destination = crate::library_authority::open_target(root)?;
+            if !follow_relocation && let Some(moved) = &destination {
+                return Err(PortcoveError::conflict(
+                    "the selected library moved after review; choose its current folder",
+                )
+                .detail("current_library_root", moved.display().to_string()));
+            }
+            Ok(destination)
+        };
         for _ in 0..8 {
             crate::path::unicode(&root, "library root")?;
             let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
-            if let Some(destination) = crate::library_authority::open_target(&root)? {
+            if let Some(destination) = target(&root)? {
                 root = destination;
             } else if database::requires_migration(&root)? {
                 // A previously opened client holds a shared lease for its whole
@@ -717,7 +779,7 @@ impl Library {
                         &root,
                         crate::library_access::LibraryAccess::Exclusive,
                     )?);
-                if let Some(destination) = crate::library_authority::open_target(&root)? {
+                if let Some(destination) = target(&root)? {
                     root = destination;
                 } else {
                     drop(Self::initialize(root.clone(), exclusive)?);

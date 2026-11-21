@@ -1144,6 +1144,12 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+/**
+ * The files recognized during a read-only library selection check.
+ */
+export type LibrarySelectionContents =
+  "empty_directory" | "existing_database" | "recovery_records" | "new_default_directory";
+export type LibrarySelectionEffect = "keep" | "change_startup" | "open";
 export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
 export type PortReadiness =
   | {
@@ -1455,6 +1461,7 @@ export interface TransportOutputs {
   desktop_library_membership_outcomes: OutputDesktopLibraryMembershipOutcomes;
   desktop_library_memberships: OutputDesktopLibraryMemberships;
   desktop_library_organization: OutputDesktopLibraryOrganization;
+  desktop_library_selection_review: OutputDesktopLibrarySelectionReview;
   desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
   desktop_managed_route_change_result: OutputManagedRouteChangeResult;
@@ -2363,6 +2370,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -4349,6 +4360,10 @@ export interface OutputGameUpdatePlan {
    */
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
+  /**
+   * Archive-only review for the same candidate. Acquisition still revalidates it.
+   */
+  archive_only_plan_sha256?: string | null;
   assessment: PortActionAssessment3;
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
@@ -5040,6 +5055,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }
@@ -7144,6 +7163,15 @@ export interface UpdateNoticeRelease {
    */
   artifact_sha256: string;
   version: string;
+}
+export interface OutputDesktopLibrarySelectionReview {
+  contents: LibrarySelectionContents;
+  effect: LibrarySelectionEffect;
+  path: string;
+  resets_preferences: boolean;
+  review_sha256: string;
+  source: LibrarySelectionSource;
+  [k: string]: unknown;
 }
 export interface OutputDesktopLocalePreference {
   locale: string | null;

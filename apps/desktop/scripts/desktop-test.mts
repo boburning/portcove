@@ -116,7 +116,7 @@ import {
   selectPrimaryNavigation,
   reviewControls,
   selectCatalogPort,
-  openCatalogFilters,
+  openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
@@ -3548,9 +3548,29 @@ try {
     const browser = driverBrowser();
     const before = await invoke("get_bootstrap_status");
     assert.ok(before.ok);
-    const defaultRoot = await invoke("get_default_library_root");
-    assert.ok(defaultRoot.ok);
-    assert.ok(defaultRoot.value);
+    const generation = before.value.generation;
+    const preferenceReview = async () =>
+      transportValue(
+        "desktop_library_selection_review",
+        success(
+          await invoke("review_library_selection", {
+            path: null,
+            generation: generation,
+          }),
+        ),
+      );
+
+    const expected = await preferenceReview();
+    assert.equal(expected.source, "platform_default");
+    assert.equal(expected.effect, "open");
+    assert.match(expected.review_sha256, /^[0-9a-f]{64}$/);
+    const contents = {
+      empty_directory: "This folder is empty. Portcove will start a new library here.",
+      new_default_directory: "Portcove will create the default library folder.",
+      existing_database:
+        "This folder contains a library database. Portcove checks it when opening.",
+      recovery_records: "This folder contains recovery records. Portcove checks them when opening.",
+    }[expected.contents];
     await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
@@ -3572,7 +3592,8 @@ try {
     );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
-    assert.ok(reviewText.includes(defaultRoot.value));
+    assert.ok(reviewText.includes(expected.path));
+    assert.ok(reviewText.includes(contents));
     assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
       success(await invoke("get_bootstrap_status")).library_root,
@@ -3619,6 +3640,7 @@ try {
       "Library selection review trigger did not regain focus after Escape",
     );
     assert.deepEqual(success(await invoke("get_bootstrap_status")), before.value);
+    assert.deepEqual(await preferenceReview(), expected);
   });
   await scenario("native-library-browsing-context", async () => {
     const browser = driverBrowser();
@@ -3647,7 +3669,7 @@ try {
       ]),
     ].sort();
     const channelChoice = async (channel: string) => {
-      const panel = await openCatalogFilters(browser);
+      const panel = await openMoreCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
       const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
       if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -4234,10 +4256,65 @@ try {
       "Application update settings did not receive focus",
     );
 
+    const activityTab = (name: "Tasks" | "History" | "Game updates") =>
+      By.xpath(
+        `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="${name}"]]`,
+      );
+    const selectActivityTab = async (name: "Tasks" | "History") => {
+      const tab = await browser.wait(until.elementLocated(activityTab(name)), 5_000);
+      await clickVisible(browser, tab);
+      await browser.wait(async () => (await tab.getAttribute("aria-selected")) === "true", 5_000);
+    };
+    for (const origin of ["Tasks", "History"] as const) {
+      // Leave Activity with the origin tab still selected. The explicit
+      // Settings link must override that selection and land on Game updates.
+      await selectPrimaryNavigation(browser, "Activity");
+      await selectActivityTab(origin);
+      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("updates", "keyboard");
+      const returnLink = await browser.findElement(
+        By.xpath(
+          '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open game updates in Activity"]',
+        ),
+      );
+      await clickVisible(browser, returnLink);
+      const updates = await browser.wait(until.elementLocated(activityTab("Game updates")), 5_000);
+      await browser.wait(
+        async () =>
+          (await updates.getAttribute("aria-selected")) === "true" &&
+          (await executeBrowserScript(browser, () => document.activeElement?.matches("main h1"))),
+        5_000,
+        `The Settings link must open Game updates and focus Activity after leaving ${origin}`,
+      );
+
+      await selectActivityTab(origin);
+      await updates.sendKeys(Key.ENTER);
+      await browser.wait(
+        async () =>
+          (await updates.getAttribute("aria-selected")) === "true" &&
+          (await executeBrowserScript(browser, (tab) => document.activeElement === tab, updates)),
+        5_000,
+        `Game updates did not retain keyboard focus when opened from ${origin}`,
+      );
+      const settingsLink = await browser.findElement(
+        By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
+      );
+      await clickVisible(browser, settingsLink);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => document.activeElement?.id === "settings-updates-heading",
+          ),
+        5_000,
+        `The named Settings heading did not receive focus after leaving ${origin} for Game updates`,
+      );
+    }
+
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
-    const filters = await openCatalogFilters(browser);
+    const filters = await openMoreCatalogFilters(browser);
     const channelChoices = await filters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );
