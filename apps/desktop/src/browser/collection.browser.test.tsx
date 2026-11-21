@@ -633,7 +633,11 @@ it.each(["dark", "light"])(
     await expect.element(navigation).toHaveFocus();
     const order = [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]);
     await inspectDiscoverGroups(order, (card) => {
-      const left = card.getBoundingClientRect().left;
+      const surface = getComputedStyle(card);
+      const left =
+        card.getBoundingClientRect().left +
+        parseFloat(surface.borderLeftWidth) +
+        parseFloat(surface.paddingLeft);
       for (const selector of [
         ".collection-art",
         ".collection-title",

@@ -1525,16 +1525,30 @@ it.each([
     const art = cover.querySelector<HTMLElement>(".collection-art")!;
     const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
     const horizontal = matchMedia("(height <= 50rem)").matches;
-    expect(
-      horizontal ||
-        Math.abs(art.getBoundingClientRect().width - cover.getBoundingClientRect().width) < 0.5,
-    ).toBe(true);
-    expect(overlay.getBoundingClientRect().width).toBeCloseTo(art.getBoundingClientRect().width, 0);
-    expect(art.getBoundingClientRect().height / art.getBoundingClientRect().width).toBeCloseTo(
-      1.5,
-      2,
-    );
-    expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
+    const surface = getComputedStyle(cover);
+    const inset =
+      parseFloat(surface.paddingInlineStart) + parseFloat(surface.borderInlineStartWidth);
+    expect(inset).toBeGreaterThan(0);
+    const image = art.getBoundingClientRect();
+    const body = cover.getBoundingClientRect();
+    expect(image.left - body.left).toBeCloseTo(inset, 0);
+    const minimumWidth = artworkWidth - 2 * inset - 0.5;
+    const maximumWidth = horizontal ? artworkWidth + 1 : minimumWidth + 1;
+    expect(image.width).toBeGreaterThanOrEqual(minimumWidth);
+    expect(image.width).toBeLessThanOrEqual(maximumWidth);
+    expect(overlay.getBoundingClientRect().width).toBeCloseTo(image.width, 0);
+    expect(image.height / image.width).toBeCloseTo(1.5, 2);
+    const playActions = width > 480 ? [...grid.querySelectorAll(".library-card-play")] : [];
+    const offRow = playActions.filter((play) => {
+      const status = play.closest(".library-entry-footer")!.querySelector(".collection-state")!;
+      const actionBounds = play.getBoundingClientRect();
+      const statusBounds = status.getBoundingClientRect();
+      return (
+        Math.abs(actionBounds.top - statusBounds.top) > 0.5 ||
+        actionBounds.left < statusBounds.right
+      );
+    });
+    expect(offRow).toEqual([]);
     const title = cover.querySelector<HTMLElement>(".collection-title")!;
     // A previous pointer position can hover the first poster and translate its
     // artwork by two pixels. Measure the resting composition after that settles.

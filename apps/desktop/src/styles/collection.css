@@ -1420,3 +1420,91 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Covers use a shared raised surface while retaining the short Library layout. */
+@layer utilities {
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover) {
+    --cover-card-inset: 0.375rem;
+    padding: var(--cover-card-inset);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover):is(
+    :hover,
+    :focus-within
+  ) {
+    border-color: var(--color-interactive-border);
+    box-shadow: var(--shadow-raised);
+  }
+
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover)
+    :is(.discover-game-identity, .collection-identity):hover
+    .collection-art {
+    transform: none;
+    box-shadow: none;
+  }
+
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover)
+    .collection-personal-actions {
+    /* The absolute containing block starts inside the card border. */
+    inset-inline-start: var(--cover-card-inset);
+    inset-block-start: calc(var(--cover-card-inset) + var(--space-2));
+    inline-size: calc(100% - 2 * var(--cover-card-inset));
+  }
+
+  .discover-covers .discover-game :is(.collection-title, .collection-project),
+  .collection-covers:not(.discover-grid)
+    .collection-cover
+    :is(.collection-title, .collection-project, .library-entry-chips) {
+    min-block-size: 0;
+  }
+
+  .discover-covers .discover-game .collection-title {
+    margin-block-start: var(--space-3);
+  }
+
+  .discover-covers .discover-game-actions > button:not(.discover-card-action) {
+    padding-inline: 0;
+  }
+
+  @media (height > 50rem) and (width > 30rem) {
+    .collection-covers:not(.discover-grid) [data-library-port-ids] > .collection-cover:only-child {
+      height: 100%;
+    }
+
+    .collection-covers:not(.discover-grid) .collection-cover .collection-main {
+      flex: 1 1 auto;
+    }
+  }
+
+  /* Play fits beside concise status at desktop widths. Longer or multiple
+     actions keep the existing wrapping rules, as do phone-width cards. */
+  @container app-window (width > 30rem) {
+    .collection-cover
+      .library-entry-footer:has(.library-card-play):not(:has([data-setup-warnings])) {
+      flex-wrap: nowrap;
+
+      & .collection-state {
+        flex: 1 1 0;
+      }
+
+      & .library-card-play {
+        white-space: nowrap;
+      }
+    }
+  }
+
+  @media (width <= 30rem) {
+    :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover) {
+      --cover-card-inset: var(--space-1);
+    }
+  }
+
+  @media (height <= 50rem) {
+    .collection-covers:not(.discover-grid) .collection-cover .collection-personal-actions {
+      inline-size: min(calc(40% - 0.8 * var(--cover-card-inset)), var(--collection-art-limit));
+    }
+  }
+}
