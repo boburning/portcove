@@ -70,14 +70,20 @@ pub(crate) fn legacy_direct(port_id: &str) -> Option<&'static LegacyDirectArtifa
 }
 
 #[derive(Clone, Copy, Deserialize, PartialEq, Eq, Debug)]
-#[serde(rename_all = "kebab-case")]
 pub(crate) enum PackageContract {
+    #[serde(rename = "tfe-dark-forces-122420")]
     TfeDarkForces122420,
+    #[serde(rename = "racewave46-v100-windows")]
     Racewave46V100Windows,
+    #[serde(rename = "regaiden-041-windows")]
     Regaiden041Windows,
+    #[serde(rename = "regaiden-041-prepared-windows")]
     Regaiden041PreparedWindows,
+    #[serde(rename = "smb1r-11-windows")]
     Smb1r11Windows,
+    #[serde(rename = "shipwright-931-windows")]
     Shipwright931Windows,
+    #[serde(rename = "ghostship-200-windows")]
     Ghostship200Windows,
 }
 
