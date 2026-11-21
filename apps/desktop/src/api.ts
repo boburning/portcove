@@ -1404,6 +1404,8 @@ export const desktopApi = {
       generation,
       onEvent: recoveryBundleEventChannel(onProgress),
     }),
+  readLibraryRecoveryRestore: (destination: string, expectedPlan: string) =>
+    invoke<LibraryImportResult>("read_library_recovery_restore", { destination, expectedPlan }),
   resumeLibraryRecoveryBundle: (
     staging: string,
     generation: number,
@@ -1418,10 +1420,12 @@ export const desktopApi = {
     destination: string,
     generation: number,
     onProgress?: (event: OperationEvent) => void,
+    expectedTransferId?: string,
   ) =>
     invoke<LibraryImportResult>("resume_library_recovery_restore", {
       destination,
       generation,
+      expectedTransferId,
       onEvent: recoveryBundleEventChannel(onProgress),
     }),
   reportFrontendError: (report: FrontendFailureReport) =>

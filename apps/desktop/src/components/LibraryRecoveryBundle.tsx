@@ -28,7 +28,11 @@ import { Field } from "./ui/field";
 import { Input } from "./ui/input";
 
 type Operation = "create" | "inspect" | "resumeCreation" | "resumeRestore";
-type RecoveryStep = { operation: "resumeCreation" | "resumeRestore"; path: string };
+type RecoveryStep = {
+  operation: "resumeCreation" | "resumeRestore";
+  path: string;
+  transferId?: string;
+};
 
 const titles = {
   create: "Create recovery bundle",
@@ -207,6 +211,7 @@ function RecoveryBundleDialog({
   const [createReceipt, setCreateReceipt] = useState<LibraryRecoveryBundlePlan>();
   const [verified, setVerified] = useState<LibraryRecoveryBundle>();
   const [restore, setRestore] = useState<LibraryRecoveryRestorePlan>();
+  const [restoreReceipt, setRestoreReceipt] = useState<LibraryRecoveryRestorePlan>();
   const [restored, setRestored] = useState<string>();
   const [transferred, setTransferred] = useState(false);
   const [pending, setPending] = useState("");
@@ -288,12 +293,22 @@ function RecoveryBundleDialog({
       setRecovery(undefined);
       return result;
     } catch (failure) {
-      const target = recoveryFolder(failure, kind);
-      if (target) setRecovery({ operation: kind, path: target });
+      const target = recoveryStep(failure, kind);
+      if (target) setRecovery(target);
       throw failure;
     } finally {
       copyInvocation.current = undefined;
     }
+  }
+
+  function acceptRestoredDestination(
+    result: { completed: boolean; destination_root: string },
+    expected: string,
+  ) {
+    if (!result.completed || result.destination_root !== expected) {
+      throw new Error("Portcove could not verify the reviewed restore destination.");
+    }
+    setRestored(result.destination_root);
   }
 
   function resume(target: RecoveryStep) {
@@ -311,7 +326,12 @@ function RecoveryBundleDialog({
       } else {
         const result = await transfer(
           (current, observe) =>
-            desktopApi.resumeLibraryRecoveryRestore(target.path, current, observe),
+            desktopApi.resumeLibraryRecoveryRestore(
+              target.path,
+              current,
+              observe,
+              target.transferId,
+            ),
           target.operation,
         );
         if (!result.completed) throw new Error("Portcove could not verify the restored library.");
@@ -518,6 +538,33 @@ function RecoveryBundleDialog({
             Check reviewed bundle again
           </Button>
         )}
+        {error !== undefined && restoreReceipt && !restored && (
+          <Button
+            data-focusable
+            variant="outline"
+            className="justify-self-start"
+            disabled={Boolean(pending)}
+            onClick={() =>
+              void run("Checking the reviewed restore destination…", async () => {
+                const expected = restoreReceipt.destination_root;
+                try {
+                  const result = await desktopApi.readLibraryRecoveryRestore(
+                    expected,
+                    restoreReceipt.plan_sha256,
+                  );
+                  acceptRestoredDestination(result, expected);
+                  setRecovery(undefined);
+                } catch (failure) {
+                  const step = recoveryStep(failure, "resumeRestore");
+                  if (step?.path === expected) setRecovery(step);
+                  throw failure;
+                }
+              })
+            }
+          >
+            Check reviewed restore again
+          </Button>
+        )}
         {errorDetail(error, "recovery_action") === "discard_game_update_acquisition" && (
           <section className="grid gap-2" aria-label="Retained update download">
             <p>
@@ -630,6 +677,7 @@ function RecoveryBundleDialog({
               disabled={disabled || !destination.trim()}
               onClick={() => {
                 if (restore) {
+                  setRestoreReceipt(restore);
                   void run("Restoring and verifying the new library…", async () => {
                     const result = await transfer(
                       (current, observe) =>
@@ -642,12 +690,7 @@ function RecoveryBundleDialog({
                         ),
                       "resumeRestore",
                     );
-                    if (!result.completed || result.destination_root !== restore.destination_root) {
-                      throw new Error(
-                        "Portcove could not verify the reviewed restore destination.",
-                      );
-                    }
-                    setRestored(result.destination_root);
+                    acceptRestoredDestination(result, restore.destination_root);
                   });
                 } else {
                   void run("Checking the restore destination…", async () => {
@@ -756,11 +799,18 @@ function BundleCoverage({
   );
 }
 
-function recoveryFolder(error: unknown, operation: RecoveryStep["operation"]): string | undefined {
-  return errorDetail(
-    error,
-    operation === "resumeCreation" ? "recovery_staging" : "import_destination",
-  );
+function recoveryStep(
+  error: unknown,
+  operation: RecoveryStep["operation"],
+): RecoveryStep | undefined {
+  if (operation === "resumeCreation") {
+    const path = errorDetail(error, "recovery_staging");
+    return path ? { operation, path } : undefined;
+  }
+  if (errorDetail(error, "recovery_action") !== "resume_library_recovery_restore") return;
+  const path = errorDetail(error, "import_destination");
+  const transferId = errorDetail(error, "transfer_id");
+  return path && transferId ? { operation, path, transferId } : undefined;
 }
 
 function errorDetail(error: unknown, key: string): string | undefined {

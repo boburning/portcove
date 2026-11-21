@@ -44,6 +44,23 @@ impl PortcoveService {
         })
     }
 
+    /// Read the published result of this reviewed bundle restore without resuming it.
+    pub fn read_library_recovery_restore(
+        destination: &Path,
+        expected_plan: &str,
+    ) -> Result<LibraryImportResult> {
+        let journal = ImportJournal::read_recovery(destination)?.ok_or_else(|| {
+            PortcoveError::conflict("no restore receipt is available at the reviewed destination")
+        })?;
+        if destination != journal.plan.destination_root {
+            return Err(PortcoveError::conflict(
+                "the reviewed restore destination changed",
+            ));
+        }
+        journal.require_published_bundle_review(expected_plan)?;
+        Ok(result(&journal, true))
+    }
+
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {
         recover_import(destination, false, false, None, &mut |_| Ok(()))
     }
