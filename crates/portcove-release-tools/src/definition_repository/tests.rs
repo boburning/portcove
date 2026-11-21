@@ -1097,6 +1097,36 @@ async fn descriptive_inspection_rejects_extra_or_false_summaries() {
     }
 }
 
+#[test]
+fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal() {
+    let older = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":["older-removed"],
+        "directory":{"format_version":11,"listings":[{"id":"newly-removed"},{"id":"retained","a":1}]}
+    });
+    let newer = json!({
+        "listing_delivery_schema":1,"revision":7,"withdrawn_ids":["older-removed","newly-removed"],
+        "directory":{"format_version":11,"listings":[{"id":"retained","a":1}]}
+    });
+    let bytes = serde_json::to_vec(&older).unwrap();
+    bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&newer).unwrap()).unwrap();
+
+    let mut replaced = newer.clone();
+    replaced["directory"]["listings"][0]["a"] = json!(2);
+    let refusal = bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&replaced).unwrap());
+    assert!(
+        refusal
+            .unwrap_err()
+            .to_string()
+            .contains("changes other facts")
+    );
+    let mut resurrected = newer;
+    resurrected["withdrawn_ids"] = json!(["newly-removed"]);
+    assert!(
+        bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&resurrected).unwrap())
+            .is_err()
+    );
+}
+
 #[tokio::test]
 async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_floor() {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -1129,7 +1159,15 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         let manifest_path = fixture.root().join("inspection.json");
         let mut manifest: serde_json::Value =
             serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
-        manifest["listings"] = json!({"target":name,"revision":revision,"sha256":sha(&body),"listing_count":40,"withdrawn_count":0});
+        let listings = payload["directory"]["listings"].as_array().unwrap();
+        let withdrawals = payload["withdrawn_ids"].as_array().unwrap();
+        manifest["listings"] = json!({
+            "target": name,
+            "revision": revision,
+            "sha256": sha(&body),
+            "listing_count": listings.len(),
+            "withdrawn_count": withdrawals.len(),
+        });
         manifest["files"] = json!(bundle::identities(&files));
         let bytes = serde_json::to_vec(&manifest).unwrap();
         fs::write(manifest_path, &bytes).unwrap();
@@ -1201,4 +1239,38 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         failure.contains("compact listing cannot be withdrawn"),
         "{failure}"
     );
+
+    let path = fixture
+        .root()
+        .join("bundle")
+        .join(portcove_listing_carrier::LEGACY_TARGET);
+    let old_legacy = fs::read(&path).unwrap();
+    let mut legacy: serde_json::Value = serde_json::from_slice(&old_legacy).unwrap();
+    legacy["revision"] = json!(3);
+    legacy["withdrawn_ids"] = json!(["listing-0"]);
+    legacy["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .remove(0);
+    let new_legacy = serde_json::to_vec(&legacy).unwrap();
+    fs::write(&path, &new_legacy).unwrap();
+    select_compact(&fixture, 4, false);
+    fixture.roles = fixture.root().join("withdrawal-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("withdrawal"))
+        .await
+        .unwrap();
+    for bytes in [old_legacy, new_legacy] {
+        let target = format!(
+            "targets/{}.{}",
+            sha(&bytes),
+            portcove_listing_carrier::LEGACY_TARGET
+        );
+        assert!(published.files.iter().any(|file| file.target == target));
+        assert_eq!(
+            fs::read(fixture.root().join("withdrawal").join(target)).unwrap(),
+            bytes
+        );
+    }
 }

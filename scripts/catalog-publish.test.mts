@@ -936,3 +936,54 @@ void test("compact publication rebinds the exact decoded directory to its separa
     /not referenced/u,
   );
 });
+
+void test("a reviewed legacy withdrawal keeps other legacy facts and compact-only guides", async () => {
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, reviewedLegacyWithdrawal } =
+    await import("./listing-observation-delivery.mts");
+  const legacy = fixtureDelivery();
+  const before = JSON.parse(legacy.toString());
+  const released = before.directory.listings[0];
+  const nextLegacy = {
+    ...before,
+    revision: 4,
+    withdrawn_ids: [released.id],
+    directory: { ...before.directory, listings: [] },
+  };
+  const wire = (value: unknown) => Buffer.from(JSON.stringify(value));
+  assert.deepEqual(reviewedLegacyWithdrawal(legacy, wire(nextLegacy), 3), nextLegacy);
+  assert.throws(() => reviewedLegacyWithdrawal(legacy, wire(nextLegacy), 4), /must advance/u);
+  assert.throws(
+    () => reviewedLegacyWithdrawal(legacy, wire({ ...nextLegacy, directory: before.directory }), 3),
+    /other facts/u,
+  );
+  assert.throws(
+    () => reviewedLegacyWithdrawal(legacy, wire({ ...nextLegacy, withdrawn_ids: [] }), 3),
+    /safety withdrawal/u,
+  );
+
+  const compactOnly = { ...released, id: "compact-only" };
+  const newerDirectory = {
+    ...before.directory,
+    listings: [...before.directory.listings, compactOnly],
+  };
+  const active = wire({ ...before, directory: newerDirectory, revision: 3 });
+  const refreshed = projectListingDelivery(
+    newerDirectory,
+    [],
+    active,
+    4,
+    undefined,
+    newerDirectory,
+    new Set(),
+    Date.now(),
+    [released.id],
+  );
+  const actual = JSON.parse(refreshed.bytes.toString());
+  assert.equal(actual.revision, 5);
+  assert.deepEqual(actual.withdrawn_ids, [released.id]);
+  assert.deepEqual(
+    actual.directory.listings.map((listing: { id: string }) => listing.id),
+    ["compact-only"],
+  );
+});

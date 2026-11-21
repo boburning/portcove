@@ -69,7 +69,7 @@ pub(super) struct ListingRevision {
     pub revision: u64,
     pub decoded_sha256: String,
     listing_count: usize,
-    withdrawn_count: usize,
+    pub withdrawn_ids: BTreeSet<String>,
 }
 
 pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevision> {
@@ -96,26 +96,64 @@ pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevisi
         .as_array()
         .map(Vec::len)
         .filter(|n| *n <= 10000);
-    let withdrawn_count = document["withdrawn_ids"]
-        .as_array()
-        .map(Vec::len)
-        .filter(|n| *n <= 10000);
+    let withdrawn_ids = listing_withdrawals(&document)?;
     match (
         document["listing_delivery_schema"].as_u64(),
         revision,
         listing_count,
-        withdrawn_count,
     ) {
-        (Some(1), Some(revision), Some(listing_count), Some(withdrawn_count)) => {
-            Ok(ListingRevision {
-                revision,
-                decoded_sha256,
-                listing_count,
-                withdrawn_count,
-            })
-        }
+        (Some(1), Some(revision), Some(listing_count)) => Ok(ListingRevision {
+            revision,
+            decoded_sha256,
+            listing_count,
+            withdrawn_ids,
+        }),
         _ => invalid("listing summary differs"),
     }
+}
+
+fn listing_withdrawals(document: &serde_json::Value) -> Result<BTreeSet<String>> {
+    let Some(list) = document["withdrawn_ids"]
+        .as_array()
+        .filter(|ids| ids.len() <= 10000)
+    else {
+        return invalid("listing withdrawal inventory differs");
+    };
+    let mut ids = BTreeSet::new();
+    for id in list {
+        let Some(id) = id
+            .as_str()
+            .filter(|value| !value.is_empty() && value.len() <= 128)
+        else {
+            return invalid("listing withdrawal identity differs");
+        };
+        if !ids.insert(id.to_owned()) {
+            return invalid("listing withdrawal identity repeats");
+        }
+    }
+    Ok(ids)
+}
+
+/// An older reader remains on its verified directory. A new safety withdrawal
+/// may remove only the listed identities, without replacing other legacy facts.
+pub(super) fn check_legacy_withdrawal(prior: &[u8], proposal: &[u8]) -> Result<()> {
+    let mut expected: serde_json::Value = serde_json::from_slice(prior)?;
+    let proposal: serde_json::Value = serde_json::from_slice(proposal)?;
+    let prior_ids = listing_withdrawals(&expected)?;
+    let next_ids = listing_withdrawals(&proposal)?;
+    if !prior_ids.is_subset(&next_ids) || prior_ids == next_ids {
+        return invalid("legacy listing replacement must add a safety withdrawal");
+    }
+    let Some(listings) = expected["directory"]["listings"].as_array_mut() else {
+        return invalid("legacy listing withdrawal directory differs");
+    };
+    listings.retain(|row| !row["id"].as_str().is_some_and(|id| next_ids.contains(id)));
+    expected["withdrawn_ids"] = proposal["withdrawn_ids"].clone();
+    expected["revision"] = proposal["revision"].clone();
+    if expected != proposal {
+        return invalid("legacy listing withdrawal changes other facts");
+    }
+    Ok(())
 }
 
 pub(super) struct ListingTargets {
@@ -140,6 +178,7 @@ pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {
         })?;
         if compact.revision < prior.revision
             || (compact.revision == prior.revision && compact != prior)
+            || !prior.withdrawn_ids.is_subset(&compact.withdrawn_ids)
         {
             return invalid("listing carrier revision or equivalent decoded identity differs");
         }
@@ -203,7 +242,7 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
                 && listings.sha256 == sha(&files[target])
                 && listings.revision == active.revision
                 && listings.listing_count == active.listing_count
-                && listings.withdrawn_count == active.withdrawn_count => {}
+                && listings.withdrawn_count == active.withdrawn_ids.len() => {}
         _ => return invalid("listing target/inspection identity differs"),
     }
     let mut content = BTreeMap::new();

@@ -1,7 +1,7 @@
 /** Existing observer facts -> the existing signed descriptive target. No executable authority. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -77,6 +77,40 @@ function delivery(value: unknown): Delivery {
   directory(value.directory);
   return value as unknown as Delivery;
 }
+/** Once compact delivery is active an exact authored legacy target may add
+ * safety withdrawals, keeping all other signed legacy rows untouched. */
+export function reviewedLegacyWithdrawal(
+  prior: Buffer,
+  authored: Buffer,
+  activeRevision: number,
+): Delivery {
+  const original = delivery(parseCatalogSource(prior.toString("utf8")));
+  const desired = delivery(parseCatalogSource(authored.toString("utf8")));
+  const ids = new Set(desired.withdrawn_ids);
+  if (
+    desired.revision <= activeRevision ||
+    ids.size !== desired.withdrawn_ids.length ||
+    ids.size <= original.withdrawn_ids.length ||
+    original.withdrawn_ids.some((id) => !ids.has(id)) ||
+    desired.withdrawn_ids.some(
+      (id) => typeof id !== "string" || id.length > 128 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id),
+    )
+  )
+    throw new Error("Reviewed legacy listing replacement must advance and add a safety withdrawal");
+  const expected = {
+    ...original,
+    revision: desired.revision,
+    withdrawn_ids: desired.withdrawn_ids,
+    directory: {
+      ...original.directory,
+      listings: original.directory.listings.filter((row) => !ids.has(String(row.id))),
+    },
+  };
+  if (observationHash(expected) !== observationHash(desired))
+    throw new Error("Reviewed legacy listing withdrawal changes other facts");
+  return desired;
+}
+
 /** Use validated checkpoint policies only when producer AND current canonical
  * declarations/operational facts still agree. An artifact never supplies facts
  * outside upstream_observation and cannot create an authored identity. */
@@ -150,6 +184,7 @@ export function projectListingDelivery(
   compatible?: unknown,
   operationalIds: ReadonlySet<string> = new Set(),
   now = Date.now(),
+  reviewedWithdrawals: readonly string[] = [],
 ) {
   const raw = directory(canonical);
   const baseline = directory(compatible ?? raw);
@@ -180,7 +215,9 @@ export function projectListingDelivery(
       throw new Error("Conflicting descriptive observation candidates");
     updates.set(String(candidate.id), compatibleObservation(candidate.upstream_observation));
   }
-  const withdrawn = previousDocument?.withdrawn_ids ?? [];
+  const withdrawn = [
+    ...new Set([...(previousDocument?.withdrawn_ids ?? []), ...reviewedWithdrawals]),
+  ];
   const withdrawalSet = new Set(withdrawn);
   for (const id of previousListings.keys()) {
     if (!identities.has(id) && !withdrawalSet.has(String(id)))
@@ -453,12 +490,16 @@ export async function prepareObservationBundle(options: {
   if (!isRecord(baseline) || baseline.ok !== true)
     throw new Error("Core could not export the exact canonical directory for format 11");
   const compatible = directory(baseline.data);
+  const authoredPath = path.join(options.bundle, listingDeliveryTarget);
+  const authoredLegacy = existsSync(authoredPath)
+    ? await readControllerToolFile(authoredPath, maximum)
+    : null;
   let previous: Buffer | null = null;
   let previousWire: Buffer | null = null;
   let retainedLegacy: Buffer | null = null;
   let useCompact = options.compact === true;
   let priorCompact = false;
-  const revisionFloor = 0;
+  let withdrawal: Delivery | undefined;
   let renewal: Awaited<ReturnType<typeof priorListingForRenewal>> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
   if (options.prior) {
@@ -521,6 +562,20 @@ export async function prepareObservationBundle(options: {
   }
   if (useCompact && !retainedLegacy)
     throw new Error("Compact listing publication requires a retained legacy listing");
+  if (authoredLegacy && (!priorCompact || !retainedLegacy))
+    throw new Error("Reviewed legacy withdrawal requires existing compact and legacy targets");
+  if (authoredLegacy && retainedLegacy && !authoredLegacy.equals(retainedLegacy)) {
+    if (renewal) {
+      diagnostics.push("Deferred the authored withdrawal until the exact signed prior is current");
+    } else if (previous) {
+      withdrawal = reviewedLegacyWithdrawal(
+        retainedLegacy,
+        authoredLegacy,
+        delivery(parseCatalogSource(previous.toString("utf8"))).revision,
+      );
+      retainedLegacy = authoredLegacy;
+    }
+  }
   if (!isRecord(current) || !Array.isArray(current.ports))
     throw new Error("Operational catalog requires a complete port array");
   const operationalIds = new Set<string>();
@@ -557,11 +612,12 @@ export async function prepareObservationBundle(options: {
       canonical,
       candidates,
       previous,
-      revisionFloor,
+      withdrawal?.revision ?? 0,
       maximum,
       compatible,
       operationalIds,
       now,
+      withdrawal?.withdrawn_ids,
     );
   const inspect = (bytes: Buffer) => {
     const candidate = path.join(workspace, "listings.json");
@@ -582,11 +638,12 @@ export async function prepareObservationBundle(options: {
       canonical,
       [],
       previous,
-      revisionFloor,
+      withdrawal?.revision ?? 0,
       maximum,
       compatible,
       operationalIds,
       now,
+      withdrawal?.withdrawn_ids,
     );
     inspect(
       Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
@@ -601,6 +658,12 @@ export async function prepareObservationBundle(options: {
   cpSync(options.bundle, bundle, { recursive: true });
   const destination = path.join(bundle, listingDeliveryTarget);
   mkdirSync(path.dirname(destination), { recursive: true });
+  if (authoredLegacy) {
+    const copied = await readControllerToolFile(destination, maximum);
+    if (!copied.equals(authoredLegacy))
+      throw new Error("Reviewed legacy listing input changed during projection");
+    unlinkSync(destination);
+  }
   writeFileSync(destination, retainedLegacy ?? projected.bytes, { flag: "wx" });
   const compactWire = useCompact
     ? previousWire && priorCompact && !projected.changed
@@ -629,13 +692,20 @@ export async function prepareObservationBundle(options: {
       ? {
           decoded_bytes: projected.bytes.length,
           transport_changed: !compactWire.equals(previousWire ?? Buffer.alloc(0)),
+          ...(withdrawal && authoredLegacy
+            ? {
+                reviewed_legacy_sha256: hash(authoredLegacy),
+                reviewed_legacy_revision: withdrawal.revision,
+              }
+            : {}),
         }
       : {}),
     projection_scope:
       "Reviewed operational and previously signed guides with bounded optional observations; omitted discovery rows retain bundled fallback. Coverage is not complete provider history.",
     diagnostics,
-    scope:
-      "descriptive-observation-only; canonical fields unchanged; no operation or publication grant",
+    scope: withdrawal
+      ? "reviewed descriptive withdrawal; no operation or publication grant"
+      : "descriptive-observation-only; canonical fields unchanged; no operation or publication grant",
   };
   writeFileSync(path.join(options.output, "report.json"), JSON.stringify(report, null, 2));
   return report;

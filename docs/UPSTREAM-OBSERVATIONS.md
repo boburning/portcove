@@ -1347,7 +1347,12 @@ directory remains signed for older clients and its bytes stay fixed. Later
 observations update only the compact target. Both carriers share a revision
 floor and must decode to the same bytes at equal revisions. The scheduled
 publisher keeps the existing representation until its first compact publication
-is explicitly enabled.
+is explicitly enabled. After activation, a reviewed exact legacy target in the
+existing publication bundle can add an explicit safety withdrawal. It must
+preserve the other signed legacy rows and advance above the current revision.
+The compact successor carries the same withdrawals and retains its other rows.
+If prior metadata has expired, the publisher first renews the exact known
+targets through historical signature verification.
 
 The maintained snapshot codec has a finite 180-second validation harness ceiling.
 The previous 60-second budget failed during a real retained-checkpoint decode and

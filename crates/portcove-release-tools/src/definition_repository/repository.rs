@@ -1,4 +1,7 @@
-use super::{public_history::PublicHistory, *};
+use super::{
+    public_history::{PublicFile, PublicHistory},
+    *,
+};
 use futures_util::TryStreamExt;
 use tough::{
     RepositoryLoader, TargetName, Transport, TransportError, TransportErrorKind, TransportStream,
@@ -343,7 +346,7 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
     let mut definitions: BTreeMap<(String, String), serde_json::Value> = BTreeMap::new();
     let mut policies: BTreeMap<String, (u64, String)> = BTreeMap::new();
     let mut listing_history = BTreeMap::new();
-    let mut previous_legacy: Option<bundle::ListingRevision> = None;
+    let mut previous_legacy: Option<(bundle::ListingRevision, &PublicFile)> = None;
     let mut had_compact_listing = false;
     let mut seen = BTreeSet::new();
     for (name, file) in files.iter().filter(|(n, _)| {
@@ -399,9 +402,9 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                     had_compact_listing = true;
                 } else if previous_legacy
                     .as_ref()
-                    .is_none_or(|old| old.revision < archived.revision)
+                    .is_none_or(|(old, _)| old.revision < archived.revision)
                 {
-                    previous_legacy = Some(archived);
+                    previous_legacy = Some((archived, raw));
                 }
             } else if definition_role {
                 for (id, entry) in indexed_entries(&raw.read()?)? {
@@ -473,8 +476,24 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
     if had_compact_listing && next.compact.is_none() {
         return invalid("catalog compact listing cannot be withdrawn to the legacy carrier");
     }
-    if next.compact.is_some() && next.legacy != previous_legacy {
-        return invalid("catalog compact publication must preserve its last legacy listing bytes");
+    if let Some(next_legacy) = next.legacy.as_ref().filter(|_| next.compact.is_some()) {
+        let Some((legacy, prior)) = previous_legacy else {
+            return invalid("catalog compact publication needs authenticated legacy history");
+        };
+        if &legacy != next_legacy {
+            let floor = listing_history
+                .last_key_value()
+                .map_or(0, |(revision, _)| *revision);
+            if !had_compact_listing || next_legacy.revision <= floor {
+                return invalid(
+                    "catalog compact publication must preserve its last legacy listing bytes",
+                );
+            }
+            bundle::check_legacy_withdrawal(
+                &prior.read()?,
+                at(new, portcove_listing_carrier::LEGACY_TARGET)?,
+            )?;
+        }
     }
     if let Some((revision, digest)) = listing_history.last_key_value() {
         let active = next.compact.as_ref().or(next.legacy.as_ref());
