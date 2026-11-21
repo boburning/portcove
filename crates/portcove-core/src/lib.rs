@@ -61,6 +61,7 @@ mod install;
 mod installed_contract;
 mod installed_mutability;
 mod launch;
+mod launch_paths;
 #[cfg(windows)]
 mod legacy_cartridge_cleanup;
 mod library;

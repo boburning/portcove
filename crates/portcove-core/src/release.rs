@@ -2813,6 +2813,32 @@ pub(crate) fn native_appimage(
         .then_some(NativeAppImage::Exact(asset))
 }
 
+// Apply reviewed tokens before the normal suitability scoring. Legacy hints
+// supply inclusion terms only and still use the historical platform checks.
+fn asset_matches_terms(name: &str, include: &[String], exclude: &[String]) -> bool {
+    include
+        .iter()
+        .all(|term| name.contains(&term.to_ascii_lowercase()))
+        && !exclude
+            .iter()
+            .any(|term| name.contains(&term.to_ascii_lowercase()))
+}
+
+#[cfg(test)]
+#[test]
+fn reviewed_asset_terms_narrow_an_unseen_archive_family() {
+    let include = ["windows".to_owned(), "portable".to_owned()];
+    let exclude = ["Debug".to_owned()];
+    for (name, selected) in [
+        ("new-player-windows-portable.zip", true),
+        ("new-player-windows-portable-debug.zip", false),
+        ("new-player-linux-portable.zip", false),
+        ("new-player-windows-installer.exe", false),
+    ] {
+        assert_eq!(asset_matches_terms(name, &include, &exclude), selected);
+    }
+}
+
 fn choose_asset<'a>(
     port: &PortDefinition,
     platform: Platform,
@@ -2922,10 +2948,7 @@ fn choose_asset_for_variant<'a>(
                 // Reusable portable rules and the download recommendation share
                 // native suitability. A selected variant cannot become optional
                 // when a successor publishes only another package class.
-                if !hints
-                    .iter()
-                    .all(|hint| name.contains(&hint.to_ascii_lowercase()))
-                {
+                if !asset_matches_terms(&name, &hints, &[]) {
                     return None;
                 }
                 let (_, _, score) = crate::service::package_selection::assess_package_name(
@@ -2941,9 +2964,7 @@ fn choose_asset_for_variant<'a>(
             }
             if (port.adapter == AdapterKind::PsxRecompManaged
                 || port.release.tar_xz_platforms.contains(&platform))
-                && !hints
-                    .iter()
-                    .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+                && !asset_matches_terms(&name, &hints, &[])
             {
                 // Preparation-kit and declared TAR.XZ package choices stay mandatory.
                 // PSX kits retain their own supported archive contract; source
