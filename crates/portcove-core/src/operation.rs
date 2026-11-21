@@ -952,6 +952,7 @@ pub(crate) enum LifecycleFaultPoint {
     RetainedBuildCommitted,
     RestoreManifestRecordLoaded,
     DfuDepartingSaveGroupBeforePark,
+    DfuDepartingSaveGroupParked,
     RestoreAuthorized,
     RestorePrepared,
     RestorePublished,

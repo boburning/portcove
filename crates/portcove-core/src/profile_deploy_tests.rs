@@ -4093,60 +4093,101 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     assert_eq!(fs::read(&runtime_mod).unwrap(), b"outside edit");
     fs::write(&runtime_mod, data).unwrap();
 
-    struct WriteProgressBeforePark(PathBuf);
+    struct WriteProgressBeforePark {
+        progress: PathBuf,
+        stop_after_park: bool,
+    }
     impl crate::operation::LifecycleFaultInjector for WriteProgressBeforePark {
         fn check(&self, point: crate::operation::LifecycleFaultPoint) -> Result<()> {
-            if point == crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark {
-                fs::write(&self.0, b"native progress after preimage review")?;
+            use crate::operation::LifecycleFaultPoint;
+            if point == LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark {
+                fs::write(&self.progress, b"native progress after preimage review")?;
+            }
+            if self.stop_after_park && point == LifecycleFaultPoint::DfuDepartingSaveGroupParked {
+                return Err(PortcoveError::state(
+                    "fixture stopped after parking runtime saves",
+                ));
             }
             Ok(())
         }
     }
-    let interrupted = PortcoveService::with_faults(
-        reopened.library().clone(),
-        std::sync::Arc::new(WriteProgressBeforePark(runtime_progress.clone())),
-    )
-    .unwrap();
-    let error = interrupted.activate_profile(PORT, &clean.id).unwrap_err();
-    assert!(error.message.contains("runtime progress differs"));
-    assert!(projection.journal().is_file());
     let selected = || profile::selection(&reopened.library().connection().unwrap(), PORT).unwrap();
-    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
-    assert_eq!(
-        fs::read(&runtime_progress).unwrap(),
-        b"native progress after preimage review"
-    );
-    let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
-    assert!(recovered.activate_profile(PORT, &clean.id).is_err());
-    assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
-    assert_eq!(
-        fs::read(&runtime_progress).unwrap(),
-        b"native progress after preimage review"
-    );
-    assert_eq!(
-        fs::read(
-            projection
-                .parked(&profile.id)
-                .join("PortableAppdata/progress")
+    for stop_after_park in [false, true] {
+        let interrupted = PortcoveService::with_faults(
+            reopened.library().clone(),
+            std::sync::Arc::new(WriteProgressBeforePark {
+                progress: runtime_progress.clone(),
+                stop_after_park,
+            }),
         )
-        .unwrap(),
-        b"keep newer progress"
-    );
+        .unwrap();
+        let error = interrupted.activate_profile(PORT, &clean.id).unwrap_err();
+        assert!(projection.journal().is_file());
+        assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+        drop(interrupted);
+        let recovered = PortcoveService::new_read_only(reopened.library().clone()).unwrap();
+        if stop_after_park {
+            assert!(error.message.contains("fixture stopped after parking"));
+            assert!(!runtime_progress.exists());
+            let journal_path = projection.journal();
+            let original = fs::read(&journal_path).unwrap();
+            let mut journal: serde_json::Value = serde_json::from_slice(&original).unwrap();
+            let id = journal["dfu_save_park"]["id"].as_str().unwrap();
+            let parked = path
+                .join(format!(".portcove-dfu-save-park-{id}"))
+                .join("progress");
+            assert_eq!(
+                fs::read(&parked).unwrap(),
+                b"native progress after preimage review"
+            );
 
-    // Model a player preserving the newer data separately before completing
-    // the already-reviewed switch. Routine recovery must never choose for them.
-    let preserved = temporary.path().join("preserved-progress");
-    fs::rename(&runtime_progress, &preserved).unwrap();
-    fs::write(&runtime_progress, b"keep newer progress").unwrap();
-    recovered.activate_profile(PORT, &clean.id).unwrap();
-    assert!(!projection.journal().exists());
-    assert!(!runtime_progress.exists());
-    assert_eq!(
-        fs::read(&preserved).unwrap(),
-        b"native progress after preimage review"
-    );
-    recovered.activate_profile(PORT, &profile.id).unwrap();
-    assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+            // A parked group bound to another revision must never be adopted.
+            journal["dfu_save_park"]["to"]["digest"] = serde_json::json!("different-revision");
+            fs::write(&journal_path, serde_json::to_vec(&journal).unwrap()).unwrap();
+            assert!(recovered.activate_profile(PORT, &clean.id).is_err());
+            assert!(!runtime_progress.exists());
+            assert_eq!(
+                fs::read(&parked).unwrap(),
+                b"native progress after preimage review"
+            );
+            fs::write(&journal_path, original).unwrap();
+        } else {
+            assert!(error.message.contains("runtime progress differs"));
+        }
+        let held = recovered.activate_profile(PORT, &clean.id).unwrap_err();
+        assert!(held.message.contains("runtime progress differs"));
+        assert_eq!(selected(), Some((profile.id.clone(), applied.revision)));
+        assert_eq!(
+            fs::read(&runtime_progress).unwrap(),
+            b"native progress after preimage review"
+        );
+        assert_eq!(
+            fs::read(
+                projection
+                    .parked(&profile.id)
+                    .join("PortableAppdata/progress")
+            )
+            .unwrap(),
+            b"keep newer progress"
+        );
+
+        // The player preserves the newer data before completing the reviewed
+        // switch. Routine recovery must never choose for them.
+        let preserved = temporary
+            .path()
+            .join(format!("preserved-progress-{stop_after_park}"));
+        fs::rename(&runtime_progress, &preserved).unwrap();
+        fs::write(&runtime_progress, b"keep newer progress").unwrap();
+        recovered.activate_profile(PORT, &clean.id).unwrap();
+        assert!(!projection.journal().exists());
+        assert!(!runtime_progress.exists());
+        assert_eq!(
+            fs::read(&preserved).unwrap(),
+            b"native progress after preimage review"
+        );
+        recovered.activate_profile(PORT, &profile.id).unwrap();
+        assert_eq!(fs::read(&runtime_progress).unwrap(), b"keep newer progress");
+    }
 }
 
 #[test]

@@ -356,6 +356,19 @@ fn observed_save_group(path: &Path) -> Result<Option<crate::AdoptionCopyPlan>> {
     }
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct SavePark {
+    id: uuid::Uuid,
+    from: RevisionKey,
+    to: RevisionKey,
+    preimage_sha256: String,
+}
+
+fn save_group_digest(group: &crate::AdoptionCopyPlan) -> Result<String> {
+    Ok(crate::signed_catalog::digest(&serde_json::to_vec(group)?))
+}
+
 fn save_group_drift() -> PortcoveError {
     PortcoveError::conflict(
         "Daggerfall Unity runtime progress differs from the selected setup; preserve it and review the save group",
@@ -415,20 +428,73 @@ impl PortcoveService {
         let active = root.join("PortableAppdata");
         let previous = layout.parked(&departing.profile_id).join("PortableAppdata");
         let arriving = layout.user.join("PortableAppdata");
-        let next = observed_save_group(&arriving)?;
-        let live = observed_save_group(&active)?;
-        if live == next {
-            return Ok(());
-        }
-        let old = observed_save_group(&previous)?;
-        if live.is_some() && live != old {
+        let journal_path = layout.journal();
+        let mut journal: serde_json::Value = serde_json::from_slice(
+            &crate::external_runtime::read_single_link_metadata(&journal_path, 64 * 1024)?,
+        )?;
+        if journal["from"].as_str() != Some(departing.profile_id.as_str())
+            || journal["to"].as_str() != Some(target.profile_id.as_str())
+            || journal["revision"].as_u64() != Some(target.revision)
+            || journal["phase"].as_str() != Some(Phase::Deployed.name())
+        {
             return Err(save_group_drift());
         }
+        let from = RevisionKey::from(departing);
+        let to = RevisionKey::from(target);
+        let old = observed_save_group(&previous)?;
+        let next = observed_save_group(&arriving)?;
+        let live = observed_save_group(&active)?;
+        let mut park = journal
+            .get("dfu_save_park")
+            .cloned()
+            .map(serde_json::from_value::<SavePark>)
+            .transpose()?;
+        let parked_path =
+            |park: &SavePark| root.join(format!(".portcove-dfu-save-park-{}", park.id));
+        let hold = |path: &Path| save_group_drift().detail("preserved", path.display().to_string());
+
+        // Recovery checks the named parked state before interpreting an absent
+        // active directory as a successful switch to an empty save group.
+        let mut parked = None;
+        if let Some(record) = park.as_ref() {
+            let path = parked_path(record);
+            if record.from != from
+                || record.to != to
+                || old.as_ref().map(save_group_digest).transpose()?.as_deref()
+                    != Some(record.preimage_sha256.as_str())
+            {
+                return Err(hold(&path));
+            }
+            let observed = observed_save_group(&path)
+                .map_err(|error| error.detail("preserved", path.display().to_string()))?;
+            if let Some(observed) = observed {
+                if save_group_digest(&observed)? != record.preimage_sha256 {
+                    if live.is_none() {
+                        crate::durability::rename_noreplace(&path, &active)
+                            .map_err(|_| hold(&path))?;
+                        crate::durability::sync_publication(&root)?;
+                        return Err(hold(&active));
+                    }
+                    return Err(hold(&path));
+                }
+                if live.is_some() && live != next {
+                    return Err(hold(&path));
+                }
+                parked = Some(path);
+            }
+        }
+        if live == next && parked.is_none() {
+            return Ok(());
+        }
+        if parked.is_none() && live.is_some() && live != old {
+            return Err(save_group_drift());
+        }
+
         let staging = tempfile::Builder::new()
             .prefix(".portcove-dfu-saves-")
             .tempdir_in(&root)?;
         let staged = staging.path().join("arriving");
-        if next.is_some() {
+        if live != next && next.is_some() {
             crate::service::copy_tree(&arriving, &staged)?;
             if observed_save_group(&staged)? != next || observed_save_group(&arriving)? != next {
                 return Err(save_group_drift());
@@ -437,40 +503,64 @@ impl PortcoveService {
         if observed_save_group(&active)? != live || observed_save_group(&previous)? != old {
             return Err(save_group_drift());
         }
-        let departed = if live.is_some() {
+        if parked.is_none()
+            && let Some(live) = live.as_ref()
+        {
+            let digest = save_group_digest(live)?;
+            let record = if let Some(record) = park.take() {
+                if record.preimage_sha256 != digest {
+                    return Err(save_group_drift());
+                }
+                record
+            } else {
+                let record = SavePark {
+                    id: uuid::Uuid::new_v4(),
+                    from,
+                    to,
+                    preimage_sha256: digest,
+                };
+                journal["dfu_save_park"] = serde_json::to_value(&record)?;
+                crate::durability::write_json_atomically(&journal_path, &journal, true)?;
+                record
+            };
+            let path = parked_path(&record);
+            crate::path::refuse_symlink_ancestors(&path)?;
             self.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupBeforePark,
             )?;
-            let preserved = staging.keep();
-            let departed = preserved.join("departing");
-            crate::durability::rename_noreplace(&active, &departed)?;
+            crate::durability::rename_noreplace(&active, &path)?;
             crate::durability::sync_publication(&root)?;
-            if observed_save_group(&departed)? != live {
-                // Reattach the exact moved state so recovery continues to see
-                // the newer progress. Keep the private copy if reattach fails.
-                crate::durability::rename_noreplace(&departed, &active).map_err(|_| {
-                    save_group_drift().detail("preserved", preserved.display().to_string())
-                })?;
+            self.check_lifecycle_fault(
+                crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupParked,
+            )?;
+            let observed = observed_save_group(&path)
+                .map_err(|error| error.detail("preserved", path.display().to_string()))?;
+            if observed.as_ref() != Some(live) {
+                crate::durability::rename_noreplace(&path, &active).map_err(|_| hold(&path))?;
                 crate::durability::sync_publication(&root)?;
-                return Err(save_group_drift());
+                return Err(hold(&active));
             }
-            Some((preserved, departed))
-        } else {
-            None
-        };
-        if next.is_some() {
+            parked = Some(path);
+        }
+        if live != next && next.is_some() {
             crate::durability::rename_noreplace(&staged, &active)?;
             crate::durability::sync_publication(&root)?;
         }
         if observed_save_group(&active)? != next {
             return Err(save_group_drift());
         }
-        if let Some((preserved, departed)) = departed {
-            if observed_save_group(&departed)? != live {
-                return Err(save_group_drift().detail("preserved", preserved.display().to_string()));
+        if let Some(path) = parked {
+            if observed_save_group(&path)
+                .map_err(|error| error.detail("preserved", path.display().to_string()))?
+                != old
+            {
+                return Err(hold(&path));
             }
-            crate::path::refuse_symlink_ancestors(&departed)?;
-            fs::remove_dir_all(&preserved)?;
+            crate::path::refuse_symlink_ancestors(&path)?;
+            fs::remove_dir_all(&path).map_err(|error| {
+                PortcoveError::from(error).detail("preserved", path.display().to_string())
+            })?;
+            crate::durability::sync_publication(&root)?;
         }
         Ok(())
     }
