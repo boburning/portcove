@@ -701,16 +701,16 @@ void test("complete format-13 compact snapshots keep authored scenes and format-
   );
   assert.equal(compact.delivered_records, 1);
   assert.deepEqual(compact.omitted, []);
-  const decoded = JSON.parse(
-    decodeRetainedCompactListing(encodeCompactListing(compact.bytes)).toString(),
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(compact.bytes)),
   );
   assert.equal(decoded.directory.format_version, 13);
-  assert.deepEqual(decoded.directory.listings[0].media, [scene]);
-  assert.deepEqual(decoded.directory.listings[0].implementation, implementation);
-  const old = JSON.parse(prior.toString());
+  assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
+  assert.deepEqual(decoded.directory.listings[0]!.implementation, implementation);
+  const old = decodedListingDelivery(prior);
   assert.deepEqual(
-    decoded.directory.listings[0].upstream_observation,
-    old.directory.listings[0].upstream_observation,
+    decoded.directory.listings[0]!.upstream_observation,
+    old.directory.listings[0]!.upstream_observation,
   );
   assert.equal(compact.retained, 1);
   assert.equal(decoded.revision, old.revision + 1);
@@ -731,7 +731,7 @@ void test("complete format-13 compact snapshots keep authored scenes and format-
     true,
   );
   assert.equal(
-    JSON.parse(changed.bytes.toString()).directory.listings[0].upstream_observation,
+    decodedListingDelivery(changed.bytes).directory.listings[0]!.upstream_observation,
     undefined,
   );
   assert.deepEqual(
@@ -757,9 +757,9 @@ void test("complete format-13 compact snapshots keep authored scenes and format-
     [],
     true,
   );
-  const nextDirectory = JSON.parse(next.bytes.toString()).directory;
+  const nextDirectory = decodedListingDelivery(next.bytes).directory;
   assert.equal(nextDirectory.format_version, 13);
-  assert.equal(nextDirectory.listings[0].media, undefined);
+  assert.equal(nextDirectory.listings[0]!.media, undefined);
 });
 
 void test("observation publication retains applicable earlier rows before admitting fresh rows into the fixed byte budget", async () => {
@@ -1074,8 +1074,8 @@ void test("a reviewed legacy withdrawal keeps other legacy facts and compact-onl
   const { projectListingDelivery, reviewedLegacyWithdrawal } =
     await import("./listing-observation-delivery.mts");
   const legacy = fixtureDelivery();
-  const before = JSON.parse(legacy.toString());
-  const released = before.directory.listings[0];
+  const before = decodedListingDelivery(legacy);
+  const released = before.directory.listings[0]!;
   const nextLegacy = {
     ...before,
     revision: 4,
@@ -1111,7 +1111,7 @@ void test("a reviewed legacy withdrawal keeps other legacy facts and compact-onl
     Date.now(),
     [released.id],
   );
-  const actual = JSON.parse(refreshed.bytes.toString());
+  const actual = decodedListingDelivery(refreshed.bytes);
   assert.equal(actual.revision, 5);
   assert.deepEqual(actual.withdrawn_ids, [released.id]);
   assert.deepEqual(
@@ -1120,7 +1120,7 @@ void test("a reviewed legacy withdrawal keeps other legacy facts and compact-onl
   );
 });
 
-test("compact listing includes the complete canonical snapshot or fails at its true bound", async () => {
+void test("compact listing includes the complete canonical snapshot or fails at its true bound", async () => {
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
   const { compactListingDecodedMaximum, decodeRetainedCompactListing, encodeCompactListing } =
     await import("./listing-directory-carrier.mts");
@@ -1150,7 +1150,7 @@ test("compact listing includes the complete canonical snapshot or fails at its t
   assert.equal(complete.delivered_records, 2);
   assert.deepEqual(complete.omitted, []);
   assert.deepEqual(complete.omittedObservations, []);
-  assert.deepEqual(JSON.parse(complete.bytes.toString()).directory.listings, [
+  assert.deepEqual(decodedListingDelivery(complete.bytes).directory.listings, [
     listings[1],
     listings[0],
   ]);
@@ -1197,6 +1197,14 @@ void test("signed directory retains equivalent completed evidence until its reco
     assert.equal(advance(3, { ...candidate, upstream_observation: changed }).changed, true);
   }
 });
+
+function decodedListingDelivery(bytes: Buffer) {
+  return JSON.parse(bytes.toString()) as {
+    revision: number;
+    withdrawn_ids: string[];
+    directory: { format_version: number; listings: ({ id: string } & Record<string, unknown>)[] };
+  };
+}
 
 void test("ScummVM game data reaches only an admitted guide and retains reviewed preparation", async () => {
   const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
@@ -1313,7 +1321,45 @@ void test("ScummVM game data reaches only an admitted guide and retains reviewed
     unrelated,
   );
   const retiredParsed = JSON.parse(retired.bytes.toString()) as typeof parsed;
-  assert.deepEqual(retiredParsed.directory.listings[0]?.manual_setup, guide);
+  const retiredGuide = retiredParsed.directory.listings[0]?.manual_setup;
+  assert.ok(retiredGuide);
+  assert.doesNotMatch(JSON.stringify(retiredGuide), /sfinx-en-v1\.1|German v1\.1/u);
+  assert.equal(retiredGuide.references.length, 3);
+
+  const replacementOnly = source([row("English v2.0", "sfinx-en-v2.0.zip")], "d");
+  const replaced = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    undefined,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    replacementOnly,
+  );
+  assert.match(replaced.bytes.toString(), /English v2\.0/u);
+  assert.doesNotMatch(replaced.bytes.toString(), /sfinx-en-v1\.1|German v1\.1/u);
+  assert.deepEqual(projectListingDelivery(canonical, [], replaced.bytes).bytes, replaced.bytes);
+
+  const pressured = projectListingDelivery(
+    canonical,
+    [],
+    next.bytes,
+    0,
+    retired.bytes.length,
+    undefined,
+    admitted,
+    0,
+    [],
+    false,
+    replacementOnly,
+  );
+  assert.equal(pressured.scummvm_guides, 0);
+  assert.deepEqual(pressured.bytes, retired.bytes);
+  assert.deepEqual(projectListingDelivery(canonical, [], pressured.bytes).bytes, pressured.bytes);
   assert.throws(() => source([row("English v1.1", "../escape.zip")], "d"), /archive paths/u);
 });
 

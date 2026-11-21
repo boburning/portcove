@@ -21,6 +21,7 @@ import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   observeScummvmGameData,
   projectScummvmGameData,
+  projectScummvmPreparation,
   withoutScummvmGameData,
   type ScummvmGameDataObservation,
 } from "./scummvm-game-data-observation.mts";
@@ -347,7 +348,8 @@ export function projectListingDelivery(
       }
       const prior =
         old &&
-        listingDeclarationHash(withoutScummvmGameData(old)) === listingDeclarationHash(comparable) &&
+        listingDeclarationHash(withoutScummvmGameData(old, comparable)) ===
+          listingDeclarationHash(comparable) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -366,6 +368,7 @@ export function projectListingDelivery(
             !retainFreshObservation(held, proposed, now)))
       )
         result.upstream_observation = structuredClone(proposed);
+      projectScummvmPreparation(result, old, scummvmGameData);
       return {
         listing: result,
         prior,
@@ -414,21 +417,21 @@ export function projectListingDelivery(
   for (const listing of listings) {
     const before = listing.manual_setup;
     const previousListing = previousListings.get(listing.id);
-    projectScummvmGameData(listing, previousListing, scummvmGameData);
+    projectScummvmGameData(
+      listing,
+      declarations.get(String(listing.id))!,
+      previousListing,
+      scummvmGameData,
+    );
     if (listing.manual_setup === before) continue;
-    const used = () =>
+    const used =
       Buffer.byteLength(JSON.stringify(listing.manual_setup)) -
       Buffer.byteLength(JSON.stringify(before));
-    if (used() > remaining) {
+    if (used > remaining) {
       listing.manual_setup = before;
-      projectScummvmGameData(listing, previousListing, undefined);
-      if (listing.manual_setup === before) continue;
-      if (used() > remaining) {
-        listing.manual_setup = before;
-        continue;
-      }
+      continue;
     }
-    remaining -= used();
+    remaining -= used;
     scummvmGuides += 1;
   }
   const candidate = envelope(listings);
@@ -831,14 +834,18 @@ export async function prepareObservationBundle(options: {
   if (!useCompact) {
     // Legacy publication keeps its existing optional-enrichment fallback.
     try {
-      inspect(Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)));
+      inspect(
+        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
+      );
     } catch (error) {
       if (renewal) throw error;
       diagnostics.push(
         "observer candidates failed Core validation; retaining prior applicable observations",
       );
       projected = project([], gameData);
-      inspect(Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)));
+      inspect(
+        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
+      );
     }
   }
   // Stage the complete authenticated representation before copying the output bundle.

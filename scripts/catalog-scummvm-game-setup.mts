@@ -17,6 +17,12 @@ export function scummvmGameKey(listing: Record<string, unknown>) {
 
 type GuideStep = { title: string; instruction: string };
 
+export const scummvmGameDataStepTitle = "Extract and add the game files";
+export const scummvmGameDataInstruction =
+  "On the ScummVM games page, choose the game data edition you want. Extract the archive, then use Add Game in ScummVM and select the folder containing the game data.";
+export const scummvmEditionPrompt =
+  " Choose the edition or language you want when ScummVM offers a choice.";
+
 export function scummvmSetupGuide(record: Record<string, unknown>) {
   const facts = record.scummvm_game_setup_v1;
   if (facts === undefined) return undefined;
@@ -65,8 +71,10 @@ export function scummvmSetupGuide(record: Record<string, unknown>) {
         "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player.",
       ),
       step(
-        "Extract and add the game files",
-        `On the ScummVM games page, find ${listing.original_game_title} and choose ${archive}. Extract the ZIP, then use Add Game in ScummVM and select ${folder ? `the ${folder} folder from the ZIP` : "the folder you extracted the ZIP into"}.${chooseEdition ? " Choose the edition or language you want when ScummVM offers a choice." : ""}`,
+        scummvmGameDataStepTitle,
+        scummvmGameDataInstruction +
+          (chooseEdition ? scummvmEditionPrompt : "") +
+          ` If the page lists ${archive} and you choose it, select ${folder ? `the ${folder} folder from the ZIP` : "the folder you extracted the ZIP into"}.`,
       ),
       step(
         "Play again from the saved target",
