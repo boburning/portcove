@@ -45,6 +45,7 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
+import { n64AuthoringScope } from "./n64-original-binding-candidates.mts";
 import {
   advanceUpstreamArtifactBuildObservation,
   rebindUpstreamBuildObservation,
@@ -59,6 +60,7 @@ export interface ObservablePort {
   kind?: "listing";
   listing?: Record<string, unknown>;
   original_source_family?: OriginalSourceFamily;
+  n64_authoring_scope_sha256?: string;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -73,6 +75,49 @@ export interface ObservableSource {
 }
 function listingOnly(source: ObservableSource) {
   return source.ports.every((port) => port.kind === "listing");
+}
+
+export interface CatalogObservationScopePolicy {
+  policyIdentity: string;
+  definitionHash: (portId: string) => string;
+  staleAfterHours: number;
+}
+
+/** Bind the collector's full source scope to its exact Core policy and normalized definitions. */
+export function catalogObservationScopeBinding(
+  source: ObservableSource,
+  policy: CatalogObservationScopePolicy,
+) {
+  const provider = source.provider ?? "github";
+  if (listingOnly(source)) {
+    return observationHash({
+      contract: "normalized-current-catalog-listing-policy-v1",
+      source: source.key,
+      provider,
+      ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+      scope: source.scope_sha256,
+      stale_after_hours: policy.staleAfterHours,
+    });
+  }
+  const definitions = source.ports.map(
+    (port) =>
+      [
+        port.id,
+        port.kind === "listing" ? port.definition_sha256 : policy.definitionHash(port.id),
+      ] as const,
+  );
+  if (
+    !/^[a-f0-9]{64}$/u.test(policy.policyIdentity) ||
+    definitions.some(([, hash]) => !/^[a-f0-9]{64}$/u.test(hash))
+  )
+    throw new Error("Exact Core policy and normalized observation definitions are required");
+  return observationHash({
+    contract: "normalized-current-catalog-core-policy-v1",
+    ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+    policy: policy.policyIdentity,
+    scope: source.scope_sha256,
+    definitions,
+  });
 }
 
 function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
@@ -233,8 +278,13 @@ export function catalogObservationSources(input: unknown) {
             ? "n64-recomp"
             : undefined
         : undefined;
+    const authoringScope =
+      originalSourceFamily === "n64-recomp"
+        ? n64AuthoringScope(port, input.source_catalog)
+        : undefined;
     source.ports.push({
       ...(originalSourceFamily ? { original_source_family: originalSourceFamily } : {}),
+      ...(authoringScope ? { n64_authoring_scope_sha256: authoringScope } : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -298,6 +348,9 @@ export function catalogObservationSources(input: unknown) {
           .map((port) => ({
             id: port.id,
             definition_sha256: port.definition_sha256,
+            ...(port.n64_authoring_scope_sha256
+              ? { n64_authoring_scope_sha256: port.n64_authoring_scope_sha256 }
+              : {}),
             ...(port.listing
               ? {
                   kind: port.kind ?? "managed-with-listing",
@@ -617,27 +670,12 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
-  const scopeBinding = (source: ObservableSource) => {
-    const provider = source.provider ?? "github";
-    if (listingOnly(source)) {
-      // The declaration scope already binds the exact descriptive projector.
-      return observationHash({
-        contract: "normalized-current-catalog-listing-policy-v1",
-        source: source.key,
-        provider,
-        ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
-        scope: source.scope_sha256,
-        stale_after_hours: template.stale_after_hours,
-      });
-    }
-    return observationHash({
-      contract: "normalized-current-catalog-core-policy-v1",
-      ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
-      policy: policyIdentity,
-      scope: source.scope_sha256,
-      definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
+  const scopeBinding = (source: ObservableSource) =>
+    catalogObservationScopeBinding(source, {
+      policyIdentity,
+      definitionHash: options.definitionHash,
+      staleAfterHours: template.stale_after_hours,
     });
-  };
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -1684,7 +1722,11 @@ export async function advanceCatalogObservations(
             ) {
               const fact = complete.fact;
               const target = n64BuildJobTarget(fact);
-              if (target && (fact.build_jobs?.matches.length ?? 0) < target.outputs.length) {
+              if (
+                target &&
+                ((fact.build_jobs?.matches.length ?? 0) < target.outputs.length ||
+                  fact.build_jobs?.matches.some((match) => !match.compile))
+              ) {
                 try {
                   const jobs = await advanceN64BuildJobObservation(
                     target,
@@ -1700,6 +1742,16 @@ export async function advanceCatalogObservations(
                   }
                 }
               }
+            }
+            if (
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              port?.n64_authoring_scope_sha256
+            ) {
+              complete = {
+                ...complete,
+                fact: { ...complete.fact, authoring_scope_sha256: port.n64_authoring_scope_sha256 },
+              };
             }
             policy[evidenceKey] = { state: recognitionState, last_complete: complete };
           }

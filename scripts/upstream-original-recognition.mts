@@ -154,6 +154,7 @@ type N64Evidence = SourceIdentity &
     runtime_source?: N64RuntimeSourceObservation;
     build_outputs?: UpstreamBuildObservation;
     build_jobs?: N64BuildJobObservation;
+    authoring_scope_sha256?: string;
   };
 
 export function n64BuildJobTarget(
@@ -555,6 +556,10 @@ export function readOriginalSourceProgress(
       ...(runtime ? { runtime_source: runtime } : {}),
       ...(builds ? { build_outputs: builds } : {}),
       ...(jobs ? { build_jobs: jobs } : {}),
+      ...(typeof fact.authoring_scope_sha256 === "string" &&
+      artifactSha.test(fact.authoring_scope_sha256)
+        ? { authoring_scope_sha256: fact.authoring_scope_sha256 }
+        : {}),
     };
   } else {
     if (

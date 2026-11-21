@@ -175,7 +175,6 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   await captureLaunchNotice("current-platform");
 
   const dialog = page.getByRole("dialog", { name: "Original game", exact: true });
-  await dialog.getByText("Comparison options and reports", { exact: true }).click();
   await dialog.getByText("Comparison settings", { exact: true }).click();
   await page.getByRole("combobox", { name: /Game edition/ }).click();
   await page.getByRole("option", { name: "Fixture original", exact: true }).click();

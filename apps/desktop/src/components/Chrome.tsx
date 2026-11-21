@@ -108,7 +108,7 @@ import { Tooltip } from "./ui/tooltip";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
-import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
+import { revealSettingsHeading } from "../features/app-shell/focus-settings-target";
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 import { LanguageSettings } from "./LanguageSettings";
 import {
@@ -2700,32 +2700,6 @@ function StorageCard({
       </p>
     </SettingsRow>
   );
-}
-
-function revealSettingsHeading(targetId: string) {
-  window.requestAnimationFrame(() => {
-    const heading = document.getElementById(targetId);
-    if (!heading || heading.closest("[hidden]")) return;
-    heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
-    const navigation = heading
-      .closest(".settings-grid")
-      ?.querySelector<HTMLElement>(".settings-section-index");
-    const workspace = heading.closest<HTMLElement>('[data-focus-region="workspace"]');
-    if (!navigation || !workspace || getComputedStyle(navigation).position !== "sticky") return;
-    const target = heading.getBoundingClientRect();
-    const strip = navigation.getBoundingClientRect();
-    // Wide category navigation sits beside the heading. Only a sticky strip
-    // above the same reading column can cover its focus outline.
-    if (target.left >= strip.right || target.right <= strip.left) return;
-    const focusStyle = getComputedStyle(heading);
-    const outlineRoom =
-      Math.max(0, Number.parseFloat(focusStyle.outlineWidth)) +
-      Math.max(0, Number.parseFloat(focusStyle.outlineOffset));
-    const covered = strip.bottom + outlineRoom - target.top;
-    if (covered > 0 && strip.top < target.bottom)
-      scrollWorkspaceTo(workspace, workspaceScrollTop(workspace) - covered);
-  });
 }
 
 function sourceInspectionMessage(read: SourceInspectionReadState | undefined) {

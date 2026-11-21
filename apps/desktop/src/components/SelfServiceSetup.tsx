@@ -1,7 +1,11 @@
 import { readablePendingRecord } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { Play } from "lucide-react";
-import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
@@ -43,6 +47,7 @@ export function SelfServiceSetup({
   render,
 }: SelfServiceSetupProps) {
   const { t } = useAppTranslation("installation");
+  const registerPlay = useContext(CurrentGamePlayControl);
   const updates =
     entry.listing &&
     upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
@@ -82,6 +87,10 @@ export function SelfServiceSetup({
   const attach = listingActionAssessment(entry.listingStatus, "attach-existing");
   const operation = presentPortAction(useOperationPresentation(), entry.id, status, "launch");
   const busy = Boolean(operation.busy);
+  const paletteTarget =
+    render && launch.allowed && !busy
+      ? currentGamePlayKey(entry.id, generation, status)
+      : undefined;
   const showEditor = () => {
     setEditorOpen(true);
     window.requestAnimationFrame(() => editorHeading.current?.focus());
@@ -105,6 +114,8 @@ export function SelfServiceSetup({
         data-focusable
         variant="primary"
         size="lg"
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         disabled={!launch.allowed || busy}
         focusableWhenDisabled={launch.allowed && busy}
         aria-busy={launch.allowed && busy}
