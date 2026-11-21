@@ -232,7 +232,7 @@ export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditCon
         typeof value.binding !== "string" ||
         !/^[0-9a-f]{64}$/u.test(value.binding),
     ) ||
-    new Set(parsed.map((value) => value.request)).size !== parsed.length
+    new Set(parsed.map((value: AuditContinuation) => value.request)).size !== parsed.length
   )
     throw new Error("Invalid bound audit continuation selection");
   return parsed as AuditContinuation[];

@@ -2191,6 +2191,14 @@ void test("scheduled audits verify the exact original owner workflow attempt and
     head_sha: sha,
   };
   verifyOwnerAuditRun(run, 341, origin);
+  const ordinary = { ...run, event: "issue_comment", display_title: "Hosted intake 341 / 1" };
+  verifyOwnerAuditRun(ordinary, 341, origin);
+  for (const mismatched of [
+    { ...ordinary, display_title: "Hosted intake 342 / 1" },
+    { ...ordinary, display_title: run.display_title },
+    { ...run, display_title: ordinary.display_title },
+  ])
+    assert.throws(() => verifyOwnerAuditRun(mismatched, 341, origin));
   for (const changed of [
     { actor: { login: "github-actions[bot]" } },
     { repository: { id: 1 } },
@@ -2243,15 +2251,24 @@ async function verifyAuditRecovery(schema: 1 | 2) {
     if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
     return await inventory(cache, full);
   };
-  await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  const originalProposalRun = "800/1@" + "e".repeat(40);
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), schema === 2 ? { origin: originalProposalRun } : {}),
+    /Unrelated Roadmap edit/u,
+  );
   assert.equal(f.creations, candidates.length);
   const status = await f.bridge.status(f.request, f.all());
   assert.equal(status.audit_pending, true);
-  assert.equal(
-    status.audit_retry,
-    undefined,
-    "an ordinary intake does not authorize a scheduled audit",
-  );
+  if (schema === 2) {
+    assert.match(status.audit_retry?.binding ?? "", /^[0-9a-f]{64}$/u);
+    assert.ok(f.comments.get(status.receipt_comment!)!.body.includes(originalProposalRun));
+  } else {
+    assert.equal(
+      status.audit_retry,
+      undefined,
+      "an unbound historical run cannot authorize a retry",
+    );
+  }
   const origin = "900/2@" + "f".repeat(40);
   let scheduledBinding: string | undefined;
   if (schema === 2) {

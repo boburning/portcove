@@ -420,14 +420,15 @@ export function verifyOwnerAuditRun(row: unknown, request: number, origin: strin
     row.actor.login !== "boburning" ||
     !isRecord(row.repository) ||
     row.repository.id !== hostedRepositoryId ||
-    row.event !== "workflow_dispatch" ||
+    (row.event !== "workflow_dispatch" && row.event !== "issue_comment") ||
     row.head_branch !== "main" ||
     row.status !== "completed" ||
     row.path !== ".github/workflows/hosted-discovery-intake.yml" ||
-    !new RegExp(`^Hosted intake audit ${positive(request)} / [1-9]\\d*$`, "u").test(
-      String(row.display_title),
-    ) ||
-    `${row.id}/${row.run_attempt}@${row.head_sha}` !== origin
+    !new RegExp(
+      `^Hosted intake ${row.event === "issue_comment" ? "" : "audit "}${positive(request)} / [1-9]\\d*$`,
+      "u",
+    ).test(String(row.display_title)) ||
+    `${String(row.id)}/${String(row.run_attempt)}@${String(row.head_sha)}` !== origin
   )
     throw new Error("The original Actions run does not authorize this request and receipt");
 }
@@ -1617,12 +1618,11 @@ export class HostedIntakeBridge {
     } = {},
   ) {
     if (
-      (origin !== undefined || scheduledBinding !== undefined) &&
-      (!auditOnly ||
-        (origin !== undefined &&
-          (!auditOriginPattern.test(origin) || scheduledBinding !== undefined)))
+      (origin !== undefined &&
+        (!auditOriginPattern.test(origin) || scheduledBinding !== undefined)) ||
+      (scheduledBinding !== undefined && !auditOnly)
     )
-      throw new Error("Invalid audit-only authorization");
+      throw new Error("Invalid audit authorization");
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
     await this.fresh(request);
@@ -1891,7 +1891,10 @@ export class HostedIntakeBridge {
         audit.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
         try {
           if (audit.delivery.length > 10) {
-            if (!audit.audit_pending || (origin && origin !== audit.audit_origin)) {
+            if (
+              !audit.audit_pending ||
+              (origin && (!audit.audit_origin || (auditOnly && origin !== audit.audit_origin)))
+            ) {
               if (origin) audit.audit_origin = origin;
               delete audit.error;
               delete audit.continuation;
@@ -2311,6 +2314,7 @@ export class HostedIntakeBridge {
         if (receipt.delivery.some((d) => missingDeliveryProof(d)))
           throw new Error("Full audit requires every scoped delivery proof");
         receipt.audit_pending = true;
+        if (origin) receipt.audit_origin = origin;
         await persist();
         await this.finishAudit(
           receipt,
@@ -2821,6 +2825,10 @@ async function main() {
       (c) => c.user.login === config.owner && c.body.startsWith(hostedRequestMarker),
     );
     const explicitAudit = process.env.HOSTED_INTAKE_MODE === "audit";
+    const originalProposal =
+      process.env.GITHUB_EVENT_NAME === "issue_comment"
+        ? trustedHostedComment(object(event).comment, config.owner)
+        : undefined;
     const auditOnly = explicitAudit || scheduled.length > 0;
     if (
       scheduled.length &&
@@ -2856,7 +2864,9 @@ async function main() {
         const receipt = await bridge.process(c, comments, {
           resumeHolds: !auditOnly && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
           auditOnly,
-          ...(explicitAudit && process.env.GITHUB_REF === "refs/heads/main"
+          ...((explicitAudit ||
+            (originalProposal?.id === c.id && originalProposal.body === c.body)) &&
+          process.env.GITHUB_REF === "refs/heads/main"
             ? { origin: `${process.env.GITHUB_RUN_ID}/${process.env.GITHUB_RUN_ATTEMPT}@${head}` }
             : {}),
           ...(scheduled.length

@@ -302,13 +302,13 @@ Every admitted pass stays on that request. The executor uses the current full
 Roadmap audit and the original scoped receipts, preserving later Project edits.
 The result is an assisted audit recovery. It adds no natural scheduled sample.
 
-An explicit final-audit dispatch on main records its request-specific Actions
-run, attempt and head in the original bot receipt before the audit starts. The
+The original owner proposal or an explicit final-audit dispatch on main records
+its Actions run, attempt and head in the bot receipt before the audit starts. The
 existing daily maintenance collection passes unfinished authorized audits to
 the same intake worker after a complete native read. It resumes only an
 interrupted audit or a recorded inventory-change or budget continuation. The
-worker verifies the protected scheduled caller, the originating owner dispatch
-and request-specific run title, the current request/plan/receipt binding and
+worker verifies the protected scheduled caller, original owner action,
+request-specific Actions run title, current request/plan/receipt binding and
 available durable checkpoints. Candidate work, withdrawn or superseded requests
 and permanent refusals stay outside this path. The original run and the later
 worker each retain their own receipts and budgets.
