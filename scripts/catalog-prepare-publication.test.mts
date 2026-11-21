@@ -279,3 +279,15 @@ void test("an exact compatibility artifact list requires the named indexed write
     /require schema 4 and the named reader/u,
   );
 });
+
+void test("an inert alternate forge proposal refuses production assembly at the grant boundary", async () => {
+  const f = await fixture();
+  const projection = json({
+    ...JSON.parse(f.projection.toString()),
+    reviewed_forge: { instance: { dialect: "forgejo-v1" } },
+  });
+  assert.throws(
+    () => assembleReviewedPublication(f.prior, f.next, heldId, projection),
+    /reviewed alternate forge publication requires an independent executable acquisition grant/u,
+  );
+});

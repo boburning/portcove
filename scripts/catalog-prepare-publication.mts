@@ -159,6 +159,8 @@ export function assembleReviewedPublication(
     throw new Error("reviewed index does not describe one selected definition");
   const entry = document(reviewed.get(selected.target));
   const projected = document(projection);
+  if ("reviewed_forge" in projected)
+    throw new Error("reviewed alternate forge publication requires an independent executable acquisition grant; inspect the proposal without publication");
   const ports = isRecord(projected.catalog) && Array.isArray(projected.catalog.ports)
     ? projected.catalog.ports
     : [];
