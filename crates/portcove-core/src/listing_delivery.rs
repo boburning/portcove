@@ -1,8 +1,6 @@
 //! Descriptive directory delivery under the existing independent catalog policy role.
 //! This target cannot create a managed definition, publisher grant or executable contract.
-use std::{collections::BTreeSet, io::Read as _};
-
-use base64::{Engine as _, engine::general_purpose::STANDARD};
+use std::collections::BTreeSet;
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use schemars::JsonSchema;
@@ -17,46 +15,9 @@ use crate::{
     PortcoveService, Result,
 };
 
-pub(crate) const TARGET: &str = "policy/official/catalog.listings.json";
-pub(crate) const MAX_BYTES: usize = 8 * 1024 * 1024;
-pub(crate) const COMPACT_TARGET: &str = "policy/official/catalog.listings.compact.json";
-pub(crate) const COMPACT_CARRIER: &str = "gzip-base64-json-v1";
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct CompactListingCarrier {
-    carrier: String,
-    decoded_bytes: usize,
-    decoded_sha256: String,
-    gzip_base64: String,
-}
-
-fn decode_compact_listing(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
-    const ERROR: &str = "invalid compact listing directory carrier";
-    if bytes.len() > MAX_BYTES {
-        return Err(PortcoveError::verification(ERROR));
-    }
-    let carrier: CompactListingCarrier = serde_json::from_slice(bytes)?;
-    if carrier.carrier != COMPACT_CARRIER || !(1..=MAX_BYTES).contains(&carrier.decoded_bytes) {
-        return Err(PortcoveError::verification(ERROR));
-    }
-    let compressed = STANDARD
-        .decode(carrier.gzip_base64)
-        .map_err(|_| PortcoveError::verification(ERROR))?;
-    let mut gzip = flate2::bufread::GzDecoder::new(compressed.as_slice());
-    let mut output = Vec::with_capacity(carrier.decoded_bytes);
-    gzip.by_ref()
-        .take(carrier.decoded_bytes as u64 + 1)
-        .read_to_end(&mut output)
-        .map_err(|_| PortcoveError::verification(ERROR))?;
-    if output.len() != carrier.decoded_bytes
-        || !gzip.get_ref().is_empty()
-        || super::digest(&output) != carrier.decoded_sha256
-    {
-        return Err(PortcoveError::verification(ERROR));
-    }
-    Ok((output, carrier.decoded_sha256))
-}
+pub(crate) use portcove_listing_carrier::{
+    COMPACT_CARRIER, COMPACT_TARGET, LEGACY_TARGET as TARGET, MAX_BYTES,
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -647,7 +608,8 @@ async fn acquire_listings(repository: &Repository, root: &[u8]) -> Result<Authen
     let (bytes, provenance) =
         super::acquire_target_with_limit(repository, root, target, MAX_BYTES as u64).await?;
     let (bytes, proof) = if compact {
-        let (decoded, decoded_sha256) = decode_compact_listing(&bytes)?;
+        let (decoded, decoded_sha256) = portcove_listing_carrier::decode(&bytes)
+            .map_err(|error| PortcoveError::verification(error.to_string()))?;
         (
             decoded,
             ListingAdmissionProof::Compact(CompactListingProof {

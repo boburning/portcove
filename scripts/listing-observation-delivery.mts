@@ -19,8 +19,15 @@ import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
-export const listingDeliveryTarget = "policy/official/catalog.listings.json";
-const maximum = 8 * 1024 * 1024;
+import {
+  compactListingDeliveryTarget,
+  decodeRetainedCompactListing,
+  encodeCompactListing,
+  listingDeliveryMaximum as maximum,
+  listingDeliveryTarget,
+} from "./listing-directory-carrier.mts";
+
+export { listingDeliveryTarget };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 interface Directory {
   format_version: number;
@@ -316,11 +323,18 @@ function compatibleObservation(observation: Record<string, unknown>) {
   };
 }
 
+function readDeliveryCarrier(wire: Buffer, carrier: string) {
+  const bytes =
+    carrier === compactListingDeliveryTarget ? decodeRetainedCompactListing(wire) : wire;
+  return { bytes, document: delivery(parseCatalogSource(bytes.toString("utf8"))) };
+}
+
 /** The caller must obtain this report from the existing compiled verifier.
  * No path is guessed, and an unreferenced blob is never a signed last-good. */
 export async function verifiedPriorListing(
   prior: string,
   verification: unknown,
+  carrier = listingDeliveryTarget,
 ): Promise<Buffer | null> {
   if (
     !isRecord(verification) ||
@@ -329,10 +343,10 @@ export async function verifiedPriorListing(
     !Array.isArray(verification.files)
   )
     throw new Error("Prior repository verification unavailable");
-  const identity = publishedTargets(prior)[listingDeliveryTarget];
+  const identity = publishedTargets(prior)[carrier];
   if (identity === undefined) return null;
   if (!/^[a-f0-9]{64}$/u.test(identity)) throw new Error("Prior target digest is invalid");
-  const target = `targets/${identity}.${listingDeliveryTarget}`;
+  const target = `targets/${identity}.${carrier}`;
   const verifiedFiles: unknown[] = verification.files;
   const entry = verifiedFiles.find((raw) => isRecord(raw) && raw.target === target);
   if (!isRecord(entry) || entry.sha256 !== identity)
@@ -340,22 +354,27 @@ export async function verifiedPriorListing(
   const bytes = await readControllerToolFile(path.join(prior, target), maximum);
   if (bytes.length !== entry.bytes || hash(bytes) !== identity)
     throw new Error("Prior signed listing bytes differ");
-  delivery(parseCatalogSource(bytes.toString("utf8")));
+  readDeliveryCarrier(bytes, carrier);
   return bytes;
 }
 
-export async function priorListingForRenewal(prior: string, canonicalRecords: number) {
-  const identity = publishedTargets(prior)[listingDeliveryTarget];
+export async function priorListingForRenewal(
+  prior: string,
+  canonicalRecords: number,
+  carrier = listingDeliveryTarget,
+) {
+  const identity = publishedTargets(prior)[carrier];
   if (!identity || !/^[a-f0-9]{64}$/u.test(identity))
     throw new Error("Cannot establish the previous listing identity for renewal");
-  const bytes = await readControllerToolFile(
-    path.join(prior, `targets/${identity}.${listingDeliveryTarget}`),
+  const wire = await readControllerToolFile(
+    path.join(prior, `targets/${identity}.${carrier}`),
     maximum,
   );
-  if (hash(bytes) !== identity) throw new Error("Historical listing target digest differs");
-  const old = delivery(parseCatalogSource(bytes.toString("utf8")));
+  if (hash(wire) !== identity) throw new Error("Historical listing target digest differs");
+  const { bytes, document: old } = readDeliveryCarrier(wire, carrier);
   return {
     bytes,
+    wire,
     revision: old.revision,
     changed: false,
     retained: 0,
@@ -398,6 +417,7 @@ export async function prepareObservationBundle(options: {
   root: string;
   offlineTargets: string;
   observe?: boolean;
+  compact?: boolean;
   readObservation?: () => Promise<UpstreamInput>;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
@@ -434,6 +454,10 @@ export async function prepareObservationBundle(options: {
     throw new Error("Core could not export the exact canonical directory for format 11");
   const compatible = directory(baseline.data);
   let previous: Buffer | null = null;
+  let previousWire: Buffer | null = null;
+  let retainedLegacy: Buffer | null = null;
+  let useCompact = options.compact === true;
+  let priorCompact = false;
   const revisionFloor = 0;
   let renewal: Awaited<ReturnType<typeof priorListingForRenewal>> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
@@ -442,6 +466,9 @@ export async function prepareObservationBundle(options: {
       throw new Error(
         "Previous catalog timestamp unavailable; cannot establish initial listing admission",
       );
+    priorCompact = Object.hasOwn(publishedTargets(options.prior), compactListingDeliveryTarget);
+    useCompact ||= priorCompact;
+    const previousCarrier = priorCompact ? compactListingDeliveryTarget : listingDeliveryTarget;
     try {
       const prior = path.join(workspace, "verified-prior");
       copyPriorRepository(options.prior, prior);
@@ -468,16 +495,32 @@ export async function prepareObservationBundle(options: {
           encoding: "utf8",
         }),
       );
-      previous = await verifiedPriorListing(prior, report);
+      previousWire = await verifiedPriorListing(prior, report, previousCarrier);
+      previous = previousWire ? readDeliveryCarrier(previousWire, previousCarrier).bytes : null;
+      if (useCompact)
+        retainedLegacy = priorCompact ? await verifiedPriorListing(prior, report) : previous;
     } catch (error) {
       // The signer authenticates the historical target before renewal. Never use
       // an unauthenticated observation, or replace a directory we could not read.
-      renewal = await priorListingForRenewal(options.prior, canonical.listings.length);
+      renewal = await priorListingForRenewal(
+        options.prior,
+        canonical.listings.length,
+        previousCarrier,
+      );
+      previousWire = renewal.wire;
+      // An expired baseline can renew its exact existing representation. First
+      // compact publication requires a separately current authenticated legacy.
+      useCompact = priorCompact;
+      if (useCompact)
+        retainedLegacy = (await priorListingForRenewal(options.prior, canonical.listings.length))
+          .wire;
       diagnostics.push(
         `retained exact previous listing bytes for historical signer verification; prior unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "verification failed"}`,
       );
     }
   }
+  if (useCompact && !retainedLegacy)
+    throw new Error("Compact listing publication requires a retained legacy listing");
   if (!isRecord(current) || !Array.isArray(current.ports))
     throw new Error("Operational catalog requires a complete port array");
   const operationalIds = new Set<string>();
@@ -558,7 +601,14 @@ export async function prepareObservationBundle(options: {
   cpSync(options.bundle, bundle, { recursive: true });
   const destination = path.join(bundle, listingDeliveryTarget);
   mkdirSync(path.dirname(destination), { recursive: true });
-  writeFileSync(destination, projected.bytes, { flag: "wx" });
+  writeFileSync(destination, retainedLegacy ?? projected.bytes, { flag: "wx" });
+  const compactWire = useCompact
+    ? previousWire && priorCompact && !projected.changed
+      ? previousWire
+      : encodeCompactListing(projected.bytes)
+    : null;
+  if (compactWire)
+    writeFileSync(path.join(bundle, compactListingDeliveryTarget), compactWire, { flag: "wx" });
   const report = {
     bundle,
     revision: projected.revision,
@@ -574,7 +624,13 @@ export async function prepareObservationBundle(options: {
     omitted: projected.omitted,
     omitted_observations: projected.omittedObservations,
     not_projected_records: projected.canonical_records - projected.delivered_records,
-    target_bytes: projected.bytes.length,
+    target_bytes: compactWire?.length ?? projected.bytes.length,
+    ...(compactWire
+      ? {
+          decoded_bytes: projected.bytes.length,
+          transport_changed: !compactWire.equals(previousWire ?? Buffer.alloc(0)),
+        }
+      : {}),
     projection_scope:
       "Reviewed operational and previously signed guides with bounded optional observations; omitted discovery rows retain bundled fallback. Coverage is not complete provider history.",
     diagnostics,
@@ -597,6 +653,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       root: { type: "string" },
       "offline-targets": { type: "string" },
       offline: { type: "boolean", default: false },
+      compact: { type: "boolean", default: false },
     },
   });
   for (const key of [
@@ -623,6 +680,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         root: path.resolve(values.root!),
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
+        compact: values.compact,
       }),
     ),
   );

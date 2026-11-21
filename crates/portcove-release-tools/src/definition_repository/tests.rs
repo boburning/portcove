@@ -1096,3 +1096,109 @@ async fn descriptive_inspection_rejects_extra_or_false_summaries() {
         );
     }
 }
+
+#[tokio::test]
+async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_floor() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use std::io::Write as _;
+
+    fn select_compact(fixture: &Fixture, revision: u64, altered: bool) {
+        let name = portcove_listing_carrier::COMPACT_TARGET;
+        let root = fixture.root().join("bundle");
+        let mut payload: serde_json::Value = serde_json::from_slice(
+            &fs::read(root.join(portcove_listing_carrier::LEGACY_TARGET)).unwrap(),
+        )
+        .unwrap();
+        payload["revision"] = json!(revision);
+        if altered {
+            payload["directory"]["listings"][0]["name"] = json!("alternate equal revision");
+        }
+        let decoded = serde_json::to_vec(&payload).unwrap();
+        let mut gzip = GzEncoder::new(Vec::new(), Compression::default());
+        gzip.write_all(&decoded).unwrap();
+        let body = serde_json::to_vec(&json!({
+            "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+            "decoded_bytes": decoded.len(),
+            "decoded_sha256": sha(&decoded),
+            "gzip_base64": STANDARD.encode(gzip.finish().unwrap()),
+        }))
+        .unwrap();
+        fs::write(root.join(name), &body).unwrap();
+        let files = io::tree(&root, BUNDLE_FILES, BUNDLE_MAX).unwrap();
+        let manifest_path = fixture.root().join("inspection.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        manifest["listings"] = json!({"target":name,"revision":revision,"sha256":sha(&body),"listing_count":40,"withdrawn_count":0});
+        manifest["files"] = json!(bundle::identities(&files));
+        let bytes = serde_json::to_vec(&manifest).unwrap();
+        fs::write(manifest_path, &bytes).unwrap();
+        let mut context = fixture.context_value();
+        context["inspection_sha256"] = json!(sha(&bytes));
+        fixture.set_context(context);
+    }
+    fn advance(fixture: &Fixture, previous: &str, version: u64) {
+        let mut context = fixture.context_value();
+        context["previous_repository"] = json!(previous);
+        for role in ["definitions", "policy", "snapshot", "timestamp"] {
+            context["versions"][role] = json!(version);
+        }
+        fixture.set_context(context);
+    }
+
+    let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("legacy"))
+        .await
+        .unwrap();
+    advance(&fixture, "legacy", 2);
+    select_compact(&fixture, 2, false);
+    fixture.roles = fixture.root().join("compact-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("compact"))
+        .await
+        .unwrap();
+    let old_target_suffix = format!(".{}", portcove_listing_carrier::LEGACY_TARGET);
+    assert_eq!(
+        published
+            .files
+            .iter()
+            .filter(|file| file.target.ends_with(old_target_suffix.as_str()))
+            .count(),
+        1
+    );
+
+    advance(&fixture, "compact", 3);
+    select_compact(&fixture, 2, true);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical listing revision rollback/equivocation"),
+        "{failure}"
+    );
+    select_compact(&fixture, 1, false);
+    assert!(load_context(&fixture.context).await.is_err());
+
+    fs::remove_file(
+        fixture
+            .root()
+            .join("bundle")
+            .join(portcove_listing_carrier::COMPACT_TARGET),
+    )
+    .unwrap();
+    replace_listing_directory(&fixture, 1);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("compact listing cannot be withdrawn"),
+        "{failure}"
+    );
+}

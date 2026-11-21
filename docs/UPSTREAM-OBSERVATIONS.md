@@ -1338,6 +1338,17 @@ Omitted discovery rows use the client’s embedded fallback. Existing scheduled 
 optional observations, while unrelated main commits do not become changed solely
 because the fixed source bundle omits this derived target.
 
+The publisher can prepare a compact carrier at
+`policy/official/catalog.listings.compact.json` after compatible clients ship.
+It uses one gzip stream in a versioned JSON envelope with the decoded size and
+SHA-256. The carrier and its decoded directory each have an eight-MiB limit.
+The existing policy role signs the exact carrier bytes. The last verified legacy
+directory remains signed for older clients and its bytes stay fixed. Later
+observations update only the compact target. Both carriers share a revision
+floor and must decode to the same bytes at equal revisions. The scheduled
+publisher keeps the existing representation until its first compact publication
+is explicitly enabled.
+
 The maintained snapshot codec has a finite 180-second validation harness ceiling.
 The previous 60-second budget failed during a real retained-checkpoint decode and
 re-encode. Provider request deadlines, artifact/record byte bounds, Brotli window

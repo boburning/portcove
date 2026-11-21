@@ -892,3 +892,47 @@ void test("reviewed operational listings survive absent observations before opti
     /without an explicit withdrawal/,
   );
 });
+
+void test("compact publication rebinds the exact decoded directory to its separate retained physical identity", async (t) => {
+  const { createHash } = await import("node:crypto");
+  const { fixtureDelivery } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { verifiedPriorListing, priorListingForRenewal } =
+    await import("./listing-observation-delivery.mts");
+  const { compactListingDeliveryTarget, encodeCompactListing, decodeRetainedCompactListing } =
+    await import("./listing-directory-carrier.mts");
+  const prior = temp(t);
+  const decoded = fixtureDelivery();
+  const raw = encodeCompactListing(decoded);
+  const sha = createHash("sha256").update(raw).digest("hex");
+  const target = `targets/${sha}.${compactListingDeliveryTarget}`;
+  assert.deepEqual(encodeCompactListing(decoded), raw);
+  assert.deepEqual(decodeRetainedCompactListing(raw), decoded);
+  assert.deepEqual(
+    raw,
+    readFileSync(
+      new URL(
+        "../crates/portcove-core/src/testdata/compact-listing-delivery.generated.json",
+        import.meta.url,
+      ),
+    ),
+  );
+  site(prior, { [compactListingDeliveryTarget]: sha });
+  put(prior, target, raw.toString());
+  const report = {
+    schema_version: 1,
+    authority: "none",
+    files: [{ target, sha256: sha, bytes: raw.length }],
+  };
+  assert.deepEqual(await verifiedPriorListing(prior, report, compactListingDeliveryTarget), raw);
+  const renewal = await priorListingForRenewal(prior, 1, compactListingDeliveryTarget);
+  assert.deepEqual(renewal.bytes, decoded);
+  assert.deepEqual(renewal.wire, raw);
+  await assert.rejects(
+    verifiedPriorListing(
+      prior,
+      { ...report, files: [{ target, sha256: "c".repeat(64), bytes: raw.length }] },
+      compactListingDeliveryTarget,
+    ),
+    /not referenced/u,
+  );
+});

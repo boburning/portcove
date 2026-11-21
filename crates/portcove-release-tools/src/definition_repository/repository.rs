@@ -129,8 +129,8 @@ async fn authenticate(
             {
                 return invalid("catalog prior target outside role scope");
             }
-            let maximum = if name.raw() == "policy/official/catalog.listings.json" {
-                8 * 1024 * 1024
+            let maximum = if portcove_listing_carrier::is_listing_target(name.raw()) {
+                portcove_listing_carrier::MAX_BYTES as u64
             } else if name.raw().starts_with("policy/") {
                 65536
             } else if name.raw() == "definitions/index.json" {
@@ -163,6 +163,7 @@ async fn authenticate(
             }
         }
     }
+    bundle::listing_targets(&logical)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
@@ -341,6 +342,9 @@ fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json
 fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> {
     let mut definitions: BTreeMap<(String, String), serde_json::Value> = BTreeMap::new();
     let mut policies: BTreeMap<String, (u64, String)> = BTreeMap::new();
+    let mut listing_history = BTreeMap::new();
+    let mut previous_legacy: Option<bundle::ListingRevision> = None;
+    let mut had_compact_listing = false;
     let mut seen = BTreeSet::new();
     for (name, file) in files.iter().filter(|(n, _)| {
         n.starts_with("metadata/")
@@ -368,8 +372,8 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                     "catalog public repository file missing: {path}"
                 ))
             })?;
-            let maximum = if target.raw() == "policy/official/catalog.listings.json" {
-                8 * 1024 * 1024
+            let maximum = if portcove_listing_carrier::is_listing_target(target.raw()) {
+                portcove_listing_carrier::MAX_BYTES
             } else if target.raw() == "definitions/index.json" {
                 DEFINITION_INDEX_MAX as usize
             } else if definition_role {
@@ -383,7 +387,23 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
             {
                 return invalid("catalog historical target identity/bound differs");
             }
-            if definition_role {
+            if portcove_listing_carrier::is_listing_target(target.raw()) {
+                let archived = bundle::listing_revision(target.raw(), &raw.read()?)?;
+                if let Some(earlier) =
+                    listing_history.insert(archived.revision, archived.decoded_sha256.clone())
+                    && earlier != archived.decoded_sha256
+                {
+                    return invalid("catalog retained listing carrier history equivocates");
+                }
+                if target.raw() == portcove_listing_carrier::COMPACT_TARGET {
+                    had_compact_listing = true;
+                } else if previous_legacy
+                    .as_ref()
+                    .is_none_or(|old| old.revision < archived.revision)
+                {
+                    previous_legacy = Some(archived);
+                }
+            } else if definition_role {
                 for (id, entry) in indexed_entries(&raw.read()?)? {
                     if let Some(old) = definitions.get(&id) {
                         let old_revision = old["revision"].as_u64().unwrap();
@@ -399,9 +419,7 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                 }
             } else {
                 let policy: serde_json::Value = serde_json::from_slice(&raw.read()?)?;
-                let field = if target.raw().ends_with(".launch.json")
-                    || target.raw() == "policy/official/catalog.listings.json"
-                {
+                let field = if target.raw().ends_with(".launch.json") {
                     "revision"
                 } else {
                     "policy_revision"
@@ -436,9 +454,7 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
     for (name, (revision, bytes)) in policies {
         if let Some(next) = new.get(&name) {
             let value: serde_json::Value = serde_json::from_slice(next)?;
-            let field = if name.ends_with(".launch.json")
-                || name == "policy/official/catalog.listings.json"
-            {
+            let field = if name.ends_with(".launch.json") {
                 "revision"
             } else {
                 "policy_revision"
@@ -451,6 +467,27 @@ fn historical_revision_floors(files: &PublicHistory, new: &Files) -> Result<()> 
                     "catalog historical policy/launch rollback or equal-revision replacement",
                 );
             }
+        }
+    }
+    let next = bundle::listing_targets(new)?;
+    if had_compact_listing && next.compact.is_none() {
+        return invalid("catalog compact listing cannot be withdrawn to the legacy carrier");
+    }
+    if next.compact.is_some() && next.legacy != previous_legacy {
+        return invalid("catalog compact publication must preserve its last legacy listing bytes");
+    }
+    if let Some((revision, digest)) = listing_history.last_key_value() {
+        let active = next.compact.as_ref().or(next.legacy.as_ref());
+        if active.is_some_and(|next| {
+            next.revision < *revision
+                || (next.revision == *revision && next.decoded_sha256 != *digest)
+        }) {
+            let legacy_only = !had_compact_listing && next.compact.is_none();
+            return invalid(if legacy_only {
+                "catalog historical policy/launch rollback or equal-revision replacement"
+            } else {
+                "catalog historical listing revision rollback/equivocation"
+            });
         }
     }
     Ok(())

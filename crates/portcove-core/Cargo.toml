@@ -31,6 +31,7 @@ name = "forbidden-memories-launcher-probe"
 required-features = ["qualification-fixtures"]
 
 [dependencies]
+portcove-listing-carrier = { path = "../portcove-listing-carrier" }
 async-trait.workspace = true
 directories.workspace = true
 ed25519-dalek.workspace = true

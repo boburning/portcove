@@ -64,6 +64,89 @@ fn content_path(value: &str) -> bool {
             .bytes()
             .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
 }
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct ListingRevision {
+    pub revision: u64,
+    pub decoded_sha256: String,
+    listing_count: usize,
+    withdrawn_count: usize,
+}
+
+pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevision> {
+    if !portcove_listing_carrier::is_listing_target(target)
+        || raw.is_empty()
+        || raw.len() > portcove_listing_carrier::MAX_BYTES
+    {
+        return invalid("listing target outside its byte bound");
+    }
+    let decoded;
+    let (payload, decoded_sha256) = if target == portcove_listing_carrier::COMPACT_TARGET {
+        let (value, digest) = portcove_listing_carrier::decode(raw)
+            .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+        decoded = value;
+        (decoded.as_slice(), digest)
+    } else {
+        (raw, sha(raw))
+    };
+    let document: serde_json::Value = serde_json::from_slice(payload)?;
+    let revision = document["revision"]
+        .as_u64()
+        .filter(|n| (1..=9_007_199_254_740_991).contains(n));
+    let listing_count = document["directory"]["listings"]
+        .as_array()
+        .map(Vec::len)
+        .filter(|n| *n <= 10000);
+    let withdrawn_count = document["withdrawn_ids"]
+        .as_array()
+        .map(Vec::len)
+        .filter(|n| *n <= 10000);
+    match (
+        document["listing_delivery_schema"].as_u64(),
+        revision,
+        listing_count,
+        withdrawn_count,
+    ) {
+        (Some(1), Some(revision), Some(listing_count), Some(withdrawn_count)) => {
+            Ok(ListingRevision {
+                revision,
+                decoded_sha256,
+                listing_count,
+                withdrawn_count,
+            })
+        }
+        _ => invalid("listing summary differs"),
+    }
+}
+
+pub(super) struct ListingTargets {
+    pub legacy: Option<ListingRevision>,
+    pub compact: Option<ListingRevision>,
+}
+
+pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {
+    let inspect = |name: &str| {
+        files
+            .get(name)
+            .map(|raw| listing_revision(name, raw))
+            .transpose()
+    };
+    let legacy = inspect(portcove_listing_carrier::LEGACY_TARGET)?;
+    let compact = inspect(portcove_listing_carrier::COMPACT_TARGET)?;
+    if let Some(compact) = &compact {
+        let prior = legacy.as_ref().ok_or_else(|| {
+            TufRepositoryError::Invalid(
+                "compact listing requires its retained legacy target".into(),
+            )
+        })?;
+        if compact.revision < prior.revision
+            || (compact.revision == prior.revision && compact != prior)
+        {
+            return invalid("listing carrier revision or equivalent decoded identity differs");
+        }
+    }
+    Ok(ListingTargets { legacy, compact })
+}
+
 pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let report: Inspection = serde_json::from_slice(manifest)?;
     if !matches!(
@@ -102,37 +185,26 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
         return invalid("catalog index/inspection definition inventory differs");
     }
     let mut allowed = BTreeSet::from(["definitions/index.json".to_owned()]);
-    if let Some(listings) = &report.listings {
-        let target = "policy/official/catalog.listings.json";
-        let bytes = files
-            .get(target)
-            .ok_or_else(|| TufRepositoryError::Invalid("listing target absent".into()))?;
-        if bytes.len() > 8 * 1024 * 1024
-            || listings.target != target
-            || listings.sha256 != sha(bytes)
-        {
-            return invalid("listing target/inspection identity differs");
-        }
-        // Core supplies semantic inspection; signing rebinds every reported summary to these bytes.
-        let document: serde_json::Value = serde_json::from_slice(bytes)?;
-        let directory = document
-            .get("directory")
-            .ok_or_else(|| TufRepositoryError::Invalid("listing directory absent".into()))?;
-        let withdrawals = document
-            .get("withdrawn_ids")
-            .ok_or_else(|| TufRepositoryError::Invalid("listing withdrawals absent".into()))?;
-        if document["listing_delivery_schema"] != serde_json::json!(1)
-            || document["revision"].as_u64() != Some(listings.revision)
-            || listings.revision == 0
-            || listings.revision > 9_007_199_254_740_991
-            || directory["listings"].as_array().map(Vec::len) != Some(listings.listing_count)
-            || withdrawals.as_array().map(Vec::len) != Some(listings.withdrawn_count)
-            || listings.listing_count > 10000
-            || listings.withdrawn_count > 10000
-        {
-            return invalid("listing summary differs");
-        }
-        allowed.insert(target.into());
+    let listing_targets = listing_targets(&files)?;
+    let active_listings = if let Some(compact) = &listing_targets.compact {
+        allowed.insert(portcove_listing_carrier::COMPACT_TARGET.into());
+        allowed.insert(portcove_listing_carrier::LEGACY_TARGET.into());
+        Some((portcove_listing_carrier::COMPACT_TARGET, compact))
+    } else {
+        listing_targets.legacy.as_ref().map(|legacy| {
+            allowed.insert(portcove_listing_carrier::LEGACY_TARGET.into());
+            (portcove_listing_carrier::LEGACY_TARGET, legacy)
+        })
+    };
+    match (&report.listings, active_listings) {
+        (None, None) => {}
+        (Some(listings), Some((target, active)))
+            if listings.target == target
+                && listings.sha256 == sha(&files[target])
+                && listings.revision == active.revision
+                && listings.listing_count == active.listing_count
+                && listings.withdrawn_count == active.withdrawn_count => {}
+        _ => return invalid("listing target/inspection identity differs"),
     }
     let mut content = BTreeMap::new();
     for c in &index.contents {
