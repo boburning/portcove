@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use super::{
-    LibraryRecoveryBundlePlan, LibraryRecoveryCoverage, LibraryRecoveryExclusion, prepare,
-    require_capacity,
+    Creation, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage, LibraryRecoveryExclusion,
+    prepare, require_capacity,
 };
 use crate::{
     Library, LibraryImportPlan, LibraryImportResult, LibraryMetadata, LibraryTreePlan,
@@ -135,15 +135,7 @@ impl PortcoveService {
         mut observe: impl FnMut(LibraryRecoveryProgress) -> Result<()>,
     ) -> Result<LibraryRecoveryBundle> {
         let stage = checked_directory(staging)?;
-        require_private_directory(&stage)?;
-        let intent: CreationIntent =
-            read_authenticated(&stage.join(JOURNAL_FILE), JOURNAL_DOMAIN, MAX_JOURNAL_BYTES)?;
-        require_format(intent.format_version)?;
-        if stage != staging_path(&intent)? {
-            return Err(PortcoveError::verification(
-                "recovery bundle journal was moved from its owned staging directory",
-            ));
-        }
+        let intent = read_creation_intent(&stage)?;
         let result = (|| match fs::symlink_metadata(&intent.plan.destination_root) {
             Ok(_) => {
                 observe(LibraryRecoveryProgress::Verifying)?;
@@ -151,8 +143,17 @@ impl PortcoveService {
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 let library = open_source(&intent.plan.source_root)?;
+                if payload_left_staging(&stage)? {
+                    return Err(PortcoveError::conflict(
+                        "The staged copy has already left this folder. Locate and inspect the published bundle, or review a new copy.",
+                    ));
+                }
                 let service = Self::new_read_only(library)?;
-                let (review, metadata, content) = prepare(&service, &intent.plan.destination_root)?;
+                let (review, metadata, content) = prepare(
+                    &service,
+                    &intent.plan.destination_root,
+                    Creation::Continuing,
+                )?;
                 require_same_plan(&review, &intent.plan.plan_sha256)?;
                 publish_creation(
                     &service,
@@ -301,7 +302,7 @@ fn start_creation(
 ) -> Result<LibraryRecoveryBundle> {
     let library = open_source(source)?;
     let service = PortcoveService::new_read_only(library)?;
-    let (plan, metadata, content) = prepare(&service, destination)?;
+    let (plan, metadata, content) = prepare(&service, destination, Creation::New)?;
     require_same_plan(&plan, expected_plan)?;
     require_capacity(&plan)?;
     let intent = CreationIntent {
@@ -394,7 +395,7 @@ fn publish_creation(
     verify_payload(&payload, &manifest)?;
     // The source lease protects against Portcove writers. Recheck the complete
     // source before publication to detect changes outside that coordination.
-    let (review, _, _) = prepare(service, &intent.plan.destination_root)?;
+    let (review, _, _) = prepare(service, &intent.plan.destination_root, Creation::Continuing)?;
     require_same_plan(&review, &intent.plan.plan_sha256)?;
     crate::transfer_copy::refuse_sensitive_content(
         &intent.plan.source_root,
@@ -507,6 +508,117 @@ fn staging_path(intent: &CreationIntent) -> Result<PathBuf> {
         .parent()
         .ok_or_else(|| PortcoveError::state("recovery bundle destination has no parent"))?;
     Ok(parent.join(format!("{STAGING_PREFIX}{}", intent.bundle_id)))
+}
+
+fn read_creation_intent(stage: &Path) -> Result<CreationIntent> {
+    require_private_directory(stage)?;
+    let intent: CreationIntent =
+        read_authenticated(&stage.join(JOURNAL_FILE), JOURNAL_DOMAIN, MAX_JOURNAL_BYTES)?;
+    require_format(intent.format_version)?;
+    if stage != staging_path(&intent)? {
+        return Err(PortcoveError::verification(
+            "recovery bundle journal was moved from its owned staging directory",
+        ));
+    }
+    Ok(intent)
+}
+
+fn payload_left_staging(stage: &Path) -> Result<bool> {
+    fn exists(path: &Path) -> Result<bool> {
+        match fs::symlink_metadata(path) {
+            Ok(_) => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    // Publication moves payload out atomically and keeps work in staging.
+    // Work is created only after payload, so this state cannot establish an
+    // incomplete copy that is safe to replay.
+    Ok(!exists(&stage.join(PAYLOAD_DIR))? && exists(&stage.join(WORK_DIR))?)
+}
+
+pub(super) fn require_no_interrupted_creation(
+    source: &Path,
+    source_library_id: &str,
+    destination: &Path,
+) -> Result<()> {
+    const MAX_PARENT_ENTRIES: usize = 16_384;
+    const MAX_STAGING_ENTRIES: usize = 256;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("recovery bundle destination has no parent"))?;
+    let inventory_limit = || {
+        PortcoveError::conflict(
+            "Portcove could not check this folder for interrupted copies. Choose a different bundle folder, or open Resume an interrupted bundle operation if you already know the staging folder.",
+        )
+    };
+    let mut staging_count = 0;
+    let mut found = None;
+    #[cfg(windows)]
+    let mut possible_alias = None;
+    for (index, entry) in fs::read_dir(parent)?.enumerate() {
+        if index >= MAX_PARENT_ENTRIES {
+            return Err(inventory_limit());
+        }
+        let entry = entry?;
+        let name = entry.file_name();
+        let Some(id) = name
+            .to_str()
+            .and_then(|name| name.strip_prefix(STAGING_PREFIX))
+        else {
+            continue;
+        };
+        if Uuid::parse_str(id).is_err() || !entry.file_type()?.is_dir() {
+            continue;
+        }
+        staging_count += 1;
+        if staging_count > MAX_STAGING_ENTRIES {
+            return Err(inventory_limit());
+        }
+        let stage = entry.path();
+        let Ok(intent) = read_creation_intent(&stage) else {
+            continue;
+        };
+        if intent.plan.source_root != source
+            || intent.plan.source_library_id != source_library_id
+            || payload_left_staging(&stage)?
+        {
+            continue;
+        }
+        if intent.plan.destination_root != destination {
+            #[cfg(windows)]
+            if let (Some(requested), Some(recorded)) = (
+                destination.file_name(),
+                intent.plan.destination_root.file_name(),
+            ) && crate::path::windows_ordinal_names_equal(requested, recorded)
+            {
+                // The destination does not exist yet. Case may distinguish names on this
+                // volume, so only the exact spelling can identify a resumable journal.
+                possible_alias.get_or_insert(intent.plan.destination_root);
+            }
+            continue;
+        }
+        if found.replace(stage).is_some() {
+            return Err(PortcoveError::conflict(
+                "More than one interrupted copy uses this folder. Open Resume an interrupted bundle operation and choose the staging folder recorded for the copy you want.",
+            ));
+        }
+    }
+    if let Some(stage) = found {
+        return Err(creation_error(
+            PortcoveError::conflict("An interrupted copy is waiting for this bundle folder."),
+            &stage,
+        ));
+    }
+    #[cfg(windows)]
+    if let Some(alias) = possible_alias {
+        return Err(PortcoveError::conflict(
+            "An interrupted copy uses a folder with a similar name. Review the folder with its recorded spelling, or choose a different folder.",
+        )
+        .detail("recovery_destination", alias.display().to_string()));
+    }
+    Ok(())
 }
 
 pub(super) fn refuse_staging_path(path: &Path) -> Result<()> {
@@ -763,12 +875,91 @@ mod tests {
             fs::read(source.join("user/progress.bin")).unwrap(),
             b"saved progress"
         );
-        let resumed = PortcoveService::resume_library_recovery_bundle(Path::new(
-            &error.details["recovery_staging"],
-        ))
-        .unwrap();
+        let staged_path = &error.details["recovery_staging"];
+        {
+            let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+            let review_error = service
+                .plan_library_recovery_bundle(&destination)
+                .unwrap_err();
+            assert_eq!(review_error.details["recovery_staging"], *staged_path);
+            assert!(
+                service
+                    .plan_library_recovery_bundle(&workspace.path().join("another-bundle"))
+                    .is_ok()
+            );
+
+            #[cfg(windows)]
+            {
+                let alternate = workspace.path().join("BUNDLE");
+                let alias_error = service
+                    .plan_library_recovery_bundle(&alternate)
+                    .unwrap_err();
+                assert_eq!(alias_error.code, crate::ErrorCode::Conflict);
+                assert!(!alias_error.details.contains_key("recovery_staging"));
+                assert_eq!(
+                    Path::new(&alias_error.details["recovery_destination"]),
+                    plan.destination_root,
+                );
+            }
+
+            let journal = Path::new(staged_path).join(JOURNAL_FILE);
+            let original = fs::read(&journal).unwrap();
+            let mut modified: Authenticated<CreationIntent> =
+                serde_json::from_slice(&original).unwrap();
+            modified.proof_sha256.replace_range(.., &"0".repeat(64));
+            fs::write(&journal, serde_json::to_vec(&modified).unwrap()).unwrap();
+            assert!(service.plan_library_recovery_bundle(&destination).is_ok());
+            fs::write(&journal, original).unwrap();
+
+            let (_, other_plan) =
+                plan_fixture(&workspace.path().join("another-library"), &destination);
+            assert_ne!(other_plan.source_library_id, source_id);
+        }
+        let repeated = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap_err();
+        assert_eq!(repeated.details["recovery_staging"], *staged_path);
+        assert!(!destination.exists());
+        let resumed =
+            PortcoveService::resume_library_recovery_bundle(Path::new(staged_path)).unwrap();
         assert_eq!(resumed.source_library_id, source_id);
         assert_eq!(resumed.path, plan.destination_root);
+    }
+
+    #[test]
+    fn a_completed_bundle_can_move_without_blocking_new_review_or_replaying_its_copy() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let bundle = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap();
+        let stage = fs::read_dir(bundle.path.parent().unwrap())
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .find(|path| path.join(JOURNAL_FILE).is_file())
+            .unwrap();
+        let moved = workspace.path().join("stored-bundle");
+        fs::rename(&bundle.path, &moved).unwrap();
+
+        let error = PortcoveService::resume_library_recovery_bundle(&stage).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(!destination.exists());
+        assert_eq!(
+            PortcoveService::inspect_library_recovery_bundle(&moved)
+                .unwrap()
+                .receipt_sha256,
+            bundle.receipt_sha256,
+        );
+        let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+        assert!(service.plan_library_recovery_bundle(&destination).is_ok());
     }
 
     #[test]

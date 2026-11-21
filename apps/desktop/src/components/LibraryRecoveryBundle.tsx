@@ -258,6 +258,7 @@ function RecoveryBundleDialog({
   const editDestination = (value: string) => {
     setDestination(value);
     setCreation(undefined);
+    setRecovery(undefined);
     setRestore(undefined);
     setError(undefined);
   };
@@ -590,6 +591,12 @@ function RecoveryBundleDialog({
             <PathValue label="Installation ID" value={errorDetail(error, "install_id") ?? ""} />
           </section>
         )}
+        {errorDetail(error, "recovery_destination") && (
+          <PathValue
+            label="Recorded bundle folder"
+            value={errorDetail(error, "recovery_destination") ?? ""}
+          />
+        )}
         {recovery && (
           <PathValue
             label={
@@ -617,7 +624,7 @@ function RecoveryBundleDialog({
               {titles[recovery.operation]}
             </Button>
           )}
-          {!transferred && operation === "create" && (
+          {!transferred && !recovery && operation === "create" && (
             <Button
               data-focusable
               variant="primary"
@@ -646,9 +653,14 @@ function RecoveryBundleDialog({
                   });
                 } else {
                   void run("Checking library coverage…", async () => {
-                    setCreation(
-                      await desktopApi.planLibraryRecoveryBundle(destination, generation),
-                    );
+                    try {
+                      setCreation(
+                        await desktopApi.planLibraryRecoveryBundle(destination, generation),
+                      );
+                    } catch (failure) {
+                      setRecovery(recoveryStep(failure, "resumeCreation"));
+                      throw failure;
+                    }
                   });
                 }
               }}

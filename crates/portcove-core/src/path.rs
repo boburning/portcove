@@ -23,6 +23,23 @@ pub(crate) fn comparable_windows_path(path: &str) -> String {
     path.trim_end_matches('\\').to_lowercase()
 }
 
+#[cfg(windows)]
+pub(crate) fn windows_ordinal_names_equal(left: &std::ffi::OsStr, right: &std::ffi::OsStr) -> bool {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Globalization::{CSTR_EQUAL, CompareStringOrdinal};
+
+    let left: Vec<_> = left.encode_wide().collect();
+    let right: Vec<_> = right.encode_wide().collect();
+    let (Ok(left_len), Ok(right_len)) = (i32::try_from(left.len()), i32::try_from(right.len()))
+    else {
+        return false;
+    };
+    // SAFETY: both buffers have exactly the supplied lengths.
+    unsafe {
+        CompareStringOrdinal(left.as_ptr(), left_len, right.as_ptr(), right_len, 1) == CSTR_EQUAL
+    }
+}
+
 pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
     path.to_str().is_some_and(|relative| {
         relative.split(['/', '\\']).any(|name| {

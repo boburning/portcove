@@ -61,15 +61,21 @@ impl PortcoveService {
         &self,
         destination: &Path,
     ) -> Result<LibraryRecoveryBundlePlan> {
-        let (plan, _, _) = prepare(self, destination)?;
+        let (plan, _, _) = prepare(self, destination, Creation::New)?;
         require_capacity(&plan)?;
         Ok(plan)
     }
 }
 
+enum Creation {
+    New,
+    Continuing,
+}
+
 fn prepare(
     service: &PortcoveService,
     destination: &Path,
+    creation: Creation,
 ) -> Result<(
     LibraryRecoveryBundlePlan,
     LibraryMetadata,
@@ -81,6 +87,13 @@ fn prepare(
     execution::refuse_staging_path(&destination_root)?;
     require_transfer_idle(service.library(), LibraryTransferPurpose::RecoveryBundle)?;
     let source_library_id = service.library().identity()?;
+    if matches!(creation, Creation::New) {
+        execution::require_no_interrupted_creation(
+            &source_root,
+            &source_library_id,
+            &destination_root,
+        )?;
+    }
     let metadata = service.export_library_metadata()?;
     let catalogs = PortabilityCatalogs::from_root(&metadata, &source_root)?;
     validate_metadata(&metadata, &catalogs)?;

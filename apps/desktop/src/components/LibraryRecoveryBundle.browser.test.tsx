@@ -377,6 +377,46 @@ it("resumes only the transfer identified by the reviewed restore check", async (
   );
 });
 
+it("offers the exact interrupted creation after a fresh review and clears it when the folder changes", async () => {
+  const staging = "D:/backups/.portcove-recovery-bundle-stage";
+  const review = vi.spyOn(desktopApi, "planLibraryRecoveryBundle").mockRejectedValue({
+    message: "An interrupted copy is waiting for this bundle folder.",
+    details: { recovery_staging: staging },
+  });
+  const copy = vi.spyOn(desktopApi, "createLibraryRecoveryBundle");
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryBundle").mockResolvedValue(bundle);
+
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Create recovery bundle", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Create recovery bundle" });
+  const folder = dialog.getByRole("textbox", { name: "New bundle folder" });
+  const reviewAction = dialog.getByRole("button", { name: "Review bundle creation" });
+  const resumeAction = dialog.getByRole("button", { name: "Resume bundle creation" });
+  await folder.fill(destination);
+  await reviewAction.click();
+  await expect.element(dialog.getByText(staging)).toBeVisible();
+  await expect.element(resumeAction).toBeVisible();
+  expect(resume).not.toHaveBeenCalled();
+
+  await folder.fill("D:/backups/Another bundle");
+  await expect.element(dialog.getByText(staging)).not.toBeInTheDocument();
+  await expect.element(resumeAction).not.toBeInTheDocument();
+
+  await folder.fill(destination);
+  await reviewAction.click();
+  await resumeAction.click();
+  expect(review.mock.calls).toEqual([
+    [destination, 7],
+    [destination, 7],
+  ]);
+  expect(resume).toHaveBeenCalledExactlyOnceWith(staging, 7, expect.any(Function));
+  expect(copy).not.toHaveBeenCalled();
+  await expect.element(dialog.getByText("Bundle verified")).toBeVisible();
+  await expect.element(dialog.getByText(destination, { exact: true })).toBeVisible();
+});
+
 it("resumes only the reported staging folder after reading the current generation", async () => {
   const staging = "D:/backups/.portcove-recovery-bundle-stage";
   const create = vi.spyOn(desktopApi, "createLibraryRecoveryBundle").mockRejectedValue({
