@@ -23052,7 +23052,7 @@
           },
           {
             "title": "Prepare the Linux source build",
-            "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder 2 inputs. Use your own Cannon Fodder 2 AmigaDOS files and an appropriate ADF extraction tool. The first game’s DOS data and SOS Unpacker do not supply this sequel. The engine first checks its working directory, then XDG_DATA_HOME/OpenFodder and each XDG_DATA_DIRS/OpenFodder, followed by ~/.local/share/OpenFodder and /usr/local/share/OpenFodder. Keep the actual data, Campaigns, Saves and configuration roots together."
+            "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder 2 inputs. Use your own Cannon Fodder 2 AmigaDOS files and an appropriate ADF extraction tool. The first game’s DOS data and SOS Unpacker do not supply this sequel. The engine first checks its working directory, then XDG_DATA_HOME/OpenFodder and each XDG_DATA_DIRS/OpenFodder, followed by ~/.local/share/OpenFodder and /usr/local/share/OpenFodder. Keep the actual data, Campaigns, Saves and configuration roots together. On Linux x86-64, select the native Run/OpenFodder executable from your completed upstream build and its Run folder as the working directory. Keep the upstream data pack and the full Scripts, Data and Campaigns layout there. Save the explicitly reviewed registration, then choose Play and select this game’s campaign upstream. The separate Flatpak instructions use its own launcher."
           },
           {
             "title": "Add the game and manage your files",
@@ -23097,7 +23097,8 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -23137,7 +23138,7 @@
           },
           {
             "title": "Prepare the Linux source build",
-            "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder inputs. For the DOS CD release put your own CF_ENG.DAT in Data/Dos_CD. Upstream also documents different Amiga and CD32 inputs. The engine first checks its working directory, then XDG_DATA_HOME/OpenFodder and each XDG_DATA_DIRS/OpenFodder, followed by ~/.local/share/OpenFodder and /usr/local/share/OpenFodder. Keep the actual data, Campaigns, Saves and configuration roots together."
+            "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder inputs. For the DOS CD release put your own CF_ENG.DAT in Data/Dos_CD. Upstream also documents different Amiga and CD32 inputs. The engine first checks its working directory, then XDG_DATA_HOME/OpenFodder and each XDG_DATA_DIRS/OpenFodder, followed by ~/.local/share/OpenFodder and /usr/local/share/OpenFodder. Keep the actual data, Campaigns, Saves and configuration roots together. On Linux x86-64, select the native Run/OpenFodder executable from your completed upstream build and its Run folder as the working directory. Keep the upstream data pack and the full Scripts, Data and Campaigns layout there. Save the explicitly reviewed registration, then choose Play and select this game’s campaign upstream. The separate Flatpak instructions use its own launcher."
           },
           {
             "title": "Add the game and manage your files",
@@ -23171,7 +23172,8 @@
         "source_editions": []
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
