@@ -1916,6 +1916,7 @@ void test(
       if (process.argv.includes("--format-version")) {
         const data = JSON.parse(fs.readFileSync(file, "utf8"));
         data.format_version = Number(process.argv.at(-1));
+        for (const row of data.listings) delete row.future_setup;
         console.log(JSON.stringify({ ok: true, data }));
       } else console.log(JSON.stringify({ ok: true }));
     `,
@@ -2008,6 +2009,20 @@ void test(
         compact,
       );
     }
+    // Core #8504 (970d8a919d27) verified_original_editions fixture.
+    const edition = {
+      id: "retail",
+      title: "Retail edition",
+      evidence_urls: ["https://example.com/retail"],
+    };
+    const originalGame = {
+      format_version: 1,
+      id: "original-game",
+      evidence_urls: ["https://example.com/original"],
+      source_editions: [edition],
+    };
+    const listing13 = { ...fixtureListing, original_game: originalGame };
+    put(dir, "canonical", { format_version: 13, listings: [listing13] });
     const active13 = await prepareObservationBundle({
       ...options,
       ...compactPrior,
@@ -2016,8 +2031,17 @@ void test(
       releasedReader: capable,
     });
     const exact13 = readFileSync(path.join(active13.bundle, compactListingDeliveryTarget), "utf8");
-    const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
+    const { artworkCheckpointTarget, coverDeclarationScope, readArtworkCheckpoint } =
+      await import("./listing-artwork-checkpoint.mts");
     const { decodeRetainedCompactListing } = await import("./listing-directory-carrier.mts");
+    const artwork = {
+      game_id: 1,
+      cover_id: 2,
+      game_slug: "fixture",
+      match_kind: "port",
+      image_id: "cofixture",
+      image_sha256: "b".repeat(64),
+    };
     const cover = JSON.stringify({
       checkpoint_schema: 1,
       listing_sha256: overlaySha256(
@@ -2027,9 +2051,9 @@ void test(
       entries: [
         {
           id: fixtureListing.id,
-          scope: "a".repeat(64),
-          image_id: "cofixture",
-          prior_sha256: "b".repeat(64),
+          scope: coverDeclarationScope(listing13, artwork),
+          image_id: artwork.image_id,
+          prior_sha256: artwork.image_sha256,
           observed_at: "2026-11-20T04:12:00.000Z",
           receipt: "sha256:" + "c".repeat(64),
           state: "gone",
@@ -2064,8 +2088,165 @@ void test(
       assert.equal(existsSync(path.join(result.bundle, artworkCheckpointTarget)), false);
     }
 
+    const binding = {
+      game_id: "original-source",
+      variant_id: "first-release",
+      representation_id: "retail-file-set",
+    };
+    const listing14 = {
+      ...listing13,
+      name: "Compatible title refresh",
+      artwork,
+      original_game: {
+        ...originalGame,
+        source_editions: [{ ...edition, verified_sources: [binding] }],
+      },
+    };
+    put(dir, "canonical", { format_version: 14, listings: [listing14] });
+    const projected = await prepareObservationBundle({
+      ...options,
+      ...activePrior,
+      output: path.join(dir, "edition-compatible"),
+    });
+    assert.equal(projected.canonical_listing_format, 14);
+    assert.equal(projected.listing_format, 13);
+    assert.equal(projected.changed, true);
+    assert.equal(projected.revision, active13.revision + 1);
+    assert.equal(projected.released_reader, undefined);
+    assert.equal(readFileSync(path.join(projected.bundle, listingDeliveryTarget), "utf8"), legacy);
+    const decoded = decodeRetainedCompactListing(
+      readFileSync(path.join(projected.bundle, compactListingDeliveryTarget)),
+    );
+    const readProjected = (bytes: Buffer) =>
+      JSON.parse(bytes.toString("utf8")) as {
+        directory: { listings: Record<string, unknown>[] };
+        withdrawn_ids: unknown;
+      };
+    const { directory: projectedDirectory, withdrawn_ids } = readProjected(decoded);
+    assert.deepEqual(projectedDirectory.listings, [
+      { ...listing13, name: "Compatible title refresh" },
+    ]);
+    assert.deepEqual(withdrawn_ids, []);
+    const nextCover = readArtworkCheckpoint(
+      readFileSync(path.join(projected.bundle, artworkCheckpointTarget)),
+      decoded,
+    );
+    assert.equal(nextCover.prior_checkpoint_sha256, overlaySha256(cover));
+    const priorCover = readArtworkCheckpoint(
+      Buffer.from(cover),
+      decodeRetainedCompactListing(Buffer.from(exact13)),
+    );
+    assert.deepEqual(nextCover.entries, priorCover.entries);
+
+    for (const [name, input, refusal] of [
+      [
+        "unknown-field",
+        { ...listing14, future_setup: {} },
+        /projection changed a format-13 declaration/u,
+      ],
+      [
+        "invalid-binding",
+        {
+          ...listing14,
+          original_game: {
+            ...originalGame,
+            source_editions: [
+              { ...edition, verified_sources: [{ ...binding, future_qualifier: true }] },
+            ],
+          },
+        },
+        /Invalid format-14 verified source edition binding/u,
+      ],
+      [
+        "unreviewed-withdrawal",
+        { ...listing14, id: "replacement" },
+        /without an explicit withdrawal/u,
+      ],
+    ] as const) {
+      put(dir, "canonical", { format_version: 14, listings: [input] });
+      const output = path.join(dir, name);
+      await assert.rejects(
+        prepareObservationBundle({ ...options, ...activePrior, output }),
+        refusal,
+      );
+      assert.equal(existsSync(path.join(output, "bundle")), false);
+    }
+    put(dir, "canonical", { format_version: 14, listings: [listing14] });
+    for (const [name, source] of Object.entries({ legacy: legacyPrior, compact: compactPrior })) {
+      const deferred = await prepareObservationBundle({
+        ...options,
+        ...source,
+        output: path.join(dir, "edition-needs-existing-13-" + name),
+        compactIfCapable: true,
+        releasedReader: capable,
+      });
+      assert.equal(deferred.listing_format, 11);
+      assert.equal(deferred.released_reader, undefined);
+      assert.equal(readFileSync(path.join(deferred.bundle, listingDeliveryTarget), "utf8"), legacy);
+      const target = path.join(deferred.bundle, compactListingDeliveryTarget);
+      if (name === "compact") assert.equal(readFileSync(target, "utf8"), compact);
+      else assert.equal(existsSync(target), false);
+    }
+
+    for (const scope of ["stale", "current"]) {
+      const result = await prepareObservationBundle({
+        ...options,
+        ...activePrior,
+        observe: true,
+        output: path.join(dir, "edition-cover-" + scope),
+        async readObservation() {
+          throw new Error("No release observation in this case");
+        },
+        async readScummvmObservation() {
+          throw new Error("No game-data observation in this case");
+        },
+        async readCoverHealth() {
+          return {
+            artifact: "sha256:" + "e".repeat(64),
+            producer: {
+              workflow: "fixture",
+              run: "1",
+              attempt: "1",
+              revision: "f".repeat(40),
+            },
+            producerDirectory: {
+              format_version: scope === "current" ? 14 : 13,
+              listings: [scope === "current" ? listing14 : { ...listing13, artwork }],
+            },
+            expected: 1,
+            rows: 1,
+            counts: { unchanged: 1, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 },
+            facts: new Map([
+              [
+                `port:${listing14.id}@${artwork.image_id}`,
+                {
+                  artwork,
+                  status: "unchanged",
+                  observed_at: "2026-11-20T05:12:00.000Z",
+                },
+              ],
+            ]),
+            gaps: [],
+            complete: true,
+            revision: "fixture",
+          };
+        },
+      });
+      const wire = decodeRetainedCompactListing(
+        readFileSync(path.join(result.bundle, compactListingDeliveryTarget)),
+      );
+      const checkpoint = readArtworkCheckpoint(
+        readFileSync(path.join(result.bundle, artworkCheckpointTarget)),
+        wire,
+      );
+      const row = readProjected(wire).directory.listings[0];
+      assert.equal(checkpoint.entries[0]?.scope, coverDeclarationScope(listing13, artwork));
+      assert.equal(checkpoint.entries[0]?.state, scope === "current" ? "restored" : "gone");
+      assert.deepEqual(row?.artwork, scope === "current" ? artwork : undefined);
+    }
+
     put(dir, "canonical", {
-      format_version: 14,
+      format_version: 15,
       listings: [{ ...fixtureListing, name: "Future title", future_setup: { opaque: true } }],
     });
     const futureCapable = reader(
@@ -2085,13 +2266,13 @@ void test(
         throw new Error("Observer must not start for an unknown format");
       },
     });
-    assert.equal(future.canonical_listing_format, 14);
+    assert.equal(future.canonical_listing_format, 15);
     assert.equal(future.listing_format, 13);
     assert.equal(future.revision, active13.revision);
     assert.equal(future.changed, false);
     assert.equal(future.released_reader, undefined);
     assert.equal(reads, 0);
-    assert.match(future.diagnostics.join(" "), /format 14 deferred/);
+    assert.match(future.diagnostics.join(" "), /format 15 deferred/);
     assert.equal(readFileSync(path.join(future.bundle, listingDeliveryTarget), "utf8"), legacy);
     assert.equal(
       readFileSync(path.join(future.bundle, compactListingDeliveryTarget), "utf8"),
