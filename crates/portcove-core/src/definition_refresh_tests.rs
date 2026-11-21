@@ -359,6 +359,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     // independent working-directory authority and tracked handoff compiled
     // into the client; a legacy catalog cannot deliver either.
     for port in &mut baseline.ports {
+        port.mod_provider_bindings = None;
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
     }

@@ -6359,6 +6359,22 @@
           }
         ]
       },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
       "ManagedAcquisitionHold": {
         "additionalProperties": false,
         "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
@@ -6450,6 +6466,44 @@
         "required": [
           "title",
           "instruction"
+        ],
+        "type": "object"
+      },
+      "ModLoaderBinding": {
+        "additionalProperties": false,
+        "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
+        "properties": {
+          "contract": {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          "minimum_version": {
+            "type": "string"
+          },
+          "native_game": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "settings_file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "repository",
+          "minimum_version",
+          "settings_file",
+          "platforms"
         ],
         "type": "object"
       },
@@ -6794,6 +6848,17 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "mod_loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModLoaderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned native loader facts admitted with this exact definition."
           },
           "mod_package_policy": {
             "anyOf": [
@@ -37408,6 +37473,22 @@
           }
         ]
       },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
       "ManagedAcquisitionHold": {
         "additionalProperties": false,
         "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
@@ -37499,6 +37580,44 @@
         "required": [
           "title",
           "instruction"
+        ],
+        "type": "object"
+      },
+      "ModLoaderBinding": {
+        "additionalProperties": false,
+        "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
+        "properties": {
+          "contract": {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          "minimum_version": {
+            "type": "string"
+          },
+          "native_game": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "settings_file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "repository",
+          "minimum_version",
+          "settings_file",
+          "platforms"
         ],
         "type": "object"
       },
@@ -38621,6 +38740,17 @@
           "$ref": "#/$defs/Platform"
         },
         "type": "array"
+      },
+      "mod_loader": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModLoaderBinding"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Versioned native loader facts admitted with this exact definition."
       },
       "mod_package_policy": {
         "anyOf": [
@@ -56210,6 +56340,22 @@
           }
         ]
       },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
       "ManagedAcquisitionHold": {
         "additionalProperties": false,
         "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
@@ -56301,6 +56447,44 @@
         "required": [
           "title",
           "instruction"
+        ],
+        "type": "object"
+      },
+      "ModLoaderBinding": {
+        "additionalProperties": false,
+        "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
+        "properties": {
+          "contract": {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          "minimum_version": {
+            "type": "string"
+          },
+          "native_game": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "settings_file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "repository",
+          "minimum_version",
+          "settings_file",
+          "platforms"
         ],
         "type": "object"
       },
@@ -56645,6 +56829,17 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "mod_loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModLoaderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned native loader facts admitted with this exact definition."
           },
           "mod_package_policy": {
             "anyOf": [
