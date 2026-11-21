@@ -74,6 +74,11 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+Indexed definition entries can carry a separate, bounded advisory object
+in entry schema 4. This metadata is outside the operational port and catalog
+projection. Use [named definition requirements](DEFINITION-DELIVERY.md#named-requirements-for-indexed-entries)
+when preparing an indexed publication for clients with schema-4 support.
+
 Reviewed forge qualification models the API dialect, API root, web host and
 exact asset hosts separately from the reviewed repository, release and artifact
 identity. The alternate-forge route is currently exercised by qualification
@@ -3140,6 +3145,16 @@ eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
+
+Use an exact `integration.mod_provider_bindings` scope with an already reviewed
+loader. Shipwright declares its GameBanana game ID and Zelda 64: Recompiled
+declares its Thunderstore community. Ordinary projects, files and compatible
+updates within those scopes use the existing provider selectors. Retained
+package references can still replay their original compiled binding. When an
+indexed provider selection expires or is withdrawn, new provider operations
+wait for a current authenticated selection. Use the
+[indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
+when delivering a binding through the signed feed.
 
 Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
 OS coverage. Add `--json` for per-port detail. An authored
