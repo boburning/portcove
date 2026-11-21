@@ -197,7 +197,7 @@ it("waits for the copy worker to stop and offers continuation from its exact sta
       .element(dialog.getByRole("progressbar", { name: "Recovery data copied" }))
       .toBeVisible();
     await dialog.getByRole("button", { name: "Hide details", exact: true }).click();
-    await expect.element(dialog).not.toBeVisible();
+    await expect.element(dialog).not.toBeInTheDocument();
     await expect
       .element(page.getByRole("button", { name: "Create recovery bundle", exact: true }))
       .toBeDisabled();
