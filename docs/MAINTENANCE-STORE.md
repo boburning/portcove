@@ -1125,11 +1125,9 @@ names against the registry.
   assessment, and a change is reported (the digest and the report's Core and
   Changes columns), not reinterpreted as attention.
 
-**Recording.** `collect --all` records handoffs in the collection transaction,
-and only after a `complete` run of the deciding source: the release-health,
-upstream-observation, hosted-intake or release-content run. While that run is
-`partial` or `failed`, no handoff of its kinds is recorded, changed or cleared, even for
-subjects it did observe.
+**Recording.** `collect --all` records handoffs in the collection transaction.
+Upstream observation, hosted intake and release content require a complete run
+of the deciding source. Release health also reports complete coverage per port.
 
 - Each attention subject gets an assessment `handoff:<kind>:<source subject>`
   with state `needs-attention`. Its input digest covers the kind, the source
@@ -1155,8 +1153,13 @@ subjects it did observe.
   transition. A return to an earlier condition is flagged.
 - A subject that never needed attention gets no row. A `needs-attention` subject
   whose condition is gone in a complete run transitions to `clear`.
-- A `partial` or `failed` run and a sample collection neither record nor clear
-  handoffs.
+- A partial release-health run may open or clear a handoff only for a port
+  the monitor assessed freshly and completely. Gaps retain the previous state.
+  Failed reads, sample collections and partial reads of other sources leave their
+  existing handoffs in place. The scheduled monitor continues checking reviewed
+  historical GitHub locations. When every relocation condition has a reviewed
+  accounting decision and a recorded resume condition, its evidence remains in
+  the health report and its handoff clears.
 - An open handoff of a kind no longer in the registry clears on the next complete
   run of any handoff source, so a removed kind never lingers as open work.
 - Unlike source subjects, a handoff's first transition is a pending notification,
