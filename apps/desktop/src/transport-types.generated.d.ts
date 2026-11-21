@@ -2251,6 +2251,10 @@ export interface BackupActionPreview {
   backup: BackupRecord;
   current_user_data_exists: boolean;
   preview_sha256: string;
+  /**
+   * The library, installation scope and materialized setup reviewed for a restore.
+   */
+  restore_target_sha256?: string | null;
   retained_runtime_copy_will_be_deleted: boolean;
   safety_backup_will_be_created: boolean;
   [k: string]: unknown;

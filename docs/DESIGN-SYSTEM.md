@@ -1267,8 +1267,16 @@ its uncertainty. Saved-data scope sits beside backup controls; creation checks
 the managed folder. Installed saved-data paths are not exposed
 in this projection: every installed version follows its recorded rules, so
 current catalog paths must not substitute for its installed contract. There is
-no backup-creation review; restore and deletion have their own reviews. External
-saved data remains outside managed backups.
+no backup-creation review. Restore and deletion have their own reviews. A refused
+restore can refresh backup history inside its review. The new review keeps the
+exact snapshot and the same managed save location, installation and setup. A
+removed or replaced snapshot stays unavailable. The player must confirm the
+fresh review before Portcove requests native consent. When the restore result
+is uncertain, the review directs the player to Activity. A confirmed restore
+closes its review while Portcove checks the workspace and backup history. The
+target remains guarded during readback. If a read fails, the player can refresh
+the result without restoring again. External saved data remains outside managed
+backups.
 
 Retained-setup inspection leads with the working object, completeness uncertainty
 and supported next step. Secondary installation/source/saves/backup/log locations

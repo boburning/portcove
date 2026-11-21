@@ -186,7 +186,7 @@ interface DetailPanelProps {
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   source?: SourceRecord | undefined;
   sourceInspection?: SourceInspectionReport | undefined;
   sourceProfile?: SourceProfile | undefined;
@@ -540,7 +540,7 @@ function DetailBody(model: {
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
   libraryGeneration: number;
@@ -1272,7 +1272,7 @@ function SavesStorageGroup({
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   libraryGeneration: number;
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;

@@ -51,6 +51,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
 const backupSectionSelector = '[aria-labelledby="detail-saves-and-storage"]';
 import {
+  currentDegradedBackupActions,
   degradedInventorySelector,
   waitForDegradedInventory,
 } from "./desktop-backup-inventory-observer.mts";
@@ -135,14 +136,10 @@ export async function backupReviewScenario({
       assert.ok(protection.installations.some((item) => item.install_id === install.id));
       const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
       const expectedSummary = ["Latest backup information"];
-      if (protection.latest_completed_backup)
-        expectedSummary.push(protection.latest_completed_backup.id);
       if (!complete) expectedSummary.push("We couldn’t confirm");
-      const expectedDetails = [
-        protection.managed_data.path,
-        // Each installation by its role heading, so a missing one is not hidden by
-        // another installation or text that shares its version.
-        ...protection.installations.map(
+      // Each installation has an exact role/version heading.
+      const expectedHeadings = protection.installations
+        .map(
           (item) =>
             `${
               {
@@ -152,8 +149,8 @@ export async function backupReviewScenario({
                 external: "Installation you maintain",
               }[item.role]
             } · ${item.version}`,
-        ),
-      ];
+        )
+        .sort();
       await browser.wait(
         async () => {
           const [panel] = await browser.findElements(By.css(protectionSelector));
@@ -172,10 +169,22 @@ export async function backupReviewScenario({
           for (const disclosure of disclosures)
             await executeBrowserScript(browser, "arguments[0].click();", disclosure);
           const summaryText = await panel.getText();
-          const detailsText = await details.getText();
+          const savedFolders = await details.findElements(
+            By.xpath("./div/p[starts-with(normalize-space(.), 'Saved-data folder:')]/code"),
+          );
+          const headings = await Promise.all(
+            (await details.findElements(By.css("h3"))).map((element) => element.getText()),
+          );
+          const [latestId] = await panel.findElements(
+            By.xpath('.//details[summary[normalize-space(.)="Backup identifier"]]/code'),
+          );
           return (
             expectedSummary.every((value) => summaryText.includes(value)) &&
-            expectedDetails.every((value) => detailsText.includes(value))
+            (!protection.latest_completed_backup ||
+              (await latestId?.getText()) === protection.latest_completed_backup.id) &&
+            savedFolders.length === 1 &&
+            (await savedFolders[0]?.getText()) === protection.managed_data.path &&
+            JSON.stringify(headings.sort()) === JSON.stringify(expectedHeadings)
           );
         },
         15_000,
@@ -298,11 +307,24 @@ export async function backupReviewScenario({
     // Native27 observed consecutive 11.032 s and 11.063 s workspace readbacks
     // while this refused apply was still settling; exact promise attribution is
     // unproven. Match the finite confirmed-restore allowance for this UI wait.
-    await browser.wait(until.elementLocated(button("Review again")), 60_000);
+    const refreshRestoreReview = By.xpath(
+      '//*[@aria-labelledby="backup-review-title"]//button[normalize-space(.)="Refresh backup history"]',
+    );
+    await browser.wait(until.elementLocated(refreshRestoreReview), 60_000);
     assert.equal(await readFile(save, "utf8"), "changed after review");
     assert.equal(list().length, 2);
-    await browser.findElement(button("Review again")).click();
+    await browser.wait(
+      until.elementIsEnabled(await browser.findElement(refreshRestoreReview)),
+      60_000,
+    );
+    await browser.findElement(refreshRestoreReview).click();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
+    const refreshedReview = await browser.findElement(
+      By.css('[aria-labelledby="backup-review-title"]'),
+    );
+    assert.ok((await refreshedReview.getText()).includes(selected.path));
+    assert.equal(await readFile(save, "utf8"), "changed after review");
+    assert.equal(list().length, 2);
     await browser.findElement(button("Restore this backup")).click();
     await confirmNative(
       "Confirm backup restore",
@@ -395,8 +417,8 @@ export async function backupReviewScenario({
     const degraded = inventory(port.id);
     assert.equal(degraded.state, "degraded");
     assert.deepEqual(
-      degraded.backups.map((item) => item.id),
-      [other.id],
+      degraded.backups.map(({ id, sha256 }) => ({ id, sha256 })),
+      [{ id: other.id, sha256: other.sha256 }],
     );
     assert.equal(degraded.problems.length, 1);
     assert.ok(degraded.problems[0]);
@@ -407,14 +429,20 @@ export async function backupReviewScenario({
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
     assert.ok((await degradedNotice.getText()).includes(degraded.problems[0].proposed_action));
     await observeProtection("native-protection-degraded-history");
-    const usableRow = await row(other.id);
-    assert.equal(
-      await usableRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
-      true,
-    );
-    assert.equal(
-      await usableRow.findElement(By.css('button[aria-label^="Delete backup"]')).isEnabled(),
-      true,
+    // Workspace refresh can invalidate history during the protection capture.
+    // Check both actions on the exact current row in one browser observation.
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          currentDegradedBackupActions,
+          degradedInventorySelector,
+          degraded.problems.length,
+          other.id,
+          other.sha256,
+        ),
+      60_000,
+      "Current degraded history must allow Restore and Delete for the exact usable backup",
     );
     await capture("native-degraded-backup-inventory", degradedInventorySelector);
 
