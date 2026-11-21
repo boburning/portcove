@@ -1001,18 +1001,26 @@ void test("Windows bridge status receives a full queue within its response limit
   await assert.rejects(observeBridgedCapacity(oversized.config), { code: "ENOBUFS" });
 });
 
-void test("host bridge actual client preserves queue refusal and rejects changed verifier bytes", async (t) => {
+void test(
+  "Linux bridge client preserves host queue refusal before local admission",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "queue");
+    let localAcquisitions = 0;
+    await assert.rejects(
+      acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
+        localAcquisitions++;
+        throw new Error("must not acquire locally");
+      }),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.equal(localAcquisitions, 0);
+    await host.close();
+  },
+);
+
+void test("Windows host bridge launcher rejects changed verifier bytes", async (t) => {
   const host = await mockHost(t, "queue");
-  let localAcquisitions = 0;
-  await assert.rejects(
-    acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
-      localAcquisitions++;
-      throw new Error("must not acquire locally");
-    }),
-    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-  );
-  assert.equal(localAcquisitions, 0);
-  await host.close();
   await writeFile(host.entry, "throw Error('unbound replacement executed');");
   assert.throws(
     () =>
