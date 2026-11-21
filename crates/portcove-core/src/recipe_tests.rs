@@ -776,6 +776,7 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
     let stage = ProviderInstallMode::Recipe {
         identity: &recipe.identity_sha256,
         byte_budget: 0,
+        install_id: None,
     }
     .staging(&layout, &provider_plan.plan_sha256);
     fs::create_dir_all(&stage).unwrap();
@@ -891,6 +892,175 @@ fn reviewed_provider_bytes_join_a_recipe_only_after_the_final_exact_approval() {
     assert_ne!(history[0].save_group, source[1].save_group);
 }
 
+#[test]
+fn consented_staged_nrm_import_uses_the_exact_recipe_runtime_while_an_older_build_is_selected() {
+    use crate::provider_install::{ProviderInstallMode, digest};
+    let port = "zelda64-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let platform = crate::Platform::current().unwrap();
+    let catalog = crate::Catalog::from_json(&serde_json::json!({
+        "schema_version": 1,
+        "ports": [{
+            "id": port, "name": "Synthetic Recomp test",
+            "summary": "Retained runtime recipe fixture.",
+            "project_url": "https://github.com/Zelda64Recomp/Zelda64Recomp",
+            "support_tier": "beta", "channels": ["stable"], "platforms": [platform],
+            "adapter": "n64-recomp-portable",
+            "release": {"repository": "Zelda64Recomp/Zelda64Recomp"},
+            "executable_hints": {(serde_json::to_value(platform).unwrap().as_str().unwrap()): ["fixture.exe"]},
+            "persistent_paths": ["mods", "mods.json", "mod_config"]
+        }]
+    }).to_string()).unwrap();
+    let old = crate::retained_build::tests::install_fixture_port(
+        &library,
+        &catalog,
+        port,
+        "older",
+        "v1.2.1",
+        b"older runtime",
+        true,
+    );
+    let service = PortcoveService::new_read_only(library).unwrap();
+    let default = service.ensure_default_profile(port).unwrap();
+    let modern = crate::retained_build::tests::install_fixture_port(
+        service.library(),
+        &catalog,
+        port,
+        "newer",
+        "v1.2.2",
+        b"newer runtime",
+        true,
+    );
+    let mut recipe = service
+        .export_profile_recipe(port, &default.id, None)
+        .unwrap();
+    service.library().rollback(port).unwrap();
+    assert!(service.optional_deploy_layout(port).unwrap().is_none());
+    assert_eq!(
+        service
+            .library()
+            .status(port, crate::ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .id,
+        old.id
+    );
+
+    let manifest = br#"{"game_id":"mm","id":"fixture_code","display_name":"Fixture Code","version":"1.0.0","authors":["fixture"],"minimum_recomp_version":"1.2.2"}"#;
+    let name = "fixture_code.nrm";
+    let package = o2r(
+        temporary.path(),
+        name,
+        &[
+            ("mod.json", manifest),
+            ("mod_binary.bin", b" "),
+            ("mod_syms.bin", b" "),
+        ],
+    );
+    let bytes = fs::read(&package).unwrap();
+    let sha256 = hex::encode(Sha256::digest(&bytes));
+    let size = bytes.len() as u64;
+    let provider = ProviderPackageRef {
+        provider: "thunderstore".into(),
+        binding: None,
+        project: "Fixture-Code".into(),
+        file: Some("1.0.0".into()),
+        version: Some("1.0.0".into()),
+    };
+    recipe.packages.push(RecipePackage {
+        native_id: name.into(),
+        native_version: Some("1.0.0".into()),
+        provider: Some(provider.clone()),
+        sha256: sha256.clone(),
+        size,
+        enabled: true,
+        requires: Vec::new(),
+        provider_requires: Vec::new(),
+    });
+    let recipe = sealed(recipe);
+    let file = crate::ProviderFileCandidate {
+        file_id: provider.file.clone().unwrap(),
+        file_name: "provider.zip".into(),
+        size,
+        added_at: 1,
+        download_url: "https://thunderstore.io/package/download/Fixture/Code/1.0.0/".into(),
+        claimed_md5: None,
+        archived: false,
+        status_unknown: None,
+        claimed_scan: None,
+        thunderstore_dependencies: Some(Vec::new()),
+    };
+    let mut provider_plan = crate::ProviderInstallPlan {
+        port_id: port.into(),
+        profile_id: default.id.clone(),
+        expected_revision: 3,
+        review_nonce: None,
+        provider: provider.clone(),
+        project_name: "Fixture code".into(),
+        file: file.clone(),
+        download_sha256: sha256.clone(),
+        download_size: size,
+        members: vec![crate::PlanMember {
+            file_name: name.into(),
+            sha256: sha256.clone(),
+            size,
+            asset_count: 0,
+            runs_code: vec![crate::RecompExecution::RecompiledCode],
+        }],
+        wrappers: vec![crate::ProviderWrapper {
+            provider,
+            file,
+            download_sha256: sha256.clone(),
+            download_size: size,
+            members: BTreeMap::from([(name.into(), sha256.clone())]),
+        }],
+        ignored_entries: 0,
+        replaces: Vec::new(),
+        conflicts: Vec::new(),
+        conflicts_truncated: false,
+        unverified_claims: Vec::new(),
+        plan_sha256: String::new(),
+    };
+    provider_plan.plan_sha256 = digest(&provider_plan).unwrap();
+    let layout = service.layout_for_install(&modern).unwrap().unwrap();
+    let directory = ProviderInstallMode::Recipe {
+        identity: &recipe.identity_sha256,
+        byte_budget: size,
+        install_id: Some(&modern.id),
+    }
+    .staging(&layout, &provider_plan.plan_sha256);
+    fs::create_dir_all(&directory).unwrap();
+    fs::write(directory.join(name), bytes).unwrap();
+    let acquired = RecipeAcquisitionPlan {
+        recipe_identity_sha256: recipe.identity_sha256.clone(),
+        native_id: name.into(),
+        provider_plan,
+    };
+    let plan = service
+        .plan_recipe_import_with_acquisitions(&recipe, &[acquired])
+        .unwrap();
+    assert!(plan.can_apply, "{:?}", plan.holds);
+    assert_eq!(plan.install_id.as_deref(), Some(modern.id.as_str()));
+    assert_eq!(plan.code_approval.len(), 1);
+    assert!(
+        service
+            .authorize_recipe_import(&plan, "Imported code")
+            .is_err()
+    );
+    let authorization = service
+        .authorize_recipe_import_allowing_code(&plan, "Imported code")
+        .unwrap();
+    let imported = service
+        .apply_recipe_import(&plan, "Imported code", &authorization.token)
+        .unwrap();
+    let revisions = service.profile_revisions(port, &imported.id).unwrap();
+    assert_eq!(revisions[0].build.install_id, modern.id);
+    assert_eq!(revisions[0].packages[0].sha256, sha256);
+    assert!(service.optional_deploy_layout(port).unwrap().is_none());
+}
+
 #[tokio::test]
 async fn recipe_acquisition_uses_the_recipes_runtime_instead_of_the_reference_setup() {
     use crate::provider_client::ProviderClient;
@@ -999,6 +1169,7 @@ async fn recipe_acquisition_uses_the_recipes_runtime_instead_of_the_reference_se
             ProviderInstallMode::Recipe {
                 identity: &recipe.identity_sha256,
                 byte_budget: MAX_ACQUISITION_BYTES,
+                install_id: waiting.install_id.as_deref(),
             },
         )
         .await

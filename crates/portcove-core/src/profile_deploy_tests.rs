@@ -227,6 +227,75 @@ fn earlier_banjo_and_two_ship_builds_keep_unmanaged_mods_and_require_valid_recei
 }
 
 #[test]
+fn a_plain_default_rolls_back_and_recovers_a_switch_to_an_admitted_setup() {
+    let id = "banjo-recomp";
+    let current = crate::Catalog::embedded().unwrap();
+    let mut prior = current.authoritative_document();
+    prior
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap()
+        .mod_loader = None;
+    let prior = crate::Catalog::from_document(prior).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let old = crate::retained_build::tests::install_fixture_port(
+        &library,
+        &prior,
+        id,
+        "older",
+        "v1.0.2",
+        b"older runtime",
+        true,
+    );
+    let service = PortcoveService::new_read_only(library).unwrap();
+    let default = service.ensure_default_profile(id).unwrap();
+    let new = crate::retained_build::tests::install_fixture_port(
+        service.library(),
+        &current,
+        id,
+        "newer",
+        "v1.0.2",
+        b"newer runtime",
+        true,
+    );
+    let target = service
+        .copy_profile(id, &default.id, "Reviewed setup")
+        .unwrap();
+    let rolled_back = service.library().rollback(id).unwrap();
+    assert_eq!(rolled_back.id, old.id);
+    let revisions = service.profile_revisions(id, &default.id).unwrap();
+    assert!(revisions[1].loader.is_some());
+    assert!(revisions[2].loader.is_none());
+    assert_eq!(revisions[2].save_group, revisions[1].save_group);
+    service.require_selected_loader_for_install(&old).unwrap();
+    service.prepare_native_mod_list_locked(id).unwrap();
+
+    // Recover a switch whose journal predates the current loader admission.
+    let path_layout = Layout::for_user(&service.library().user_dir(id));
+    fs::create_dir_all(path_layout.store()).unwrap();
+    write_journal(
+        &path_layout,
+        &default.id,
+        &target.id,
+        target.current_revision,
+        Phase::Start,
+        &declared_state_paths(&service, id).unwrap(),
+    )
+    .unwrap();
+    let selected = service.activate_profile(id, &target.id).unwrap();
+    assert_eq!(selected.build.install_id, new.id);
+    assert_eq!(selected.loader.as_ref().unwrap().id, "n64-recomp");
+    assert!(!path_layout.journal().exists());
+
+    let selected = service.activate_profile(id, &default.id).unwrap();
+    assert_eq!(selected.build.install_id, old.id);
+    assert!(selected.loader.is_none());
+    let selected = service.activate_profile(id, &target.id).unwrap();
+    assert_eq!(selected.build.install_id, new.id);
+}
+#[test]
 fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     let w = world();
     let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);

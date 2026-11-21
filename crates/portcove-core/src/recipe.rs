@@ -670,7 +670,16 @@ impl PortcoveService {
             .ok_or_else(|| {
                 PortcoveError::unsupported("this recipe package needs its exact local file")
             })?;
-        let layout = self.deploy_layout(&recipe.port_id)?;
+        let installs = self.library.all_installs()?;
+        let (install, build) = self
+            .match_recipe_install(recipe, &installs)
+            .ok_or_else(|| {
+                PortcoveError::conflict("the recipe's exact installation is unavailable")
+            })?;
+        self.profile_loader_binding(&build, recipe.loader.as_ref(), true)?;
+        let layout = self.layout_for_install(install)?.ok_or_else(|| {
+            PortcoveError::unsupported("the recipe build has no reviewed mod loader")
+        })?;
         let (_, used_bytes) = verified_acquisitions(&catalog, recipe, &layout, prior)?;
         if prior.len() >= MAX_ACQUISITIONS
             || prior
@@ -720,6 +729,7 @@ impl PortcoveService {
         let mode = ProviderInstallMode::Recipe {
             identity: &recipe.identity_sha256,
             byte_budget: MAX_ACQUISITION_BYTES - used_bytes,
+            install_id: Some(&install.id),
         };
         let provider_plan = self
             .plan_provider_install_in_mode(
@@ -768,6 +778,7 @@ impl PortcoveService {
             crate::provider_install::ProviderInstallMode::Recipe {
                 identity: &acquisition.recipe_identity_sha256,
                 byte_budget: 0,
+                install_id: None,
             },
         )
     }
@@ -788,6 +799,27 @@ impl PortcoveService {
     }
 
     /// Plans an import without changing anything.
+    fn match_recipe_install<'a>(
+        &self,
+        recipe: &ProfileRecipe,
+        installs: &'a [crate::InstallRecord],
+    ) -> Option<(&'a crate::InstallRecord, crate::RetainedBuildIdentity)> {
+        installs
+            .iter()
+            .filter(|install| install.port_id == recipe.port_id)
+            .find_map(|install| {
+                let build = self
+                    .verified_retained_build(&recipe.port_id, &install.id)
+                    .ok()?;
+                (build.runtime == recipe.runtime.runtime
+                    && build.artifact == recipe.runtime.artifact
+                    && build.definition == recipe.runtime.definition
+                    && build.installed_contract_sha256 == recipe.runtime.installed_contract_sha256
+                    && build.platform == recipe.runtime.platform)
+                    .then_some((install, build))
+            })
+    }
+
     pub fn plan_recipe_import(&self, recipe: &ProfileRecipe) -> Result<RecipeImportPlan> {
         self.plan_recipe_import_with_acquisitions(recipe, &[])
     }
@@ -813,50 +845,33 @@ impl PortcoveService {
                     && install.runtime == recipe.runtime.runtime
             })
             .collect::<Vec<_>>();
-        let mut install_id = None;
-        let runtime = {
-            let mut exact = None;
-            for install in &installs {
-                if let Ok(build) = self.verified_retained_build(&recipe.port_id, &install.id)
-                    && build.runtime == recipe.runtime.runtime
-                    && build.artifact == recipe.runtime.artifact
-                    && build.definition == recipe.runtime.definition
-                    && build.installed_contract_sha256 == recipe.runtime.installed_contract_sha256
-                    && build.platform == recipe.runtime.platform
-                {
-                    if let Err(error) = self.profile_loader_binding(
-                        &build,
-                        recipe.loader.as_ref(),
-                        recipe.packages.iter().any(|package| package.enabled),
-                    ) {
-                        holds.push(error.message);
-                    }
-                    exact = Some(install);
-                    break;
+        let exact = self.match_recipe_install(recipe, &installs);
+        let install = exact.as_ref().map(|(install, _)| *install);
+        let install_id = install.map(|install| install.id.clone());
+        let runtime = match exact {
+            Some((install, build)) => {
+                if let Err(error) = self.profile_loader_binding(
+                    &build,
+                    recipe.loader.as_ref(),
+                    recipe.packages.iter().any(|package| package.enabled),
+                ) {
+                    holds.push(error.message);
+                }
+                RecipeInputPlan {
+                    name: "runtime".into(),
+                    status: RecipeInputStatus::Available,
+                    detail: format!("the exact runtime build {} is installed", install.version),
                 }
             }
-            match exact {
-                Some(install) => {
-                    install_id = Some(install.id.clone());
-                    RecipeInputPlan {
-                        name: "runtime".into(),
-                        status: RecipeInputStatus::Available,
-                        detail: format!("the exact runtime build {} is installed", install.version),
-                    }
-                }
-                None => {
-                    holds.push("the exact runtime build is not installed".to_owned());
-                    RecipeInputPlan {
-                        name: "runtime".into(),
-                        status: RecipeInputStatus::Unavailable,
-                        detail: "the recipe names an exact runtime and this library could not verify it. Locate that exact build before reviewing the import again".into(),
-                    }
+            None => {
+                holds.push("the exact runtime build is not installed".to_owned());
+                RecipeInputPlan {
+                    name: "runtime".into(),
+                    status: RecipeInputStatus::Unavailable,
+                    detail: "the recipe names an exact runtime and this library could not verify it. Locate that exact build before reviewing the import again".into(),
                 }
             }
         };
-        let install = install_id
-            .as_deref()
-            .and_then(|id| installs.iter().find(|install| install.id == id));
         let retained_catalog = install
             .map(|install| self.installed_catalog(install))
             .transpose()?;
@@ -871,8 +886,10 @@ impl PortcoveService {
             &mut holds,
         )?;
         let user = self.library.user_dir(&recipe.port_id);
-        let layout = self
-            .optional_deploy_layout(&recipe.port_id)?
+        let layout = install
+            .map(|install| self.layout_for_install(install))
+            .transpose()?
+            .flatten()
             .unwrap_or_else(|| crate::profile_deploy::Layout::for_user(&user));
         let catalog = self.catalog();
         let (acquisition_bytes, _) = verified_acquisitions(catalog, recipe, &layout, acquisitions)?;
@@ -1207,7 +1224,9 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("a ready plan has no matching installation"))?;
         let build = self.verified_retained_build(&port_id, &install_id)?;
         let originals = current.verified_originals;
-        let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id));
+        let layout = self.layout_for_install(&plan_install)?.unwrap_or_else(|| {
+            crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id))
+        });
         let (catalog, _) = self.library.load_catalog()?;
         let (acquisition_bytes, _) =
             verified_acquisitions(&catalog, &current.recipe, &layout, &current.acquisitions)?;
@@ -1473,6 +1492,7 @@ fn verified_acquisitions(
         let path = ProviderInstallMode::Recipe {
             identity: &recipe.identity_sha256,
             byte_budget: 0,
+            install_id: None,
         }
         .staging(layout, &plan.plan_sha256)
         .join(&package.native_id);

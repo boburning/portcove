@@ -867,6 +867,10 @@ pub(crate) fn follow_active_install(
             "A runtime retained for Default changed in place. Restore its exact runtime or install a separately identified build.",
         ));
     }
+    let needs_loader = next.packages.iter().any(|package| package.enabled);
+    let declared = next.loader.as_ref().filter(|_| needs_loader);
+    next.loader = crate::profile_loader::require_contract(install, &build, declared, needs_loader)?
+        .map(|loader| loader.engine.reference());
     next.build = build;
     next.parent_revision = Some(profile.current_revision);
     next.revision = profile

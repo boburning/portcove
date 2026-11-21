@@ -308,7 +308,7 @@ fn installed_loader(
     .then_some(loader))
 }
 
-fn require_contract(
+pub(crate) fn require_contract(
     install: &InstallRecord,
     build: &RetainedBuildIdentity,
     declared: Option<&LoaderContractRef>,

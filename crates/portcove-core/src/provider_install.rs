@@ -126,7 +126,11 @@ pub(crate) enum ProviderInstallMode<'a> {
     Reviewed,
     Workspace,
     Automatic,
-    Recipe { identity: &'a str, byte_budget: u64 },
+    Recipe {
+        identity: &'a str,
+        byte_budget: u64,
+        install_id: Option<&'a str>,
+    },
 }
 
 impl ProviderInstallMode<'_> {
@@ -551,9 +555,20 @@ impl PortcoveService {
         mode: ProviderInstallMode<'_>,
     ) -> Result<ProviderInstallPlan> {
         let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
-        // A recipe checks its own retained target when the staged inputs are reviewed together.
-        let layout = if matches!(mode, ProviderInstallMode::Recipe { .. }) {
-            self.deploy_layout(port_id)?
+        let layout = if let ProviderInstallMode::Recipe { install_id, .. } = mode {
+            if install_id.is_none() {
+                return Err(PortcoveError::verification(
+                    "the recipe staging request has no exact runtime",
+                ));
+            }
+            let install = crate::Library::install_by_id(&self.library.connection()?, install_id)?
+                .filter(|install| install.port_id == port_id)
+                .ok_or_else(|| {
+                    PortcoveError::conflict("the recipe's exact installation is unavailable")
+                })?;
+            self.layout_for_install(&install)?.ok_or_else(|| {
+                PortcoveError::unsupported("the recipe build has no reviewed mod loader")
+            })?
         } else {
             self.require_layout_for_revision(&current)?
         };
@@ -1564,9 +1579,11 @@ impl PortcoveService {
                 "this plan was changed after review; nothing was discarded",
             ));
         }
-        let layout = self.deploy_layout(&plan.port_id)?;
+        self.catalog().port(&plan.port_id)?;
+        let layout = Layout::for_user(&self.library.user_dir(&plan.port_id));
         let staged = mode.staging(&layout, &plan.plan_sha256);
-        if staged.exists() {
+        crate::path::refuse_symlink_ancestors(&staged)?;
+        if staged.try_exists()? {
             fs::remove_dir_all(staged)?;
         }
         Ok(())

@@ -1867,9 +1867,9 @@ impl PortcoveService {
     /// Makes a profile that already exists the owner of live data. Departing and
     /// arriving progress move whole; mods are reconciled from the exact revision.
     pub fn activate_profile(&self, port_id: &str, profile_id: &str) -> Result<ProfileRevision> {
-        let layout = self.deploy_layout(port_id)?;
+        let path_layout = Layout::for_user(&self.library.user_dir(port_id));
         let _guard = self.library.try_lock_port(port_id, "activate-profile")?;
-        self.recover_switch_locked(port_id, &layout)?;
+        self.recover_switch_locked(port_id, &path_layout)?;
         let connection = self.library.connection()?;
         let target = profile_current(&connection, port_id, profile_id)?;
         let Some((current_id, current_revision)) = profile::selection(&connection, port_id)? else {
@@ -1877,10 +1877,14 @@ impl PortcoveService {
                 "the port has no selected profile; create its default profile first",
             ));
         };
+        let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
+        let target_layout = self.layout_for_revision(&target)?;
+        let departing_layout = self.layout_for_revision(&departing)?;
+        let layout = target_layout.as_ref().unwrap_or(&path_layout);
         // Refuse before anything is parked or marked, so a refusal changes nothing.
         self.require_revision_loader(&target)?;
-        require_projectable(&layout, &target)?;
-        require_code_allowed(&layout, &target)?;
+        require_projectable(layout, &target)?;
+        require_code_allowed(layout, &target)?;
         if let Some(game) = layout.recomp_game()
             && (current_id != profile_id || current_revision != target.revision)
         {
@@ -1889,24 +1893,21 @@ impl PortcoveService {
             } else {
                 layout.parked(profile_id)
             };
-            crate::recomp_mod_settings::review_projection(&user, &layout, game, &target)?;
+            crate::recomp_mod_settings::review_projection(&user, layout, game, &target)?;
         }
-        let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
-        let latest = if current_id == profile_id {
-            Some(&target)
-        } else {
-            None
-        };
-        let owners = [Some(&departing), latest]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        require_clean(&observe(&layout, &owners)?, "switching profiles")?;
+        if let Some(observed_layout) = departing_layout.as_ref().or(target_layout.as_ref()) {
+            let latest = (current_id == profile_id).then_some(&target);
+            let owners = [Some(&departing), latest]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            require_clean(&observe(observed_layout, &owners)?, "switching profiles")?;
+        }
         if current_id == profile_id {
             if current_revision == target.revision {
                 return Ok(target);
             }
-            self.reconcile_selected(port_id, &layout, &connection, &target)?;
+            self.reconcile_selected(port_id, layout, &connection, &target)?;
             return Ok(target);
         }
         // Bring live data up to date from the launched build before parking it,
@@ -1921,7 +1922,7 @@ impl PortcoveService {
         let paths = declared_state_paths(self, port_id)?;
         fs::create_dir_all(layout.store())?;
         write_journal(
-            &layout,
+            layout,
             &current_id,
             profile_id,
             target.revision,
@@ -1930,7 +1931,7 @@ impl PortcoveService {
         )?;
         self.switch_steps(
             port_id,
-            &layout,
+            layout,
             &current_id,
             profile_id,
             &paths,
@@ -1971,14 +1972,21 @@ impl PortcoveService {
         }
         let materialized = profile::revision_by_number(connection, &id, revision)?;
         self.require_revision_loader(current)?;
-        require_projectable(&layout, current)?;
-        require_code_allowed(layout, current)?;
-        require_clean(
-            &observe(layout, &[&materialized, current])?,
-            "finishing an interrupted change",
-        )?;
+        let target_layout = self.layout_for_revision(current)?;
+        let materialized_layout = self.layout_for_revision(&materialized)?;
+        let target = target_layout.as_ref().unwrap_or(layout);
+        require_projectable(target, current)?;
+        require_code_allowed(target, current)?;
+        if let Some(observed_layout) = materialized_layout.as_ref().or(target_layout.as_ref()) {
+            require_clean(
+                &observe(observed_layout, &[&materialized, current])?,
+                "finishing an interrupted change",
+            )?;
+        }
         mark_restore_pending(layout)?;
-        deploy(layout, Some(&materialized), current)?;
+        if enabled(&materialized).next().is_some() || enabled(current).next().is_some() {
+            deploy(target, Some(&materialized), current)?;
+        }
         self.project_native_mod_list(current, Some(&materialized))?;
         profile::set_selection(connection, port_id, &id, current.revision)?;
         Ok(true)
@@ -2003,7 +2011,9 @@ impl PortcoveService {
             write_journal(layout, from, to, target.revision, phase, paths)?;
         }
         if phase == Phase::Parked {
-            deploy(layout, Some(departing), target)?;
+            if enabled(departing).next().is_some() || enabled(target).next().is_some() {
+                deploy(layout, Some(departing), target)?;
+            }
             phase = Phase::Deployed;
             write_journal(layout, from, to, target.revision, phase, paths)?;
         }
@@ -2023,7 +2033,10 @@ impl PortcoveService {
     /// records the last completed phase, and each phase is skipped once done, so a
     /// resumed switch never re-parks data that has already arrived.
     pub(crate) fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
-        self.recover_mod_file_locked(port_id, layout)?;
+        if crate::profile_file_preservation::pending(layout)?.is_some() {
+            let exact_layout = self.deploy_layout(port_id)?;
+            self.recover_mod_file_locked(port_id, &exact_layout)?;
+        }
         self.finish_interrupted_switch_locked(port_id, layout)?;
         // Keep supported native menu changes before an explicit setup action
         // rewrites the game's list.
@@ -2032,6 +2045,7 @@ impl PortcoveService {
 
     fn finish_interrupted_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
         let journal = layout.journal();
+        crate::path::refuse_symlink_ancestors(&journal)?;
         if !journal.try_exists()? {
             return Ok(());
         }
@@ -2048,16 +2062,33 @@ impl PortcoveService {
         let connection = self.library.connection()?;
         let (selected, selected_revision) = profile::selection(&connection, port_id)?
             .ok_or_else(|| PortcoveError::state("profile switch has no selection"))?;
+        let target = profile::revision_by_number(&connection, &to, revision)?;
+        if target.build.port_id != port_id {
+            return Err(PortcoveError::verification(
+                "profile switch target belongs to a different port",
+            ));
+        }
+        let target_layout = self.layout_for_revision(&target)?;
         if selected == to && selected_revision == revision {
             fs::remove_file(journal)?;
             return Ok(());
         }
+        if selected != from {
+            return Err(PortcoveError::conflict(
+                "profile switch source is no longer selected",
+            ));
+        }
         let departing = profile::revision_by_number(&connection, &selected, selected_revision)?;
-        let target = profile::revision_by_number(&connection, &to, revision)?;
-        require_clean(
-            &observe(layout, &[&departing, &target])?,
-            "resuming an interrupted profile switch",
-        )?;
+        let departing_layout = self.layout_for_revision(&departing)?;
+        if let Some(observed_layout) = departing_layout.as_ref().or(target_layout.as_ref()) {
+            require_clean(
+                &observe(observed_layout, &[&departing, &target])?,
+                "resuming an interrupted profile switch",
+            )?;
+        }
+        let target_layout = target_layout.as_ref().unwrap_or(layout);
+        require_projectable(target_layout, &target)?;
+        require_code_allowed(target_layout, &target)?;
         let paths = declared_state_paths(self, port_id)?;
         if let Some(recorded_paths) = value.get("paths") {
             if recorded_paths != &serde_json::to_value(&paths)? {
@@ -2084,7 +2115,14 @@ impl PortcoveService {
         }
         self.require_revision_loader(&target)?;
         self.switch_steps(
-            port_id, layout, &from, &to, &paths, &departing, &target, phase,
+            port_id,
+            target_layout,
+            &from,
+            &to,
+            &paths,
+            &departing,
+            &target,
+            phase,
         )
     }
 
