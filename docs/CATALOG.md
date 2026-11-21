@@ -2862,6 +2862,53 @@ Retain the historical `automated_tested_platforms` and
 `manually_validated_platforms` field names and their existing recorded claims;
 this clarification creates no new qualification record or platform support.
 
+### Preview successor support eligibility
+
+Run the read-only report through the existing qualification tool.
+
+```sh
+node scripts/qualification-report.mts --successor-preview crates/portcove-core/catalog/catalog.json
+```
+
+The preview currently inventories declared platforms of ports with an enforced,
+selector-resolved game source contract (`integration-contract-v1`). Use
+`--successor-cases FILE` to compare reviewed evidence for one specific pair per
+port, platform and contract. The report includes the SHA-256 of each input.
+It has no catalog or Project write path, executes no package or evidence, and
+cannot approve any release.
+
+Each case records `rule: "managed-successor-preview-v1"`, `port_id`, `platform`,
+`contract_id`, an `anchor` and a `successor` in the existing complete source
+qualification scope shape. The anchor needs a reviewed binding for its exact
+release, and paired passed automated lifecycle and hands-on records with
+reviewed evidence IDs. The successor must be a different upstream ref with an
+exact admitted artifact digest and the same platform, source contract,
+variant, representation and check-contract version. Known failures for either
+exact scope refuse the preview. Historical platform arrays are inventory facts
+and cannot seed this claim.
+
+`anchor_coordinates` and `successor_coordinates` carry separate
+`setup`, `launch` and `data` SHA-256 fingerprints from reviewed evidence. A
+future protected producer must bind them to Core's offered operations,
+including preparation inputs, executable, working directory and arguments,
+player-data locations and ownership. Missing or different fingerprints prevent
+eligibility. `selection` records a `selected` outcome and names the exact
+`scope`, the current `release_spec` and an `evidence_sha256`. `admission`, `integrity` and `lifecycle` each name the
+exact successor scope, coordinates, reviewed `evidence_sha256`, a passed
+outcome and their respective kind (`independent_admission`, `integrity` or
+`automated_lifecycle`). Lifecycle also requires matching reviewed scoped
+catalog evidence. The report compares supplied identities and results. The
+operator must independently verify receipt authority, artifact provenance,
+scope and file contents before using it in a review.
+
+The proposed policy requires explicit owner approval under #4849. If approved,
+project a distinct “Supported (inherited from vX)” claim only for the exact
+qualifying successor and platform. Keep physical and human observations on the
+original artifact. Reevaluate on any new release, failed check or changed
+check contract. Remove the inherited claim on evidence loss, withdrawal,
+failure or drift. This proposal leaves #315 admission and every current
+support claim under their existing authority.
+
 ### Qualification evidence preparation
 
 For the repeated managed setup sequence owned by #1742, the existing report tool
