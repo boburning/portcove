@@ -47,7 +47,7 @@ export function generatedPublicationProjection(
     throw new Error("a generated operational catalog and exact stable ID are required");
   if (
     Object.keys(template).sort().join(",") !== "catalog,contract_schema,representation" ||
-    (template.contract_schema !== 1 && template.contract_schema !== 2) ||
+    (template.contract_schema !== 1 && template.contract_schema !== 2 && template.contract_schema !== 3) ||
     template.representation !== "catalog_projection" ||
     !isRecord(template.catalog) ||
     !Array.isArray(template.catalog.ports) ||
@@ -57,6 +57,11 @@ export function generatedPublicationProjection(
   const matches = catalog.ports.filter((port) => isRecord(port) && port.id === portId);
   if (matches.length !== 1)
     throw new Error("the generated operational definition is missing or ambiguous");
+  if (
+    matches.some((port) => isRecord(port) && "mod_loader" in port) &&
+    template.contract_schema !== 3
+  )
+    throw new Error("native mod loaders require catalog projection schema 3");
   template.catalog.ports = matches;
   const bytes = Buffer.from(`${JSON.stringify(template, null, 2)}\n`);
   if (bytes.length > catalogDefinitionContentBytes)
@@ -134,6 +139,8 @@ export function assembleReviewedPublication(
   if (!selected || [...after.keys()].some((id) => id !== portId && !before.has(id)))
     throw new Error("reviewed index does not describe one selected definition");
   const entry = document(reviewed.get(selected.target));
+  if (entry.definition_schema !== document(projection).contract_schema)
+    throw new Error("reviewed definition and generated projection schemas differ");
   const target = entry.execution_contract;
   if (
     typeof target !== "string" ||

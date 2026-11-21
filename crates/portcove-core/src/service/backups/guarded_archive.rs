@@ -144,8 +144,9 @@ impl PortcoveService {
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
+        let has_loader = self.optional_deploy_layout(&operation.port_id)?.is_some();
         let guarded = settings_deletion
-            || self.deploy_layout(&operation.port_id).is_ok()
+            || has_loader
             || manifest.guarded_archive_v1.is_some()
             || manifest.partitioned_data_v1.is_some()
             || self
@@ -187,6 +188,9 @@ impl PortcoveService {
         snapshot: &Path,
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
+        self.require_no_switch_journal(&operation.port_id)?;
+        crate::profile_file_preservation::require_idle(&self.library, &operation.port_id)?;
+        let has_loader = self.optional_deploy_layout(&operation.port_id)?.is_some();
         let (binding, partitioned) = if let Some(path) = restore.input_manifest {
             let manifest = read_input(&path)?;
             let mut stats = BackupStats::default();
@@ -203,7 +207,7 @@ impl PortcoveService {
             )?;
             (binding, partitioned)
         } else {
-            if self.deploy_layout(&operation.port_id).is_ok()
+            if has_loader
                 && crate::profile::selection(&self.library.connection()?, &operation.port_id)?
                     .is_some()
             {

@@ -210,24 +210,15 @@ pub(crate) fn validate_offer(
     Ok(())
 }
 
-pub(crate) fn accepts_provider_file(port: &PortDefinition, file: &ProviderFileCandidate) -> bool {
+pub(crate) fn accepts_provider_file(layout: &Layout, file: &ProviderFileCandidate) -> bool {
     let extension = file
         .file_name
         .rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase())
         .unwrap_or_default();
-    crate::Platform::current()
-        .ok()
-        .and_then(|platform| crate::profile_loader::definition_loader(port, platform))
-        .is_some_and(|loader| {
-            (extension == "zip"
-                || loader
-                    .engine
-                    .package_extensions()
-                    .contains(&extension.as_str()))
-                && file.size > 0
-                && file.size <= MAX_DOWNLOAD_BYTES
-        })
+    (extension == "zip" || layout.package_extensions().contains(&extension.as_str()))
+        && file.size > 0
+        && file.size <= MAX_DOWNLOAD_BYTES
 }
 
 fn matches_dependency_coordinates(

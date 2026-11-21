@@ -502,6 +502,16 @@ impl PortcoveService {
             })
     }
 
+    pub(crate) fn layout_for_install(&self, install: &InstallRecord) -> Result<Option<Layout>> {
+        if crate::install::retained_catalog_for_install(install)?.is_none() {
+            return Ok(None);
+        }
+        let build = crate::install::retained_build_identity_for_install(install)?;
+        Ok(installed_loader(install, &build)?.map(|loader| {
+            Layout::for_user(&self.library.user_dir(&install.port_id)).with_loader(loader)
+        }))
+    }
+
     pub(crate) fn layout_for_revision(&self, revision: &ProfileRevision) -> Result<Option<Layout>> {
         let install = self.install_for_loader(&revision.build)?;
         let needs_loader = revision.packages.iter().any(|package| package.enabled);
@@ -621,11 +631,21 @@ impl PortcoveService {
         &self,
         install: &InstallRecord,
     ) -> Result<()> {
+        self.require_no_switch_journal(&install.port_id)?;
+        self.optional_deploy_layout(&install.port_id)?;
         let connection = self.library.connection()?;
         let Some((profile_id, number)) = profile::selection(&connection, &install.port_id)? else {
             return Ok(());
         };
         let revision = profile::revision_by_number(&connection, &profile_id, number)?;
+        if revision.build.install_id != install.id
+            && (self.layout_for_revision(&revision)?.is_some()
+                || self.layout_for_install(install)?.is_some())
+        {
+            return Err(PortcoveError::conflict(
+                "the selected setup and launch runtime differ; finish applying the setup before playing",
+            ));
+        }
         if revision.packages.iter().any(|package| package.enabled) {
             let build = crate::install::retained_build_identity_for_install(install)?;
             if let Some(loader) = require_contract(install, &build, revision.loader.as_ref(), true)?

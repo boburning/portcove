@@ -152,6 +152,81 @@ fn an_unseen_port_deploys_exact_bytes_and_updates_only_its_authored_native_list(
 }
 
 #[test]
+fn earlier_banjo_and_two_ship_builds_keep_unmanaged_mods_and_require_valid_receipts() {
+    let current = crate::Catalog::embedded().unwrap();
+    let mut prior = current.authoritative_document();
+    for port in &mut prior.ports {
+        if matches!(port.id.as_str(), "banjo-recomp" | "2ship2harkinian") {
+            port.mod_loader = None;
+        }
+    }
+    let prior = crate::Catalog::from_document(prior).unwrap();
+    let platform = crate::Platform::current().unwrap();
+    for (id, version, settings_file) in [
+        ("banjo-recomp", "v1.0.2", "mods.json"),
+        ("2ship2harkinian", "5.0.1", "2ship2harkinian.json"),
+    ] {
+        if !prior.port(id).unwrap().platforms.contains(&platform) {
+            continue;
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = crate::retained_build::tests::install_fixture_port(
+            &library,
+            &prior,
+            id,
+            "retained",
+            version,
+            b"inert runtime",
+            true,
+        );
+        let service = PortcoveService::new_read_only(library).unwrap();
+        assert!(service.optional_deploy_layout(id).unwrap().is_none());
+        service.ensure_default_profile(id).unwrap();
+        assert!(service.optional_deploy_layout(id).unwrap().is_none());
+
+        let user = service.library().user_dir(id);
+        fs::create_dir_all(user.join("mods")).unwrap();
+        let unmanaged = user.join("mods/manual-mod.bin");
+        fs::write(&unmanaged, b"unmanaged data").unwrap();
+        fs::write(user.join(settings_file), b"native state").unwrap();
+        service
+            .require_selected_loader_for_install(&install)
+            .unwrap();
+        service.prepare_native_mod_list_locked(id).unwrap();
+        service
+            .require_restore_profile_projection(id, &user)
+            .unwrap();
+        assert!(!service.mod_setups(id).unwrap().supported);
+        assert_eq!(fs::read(&unmanaged).unwrap(), b"unmanaged data");
+        assert_eq!(fs::read(user.join(settings_file)).unwrap(), b"native state");
+
+        let layout = Layout::for_user(&user);
+        fs::create_dir_all(layout.store()).unwrap();
+        fs::write(layout.journal(), b"pending state").unwrap();
+        assert!(service.prepare_native_mod_list_locked(id).is_err());
+        assert!(
+            service
+                .require_restore_profile_projection(id, &user)
+                .is_err()
+        );
+        fs::remove_file(layout.journal()).unwrap();
+
+        fs::remove_file(install.path.join(".portcove-manifest.json")).unwrap();
+        assert!(service.optional_deploy_layout(id).is_err());
+        assert!(service.mod_setups(id).is_err());
+        assert!(service.prepare_native_mod_list_locked(id).is_err());
+        assert!(
+            service
+                .require_restore_profile_projection(id, &user)
+                .is_err()
+        );
+        assert_eq!(fs::read(&unmanaged).unwrap(), b"unmanaged data");
+        assert_eq!(fs::read(user.join(settings_file)).unwrap(), b"native state");
+    }
+}
+
+#[test]
 fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     let w = world();
     let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);

@@ -1030,7 +1030,9 @@ impl PortcoveService {
         port_id: &str,
         root: &Path,
     ) -> Result<()> {
-        let Ok(layout) = self.deploy_layout(port_id) else {
+        self.require_no_switch_journal(port_id)?;
+        crate::profile_file_preservation::require_idle(&self.library, port_id)?;
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(());
         };
         let connection = self.library.connection()?;
@@ -1381,19 +1383,40 @@ enum RuntimeSynchronization {
 }
 
 impl PortcoveService {
-    pub(crate) fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
+    pub(crate) fn optional_deploy_layout(&self, port_id: &str) -> Result<Option<Layout>> {
         let connection = self.library.connection()?;
         if let Some((id, number)) = profile::selection(&connection, port_id)? {
             let revision = profile::revision_by_number(&connection, &id, number)?;
-            if let Some(layout) = self.layout_for_revision(&revision)? {
-                return Ok(layout);
-            }
+            return self.layout_for_revision(&revision);
         }
-        let port = self.catalog().port(port_id)?;
-        let loader = crate::profile_loader::configured_loader(port).ok_or_else(|| {
-            PortcoveError::unsupported("this port has no reviewed mod package contract yet")
-        })?;
-        Ok(Layout::for_user(&self.library.user_dir(port_id)).with_loader(loader))
+        let Some(id) = profile::active_install_id(&connection, port_id)? else {
+            return Ok(None);
+        };
+        let install = crate::Library::install_by_id(&connection, Some(&id))?
+            .filter(|install| install.port_id == port_id)
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "the active installation record is missing or out of scope",
+                )
+            })?;
+        self.layout_for_install(&install)
+    }
+
+    pub(crate) fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
+        self.optional_deploy_layout(port_id)?.ok_or_else(|| {
+            PortcoveError::unsupported("the selected build has no reviewed mod loader")
+        })
+    }
+
+    pub(crate) fn require_no_switch_journal(&self, port_id: &str) -> Result<()> {
+        let journal = Layout::for_user(&self.library.user_dir(port_id)).journal();
+        crate::path::refuse_symlink_ancestors(&journal)?;
+        if journal.try_exists()? {
+            return Err(PortcoveError::conflict(
+                "a profile switch was interrupted; finish it before using this setup",
+            ));
+        }
+        Ok(())
     }
 
     /// Examines a private copy and binds the facts to the displayed setup revision.
@@ -2074,7 +2097,7 @@ impl PortcoveService {
     }
 
     fn reconcile_native_changes_locked(&self, port_id: &str, capture_settings: bool) -> Result<()> {
-        let Ok(layout) = self.deploy_layout(port_id) else {
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(());
         };
         let Some(list) = layout.loader_list() else {
@@ -2214,7 +2237,9 @@ impl PortcoveService {
     /// and project the exact selected revision. The port
     /// lock must be held.
     pub(crate) fn prepare_native_mod_list_locked(&self, port_id: &str) -> Result<()> {
-        let Ok(layout) = self.deploy_layout(port_id) else {
+        self.require_no_switch_journal(port_id)?;
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             return Ok(());
         };
         let Some(loader) = layout.loader_list() else {
@@ -2494,7 +2519,7 @@ impl PortcoveService {
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
         let port = self.catalog().port(port_id)?;
-        let Ok(layout) = self.deploy_layout(port_id) else {
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(ModSetupsView {
                 port_id: port_id.into(),
                 supported: false,

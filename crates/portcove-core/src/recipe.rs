@@ -565,7 +565,7 @@ impl PortcoveService {
         } else {
             revision.loader.clone()
         };
-        let settings = if let Ok(layout) = self.deploy_layout(port_id)
+        let settings = if let Some(layout) = self.layout_for_revision(&revision)?
             && let Some(game) = layout.recomp_game()
         {
             recomp_mod_settings::export(&layout, game, &revision)?
@@ -872,8 +872,8 @@ impl PortcoveService {
         )?;
         let user = self.library.user_dir(&recipe.port_id);
         let layout = self
-            .deploy_layout(&recipe.port_id)
-            .unwrap_or_else(|_| crate::profile_deploy::Layout::for_user(&user));
+            .optional_deploy_layout(&recipe.port_id)?
+            .unwrap_or_else(|| crate::profile_deploy::Layout::for_user(&user));
         let catalog = self.catalog();
         let (acquisition_bytes, _) = verified_acquisitions(catalog, recipe, &layout, acquisitions)?;
         let recorded_code = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
