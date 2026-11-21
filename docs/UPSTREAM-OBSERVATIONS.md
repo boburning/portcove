@@ -1310,11 +1310,20 @@ retain exact bytes and revision. The unchanged signer still verifies the entire
 prior repository and historical revision bounds before renewal. Publication uses
 the existing official-policy namespace and keys.
 
-The target remains a partial directory under the existing eight-MiB limit. It
-admits whole canonical rows, prioritizes prior rows before new observations, and
-never drops requirements to make a row fit. Omissions and source exceptions appear
-in `observation-projection.json` beside the publication evidence; omission does not
-mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+The signed target reserves each previously admitted identity and each matching
+operational catalog guide within the existing eight-MiB limit. Initial admission
+uses the reviewed operational declaration even when an upstream observation is
+unavailable. A previously signed identity missing from the canonical directory
+requires an explicit withdrawal. The signer’s historical verification can renew
+the exact previous bytes when current verification is unavailable. This path
+makes no new admission or provider claim.
+
+The projection reserves complete current guides and still-valid applicable prior
+observations before filling remaining space with optional enrichment. Under
+pressure it can omit an expired observation at its recorded freshness boundary.
+Its receipt lists deferred enrichment and omitted discovery rows separately.
+An over-budget required set preserves the published target and reports failure.
+Omitted discovery rows use the client’s embedded fallback. Existing scheduled renewals refresh
 optional observations, while unrelated main commits do not become changed solely
 because the fixed source bundle omits this derived target.
 
