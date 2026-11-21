@@ -1328,7 +1328,7 @@ it("shows the opt-in community Mods tab before installation and alongside local 
     await expect
       .element(tab.getByRole("link", { name: "Set up JakMods in the OpenGOAL Launcher" }))
       .toBeVisible();
-    expect(setups).not.toHaveBeenCalled();
+    expect(setups.mock.calls).toEqual([[props.port.id, 101, true]]);
     expect(catalog).not.toHaveBeenCalled();
     await view.rerender(<DetailPanel {...props} libraryGeneration={102} />);
     await page.getByRole("tab", { name: "Mods", exact: true }).click();
