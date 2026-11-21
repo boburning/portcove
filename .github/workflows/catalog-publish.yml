@@ -86,6 +86,31 @@ jobs:
             echo "::error::Could not read gh-pages (git ls-remote exited $rc)"; exit 1
           fi
           if [ -d site/catalog ]; then echo "PRIOR=site/catalog" >> "$GITHUB_ENV"; else echo "PRIOR=none" >> "$GITHUB_ENV"; fi
+      - name: Read back the previous catalog publication after the Pages queue
+        id: late-readback
+        if: github.event_name == 'schedule'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          if [ ! -d site/catalog ] || [ ! -f scripts/catalog-publication-continuation.mts ]; then
+            exit 0
+          fi
+          receipt="$RUNNER_TEMP/catalog-publication-late-readback.json"
+          if node scripts/catalog-publication-continuation.mts --site site --output "$receipt"; then
+            if [ -f "$receipt" ]; then echo "receipt=true" >> "$GITHUB_OUTPUT"; fi
+          else
+            echo "::warning::The previous immutable catalog publication has no exact public readback in this observation."
+          fi
+      - name: Retain the previous catalog publication readback
+        if: steps.late-readback.outputs.receipt == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-publication-late-readback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/catalog-publication-late-readback.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Decide whether to publish
         id: decide
         run: |

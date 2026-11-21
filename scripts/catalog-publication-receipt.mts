@@ -5,7 +5,12 @@ import path from "node:path";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual, parseArgs } from "node:util";
-import { priorVersions, publishedTargets } from "./catalog-publish.mts";
+import {
+  priorVersions,
+  publishedTargets,
+  publishedVersionsFromMetadata,
+  publishedTargetsFromMetadata,
+} from "./catalog-publish.mts";
 import {
   catalogDefinitionContentBytes,
   catalogDefinitionIndexBytes,
@@ -16,6 +21,8 @@ import { isRecord } from "./runtime-values.mts";
 const pages = "https://boburning.github.io/portcove/catalog/";
 const index = "definitions/index.json";
 const listings = "policy/official/catalog.listings.json";
+const compactListings = "policy/official/catalog.listings.compact.json";
+const historyTarget = "policy/official/catalog.history-checkpoint.json";
 const maximumReadbackBytes = 32 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const digest = /^[a-f0-9]{64}$/u;
@@ -46,7 +53,7 @@ function immutablePath({ target, sha256 }: Identity) {
   return `targets/${sha256}.${target}`;
 }
 function targetLimit(target: string) {
-  if (target === listings) return 8 * 1024 ** 2;
+  if (target === listings || target === compactListings) return 8 * 1024 ** 2;
   if (target.startsWith("policy/")) return 65_536;
   return target === index ? catalogDefinitionIndexBytes : catalogDefinitionContentBytes;
 }
@@ -57,28 +64,58 @@ function identity(targets: Record<string, string>, target: string): Identity {
   return { target, sha256 };
 }
 
-async function readState(site: string | null) {
+type ReadCatalog = (file: string, limit: number) => Promise<Buffer>;
+
+type CatalogSource = string | ReadCatalog;
+
+async function readState(site: CatalogSource | null) {
   if (!site)
     return {
       versions: null,
       timestamp: null,
       index: null,
       listings: null,
+      historyPointer: null,
       definitions: new Map<string, Definition>(),
     };
-  const versions = priorVersions(site);
-  if (!versions) throw new Error("published catalog timestamp is missing");
-  const timestamp = sha256(
-    await readControllerToolFile(path.join(site, "metadata/timestamp.json"), 1_048_576),
-  );
-  const targets = publishedTargets(site);
+  const read: ReadCatalog =
+    typeof site === "string"
+      ? (name, limit) => readControllerToolFile(path.join(site, name), limit)
+      : site;
+  const timestampBytes = await read("metadata/timestamp.json", 1_048_576);
+  const timestamp = sha256(timestampBytes);
+  let versions;
+  let targets;
+  if (typeof site === "string") {
+    versions = priorVersions(site);
+    if (!versions) throw new Error("published catalog timestamp is missing");
+    targets = publishedTargets(site);
+  } else {
+    const document = object(timestampBytes);
+    const snapshotMeta =
+      isRecord(document.signed) && isRecord(document.signed.meta)
+        ? document.signed.meta["snapshot.json"]
+        : null;
+    const snapshotVersion = revision(isRecord(snapshotMeta) ? snapshotMeta.version : null);
+    const snapshot = object(await read(`metadata/${snapshotVersion}.snapshot.json`, 8 * 1024 ** 2));
+    versions = publishedVersionsFromMetadata((name) =>
+      name === "timestamp.json" ? document : snapshot,
+    );
+    const definitions = await read(
+      `metadata/${versions.definitions}.official-definitions.json`,
+      8 * 1024 ** 2,
+    );
+    const policy = await read(`metadata/${versions.policy}.official-policy.json`, 8 * 1024 ** 2);
+    const metadata = new Map([
+      [`${versions.definitions}.official-definitions.json`, object(definitions)],
+      [`${versions.policy}.official-policy.json`, object(policy)],
+    ]);
+    targets = publishedTargetsFromMetadata(versions, (name) => metadata.get(name));
+  }
   const indexIdentity = identity(targets, index);
   let remaining = maximumReadbackBytes;
   const readTarget = async (entry: Identity) => {
-    const result = await readControllerToolFile(
-      path.join(site, immutablePath(entry)),
-      Math.min(remaining, targetLimit(entry.target)),
-    );
+    const result = await read(immutablePath(entry), Math.min(remaining, targetLimit(entry.target)));
     remaining -= result.length;
     if (sha256(result) !== entry.sha256)
       throw new Error(`published catalog target bytes differ for ${entry.target}`);
@@ -159,11 +196,15 @@ async function readState(site: string | null) {
       launchScope,
     });
   }
+  const activeListingTarget = Object.hasOwn(targets, compactListings) ? compactListings : listings;
   return {
     versions,
     timestamp,
     index: indexIdentity,
-    listings: Object.hasOwn(targets, listings) ? identity(targets, listings) : null,
+    listings: Object.hasOwn(targets, activeListingTarget)
+      ? identity(targets, activeListingTarget)
+      : null,
+    historyPointer: Object.hasOwn(targets, historyTarget) ? identity(targets, historyTarget) : null,
     definitions,
   };
 }
@@ -177,7 +218,7 @@ function compact(definition: Definition | undefined) {
 
 /** Uses the assembled new and verified retained local repository metadata. A
  * caller must still read back the returned immutable public targets. */
-export async function describeCatalogPublication(prior: string | null, next: string) {
+export async function describeCatalogPublication(prior: CatalogSource | null, next: CatalogSource) {
   const before = await readState(prior);
   const after = await readState(next);
   const pending = new Map<string, Identity>();
@@ -223,6 +264,7 @@ export async function describeCatalogPublication(prior: string | null, next: str
     published: snapshot(after),
     changes,
     listingChanged,
+    historyPointer: after.historyPointer,
     targets: [...pending.values()],
   };
 }
@@ -257,10 +299,15 @@ async function confirmLiveTarget(
   return count;
 }
 
+export type BrowseReadback = { path: string; sha256: string };
+export type HistoryReadback = BrowseReadback & { bytes: number };
+
 export async function verifyCatalogPublicationLive(
   description: Awaited<ReturnType<typeof describeCatalogPublication>>,
   nonce: string,
   fetcher: typeof fetch = fetch,
+  browse: readonly BrowseReadback[] = [],
+  history: readonly HistoryReadback[] = [],
 ) {
   const signal = AbortSignal.timeout(45_000);
   const timestamp = description.published.timestamp_sha256;
@@ -276,6 +323,22 @@ export async function verifyCatalogPublicationLive(
       signal,
       fetcher,
     );
+  }
+  let browseRemaining = 64 * 1024 ** 2;
+  for (const entry of browse) {
+    const limit = entry.path === "browse/inputs.json" ? 8192 : browseRemaining;
+    browseRemaining -= await confirmLiveTarget(
+      `${pages}${entry.path}?receipt=${encodeURIComponent(nonce)}`,
+      entry.sha256,
+      Math.min(limit, browseRemaining),
+      signal,
+      fetcher,
+    );
+  }
+  for (const entry of history) {
+    const url = new URL(`../${entry.path}`, pages);
+    const bytes = await confirmLiveTarget(url.href, entry.sha256, entry.bytes, signal, fetcher);
+    if (bytes !== entry.bytes) throw new Error("public catalog history length differs");
   }
   await confirmLiveTarget(`${timestampUrl}-end`, timestamp, 1_048_576, signal, fetcher);
   return maximumReadbackBytes - remaining;
@@ -327,7 +390,7 @@ async function main(argv: string[]) {
   const priorInputs = existsSync(priorBrowse)
     ? sha256(await readControllerToolFile(priorBrowse, 8192))
     : null;
-  const { targets, listingChanged, ...receipt } = description;
+  const { targets, listingChanged, historyPointer: _historyPointer, ...receipt } = description;
   const serialized = `${JSON.stringify(
     {
       schema_version: 1,
