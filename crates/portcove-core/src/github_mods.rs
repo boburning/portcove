@@ -17,6 +17,10 @@ use crate::{
     recomp_companion_review::{self, CompanionLayout, MAX_WRAPPER_BYTES},
 };
 
+#[path = "github_compound_custody.rs"]
+mod custody;
+pub use custody::{GithubCompoundConsent, GithubCompoundPlan};
+
 const API: &str = "https://api.github.com";
 const MAX_RELEASES: usize = 30;
 const MAX_ASSETS: usize = 128;
@@ -118,6 +122,14 @@ impl PortcoveService {
         platform: Platform,
     ) -> Result<GithubModCatalog> {
         let port = self.catalog().port(port_id)?;
+        self.github_mod_catalog_for_port(port, platform).await
+    }
+
+    async fn github_mod_catalog_for_port(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+    ) -> Result<GithubModCatalog> {
         let binding = reviewed_source(port).ok_or_else(|| {
             PortcoveError::unsupported("this port has no reviewed GitHub mod source")
         })?;
@@ -152,7 +164,7 @@ impl PortcoveService {
                 listing.freshness
             };
         Ok(GithubModCatalog {
-            port_id: port_id.into(),
+            port_id: port.id.clone(),
             platform,
             repository: binding.repository.into(),
             repository_id: binding.repository_id,
@@ -179,6 +191,33 @@ impl PortcoveService {
         archive: Option<&Path>,
     ) -> Result<GithubModCompoundReview> {
         let port = self.catalog().port(port_id)?;
+        let (source, _, _, staged) = self
+            .stage_github_mod_archive(port, platform, release_id, asset_id, None, archive)
+            .await?;
+        Ok(GithubModCompoundReview {
+            port_id: port_id.into(),
+            repository: source.repository.into(),
+            repository_id: source.repository_id,
+            release_id,
+            asset_id,
+            review: staged.review,
+        })
+    }
+
+    async fn stage_github_mod_archive(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        release_id: u64,
+        asset_id: u64,
+        expected_tag: Option<&str>,
+        archive: Option<&Path>,
+    ) -> Result<(
+        ReviewedSource,
+        CompanionLayout,
+        String,
+        recomp_companion_review::StagedCompoundReview,
+    )> {
         let source = reviewed_source(port).ok_or_else(|| {
             PortcoveError::unsupported("this port has no reviewed GitHub mod source")
         })?;
@@ -192,8 +231,8 @@ impl PortcoveService {
                     "this source has no reviewed companion layout for the platform",
                 )
             })?;
-        let listing = self.github_mod_catalog(port_id, platform).await?;
-        if listing.freshness == ProviderFreshness::Stale {
+        let listing = self.github_mod_catalog_for_port(port, platform).await?;
+        if listing.freshness == ProviderFreshness::Stale || !listing.complete {
             return Err(PortcoveError::verification(
                 "refresh the GitHub source before reviewing the ZIP",
             ));
@@ -207,9 +246,15 @@ impl PortcoveService {
                     "the exact release and asset pair is outside the current reviewed inventory",
                 )
             })?;
+        if expected_tag.is_some_and(|tag| tag != selected.tag) {
+            return Err(PortcoveError::verification(
+                "the requested GitHub mod release version changed",
+            ));
+        }
         let digest = selected.asset.published_sha256.as_deref().ok_or_else(|| {
             PortcoveError::verification("GitHub did not publish a SHA-256 for this local ZIP")
         })?;
+        let tag = selected.tag.clone();
         let bytes = selected.asset.bytes;
         let digest = digest.to_owned();
         let (archive, temporary) = if let Some(archive) = archive {
@@ -238,7 +283,7 @@ impl PortcoveService {
         };
         let review = tokio::task::spawn_blocking(move || {
             let _download_custody = temporary;
-            recomp_companion_review::review(
+            recomp_companion_review::stage(
                 &archive,
                 bytes,
                 &digest,
@@ -249,14 +294,7 @@ impl PortcoveService {
         })
         .await
         .map_err(|_| PortcoveError::state("Recomp wrapper review worker stopped"))??;
-        Ok(GithubModCompoundReview {
-            port_id: port_id.into(),
-            repository: source.repository.into(),
-            repository_id: source.repository_id,
-            release_id,
-            asset_id,
-            review,
-        })
+        Ok((source, layout, tag, review))
     }
 }
 

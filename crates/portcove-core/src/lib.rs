@@ -301,8 +301,8 @@ pub use game_settings::{
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
 pub use github_mods::{
-    GithubModAsset, GithubModCatalog, GithubModCompoundReview, GithubModRelease,
-    has_github_mod_source,
+    GithubCompoundConsent, GithubCompoundPlan, GithubModAsset, GithubModCatalog,
+    GithubModCompoundReview, GithubModRelease, has_github_mod_source,
 };
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{

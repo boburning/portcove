@@ -1,10 +1,10 @@
 //! Inert inspection of an exact reviewed Recomp wrapper. Results grant no
 //! storage, activation or permission to load host libraries.
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     fs::{self, File},
     io::{Read, Seek, SeekFrom},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use schemars::JsonSchema;
@@ -86,6 +86,14 @@ fn native_image_matches(file: &Path, platform: Platform) -> Result<bool> {
     }
 }
 
+pub(crate) struct StagedCompoundReview {
+    pub review: RecompCompoundReview,
+    pub wrapper: PathBuf,
+    pub members: BTreeMap<String, PathBuf>,
+    _directory: tempfile::TempDir,
+}
+
+#[cfg(test)]
 pub(crate) fn review(
     path: &Path,
     archive_size: u64,
@@ -94,6 +102,25 @@ pub(crate) fn review(
     layout: CompanionLayout,
     all_layouts: &[CompanionLayout],
 ) -> Result<RecompCompoundReview> {
+    Ok(stage(
+        path,
+        archive_size,
+        expected_sha256,
+        game,
+        layout,
+        all_layouts,
+    )?
+    .review)
+}
+
+pub(crate) fn stage(
+    path: &Path,
+    archive_size: u64,
+    expected_sha256: &str,
+    game: &str,
+    layout: CompanionLayout,
+    all_layouts: &[CompanionLayout],
+) -> Result<StagedCompoundReview> {
     if !(1..=MAX_WRAPPER_BYTES).contains(&archive_size) || !fs::symlink_metadata(path)?.is_file() {
         return Err(invalid(
             "the source is outside the regular-file or size bound",
@@ -118,6 +145,7 @@ pub(crate) fn review(
     let mut mods = Vec::new();
     let mut companions = Vec::new();
     let mut bytes = 0u64;
+    let mut members = BTreeMap::new();
     for index in 0..zip.len() {
         let (name, size) = {
             let entry = zip
@@ -200,6 +228,13 @@ pub(crate) fn review(
                     "a mod departs from the reviewed game, native identity or companion binding",
                 ));
             }
+            let name = format!("{}.nrm", inspection.native_id);
+            if !crate::profile::valid_native_id(&name)
+                || crate::archive::validate_relative_path(&name, false).is_err()
+                || members.insert(name, staged).is_some()
+            {
+                return Err(invalid("the NRM cannot have a distinct stored identity"));
+            }
             mods.push(inspection);
         } else {
             if !native_image_matches(&staged, layout.platform)? {
@@ -208,10 +243,13 @@ pub(crate) fn review(
                 ));
             }
             companions.push(ReviewedRecompCompanion {
-                file_name: name,
+                file_name: name.clone(),
                 bytes: size,
                 sha256: sha256_file(&staged)?,
             });
+            if members.insert(name, staged).is_some() {
+                return Err(invalid("duplicate stored companion identity"));
+            }
         }
     }
     if companions.len() != layout.files.len()
@@ -227,12 +265,17 @@ pub(crate) fn review(
     }
     mods.sort_by(|a, b| a.native_id.cmp(&b.native_id));
     companions.sort_by(|a, b| a.file_name.cmp(&b.file_name));
-    Ok(RecompCompoundReview {
-        platform: layout.platform,
-        archive_sha256: expected_sha256.into(),
-        archive_bytes: archive_size,
-        mods,
-        companions,
+    Ok(StagedCompoundReview {
+        review: RecompCompoundReview {
+            platform: layout.platform,
+            archive_sha256: expected_sha256.into(),
+            archive_bytes: archive_size,
+            mods,
+            companions,
+        },
+        wrapper,
+        members,
+        _directory: directory,
     })
 }
 
