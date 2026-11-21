@@ -2674,6 +2674,21 @@ as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
 ### Installing from GameBanana and Thunderstore
 
 ```text
