@@ -152,14 +152,32 @@ void test("semantic catalog policy schema 5 carries no launch identity", () => {
       ),
     /launch identity differs/u,
   );
+  for (const grant_id of [
+    "reviewed-forge-v1",
+    "reviewed-forge-v2-fixture",
+    "managed-github-v1-fixture",
+  ]) {
+    assert.throws(
+      () => inspectCatalogSemanticOpportunity(input({ ...definition, grant_id })),
+      /forge grant family differs/u,
+    );
+  }
+  assert.throws(
+    () => inspectCatalogSemanticOpportunity(input({ ...definition, policy_schema: 1 })),
+    /forge grant family differs/u,
+  );
   for (const schema of [3, 4]) {
     assert.throws(
-      () => inspectCatalogSemanticOpportunity(input({ ...definition, policy_schema: schema })),
+      () =>
+        inspectCatalogSemanticOpportunity(
+          input({ ...definition, policy_schema: schema, grant_id: "managed-github-v1-fixture" }),
+        ),
       /launch identity differs/u,
     );
     const legacy = {
       ...definition,
       policy_schema: schema,
+      grant_id: "managed-github-v1-fixture",
       launch_revision: 1,
       launch_target: "policy/official/fixture.launch.json",
     };

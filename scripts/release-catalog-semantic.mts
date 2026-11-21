@@ -66,6 +66,8 @@ export function inspectCatalogSemanticOpportunity(raw: unknown) {
       ![1, 2, 3, 4, 5].includes(definition.policy_schema)
     )
       throw new Error("catalog semantic Core definition/policy identity differs");
+    if ((definition.policy_schema === 5) !== definition.grant_id.startsWith("reviewed-forge-v1-"))
+      throw new Error("catalog semantic forge grant family differs");
     previous = definition.stable_id;
     if (
       definition.policy_schema <= 2 || definition.policy_schema === 5
