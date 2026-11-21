@@ -25,6 +25,7 @@ import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwo
 import { ExternalLink } from "../../components/ExternalLink";
 import { CapabilityNoticeScope } from "../../components/PortCapabilities";
 import { LaunchBehaviorStages } from "../../components/LaunchBehaviorStages";
+import { ReleaseWithdrawalBadge } from "../../components/ReleaseWithdrawal";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../components/ui/dialog";
@@ -781,6 +782,7 @@ function DiscoverGameCardView({
           <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
         )}
       </Button>
+      {exact && <ReleaseWithdrawalBadge status={status} />}
       <div className="collection-personal-actions">
         <FavoriteGameButton
           card

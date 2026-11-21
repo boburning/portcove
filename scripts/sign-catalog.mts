@@ -131,6 +131,21 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
     ) {
       throw new Error("Format-1 signed catalogs cannot deliver reviewed package choices.");
     }
+    if ("mod_loader" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver native mod loader bindings. Use a compatible indexed definition.",
+      );
+    }
+    if (
+      "game_settings" in port &&
+      port.game_settings &&
+      typeof port.game_settings === "object" &&
+      "format_version" in port.game_settings &&
+      port.game_settings.format_version === 2
+    )
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver package-only settings authority. Use a compatible indexed definition.",
+      );
     if ("mod_provider_bindings" in port) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver mod provider bindings. Use a compatible indexed definition.",

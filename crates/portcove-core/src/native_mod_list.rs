@@ -38,18 +38,18 @@ const UNLISTABLE: &[char] = &['|', '<', '>', '"', '?', '*'];
 
 /// Where one reviewed port keeps its native enabled-mods list.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct NativeListContract {
+pub(crate) struct NativeListContract<'a> {
     /// Relative to the port's canonical user directory; one of its declared
     /// persistent paths, so it is parked and restored with the profile.
-    pub config: &'static str,
+    pub config: &'a str,
     pub key: &'static [&'static str],
 }
 
 /// Which native list a reviewed loader keeps its enabled mods and order in.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum LoaderList {
+pub(crate) enum LoaderList<'a> {
     /// libultraship's `|`-separated CVar, named by file name without extension.
-    Ship(NativeListContract),
+    Ship(NativeListContract<'a>),
     /// The Recomp runtime's `mods.json`, named by manifest mod ID. Portcove stores
     /// and deploys each package as `<mod ID>.nrm`, so the file name without its
     /// extension is the runtime's identity here too.
@@ -58,27 +58,17 @@ pub(crate) enum LoaderList {
 
 /// The Recomp game ID a reviewed port's runtime loads mods for.
 pub(crate) fn recomp_game(port_id: &str) -> Option<&'static str> {
-    legacy_loader(port_id)?.native_game
+    legacy_loader(port_id)?.native_game.as_deref()
 }
 
-/// Mods the runtime builds into its executable for a game (Zelda64Recomp
-/// `54950a10`, `CMakeLists.txt`); a dependency on one needs no package.
-pub(crate) fn recomp_builtins(game: &str) -> &'static [&'static str] {
-    match game {
-        "mm" => &["mm_recomp_dpad_builtin"],
-        _ => &[],
-    }
-}
-
-pub(crate) fn loader_list(port_id: &str) -> Option<LoaderList> {
-    let loader = legacy_loader(port_id)?;
-    Some(match loader.engine {
+pub(crate) fn loader_list(loader: &crate::profile_loader::ReviewedLoader) -> LoaderList<'_> {
+    match loader.engine {
         ModEngine::Libultraship => LoaderList::Ship(NativeListContract {
-            config: loader.settings_file,
+            config: loader.settings_file.as_ref(),
             key: &["CVars", "gSettings", "EnabledMods"],
         }),
         ModEngine::N64Recomp => LoaderList::Recomp,
-    })
+    }
 }
 
 /// The loader's identity for a package file: its name without the last extension.

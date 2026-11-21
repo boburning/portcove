@@ -180,26 +180,22 @@ export function detailActions({
       if (completed) await backupsChanged();
       return completed;
     },
-    recoverGhostshipLegacy:
-      port.id === "ghostship"
-        ? async (backup, expectedPlan) => {
-            if (backup.port_id !== port.id)
-              throw new Error("Recovery backup belongs to another game.");
-            const result = await perform(
-              "recover legacy installation and data",
-              () =>
-                desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
-              { cancelledResult: (value) => value === null },
-            );
-            if (result === null) return "cancelled";
-            // Readback failure is separately attributable; it cannot undo committed recovery.
-            await perform("refresh backup history", backupsChanged, {
-              refresh: "none",
-              invalidateDiagnostics: false,
-            });
-            return Boolean(result);
-          }
-        : undefined,
+    recoverGhostshipLegacy: async (backup, expectedPlan) => {
+      if (backup.port_id !== port.id) throw new Error("Recovery backup belongs to another game.");
+      if (backup.recovery_review !== "legacy_install_and_data_v1") return false;
+      const result = await perform(
+        "recover legacy installation and data",
+        () => desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
+        { cancelledResult: (value) => value === null },
+      );
+      if (result === null) return "cancelled";
+      // Readback failure is separately attributable; it cannot undo committed recovery.
+      await perform("refresh backup history", backupsChanged, {
+        refresh: "none",
+        invalidateDiagnostics: false,
+      });
+      return Boolean(result);
+    },
     setChannel: (channel) =>
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     exactRelease: {
