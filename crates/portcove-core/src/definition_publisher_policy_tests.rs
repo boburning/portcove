@@ -5456,6 +5456,13 @@ async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
         .unwrap()
         .into_eligible()
         .unwrap();
+    assert!(
+        crate::InstallQualification::from_catalog(eligible.projection().catalog(), ID, platform)
+            .unwrap_err()
+            .message
+            .contains("exact admitted indexed entry")
+    );
+
     library
         .select_definition_candidate_fixture(eligible)
         .unwrap();
@@ -5467,13 +5474,6 @@ async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
     .unwrap()
     .unwrap()
     .0;
-    assert!(
-        crate::InstallQualification::from_catalog(candidate.projection().catalog(), ID, platform)
-            .unwrap_err()
-            .message
-            .contains("exact admitted indexed entry")
-    );
-
     let availability_fixture = RepositoryFixture::new();
     let availability_key = Key::new(availability_fixture._directory.path());
     let mut availability_targets = targets[..targets.len() - 1].to_vec();
