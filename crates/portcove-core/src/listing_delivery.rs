@@ -1,6 +1,8 @@
 //! Descriptive directory delivery under the existing independent catalog policy role.
 //! This target cannot create a managed definition, publisher grant or executable contract.
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, io::Read as _};
+
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use schemars::JsonSchema;
@@ -17,6 +19,44 @@ use crate::{
 
 pub(crate) const TARGET: &str = "policy/official/catalog.listings.json";
 pub(crate) const MAX_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const COMPACT_TARGET: &str = "policy/official/catalog.listings.compact.json";
+pub(crate) const COMPACT_CARRIER: &str = "gzip-base64-json-v1";
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompactListingCarrier {
+    carrier: String,
+    decoded_bytes: usize,
+    decoded_sha256: String,
+    gzip_base64: String,
+}
+
+fn decode_compact_listing(bytes: &[u8]) -> Result<Vec<u8>> {
+    const ERROR: &str = "invalid compact listing directory carrier";
+    if bytes.len() > MAX_BYTES {
+        return Err(PortcoveError::verification(ERROR));
+    }
+    let carrier: CompactListingCarrier = serde_json::from_slice(bytes)?;
+    if carrier.carrier != COMPACT_CARRIER || !(1..=MAX_BYTES).contains(&carrier.decoded_bytes) {
+        return Err(PortcoveError::verification(ERROR));
+    }
+    let compressed = STANDARD
+        .decode(carrier.gzip_base64)
+        .map_err(|_| PortcoveError::verification(ERROR))?;
+    let mut gzip = flate2::bufread::GzDecoder::new(compressed.as_slice());
+    let mut output = Vec::with_capacity(carrier.decoded_bytes);
+    gzip.by_ref()
+        .take(carrier.decoded_bytes as u64 + 1)
+        .read_to_end(&mut output)
+        .map_err(|_| PortcoveError::verification(ERROR))?;
+    if output.len() != carrier.decoded_bytes
+        || !gzip.get_ref().is_empty()
+        || super::digest(&output) != carrier.decoded_sha256
+    {
+        return Err(PortcoveError::verification(ERROR));
+    }
+    Ok(output)
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -463,22 +503,12 @@ pub(crate) async fn refresh<T: Transport + Send + Sync + 'static>(
                 transport,
             ))
             .await?;
-        let (bytes, provenance) = operation
-            .interruptible(super::acquire_target_with_limit(
-                &repository,
-                root,
-                TARGET,
-                MAX_BYTES as u64,
-            ))
+        let candidate = operation
+            .interruptible(acquire_listings(&repository, root))
             .await?;
-        let document = ListingDeliveryDocument::parse(&bytes)?;
         operation.checkpoint()?;
         operation.begin_publication()?;
-        service.library().apply_listings(AuthenticatedListings {
-            bytes,
-            document,
-            provenance,
-        })
+        service.library().apply_listings(candidate)
     })
     .await
     .unwrap_or_else(|_| {
@@ -500,16 +530,33 @@ pub(crate) async fn acquire_admissible(
     repository: &Repository,
     root: &[u8],
 ) -> Result<AuthenticatedListings> {
-    let (bytes, provenance) =
-        super::acquire_target_with_limit(repository, root, TARGET, MAX_BYTES as u64).await?;
+    let candidate = acquire_listings(repository, root).await?;
+    library.check_listings(&candidate)?;
+    Ok(candidate)
+}
+
+async fn acquire_listings(repository: &Repository, root: &[u8]) -> Result<AuthenticatedListings> {
+    // A known compact descriptor must pass the same scoped delegation and raw
+    // digest checks as every other policy target. The legacy carrier is a
+    // compatibility path only when signed metadata does not name the compact one.
+    let compact = repository
+        .all_targets()
+        .any(|(name, _)| name.raw() == COMPACT_TARGET);
+    let target = if compact { COMPACT_TARGET } else { TARGET };
+    let (mut bytes, mut provenance) =
+        super::acquire_target_with_limit(repository, root, target, MAX_BYTES as u64).await?;
+    if compact {
+        bytes = decode_compact_listing(&bytes)?;
+        // Listing admission and persisted status bind the exact decoded JSON.
+        // The raw carrier has already been authenticated by the repository above.
+        provenance.target_sha256 = super::digest(&bytes);
+    }
     let document = ListingDeliveryDocument::parse(&bytes)?;
-    let candidate = AuthenticatedListings {
+    Ok(AuthenticatedListings {
         bytes,
         document,
         provenance,
-    };
-    library.check_listings(&candidate)?;
-    Ok(candidate)
+    })
 }
 
 /// Publishes an already acquired and checked candidate through the ordinary

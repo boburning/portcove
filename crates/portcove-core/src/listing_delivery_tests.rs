@@ -940,3 +940,103 @@ async fn observer_produced_target_reaches_signed_cache_and_preliminary_browse_wi
         "expiry cannot be advanced by signed delivery or cache reads"
     );
 }
+
+#[tokio::test]
+async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invalid_preferred_target()
+{
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::{Compression, write::GzEncoder};
+    use sha2::{Digest, Sha256};
+    use std::io::Write as _;
+
+    fn gzip(bytes: &[u8]) -> Vec<u8> {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(bytes).unwrap();
+        encoder.finish().unwrap()
+    }
+    fn carrier(bytes: &[u8]) -> Value {
+        json!({
+            "carrier": listing_delivery::COMPACT_CARRIER,
+            "decoded_bytes": bytes.len(),
+            "decoded_sha256": hex::encode(Sha256::digest(bytes)),
+            "gzip_base64": STANDARD.encode(gzip(bytes)),
+        })
+    }
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let old = serde_json::to_vec(&feed(1)).unwrap();
+    let root = publish(&fixture, &key, 1, &feed(1)).await;
+    provision(&library, &root);
+    let prior = refresh(&library, &fixture, &root).await.unwrap();
+    let next = serde_json::to_vec(&feed(2)).unwrap();
+    let next_digest = hex::encode(Sha256::digest(&next));
+
+    let mut signed_carriers = vec![(carrier(&old), true, 1)];
+    let current = carrier(&next);
+    let mut expired_bound = current.clone();
+    expired_bound["decoded_bytes"] = json!(listing_delivery::MAX_BYTES + 1);
+    let mut equivocation = current.clone();
+    equivocation["decoded_sha256"] = json!("0".repeat(64));
+    let mut unsupported = current.clone();
+    unsupported["carrier"] = json!("unsupported");
+    let mut trailing = current.clone();
+    let mut concatenated = gzip(&next);
+    concatenated.extend(gzip(b""));
+    trailing["gzip_base64"] = json!(STANDARD.encode(concatenated));
+    let mut too_short = current.clone();
+    too_short["decoded_bytes"] = json!(next.len() - 1);
+    for refusal in [
+        expired_bound,
+        equivocation,
+        unsupported,
+        trailing,
+        too_short,
+    ] {
+        signed_carriers.push((refusal, false, 1));
+    }
+    signed_carriers.push((current, true, 2));
+    let mut same_revision_replacement = next.clone();
+    same_revision_replacement.push(b' ');
+    signed_carriers.push((carrier(&same_revision_replacement), false, 2));
+
+    for (index, (compact, accepted, revision)) in signed_carriers.into_iter().enumerate() {
+        let root = fixture
+            .publish_with_policy(
+                &[
+                    (listing_delivery::TARGET.into(), old.clone()),
+                    (
+                        listing_delivery::COMPACT_TARGET.into(),
+                        serde_json::to_vec(&compact).unwrap(),
+                    ),
+                ],
+                true,
+                &DEFINITION_ROLE_PATHS,
+                later(),
+                Some((&key, index as u64 + 2)),
+            )
+            .await;
+        let result = refresh(&library, &fixture, &root).await;
+        assert_eq!(result.is_ok(), accepted, "{compact:?}");
+        let stored = library.listing_delivery_status().unwrap();
+        assert_eq!(stored.revision, Some(revision));
+        if revision == 1 {
+            // Reload still uses exactly the original decoded content and digest.
+            assert_eq!(stored.target_sha256, prior.target_sha256);
+        } else {
+            assert_eq!(
+                stored.target_sha256.as_deref(),
+                Some(
+                    carrier(&next[..next.len() - 1])["decoded_sha256"]
+                        .as_str()
+                        .unwrap()
+                )
+            );
+        }
+    }
+
+    let catalog = library.load_catalog().unwrap().0;
+    assert!(catalog.listing("new-unmanaged-port").is_ok());
+    assert!(catalog.port("new-unmanaged-port").is_err());
+}
