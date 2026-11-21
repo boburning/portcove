@@ -152,6 +152,8 @@ export interface ArtworkPreparationOptions {
   /** Bound provider work without truncating the catalog or its identity checks. */
   selectedPortIds?: readonly string[];
   refreshPortIds?: readonly string[];
+  /** Maintenance revalidates the approved owner of each retained cover. */
+  revalidateAccepted?: boolean;
   inspectGame?: (identity: DeclaredIdentity) => unknown;
   inspectImage?: (imageId: string, remainingBytes: number) => unknown;
   signal?: AbortSignal;
@@ -853,7 +855,11 @@ export async function prepareCatalogArtwork(
       throw new Error(`Invalid authored regional cover: ${port.id}`);
     if (priorPort?.igdb_regional_cover && priorPort.project_url !== port.project_url)
       throw new Error(`Regional cover needs new source review: ${port.id}`);
-    const reused = reusableMapping(port, priorPort, supplied);
+    const reused = reusableMapping(
+      port,
+      priorPort,
+      options.revalidateAccepted ? undefined : supplied,
+    );
     if (!workset.has(port.id)) {
       if (JSON.stringify(members) !== JSON.stringify(priorPort ? collectionCovers(priorPort) : []))
         throw new Error(`Changed collection identity outside selected workset: ${port.id}`);
@@ -974,23 +980,41 @@ export async function prepareCatalogArtwork(
     };
     context.refreshing = refresh.has(port.id);
     const exceptions: ArtworkException[] = [];
-    const selected = regional
+    const retainedIdentity =
+      options.revalidateAccepted && reused && !regional
+        ? { kind: reused.match_kind, game_id: reused.game_id, slug: reused.game_slug }
+        : null;
+    const retainedDeclaration =
+      retainedIdentity?.kind === "port" ? declarations.port : declarations.underlying_game;
+    const selected = retainedIdentity
       ? await selectCover(
-          {
-            game_id: regional.game_id,
-            slug: regional.slug,
-            names: [regional.name],
-            evidence_url: port.project_url,
-            platform_ids: [regional.platform_id],
-            localization: { id: regional.localization_id, region_id: regional.region_id },
-          },
-          "underlying-game",
+          { ...(isRecord(retainedDeclaration) ? retainedDeclaration : {}), ...retainedIdentity },
+          retainedIdentity.kind,
           context,
           exceptions,
-          regional,
         )
-      : ((await selectCover(declarations.port, "port", context, exceptions)) ??
-        (await selectCover(declarations.underlying_game, "underlying-game", context, exceptions)));
+      : regional
+        ? await selectCover(
+            {
+              game_id: regional.game_id,
+              slug: regional.slug,
+              names: [regional.name],
+              evidence_url: port.project_url,
+              platform_ids: [regional.platform_id],
+              localization: { id: regional.localization_id, region_id: regional.region_id },
+            },
+            "underlying-game",
+            context,
+            exceptions,
+            regional,
+          )
+        : ((await selectCover(declarations.port, "port", context, exceptions)) ??
+          (await selectCover(
+            declarations.underlying_game,
+            "underlying-game",
+            context,
+            exceptions,
+          )));
     const companion = port.presentation?.companion_cover;
     if (context.refreshing && validArtworkMapping(companion)) {
       const content = await inspectCoverContent(

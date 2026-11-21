@@ -1123,6 +1123,135 @@ void test("an explicit refresh reuses a recent result and samples an older one a
   }
 });
 
+void test("bounded due maintenance rotates attempted retained covers without admitting unreviewed rows", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-limit-"));
+  const fixture = scalableArtworkFixture(3);
+  for (let index = 0; index < 2; index++) {
+    fixture.catalog.ports[index]!.presentation = {
+      artwork: {
+        game_id: index + 1,
+        cover_id: index + 1,
+        image_id: `scale${index}`,
+        image_sha256: "d".repeat(64),
+        game_slug: `scale-${index}`,
+        match_kind: "port",
+      },
+    };
+  }
+  const options = {
+    root: scratch,
+    inspector: fixture.inspector,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    retainedCoverLimit: 1,
+    now: () => Date.parse("2026-11-21T00:00:00Z"),
+  };
+  try {
+    fixture.fail("Scale 0");
+    const first = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(first.workset.selected_port_ids, ["scale-0"]);
+    assert.equal(first.continuation.unselected_due_count, 1);
+    assert.equal(first.continuation.complete, false);
+
+    const second = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(second.workset.selected_port_ids, ["scale-1"]);
+    assert.equal(second.continuation.unselected_due_count, 1);
+    assert.deepEqual(fixture.requests, ["Scale 0", "Scale 1"]);
+    assert.equal(second.catalog.ports[2]?.presentation?.artwork, undefined);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+void test("due maintenance revalidates the same game and cover role", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-retained-identity-"));
+  const fixture = scalableArtworkFixture(1);
+  const artwork = {
+    game_id: 1,
+    cover_id: 1,
+    image_id: "acceptedimage",
+    image_sha256: "d".repeat(64),
+    game_slug: "scale-0",
+    match_kind: "port",
+  };
+  fixture.catalog.ports[0]!.presentation = { artwork };
+  fixture.catalog.ports[0]!.underlying_game = {
+    names: ["Original Game"],
+    evidence_url: "https://example.org/original",
+    project_url: "https://example.org/original",
+  };
+  let allowReplacement = false;
+  const requests: [number | null, string | null, string][] = [];
+  const images: string[] = [];
+  const options = {
+    root: scratch,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    inspector: {
+      inspectGame(identity: Parameters<NonNullable<ArtworkPreparationOptions["inspectGame"]>>[0]) {
+        requests.push([identity.game_id, identity.slug, identity.kind]);
+        return allowReplacement
+          ? [
+              {
+                id: 1,
+                slug: "scale-0",
+                name: "Scale 0",
+                cover: { id: 2, image_id: "replacementimage" },
+              },
+            ]
+          : [
+              {
+                id: 2,
+                slug: "original-game",
+                name: "Original Game",
+                websites: [{ url: "https://example.org/original" }],
+                cover: { id: 3, image_id: "unreviewedimage" },
+              },
+            ];
+      },
+      inspectImage(imageId: string) {
+        images.push(imageId);
+        return fixture.inspector.inspectImage();
+      },
+    },
+  };
+  try {
+    const explicit = await prepareArtworkWorkset(fixture.catalog, {
+      ...options,
+      maintenance: false,
+      selectedPortIds: ["scale-0"],
+      refreshPortIds: ["scale-0"],
+    });
+    assert.equal(explicit.records[0]?.mapping?.match_kind, "underlying-game");
+    requests.length = 0;
+    images.length = 0;
+
+    const held = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(requests, [[1, "scale-0", "port"]]);
+    assert.deepEqual(images, []);
+    assert.deepEqual(held.records[0]?.mapping, artwork);
+    assert.equal(held.continuation.complete, false);
+
+    allowReplacement = true;
+    const next = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.deepEqual(requests, [
+      [1, "scale-0", "port"],
+      [1, "scale-0", "port"],
+    ]);
+    assert.deepEqual(images, ["replacementimage"]);
+    assert.equal(next.records[0]?.mapping?.image_id, "replacementimage");
+    assert.equal(next.records[0]?.mapping?.game_id, artwork.game_id);
+    assert.equal(next.records[0]?.mapping?.match_kind, artwork.match_kind);
+    assert.equal(next.continuation.complete, true);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 void test("provider backoff survives continuation and applies to newly added identities", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const { ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");

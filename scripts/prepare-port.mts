@@ -1401,6 +1401,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -1472,6 +1473,9 @@ export async function prepareArtworkBatch(
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.retainedCoverLimit === undefined
+          ? {}
+          : { retainedCoverLimit: options.retainedCoverLimit }),
         ...(options.now ? { now: options.now } : {}),
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -1554,6 +1558,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--output-dir",
     "--artwork-ids",
     "--refresh-artwork",
+    "--artwork-retained-limit",
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
@@ -1576,6 +1581,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
   const artworkIds = values.get("--artwork-ids");
   const refreshIds = values.get("--refresh-artwork");
+  const retainedLimit = values.get("--artwork-retained-limit");
+  if (
+    retainedLimit !== undefined &&
+    (artworkIds !== "@due" ||
+      !/^[1-9][0-9]{0,2}$/u.test(retainedLimit) ||
+      Number(retainedLimit) > 400)
+  )
+    throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
   const observationHandoff = values.get("--listing-observations");
   if (
     observationHandoff &&
@@ -1593,6 +1606,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         ![
           "--artwork-ids",
           "--refresh-artwork",
+          "--artwork-retained-limit",
           "--identities",
           "--validator-cli",
           "--credentials-file",
@@ -1636,6 +1650,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
             ? { maintenance: true }
             : { selectedPortIds: artworkIds.split(",") }),
           ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
+          ...(retainedLimit ? { retainedCoverLimit: Number(retainedLimit) } : {}),
         })
       : await preparePort({
           ...common,
