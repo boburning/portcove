@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { orderedJsonSha256 as observationHash } from "./json-values.mts";
@@ -185,6 +186,28 @@ export function isDerivedPortStageAssignment(field: string, value: unknown) {
   return field === "Port stage" && derivedStages.some((stage) => stage === value);
 }
 
+export function readRoadmapPortStageListings(): readonly unknown[] {
+  const directory: unknown = JSON.parse(
+    readFileSync(new URL("../crates/portcove-core/catalog/listings.json", import.meta.url), "utf8"),
+  );
+  if (!isRecord(directory) || !Array.isArray(directory.listings))
+    throw new Error("Catalog listings require a listing array");
+  return directory.listings;
+}
+
+export function requireAvailableListingOwner(
+  listings: readonly unknown[],
+  catalogId: string,
+  issue: number | null,
+) {
+  const matching = listings.filter((entry) => qualificationField(entry, "id") === catalogId);
+  if (matching.length > 1)
+    throw new Error("Catalog ID has multiple listing declarations: " + catalogId);
+  const owner = qualificationField(matching[0], "issue_number");
+  if (owner != null && owner !== issue)
+    throw new Error("Catalog listing " + catalogId + " belongs to issue #" + diagnosticText(owner));
+}
+
 export function requireDerivedPortStage(
   item: RoadmapIssueItem,
   stage: string,
@@ -198,13 +221,7 @@ export function requireDerivedPortStage(
   const upstream = upstreams[0];
   const issue = issueNumber(item);
   const claims = listings.filter((entry) => isRecord(entry) && entry.issue_number === issue);
-  const competingClaims = listings.some(
-    (entry) =>
-      isRecord(entry) &&
-      entry.id === catalogId &&
-      entry.issue_number != null &&
-      entry.issue_number !== issue,
-  );
+
   if (
     item.content?.__typename !== "Issue" ||
     item.isArchived !== false ||
@@ -214,7 +231,6 @@ export function requireDerivedPortStage(
     upstreams.length !== 1 ||
     !catalogId ||
     !upstream ||
-    competingClaims ||
     claims.length !== 1 ||
     qualificationField(claims[0], "id") !== catalogId ||
     initialPortStage(catalog, catalogId, upstream) !== stage
@@ -222,6 +238,7 @@ export function requireDerivedPortStage(
     throw new Error(
       "Port stage assignment requires the exact catalog-derived stage for its canonical issue",
     );
+  requireAvailableListingOwner(listings, catalogId, issue);
 }
 
 export function initialPortStage(

@@ -23,6 +23,8 @@ import {
   isDerivedPortStageAssignment,
   requireAssignablePortStage,
   requireDerivedPortStage,
+  readRoadmapPortStageListings,
+  requireAvailableListingOwner,
 } from "./roadmap-qualification.mts";
 export {
   qualifiedPlatforms,
@@ -3512,10 +3514,7 @@ export class RoadmapClient {
   private validateDerivedStageAssignment(item: RoadmapIssueItem, field: string, value: string) {
     if (!isDerivedPortStageAssignment(field, value)) return;
     const catalog = qualificationCatalogObservation(JSON.parse(readFileSync(catalogPath, "utf8")));
-    const directory: unknown = JSON.parse(readFileSync(listingsPath, "utf8"));
-    if (!isRecord(directory) || !Array.isArray(directory.listings))
-      throw new Error("Catalog listings require a listing array");
-    requireDerivedPortStage(item, value, catalog, directory.listings);
+    requireDerivedPortStage(item, value, catalog, readRoadmapPortStageListings());
   }
 
   async setFields(reference: string, values: Readonly<Record<string, string>>) {
@@ -3911,6 +3910,7 @@ export class RoadmapClient {
     body?: string;
     repositoryIdentity?: { id: number; game: string };
   }) {
+    if (catalogId) requireAvailableListingOwner(readRoadmapPortStageListings(), catalogId, null);
     const issueTitle = `[Port] ${title}`;
     const issues = inventory
       ? requireRoadmapInventory(inventory, this.config.repository, this, "identity").issues
@@ -4003,43 +4003,43 @@ export class RoadmapClient {
       );
       catalogId = adopted?.id ?? null;
     }
-    if (listings) {
-      const claims = listings.filter(
-        (listing): listing is Record<string, unknown> =>
-          isRecord(listing) && listing.issue_number === number,
+    const canonicalListings = listings ?? readRoadmapPortStageListings();
+    const claims = canonicalListings.filter(
+      (listing): listing is Record<string, unknown> =>
+        isRecord(listing) && listing.issue_number === number,
+    );
+    if (claims.some((listing) => typeof listing.id !== "string" || !listing.id))
+      throw new Error(`issue #${number} is claimed by a malformed catalog listing`);
+    if (claims.length > 1)
+      throw new Error(
+        `issue #${number} is claimed by multiple catalog listings: ${claims.map((listing) => String(listing.id)).join(", ")}`,
       );
-      if (claims.some((listing) => typeof listing.id !== "string" || !listing.id))
-        throw new Error(`issue #${number} is claimed by a malformed catalog listing`);
-      if (claims.length > 1)
+    const listing = claims[0];
+    if (listing && catalogId && listing.id !== catalogId)
+      throw new Error(
+        `issue #${number} identifies catalog ${catalogId} but listing ${String(listing.id)} claims it; reconcile the listing issue_number before normalizing`,
+      );
+    // A research-only listing (not yet in catalog.json) keeps the research key.
+    const port =
+      listing && !catalogId
+        ? (catalog?.ports ?? []).find((candidate) => candidate.id === listing.id)
+        : undefined;
+    if (listing && port) {
+      if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
         throw new Error(
-          `issue #${number} is claimed by multiple catalog listings: ${claims.map((listing) => String(listing.id)).join(", ")}`,
+          `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
         );
-      const listing = claims[0];
-      if (listing && catalogId && listing.id !== catalogId)
+      const title = `-${normalizedPortTitle(issueTitle)}-`;
+      const games = [listing.original_game_title, listing.name]
+        .map((value) => (typeof value === "string" ? normalizePortKey(value) : ""))
+        .filter(Boolean);
+      if (!games.some((game) => title.includes(`-${game}-`)))
         throw new Error(
-          `issue #${number} identifies catalog ${catalogId} but listing ${String(listing.id)} claims it; reconcile the listing issue_number before normalizing`,
+          `issue #${number} title does not name the game of catalog listing ${port.id}; reconcile the listing issue_number before linking`,
         );
-      // A research-only listing (not yet in catalog.json) keeps the research key.
-      const port =
-        listing && !catalogId
-          ? (catalog?.ports ?? []).find((candidate) => candidate.id === listing.id)
-          : undefined;
-      if (listing && port) {
-        if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
-          throw new Error(
-            `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
-          );
-        const title = `-${normalizedPortTitle(issueTitle)}-`;
-        const games = [listing.original_game_title, listing.name]
-          .map((value) => (typeof value === "string" ? normalizePortKey(value) : ""))
-          .filter(Boolean);
-        if (!games.some((game) => title.includes(`-${game}-`)))
-          throw new Error(
-            `issue #${number} title does not name the game of catalog listing ${port.id}; reconcile the listing issue_number before linking`,
-          );
-        catalogId = port.id;
-      }
+      catalogId = port.id;
     }
+    if (catalogId) requireAvailableListingOwner(canonicalListings, catalogId, number);
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
     }

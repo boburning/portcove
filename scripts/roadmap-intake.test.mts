@@ -2,7 +2,11 @@ import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts"
 import { issueFreeCatalogIds } from "./roadmap-qualification.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import assert from "node:assert/strict";
-import { initialPortStage, requireDerivedPortStage } from "./roadmap-qualification.mts";
+import {
+  initialPortStage,
+  requireAvailableListingOwner,
+  requireDerivedPortStage,
+} from "./roadmap-qualification.mts";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -1073,6 +1077,7 @@ const listingClaimCases = [
   "exact-with-listing",
   "exact-conflict",
   "marker-conflict",
+  "reverse-owner-conflict",
 ] as const;
 const listingClaimRefusals: Partial<Record<(typeof listingClaimCases)[number], RegExp>> = {
   "listing-upstream": /upstream differs from catalog listed-port/,
@@ -1081,6 +1086,7 @@ const listingClaimRefusals: Partial<Record<(typeof listingClaimCases)[number], R
   "listing-malformed": /claimed by a malformed catalog listing/,
   "exact-conflict": /identifies catalog listed-port but listing sibling-port claims it/,
   "marker-conflict": /identifies catalog listed-port but listing sibling-port claims it/,
+  "reverse-owner-conflict": /Catalog listing listed-port belongs to issue #41/,
 };
 for (const claim of listingClaimCases) {
   void test(`normalize-port ${claim} catalog listing issue claim`, async () => {
@@ -1092,7 +1098,9 @@ for (const claim of listingClaimCases) {
     let body = renderPortIssueBody({
       title: "Listed Port",
       upstream: "https://github.com/example/listed-port",
-      ...(claim === "marker-conflict" ? { catalogId: "listed-port" } : { portKey: key }),
+      ...(["marker-conflict", "reverse-owner-conflict"].includes(claim)
+        ? { catalogId: "listed-port" }
+        : { portKey: key }),
     });
     const initialBody = body;
     const issue = () => ({
@@ -1176,7 +1184,9 @@ for (const claim of listingClaimCases) {
         name: "Listed Port / Native",
         original_game_title: "Listed Port",
         issue_number:
-          claim === "listing-unclaimed" || (siblingClaims && claim !== "listing-ambiguous")
+          claim === "listing-unclaimed" ||
+          claim === "reverse-owner-conflict" ||
+          (siblingClaims && claim !== "listing-ambiguous")
             ? 41
             : 42,
       },
@@ -1286,6 +1296,7 @@ void test("derived assignment requires the exact evidence level and canonical ca
     },
   };
   const listings = [{ id: "fixture", issue_number: 42 }];
+  assert.doesNotThrow(() => requireAvailableListingOwner([{ id: "fixture" }], "fixture", null));
   assert.doesNotThrow(() =>
     requireDerivedPortStage(item, "Cataloged", { ports: [port] }, listings),
   );
@@ -1299,5 +1310,21 @@ void test("derived assignment requires the exact evidence level and canonical ca
         { id: "fixture", issue_number: 99 },
       ]),
     /exact catalog-derived stage/,
+  );
+});
+
+void test("GraphQL port creation refuses a listing-owned catalog ID before creating an issue", async () => {
+  const client = await sdkRoadmap(config, {
+    allowMutations: true,
+    rest: () => assert.fail("listing ownership must be checked before REST"),
+    graphql: () => assert.fail("listing ownership must be checked before GraphQL"),
+  });
+  await assert.rejects(
+    client.createPortIssue({
+      title: "Separate ticket",
+      upstream: "https://github.com/2ship2harkinian/2ship2harkinian",
+      catalogId: "2ship2harkinian",
+    }),
+    /Catalog listing 2ship2harkinian belongs to issue #59/,
   );
 });

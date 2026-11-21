@@ -3,6 +3,8 @@ import type { Octokit } from "@octokit/core";
 import { prepareCanonicalPortIssue, neutralPortFields } from "./roadmap-issue.mts";
 import {
   initialPortStage,
+  readRoadmapPortStageListings,
+  requireAvailableListingOwner,
   qualificationCatalogObservation,
   requireAssignablePortStage,
 } from "./roadmap-qualification.mts";
@@ -95,6 +97,8 @@ export class RestPortIntakeClient {
   }
 
   async createPortIssue(input: Parameters<RoadmapClient["createPortIssue"]>[0]) {
+    if (input.catalogId)
+      requireAvailableListingOwner(readRoadmapPortStageListings(), input.catalogId, null);
     const inventory = await this.repositoryIssues();
     const { title, body } = prepareCanonicalPortIssue(
       input,
