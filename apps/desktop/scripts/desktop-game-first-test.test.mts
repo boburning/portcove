@@ -977,8 +977,8 @@ test("native relationship observation checks every independent reviewed family a
   assert.match(sha256, /^[a-f0-9]{64}$/u);
   const actual = await productionWorkspace();
   const observed = inspectGameFirstRelationships(actual, expected);
-  assert.equal(observed.provenance.length, 1648);
-  assert.equal(new Set(observed.provenance.map((row) => row.port_id)).size, 1648);
+  assert.equal(observed.provenance.length, 1649);
+  assert.equal(new Set(observed.provenance.map((row) => row.port_id)).size, 1649);
   assert.ok(observed.provenance.some((row) => row.definition && row.listing));
   assert.ok(observed.provenance.some((row) => !row.definition && row.listing));
   for (const id of gameFirstPresentationFamilies)
@@ -1080,8 +1080,8 @@ test("every staged official definition retains reviewed game identity through st
   const observed = inspectGameFirstRelationships(actual, expected, {
     origin: "definition_selected",
   });
-  assert.equal(observed.provenance.length, 1649);
-  assert.equal(observed.reviewed_families, 256);
+  assert.equal(observed.provenance.length, 1650);
+  assert.equal(observed.reviewed_families, 257);
   assert.deepEqual(
     observed.groups
       .find((group) => group.id === "game:chameleon-twist")
