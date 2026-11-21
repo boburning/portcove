@@ -6,11 +6,21 @@ import {
   assertCachedCoverTraffic,
   type WithheldCover,
 } from "./desktop-cover-observations.mts";
-import { revealDetailSection, selectCatalogPort } from "./desktop-review-controls.mts";
+import {
+  clickVisible,
+  openCatalogPortAfterRefresh,
+  revealDetailSection,
+  selectCatalogPort,
+} from "./desktop-review-controls.mts";
+import { fixtureObject as object, fixtureSuccess as success } from "./desktop-scenario-state.mts";
 import { observeCollectionLayoutReady } from "./browser-readiness.mts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 import type { IRectangle } from "selenium-webdriver";
-import type { IgdbArtwork, PortDefinition } from "../src/transport-types.generated.d.ts";
+import type {
+  CatalogListingDocument,
+  IgdbArtwork,
+  PortDefinition,
+} from "../src/transport-types.generated.d.ts";
 import type { PreparationContext } from "./desktop-preparation-test.mts";
 import { transportValue } from "./transport-values.mts";
 type CoverContext = Pick<
@@ -92,15 +102,20 @@ interface MissingCacheContext extends Pick<
   captureSettled: CaptureSettled;
   onWithheld: (value: WithheldCover) => void;
 }
+async function artworkWorkspace(invoke: CoverContext["invoke"]) {
+  const { generation } = transportValue(
+    "desktop_bootstrap_status",
+    success(await invoke("get_bootstrap_status")),
+  );
+  const snapshot = transportValue(
+    "desktop_workspace_snapshot",
+    success(await invoke("get_workspace_snapshot", { generation })),
+  );
+  return { generation, snapshot };
+}
+
 async function coverInventory(invoke: CoverContext["invoke"]) {
-  const bootstrap = await invoke("get_bootstrap_status");
-  assert.ok(isRecord(bootstrap));
-  assert.equal(bootstrap.ok, true);
-  const { generation } = transportValue("desktop_bootstrap_status", bootstrap.value);
-  const reply = await invoke("get_workspace_snapshot", { generation });
-  assert.ok(isRecord(reply));
-  assert.equal(reply.ok, true);
-  const snapshot = transportValue("desktop_workspace_snapshot", reply.value);
+  const { snapshot } = await artworkWorkspace(invoke);
   const ports = required(snapshot.catalog).ports;
   const listings = required(snapshot.listing_catalog).listings;
   const covers = new Map<string, IgdbArtwork>();
@@ -119,13 +134,231 @@ function required<Value>(value: Value | undefined | null): Value {
   assert.ok(value !== undefined && value !== null);
   return value;
 }
-import { errorMessage, errorCode, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage, errorCode } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
-import { appendFile, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, readFile, readdir, realpath, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { WebDriver, By, Key, until } from "selenium-webdriver";
+
+function typedScreenshots(listings: CatalogListingDocument["listings"]) {
+  return listings.flatMap((listing) =>
+    (listing.media ?? [])
+      .filter((media) => media.role === "screenshot" && media.igdb?.kind === "screenshot")
+      .map((media) => ({ listing, media })),
+  );
+}
+
+function screenshotIdentities(entries: ReturnType<typeof typedScreenshots>) {
+  return entries
+    .map(({ listing, media }) => {
+      const subject = media.subject;
+      const provider = required(media.igdb);
+      return JSON.stringify([
+        listing.id,
+        media.id,
+        media.sha256,
+        media.caption,
+        subject.kind === "port"
+          ? [subject.kind, subject.port_id]
+          : [subject.kind, subject.game_id, subject.source_edition_id],
+        provider.game_id,
+        provider.record_id,
+        provider.image_id,
+      ]);
+    })
+    .sort();
+}
+
+async function assertEmbeddedScreenshotCatalog(invoke: CoverContext["invoke"]) {
+  assert.equal(success(await invoke("get_official_catalog_automatic_updates")), false);
+  const delivery = transportValue(
+    "listing_delivery_status",
+    success(await invoke("get_listing_delivery_status")),
+  );
+  assert.equal(delivery.selected, false);
+  assert.equal(delivery.revision, null);
+  assert.equal(delivery.target_sha256, null);
+  const status = transportValue("catalog_status", success(await invoke("get_catalog_status")));
+  assert.equal(status.provenance.origin, "embedded");
+}
+
+// Exercise the embedded catalog through the real gallery and Core image cache.
+export async function reviewedScreenshotScenario({
+  browser: suppliedBrowser,
+  scenario,
+  invoke,
+  output,
+  library,
+  artifacts,
+  capture,
+}: Pick<CoverContext, "browser" | "scenario" | "invoke" | "output" | "artifacts" | "capture"> & {
+  library: string;
+}) {
+  await scenario("native-reviewed-screenshot-display", async () => {
+    assert.ok(suppliedBrowser instanceof WebDriver, "Screenshot observation requires WebDriver");
+    const browser = suppliedBrowser;
+    const bootstrap = transportValue(
+      "desktop_bootstrap_status",
+      success(await invoke("get_bootstrap_status")),
+    );
+    assert.equal(await realpath(required(bootstrap.library_root)), await realpath(library));
+    assert.equal(
+      success(await invoke("set_official_catalog_automatic_updates", { enabled: false })),
+      false,
+    );
+    await assertEmbeddedScreenshotCatalog(invoke);
+
+    const source = await readFile(
+      new URL("../../../crates/portcove-core/catalog/listings.json", import.meta.url),
+    );
+    const bundled = transportValue("catalog_listings", JSON.parse(source.toString("utf8")));
+    const entries = typedScreenshots(bundled.listings);
+    assert.ok(entries.length, "This source must contain reviewed typed IGDB screenshots");
+    const expected = screenshotIdentities(entries);
+    const { generation, snapshot } = await artworkWorkspace(invoke);
+    assert.equal(generation, bootstrap.generation);
+    assert.deepEqual(
+      screenshotIdentities(typedScreenshots(required(snapshot.listing_catalog).listings)),
+      expected,
+    );
+    const rows = [];
+    for (const { listing, media } of entries) {
+      await openCatalogPortAfterRefresh(browser, listing, listing.name);
+      await revealDetailSection(browser, "Overview");
+      const gallery = await browser.wait(
+        until.elementLocated(By.css('.catalog-media[aria-label="Screenshots"]')),
+        15_000,
+      );
+      const subject = media.subject;
+      if (subject.kind === "original") {
+        const edition = required(
+          listing.original_game?.source_editions.find(({ id }) => id === subject.source_edition_id),
+        );
+        const select = await gallery.findElement(By.css('[role="combobox"]'));
+        await clickVisible(browser, select);
+        const option = await browser.wait(async () => {
+          const options = await browser.findElements(By.css('[role="option"]'));
+          for (const candidate of options)
+            if ((await candidate.getText()) === edition.title) return candidate;
+          return false;
+        }, 10_000);
+        assert.ok(option);
+        await clickVisible(browser, option);
+      }
+      const opener = await browser.wait(async () => {
+        const buttons = await gallery.findElements(
+          By.css('button[aria-label^="Enlarge screenshot "]'),
+        );
+        for (const candidate of buttons)
+          if ((await candidate.getAttribute("aria-label"))?.endsWith(`: ${media.caption}`))
+            return candidate;
+        return false;
+      }, 15_000);
+      assert.ok(opener);
+      await executeBrowserScript(
+        browser,
+        'arguments[0].scrollIntoView({ block: "center" });',
+        opener,
+      );
+      await browser.wait(
+        until.elementIsEnabled(opener),
+        30_000,
+        "Core screenshot thumbnail did not load",
+      );
+      await clickVisible(browser, opener);
+      const viewer = await browser.wait(
+        until.elementLocated(By.css('[role="dialog"] .media-viewer-stage')),
+        15_000,
+      );
+      const thumbnail = object(
+        success(
+          await invoke("get_catalog_media_thumbnail", {
+            portId: listing.id,
+            mediaId: media.id,
+            expectedSha256: media.sha256,
+            generation,
+            cacheOnly: true,
+          }),
+        ),
+      );
+      assert.equal(thumbnail.asset_sha256, media.sha256);
+      const png = thumbnail.png_base64;
+      assert.ok(typeof png === "string" && png.length);
+      const rendered = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (viewer, expected) => {
+              const image = viewer.querySelector("img");
+              return image?.complete && image.naturalWidth > 0 && image.currentSrc === expected
+                ? { width: image.naturalWidth, height: image.naturalHeight }
+                : false;
+            },
+            viewer,
+            `data:image/png;base64,${png}`,
+          ),
+        15_000,
+        "Native gallery did not render the bytes returned for the exact admitted screenshot",
+      );
+      assert.ok(rendered);
+      const dialog = await viewer.findElement(By.xpath('ancestor::*[@role="dialog"]'));
+      assert.ok(
+        (await dialog.getText()).includes(
+          subject.kind === "original"
+            ? "From the original release; this port may look different."
+            : "Screenshot of this exact port.",
+        ),
+      );
+      await capture(`native-screenshot-${listing.id}-${media.id}`, true);
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (element, portId) =>
+              document.activeElement === element &&
+              document
+                .querySelector("[data-detail-workspace]")
+                ?.getAttribute("data-detail-port-id") === portId,
+            opener,
+            listing.id,
+          ),
+        10_000,
+        "Screenshot close did not restore focus to the same port's gallery",
+      );
+      rows.push({
+        port_id: listing.id,
+        media_id: media.id,
+        sha256: media.sha256,
+        subject,
+        rendered,
+      });
+    }
+    await assertEmbeddedScreenshotCatalog(invoke);
+    const finalWorkspace = await artworkWorkspace(invoke);
+    assert.equal(finalWorkspace.generation, generation);
+    assert.deepEqual(
+      screenshotIdentities(
+        typedScreenshots(required(finalWorkspace.snapshot.listing_catalog).listings),
+      ),
+      expected,
+    );
+    const report = path.join(output, "native-reviewed-screenshot-display.json");
+    const listing_source_sha256 = createHash("sha256").update(source).digest("hex");
+    await writeFile(
+      report,
+      JSON.stringify(
+        { generation, listing_origin: "embedded", listing_source_sha256, rows },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+    artifacts.push(report);
+  });
+}
 
 // Explicit opt-in live CDN exercise; excluded from routine offline qualification.
 export async function defaultCoverScenario({
