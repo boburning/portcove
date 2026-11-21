@@ -17,6 +17,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
@@ -5137,6 +5138,31 @@ test("hosted cover proposals require the exact committed declaration and admitte
   };
   const evidence = await readHostedCoverHealth(read, options());
   assert.ok(evidence);
+  const proposals = applicableCoverHealth(directory, evidence);
+  const originalWire = Buffer.from("authenticated original listing");
+  const goneWire = Buffer.from("authenticated listing with fallback");
+  const proposed = advanceArtworkCheckpoint(null, proposals);
+  assert.equal(proposed.apply(directory.listings[0]!).artwork, undefined);
+  assert.deepEqual(proposed.apply(directory.listings[1]!).collection_covers, [artwork("changed")]);
+  const first = proposed.finish(goneWire)!;
+  assert.deepEqual(advanceArtworkCheckpoint(null, proposals).finish(goneWire), first);
+  assert.throws(
+    () => advanceArtworkCheckpoint({ bytes: first, listing: originalWire }, []),
+    /unbound/u,
+  );
+  const reopened = advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, []);
+  assert.deepEqual(reopened.finish(goneWire), first);
+  assert.equal(reopened.apply(directory.listings[0]!).artwork, undefined);
+  const [gone] = proposals;
+  assert.ok(gone);
+  const restored = advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, [
+    { ...gone, observed_at: "2026-11-22T12:05:00.000Z", status: "verified_accepted_bytes" },
+  ]);
+  assert.deepEqual(restored.apply(directory.listings[0]!).artwork, artwork("old"));
+  const restoredBytes = restored.finish(originalWire)!;
+  const replay = advanceArtworkCheckpoint({ bytes: restoredBytes, listing: originalWire }, [gone]);
+  assert.deepEqual(replay.finish(originalWire), restoredBytes);
+  assert.deepEqual(replay.apply(directory.listings[0]!).artwork, artwork("old"));
   assert.deepEqual(
     applicableCoverHealth(directory, evidence).map(({ status }) => status),
     ["propose_fallback", "hold_changed_bytes"],

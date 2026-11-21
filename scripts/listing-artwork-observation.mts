@@ -7,6 +7,7 @@ import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
 import { localDeveloperCredential } from "./github-cli.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
+import { coverDeclarationScope } from "./listing-artwork-checkpoint.mts";
 import {
   artworkHealthInventory,
   artworkHealthProducer,
@@ -255,19 +256,14 @@ export function applicableCoverHealth(
   const source = evidence.producerDirectory;
   if (!isRecord(source) || !Array.isArray(source.listings))
     throw new Error("Cover receipt has no producer declaration scope");
-  const scope = (row: Record<string, unknown>) =>
-    orderedJsonSha256([
-      row.id,
-      row.project_url ?? null,
-      row.original_game ?? null,
-      row.artwork ?? null,
-      row.collection_covers ?? null,
-    ]);
   const original = new Map(
-    (source.listings as unknown[]).filter(isRecord).map((row) => [row.id, scope(row)]),
+    (source.listings as unknown[])
+      .filter(isRecord)
+      .map((row) => [row.id, coverDeclarationScope(row)]),
   );
   return current.listings.flatMap((row) => {
-    if (typeof row.id !== "string" || original.get(row.id) !== scope(row)) return [];
+    const scope = coverDeclarationScope(row);
+    if (typeof row.id !== "string" || original.get(row.id) !== scope) return [];
     const covers = validArtworkMapping(row.artwork)
       ? [row.artwork]
       : validArtworkCollection(row.collection_covers)
@@ -285,6 +281,8 @@ export function applicableCoverHealth(
         {
           id: row.id,
           artwork,
+          scope,
+          observed_at: fact.observed_at,
           report: evidence.artifact,
           status:
             fact.status === "mismatch"
