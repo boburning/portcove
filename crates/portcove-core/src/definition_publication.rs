@@ -112,6 +112,8 @@ pub fn inspect_definition_publication_bytes(
     for (name, bytes) in files {
         let bound = if portcove_listing_carrier::is_listing_target(name) {
             portcove_listing_carrier::MAX_BYTES
+        } else if name == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+            portcove_listing_carrier::COVER_CHECKPOINT_MAX
         } else if name == INDEX {
             crate::definition_index::MAX_INDEX_BYTES
         } else if name.starts_with("policy/") {
@@ -153,7 +155,15 @@ pub fn inspect_definition_publication_bytes(
             return Err(invalid());
         }
     }
-    let listings = compact.or(legacy).map(|(record, _)| record);
+    let active = compact.or(legacy);
+    let cover_target = portcove_listing_carrier::COVER_CHECKPOINT_TARGET;
+    if let Some(cover) = files.get(cover_target) {
+        let (_, decoded_sha256) = active.as_ref().ok_or_else(invalid)?;
+        portcove_listing_carrier::check_cover_checkpoint(cover, decoded_sha256)
+            .map_err(|_| invalid())?;
+        expected.insert(cover_target.into());
+    }
+    let listings = active.map(|(record, _)| record);
     let mut definitions = Vec::new();
     for definition in index.definitions() {
         if definition.namespace() != "official" {
@@ -342,6 +352,8 @@ fn read_bundle(root: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
                 }
                 let cap = if portcove_listing_carrier::is_listing_target(&target) {
                     portcove_listing_carrier::MAX_BYTES
+                } else if target == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                    portcove_listing_carrier::COVER_CHECKPOINT_MAX
                 } else if target == INDEX {
                     crate::definition_index::MAX_INDEX_BYTES
                 } else if target.starts_with("policy/") {

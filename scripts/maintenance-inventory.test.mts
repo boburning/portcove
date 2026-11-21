@@ -15,12 +15,16 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import vm from "node:vm";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import { advanceArtworkCheckpoint } from "./listing-artwork-checkpoint.mts";
 import { parse } from "yaml";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import {
   encodeManagedInterventionEvidence,
   readManagedInterventionEvidence,
 } from "./maintenance-interventions.mts";
+
 import {
   clockWindowCrossed,
   coreReuseKey,
@@ -5058,3 +5062,250 @@ void test(
     ]);
   },
 );
+
+void test("hosted cover proposals require the exact committed declaration and admitted report", async () => {
+  const repository = "boburning/portcove";
+  const workflow = ".github/workflows/maintenance-inventory.yml";
+  const revision = "1".repeat(40);
+  const observed = "2026-11-21T12:05:00.000Z";
+  const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+  const artwork = (image_id: string) => ({
+    game_id: 1,
+    cover_id: 2,
+    game_slug: "known-original",
+    match_kind: "underlying-game",
+    image_id,
+    image_sha256: "a".repeat(64),
+  });
+  const directory = {
+    listings: [
+      {
+        id: "native-one",
+        project_url: "https://example.com/port",
+        original_game_title: "Known Original",
+        artwork: artwork("old"),
+      },
+      { id: "native-two", collection_covers: [artwork("changed")] },
+    ],
+  };
+  const listings = Buffer.from(JSON.stringify(directory));
+  const receipt = Buffer.from(
+    JSON.stringify({
+      format: 1,
+      authority: "none",
+      producer: {
+        workflow: `${repository}/${workflow}@refs/heads/main`,
+        run: "42",
+        attempt: "1",
+        revision,
+      },
+      listings_sha256: sha(listings),
+      cli_sha256: "c".repeat(64),
+      observed_at: observed,
+      images: [
+        {
+          image_id: "changed",
+          status: "read",
+          content: { sha256: "b".repeat(64), bytes: 240, width: 90, height: 120 },
+        },
+        { image_id: "old", status: "gone" },
+      ],
+    }),
+  );
+  const manifest = {
+    format: "portcove-maintenance-hosted-evidence",
+    format_version: 1,
+    purpose: "schedule",
+    run: { id: 42, attempt: 1, event: "schedule", head_sha: revision },
+    outcomes: { collect: "success", report: "success" },
+    files: {
+      "maintenance-report/cover-artwork-health.json": {
+        bytes: receipt.length,
+        sha256: sha(receipt),
+      },
+    },
+    sources: [
+      {
+        source: "cover-artwork-health",
+        coverage: "complete",
+        source_revision: `scheduled-artwork-health:42-1@${revision}#sha256:${sha(receipt)}`,
+      },
+    ],
+  };
+  const run = {
+    id: 42,
+    run_attempt: 1,
+    path: workflow,
+    event: "schedule",
+    head_branch: "main",
+    status: "completed",
+    head_repository: { full_name: repository, id: 1354613114 },
+    head_sha: revision,
+    conclusion: "success",
+    run_started_at: "2026-11-21T12:00:00.000Z",
+    updated_at: "2026-11-21T12:12:00.000Z",
+  };
+  const options = (evidence = manifest, identity = run, corrupt = false) => {
+    const archive = createAuditZip([
+      ["evidence.json", JSON.stringify(evidence)],
+      ["cover-artwork-health.json", receipt],
+    ]);
+    return {
+      now: Date.parse("2026-11-21T12:30:00.000Z"),
+      transport: {
+        read: async (path: string) =>
+          path.includes("/workflows/")
+            ? { workflow_runs: [identity] }
+            : {
+                total_count: 1,
+                artifacts: [
+                  {
+                    id: 77,
+                    name: "maintenance-report-42-1",
+                    expired: false,
+                    size_in_bytes: archive.length,
+                    digest: `sha256:${sha(archive)}`,
+                    workflow_run: {
+                      id: 42,
+                      repository_id: 1354613114,
+                      head_repository_id: 1354613114,
+                      head_branch: "main",
+                      head_sha: revision,
+                    },
+                  },
+                ],
+              },
+        download: async () => (corrupt ? Buffer.alloc(archive.length) : archive),
+      },
+    };
+  };
+  const read = (commit: string, file: string) => {
+    assert.equal(commit, revision);
+    assert.equal(file, "crates/portcove-core/catalog/listings.json");
+    return listings;
+  };
+  const evidence = await readHostedCoverHealth(read, options());
+  assert.ok(evidence);
+  const proposals = applicableCoverHealth(directory, evidence);
+  const originalWire = Buffer.from("authenticated original listing");
+  const goneWire = Buffer.from("authenticated listing with fallback");
+  const proposed = advanceArtworkCheckpoint(null, proposals);
+  assert.equal(proposed.apply(directory.listings[0]!).artwork, undefined);
+  assert.deepEqual(proposed.apply(directory.listings[1]!).collection_covers, [artwork("changed")]);
+  const first = proposed.finish(goneWire)!;
+  assert.deepEqual(advanceArtworkCheckpoint(null, proposals).finish(goneWire), first);
+  assert.throws(
+    () => advanceArtworkCheckpoint({ bytes: first, listing: originalWire }, []),
+    /unbound/u,
+  );
+  const reopened = advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, []);
+  assert.deepEqual(reopened.finish(goneWire), first);
+  assert.equal(reopened.apply(directory.listings[0]!).artwork, undefined);
+  const [gone] = proposals;
+  assert.ok(gone);
+  const renamed = {
+    ...directory.listings[0]!,
+    original_game_title: "Different Original",
+  };
+  assert.deepEqual(reopened.apply(renamed).artwork, artwork("old"));
+  assert.deepEqual(applicableCoverHealth({ listings: [renamed] }, evidence), []);
+  const positiveFacts = new Map([
+    [
+      "port:native-one@old",
+      {
+        artwork: artwork("old"),
+        status: "unchanged",
+        observed_at: "2026-11-22T12:05:00.000Z",
+      },
+    ],
+  ]);
+  const crossTitleRecovery = applicableCoverHealth(
+    { listings: [renamed] },
+    {
+      ...evidence,
+      facts: positiveFacts,
+    },
+  );
+  assert.deepEqual(crossTitleRecovery, []);
+  assert.equal(
+    advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, crossTitleRecovery).apply(
+      directory.listings[0]!,
+    ).artwork,
+    undefined,
+  );
+  const restored = advanceArtworkCheckpoint({ bytes: first, listing: goneWire }, [
+    { ...gone, observed_at: "2026-11-22T12:05:00.000Z", status: "verified_accepted_bytes" },
+  ]);
+  assert.deepEqual(restored.apply(directory.listings[0]!).artwork, artwork("old"));
+  const restoredBytes = restored.finish(originalWire)!;
+  const replay = advanceArtworkCheckpoint({ bytes: restoredBytes, listing: originalWire }, [gone]);
+  assert.deepEqual(replay.finish(originalWire), restoredBytes);
+  assert.deepEqual(replay.apply(directory.listings[0]!).artwork, artwork("old"));
+  assert.deepEqual(
+    applicableCoverHealth(directory, evidence).map(({ status }) => status),
+    ["propose_fallback", "hold_changed_bytes"],
+  );
+  const independent = structuredClone(directory);
+  independent.listings[0]!.project_url = "https://example.com/other";
+  assert.deepEqual(
+    applicableCoverHealth(independent, evidence).map(({ id }) => id),
+    ["native-two"],
+  );
+  assert.equal(
+    await readHostedCoverHealth(read, options(manifest, { ...run, conclusion: "failure" })),
+    null,
+  );
+  await assert.rejects(
+    readHostedCoverHealth(read, options({ ...manifest, sources: [] })),
+    /did not admit/u,
+  );
+  await assert.rejects(
+    readHostedCoverHealth(read, options(manifest, run, true)),
+    /digest differs/u,
+  );
+});
+
+void test("a full cover checkpoint defers new scopes and can still restore an admitted scope", async () => {
+  const { coverDeclarationScope, readArtworkCheckpoint } =
+    await import("./listing-artwork-checkpoint.mts");
+  const artwork = {
+    game_id: 1,
+    cover_id: 2,
+    game_slug: "artwork",
+    match_kind: "underlying-game" as const,
+    image_id: "co1",
+    image_sha256: "a".repeat(64),
+  };
+  const make = (id: string) => {
+    const listing = { id, artwork };
+    return {
+      id,
+      artwork,
+      scope: coverDeclarationScope(listing, artwork),
+      status: "propose_fallback",
+      report: "sha256:" + "d".repeat(64),
+      observed_at: "2026-11-21T12:00:00.000Z",
+    };
+  };
+  const all = Array.from({ length: 3072 }, (_, index) =>
+    make("c" + index.toString(36).padStart(3, "0")),
+  );
+  const first = advanceArtworkCheckpoint(null, all);
+  const wire = Buffer.from("bound fixture listing");
+  const checkpoint = first.finish(wire)!;
+  assert.equal(first.deferred, 0);
+  assert.equal(readArtworkCheckpoint(checkpoint, wire).entries.length, 3072);
+  const known = all[0]!;
+  const fresh = make("unseen-port");
+  const next = advanceArtworkCheckpoint({ bytes: checkpoint, listing: wire }, [
+    fresh,
+    { ...known, status: "verified_accepted_bytes", observed_at: "2026-11-22T12:00:00.000Z" },
+  ]);
+  assert.equal(next.deferred, 1);
+  assert.deepEqual(next.apply({ id: known.id, artwork }).artwork, artwork);
+  assert.equal(next.apply({ id: all[1]!.id, artwork }).artwork, undefined);
+  assert.deepEqual(next.apply({ id: fresh.id, artwork }).artwork, artwork);
+  const bytes = next.finish(wire)!;
+  assert.equal(readArtworkCheckpoint(bytes, wire).entries.length, 3072);
+  assert.deepEqual(advanceArtworkCheckpoint({ bytes, listing: wire }, []).finish(wire), bytes);
+});

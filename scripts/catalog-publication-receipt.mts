@@ -20,6 +20,7 @@ import {
   catalogDefinitionContentBytes,
   catalogDefinitionIndexBytes,
 } from "./release-catalog-publication-contract.mts";
+import { artworkCheckpointMax, artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -30,7 +31,7 @@ const maximumReadbackBytes = 32 * 1024 ** 2;
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const digest = /^[a-f0-9]{64}$/u;
 const idPattern = /^[a-z0-9][a-z0-9-]{0,127}$/u;
-type Identity = { target: string; sha256: string };
+type Identity = { target: string; sha256: string; bytes?: number };
 type Evidence = Identity & { revision: number };
 type Definition = {
   definition: Evidence;
@@ -58,6 +59,7 @@ function immutablePath({ target, sha256 }: Identity) {
 function targetLimit(target: string) {
   if (target === listingDeliveryTarget || target === compactListingDeliveryTarget)
     return listingDeliveryMaximum;
+  if (target === artworkCheckpointTarget) return artworkCheckpointMax;
   if (target.startsWith("policy/")) return 65_536;
   return target === index ? catalogDefinitionIndexBytes : catalogDefinitionContentBytes;
 }
@@ -79,6 +81,7 @@ async function readState(site: CatalogSource | null) {
       timestamp: null,
       index: null,
       listings: null,
+      coverCheckpoint: null as Identity | null,
       historyPointer: null,
       definitions: new Map<string, Definition>(),
     };
@@ -90,10 +93,31 @@ async function readState(site: CatalogSource | null) {
   const timestamp = sha256(timestampBytes);
   let versions;
   let targets;
+  let coverCheckpoint: Identity | null = null;
+  const readCoverTarget: NonNullable<Parameters<typeof publishedTargets>[1]> = (
+    role,
+    target,
+    metadata,
+  ) => {
+    if (target !== artworkCheckpointTarget) return;
+    if (
+      role !== "official-policy" ||
+      coverCheckpoint ||
+      !isRecord(metadata.hashes) ||
+      typeof metadata.hashes.sha256 !== "string" ||
+      !digest.test(metadata.hashes.sha256) ||
+      typeof metadata.length !== "number" ||
+      !Number.isSafeInteger(metadata.length) ||
+      metadata.length < 1 ||
+      metadata.length > artworkCheckpointMax
+    )
+      throw new Error("published cover checkpoint identity is invalid");
+    coverCheckpoint = { target, sha256: metadata.hashes.sha256, bytes: metadata.length };
+  };
   if (typeof site === "string") {
     versions = priorVersions(site);
     if (!versions) throw new Error("published catalog timestamp is missing");
-    targets = publishedTargets(site);
+    targets = publishedTargets(site, readCoverTarget);
   } else {
     const document = object(timestampBytes);
     const snapshotMeta =
@@ -114,7 +138,7 @@ async function readState(site: CatalogSource | null) {
       [`${versions.definitions}.official-definitions.json`, object(definitions)],
       [`${versions.policy}.official-policy.json`, object(policy)],
     ]);
-    targets = publishedTargetsFromMetadata(versions, (name) => metadata.get(name));
+    targets = publishedTargetsFromMetadata(versions, (name) => metadata.get(name), readCoverTarget);
   }
   const indexIdentity = identity(targets, index);
   let remaining = maximumReadbackBytes;
@@ -203,6 +227,8 @@ async function readState(site: CatalogSource | null) {
   const activeListingTarget = Object.hasOwn(targets, compactListingDeliveryTarget)
     ? compactListingDeliveryTarget
     : listingDeliveryTarget;
+  if (coverCheckpoint && activeListingTarget !== compactListingDeliveryTarget)
+    throw new Error("published cover checkpoint requires the compact listing target");
   return {
     versions,
     timestamp,
@@ -210,6 +236,7 @@ async function readState(site: CatalogSource | null) {
     listings: Object.hasOwn(targets, activeListingTarget)
       ? identity(targets, activeListingTarget)
       : null,
+    coverCheckpoint: coverCheckpoint as Identity | null,
     historyPointer: Object.hasOwn(targets, historyTarget) ? identity(targets, historyTarget) : null,
     definitions,
   };
@@ -256,14 +283,16 @@ export async function describeCatalogPublication(prior: CatalogSource | null, ne
       return [{ id, kind, prior: compact(old), published: compact(current) }];
     });
   const listingChanged = !isDeepStrictEqual(before.listings, after.listings);
-  if (listingChanged) requireReadback(after.listings);
+  if (listingChanged || after.coverCheckpoint) requireReadback(after.listings);
+  requireReadback(after.coverCheckpoint);
   if (pending.size > 256 || changes.length > 128)
     throw new Error("publication receipt target count exceeds its bound");
-  const snapshot = ({ versions, timestamp, index, listings }: State) => ({
+  const snapshot = ({ versions, timestamp, index, listings, coverCheckpoint }: State) => ({
     versions,
     timestamp_sha256: timestamp,
     index,
     listings,
+    ...(coverCheckpoint ? { cover_checkpoint: coverCheckpoint } : {}),
   });
   return {
     prior: snapshot(before),
@@ -405,13 +434,16 @@ export async function verifyCatalogPublicationLive(
     if (actual !== entry.bytes) throw new Error("public catalog role metadata length differs");
   }
   for (const target of description.targets) {
-    remaining -= await confirmLiveTarget(
+    const bytes = await confirmLiveTarget(
       pages + immutablePath(target),
       target.sha256,
-      Math.min(targetLimit(target.target), remaining),
+      Math.min(targetLimit(target.target), target.bytes ?? remaining, remaining),
       signal,
       fetcher,
     );
+    if (target.bytes !== undefined && bytes !== target.bytes)
+      throw new Error("public catalog target length differs");
+    remaining -= bytes;
   }
   let browseRemaining = 64 * 1024 ** 2;
   for (const entry of browse) {

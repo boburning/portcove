@@ -1879,6 +1879,62 @@ Provider Retry-After dates remain durable, and incomplete work never claims
 successful full maintenance. Retained mappings after unavailable refresh remain
 pending. Proposed records still require the existing review and delivery route.
 
+For same-game cover replacements, run
+`node scripts/catalog-cover-replacement-review.mts --source-commit SHA
+--artwork-ids ID,OTHER_ID --validator-cli CLI --output-dir CHECKPOINT`
+from the exact clean source checkout. Put the checkpoint in the ignored `work/`
+directory or outside the checkout. One operation prepares up to 32 already
+accepted general original-game covers. It pins the accepted game ID and slug
+for each selected subject and keeps the normal provider, decoder, catalog
+generation and inspection checks. The content-addressed review packet binds
+both mappings, their complete authored records, the Core-inspected products
+and the source checkout. An unavailable or conflicting observation leaves
+its ordinary preparation evidence and produces no review packet. Resume with the
+same checkout, subject list and validator to reuse completed observations. A
+checkpoint that already produced a review packet cannot be resumed. After forced
+termination on Linux, rerun in the same boot and process namespace. Preparation
+reclaims only its own recorded lock after the owner PID disappears. Live,
+anonymous and other ambiguous locks require reconciliation. A change in
+bytes under an unchanged IGDB cover or image ID requires separate source evidence.
+
+Review the decoded candidate against the accepted cover. A cover replacement
+packet records the authored cover and the current signed cover separately.
+When a signed replacement is already active, supply
+`--prior-repository VERIFIED_CATALOG_DIRECTORY --release-tools TRUSTED_TOOLS`
+to preparation. The release tools authenticate the active compact directory,
+cover checkpoint and official policy metadata against the existing root. The
+publisher independently checks the exact current authenticated preimage. It
+accepts a new batch only while the exact reviewed source is CI-green and the
+existing compact and cover checkpoint paths are active.
+
+The current repository owner authorizes a batch by dispatching **Catalog
+publish** on `main` with the unchanged packet text, its SHA-256, and a JSON
+object mapping each replacement's port ID to the accepted cover SHA-256 the
+owner reviewed. The original and triggering actor must both be the existing
+authorized artwork owner. Put the packet in an input JSON file as a string so
+newlines survive, then use `gh workflow run catalog-publish.yml --ref main
+--json < dispatch-input.json`. The input keys are `cover_replacement_packet`,
+`cover_replacement_sha256` and `cover_replacement_preimages`. The preimage
+value is a JSON string. Review one packet for the entire batch.
+
+The protected publisher verifies the exact candidate length, SHA-256 and
+image decode from the fixed IGDB source. It records consumed packet digests
+and approved mappings in the signed official policy target metadata. Older
+listing and cover readers keep their existing targets and wire formats. The
+released-reader gate must pass on the exact signed candidate before the
+Pages push. The newest signed copy persists across scheduled renewals. Review
+packets and signed metadata contain no image payloads. Player artwork
+choices retain precedence. If the author's original game or cover binding
+changes, the replacement ceases to apply. The journal holds at most 256
+approvals and 256 consumed packets. When full, it refuses new approvals while
+ordinary publication and existing cover health continue.
+
+Maintenance checks the effective approved images in rotating groups of up to
+eight. The existing checkpoint withdraws only from an exact Gone response
+and restores only the approved bytes. A failed or mismatched response keeps
+the last accepted state. The canonical cover stays eligible for ordinary
+authoring when a signed replacement no longer applies.
+
 The full input retains its bounded 10,000-record authoring contract. Each provider
 operation retains 800 metadata queries, 400 image queries, 32 MiB metadata,
 512 MiB images, 16 MiB per image, 15 minutes and 15 seconds per request.

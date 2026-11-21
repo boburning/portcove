@@ -11,6 +11,11 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {
+  readerProofHint,
+  recheckReaderGate,
+  strengthenedReaderSubjects,
+} from "./catalog-definition-reader-gate.mts";
 import { overlayCatalogPages } from "./catalog-pages-overlay.mts";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
@@ -414,6 +419,62 @@ void test("catalog success readback requires every affected immutable target and
   await assert.rejects(
     verifyCatalogPublicationLive(description, "fixture", localFetch("-end")),
     /readback bytes differ/u,
+  );
+});
+
+void test("public cover readback requires the exact compact listing and checkpoint", async (t) => {
+  const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
+  const { compactListingDeliveryTarget } = await import("./listing-directory-carrier.mts");
+  const dir = temp(t);
+  receiptSite(dir, [{ id: "chameleon", revision: 1 }], 1, "descriptive");
+  const role = "metadata/4.official-policy.json";
+  const document = JSON.parse(readFileSync(path.join(dir, role), "utf8")) as {
+    signed: { targets: Record<string, { length: number; hashes: { sha256: string } }> };
+  };
+  for (const [target, bytes] of [
+    [compactListingDeliveryTarget, "signed compact fixture"],
+    [artworkCheckpointTarget, "signed cover checkpoint fixture"],
+  ] as const) {
+    const digest = overlaySha256(bytes);
+    put(dir, `targets/${digest}.${target}`, bytes);
+    document.signed.targets[target] = {
+      length: Buffer.byteLength(bytes),
+      hashes: { sha256: digest },
+    };
+  }
+  put(dir, role, document);
+  const description = await describeCatalogPublication(dir, dir);
+  assert.equal(description.listingChanged, false);
+  assert.deepEqual(description.published.cover_checkpoint, {
+    target: artworkCheckpointTarget,
+    sha256: document.signed.targets[artworkCheckpointTarget]!.hashes.sha256,
+    bytes: document.signed.targets[artworkCheckpointTarget]!.length,
+  });
+  assert.deepEqual(
+    description.targets.map((entry) => entry.target),
+    ["definitions/index.json", compactListingDeliveryTarget, artworkCheckpointTarget],
+  );
+  const fetcher =
+    (change?: string): typeof fetch =>
+    (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const file = url.pathname.split("/portcove/catalog/")[1]!;
+      const bytes = readFileSync(path.join(dir, file));
+      return Promise.resolve(
+        new Response(change && file.endsWith(change) ? Buffer.alloc(bytes.length) : bytes),
+      );
+    };
+  await verifyCatalogPublicationLive(description, "cover", fetcher());
+  await assert.rejects(
+    verifyCatalogPublicationLive(description, "cover", fetcher(artworkCheckpointTarget)),
+    /readback bytes differ/u,
+  );
+  document.signed.targets[artworkCheckpointTarget]!.length++;
+  put(dir, role, document);
+  const wrongLength = await describeCatalogPublication(dir, dir);
+  await assert.rejects(
+    verifyCatalogPublicationLive(wrongLength, "cover", fetcher()),
+    /public catalog target length differs/u,
   );
 });
 
@@ -916,6 +977,39 @@ void test("catalog keys reach only one signing step per role, from main", async 
     "sign-policy",
   ]);
   assert.deepEqual(publish.jobs["sign-timestamp"]!.needs, ["prepare", "sign-snapshot"]);
+  const readerGate = publish.jobs["verify-definition-reader"]!;
+  assert.deepEqual(readerGate.needs, ["prepare", "sign-timestamp"]);
+  assert.equal(readerGate.if, "needs.prepare.outputs.definition_reader_proof == 'true'");
+  const publisher = publish.jobs.publish!;
+  assert.match(publisher.if!, /needs.sign-timestamp.result == 'success'/u);
+  assert.match(
+    publisher.if!,
+    /needs.verify-definition-reader.result == 'skipped' && needs.prepare.outputs.definition_reader_proof == 'false'/u,
+  );
+  const receiptDownload = publisher.steps!.find(
+    (step) => step.with?.name === "catalog-definition-reader-gate",
+  );
+  assert.equal(receiptDownload?.if, "needs.verify-definition-reader.result == 'success'");
+  assert.equal(
+    publisher.steps!.filter((step) => step.run?.includes("assemble-definition-repository")).length,
+    1,
+  );
+  assert.deepEqual(readerGate.permissions, { contents: "read", attestations: "read" });
+  assert.equal(readerGate.environment, undefined);
+  assert.equal(readerGate.secrets, undefined);
+  assert.deepEqual(publish.jobs.publish!.needs, [
+    "prepare",
+    "sign-timestamp",
+    "verify-definition-reader",
+  ]);
+  const push = publish.jobs.publish!.steps!.find((step) =>
+    step.run?.includes("git -C site push"),
+  )!.run!;
+  assert.ok(push.indexOf("catalog-definition-reader-gate.mts recheck") > 0);
+  assert.ok(
+    push.indexOf("catalog-definition-reader-gate.mts recheck") <
+      push.indexOf("catalog-pages-overlay.mts"),
+  );
   // Only the publish job writes, and it holds no catalog key.
   assert.deepEqual(publish.jobs.publish!.permissions, { contents: "write" });
   assert.doesNotMatch(JSON.stringify(publish), /\bsecrets\./u);
@@ -1221,6 +1315,148 @@ void test("format 14 edition bindings require both released capabilities and sta
   assert.deepEqual(withdrawn.listings[0]!.original_game, original);
 });
 
+void test("the first cover checkpoint requires the released reader to inspect both exact targets", async () => {
+  const { requireExactReleasedCoverInspection } =
+    await import("./listing-observation-delivery.mts");
+  const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
+  const { compactListingDeliveryTarget, listingDeliveryTarget } =
+    await import("./listing-directory-carrier.mts");
+  const cover = Buffer.from("fixture cover");
+  const compact = Buffer.from("fixture compact");
+  const row = {
+    target: artworkCheckpointTarget,
+    bytes: cover.length,
+    sha256: overlaySha256(cover.toString()),
+  };
+  // Match the released CLI envelope and the public machine-contract test.
+  const report = {
+    schema_version: 100,
+    ok: true,
+    command: "catalog.inspect-definition-publication",
+    data: {
+      publication_schema: 2,
+      authority: "none",
+      files: [row],
+      listings: { target: compactListingDeliveryTarget, sha256: overlaySha256(compact.toString()) },
+    },
+    error: null,
+  };
+  requireExactReleasedCoverInspection(report, cover, compact);
+  for (const data of [
+    { ...report.data, publication_schema: 1 },
+    { ...report.data, publication_schema: undefined, schema_version: 1 },
+    { ...report.data, listings: { ...report.data.listings, target: listingDeliveryTarget } },
+  ]) {
+    assert.throws(
+      () => requireExactReleasedCoverInspection({ ...report, data }, cover, compact),
+      /active compact listing/u,
+    );
+  }
+  for (const invalidRow of [
+    { ...row, sha256: "f".repeat(64) },
+    { ...row, target: compactListingDeliveryTarget },
+  ]) {
+    assert.throws(
+      () =>
+        requireExactReleasedCoverInspection(
+          { ...report, data: { ...report.data, files: [invalidRow] } },
+          cover,
+          compact,
+        ),
+      /exact cover checkpoint/u,
+    );
+  }
+  assert.throws(
+    () =>
+      requireExactReleasedCoverInspection(
+        { ...report, data: { ...report.data, files: [] } },
+        cover,
+        compact,
+      ),
+    /exact cover checkpoint/u,
+  );
+  assert.throws(
+    () =>
+      requireExactReleasedCoverInspection(
+        { ...report, data: { ...report.data, files: [row, row] } },
+        cover,
+        compact,
+      ),
+    /exact cover checkpoint/u,
+  );
+  assert.throws(
+    () => requireExactReleasedCoverInspection(report, cover, Buffer.from("other")),
+    /active compact listing/u,
+  );
+});
+
+void test("a quiet listing renewal reuses the exact covered fallback after an ambiguous write", async () => {
+  const { fixtureListing } = await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const { advanceArtworkCheckpoint, coverDeclarationScope } =
+    await import("./listing-artwork-checkpoint.mts");
+  const artwork = {
+    game_id: 1,
+    cover_id: 2,
+    game_slug: "fixture",
+    match_kind: "port" as const,
+    image_id: "cofixture",
+    image_sha256: "a".repeat(64),
+  };
+  const row = { ...fixtureListing, artwork };
+  const canonical = { format_version: 11, listings: [row] };
+  const write = (
+    previous: Buffer | null,
+    checkpoint?: ReturnType<typeof advanceArtworkCheckpoint>,
+  ) =>
+    projectListingDelivery(
+      canonical,
+      [],
+      previous,
+      0,
+      undefined,
+      canonical,
+      new Set([row.id]),
+      Date.parse("2026-11-22T00:00:00.000Z"),
+      [],
+      false,
+      undefined,
+      checkpoint,
+    );
+  const prior = write(null);
+  const observed = {
+    id: row.id,
+    artwork,
+    scope: coverDeclarationScope(row, artwork),
+    report: "sha256:" + "d".repeat(64),
+    status: "propose_fallback",
+    observed_at: "2026-11-21T12:00:00.000Z",
+  };
+  const gone = advanceArtworkCheckpoint(null, [observed]);
+  const removed = write(prior.bytes, gone);
+  const removedRow = decodedListingDelivery(removed.bytes).directory.listings.find(
+    (listing) => listing.id === row.id,
+  );
+  assert.ok(removedRow);
+  assert.equal(removedRow.artwork, undefined);
+  const checkpoint = gone.finish(removed.bytes)!;
+  assert.deepEqual(write(prior.bytes, gone).bytes, removed.bytes);
+  const reopen = advanceArtworkCheckpoint({ bytes: checkpoint, listing: removed.bytes }, []);
+  const renewed = write(removed.bytes, reopen);
+  assert.equal(renewed.changed, false);
+  assert.deepEqual(reopen.finish(renewed.bytes), checkpoint);
+  const restored = advanceArtworkCheckpoint({ bytes: checkpoint, listing: removed.bytes }, [
+    { ...observed, status: "verified_accepted_bytes", observed_at: "2026-11-22T12:00:00.000Z" },
+  ]);
+  const recovery = write(renewed.bytes, restored);
+  assert.equal(recovery.revision, removed.revision + 1);
+  const recoveryRow = decodedListingDelivery(recovery.bytes).directory.listings.find(
+    (listing) => listing.id === row.id,
+  );
+  assert.ok(recoveryRow);
+  assert.deepEqual(recoveryRow.artwork, artwork);
+});
+
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
   const { fixtureListing, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -1391,13 +1627,15 @@ void test("descriptive delivery encodes an exact GitHub slash tag from a retaine
   }
 });
 
-void test("only the dynamic listing target is excluded from fixed input comparison", async () => {
+void test("derived listing targets and the cover checkpoint are excluded from fixed input comparison", async () => {
   const { sameStaticPublicationTargets } = await import("./catalog-publish.mts");
+  const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
   const fixed = { "definitions/index.json": "a".repeat(64) };
   assert.equal(
     sameStaticPublicationTargets(fixed, {
       ...fixed,
       "policy/official/catalog.listings.json": "b".repeat(64),
+      [artworkCheckpointTarget]: "d".repeat(64),
     }),
     true,
   );
@@ -2148,6 +2386,7 @@ void test(
       if (process.argv.includes("--format-version")) {
         const data = JSON.parse(fs.readFileSync(file, "utf8"));
         data.format_version = Number(process.argv.at(-1));
+        for (const row of data.listings) delete row.future_setup;
         console.log(JSON.stringify({ ok: true, data }));
       } else console.log(JSON.stringify({ ok: true }));
     `,
@@ -2165,6 +2404,7 @@ void test(
     const compactPrior = prior("compact-prior", {
       [listingDeliveryTarget]: legacy,
       [compactListingDeliveryTarget]: compact,
+      "policy/official/catalog.history-checkpoint.json": "{}",
     });
     for (const [boundary, source] of Object.entries({
       first: legacyPrior,
@@ -2225,7 +2465,7 @@ void test(
         ...options,
         ...source,
         output: path.join(dir, boundary + "-recovered"),
-        compactIfCapable: true,
+        ...(boundary === "first" ? { compactIfCapable: true } : { compact: true }),
         releasedReader: capable,
       });
       assert.equal(recovered.listing_format, 13);
@@ -2239,6 +2479,383 @@ void test(
         compact,
       );
     }
+    // Core #8504 (970d8a919d27) verified_original_editions fixture.
+    const edition = {
+      id: "retail",
+      title: "Retail edition",
+      evidence_urls: ["https://example.com/retail"],
+    };
+    const originalGame = {
+      format_version: 1,
+      id: "original-game",
+      evidence_urls: ["https://example.com/original"],
+      source_editions: [edition],
+    };
+    const listing13 = { ...fixtureListing, original_game: originalGame };
+    put(dir, "canonical", { format_version: 13, listings: [listing13] });
+    const active13 = await prepareObservationBundle({
+      ...options,
+      ...compactPrior,
+      output: path.join(dir, "active-13"),
+      compact: true,
+      releasedReader: capable,
+    });
+    const exact13 = readFileSync(path.join(active13.bundle, compactListingDeliveryTarget), "utf8");
+    const { artworkCheckpointTarget, coverDeclarationScope, readArtworkCheckpoint } =
+      await import("./listing-artwork-checkpoint.mts");
+    const { decodeRetainedCompactListing } = await import("./listing-directory-carrier.mts");
+    const artwork = {
+      game_id: 1,
+      cover_id: 2,
+      game_slug: "fixture",
+      match_kind: "port",
+      image_id: "cofixture",
+      image_sha256: "b".repeat(64),
+    };
+    const cover = JSON.stringify({
+      checkpoint_schema: 1,
+      listing_sha256: overlaySha256(
+        decodeRetainedCompactListing(Buffer.from(exact13)).toString("utf8"),
+      ),
+      prior_checkpoint_sha256: null,
+      entries: [
+        {
+          id: fixtureListing.id,
+          scope: coverDeclarationScope(listing13, artwork),
+          image_id: artwork.image_id,
+          prior_sha256: artwork.image_sha256,
+          observed_at: "2026-11-20T04:12:00.000Z",
+          receipt: "sha256:" + "c".repeat(64),
+          state: "gone",
+        },
+      ],
+    });
+    const activePrior = prior("active-prior", {
+      [listingDeliveryTarget]: legacy,
+      [compactListingDeliveryTarget]: exact13,
+      [artworkCheckpointTarget]: cover,
+      "policy/official/catalog.history-checkpoint.json": "{}",
+    });
+    for (const [name, flags] of Object.entries({
+      ordinary: {},
+      capable: { compactIfCapable: true, releasedReader: capable },
+      official: { officialReleasedReader: true },
+      cover: { officialReleasedReader: true, coverCheckpoint: true },
+    })) {
+      const result = await prepareObservationBundle({
+        ...options,
+        ...compactPrior,
+        ...flags,
+        output: path.join(dir, "implicit-elevation-" + name),
+      });
+      assert.equal(result.listing_format, 11);
+      assert.equal(result.released_reader, undefined);
+      assert.equal(result.released_reader_source, undefined);
+      assert.equal(
+        readFileSync(path.join(result.bundle, compactListingDeliveryTarget), "utf8"),
+        compact,
+      );
+      assert.equal(existsSync(path.join(result.bundle, artworkCheckpointTarget)), false);
+    }
+
+    const binding = {
+      game_id: "original-source",
+      variant_id: "first-release",
+      representation_id: "retail-file-set",
+    };
+    const listing14 = {
+      ...listing13,
+      name: "Compatible title refresh",
+      artwork,
+      original_game: {
+        ...originalGame,
+        source_editions: [{ ...edition, verified_sources: [binding] }],
+      },
+    };
+    put(dir, "canonical", { format_version: 14, listings: [listing14] });
+    const projected = await prepareObservationBundle({
+      ...options,
+      ...activePrior,
+      output: path.join(dir, "edition-compatible"),
+    });
+    assert.equal(projected.canonical_listing_format, 14);
+    assert.equal(projected.listing_format, 13);
+    assert.equal(projected.changed, true);
+    assert.equal(projected.revision, active13.revision + 1);
+    assert.equal(projected.released_reader, undefined);
+    assert.equal(readFileSync(path.join(projected.bundle, listingDeliveryTarget), "utf8"), legacy);
+    const decoded = decodeRetainedCompactListing(
+      readFileSync(path.join(projected.bundle, compactListingDeliveryTarget)),
+    );
+    const readProjected = (bytes: Buffer) =>
+      JSON.parse(bytes.toString("utf8")) as {
+        directory: { listings: Record<string, unknown>[] };
+        withdrawn_ids: unknown;
+      };
+    const { directory: projectedDirectory, withdrawn_ids } = readProjected(decoded);
+    assert.deepEqual(projectedDirectory.listings, [
+      { ...listing13, name: "Compatible title refresh" },
+    ]);
+    assert.deepEqual(withdrawn_ids, []);
+    const nextCover = readArtworkCheckpoint(
+      readFileSync(path.join(projected.bundle, artworkCheckpointTarget)),
+      decoded,
+    );
+    assert.equal(nextCover.prior_checkpoint_sha256, overlaySha256(cover));
+    const priorCover = readArtworkCheckpoint(
+      Buffer.from(cover),
+      decodeRetainedCompactListing(Buffer.from(exact13)),
+    );
+    assert.deepEqual(nextCover.entries, priorCover.entries);
+
+    for (const [name, input, refusal] of [
+      [
+        "unknown-field",
+        { ...listing14, future_setup: {} },
+        /projection changed a format-13 declaration/u,
+      ],
+      [
+        "invalid-binding",
+        {
+          ...listing14,
+          original_game: {
+            ...originalGame,
+            source_editions: [
+              { ...edition, verified_sources: [{ ...binding, future_qualifier: true }] },
+            ],
+          },
+        },
+        /Invalid format-14 verified source edition binding/u,
+      ],
+      [
+        "unreviewed-withdrawal",
+        { ...listing14, id: "replacement" },
+        /without an explicit withdrawal/u,
+      ],
+    ] as const) {
+      put(dir, "canonical", { format_version: 14, listings: [input] });
+      const output = path.join(dir, name);
+      await assert.rejects(
+        prepareObservationBundle({ ...options, ...activePrior, output }),
+        refusal,
+      );
+      assert.equal(existsSync(path.join(output, "bundle")), false);
+    }
+    put(dir, "canonical", { format_version: 14, listings: [listing14] });
+    for (const [name, source] of Object.entries({ legacy: legacyPrior, compact: compactPrior })) {
+      const deferred = await prepareObservationBundle({
+        ...options,
+        ...source,
+        output: path.join(dir, "edition-needs-existing-13-" + name),
+        compactIfCapable: true,
+        releasedReader: capable,
+      });
+      assert.equal(deferred.listing_format, 11);
+      assert.equal(deferred.released_reader, undefined);
+      assert.equal(readFileSync(path.join(deferred.bundle, listingDeliveryTarget), "utf8"), legacy);
+      const target = path.join(deferred.bundle, compactListingDeliveryTarget);
+      if (name === "compact") assert.equal(readFileSync(target, "utf8"), compact);
+      else assert.equal(existsSync(target), false);
+    }
+
+    const editionReader = reader(
+      "edition-capable",
+      reporting([11, 12, 13, 14], ["gzip-base64-json-v1"]),
+    );
+    for (const [name, source] of Object.entries({ legacy: legacyPrior, compact: activePrior })) {
+      const admitted = await prepareObservationBundle({
+        ...options,
+        ...source,
+        output: path.join(dir, "edition-admitted-" + name),
+        compact: true,
+        releasedReader: editionReader,
+      });
+      assert.equal(admitted.listing_format, 14);
+      assert.equal(admitted.released_reader?.sha256, editionReader.sha256);
+      const wire = readFileSync(path.join(admitted.bundle, compactListingDeliveryTarget));
+      const { directory } = readProjected(decodeRetainedCompactListing(wire));
+      assert.deepEqual(directory.listings[0]?.original_game, listing14.original_game);
+
+      const prior14 = prior("edition-renewal-prior-" + name, {
+        [listingDeliveryTarget]: legacy,
+        [compactListingDeliveryTarget]: wire.toString("utf8"),
+        ...(existsSync(path.join(admitted.bundle, artworkCheckpointTarget))
+          ? {
+              [artworkCheckpointTarget]: readFileSync(
+                path.join(admitted.bundle, artworkCheckpointTarget),
+                "utf8",
+              ),
+            }
+          : {}),
+        "policy/official/catalog.history-checkpoint.json": "{}",
+      });
+      const renewed = await prepareObservationBundle({
+        ...options,
+        ...prior14,
+        output: path.join(dir, "edition-renewed-" + name),
+      });
+      assert.equal(renewed.listing_format, 14);
+      assert.deepEqual(readFileSync(path.join(renewed.bundle, compactListingDeliveryTarget)), wire);
+    }
+
+    for (const scope of ["stale", "current"]) {
+      const result = await prepareObservationBundle({
+        ...options,
+        ...activePrior,
+        observe: true,
+        output: path.join(dir, "edition-cover-" + scope),
+        async readObservation() {
+          throw new Error("No release observation in this case");
+        },
+        async readScummvmObservation() {
+          throw new Error("No game-data observation in this case");
+        },
+        async readCoverHealth() {
+          return {
+            artifact: "sha256:" + "e".repeat(64),
+            producer: {
+              workflow: "fixture",
+              run: "1",
+              attempt: "1",
+              revision: "f".repeat(40),
+            },
+            producerDirectory: {
+              format_version: scope === "current" ? 14 : 13,
+              listings: [scope === "current" ? listing14 : { ...listing13, artwork }],
+            },
+            expected: 1,
+            rows: 1,
+            counts: { unchanged: 1, mismatch: 0, gone: 0, unavailable: 0, deferred: 0 },
+            facts: new Map([
+              [
+                `port:${listing14.id}@${artwork.image_id}`,
+                {
+                  artwork,
+                  status: "unchanged",
+                  observed_at: "2026-11-20T05:12:00.000Z",
+                },
+              ],
+            ]),
+            gaps: [],
+            complete: true,
+            revision: "fixture",
+          };
+        },
+      });
+      const wire = decodeRetainedCompactListing(
+        readFileSync(path.join(result.bundle, compactListingDeliveryTarget)),
+      );
+      const checkpoint = readArtworkCheckpoint(
+        readFileSync(path.join(result.bundle, artworkCheckpointTarget)),
+        wire,
+      );
+      const row = readProjected(wire).directory.listings[0];
+      assert.equal(checkpoint.entries[0]?.scope, coverDeclarationScope(listing13, artwork));
+      assert.equal(checkpoint.entries[0]?.state, scope === "current" ? "restored" : "gone");
+      assert.deepEqual(row?.artwork, scope === "current" ? artwork : undefined);
+    }
+
+    put(dir, "canonical", {
+      format_version: 15,
+      listings: [{ ...fixtureListing, name: "Future title", future_setup: { opaque: true } }],
+    });
+    const futureCapable = reader(
+      "future-capable",
+      reporting([11, 12, 13, 14], ["gzip-base64-json-v1"]),
+    );
+    let reads = 0;
+    const future = await prepareObservationBundle({
+      ...options,
+      ...activePrior,
+      output: path.join(dir, "future-renewal"),
+      compactIfCapable: true,
+      releasedReader: futureCapable,
+      observe: true,
+      async readObservation() {
+        reads++;
+        throw new Error("Observer must not start for an unknown format");
+      },
+    });
+    assert.equal(future.canonical_listing_format, 15);
+    assert.equal(future.listing_format, 13);
+    assert.equal(future.revision, active13.revision);
+    assert.equal(future.changed, false);
+    assert.equal(future.released_reader, undefined);
+    assert.equal(reads, 0);
+    assert.match(future.diagnostics.join(" "), /format 15 deferred/);
+    assert.equal(readFileSync(path.join(future.bundle, listingDeliveryTarget), "utf8"), legacy);
+    assert.equal(
+      readFileSync(path.join(future.bundle, compactListingDeliveryTarget), "utf8"),
+      exact13,
+    );
+    assert.equal(readFileSync(path.join(future.bundle, artworkCheckpointTarget), "utf8"), cover);
+    await assert.rejects(
+      prepareObservationBundle({
+        ...options,
+        ...activePrior,
+        output: path.join(dir, "future-explicit"),
+        compact: true,
+        releasedReader: futureCapable,
+      }),
+      /Explicit listing activation requires a supported canonical format/,
+    );
+    await assert.rejects(
+      prepareObservationBundle({
+        ...options,
+        prior: null,
+        tools: activePrior.tools,
+        output: path.join(dir, "future-no-prior"),
+      }),
+      /without authenticated prior targets/,
+    );
+
+    for (const [name, bytes, refusal] of [
+      [
+        "malformed-utf8",
+        Buffer.concat([
+          Buffer.from('{"format_version":14,"listings":[{"id":"valid","title":"'),
+          Buffer.from([0xc3, 0x28]),
+          Buffer.from('"}]}'),
+        ]),
+        /valid for encoding utf-8/i,
+      ],
+      ["duplicate-keys", '{"format_version":14,"format_version":14,"listings":[]}', /duplicate/i],
+      [
+        "invalid-id",
+        '{"format_version":14,"listings":[{"id":"Invalid"}]}',
+        /unique canonical identities/,
+      ],
+      [
+        "duplicate-ids",
+        '{"format_version":14,"listings":[{"id":"valid"},{"id":"valid"}]}',
+        /unique canonical identities/,
+      ],
+    ] as const) {
+      writeFileSync(options.canonical, bytes);
+      const output = path.join(dir, name);
+      await assert.rejects(
+        prepareObservationBundle({ ...options, ...activePrior, output }),
+        refusal,
+      );
+      assert.equal(existsSync(path.join(output, "bundle")), false);
+    }
+    put(dir, "canonical", {
+      format_version: 13,
+      listings: [{ ...fixtureListing, name: "Supported format refresh" }],
+    });
+    const resumed = await prepareObservationBundle({
+      ...options,
+      ...activePrior,
+      output: path.join(dir, "resumed"),
+    });
+    assert.equal(resumed.listing_format, 13);
+    assert.equal(resumed.revision, active13.revision + 1);
+    assert.equal(resumed.changed, true);
+    assert.equal(readFileSync(path.join(resumed.bundle, listingDeliveryTarget), "utf8"), legacy);
+    assert.notEqual(
+      readFileSync(path.join(resumed.bundle, compactListingDeliveryTarget), "utf8"),
+      exact13,
+    );
   },
 );
 
@@ -2282,4 +2899,236 @@ void test("a Pages push retry refuses a reader withdrawn after preparation", asy
   git(publisher, "checkout", "--detach", "origin/gh-pages");
   assert.throws(() => requireCurrentCatalogReaderSelection(prepared, publisher), /withdrawn/);
   assert.equal(existsSync(path.join(upstream, "catalog/timestamp")), false);
+});
+
+function readerBundle({
+  id = "existing",
+  entrySchema = 1,
+  projectionSchema = 1,
+  features = [],
+  min = 18,
+  max = 25,
+  template = "native-portable",
+  policy = 3,
+  launch = 0,
+}: {
+  id?: string;
+  entrySchema?: number;
+  projectionSchema?: number;
+  features?: string[];
+  min?: number;
+  max?: number;
+  template?: string;
+  policy?: number;
+  launch?: number;
+} = {}) {
+  const leaf = JSON.stringify({ contract_schema: projectionSchema });
+  const leafTarget = `sha256/${overlaySha256(leaf)}.json`;
+  const entry = JSON.stringify({
+    definition_schema: entrySchema,
+    execution_contract: leafTarget,
+    required_features: features,
+    required_capabilities: [{ template, minimum_version: min, maximum_version: max }],
+  });
+  const target = `sha256/${overlaySha256(entry)}.json`;
+  const files = new Map(
+    Object.entries({
+      "definitions/index.json": JSON.stringify({
+        definitions: [{ stable_id: id, namespace: "official", target }],
+      }),
+      [target]: entry,
+      [leafTarget]: leaf,
+      [`policy/official/${id}.json`]: JSON.stringify({ policy_schema: policy }),
+    }),
+  );
+  if (launch)
+    files.set(`policy/official/${id}.launch.json`, JSON.stringify({ assessment_schema: launch }));
+  return files;
+}
+
+function readerBytes(files: Map<string, string>) {
+  return new Map([...files].map(([target, bytes]) => [target, Buffer.from(bytes)]));
+}
+
+void test("released reader gate classifies signed subject requirements and permits forward recovery", () => {
+  const fixture = (
+    entrySchema: number,
+    projectionSchema: number,
+    features: string[],
+    min = 18,
+    max = 25,
+    policy = 3,
+  ) => readerBytes(readerBundle({ entrySchema, projectionSchema, features, min, max, policy }));
+  const prior = fixture(1, 1, []);
+  const named = fixture(4, 3, ["runtime.reviewed-package-and-launch-v1"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, prior), []);
+  assert.deepEqual(strengthenedReaderSubjects(null, prior), []);
+  assert.deepEqual(strengthenedReaderSubjects(null, named), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, named), ["existing"]);
+  assert.deepEqual(
+    strengthenedReaderSubjects(named, fixture(4, 4, ["runtime.reviewed-package-and-launch-v1"])),
+    ["existing"],
+  );
+  assert.deepEqual(
+    strengthenedReaderSubjects(
+      named,
+      fixture(4, 3, ["runtime.reviewed-package-and-launch-v1", "tools.psx-toolchain-v1"]),
+    ),
+    ["existing"],
+  );
+  assert.deepEqual(strengthenedReaderSubjects(prior, fixture(1, 1, [], 19)), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, fixture(1, 1, [], 18, 24)), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(prior, fixture(1, 1, [], 18, 25, 4)), ["existing"]);
+  assert.deepEqual(strengthenedReaderSubjects(named, prior), []);
+  assert.throws(() => strengthenedReaderSubjects(prior, fixture(1, 1, [], 26, 25)), /range/u);
+});
+
+void test("new or readded legacy subjects require proof when their requirements exceed the prior catalog", () => {
+  const prior = readerBytes(readerBundle());
+  assert.deepEqual(
+    strengthenedReaderSubjects(prior, readerBytes(readerBundle({ id: "added" }))),
+    [],
+  );
+  for (const stronger of [
+    { entrySchema: 2 },
+    { projectionSchema: 3 },
+    { min: 19 },
+    { max: 24 },
+    { template: "different-template" },
+    { policy: 4 },
+    { launch: 1 },
+  ]) {
+    const next = readerBytes(readerBundle({ id: "added", ...stronger }));
+    assert.deepEqual(strengthenedReaderSubjects(prior, next), ["added"]);
+    assert.deepEqual(strengthenedReaderSubjects(null, next), []);
+  }
+});
+
+void test("publication classifies assembled operational requirements alongside signed listing and history targets", async (t) => {
+  const { artworkCheckpointTarget } = await import("./listing-artwork-checkpoint.mts");
+  const { compactListingDeliveryTarget, listingDeliveryTarget } =
+    await import("./listing-directory-carrier.mts");
+  const work = temp(t);
+  function withSeparateTargets(files: Map<string, string>, revision: number) {
+    files.set(listingDeliveryTarget, JSON.stringify({ revision: 1 }));
+    files.set(compactListingDeliveryTarget, JSON.stringify({ revision }));
+    files.set(artworkCheckpointTarget, JSON.stringify({ checkpoint_schema: 1, revision }));
+    return files;
+  }
+  const prior = withSeparateTargets(readerBundle(), 1);
+  const renewal = withSeparateTargets(readerBundle(), 2);
+  const published = path.join(work, "prior");
+  const repository = path.join(work, "repository");
+  const receipt = path.join(work, "reader-receipt.json");
+  function writeRepository(root: string, files: Map<string, string>) {
+    // Release tools add the history pointer during signed assembly, outside logical inspection.
+    const signed = new Map(files).set("policy/official/catalog.history-checkpoint.json", "{}");
+    const targets = Object.fromEntries(
+      [...signed].map(([target, bytes]) => [target, overlaySha256(bytes)]),
+    );
+    const inventory = Object.fromEntries(
+      [...signed].map(([target, bytes]) => [`targets/${targets[target]}.${target}`, bytes]),
+    );
+    site(root, targets);
+    for (const [name, bytes] of Object.entries(inventory)) put(root, name, bytes);
+    return {
+      ...overlayReport({
+        ...inventory,
+        [overlayTimestamp]: readFileSync(path.join(root, overlayTimestamp), "utf8"),
+      }),
+      index_sha256: targets["definitions/index.json"]!,
+    };
+  }
+  function inspect(files: Map<string, string>) {
+    put(work, "inspection.json", {
+      files: [...files].map(([target, bytes]) => ({
+        target,
+        bytes: Buffer.byteLength(bytes),
+        sha256: overlaySha256(bytes),
+      })),
+    });
+  }
+  put(work, "plan.json", { prior: true });
+  writeRepository(published, prior);
+  inspect(renewal);
+  for (const [name, bytes] of renewal) put(work, `bundle/${name}`, bytes);
+  assert.equal(await readerProofHint(work), false);
+
+  put(work, "assembly-report.json", writeRepository(repository, renewal));
+  await recheckReaderGate(work, receipt, "unused");
+
+  const stronger = withSeparateTargets(readerBundle({ id: "added", min: 19 }), 3);
+  const assembly = writeRepository(repository, stronger);
+  put(work, "assembly-report.json", assembly);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /inspected logical bundle/u);
+  inspect(stronger);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /ENOENT/u);
+  put(work, "reader-receipt.json", { reader: null });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /different signed candidate/u);
+  put(work, "reader-receipt.json", {
+    repository_sha256: assembly.repository_sha256,
+    index_sha256: assembly.index_sha256,
+    timestamp_sha256: assembly.timestamp_sha256,
+    prior_index_sha256: overlaySha256(prior.get("definitions/index.json")!),
+    prior_timestamp_sha256: assembly.timestamp_sha256,
+    subjects: ["added"],
+    reader: {},
+    reader_sha256: "a".repeat(64),
+  });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /reader identity is malformed/u);
+  for (const [name, bytes] of stronger) put(work, `bundle/${name}`, bytes);
+  assert.equal(await readerProofHint(work), true);
+
+  const packet = "a".repeat(64);
+  const a = {
+    image_id: "covera",
+    cover_id: 1,
+    image_sha256: "b".repeat(64),
+    game_id: 1,
+    game_slug: "title",
+    match_kind: "underlying-game",
+  };
+  const approved = {
+    format_version: 1,
+    approvals: [
+      {
+        id: "existing",
+        scope: "d".repeat(64),
+        authored: a,
+        prior: a,
+        role: "cover",
+        candidate: { ...a, image_id: "coverb", cover_id: 2, image_sha256: "c".repeat(64) },
+        bytes: 250,
+        packet,
+        source: "1".repeat(40),
+        run: "1",
+      },
+    ],
+    consumed_packets: [packet],
+  };
+  function writeApprovals(root: string) {
+    const name = "metadata/4.official-policy.json";
+    const policy = JSON.parse(readFileSync(path.join(root, name), "utf8")) as {
+      signed: { targets: Record<string, Record<string, unknown>> };
+    };
+    policy.signed.targets[compactListingDeliveryTarget]!.custom = {
+      portcove_cover_approvals_v1: approved,
+    };
+    put(root, name, policy);
+  }
+  inspect(renewal);
+  for (const [name, bytes] of renewal) put(work, `bundle/${name}`, bytes);
+  const coverAssembly = writeRepository(repository, renewal);
+  writeApprovals(repository);
+  put(work, "assembly-report.json", { ...coverAssembly, cover_approvals: approved });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /ENOENT/u);
+  put(work, "cover-approvals.json", approved);
+  assert.equal(await readerProofHint(work), true);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /different signed candidate/u);
+  writeApprovals(published);
+  rmSync(path.join(work, "cover-approvals.json"));
+  assert.equal(await readerProofHint(work), false);
+  await recheckReaderGate(work, receipt, "unused");
+  put(work, "assembly-report.json", coverAssembly);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /exact signed policy/u);
 });

@@ -156,6 +156,26 @@ separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
 Checkpoint segments preserve the exact legacy artifact and every immutable
 carrier body. Compact publication still requires explicit activation.
 
+Ordinary publication, automatic reader selection and cover-only admission
+preserve the active compact format. Raising it requires explicit compact
+transition review, separate from first-carrier opt-in. With a current,
+authenticated compact format-13 baseline, Prepare can refresh from canonical
+format 14 by withholding the reviewed edition-to-source bindings. Core
+validates the format-13 projection, and every other authored field must
+survive it. Edition names and evidence links remain available. The legacy
+target stays byte-for-byte and the cover checkpoint retains its original
+format-13 declaration scope. New observations must still match the full
+current source declaration before projection.
+
+If that compatibility path is unavailable or the canonical format is newer,
+Prepare can retain the exact prior supported carrier, legacy target and cover
+checkpoint for authenticated renewal at the existing revision. Malformed or
+unrepresentable format-14 declarations fail validation. An unavailable prior
+still fails. A future format needs a separately reviewed, versioned
+admission and recovery that proves the previously supported clients can still
+read through the transition. An advertised reader capability alone does not
+activate that format.
+
 The protected catalog Prepare job can opt into released-reader selection with
 `--official-released-reader` on `scripts/listing-observation-delivery.mts`.
 This reads the existing Preview update pointer and withdrawal list from a single
@@ -215,6 +235,28 @@ addressed objects from the pinned last-good Git tree before retrying. A broken
 history pointer cannot trigger a new bootstrap.
 
 ## Capacity diagnostics and retained representations
+
+The opt-in cover checkpoint uses the existing official policy role and
+requires an authenticated catalog history predecessor. It binds the exact
+active listing bytes, the previous cover checkpoint and the exact image SHA
+for each authored cover scope. A confirmed Gone can omit that cover.
+Unavailable evidence and changed bytes preserve existing decisions. A later
+validated read of the same accepted bytes can restore that cover. The
+publisher copies the exact prior pair during historical renewal. The signer
+refuses a missing checkpoint, a predecessor mismatch or a stale decision.
+Scheduled publication carries an admitted checkpoint. Initial admission is
+an explicit protected dispatch after compact delivery is active, with the
+official released CLI required to verify the exact compact listing and cover
+checkpoint in the same bundle. Compact capability by itself is insufficient.
+
+At the receipt count or byte limit, the publisher defers new scopes and
+reports their count. It carries existing decisions, including positive
+restoration, and continues unrelated publication. To resume new scopes,
+authorize and test a bounded checkpoint successor that drops only restored
+receipts older than a signed observation floor. The signer must authenticate
+that floor, retain all Gone entries, and refuse later use of observations at
+or below the floor. Existing GitHub report expiry alone cannot establish that
+replay boundary.
 
 Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the
 current source, compact document, representative escaped format-1 envelope and

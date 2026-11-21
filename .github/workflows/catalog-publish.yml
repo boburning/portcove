@@ -23,6 +23,20 @@ on:
   schedule:
     - cron: "13 5,17 * * *"
   workflow_dispatch:
+    inputs:
+      admit_cover_checkpoint:
+        description: Verify and admit the first cover checkpoint after compact delivery is active
+        type: boolean
+        default: false
+      cover_replacement_packet:
+        description: Exact review packet JSON (owner artwork approval)
+        type: string
+      cover_replacement_sha256:
+        description: SHA-256 of the exact review packet bytes
+        type: string
+      cover_replacement_preimages:
+        description: JSON object mapping every reviewed subject to its currently accepted cover SHA-256
+        type: string
 
 permissions:
   contents: read
@@ -35,7 +49,9 @@ jobs:
   prepare:
     if: >-
       github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')) &&
+      ((!inputs.cover_replacement_packet && !inputs.cover_replacement_sha256 && !inputs.cover_replacement_preimages) ||
+      (github.event_name == 'workflow_dispatch' && github.actor_id == '43177418' && github.triggering_actor == 'boburning'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -48,6 +64,7 @@ jobs:
       prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
+      definition_reader_proof: ${{ steps.prepare.outputs.definition_reader_proof }}
       reader_activation: ${{ steps.observe.outputs.reader_activation }}
     env:
       GH_TOKEN: ${{ github.token }}
@@ -145,8 +162,22 @@ jobs:
       - name: Project completed shared observations into the existing descriptive target
         id: observe
         if: steps.decide.outputs.publish == 'true'
+        env:
+          PORTCOVE_COVER_REVIEW_PACKET: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_packet || '' }}
+          PORTCOVE_COVER_REVIEW_SHA256: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_sha256 || '' }}
+          PORTCOVE_COVER_REVIEW_PREIMAGES: ${{ github.event_name == 'workflow_dispatch' && inputs.cover_replacement_preimages || '' }}
+          PORTCOVE_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          ADMIT_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && inputs.admit_cover_checkpoint }}
         run: |
           set -euo pipefail
+          if [[ -n "$PORTCOVE_COVER_REVIEW_PACKET" && ! -f scripts/catalog-definition-reader-gate.mts ]]; then
+            echo "::error::Cover replacement requires the released reader publication gate"
+            exit 1
+          fi
+          cover_options=()
+          if [[ "$ADMIT_COVER_CHECKPOINT" == true ]]; then
+            cover_options=(--official-released-reader --cover-checkpoint)
+          fi
           node scripts/listing-observation-delivery.mts \
             --bundle release/catalog-publication/bundle \
             --canonical crates/portcove-core/catalog/listings.json \
@@ -154,7 +185,8 @@ jobs:
             --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
-            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            "${cover_options[@]}"
           jq -r '"reader_activation=" + ((.released_reader_activation // "") | if type == "object" then tojson else . end)' \
             "$RUNNER_TEMP/observation-bundle/report.json" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
@@ -175,12 +207,16 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --observation-report "$RUNNER_TEMP/observation-bundle/report.json" \
             --prior "$PRIOR" --bootstrap-history >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
             "$RUNNER_TEMP/catalog-work/context.json"
           prior_commit=none
           if [ "$PRIOR" != none ]; then prior_commit=$(git -C site rev-parse HEAD); fi
           echo "prior_commit=$prior_commit" >> "$GITHUB_OUTPUT"
+          proof=$(node scripts/catalog-definition-reader-gate.mts hint "$RUNNER_TEMP/catalog-work")
+          [[ "$proof" = true || "$proof" = false ]]
+          echo "definition_reader_proof=$proof" >> "$GITHUB_OUTPUT"
           node scripts/catalog-publish.mts limit-signer-history --work "$RUNNER_TEMP/catalog-work"
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
@@ -233,8 +269,83 @@ jobs:
       role: timestamp
       commit: ${{ needs.prepare.outputs.commit }}
 
-  publish:
+  verify-definition-reader:
     needs: [prepare, sign-timestamp]
+    if: needs.prepare.outputs.definition_reader_proof == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      attestations: read
+    env:
+      PRIOR_DIGEST: ${{ needs.prepare.outputs.prior_digest }}
+      PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
+      PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
+      HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-work
+          path: ${{ runner.temp }}/catalog-work
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: catalog-role-*
+          path: ${{ runner.temp }}/catalog-work/roles
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-tools
+          path: ${{ runner.temp }}/catalog-tools
+      - name: Assemble the repository without keys
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/catalog-work"
+          if [ "$HISTORY_MODE" = segmented ]; then
+            [[ "$PRIOR_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Missing pinned catalog prior"; exit 1; }
+            git fetch --quiet --depth=1 origin "$PRIOR_COMMIT"
+            git worktree add --quiet --detach "$RUNNER_TEMP/catalog-prior-site" "$PRIOR_COMMIT"
+            node scripts/catalog-publish.mts restore-history --work "$work" \
+              --site "$RUNNER_TEMP/catalog-prior-site" --prior "$PRIOR_DIGEST" \
+              --prior-history "$PRIOR_HISTORY_DIGEST"
+            git worktree remove "$RUNNER_TEMP/catalog-prior-site"
+          fi
+          chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
+          node scripts/catalog-publish.mts assembly-config --work "$work"
+          "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json" > "$work/assembly-report.json"
+      - name: Verify the exact signed candidate with the selected released reader
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/catalog-definition-reader-gate.mts check "$RUNNER_TEMP/catalog-work" \
+            "$RUNNER_TEMP/catalog-tools/portcove-release-tools" "$RUNNER_TEMP/definition-reader-gate.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-definition-reader-gate
+          path: ${{ runner.temp }}/definition-reader-gate.json
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, sign-timestamp, verify-definition-reader]
+    if: >-
+      ${{ !cancelled() && needs.prepare.result == 'success' &&
+      needs.sign-timestamp.result == 'success' &&
+      (needs.verify-definition-reader.result == 'success' ||
+      (needs.verify-definition-reader.result == 'skipped' &&
+      needs.prepare.outputs.definition_reader_proof == 'false')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -268,6 +379,11 @@ jobs:
         with:
           name: catalog-tools
           path: ${{ runner.temp }}/catalog-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.verify-definition-reader.result == 'success'
+        with:
+          name: catalog-definition-reader-gate
+          path: ${{ runner.temp }}/catalog-definition-reader-gate
       - name: Assemble the repository without keys
         run: |
           set -euo pipefail
@@ -307,6 +423,8 @@ jobs:
             if [[ -n "$CATALOG_READER_ACTIVATION" ]]; then
               node scripts/catalog-released-reader.mts site
             fi
+            node scripts/catalog-definition-reader-gate.mts recheck "$RUNNER_TEMP/catalog-work" \
+              "$RUNNER_TEMP/catalog-definition-reader-gate/definition-reader-gate.json" site
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
@@ -348,6 +466,25 @@ jobs:
             curl -fsSL --connect-timeout "$connect_seconds" --max-time "$request_seconds" \
               --max-filesize "$2" "$1" | sha256sum | cut -d' ' -f1 || true
           }
+          cover_policy=; cover_listing=; cover_checkpoint=
+          work="$RUNNER_TEMP/catalog-work"
+          policy_version=$(jq -er '.versions.policy | select(test("^[1-9][0-9]*$"))' "$work/assembly-report.json")
+          policy_path="metadata/$policy_version.official-policy.json"
+          checkpoint_target="policy/official/catalog.cover-checkpoint.json"
+          if [ -f "$work/cover-approvals.json" ]; then
+            jq -e '.cover_approvals != null' "$work/assembly-report.json" >/dev/null
+            jq -e --arg target "$checkpoint_target" '.signed.targets[$target] != null' "$work/repository/$policy_path" >/dev/null
+          fi
+          if jq -e --arg target "$checkpoint_target" '.signed.targets[$target] != null' "$work/repository/$policy_path" >/dev/null; then
+            cover_policy="$policy_path"
+            policy_expected=$(sha256sum "$work/repository/$cover_policy" | cut -d' ' -f1)
+            listing_hash=$(jq -er '.signed.targets["policy/official/catalog.listings.compact.json"].hashes.sha256 | select(test("^[a-f0-9]{64}$"))' "$work/repository/$cover_policy")
+            checkpoint_hash=$(jq -er --arg target "$checkpoint_target" '.signed.targets[$target].hashes.sha256 | select(test("^[a-f0-9]{64}$"))' "$work/repository/$cover_policy")
+            checkpoint_bytes=$(jq -er --arg target "$checkpoint_target" '.signed.targets[$target].length | select(type == "number" and . == floor and . >= 1 and . <= 1048576)' "$work/repository/$cover_policy")
+            cover_listing="targets/$listing_hash.policy/official/catalog.listings.compact.json"
+            cover_checkpoint="targets/$checkpoint_hash.$checkpoint_target"
+            [ "$(wc -c < "$work/repository/$cover_checkpoint")" -eq "$checkpoint_bytes" ]
+          fi
           attempt=0
           while [ "$SECONDS" -lt "$deadline" ]; do
             attempt=$((attempt + 1))
@@ -364,7 +501,15 @@ jobs:
                 break
               fi
             done <<< "$history_readback"
-            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ] && [ "$history_verified" = true ]; then
+            cover_verified=true
+            if [ -n "$cover_policy" ]; then
+              if [ "$(fetch_digest "https://boburning.github.io/portcove/catalog/$cover_policy?run=$GITHUB_RUN_ID-$attempt" 8388608)" != "$policy_expected" ] ||
+                 [ "$(fetch_digest "https://boburning.github.io/portcove/catalog/$cover_listing?run=$GITHUB_RUN_ID-$attempt" 8388608)" != "$listing_hash" ] ||
+                 [ "$(fetch_digest "https://boburning.github.io/portcove/catalog/$cover_checkpoint?run=$GITHUB_RUN_ID-$attempt" "$checkpoint_bytes")" != "$checkpoint_hash" ]; then
+                cover_verified=false
+              fi
+            fi
+            if [ "$cover_verified" = true ] && [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ] && [ "$history_verified" = true ]; then
               echo "Pages serves the published timestamp and generated catalog pages."
               if node scripts/catalog-publication-receipt.mts --work "$RUNNER_TEMP/catalog-work" \
                 --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \

@@ -205,12 +205,17 @@ pub(super) fn targets(context: &Context, role: DefinitionOnlineRole) -> Result<T
             }
         })
         .map(|(name, bytes)| {
-            Ok((
-                tough::TargetName::new(name.clone())?,
-                serde_json::from_value(
-                    serde_json::json!({"length":bytes.len(),"hashes":{"sha256":sha(bytes)}}),
-                )?,
-            ))
+            let mut target: tough::schema::Target = serde_json::from_value(
+                serde_json::json!({"length":bytes.len(),"hashes":{"sha256":sha(bytes)}}),
+            )?;
+            if name == portcove_listing_carrier::COMPACT_TARGET
+                && let Some(approvals) = &context.cover_approvals
+            {
+                target
+                    .custom
+                    .insert(super::COVER_APPROVALS_CUSTOM.into(), approvals.clone());
+            }
+            Ok((tough::TargetName::new(name.clone())?, target))
         })
         .collect::<Result<_>>()?;
     Ok(Targets {

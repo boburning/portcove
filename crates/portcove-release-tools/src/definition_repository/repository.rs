@@ -38,6 +38,15 @@ fn at<'a>(files: &'a Files, name: &str) -> Result<&'a Vec<u8>> {
         TufRepositoryError::Invalid(format!("catalog public repository file missing: {name}"))
     })
 }
+fn cover_approvals_from_policy(policy: &serde_json::Value) -> Result<Option<serde_json::Value>> {
+    let value = policy["signed"]["targets"][portcove_listing_carrier::COMPACT_TARGET]["custom"]
+        .get(super::COVER_APPROVALS_CUSTOM);
+    if let Some(journal) = value {
+        super::cover_approval_packets(journal)?;
+    }
+    Ok(value.cloned())
+}
+
 fn current_roles(files: &PublicHistory) -> Result<Files> {
     let timestamp_bytes = files.file("metadata/timestamp.json")?;
     let timestamp: Signed<TufTimestamp> = serde_json::from_slice(&timestamp_bytes)?;
@@ -156,6 +165,8 @@ async fn authenticate(
             }
             let maximum = if portcove_listing_carrier::is_listing_target(name.raw()) {
                 portcove_listing_carrier::MAX_BYTES as u64
+            } else if name.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX as u64
             } else if name.raw().starts_with("policy/") {
                 65536
             } else if name.raw() == "definitions/index.json" {
@@ -189,6 +200,7 @@ async fn authenticate(
         }
     }
     bundle::listing_targets(&logical.files)?;
+    bundle::checked_cover_checkpoint(&logical.files)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
@@ -237,6 +249,7 @@ pub(super) async fn inspect_prior(
 ) -> Result<(
     PublicHistory,
     Option<super::history_checkpoint::PreparedHistory>,
+    Option<serde_json::Value>,
 )> {
     let expects_thin = context.thin_history && context.history_store.is_some();
     let files = if expects_thin {
@@ -257,6 +270,30 @@ pub(super) async fn inspect_prior(
     .await?;
     let roles = current_roles(&files)?;
     let pointer = logical.files.get(super::history_checkpoint::TARGET);
+    let prior_cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    if context.cover_approvals.is_some()
+        && (prior_cover.is_none()
+            || !logical
+                .files
+                .contains_key(portcove_listing_carrier::COMPACT_TARGET))
+    {
+        return invalid(
+            "catalog cover approval cannot activate compact delivery or cover checkpoint",
+        );
+    }
+    let next_cover = bundle::checked_cover_checkpoint(&context.targets)?;
+    if pointer.is_none() && (prior_cover.is_some() || next_cover.is_some()) {
+        return invalid("cover observations require authenticated catalog history");
+    }
+    portcove_listing_carrier::check_cover_checkpoint_successor(
+        prior_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+        next_cover
+            .as_ref()
+            .map(|(bytes, sha)| (*bytes, sha.as_str())),
+    )
+    .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
     let thin = context.thin_history && pointer.is_some();
     let mut floors = HistoricalRevisionFloors::default();
     verify_history(context, &files, |role, targets| {
@@ -285,6 +322,7 @@ pub(super) async fn inspect_prior(
             "catalog offline Targets rollback/equivocation or unappointed delegation change",
         );
     }
+    let mut cover_approvals = None;
     for role in [
         DefinitionOnlineRole::Definitions,
         DefinitionOnlineRole::Policy,
@@ -293,12 +331,29 @@ pub(super) async fn inspect_prior(
     ] {
         let value: serde_json::Value =
             serde_json::from_slice(at(&roles, &format!("{}.json", role.name()))?)?;
+        if role.name() == "official-policy" {
+            cover_approvals = cover_approvals_from_policy(&value)?;
+        }
         let version = value["signed"]["version"]
             .as_u64()
             .ok_or_else(|| TufRepositoryError::Invalid("catalog prior version malformed".into()))?;
         if context.versions[role.index()].get() < version {
             return invalid("catalog proposed version rolls back authenticated floor");
         }
+    }
+    if let Some(next) = &context.cover_approvals {
+        let prior_compact = at(&logical.files, portcove_listing_carrier::COMPACT_TARGET)?;
+        let compact = at(&context.targets, portcove_listing_carrier::COMPACT_TARGET)?;
+        if next_cover.is_none() {
+            return invalid("catalog cover approval requires the active cover checkpoint");
+        }
+        super::check_cover_approval_successor(
+            cover_approvals.as_ref(),
+            next,
+            prior_compact,
+            prior_cover.as_ref().map(|(bytes, _)| *bytes),
+            compact,
+        )?;
     }
     // Hash-addressed leaves are immutable across every retained generation.
     for (name, bytes) in &logical.files {
@@ -399,7 +454,7 @@ pub(super) async fn inspect_prior(
     } else {
         None
     };
-    Ok((files, history))
+    Ok((files, history, cover_approvals))
 }
 
 fn current_immutable_inventory(
@@ -569,6 +624,8 @@ impl HistoricalRevisionFloors {
             })?;
             let maximum = if portcove_listing_carrier::is_listing_target(target.raw()) {
                 portcove_listing_carrier::MAX_BYTES
+            } else if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                portcove_listing_carrier::COVER_CHECKPOINT_MAX
             } else if target.raw() == "definitions/index.json" {
                 DEFINITION_INDEX_MAX as usize
             } else if definition_role {
@@ -585,6 +642,11 @@ impl HistoricalRevisionFloors {
             // The physical body is immutable, but every signed reference must
             // independently agree with its measured length and digest.
             if !self.seen.insert(path) {
+                continue;
+            }
+            if target.raw() == portcove_listing_carrier::COVER_CHECKPOINT_TARGET {
+                // The current authenticated target and its direct successor
+                // are validated together before a role key is used.
                 continue;
             }
             let body = current.historical_body(target.raw(), raw)?;
@@ -902,6 +964,7 @@ fn repository_report(
     let actual_roles = current_roles(files)?;
     let mut versions = BTreeMap::new();
     let mut expires = BTreeMap::new();
+    let mut cover_approvals = None;
     for (label, name) in [
         ("targets", "targets.json"),
         ("definitions", "official-definitions.json"),
@@ -910,6 +973,9 @@ fn repository_report(
         ("timestamp", "timestamp.json"),
     ] {
         let signed: serde_json::Value = serde_json::from_slice(at(&actual_roles, name)?)?;
+        if label == "policy" {
+            cover_approvals = cover_approvals_from_policy(&signed)?;
+        }
         versions.insert(
             label.into(),
             signed["signed"]["version"]
@@ -940,6 +1006,7 @@ fn repository_report(
         snapshot_sha256: sha(at(&actual_roles, "snapshot.json")?),
         versions,
         expires,
+        cover_approvals,
         index_sha256: index_sha256.to_owned(),
         authority: "none",
     })

@@ -25,6 +25,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { decodeTufRoleKey } from "./tuf-role-key.mts";
+import { artworkCheckpointTarget } from "./listing-artwork-checkpoint.mts";
 import {
   compactListingDeliveryTarget,
   listingDeliveryTarget,
@@ -149,6 +150,8 @@ export function inspectionReport(stdout: string): string {
  */
 export function contextConfig(work: string, now: Date) {
   const plan = readPlan(work);
+  const approval = path.join(work, "cover-approvals.json");
+  const coverApprovals: unknown = existsSync(approval) ? readJson(approval) : undefined;
   return {
     schema_version: 1,
     initial_root_profile: "single-owner-one-of-one-v1",
@@ -163,6 +166,7 @@ export function contextConfig(work: string, now: Date) {
     previous_repository: plan.prior ? "prior" : null,
     ...(plan.history === "bootstrap" ? { bootstrap_history: true } : {}),
     ...(plan.history === "segmented" ? { history_store: "history" } : {}),
+    ...(coverApprovals === undefined ? {} : { cover_approvals: coverApprovals }),
     versions: plan.versions,
     expires: plan.expires,
   };
@@ -369,17 +373,23 @@ export function bundleTargets(bundle: string): Record<string, string> {
 }
 
 /** Targets the published site currently serves through its delegated roles. */
-export function publishedTargets(site: string): Record<string, string> {
+export function publishedTargets(
+  site: string,
+  onTarget?: (role: string, target: string, metadata: Record<string, unknown>) => void,
+): Record<string, string> {
   const versions = priorVersions(site);
   if (!versions) return {};
-  return publishedTargetsFromMetadata(versions, (file) =>
-    readJson(path.join(site, "metadata", file)),
+  return publishedTargetsFromMetadata(
+    versions,
+    (file) => readJson(path.join(site, "metadata", file)),
+    onTarget,
   );
 }
 
 export function publishedTargetsFromMetadata(
   versions: Four<number>,
   read: (file: string) => unknown,
+  onTarget?: (role: string, target: string, metadata: Record<string, unknown>) => void,
 ) {
   const files: Record<string, string> = {};
   for (const [role, version] of [
@@ -393,6 +403,7 @@ export function publishedTargetsFromMetadata(
       const digest = isRecord(entry) && isRecord(entry.hashes) ? entry.hashes.sha256 : undefined;
       if (typeof digest !== "string") throw new Error(`prior catalog ${role} target is malformed`);
       files[name] = digest;
+      if (onTarget && isRecord(entry)) onTarget(role, name, entry);
     }
   }
   return files;
@@ -412,7 +423,11 @@ export function sameStaticPublicationTargets(
 ) {
   const previous = { ...published };
   delete previous[historyTarget];
-  for (const target of [listingDeliveryTarget, compactListingDeliveryTarget])
+  for (const target of [
+    listingDeliveryTarget,
+    compactListingDeliveryTarget,
+    artworkCheckpointTarget,
+  ])
     if (!Object.hasOwn(bundle, target)) delete previous[target];
   return sameTargets(bundle, previous);
 }
@@ -473,6 +488,15 @@ async function main(argv: string[]) {
       path.join(work, "inspection.json"),
       inspectionReport(readFileSync(flag(args, "inspection-stdout"), "utf8")),
     );
+    const observation = args.includes("--observation-report")
+      ? readJson(flag(args, "observation-report"))
+      : undefined;
+    if (isRecord(observation) && observation.cover_approvals !== undefined) {
+      const approval = JSON.stringify(observation.cover_approvals);
+      if (Buffer.byteLength(approval) > 256 * 1024)
+        throw new Error("Cover approval publisher journal exceeds its byte bound");
+      writeFileSync(path.join(work, "cover-approvals.json"), approval, { flag: "wx" });
+    }
     const site = prior === "none" || !existsSync(prior) ? null : prior;
     const versions = priorVersions(site);
     if (versions) copyPriorRepository(site!, path.join(work, "prior"));
@@ -562,7 +586,7 @@ async function main(argv: string[]) {
       console.log(`catalog-history/${name} ${entry.sha256} ${entry.bytes}`);
     }
   } else if (command === "unchanged") {
-    // Compare fixed reviewed inputs; the sole derived listing target refreshes on the existing cadence.
+    // Derived listing targets and their checkpoint refresh on the existing cadence.
     const site = flag(args, "prior");
     const published = site === "none" || !existsSync(site) ? {} : publishedTargets(site);
     console.log(

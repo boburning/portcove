@@ -1,3 +1,4 @@
+import { acquireCheckpointProcessLock } from "./process-lock.mts";
 import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
 import {
   acceptPackagePlayerObservation,
@@ -469,7 +470,7 @@ function packageHintFeedback(
     }),
   };
 }
-function openCheckpoint(directory: string) {
+function checkCheckpoint(directory: string) {
   try {
     mkdirSync(directory);
     writeFileSync(join(directory, "owner.json"), JSON.stringify(owner), { flag: "wx" });
@@ -486,6 +487,9 @@ function openCheckpoint(directory: string) {
     observationHash(readArtworkJson(join(directory, "owner.json"))) !== observationHash(owner)
   )
     throw new Error("Output directory is not a recognized preparation checkpoint.");
+}
+function openCheckpoint(directory: string) {
+  checkCheckpoint(directory);
   mkdirSync(join(directory, "active.lock"));
 }
 function immutableJson(directory: string, name: string, value: unknown) {
@@ -1402,6 +1406,7 @@ export async function prepareArtworkBatch(
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
     retainedCoverLimit?: number;
+    recoverableCheckpointScope?: string;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -1431,7 +1436,12 @@ export async function prepareArtworkBatch(
     : null;
   const acceptedArtwork = artworkCatalog(authored.records);
   const identities = options.identities ?? {};
-  openCheckpoint(root);
+  const activeLock = join(root, "active.lock");
+  checkCheckpoint(root);
+  const checkpointLock = options.recoverableCheckpointScope
+    ? await acquireCheckpointProcessLock(activeLock, options.recoverableCheckpointScope)
+    : undefined;
+  if (!checkpointLock) mkdirSync(activeLock);
   try {
     // Old batch receipts have no per-ID live clock and cannot satisfy a refresh.
     let artworkResult;
@@ -1536,7 +1546,8 @@ export async function prepareArtworkBatch(
     };
     return { report, path: immutableJson(root, "completion", report) };
   } finally {
-    rmdirSync(join(root, "active.lock"));
+    if (checkpointLock) await checkpointLock.release();
+    else rmdirSync(activeLock);
   }
 }
 
