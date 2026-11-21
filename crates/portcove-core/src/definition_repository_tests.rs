@@ -2534,6 +2534,27 @@ async fn signed_named_advice_preserves_operational_and_installed_contracts() {
 
 #[tokio::test]
 async fn unsupported_sibling_does_not_block_a_supported_definition() {
+    unsupported_sibling(|entry| {
+        entry["required_capabilities"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "template":"future-template","minimum_version":1,"maximum_version":1
+            }));
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn unknown_named_feature_does_not_block_a_supported_definition() {
+    unsupported_sibling(|entry| {
+        entry["definition_schema"] = 4.into();
+        entry["required_features"] = serde_json::json!(["native.future-layout-v7"]);
+    })
+    .await;
+}
+
+async fn unsupported_sibling(change: impl FnOnce(&mut Value)) {
     let fixture = RepositoryFixture::new();
     let (port_id, mut targets) = repository_targets();
     let supported_entry = targets
@@ -2549,8 +2570,7 @@ async fn unsupported_sibling_does_not_block_a_supported_definition() {
     incompatible["stable_id"] = "future-incompatible".into();
     incompatible["revision"] = 8.into();
     incompatible["port"]["id"] = "future-incompatible".into();
-    incompatible["definition_schema"] = 4.into();
-    incompatible["required_features"] = serde_json::json!(["native.future-layout-v7"]);
+    change(&mut incompatible);
     let incompatible = serde_json::to_vec_pretty(&incompatible).unwrap();
     let digest = hex::encode(Sha256::digest(&incompatible));
     let target = format!("sha256/{digest}.json");

@@ -2743,7 +2743,7 @@ fn named_features_are_explicit_and_keep_legacy_reader_minimums() {
     let mut entry = entry_for_port(&port);
     entry["required_capabilities"][0]["minimum_version"] = json!(8);
     entry["required_capabilities"][0]["maximum_version"] = json!(8);
-    for schema in [1, 2] {
+    for schema in [1, 2, 3] {
         entry["definition_schema"] = json!(schema);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
     }
@@ -2776,8 +2776,10 @@ fn named_entry_ignores_only_bounded_top_level_advice() {
     let advisory = json!({"future-reader": {"downloaded_implementation": true}});
     entry["advisory"] = advisory.clone();
     assert!(inspect(&entry).is_err());
-    entry["definition_schema"] = json!(2);
-    assert!(inspect(&entry).is_err());
+    for schema in [2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(inspect(&entry).is_err());
+    }
     entry["definition_schema"] = json!(4);
     entry["required_features"] = json!(null);
     assert!(inspect(&entry).is_err());
