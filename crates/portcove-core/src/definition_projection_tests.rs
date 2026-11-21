@@ -192,7 +192,7 @@ fn exact_schema_three_crawl_projection_adds_and_replaces_only_its_port() {
 }
 
 #[test]
-fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
+fn legacy_crawl_layout_correction_preserves_historical_and_current_presentation() {
     let contract = include_bytes!(
         "../tests/fixtures/definition-projection/crawl-reviewed-layout-contract.json.txt"
     );
@@ -213,6 +213,33 @@ fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
         .find(|port| port.id == selected)
         .unwrap();
     previous.reviewed_package_layouts.clear();
+    let current_baseline = Catalog::from_document(document.clone()).unwrap();
+    let current_title = current_baseline
+        .port(selected)
+        .unwrap()
+        .presentation
+        .as_ref()
+        .unwrap()
+        .original_game_title
+        .as_deref()
+        .unwrap();
+    assert_eq!(current_title, "Dungeon Crawl Stone Soup");
+    // The immutable legacy contract describes the historical title. Its layout
+    // correction must not gain authority to replace newer presentation.
+    document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == selected)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap()
+        .original_game_title = Some(
+        legacy["catalog"]["ports"][0]["presentation"]["original_game_title"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
+    );
     let baseline = Catalog::from_document(document).unwrap();
     let effective = inspect(&entry(&legacy, contract, 0), contract)
         .unwrap()
@@ -241,6 +268,41 @@ fn legacy_crawl_layout_correction_matches_the_embedded_subject() {
     changed = legacy.clone();
     changed["catalog"]["ports"][0]["reviewed_package_layouts"] = json!({});
     assert!(select(&changed, &effective).is_err());
+
+    assert!(select(&legacy, &current_baseline).is_err());
+    let mut corrected = legacy.clone();
+    corrected["catalog"]["ports"][0]["presentation"]["original_game_title"] = json!(current_title);
+    let corrected_effective = select(&corrected, &current_baseline).unwrap();
+    assert_eq!(
+        corrected_effective.source_catalog(),
+        current_baseline.source_catalog()
+    );
+    assert_eq!(
+        corrected_effective.ports().len(),
+        current_baseline.ports().len()
+    );
+    let mut expected_port = current_baseline.port(selected).unwrap().clone();
+    expected_port.reviewed_package_layouts = effective
+        .port(selected)
+        .unwrap()
+        .reviewed_package_layouts
+        .clone();
+    assert_eq!(
+        serde_json::to_value(corrected_effective.port(selected).unwrap()).unwrap(),
+        serde_json::to_value(expected_port).unwrap()
+    );
+    for (before, after) in current_baseline
+        .ports()
+        .iter()
+        .zip(corrected_effective.ports())
+    {
+        if before.id != selected {
+            assert_eq!(
+                serde_json::to_value(before).unwrap(),
+                serde_json::to_value(after).unwrap()
+            );
+        }
+    }
 }
 
 #[test]
@@ -421,6 +483,35 @@ fn retained_indexed_selection_uses_current_unrelated_upstream_review() {
 }
 
 #[test]
+fn indexed_projection_cannot_supply_reviewed_package_choices() {
+    let mut document = projection();
+    let port_index = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "jagged-alliance-2-ja2-stracciatella")
+        .unwrap();
+    let untreated = serde_json::to_vec(&document).unwrap();
+    assert!(inspect(&entry(&document, &untreated, port_index), &untreated).is_ok());
+    document["catalog"]["ports"][port_index]["release"]["reviewed_package_choices_v2"] = json!({
+        "repository_id": 51_711_866,
+        "prefix": "ja2-stracciatella_",
+        "choices": {
+            "mingw64-cross": "_win-mingw64-cross.zip",
+            "msvc64-142": "_win-msvc64-142.zip"
+        },
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let error = inspect(&entry(&document, &contract, port_index), &contract).unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert!(
+        error
+            .message
+            .contains("cannot deliver reviewed package choices")
+    );
+}
+
+#[test]
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({
@@ -497,6 +588,90 @@ fn generic_projection() -> Value {
     })
 }
 
+#[test]
+fn original_recognition_projection_requires_the_explicit_reader_capability() {
+    let mut document = generic_projection();
+    let source = &mut document["catalog"]["source_catalog"]["contracts"][0];
+    source["admission_mode"] = json!("informational");
+    source["evidence_gap"] = json!("Optional upstream recognition for this artifact.");
+    source["variant_list_recognition_only"] = json!(true);
+    source["applicability"] = json!([{
+        "upstream_ref": "fixture-1", "artifact_sha256": "a".repeat(64)
+    }]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    let error = inspect(&selected, &contract).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("libultraship-portable capability version 7")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "libultraship-portable", "minimum_version": 7, "maximum_version": 7
+    }]);
+    inspect(&selected, &contract).unwrap();
+    let sibling = entry(&document, &contract, 1);
+    assert!(
+        inspect(&sibling, &contract)
+            .unwrap_err()
+            .message
+            .contains("selected definition")
+    );
+}
+
+#[test]
+fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
+    let mut document = generic_projection();
+    let port = &mut document["catalog"]["ports"][0];
+    port["adapter"] = json!("n64-recomp-portable");
+    port["runtime_source_filename"] = json!("fixture.us.z64");
+    port["persistent_paths"] = json!(["saves", "config.json", "fixture.us.z64"]);
+    let sources = &mut document["catalog"]["source_catalog"];
+    sources["evidence"].as_array_mut().unwrap().push(json!({
+        "id": "fixture-upstream-input",
+        "role": "upstream_support",
+        "authority": "Synthetic runtime input fixture",
+        "authority_ref": "test-release",
+        "reviewed_at": "2026-09-30",
+        "claim": "Synthetic upstream input requirement",
+        "immutable_url": "https://example.invalid/fixtures/runtime-v1",
+        "live_url": null
+    }));
+    let source = &mut sources["contracts"][0];
+    source["evidence_ids"] = json!(["fixture-upstream-input"]);
+    source["admission_mode"] = json!("informational");
+    source["evidence_gap"] = json!("Requires the upstream release input check.");
+    source["supported_variant_ids"] = json!([]);
+    source["n64_recomp_inputs_v1"] = json!([{
+        "upstream_ref": "test-release",
+        "artifact_sha256": "a".repeat(64),
+        "game_id": "fixture.us",
+        "rom_xxh3_64": "0123456789abcdef"
+    }]);
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 9, "maximum_version": 9
+    }]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release-input reader")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
+    }]);
+    inspect(&selected, &contract).unwrap();
+    let sibling = entry(&document, &contract, 1);
+    assert!(
+        inspect(&sibling, &contract)
+            .unwrap_err()
+            .message
+            .contains("selected definition")
+    );
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     entry_with_reference(document, &target(contract), port_index)
 }
@@ -505,8 +680,10 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if crate::managed_runtime_policy::has_exact_exclusions(&typed) {
-        crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+    let version = if let Some((_, minimum)) =
+        crate::managed_runtime_policy::exact_exclusion_capability(&typed)
+    {
+        minimum
     } else if typed.optional_game_source {
         // An optional game source needs staged-source capability version 31. Keep this
         // branch first: a later capability chain that matched earlier would silently
@@ -751,6 +928,115 @@ fn settings_are_complete_operational_projection_content_not_listing_metadata() {
         .unwrap()
         .remove("game_settings");
     assert!(inspect(&absent, &contract).is_err());
+}
+
+#[test]
+fn complete_indexed_projections_keep_package_only_settings_with_the_selected_port() {
+    let baseline = Catalog::embedded().unwrap();
+    let mut complete = projection();
+    let ports = complete["catalog"]["ports"].as_array().unwrap();
+    let settings_port = "super-mario-world-recomp";
+    let settings_index = ports
+        .iter()
+        .position(|port| port["id"] == settings_port)
+        .unwrap();
+    let sibling_index = ports
+        .iter()
+        .position(|port| port["id"] == "zelda64-recomp")
+        .unwrap();
+    let settings = serde_json::to_value(
+        baseline
+            .port(settings_port)
+            .unwrap()
+            .game_settings
+            .as_ref()
+            .unwrap(),
+    )
+    .unwrap();
+    let compatible_leaf = serde_json::to_vec(&complete).unwrap();
+    let unrelated_entry = entry(&complete, &compatible_leaf, sibling_index);
+    let projection = inspect(&unrelated_entry, &compatible_leaf).unwrap();
+    let retained = projection.snapshot().catalog().unwrap();
+    assert!(
+        retained
+            .port(settings_port)
+            .unwrap()
+            .game_settings
+            .is_none()
+    );
+    let effective = projection.catalog_for_selection(&baseline).unwrap();
+    assert_eq!(
+        serde_json::to_value(&effective.port(settings_port).unwrap().game_settings).unwrap(),
+        settings
+    );
+    assert_eq!(projection.contract_bytes(), compatible_leaf);
+
+    complete["catalog"]["ports"][settings_index]["game_settings"] = settings;
+    let leaf_with_settings = serde_json::to_vec(&complete).unwrap();
+    let selected = entry(&complete, &leaf_with_settings, settings_index);
+    assert!(inspect(&selected, &leaf_with_settings).is_ok());
+
+    let sibling = entry(&complete, &leaf_with_settings, sibling_index);
+    let sibling_bytes = serde_json::to_vec(&sibling).unwrap();
+    let index = index(&[(&sibling, &sibling_bytes)], &leaf_with_settings);
+    let stable_id = sibling["stable_id"].as_str().unwrap();
+    for error in [
+        index
+            .inspect_catalog_projection("official", stable_id, &sibling_bytes, &leaf_with_settings)
+            .unwrap_err(),
+        index
+            .inspect_retained_catalog_projection(
+                "official",
+                stable_id,
+                &sibling_bytes,
+                &leaf_with_settings,
+            )
+            .unwrap_err(),
+    ] {
+        assert!(
+            error
+                .message
+                .contains("package-only settings must belong to the selected")
+        );
+        assert_eq!(error.details["port_id"], settings_port);
+    }
+}
+
+#[test]
+fn canonical_projection_keeps_the_selected_ports_package_only_settings() {
+    let mut document = projection();
+    let port_id = "super-mario-world-recomp";
+    let catalog = Catalog::embedded().unwrap();
+    let authored = catalog
+        .port(port_id)
+        .unwrap()
+        .game_settings
+        .as_ref()
+        .unwrap();
+    let ports = document["catalog"]["ports"].as_array_mut().unwrap();
+    ports.retain(|port| port["id"] == port_id);
+    ports[0]["game_settings"] = serde_json::to_value(authored).unwrap();
+    let sources = &mut document["catalog"]["source_catalog"];
+    sources["contracts"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|contract| contract["port_id"] == port_id);
+    sources["qualification"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|record| record["scope"]["port_id"] == port_id);
+
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("projection.json");
+    std::fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    let canonical = canonical_definition_projection(&path).unwrap();
+    let value = serde_json::from_str(&canonical).unwrap();
+    let leaf = canonical.as_bytes();
+    let selected = inspect(&entry(&value, leaf, 0), leaf).unwrap();
+    assert_eq!(
+        serde_json::to_value(&selected.entry().port().game_settings).unwrap(),
+        serde_json::to_value(authored).unwrap()
+    );
 }
 
 #[test]

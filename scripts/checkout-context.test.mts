@@ -6,6 +6,7 @@ const snapshot = () => ({
   root: "/checkout",
   head: "a".repeat(40),
   catalog_sha256: "catalog",
+  listings_sha256: "listings",
   configuration_sha256: "config",
   input_dirty: false,
 });
@@ -32,10 +33,11 @@ void test("guarded mismatches stop before network checks", async () => {
   );
   assert.equal(calls, 0);
 });
-void test("head, catalog or configuration changes invalidate success", async () => {
+void test("head, catalog, listings or configuration changes invalidate success", async () => {
   for (const change of [
     { head: "b".repeat(40) },
     { catalog_sha256: "new" },
+    { listings_sha256: "new" },
     { configuration_sha256: "new" },
     { input_dirty: true },
   ]) {

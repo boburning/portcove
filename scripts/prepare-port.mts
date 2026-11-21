@@ -1,3 +1,4 @@
+import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
 import {
   acceptPackagePlayerObservation,
   checkPackagePlayerObservationContinuity,
@@ -28,8 +29,13 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { compactOpenXPortable } from "./catalog-openx-portable.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import {
   compactRazeWindowsProfile,
@@ -219,6 +225,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
         "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
       next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
     });
+  } else if (record.psx_managed_windows_v1 === "technically-computers-input-files") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers persistent settings and input files for Bomberman Party Edition and Final Fantasy VII.",
+      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. Keep Final Fantasy VII's raw disc set and launch arguments explicit.",
+    });
   } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
     projections.push({
       field: "psx_managed_windows_v1",
@@ -267,6 +280,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Keep each edition’s original-file instructions and qualification explicit. A different package, launcher, or data layout needs an explicit integration.",
     });
   }
+  if (record.openx_portable_v1) {
+    projections.push({
+      field: "openx_portable_v1",
+      scope: "Reviewed Windows ZIP and Linux TAR.XZ selectors and local config.yaml.",
+      next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
+    });
+  }
   if (record.raze_windows_profile_v1) {
     projections.push({
       field: "raze_windows_profile_v1",
@@ -302,9 +322,21 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
     });
   }
+  const releaseAdvice = managedSetupReleaseAdvice(
+    projectAuthoredPort(record),
+    record.listing.release_url,
+  );
   return {
     status: projections.length > 0 ? "declared" : "undeclared",
     projections,
+    ...(releaseAdvice.length > 0
+      ? {
+          managed_setup_release_literals: {
+            steps: releaseAdvice,
+            next: managedSetupReleaseAdviceText,
+          },
+        }
+      : {}),
     next:
       projections.length > 0
         ? "Regenerate with generate-catalog.mts and review the concrete output. Use the Core proposal inspection for operational declarations."
@@ -1198,6 +1230,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
+    const compactOpenX = compactOpenXPortable(record);
+    if (compactOpenX !== record) record = checkedAuthoredPort(compactOpenX);
     const compactOpenGoal = compactOpenGoalSetup(record);
     if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
     const compactRsdkv4 = compactRsdkv4PortableData(record);
@@ -1229,6 +1263,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : route,
       lineage: assessUpstreamLineage(record),
+      original_game_grouping: originalGamePreparationFeedback(record, authored.records),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       ...(settingsQualification === undefined
         ? {}
@@ -1366,6 +1401,7 @@ export async function prepareArtworkBatch(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
@@ -1397,10 +1433,11 @@ export async function prepareArtworkBatch(
   const identities = options.identities ?? {};
   openCheckpoint(root);
   try {
-    // Read exact pre-workset batch receipts only in checkpoints that still carry them.
+    // Old batch receipts have no per-ID live clock and cannot satisfy a refresh.
     let artworkResult;
     if (
       !options.maintenance &&
+      refreshPortIds.length === 0 &&
       !existsSync(join(root, "artwork-gone.json")) &&
       readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
     ) {
@@ -1436,6 +1473,9 @@ export async function prepareArtworkBatch(
         ...(options.selectedPortIds ? { selectedPortIds: options.selectedPortIds } : {}),
         refreshPortIds,
         ...(options.maintenance ? { maintenance: true } : {}),
+        ...(options.retainedCoverLimit === undefined
+          ? {}
+          : { retainedCoverLimit: options.retainedCoverLimit }),
         ...(options.now ? { now: options.now } : {}),
         ...(options.signal ? { signal: options.signal } : {}),
         ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -1461,7 +1501,11 @@ export async function prepareArtworkBatch(
     for (const record of artworkResult.records) {
       if (!isRecord(record) || typeof record.port_id !== "string" || !known.has(record.port_id))
         throw new Error("Malformed artwork batch record identity.");
-      if (record.mapping === null) pendingPortIds.push(record.port_id);
+      if (
+        record.mapping === null &&
+        (!Array.isArray(record.collection) || record.collection.length === 0)
+      )
+        pendingPortIds.push(record.port_id);
     }
     if (
       isRecord(artworkResult.continuation) &&
@@ -1514,6 +1558,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     "--output-dir",
     "--artwork-ids",
     "--refresh-artwork",
+    "--artwork-retained-limit",
     "--listing-observations",
     "--package-observation",
     "--package-observation-reference",
@@ -1536,6 +1581,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!output) throw new Error("--output-dir is required (a new or owned preparation checkpoint).");
   const artworkIds = values.get("--artwork-ids");
   const refreshIds = values.get("--refresh-artwork");
+  const retainedLimit = values.get("--artwork-retained-limit");
+  if (
+    retainedLimit !== undefined &&
+    (artworkIds !== "@due" ||
+      !/^[1-9][0-9]{0,2}$/u.test(retainedLimit) ||
+      Number(retainedLimit) > 400)
+  )
+    throw new Error("--artwork-retained-limit requires @due and a count from 1 through 400");
   const observationHandoff = values.get("--listing-observations");
   if (
     observationHandoff &&
@@ -1553,6 +1606,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         ![
           "--artwork-ids",
           "--refresh-artwork",
+          "--artwork-retained-limit",
           "--identities",
           "--validator-cli",
           "--credentials-file",
@@ -1596,6 +1650,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
             ? { maintenance: true }
             : { selectedPortIds: artworkIds.split(",") }),
           ...(refreshIds ? { refreshPortIds: refreshIds.split(",") } : {}),
+          ...(retainedLimit ? { retainedCoverLimit: Number(retainedLimit) } : {}),
         })
       : await preparePort({
           ...common,

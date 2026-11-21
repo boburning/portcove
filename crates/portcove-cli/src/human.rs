@@ -2487,6 +2487,9 @@ pub(crate) fn game_install_plan(
     catalog: &portcove_core::Catalog,
 ) -> String {
     let mut text = plan(&review.plan, catalog);
+    if let Some(choice) = &review.package_choice {
+        text.push_str(&format!("\nReviewed package choice: {}\n", clean(choice)));
+    }
     if let Some(selected) = &review.selected_install {
         text.push_str(&format!(
             "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
@@ -4394,6 +4397,7 @@ mod tests {
         portcove_core::BackupActionPreview {
             action: portcove_core::BackupAction::Restore,
             backup: BackupRecord {
+                recovery_review: None,
                 automatic: None,
                 id: "backup-1".into(),
                 port_id: "zelda64-recomp".into(),
@@ -4543,6 +4547,7 @@ mod tests {
                     restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
+                        recovery_review: None,
                         automatic: None,
                         id: "backup-1".into(),
                         port_id: "sample".into(),

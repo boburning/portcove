@@ -179,13 +179,14 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 #[doc(hidden)]
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
-    ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkEvictedAsset, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
-    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot,
-    ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord, ArtworkWithdrawalSignal,
-    DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
-    DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
-    GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
+    ARTWORK_CACHE_MISS, ARTWORK_HANDOFF_SCHEMA, ARTWORK_RETRY, ArtworkAttribution,
+    ArtworkAvailability, ArtworkCacheClear, ArtworkCacheEpoch, ArtworkChoice, ArtworkEvictedAsset,
+    ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
+    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    ArtworkWithdrawalRecord, ArtworkWithdrawalSignal, DestinationArtworkBytes,
+    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
+    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
+    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
     STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
     SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
     SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
@@ -491,10 +492,10 @@ pub use support_bundle_export::{
     prepare_support_log_directory,
 };
 pub use target_inspection::{
-    CatalogPresence, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS, LegacyCoverage,
-    MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
-    TargetInspection, TargetQualification, TargetQualificationScope, TargetQualificationState,
-    TargetRoute, TargetRoutes, Unassessed, inspect_targets,
+    CatalogPresence, ContentCapabilityState, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS,
+    LegacyCoverage, MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
+    TargetContentCapabilities, TargetInspection, TargetQualification, TargetQualificationScope,
+    TargetQualificationState, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;

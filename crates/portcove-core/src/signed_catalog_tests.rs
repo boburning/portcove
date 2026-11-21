@@ -10,6 +10,14 @@ fn signing_key() -> SigningKey {
 fn fixture(sequence: i64, now: i64) -> SignedCatalogPayload {
     let mut catalog = Catalog::embedded().unwrap().document().clone();
     for port in &mut catalog.ports {
+        if port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+        {
+            port.game_settings = None;
+        }
+        port.release.reviewed_package_choices_v2 = None;
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
         for pattern in &mut port.persistent_file_patterns {
@@ -1077,6 +1085,82 @@ async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_
     let status = library.catalog_status().unwrap();
     assert_eq!(status.highest_sequence, 2);
     assert_eq!(status.provenance.sequence, Some(1));
+}
+
+#[test]
+fn legacy_signed_catalog_cannot_supply_reviewed_package_choices() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let trust = std::slice::from_ref(&trust);
+    let embedded = Catalog::embedded().unwrap();
+    let accepted = signed_catalog::verify(&sign(&payload), trust, now).unwrap();
+    for port in accepted.catalog.ports() {
+        assert_eq!(
+            port.release.reviewed_package_choices_v2,
+            embedded
+                .port(&port.id)
+                .unwrap()
+                .release
+                .reviewed_package_choices_v2,
+        );
+    }
+    let choices = crate::ReviewedPackageChoicesV2 {
+        repository_id: 51_711_866,
+        prefix: "ja2-stracciatella_".into(),
+        choices: [
+            ("mingw64-cross".into(), "_win-mingw64-cross.zip".into()),
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+        ]
+        .into(),
+    };
+    let port = payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "jagged-alliance-2-ja2-stracciatella")
+        .unwrap();
+    port.release.reviewed_package_choices_v2 = Some(choices);
+    crate::ManagedPackageVariant::validate_explicit_choices(port).unwrap();
+    assert!(matches!(
+        signed_catalog::verify(&sign(&payload), trust, now),
+        Err(error) if error.code == ErrorCode::Verification
+            && error.message.contains("cannot deliver reviewed package choices")
+    ));
+}
+
+#[test]
+fn legacy_signed_catalog_keeps_compiled_package_only_settings() {
+    let now = 1_800_000_000;
+    let mut payload = fixture(1, now);
+    let trust = crate::CatalogTrustKey::from_public_key(&hex::encode(
+        signing_key().verifying_key().as_bytes(),
+    ))
+    .unwrap();
+    let verified =
+        signed_catalog::verify(&sign(&payload), std::slice::from_ref(&trust), now).unwrap();
+    let compiled = verified
+        .catalog
+        .port("super-mario-world-recomp")
+        .unwrap()
+        .game_settings
+        .clone();
+    assert!(compiled.as_ref().unwrap().package_only());
+
+    payload
+        .catalog
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "super-mario-world-recomp")
+        .unwrap()
+        .game_settings = compiled;
+    let rejected = signed_catalog::verify(&sign(&payload), &[trust], now);
+    assert!(
+        matches!(rejected, Err(error) if error.message.contains("cannot deliver package-only settings"))
+    );
 }
 
 #[test]

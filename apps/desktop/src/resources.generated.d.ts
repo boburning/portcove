@@ -252,8 +252,8 @@ export default interface Resources {
   "browsing": {
     "alternatives": {
       "external": "External installation · <version/>",
-      "heading": "Other ports for this game ({{total}})",
-      "independence": "Each project keeps its own files and installation. Choosing one does not transfer saves or choose a release.",
+      "heading": "Other options for this game ({{total}})",
+      "independence": "Each option keeps its own file requirements and installation. Choosing one does not transfer saves or choose a release.",
       "managed": "Managed installation · <version/>",
       "notInstalled": "Not installed",
       "originalFiles": "Original files: <files/>",
@@ -292,23 +292,26 @@ export default interface Resources {
         "optionsIntro": "Feature details are not available for every project. Check the reports and project instructions. Your saves and mods may not work with another port.",
         "outsideFilters": "Outside the current filters.",
         "setup": "How to set it up",
-        "several": "Compare setup requirements for {{total}} ports. Check each port’s instructions for shared save locations.",
+        "several": "Compare setup requirements for {{total}} options. Check each option’s instructions for shared save locations.",
         "single": "Review this port’s setup requirements and reports.",
         "status": "Current status",
         "updates": "Who handles updates"
       },
       "compareMatching": "Compare the matching ports for their own setup requirements and installation status.",
       "drop": {
+        "checkWith": "Check files with <name/>",
+        "choose": "Choose an option to check these files. Each option checks its own file requirements.",
         "hover": "Drop to check for this game",
-        "release": "Release to check"
+        "release": "Release to check",
+        "review": "Drop to choose an option and check files"
       },
       "favorite": {
         "add": "Add to favorites",
         "label": "Favorite {{game}}",
         "remove": "Remove from favorites"
       },
-      "groupLabel_one": "{{title}}. {{count}} separate port project; {{matching}} matching.",
-      "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
+      "groupLabel_one": "{{title}}. {{count}} option; {{matching}} matching.",
+      "groupLabel_other": "{{title}}. {{count}} options; {{matching}} matching.",
       "identity": {
         "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
         "single": "{{identity}}. {{state}}. {{action}}"
@@ -322,8 +325,8 @@ export default interface Resources {
         "notInstalled": "Not installed. Follow this project’s setup instructions.",
         "unavailable": "Installation ownership is unavailable. Check the project instructions."
       },
-      "separateProjects_one": "{{count}} separate port project",
-      "separateProjects_other": "{{count}} separate port projects",
+      "separateProjects_one": "{{count}} option",
+      "separateProjects_other": "{{count}} options",
       "unavailableFor": "Not available for {{platform}}"
     },
     "hero": {
@@ -375,8 +378,10 @@ export default interface Resources {
       "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
     },
     "media": {
+      "availableScreenshots": "Available screenshots",
       "captionUnavailable": "<caption/> · Image unavailable",
       "choose": "Choose a screenshot",
+      "chooseRelease": "Choose an original release",
       "creditOriginal": "Original release · <edition/> · <credit/>",
       "creditPort": "Port image · <credit/>",
       "enlarge": "Enlarge screenshot {{number, number}}: {{caption}}",
@@ -391,6 +396,7 @@ export default interface Resources {
       "previous": "Previous",
       "retry": "Retry image",
       "retryScreenshot": "Retry screenshot {{number, number}}",
+      "screenshotSource": "Screenshot source",
       "screenshots": "Screenshots",
       "show": "Show screenshot {{number, number}}: {{caption}}",
       "source": "Source",
@@ -896,7 +902,7 @@ export default interface Resources {
       "additionalCatalog": "Additional restored filters remain active. Reset catalog filters to remove them.",
       "additionalLibrary": "Additional restored filters remain active. Reset library filters to remove them.",
       "additionalNote": "Additional restored filters are active; open Filters to review or reset them.",
-      "advanced": "Advanced filters",
+      "advanced": "More filters",
       "advancedNote": "Setup and installation filters must all match the same way of installing or setting up a game. Projects with unknown facts aren’t counted as matches.",
       "all": "All",
       "chip": "{{group}}: {{value}}",
@@ -907,6 +913,7 @@ export default interface Resources {
       "group": {
         "attention": "Installation attention",
         "channels": "Update channels",
+        "device": "Device eligibility",
         "gameFiles": "Game files",
         "installationMethods": "Setup methods",
         "membership": "Library membership",
@@ -921,10 +928,11 @@ export default interface Resources {
         "attention": "Recorded needs for the current installation. Unavailable details remain unknown.",
         "gameFiles": "Uses the same setup or installation as your other filters. Changed or unreadable files need checking; they are not counted as missing.",
         "membership": "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
-        "platforms": "Package targets, not tested device compatibility. Available for this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
+        "platforms": "These options use declared package targets. Available for this device uses your current platform. The results can match it or another selected platform.",
         "updates": "Uses the current installation’s last check and matching verified staged update. Choosing a filter does not check for updates."
       },
       "howBody": "Choose one or more options. Results match at least one option in each selected group.",
+      "howPlatformBody": "Device eligibility and Runs on count as one platform group.",
       "howSummary": "How filters work",
       "needsContextCatalog": "These restored filters need unavailable local context. Reset catalog filters to choose a supported query.",
       "needsContextLibrary": "These restored filters need unavailable local context. Reset library filters to choose a supported query.",

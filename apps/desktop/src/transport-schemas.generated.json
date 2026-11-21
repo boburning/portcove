@@ -4342,6 +4342,12 @@
         ],
         "type": "object"
       },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
+      },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
         "enum": [
@@ -4382,6 +4388,17 @@
       },
       "port_id": {
         "type": "string"
+      },
+      "recovery_review": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BackupRecoveryReview"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
       },
       "sha256": {
         "type": "string"
@@ -4474,6 +4491,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4499,6 +4527,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -4654,6 +4688,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4679,6 +4724,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DefinitionEligibility": {
         "properties": {
@@ -5246,6 +5297,13 @@
         "type": "array"
       },
       "failure_isolated_batches": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "listing_delivery_carriers": {
+        "description": "Independently negotiated signed-directory transport representations.",
         "items": {
           "type": "string"
         },
@@ -6276,7 +6334,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -6330,7 +6388,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -6499,6 +6558,30 @@
             "type": "object"
           }
         ]
+      },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
       },
       "OriginalGameIdentity": {
         "additionalProperties": false,
@@ -7293,6 +7376,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -7335,6 +7425,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -7605,6 +7699,16 @@
             "default": "",
             "type": "string"
           },
+          "reviewed_package_choices_v2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedPackageChoicesV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rolling_tag": {
             "default": null,
             "type": [
@@ -7662,6 +7766,32 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageChoicesV2": {
+        "additionalProperties": false,
+        "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repository_id",
+          "prefix",
+          "choices"
         ],
         "type": "object"
       },
@@ -9893,7 +10023,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -9947,7 +10077,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -18013,6 +18144,12 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "Exact registered-input review for the first managed installation.",
     "properties": {
+      "package_choice": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "plan": {
         "$ref": "#/$defs/InstallPlan"
       },
@@ -19594,6 +19731,13 @@
       "activate": {
         "type": "boolean"
       },
+      "archive_only_plan_sha256": {
+        "description": "Archive-only review for the same candidate. Acquisition still revalidates it.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "assessment": {
         "$ref": "#/$defs/PortActionAssessment",
         "description": "Read-only decision for this exact reviewed candidate, not authorization."
@@ -19782,6 +19926,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -19807,6 +19962,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -20332,6 +20493,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -20357,6 +20529,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "InstallRecord": {
         "properties": {
@@ -27916,6 +28094,13 @@
           "null"
         ]
       },
+      "transport_target_sha256": {
+        "description": "Digest of the authenticated compact transport target, when applicable.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "withdrawn_ids": {
         "items": {
           "type": "string"
@@ -28111,6 +28296,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -28136,6 +28332,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -34554,6 +34756,13 @@
               "null"
             ]
           },
+          "transport_target_sha256": {
+            "description": "Digest of the authenticated compact transport target, when applicable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "withdrawn_ids": {
             "items": {
               "type": "string"
@@ -36142,7 +36351,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -36196,7 +36405,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -37606,7 +37816,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -37660,7 +37870,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -38222,6 +38433,16 @@
             "default": "",
             "type": "string"
           },
+          "reviewed_package_choices_v2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedPackageChoicesV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rolling_tag": {
             "default": null,
             "type": [
@@ -38279,6 +38500,32 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageChoicesV2": {
+        "additionalProperties": false,
+        "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repository_id",
+          "prefix",
+          "choices"
         ],
         "type": "object"
       },
@@ -39297,6 +39544,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -39322,6 +39580,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -42191,6 +42455,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -42216,6 +42491,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -42861,6 +43142,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -43060,6 +43365,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -43102,6 +43414,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -52372,6 +52688,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -52397,6 +52724,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -56336,7 +56669,7 @@
       },
       "IgdbGameImage": {
         "additionalProperties": false,
-        "description": "A reviewed mapping from IGDB's game-logo or artwork endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
+        "description": "A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are\npublic descriptive IDs, never API credentials or installation authority.",
         "properties": {
           "alpha_channel": {
             "type": [
@@ -56390,7 +56723,8 @@
       "IgdbGameImageKind": {
         "enum": [
           "logo",
-          "artwork"
+          "artwork",
+          "screenshot"
         ],
         "type": "string"
       },
@@ -56559,6 +56893,30 @@
             "type": "object"
           }
         ]
+      },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
       },
       "OriginalGameIdentity": {
         "additionalProperties": false,
@@ -57353,6 +57711,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -57395,6 +57760,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -57665,6 +58034,16 @@
             "default": "",
             "type": "string"
           },
+          "reviewed_package_choices_v2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedPackageChoicesV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rolling_tag": {
             "default": null,
             "type": [
@@ -57722,6 +58101,32 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageChoicesV2": {
+        "additionalProperties": false,
+        "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repository_id",
+          "prefix",
+          "choices"
         ],
         "type": "object"
       },
@@ -60157,6 +60562,30 @@
         ],
         "type": "string"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -60356,6 +60785,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -60398,6 +60834,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -62113,6 +62553,30 @@
         ],
         "type": "string"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "Platform": {
         "enum": [
           "windows-x86-64",
@@ -62170,6 +62634,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -62212,6 +62683,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -65986,6 +66461,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -66185,6 +66684,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -66227,6 +66733,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -67988,6 +68498,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -68187,6 +68721,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -68229,6 +68770,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -70567,6 +71112,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -70766,6 +71335,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -70808,6 +71384,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -72662,6 +73242,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -72861,6 +73465,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -72903,6 +73514,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [

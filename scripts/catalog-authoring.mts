@@ -30,6 +30,7 @@ import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-window
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
+import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
@@ -114,9 +115,10 @@ export interface AuthoredPort extends Record<string, unknown> {
     | "split-mods-no-crash-log"
     | "split-mods-openbios"
     | "split-mods-overlay-directory"
-    | "technically-computers";
+    | "technically-computers"
+    | "technically-computers-input-files";
   /** Shared root-level persistence for reviewed N64Recomp packages. */
-  n64_recomp_persistence_v1?: true;
+  n64_recomp_persistence_v1?: true | "config-directory" | "technical-settings";
   /** Shared persistent paths for ReflectionHLE's reviewed portable root. */
   reflectionhle_portable_paths_v1?: true;
   /** Shared persistent files for the reviewed Crispy Doom Windows player. */
@@ -131,6 +133,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   rsdkv4_portable_data_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
+  /** Shared Windows ZIP, Linux TAR.XZ and local config.yaml for matching reviewed routes. */
+  openx_portable_v1?: true | string;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -163,6 +167,14 @@ const listingPresentationFields = [
   "collection_covers",
   "media",
 ] as const;
+
+function typedIgdbScene(asset: unknown) {
+  return (
+    isRecord(asset) &&
+    (asset.role === "header" || asset.role === "screenshot") &&
+    asset.igdb != null
+  );
+}
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
   "compatibility",
@@ -431,7 +443,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
   const inherit = record.listing_inherit_asset_hints;
   if (inherit === undefined) return authored;
   const listing = record.listing;
-  const integration = projectOpenMohaaPortable(record).integration;
+  const integration = projectOpenXPortable(projectOpenMohaaPortable(record)).integration;
   const release = integration?.release;
   const invalid = () =>
     new Error(
@@ -737,7 +749,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (value.integration !== undefined && !isRecord(value.integration))
     throw new Error("Integration must be a strict object.");
   const integration = projectExternalRegistration(
-    projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
+    projectOpenXPortable(
+      projectOpenMohaaPortable(projectAlephOnePinnedWindows(value as AuthoredPort)),
+    ),
   ).integration;
   if (integration !== undefined) {
     if (
@@ -850,7 +864,9 @@ export function authoringRecordFromPort(port: CatalogPort, order?: number): Auth
 export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefined {
   const declared = projectReviewedFlatPackageLayout(
     projectRazeWindowsProfile(
-      projectOpenGoalSetup(projectNativeManagedProfile(projectAlephOnePinnedWindows(input))),
+      projectOpenGoalSetup(
+        projectNativeManagedProfile(projectAlephOnePinnedWindows(projectOpenXPortable(input))),
+      ),
     ),
   );
   const record = projectSettingsQualification(
@@ -880,7 +896,16 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
       presentation[field] = managedGuide;
       integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
-      presentation[field] = structuredClone(record.listing[field]);
+      const value = record.listing[field];
+      if (field === "media" && Array.isArray(value) && value.some(typedIgdbScene)) {
+        const legacy = value.filter((asset) => !typedIgdbScene(asset));
+        // An absent legacy array allows directory media. An authored empty
+        // array continues to clear directory media on the strict route.
+        if (legacy.length === 0) continue;
+        presentation[field] = structuredClone(legacy);
+      } else {
+        presentation[field] = structuredClone(value);
+      }
       integration.presentation = presentation;
     }
   }
@@ -922,6 +947,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listings = records
     .map(projectRouteFacts)
     .map(projectOpenMohaaPortable)
+    .map(projectOpenXPortable)
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
@@ -979,38 +1005,43 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listedDates = listings.some((listing) => listing.listed_at !== undefined);
   const fundingLinks = listings.some((listing) => listing.funding_urls !== undefined);
   const coverCollections = listings.some((listing) => listing.collection_covers !== undefined);
-  const format_version = listings.some((listing) => listing.implementation !== undefined)
-    ? 12
-    : coverCollections
-      ? 11
-      : fundingLinks
-        ? 10
-        : listedDates
-          ? 9
-          : gitlabObservations
-            ? 8
-            : listings.some((listing) => listing.compatibility !== undefined)
-              ? 7
-              : guideReferences
-                ? 6
-                : extendedMedia
-                  ? 5
-                  : listings.some(
-                        (listing) =>
-                          listing.upstream_observation !== undefined ||
-                          listing.availability_override_reason !== undefined ||
-                          "release_maintenance" in listing,
-                      )
-                    ? 4
+  const hasIgdbScenes = listings.some(
+    ({ media }) => Array.isArray(media) && media.some(typedIgdbScene),
+  );
+  const format_version = hasIgdbScenes
+    ? 13
+    : listings.some((listing) => listing.implementation !== undefined)
+      ? 12
+      : coverCollections
+        ? 11
+        : fundingLinks
+          ? 10
+          : listedDates
+            ? 9
+            : gitlabObservations
+              ? 8
+              : listings.some((listing) => listing.compatibility !== undefined)
+                ? 7
+                : guideReferences
+                  ? 6
+                  : extendedMedia
+                    ? 5
                     : listings.some(
                           (listing) =>
-                            listing.original_game !== undefined ||
-                            (Array.isArray(listing.media) && listing.media.length > 0),
+                            listing.upstream_observation !== undefined ||
+                            listing.availability_override_reason !== undefined ||
+                            "release_maintenance" in listing,
                         )
-                      ? 3
-                      : listings.some((listing) => listing.download_block_reason !== undefined)
-                        ? 2
-                        : 1;
+                      ? 4
+                      : listings.some(
+                            (listing) =>
+                              listing.original_game !== undefined ||
+                              (Array.isArray(listing.media) && listing.media.length > 0),
+                          )
+                        ? 3
+                        : listings.some((listing) => listing.download_block_reason !== undefined)
+                          ? 2
+                          : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

@@ -58,6 +58,22 @@ installation lock or host scheduler is created for interface scaling. See
 
 Core owns game release-channel selection and its stored values. See the [CLI release-channel contract](CLI.md#release-channels).
 
+Game-group presentation uses the complete explicitly identified family, with a
+stable authored-title/stable-port-ID representative independent of filters and
+implementation choice. The representative supplies the game title and accepted
+cover only; Core assessments and exact port/install identities still govern
+actions. Global command search returns one game for an original-title query and
+exact port options for project queries. Its game detail destination respects an
+explicit preferred implementation or the sole visible installed implementation;
+opening details never persists an implementation choice.
+
+Native grouped file drops retain their paths in ephemeral React state while an
+ambiguous group asks for a specific implementation. The continuation binds the
+library generation and accepted definition/listing snapshots. Selection then
+uses the exact current port's source profile and existing Core source-review
+route. Sharing an original-game ID grants no original-file or save compatibility.
+A resolved eligible implementation keeps its exact direct drop target.
+
 ## Current ownership and deliverables
 
 Game integrations use the [upstream-first ownership contract](CATALOG.md#integration-ownership).
@@ -916,11 +932,10 @@ per dimension, 8 megapixels and 32 MiB decoded pixel storage. Decoder allocation
 limits also apply; destination pixel allocation is checked explicitly. A separate
 library artwork lock serializes local import/thumbnail decoding, reset, cache
 publication/clearing and unused-original removal without holding a game's operation
-lock. Remote original reads, fetching and conversion use a separate process-wide
-budget of `IGDB_ARTWORK_WORK_LIMIT` (6) workers; Core refuses excess work promptly
-instead of blocking a shared worker behind another image. Each worker may transiently
-hold an original and its decoded pixels, so the worst-case bound is that limit times
-the original and decoded byte limits; real covers are far smaller. Expected slot revisions reject stale changes, including
+lock. Remote downloads and verified local reads have separate process-wide
+budgets of six workers each. Conversion after a download uses the download
+worker's allocation bound. Same-rendition retrieval serializes before allocating
+the original or converting it. Expected slot revisions reject stale changes, including
 reset/reselect cycles. Missing or changed originals retain the selection and report
 unavailability through the artwork API; ordinary lifecycle reads do not read images.
 
@@ -942,32 +957,45 @@ same shared decoder orients IGDB cover and catalog-media derivatives. Recorded
 axes of the unmodified original, because the destination handoff compares them
 with the decoded bytes; the hero role separately refuses an original whose
 orientation turns it a quarter turn. Fetched catalog-default IGDB JPEG originals
-are limited to 16 MiB each. Their separate 64 MiB cache verifies content hashes,
-rebuilds missing/corrupt entries, and evicts entries in deterministic filename order.
-One bounded pending file for each kind is recognized for interrupted-write retry
-or cache clearing; publication of an original may require up to 16 MiB of
-temporary working space.
+are limited to 16 MiB each. Their separate 64 MiB cache verifies content hashes and rebuilds missing or corrupt entries. It
+shares the existing 64 MiB limit with disposable thumbnails. When the cache
+needs space, it considers the oldest recorded filesystem access or publication
+time first. Access-time fidelity depends on the volume. A derivative write
+protects its source from eviction, and already-returned thumbnails live in
+memory. A locked entry can remain for a later pass. One fixed staged file per
+kind bounds interrupted writes or cache clearing. Publication of an original
+can require up to 16 MiB of additional working space.
 Catalog cover retrieval checks validated cached bytes before process-local retry
 state. Request timeout/connect failures and HTTP 408, 429 or 5xx responses
-retain their network error for 30 seconds after completion. At most 256 exact
-canonical-root/durable-library/image/content request identities are retained; same-identity requests
-serialize before reading or converting an original, idle entries may be evicted and a full active registry refuses new
-retrieval. Integrity, decode, filesystem, publication and other HTTP failures
-are not retained. Cache clearing detaches that library's retry state, including
-in-flight requests, without changing choices or imported originals.
-Unexpected files or symlink paths are retained and rejected, never traversed.
+retain their network error for 30 seconds after completion. At most 256
+requests are tracked by canonical root, durable library, cache epoch and
+rendition. A rendition retains failure information separately for up to eight
+IGDB source IDs. Idle entries may be evicted and a full active registry
+refuses more work. Integrity, decode, filesystem, publication and other HTTP
+failures are not retained.
 
-A process-local least-recently-used cache retains at most 8 MiB of converted PNG
-bytes across 256 entries. Each entry binds canonical root, durable library ID,
-provider image/content identity and the conversion version/limits. Every hit first
-reads and hashes the original, then verifies the cached PNG digest; healthy warm
-hits do not decode, resize or encode again. Missing/corrupt originals cannot be
-masked by a retained derivative. Missing/corrupt derivatives rebuild from verified
-originals. This cache does not use the local-assets thumbnail table or survive the
-executable. Clear removes its library's derivatives and prevents detached requests
-from restoring memory state; it does not cancel an already-running fetch or its
-later original publication. The 8 MiB bound covers retained derivative bytes,
-not active original/pixel buffers, returned copies or total process memory.
+Remote cover and catalog media derivatives are retained on disk and reused
+after restart. The cache key includes the admitted original digest, role, fit
+bounds, PNG format and orientation recipe version. Media keys also bind the
+admitted original dimensions. The cache file carries a source binding and a
+checksum tied to the key and PNG bytes to detect damage and misplaced entries.
+When a verified publication finds an unreferenced cached original, Core uses
+the source bindings to remove its derivatives before removing the original.
+A derivative without a readable source binding ages out under the cache budget
+or is replaced the next time its rendition is requested. The binding does not confer
+admission. Core still resolves the current artwork and verifies the original
+digest before reading a derivative. It regenerates a missing or damaged
+derivative with the same bounded decoder and atomically replaces the cache
+file. Derivatives too large for the existing entry bound with the checksum
+are returned to the caller without persistence. Unexpected files or symlink
+paths are retained and rejected.
+
+Clearing the cache advances a small durable epoch under the artwork lock
+before deleting files. A retrieval bound to the old epoch fails closed before
+publishing, including after waiting for a download slot. Another current client
+uses the same epoch. This excludes disposable files and retry state from
+durable choice or provenance, and leaves installed artwork originals in the
+existing store.
 
 Library metadata format 3 exports logical choices and local asset identities with
 an explicit `artwork` payload root. Moves and metadata/content imports use existing
@@ -978,23 +1006,33 @@ artwork fields; disposable `artwork-cache` files are excluded. Per-game save bac
 continue to cover saved data; whole-library backup copies include the artwork root.
 
 Desktop owns native file selection and routes each read/change through a library
-generation check. React displays core results through a disposable cache for the
+generation check. Artwork reads reuse Core's resolved catalog on the same
+library lease when SQLite reports the same data version. A later commit,
+backward clock movement or expiry of the signed catalog, selected definition,
+publisher policy or listing ends reuse. A resolution that used a fallback is
+rechecked on the next request. Choice reads stay live. Before publishing a
+fetched original or returning a thumbnail, Core revalidates the applicable
+listing and Desktop checks the library generation again. React displays core results through a disposable cache for the
 visible viewport plus at most 256 inactive previews (bounded by encoded size) per
 generation. Local-choice reads run for up to four ports at once while each port's
 slots stay ordered; mutations and local thumbnail decoding run alone because Core
 refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
 drain of `maximumRemoteRequests` requests, which must equal Core's limit because Core
 refuses rather than queues excess work. Cards prefetch 800px vertically ahead of the
-viewport, and an already-loaded image stays displayed while its card is offscreen. Undispatched requests
+viewport and an already-loaded image stays displayed while its card is offscreen.
+The selected game's artwork has first priority, followed by the actual
+viewport and nearby prefetch. When all six general requests are active,
+up to four visible requests can probe the disk without queuing downloads.
+An explicitly transient failure retains a matching displayed image and can
+retry after 31 seconds and again after a further 62 seconds while visible.
+Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
-The native adapter
-uses Core's resolved source to await remote admission asynchronously before
-dispatching a thumbnail worker; local thumbnails, imports, resets and unrelated
-game work do not wait on that remote gate. Its capacity matches Core's
-`IGDB_ARTWORK_WORK_LIMIT`. A dispatched worker retains its permit even if its IPC waiter is cancelled.
-Library generation and slot revision are rechecked after admission. Queued renderer
+The native adapter checks verified local bytes in a separate bounded worker
+pool. A miss may wait for download admission and repeats the generation and
+source lookup when admitted. A dispatched worker retains its permit while
+running, including after an IPC waiter cancels. Queued renderer
 reads are discarded when their view no longer needs them, and stale completions
 cannot replace a changed choice or generation. Visible cards load asynchronously and preserve
 the cached image while refreshing. PNG data URLs carry only bounded core thumbnails;
@@ -1028,8 +1066,14 @@ deriving its own per-card fallback.
 
 The catalog may provide an additive, reviewed IGDB cover mapping with distinct
 game, cover and CDN image IDs plus the expected image digest. Core resolves a
-valid local choice first, then the mapped cover for that port's cover slot, then
-the generated fallback. The Desktop host remains a thin adapter. Core
+valid local choice first. For automatic covers, the port's direct mapping takes
+precedence. A listing without a direct mapping can inherit a reviewed
+underlying-game cover from the current catalog when the original-game identity
+and single declared edition match across listings. Conflicting mappings,
+unknown editions and multiple offered editions leave the generated fallback.
+An explicit cover collection keeps its members. Artwork readback also checks
+the current inherited mapping so a donor change cannot return stale art.
+The Desktop host remains a thin adapter. Core
 fetches only the fixed IGDB cover CDN path, without Twitch credentials or a
 client-side catalog search; a bounded JPEG is checked against the catalog digest
 before decoding, and its original bytes are retained in the disposable shared
@@ -1042,7 +1086,8 @@ catalog update can correct it without changing the installed app. An absent
 mapping retains the generated fallback. Cached remote originals are named by
 their catalog content digest, so a corrected or withdrawn mapping is never
 resolved from its earlier bytes. Each remote-original publication, under the
-artwork lock, also removes cached IGDB and catalog-media originals that no
+artwork lock, also removes cached IGDB and catalog-media originals and their
+identified derivatives when no
 currently resolvable port references: the current catalog plus retained
 installed, registered and unfinished-setup identities. Local-import thumbnails
 and interrupted staging keep their own repair paths. If those references cannot
@@ -1715,6 +1760,13 @@ dialog title while a chosen port is re-reviewed, then to its selected-plan
 identity; a failed review keeps focus inside the dialog.
 
 ## Backup review presentation
+
+Core includes an optional `recovery_review` in backup inventory. Desktop uses
+it to offer the historical recovery review for the selected snapshot. The
+Windows Ghostship reader looks up the backup and retained install ID in the
+library’s qualification records. The locked plan verifies the complete seal
+and current contents before consent. Ordinary backup records and retained
+plan fingerprints omit the inventory hint.
 
 Core owns backup selection, payload/user-data fingerprints, single-use authorization,
 per-port exclusion and journal recovery. Desktop exposes a generation-bound review

@@ -10,6 +10,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  auditDispatchRequest,
+  scheduledAuditRequests,
   hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
@@ -26,6 +28,31 @@ const report = (...outcomes: ReturnType<typeof outcome>[]) => ({
   requests: outcomes.length,
   outcomes,
 });
+void test("only the protected scheduled caller accepts exact nonduplicate audit continuations", () => {
+  const ticket = { request: 33, binding: "a".repeat(64) };
+  const env = {
+    HOSTED_INTAKE_MODE: "resume-audits",
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify([ticket]),
+  };
+  assert.deepEqual(scheduledAuditRequests(env), [ticket]);
+  for (const key of ["GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_REPOSITORY", "GITHUB_WORKFLOW_REF"])
+    assert.throws(() => scheduledAuditRequests({ ...env, [key]: "unrelated" }));
+  for (const rows of [
+    [],
+    [ticket, ticket],
+    [{ ...ticket, binding: "bad" }],
+    [{ ...ticket, request: "33" }],
+  ])
+    assert.throws(() =>
+      scheduledAuditRequests({ ...env, HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify(rows) }),
+    );
+});
+
 void test("a progressing logical batch finishes beyond three inventory windows without operator reruns", () => {
   let passes = 0;
   const result = runHostedIntakePasses(() => {
@@ -201,6 +228,24 @@ void test("real worker exit/report/probe paths fail closed after a crash or sign
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+void test("audit dispatch binds every worker pass to one exact proposal", () => {
+  assert.equal(auditDispatchRequest("process", ""), undefined);
+  for (const bad of ["", "0", "01", "1 2", "9007199254740992"])
+    assert.throws(() => auditDispatchRequest("audit", bad));
+  assert.throws(() => auditDispatchRequest("process", "17"));
+  const id = auditDispatchRequest("audit", "17");
+  const result = runHostedIntakePasses(
+    (pass, requests) => {
+      assert.deepEqual(requests, [17]);
+      return report(outcome(17, pass === 1 ? "inventory_changed" : null));
+    },
+    Date.now,
+    id,
+  );
+  assert.equal(result.status, "passed");
+  assert.throws(() => runHostedIntakePasses(() => report(outcome(18)), Date.now, id));
 });
 
 void test("complete with holds succeeds without an automatic continuation", () => {

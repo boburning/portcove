@@ -42,7 +42,8 @@ Durable Port records stay in Port Pipeline; native children contribute to a
 finite parent completion rather than grouping all consumers of an adapter.
 Use **Port Pipeline** for the full inventory. To pick up a ready Now or Next
 item, open **Next Queue** and look for **Ready**. **Active Port Work** shows
-non-Watchlist Now or Next ports that are In progress, Validating or Blocked.
+open ports that are In progress or Validating. **Blocked Port Work** shows open
+ports marked Blocked. Both views include every Horizon and Port stage.
 Intake records the project and its evidence independently of catalog support.
 
 Keep the same canonical port issue across upstream releases. Close completed
