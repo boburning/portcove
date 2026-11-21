@@ -120,8 +120,11 @@ impl RestrictedOperation {
         }
     }
 
+    /// The listing carries only download decisions until older readers have a
+    /// gate: its legacy projection can express a download hold and nothing
+    /// else, so a register or launch hold would vanish for them.
     const fn listing_carrier(self) -> bool {
-        matches!(self, Self::Download | Self::RegisterExternal | Self::Launch)
+        matches!(self, Self::Download)
     }
 
     const fn managed_carrier(self) -> bool {
@@ -173,6 +176,19 @@ impl RestrictionScope {
         } else {
             1
         }
+    }
+
+    /// Whether some dimension both scopes constrain has no value in common, so
+    /// no subject can match both.
+    fn disjoint_from(&self, other: &Self) -> bool {
+        fn disjoint<T: PartialEq>(left: &[T], right: &[T]) -> bool {
+            !left.is_empty() && !right.is_empty() && left.iter().all(|v| !right.contains(v))
+        }
+        disjoint(&self.platforms, &other.platforms)
+            || disjoint(&self.releases, &other.releases)
+            || disjoint(&self.artifacts, &other.artifacts)
+            || disjoint(&self.inputs, &other.inputs)
+            || disjoint(&self.components, &other.components)
     }
 
     /// Whether every subject this scope covers is also covered by `self`.
@@ -252,9 +268,18 @@ pub(crate) struct SubjectArtifact<'a> {
     pub asset_name: Option<&'a str>,
 }
 
+/// When a decision is made. An offer may defer an identity that Core resolves
+/// and checks again; a final check is the last gate before bytes are used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Phase {
+    Offer,
+    Final,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RestrictionSubject<'a> {
     pub operation: RestrictedOperation,
+    pub phase: Phase,
     pub platform: Knowledge<Platform>,
     pub release: Knowledge<&'a str>,
     pub artifact: Knowledge<SubjectArtifact<'a>>,
@@ -267,12 +292,20 @@ impl<'a> RestrictionSubject<'a> {
     pub(crate) const fn deferred(operation: RestrictedOperation) -> Self {
         Self {
             operation,
+            phase: Phase::Offer,
             platform: Knowledge::Deferred,
             release: Knowledge::Deferred,
             artifact: Knowledge::Deferred,
             input: Knowledge::Deferred,
             component: Knowledge::Deferred,
         }
+    }
+
+    /// The last gate before bytes are used: nothing is deferred any more, so a
+    /// hold matches an unresolved dimension and a permit does not.
+    pub(crate) const fn final_check(mut self) -> Self {
+        self.phase = Phase::Final;
+        self
     }
 
     pub(crate) const fn on(mut self, platform: Platform) -> Self {
@@ -363,6 +396,13 @@ impl RestrictionOutcome {
         self.decision
             .as_ref()
             .is_some_and(|(decision, _)| !decision.scope.artifacts.is_empty())
+    }
+
+    /// The deciding restriction scope names exact releases.
+    pub(crate) fn release_scoped(&self) -> bool {
+        self.decision
+            .as_ref()
+            .is_some_and(|(decision, _)| !decision.scope.releases.is_empty())
     }
 
     pub(crate) fn into_result(self) -> Result<()> {
@@ -483,6 +523,16 @@ impl EffectiveRestrictions {
             .flat_map(|restriction| &restriction.scope.artifacts)
     }
 
+    /// Whether some permit for this operation names exact releases or artifacts.
+    pub(crate) fn has_scoped_permit(&self, operation: RestrictedOperation) -> bool {
+        self.managed.iter().chain(&self.listing).any(|restriction| {
+            restriction.effect == RestrictionEffect::Permit
+                && restriction.operations.contains(&operation)
+                && (!restriction.scope.artifacts.is_empty()
+                    || !restriction.scope.releases.is_empty())
+        })
+    }
+
     /// Whether any hold for this operation is limited to exact artifacts.
     pub(crate) fn has_artifact_holds(&self, operation: RestrictedOperation) -> bool {
         self.managed.iter().chain(&self.listing).any(|restriction| {
@@ -492,20 +542,44 @@ impl EffectiveRestrictions {
         })
     }
 
-    /// The deciding exact-artifact hold for a known artifact, if any.
+    fn final_artifact(
+        &self,
+        operation: RestrictedOperation,
+        version: &str,
+        sha256: &str,
+    ) -> RestrictionOutcome {
+        self.evaluate(
+            &RestrictionSubject::deferred(operation)
+                .artifact(SubjectArtifact {
+                    version,
+                    sha256,
+                    asset_name: None,
+                })
+                .final_check(),
+        )
+    }
+
+    /// Any hold on this exact known artifact at its final check.
     pub(crate) fn artifact_hold(
         &self,
         operation: RestrictedOperation,
         version: &str,
         sha256: &str,
     ) -> Option<RestrictionOutcome> {
-        let outcome = self.evaluate(&RestrictionSubject::deferred(operation).artifact(
-            SubjectArtifact {
-                version,
-                sha256,
-                asset_name: None,
-            },
-        ));
+        let outcome = self.final_artifact(operation, version, sha256);
+        outcome.is_held().then_some(outcome)
+    }
+
+    /// A hold that names this exact artifact, as opposed to a route-wide hold.
+    /// Release selection uses it to step over an excluded package to a
+    /// permitted one; route-wide holds stay with the acquisition gate.
+    pub(crate) fn artifact_exclusion(
+        &self,
+        operation: RestrictedOperation,
+        version: &str,
+        sha256: &str,
+    ) -> Option<RestrictionOutcome> {
+        let outcome = self.final_artifact(operation, version, sha256);
         (outcome.is_held() && outcome.artifact_scoped()).then_some(outcome)
     }
 }
@@ -533,6 +607,7 @@ fn dimension<V, T: Copy>(
     values: &[V],
     knowledge: Knowledge<T>,
     hold: bool,
+    phase: Phase,
     contains: impl Fn(&V, T) -> bool,
 ) -> Fit {
     if values.is_empty() {
@@ -545,7 +620,13 @@ fn dimension<V, T: Copy>(
             unverifiable: false,
         },
         Knowledge::Known(_) => Fit::No,
-        Knowledge::Deferred => Fit::Possible,
+        // Only an offer may defer; a final check treats an unresolved
+        // identity like an unprovable one.
+        Knowledge::Deferred if phase == Phase::Offer => Fit::Possible,
+        Knowledge::Deferred if hold => Fit::Yes {
+            unverifiable: false,
+        },
+        Knowledge::Deferred => Fit::No,
         // A hold fails closed; a permit matches only known values.
         Knowledge::Unverifiable if hold => Fit::Yes { unverifiable: true },
         Knowledge::Unverifiable => Fit::No,
@@ -557,33 +638,50 @@ fn fit(restriction: &AcquisitionRestriction, subject: &RestrictionSubject<'_>) -
         return Fit::No;
     }
     let hold = restriction.effect == RestrictionEffect::Hold;
+    let phase = subject.phase;
     let scope = &restriction.scope;
-    dimension(&scope.platforms, subject.platform, hold, |v, p| *v == p)
-        .and(dimension(&scope.releases, subject.release, hold, |v, r| {
-            v == r
-        }))
-        .and(dimension(
-            &scope.artifacts,
-            subject.artifact,
-            hold,
-            |v, a| {
-                v.version == a.version
-                    && v.sha256.eq_ignore_ascii_case(a.sha256)
-                    && match (&v.asset_name, a.asset_name) {
-                        (None, _) => true,
-                        (Some(expected), Some(actual)) => expected == actual,
-                        // An unnamed subject satisfies a named hold, never a named permit.
-                        (Some(_), None) => hold,
-                    }
-            },
-        ))
-        .and(dimension(&scope.inputs, subject.input, hold, |v, i| v == i))
-        .and(dimension(
-            &scope.components,
-            subject.component,
-            hold,
-            |v, c| v == c,
-        ))
+    dimension(&scope.platforms, subject.platform, hold, phase, |v, p| {
+        *v == p
+    })
+    .and(dimension(
+        &scope.releases,
+        subject.release,
+        hold,
+        phase,
+        |v, r| v == r,
+    ))
+    .and(dimension(
+        &scope.artifacts,
+        subject.artifact,
+        hold,
+        phase,
+        |v, a| {
+            v.version == a.version
+                && v.sha256.eq_ignore_ascii_case(a.sha256)
+                && match (&v.asset_name, a.asset_name) {
+                    (None, _) => true,
+                    (Some(expected), Some(actual)) => expected == actual,
+                    // An unnamed subject satisfies a named hold, never a named permit.
+                    (Some(_), None) => hold,
+                }
+        },
+    ))
+    // No Core path resolves inputs or components yet, so even an offer
+    // cannot defer them: a hold on them fails closed, a permit never matches.
+    .and(dimension(
+        &scope.inputs,
+        subject.input,
+        hold,
+        Phase::Final,
+        |v, i| v == i,
+    ))
+    .and(dimension(
+        &scope.components,
+        subject.component,
+        hold,
+        Phase::Final,
+        |v, c| v == c,
+    ))
 }
 
 fn evaluate_carrier(
@@ -886,6 +984,13 @@ pub(crate) fn validate(
             ));
         }
         validate_scope(&restriction.scope).map_err(|()| invalid("scope is malformed"))?;
+        // No Core path resolves inputs or components to known values yet, so a
+        // permit on them could never be proven and is refused until one does.
+        if restriction.effect == RestrictionEffect::Permit
+            && (!restriction.scope.inputs.is_empty() || !restriction.scope.components.is_empty())
+        {
+            return Err(invalid("a permit cannot yet name inputs or components"));
+        }
     }
     for permit in restrictions
         .iter()
@@ -966,10 +1071,24 @@ pub(crate) fn validate_transition(
     if candidate_holds.is_empty() {
         return Err("a managed acquisition hold was removed");
     }
+    let candidate_permits: Vec<_> = candidate
+        .iter()
+        .filter(|r| r.effect == RestrictionEffect::Permit)
+        .collect();
+    // A broader replacement hold is less specific, so a permit that lost to the
+    // baseline hold could now win. Accept it only when no candidate permit that
+    // outranks it can reach a subject the baseline hold covered.
     let kept = baseline_holds.iter().all(|hold| {
         candidate_holds.iter().any(|candidate| {
+            let rank = candidate.scope.specificity();
             candidate.operations.is_superset(&hold.operations)
                 && candidate.scope.covers(&hold.scope)
+                && (rank >= hold.scope.specificity()
+                    || candidate_permits.iter().all(|permit| {
+                        permit.operations.is_disjoint(&hold.operations)
+                            || permit.scope.specificity() <= rank
+                            || permit.scope.disjoint_from(&hold.scope)
+                    }))
         })
     });
     let permits_reviewed = candidate

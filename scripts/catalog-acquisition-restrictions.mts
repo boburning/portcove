@@ -38,7 +38,9 @@ const reconsiderConditions = [
   "owner-review",
 ] as const;
 const carrierOperations: Record<RestrictionCarrier, readonly RestrictedOperation[]> = {
-  listing: ["download", "register-external", "launch"],
+  // Only download until older readers gain a gate: the legacy listing string
+  // can express a download hold and nothing else.
+  listing: ["download"],
   integration: ["download", "install", "update", "adopt", "activate", "prepare"],
 };
 
@@ -264,6 +266,14 @@ export function checkAcquisitionRestrictions(
     )
       throw invalid("require a positive tracking issue");
     if (restriction.scope !== undefined) checkScope(id, restriction.scope, carrier, context);
+    // No Core path resolves inputs or components yet; a permit on them could
+    // never be proven, so it is refused until one does. Holds may keep them.
+    if (
+      restriction.effect === "permit" &&
+      isRecord(restriction.scope) &&
+      (restriction.scope.inputs !== undefined || restriction.scope.components !== undefined)
+    )
+      throw invalid("let a permit name inputs or components, which Core cannot yet prove");
   }
   const restrictions = value as AcquisitionRestriction[];
   const holds = restrictions.filter((restriction) => restriction.effect === "hold");

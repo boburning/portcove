@@ -335,13 +335,17 @@ authors `listing.restrictions`; a managed integration authors
 derives them.
 
 Each decision has a slug `id`, an `effect` (`hold` or `permit`), a nonempty set
-of `operations` and an optional `scope`. A listing names `download`,
-`register-external` or `launch`; an integration names `download`, `install`,
-`update`, `adopt`, `activate` or `prepare`. Removal, rollback and backup are
+of `operations` and an optional `scope`. A listing names only `download`: its
+legacy string can express nothing else, so a `register-external` or `launch`
+decision would vanish for older readers until they have a format gate. An
+integration names `download`, `install`, `update`, `adopt`, `activate` or
+`prepare`. Removal, rollback and backup are
 never restricted. The scope lists exact `platforms`, `releases`, `artifacts`
 (version, lowercase SHA-256 and optional file name), source `inputs` and
 `components`; an empty dimension is unconstrained. A listing scopes releases
-or artifacts only with a `release_url` or download asset hints.
+or artifacts only with a `release_url` or download asset hints. No Core path
+resolves inputs or components yet, so a permit cannot name them and a hold on
+them applies wherever its other dimensions match.
 
 A hold requires a descriptive `reason` code and a bounded player
 `explanation`; a permit carries neither. `reason`, `reconsider_when` and
@@ -365,21 +369,28 @@ Evaluation rules:
 - A permit must share an operation with a hold in its carrier and cannot repeat
   that hold's scope, so data cannot grant by itself.
 - A hold whose scoped identity can never be proven, such as the release package
-  of an adopted folder, fails closed with Core's own explanation. A hold whose
-  identity is resolved later does not withhold an offer; Core repeats the check
-  on the actual bytes. A permit matches only known values, and Core checks the
-  downloaded bytes again before moving a file into place.
+  of an adopted folder, fails closed with Core's own explanation.
+- An offer, such as a status view or the download options, may defer an
+  identity Core resolves later: a hold that a more specific permit could still
+  cancel does not withhold the offer. The final check before bytes are used,
+  namely the downloaded package, the install artifact gate, activation and
+  adoption, defers nothing: there a hold matches an unresolved dimension and a
+  permit matches only known values. A provider-reported digest decides an
+  offer only; the downloaded bytes decide the download.
 
-Port and listing action assessments report a held action as not offered, with
-its reason code in `restriction`; attaching an existing copy applies
-`register-external` decisions and Launch applies `launch` decisions. The
-download offer drops a held sibling asset and names it in its limitations; when
-every asset is held the offer is refused with the explanation.
+Port action assessments report a held action as not offered, with its reason
+code in `restriction`; listing action assessments are unchanged because the
+listing carries only download decisions. The download offer drops a held
+sibling asset and names it in its limitations. When every asset of the selected
+release is held, the offer still lists the releases so a permitted package in
+another release stays reachable; it is refused with the explanation only when
+no release or package could be permitted.
 
 Listing format 15 carries `restrictions`. In a format-15 document the legacy
 `download_block_reason` must equal the explanation of the first hold that
-names `download`, at any scope, so a reader limited to format 14 is never less
-restricted than a capable one. Exports below format 15 omit `restrictions` and
+names `download`, at any scope. An older reader treats that string as a hold on
+every download, and the listing carries no other operation, so a reader limited
+to format 14 is never less restricted than a capable one. Exports below format 15 omit `restrictions` and
 keep that string. Signed listing delivery stays at format 11; a delivered
 listing that repeats the current string for the same project and game keeps
 the typed restrictions, and any other delivered value replaces them.

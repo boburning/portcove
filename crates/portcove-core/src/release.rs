@@ -2051,9 +2051,11 @@ impl GithubReleaseProvider {
             let digest = self
                 .observed_asset_digest(port, latest, latest_asset, scope)
                 .await?;
-            if let Some(excluded) =
-                restrictions.artifact_hold(RestrictedOperation::Install, &latest.tag_name, &digest)
-            {
+            if let Some(excluded) = restrictions.artifact_exclusion(
+                RestrictedOperation::Install,
+                &latest.tag_name,
+                &digest,
+            ) {
                 fallback_reason = excluded.explanation();
                 exclusion_reason.clone_from(&fallback_reason);
                 Some(
@@ -2121,7 +2123,7 @@ impl GithubReleaseProvider {
                     .observed_asset_digest(port, fallback, asset, scope)
                     .await?;
                 if restrictions
-                    .artifact_hold(RestrictedOperation::Install, &fallback.tag_name, &digest)
+                    .artifact_exclusion(RestrictedOperation::Install, &fallback.tag_name, &digest)
                     .is_none()
                     && reviewed.iter().any(|(version, expected)| {
                         *version == fallback.tag_name && expected.eq_ignore_ascii_case(&digest)
@@ -2243,7 +2245,7 @@ impl GithubReleaseProvider {
                 .await?
         };
         let version = release_version(&release.tag_name);
-        if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_hold(
+        if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_exclusion(
             RestrictedOperation::Install,
             &version,
             &sha256,
@@ -2310,7 +2312,7 @@ fn preserved_resolution(
     record: &crate::curated_acquisition::CuratedAcquisitionRecord,
     scope: &crate::DefinitionAcquisitionScope,
 ) -> Result<ResolvedGithub> {
-    if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_hold(
+    if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_exclusion(
         RestrictedOperation::Install,
         &record.tag,
         &record.sha256,
@@ -2488,7 +2490,7 @@ fn reviewed_fallback_digest(
         .and_then(parse_digest)
         .filter(|digest| {
             restrictions
-                .artifact_hold(RestrictedOperation::Install, &release.tag_name, digest)
+                .artifact_exclusion(RestrictedOperation::Install, &release.tag_name, digest)
                 .is_none()
                 && restrictions
                     .permitted_artifacts(RestrictedOperation::Install, Knowledge::Deferred)

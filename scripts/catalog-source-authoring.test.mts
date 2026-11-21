@@ -952,6 +952,10 @@ void test("download restrictions project through the versioned directory without
     [hold, { ...permit, scope: undefined }],
     [hold, { ...permit, reason: "bundled-game-data" }],
     [hold, { ...hold }],
+    [hold, { ...permit, scope: { inputs: ["source-profile"] } }],
+    [hold, { ...permit, scope: { components: [{ kind: "tool-artifact", id: "tool" }] } }],
+    [{ ...hold, operations: ["launch"] }],
+    [{ ...hold, operations: ["register-external"] }],
   ])
     assert.throws(() =>
       checkedAuthoredPort({

@@ -69,6 +69,23 @@ fn validation_refuses_wrong_carriers_incomplete_holds_and_ungrounded_permits() {
     let mut launch = whole_download_hold();
     launch.operations = BTreeSet::from([RestrictedOperation::Launch]);
     assert!(validate(std::slice::from_ref(&launch), managed).is_err());
+    // Older listing readers can only see a download hold, so the listing
+    // carries nothing else until they have a gate.
+    assert!(validate(std::slice::from_ref(&launch), listing).is_err());
+    launch.operations = BTreeSet::from([RestrictedOperation::RegisterExternal]);
+    assert!(validate(std::slice::from_ref(&launch), listing).is_err());
+    // A permit on an identity Core never resolves could never be proven.
+    for scope in [
+        json!({"inputs": ["source-profile"]}),
+        json!({"components": [{"kind": "tool-artifact", "id": "tool"}]}),
+    ] {
+        let mut unprovable = artifact_permit(SHA_A);
+        unprovable.scope = serde_json::from_value(scope.clone()).unwrap();
+        assert!(validate(&[whole_download_hold(), unprovable], listing).is_err());
+        let mut scoped_hold = whole_download_hold();
+        scoped_hold.scope = serde_json::from_value(scope).unwrap();
+        validate(&[scoped_hold], listing).unwrap();
+    }
 
     let mut missing = whole_download_hold();
     missing.reason = None;
@@ -407,6 +424,8 @@ mod legacy_reference {
 enum Case<'a> {
     Deferred,
     Unverifiable,
+    /// A listed package without a published digest: its release is known.
+    Release(&'a str),
     Known(&'a str, &'a str),
 }
 
@@ -460,6 +479,7 @@ fn migration_is_behavior_preserving() {
         let mut cases = vec![
             Case::Deferred,
             Case::Unverifiable,
+            Case::Release("v0.0.0-unseen"),
             Case::Known("v0.0.0-unseen", SHA_A),
         ];
         for artifact in hold.iter().flat_map(|hold| {
@@ -470,16 +490,18 @@ fn migration_is_behavior_preserving() {
             cases.push(Case::Known(&artifact.version, &artifact.sha256));
         }
         let restrictions = EffectiveRestrictions::of(&catalog, id);
-        for platform in [
-            Platform::WindowsX86_64,
-            Platform::LinuxX86_64,
-            Platform::MacosX86_64,
-            Platform::MacosAarch64,
-        ] {
+        let platforms = [
+            Knowledge::Known(Platform::WindowsX86_64),
+            Knowledge::Known(Platform::LinuxX86_64),
+            Knowledge::Known(Platform::MacosX86_64),
+            Knowledge::Known(Platform::MacosAarch64),
+            Knowledge::Deferred,
+        ];
+        for platform in platforms {
             for operation in RestrictedOperation::ALL {
                 for case in &cases {
                     let legacy = match (operation, *case) {
-                        (O::Download, Case::Deferred) => {
+                        (O::Download, Case::Deferred | Case::Release(_)) => {
                             legacy_reference::acquisition(hold).or(listing_reason.clone())
                         }
                         (O::Download, Case::Known(version, sha)) => {
@@ -487,7 +509,7 @@ fn migration_is_behavior_preserving() {
                                 .or(listing_reason.clone())
                                 .or(legacy_reference::artifact(hold, version, sha))
                         }
-                        (O::Install | O::Update, Case::Deferred) => {
+                        (O::Install | O::Update, Case::Deferred | Case::Release(_)) => {
                             legacy_reference::acquisition(hold)
                         }
                         (O::Install | O::Update, Case::Known(version, sha)) => {
@@ -504,10 +526,12 @@ fn migration_is_behavior_preserving() {
                         // No Core call site evaluates these combinations.
                         _ => continue,
                     };
-                    let mut subject = RestrictionSubject::deferred(operation).on(platform);
+                    let mut subject = RestrictionSubject::deferred(operation);
+                    subject.platform = platform;
                     match *case {
                         Case::Deferred => {}
                         Case::Unverifiable => subject = subject.unverifiable_artifact(),
+                        Case::Release(tag) => subject.release = Knowledge::Known(tag),
                         Case::Known(version, sha256) => {
                             subject = subject.artifact(SubjectArtifact {
                                 version,
@@ -516,9 +540,28 @@ fn migration_is_behavior_preserving() {
                             })
                         }
                     }
-                    let typed = restrictions.evaluate(&subject).explanation();
-                    assert_eq!(typed, legacy, "{id} {platform:?} {operation:?} {case:?}");
-                    compared += 1;
+                    // The phase each Core call site uses: offers and status
+                    // views defer; downloaded bytes, the install artifact gate,
+                    // activation and adoption are final.
+                    let phases: &[bool] = match (operation, *case) {
+                        (O::Activate | O::Adopt, _) => &[true],
+                        (_, Case::Known(..)) => &[false, true],
+                        (O::Prepare | O::RegisterExternal | O::Launch, _) => &[false, true],
+                        _ => &[false],
+                    };
+                    for &final_phase in phases {
+                        let subject = if final_phase {
+                            subject.final_check()
+                        } else {
+                            subject
+                        };
+                        let typed = restrictions.evaluate(&subject).explanation();
+                        assert_eq!(
+                            typed, legacy,
+                            "{id} {platform:?} {operation:?} {case:?} final={final_phase}"
+                        );
+                        compared += 1;
+                    }
                 }
             }
         }
@@ -535,21 +578,27 @@ fn migration_is_behavior_preserving() {
             legacy_reference::adoption(hold),
             "{id}"
         );
+        // The install flow runs the acquisition gate and then the final
+        // artifact gate; together they decide exactly as before.
         for case in &cases {
             if let Case::Known(version, sha) = *case {
                 assert_eq!(
-                    crate::managed_runtime_policy::require_artifact_available(
-                        &catalog, id, version, sha
-                    )
-                    .err()
-                    .map(|error| error.message),
-                    legacy_reference::artifact(hold, version, sha),
+                    crate::managed_runtime_policy::require_acquisition_available(&catalog, id)
+                        .and_then(|()| {
+                            crate::managed_runtime_policy::require_artifact_available(
+                                &catalog, id, version, sha,
+                            )
+                        })
+                        .err()
+                        .map(|error| error.message),
+                    legacy_reference::acquisition(hold)
+                        .or(legacy_reference::artifact(hold, version, sha)),
                     "{id} {version}"
                 );
             }
         }
     }
-    assert!(compared > 157 * 4 * 8, "{compared}");
+    assert!(compared > 157 * 5 * 8, "{compared}");
 }
 
 #[test]
@@ -699,4 +748,126 @@ fn target_inspection_reports_a_scoped_permit_as_an_offered_download() {
             crate::managed_runtime_policy::acquisition_hold_reason(&catalog, &port.id),
         );
     }
+}
+
+#[test]
+fn an_unresolvable_permit_never_opens_a_hold_at_offer_or_final() {
+    let mut permit = artifact_permit(SHA_A);
+    permit.scope = serde_json::from_value(json!({"inputs": ["source-profile"]})).unwrap();
+    let listing = listing_set(vec![whole_download_hold(), permit]);
+    let offer = RestrictionSubject::deferred(RestrictedOperation::Download);
+    assert!(listing.evaluate(&offer).is_held());
+    let bytes = known(RestrictedOperation::Download, SHA_B).final_check();
+    assert!(listing.evaluate(&bytes).is_held());
+
+    // A platform permit decides an offer only once the host is known, and the
+    // final check never defers it.
+    let mut windows = artifact_permit(SHA_A);
+    windows.scope = RestrictionScope {
+        platforms: vec![Platform::WindowsX86_64],
+        ..RestrictionScope::default()
+    };
+    let listing = listing_set(vec![whole_download_hold(), windows]);
+    assert!(
+        listing
+            .evaluate(&RestrictionSubject::deferred(RestrictedOperation::Download).final_check())
+            .is_held()
+    );
+    assert!(
+        !listing
+            .evaluate(
+                &RestrictionSubject::deferred(RestrictedOperation::Download)
+                    .on(Platform::WindowsX86_64)
+                    .final_check()
+            )
+            .is_held()
+    );
+}
+
+#[test]
+fn the_final_artifact_gate_refuses_any_hold_not_only_exact_ones() {
+    let managed = EffectiveRestrictions {
+        managed: vec![
+            restriction(json!({
+                "id": "acquisition", "effect": "hold", "operations": ["install"],
+                "reason": "upstream-transition-unreviewed", "explanation": "Held."
+            })),
+            restriction(json!({
+                "id": "reviewed", "effect": "permit", "operations": ["install"],
+                "scope": {"artifacts": [{"version": "v1", "sha256": SHA_A}]}
+            })),
+        ],
+        listing: Vec::new(),
+    };
+    validate(&managed.managed, RestrictionCarrier::Managed).unwrap();
+    assert!(
+        managed
+            .artifact_hold(RestrictedOperation::Install, "v1", SHA_B)
+            .is_some()
+    );
+    assert!(
+        managed
+            .artifact_hold(RestrictedOperation::Install, "v1", SHA_A)
+            .is_none()
+    );
+    // Release selection still distinguishes an exact exclusion from a route hold.
+    assert!(
+        managed
+            .artifact_exclusion(RestrictedOperation::Install, "v1", SHA_B)
+            .is_none()
+    );
+}
+
+#[test]
+fn a_broader_replacement_hold_cannot_let_an_existing_permit_win() {
+    let hold_install = |id: &str, scope: serde_json::Value| {
+        restriction(json!({
+            "id": id, "effect": "hold", "operations": ["install"], "scope": scope,
+            "reason": "known-defective-artifact", "explanation": "Held."
+        }))
+    };
+    let whole = || {
+        restriction(json!({
+            "id": "whole", "effect": "hold", "operations": ["install"],
+            "reason": "upstream-transition-unreviewed", "explanation": "Held."
+        }))
+    };
+    let release_permit = restriction(json!({
+        "id": "release", "effect": "permit", "operations": ["install"],
+        "scope": {"releases": ["v1"]}
+    }));
+    let baseline = vec![
+        whole(),
+        hold_install(
+            "exact",
+            json!({"artifacts": [{"version": "v1", "sha256": SHA_A}]}),
+        ),
+        release_permit.clone(),
+    ];
+    let mut swapped = whole();
+    swapped.id = "exact".into();
+    let candidate = vec![whole(), swapped, release_permit.clone()];
+    assert!(validate_transition(&baseline, &candidate).is_err());
+    validate_transition(&baseline, &baseline).unwrap();
+    // A replacement that no outranking permit can reach stays acceptable.
+    let mut elsewhere = release_permit;
+    elsewhere.scope = RestrictionScope {
+        artifacts: vec![RestrictedArtifact {
+            version: "v1".into(),
+            sha256: SHA_B.into(),
+            asset_name: None,
+        }],
+        ..RestrictionScope::default()
+    };
+    let baseline = vec![
+        whole(),
+        hold_install(
+            "exact",
+            json!({"artifacts": [{"version": "v1", "sha256": SHA_A}]}),
+        ),
+        elsewhere.clone(),
+    ];
+    let mut swapped = whole();
+    swapped.id = "exact".into();
+    validate_transition(&baseline, &[whole(), swapped, elsewhere]).unwrap();
 }

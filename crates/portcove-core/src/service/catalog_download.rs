@@ -8,13 +8,24 @@ use super::*;
 use crate::GithubReleaseProvider;
 use crate::PortListing;
 use crate::acquisition_restriction::{
-    EffectiveRestrictions, Knowledge, RestrictedOperation, RestrictionSubject, SubjectArtifact,
+    EffectiveRestrictions, Knowledge, Phase, RestrictedOperation, RestrictionSubject,
+    SubjectArtifact,
 };
+use rusqlite::{TransactionBehavior, params};
 
+const RECORD_LIMIT: usize = 64 * 1024;
+const RECORDS_LIMIT: usize = 10_000;
+const TOTAL_RECORD_BYTES: usize = 8 * 1024 * 1024;
+const RECEIPT_NAME: &str = ".portcove-download.json";
+
+/// One upstream package as a download restriction subject. An offer may judge
+/// a provider-reported digest; only the final check on downloaded bytes can
+/// let a permit decide.
 fn download_artifact_subject<'a>(
     release_tag: &'a str,
     asset_name: &'a str,
     sha256: Option<&'a str>,
+    phase: Phase,
 ) -> RestrictionSubject<'a> {
     let mut subject = RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host();
     subject.release = Knowledge::Known(release_tag);
@@ -25,14 +36,11 @@ fn download_artifact_subject<'a>(
             asset_name: Some(asset_name),
         });
     }
+    if phase == Phase::Final {
+        subject = subject.final_check();
+    }
     subject
 }
-use rusqlite::{TransactionBehavior, params};
-
-const RECORD_LIMIT: usize = 64 * 1024;
-const RECORDS_LIMIT: usize = 10_000;
-const TOTAL_RECORD_BYTES: usize = 8 * 1024 * 1024;
-const RECEIPT_NAME: &str = ".portcove-download.json";
 
 #[cfg(test)]
 #[path = "catalog_download_tests.rs"]
@@ -565,17 +573,21 @@ impl PortcoveService {
         release_tag: &str,
         asset_name: &str,
         sha256: Option<&str>,
+        phase: Phase,
     ) -> Result<()> {
         EffectiveRestrictions::of(&self.catalog, port_id).require(&download_artifact_subject(
             release_tag,
             asset_name,
             sha256,
+            phase,
         ))
     }
 
     /// Held sibling assets leave the offer and are explained as limitations. A
     /// provider-reported digest decides the offer only; the downloaded bytes
-    /// are checked again before anything is moved into place.
+    /// are checked again before anything is moved into place. The offer is
+    /// refused outright only when no release or package of this listing could
+    /// be permitted, so a permitted older release stays reachable.
     fn withhold_restricted_candidates(
         &self,
         port_id: &str,
@@ -589,24 +601,32 @@ impl PortcoveService {
         let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
         let mut kept = Vec::with_capacity(candidates.len());
         let mut first = None;
+        let mut scoped = false;
         for candidate in candidates {
             let subject = download_artifact_subject(
                 &candidate.release_tag,
                 &candidate.name,
                 candidate.sha256.as_deref(),
+                Phase::Offer,
             );
-            match restrictions.evaluate(&subject).explanation() {
+            let outcome = restrictions.evaluate(&subject);
+            match outcome.explanation() {
                 Some(explanation) => {
                     coverage
                         .limitations
                         .push(format!("{}: {explanation}", candidate.name));
-                    first.get_or_insert(explanation);
+                    scoped |= outcome.artifact_scoped() || outcome.release_scoped();
+                    if first.is_none() {
+                        first = Some(explanation);
+                    }
                 }
                 None => kept.push(candidate),
             }
         }
-        let every_asset_held = if kept.is_empty() { first } else { None };
-        (kept, coverage, every_asset_held)
+        let refused = kept.is_empty()
+            && !scoped
+            && !restrictions.has_scoped_permit(RestrictedOperation::Download);
+        (kept, coverage, if refused { first } else { None })
     }
 
     fn require_download_available(&self, port_id: &str) -> Result<()> {
@@ -833,9 +853,9 @@ impl PortcoveService {
                     .await?
             }
         };
-        let (candidates, coverage, every_asset_held) =
+        let (candidates, coverage, refused) =
             self.withhold_restricted_candidates(port_id, candidates, coverage);
-        if let Some(reason) = every_asset_held {
+        if let Some(reason) = refused {
             result.reason = Some(reason);
             return Ok(result);
         }
@@ -1012,6 +1032,7 @@ impl PortcoveService {
             &artifact.release_tag,
             &artifact.name,
             artifact.sha256.as_deref().or(expected.as_deref()),
+            Phase::Offer,
         )?;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
@@ -1262,6 +1283,7 @@ impl PortcoveService {
                     &record.artifact.release_tag,
                     &record.artifact.name,
                     Some(&archive_sha256),
+                    Phase::Final,
                 )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()

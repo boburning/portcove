@@ -22,7 +22,12 @@ import { isRecord } from "./runtime-values.mts";
 
 type Carrier = "listing" | "integration";
 
-/** [port id, carrier, reason code, tracking issue] from the reviewed classification. */
+/**
+ * [port id, carrier, reason code, tracking issue] from the reviewed classification.
+ * Tracking issues are carried for listing rows only: the 5 managed rows keep
+ * theirs in this table but not in authored data, because the legacy
+ * managed_acquisition_hold the generator emits cannot round-trip one.
+ */
 const reviewedRows: readonly (readonly [string, Carrier, string, number | null])[] = [
   ["abuse-abuse-2025", "listing", "bundled-game-data", 2913],
   ["ace-of-spades-openspades", "listing", "legacy-rights-review", 5755],

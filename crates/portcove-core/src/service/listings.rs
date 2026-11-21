@@ -1,8 +1,6 @@
 //! Descriptive directory and actual Library membership without operational definitions.
 use super::*;
-use crate::acquisition_restriction::{
-    EffectiveRestrictions, RestrictedOperation, RestrictionSubject,
-};
+use crate::acquisition_restriction::EffectiveRestrictions;
 
 mod recommendations;
 
@@ -236,26 +234,12 @@ impl PortcoveService {
         } else {
             "Close the game and resolve its pending launch before selecting an installation."
         };
-        // Attaching an existing copy is an external registration; Launch is
-        // Launch. A restriction naming either withholds the listing action.
-        let available = |action: ListingAction, allowed: bool, reason: &str| {
-            let operation = match action {
-                ListingAction::AttachExisting => Some(RestrictedOperation::RegisterExternal),
-                ListingAction::Launch => Some(RestrictedOperation::Launch),
-                _ => None,
-            };
-            let held = operation.and_then(|operation| {
-                restrictions
-                    .evaluate(&RestrictionSubject::deferred(operation).on_current_host())
-                    .explanation()
-            });
-            let allowed = allowed && held.is_none();
-            crate::ListingActionAssessment {
+        let available =
+            |action: ListingAction, allowed: bool, reason: &str| crate::ListingActionAssessment {
                 action,
                 allowed,
-                reason: (!allowed).then(|| held.unwrap_or_else(|| reason.to_owned())),
-            }
-        };
+                reason: (!allowed).then(|| reason.to_owned()),
+            };
         let actions = vec![
             available(
                 ListingAction::AttachExisting,

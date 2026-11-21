@@ -104,7 +104,9 @@ pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str
     let outcome = crate::acquisition_restriction::evaluate(
         catalog,
         port_id,
-        &RestrictionSubject::deferred(RestrictedOperation::Adopt).unverifiable_artifact(),
+        &RestrictionSubject::deferred(RestrictedOperation::Adopt)
+            .unverifiable_artifact()
+            .final_check(),
     );
     if outcome.unverifiable {
         return outcome.into_result();
@@ -112,7 +114,9 @@ pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str
     Ok(())
 }
 
-/// Refuses an exact artifact that an artifact-scoped hold names.
+/// The final gate for an exact artifact: any hold on it refuses, whatever the
+/// deciding scope. Route-wide holds already refuse earlier through
+/// [`require_acquisition_available`] with the same explanation.
 pub(crate) fn require_artifact_available(
     catalog: &crate::Catalog,
     port_id: &str,
@@ -142,7 +146,8 @@ pub(crate) fn require_managed_activation_available(
                 version: &install.version,
                 sha256: &install.artifact.sha256,
                 asset_name: Some(&install.artifact.asset_name),
-            }),
+            })
+            .final_check(),
     )
 }
 

@@ -436,7 +436,7 @@ fn project_channel(
     let restrictions = crate::acquisition_restriction::EffectiveRestrictions::managed_only(port);
     let install = crate::RestrictedOperation::Install;
     let (candidate, asset, sha256) = if restrictions
-        .artifact_hold(install, &candidate.provider.tag_name, &sha256)
+        .artifact_exclusion(install, &candidate.provider.tag_name, &sha256)
         .is_some()
     {
         output

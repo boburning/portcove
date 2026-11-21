@@ -3063,7 +3063,10 @@ fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
     assert_eq!(refusal("dkc2-recomp"), None);
     // A reviewed acquisition hold withdraws Install; its own hold explains the download.
     for held in ["open-nectar-pikmin", "djultra64-blocksphere"] {
-        assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
+        assert!(
+            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, held)
+                .is_some()
+        );
         assert_eq!(refusal(held), None);
     }
     // Listing-only titles have no managed route.
@@ -3593,8 +3596,10 @@ async fn a_permitted_package_whose_downloaded_digest_differs_is_refused() {
 }
 
 #[tokio::test]
-async fn every_held_asset_refuses_the_offer_with_its_explanation() {
+async fn a_release_whose_packages_are_all_held_still_lists_the_reachable_releases() {
     let (_temporary, mut service, request) = fixture();
+    // The selected release's only package is held; a permitted package may be
+    // in another release, so the release list stays reachable.
     let github = GithubFixture::new(archive(), Some(format!("sha256:{}", "3".repeat(64))), None);
     permit_reviewed_package(&mut service, &"2".repeat(64));
     let options = service
@@ -3606,7 +3611,14 @@ async fn every_held_asset_refuses_the_offer_with_its_explanation() {
         )
         .await
         .unwrap();
-    assert!(!options.allowed);
-    assert_eq!(options.reason.as_deref(), Some(SCOPED_HOLD));
     assert!(options.candidates.is_empty());
+    assert!(!options.releases.is_empty());
+    assert!(options.selected_release_id.is_some());
+    assert!(
+        options
+            .coverage
+            .unwrap()
+            .limitations
+            .contains(&format!("game.zip: {SCOPED_HOLD}"))
+    );
 }
