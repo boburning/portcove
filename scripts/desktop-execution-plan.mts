@@ -423,6 +423,8 @@ export function planDesktopExecution(
     inputs.push(receiptSource(new URL("./desktop-source-removal-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-adoption-review-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-library-handoff-test.mts", harnessUrl)));
+    if (selection.selected_scenarios.includes("native-library-recovery-bundle"))
+      inputs.push(receiptSource(new URL("testdata/catalog-artwork-red.jpg", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-cli-handoff-test.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-review-controls.mts", harnessUrl)));
     inputs.push(receiptSource(new URL("./desktop-native-confirmation.mts", harnessUrl)));

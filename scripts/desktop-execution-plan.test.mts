@@ -2012,6 +2012,26 @@ void test("remaining reviewed Windows workflows use existing positive exit custo
   assert.equal(combined.session.cleanupName, "game-update-review");
 });
 
+void test("recovery copy and restore bind the exact seeded artwork input", () => {
+  for (const scenario of [
+    "native-library-recovery-bundle",
+    "native-library-recovery-interruption",
+  ]) {
+    const plan = planDesktopExecution(
+      resolveDesktopSelection({ scenarios: [scenario], platform: "win32" }),
+      { platform: "win32" },
+    );
+    assert.equal(
+      plan.receiptInputs.some(
+        (input) =>
+          input.kind === "file" &&
+          input.path === "apps/desktop/scripts/testdata/catalog-artwork-red.jpg",
+      ),
+      scenario === "native-library-recovery-bundle",
+    );
+  }
+});
+
 void test("local artwork owns its exact private catalog fixture without enabling fixture CLI", () => {
   const id = "native-local-artwork-picker-and-recovery";
   const selections = [
