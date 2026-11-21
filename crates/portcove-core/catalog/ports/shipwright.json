@@ -59,12 +59,9 @@
       "repository": "HarbourMasters/Shipwright",
       "minimum_version": "9.2.3",
       "settings_file": "shipofharkinian.json",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ]
+      "platforms": ["windows-x86-64", "linux-x86-64"]
     },
-    "mod_provider_bindings": [{"provider": "gamebanana", "game_id": 16121}],
+    "mod_provider_bindings": [{ "provider": "gamebanana", "game_id": 16121 }],
     "support_tier": "stable",
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],

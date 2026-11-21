@@ -47,7 +47,9 @@ export function generatedPublicationProjection(
     throw new Error("a generated operational catalog and exact stable ID are required");
   if (
     Object.keys(template).sort().join(",") !== "catalog,contract_schema,representation" ||
-    (template.contract_schema !== 1 && template.contract_schema !== 2 && template.contract_schema !== 3) ||
+    (template.contract_schema !== 1 &&
+      template.contract_schema !== 2 &&
+      template.contract_schema !== 3) ||
     template.representation !== "catalog_projection" ||
     !isRecord(template.catalog) ||
     !Array.isArray(template.catalog.ports) ||

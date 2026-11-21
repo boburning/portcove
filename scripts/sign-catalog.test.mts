@@ -450,7 +450,10 @@ void test("legacy signer refuses a native mod loader binding before key access",
   );
   const result = item.run();
   assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver native mod loader bindings/u);
+  assert.match(
+    result.stderr,
+    /Format-1 signed catalogs cannot deliver native mod loader bindings/u,
+  );
   assert.equal(existsSync(item.output), false);
 });
 
