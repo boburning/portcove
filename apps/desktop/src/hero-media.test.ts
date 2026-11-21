@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  activeSourceHeroMediaContext,
   canCheckEditionArtwork,
   heroMediaCandidates,
   verifiedHeroMediaContext,
 } from "./hero-media";
-import { portDefinition, sourceInspectionIdentityFixture } from "./test-fixtures";
-import type { CatalogMediaAsset } from "./types";
+import { portDefinition, portStatus, sourceInspectionIdentityFixture } from "./test-fixtures";
+import type { CatalogMediaAsset, PortStatus } from "./types";
 
 function asset(id: string, role: CatalogMediaAsset["role"], original = false): CatalogMediaAsset {
   return {
@@ -80,6 +81,81 @@ it("requires a current registered game, port and edition before displaying match
   expect(canCheckEditionArtwork(bound)).toBe(true);
   const context = verifiedHeroMediaContext(bound, source, checked);
   expect(heroMediaCandidates(bound, context).backgrounds).toEqual([image]);
+  const readiness = {
+    blockers: [],
+    launchable: true,
+    pending_setup: false,
+    source: "not_checked" as const,
+    active_game_source_profile: source.profile_id,
+  };
+  const active: PortStatus = {
+    ...portStatus(),
+    active: {
+      id: "exact-install",
+      port_id: bound.id,
+      version: "v1",
+      path: "/fixture/install",
+      channel: "stable",
+      installed_at: 1,
+      verified: true,
+      staged: false,
+      artifact: { asset_name: "port.zip", sha256: "d".repeat(64), size: 1 },
+      runtime: null,
+      manifest_sha256: "f".repeat(64),
+      selected_executable: "port",
+    },
+    readiness,
+  };
+  expect(activeSourceHeroMediaContext(bound, active, source, checked)).toEqual(context);
+  expect(activeSourceHeroMediaContext(bound, active, source, undefined)).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(
+      bound,
+      { ...active, readiness: { ...readiness, source: "missing" } },
+      source,
+      checked,
+    ),
+  ).toEqual({});
+
+  expect(
+    activeSourceHeroMediaContext(bound, active, { ...source, profile_id: "wrong" }, undefined),
+  ).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(bound, active, source, { ...checked, health: "changed" }),
+  ).toEqual({});
+
+  expect(
+    activeSourceHeroMediaContext(bound, { ...active, readiness: null }, source, checked),
+  ).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(
+      bound,
+      {
+        ...active,
+        readiness: {
+          ...readiness,
+          active_game_source_profile: null,
+          preparation_mode: "source_only",
+        },
+      },
+      source,
+      checked,
+    ),
+  ).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(
+      bound,
+      {
+        ...active,
+        readiness: {
+          ...readiness,
+          active_game_source_profile: "other-active-source",
+        },
+      },
+      source,
+      checked,
+    ),
+  ).toEqual({});
   expect(verifiedHeroMediaContext(bound, source, report)).toEqual({});
   expect(verifiedHeroMediaContext(bound, source, checked, p.presentation.original_game)).toEqual(
     {},

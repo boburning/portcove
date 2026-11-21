@@ -3995,10 +3995,15 @@ original/edition. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
-Desktop has no validated binding from Core's source game, variant and
-representation IDs to these descriptive original-edition IDs. Automatic
-original media therefore requires reviewed edition neutrality. Players can use
-**Screenshot source** to view reviewed screenshots for an original release.
+Reviewed format-14 bindings connect an original release to the exact source
+game, variant and representation. Continue and game details can check one
+visible registered source within a bounded read and use its current exact
+match. An active installation uses that match only when its effective launch
+consumes this original. Prepared runtimes without an exact installed-source
+identity use the same neutral fallback as other unverified states. The full
+saved-file check remains available when the bounded read cannot verify a file
+set. Players can use **Screenshot source** to view reviewed screenshots for
+an original release.
 This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.

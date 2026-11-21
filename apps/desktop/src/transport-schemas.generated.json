@@ -2274,6 +2274,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation requires this registered game source\nat launch. Prepared/self-contained installs and optional inputs omit it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -28975,6 +28982,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation requires this registered game source\nat launch. Prepared/self-contained installs and optional inputs omit it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -39718,6 +39732,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation requires this registered game source\nat launch. Prepared/self-contained installs and optional inputs omit it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -75559,6 +75580,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation requires this registered game source\nat launch. Prepared/self-contained installs and optional inputs omit it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {

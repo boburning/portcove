@@ -1,5 +1,6 @@
 import { useAppTranslation } from "../localization";
 import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
+import type { HeroMediaContext } from "../hero-media";
 import { GameHero } from "./GameHero";
 import {
   browsePortPresentation,
@@ -154,7 +155,7 @@ function firstLibraryVisit({
     query.trim().length === 0
   );
 }
-function visibleRecentPort(
+export function visibleRecentPort(
   recent: RecentPort | undefined,
   organization: Organization | undefined,
   ports: CatalogEntry[],
@@ -353,6 +354,7 @@ function usePortBrowser({
   overview,
   libraryCount,
   recent,
+  recentArtwork,
   filter,
   query = "",
   setQuery,
@@ -403,6 +405,7 @@ function usePortBrowser({
   catalogSort?: CatalogSort;
   setCatalogSort?: Dispatch<SetStateAction<CatalogSort>>;
   recent?: RecentPort | undefined;
+  recentArtwork?: ((recent: RecentPort) => HeroMediaContext) | undefined;
   setFilter: Dispatch<SetStateAction<Filter | CatalogQuery>>;
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onContinue?: (portId: string) => void;
@@ -556,6 +559,7 @@ function usePortBrowser({
     overview,
     libraryCount,
     recent: visibleRecentPort(recent, organization, catalogUniverse ?? ports, statuses),
+    recentArtwork,
     filter,
     query,
     setQuery,
@@ -1141,10 +1145,12 @@ function continueLaunchable(port: CatalogEntry, status: PortStatus, blocked: boo
 
 function ContinueCard({
   recent,
+  mediaContext,
   launch,
   details,
 }: {
   recent: RecentPort;
+  mediaContext?: HeroMediaContext | undefined;
   launch: (portId: string) => void;
   details: (portId: string, originKey?: string) => void;
 }) {
@@ -1157,6 +1163,7 @@ function ContinueCard({
     <GameHero
       port={port}
       variant="continue"
+      mediaContext={mediaContext}
       className="continue-card mb-6"
       successfulLaunches={status.successful_launches}
       label={`${previouslyPlayed ? "Continue" : "Play"} ${gameIdentityLabel(port)}`}
@@ -1687,7 +1694,12 @@ function renderContinuePortBrowserView(
     model.recent &&
     model.onContinue &&
     !favorites?.only && (
-      <ContinueCard recent={model.recent} launch={model.onContinue} details={model.onSelect} />
+      <ContinueCard
+        recent={model.recent}
+        mediaContext={model.recentArtwork?.(model.recent)}
+        launch={model.onContinue}
+        details={model.onSelect}
+      />
     )
   );
 }

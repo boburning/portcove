@@ -1316,8 +1316,11 @@ export const desktopApi = {
       generation,
     }),
   verifySources: () => invoke<SourceVerificationOutcome[]>("verify_sources"),
-  inspectSource: (profileId: string) =>
-    invoke<SourceInspectionReport>("inspect_source", { profileId }),
+  inspectSource: (profileId: string, artworkGeneration?: number) =>
+    invoke<SourceInspectionReport>("inspect_source", {
+      profileId,
+      ...(artworkGeneration === undefined ? {} : { artworkGeneration }),
+    }),
   inspectSourceIntake: (profileId: string, paths: string[]) =>
     invoke<SourceIntakeInspection>("inspect_source_intake", {
       profileId,

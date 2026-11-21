@@ -1,19 +1,17 @@
-import type { CatalogMediaAsset, PortListing, SourceInspectionReport, SourceRecord } from "./types";
+import type { SourceIdentity } from "./transport-types.generated";
+import type {
+  CatalogMediaAsset,
+  PortListing,
+  PortStatus,
+  SourceInspectionReport,
+  SourceRecord,
+} from "./types";
 import type { PortIdentity } from "./port-identity";
 
 export type HeroMediaPort = PortIdentity & { id: string };
 export interface HeroMediaContext {
   /** An applicable identity supplied by an owner; an offered edition is not a selection. */
   originalEditionId?: string | undefined;
-}
-
-type ReviewedOriginalGame = NonNullable<PortListing["original_game"]>;
-type ReviewedEdition = ReviewedOriginalGame["source_editions"][number];
-
-function verifiedBindings(edition: ReviewedEdition): readonly unknown[] {
-  return "verified_sources" in edition && Array.isArray(edition.verified_sources)
-    ? edition.verified_sources
-    : [];
 }
 
 export function canCheckEditionArtwork(
@@ -30,9 +28,29 @@ export function canCheckEditionArtwork(
       subjectMatches(port, { subject }) &&
       editions.some(
         (edition) =>
-          edition.id === subject.source_edition_id && verifiedBindings(edition).length > 0,
+          edition.id === subject.source_edition_id && Boolean(edition.verified_sources?.length),
       ),
   );
+}
+
+function reviewedEditionForIdentity(
+  port: HeroMediaPort,
+  reviewedGame: PortListing["original_game"],
+  identity: SourceIdentity,
+) {
+  const original = port.presentation?.original_game;
+  if (!original || reviewedGame?.id !== original.id) return undefined;
+  const matches = reviewedGame.source_editions.filter(
+    (edition) =>
+      original.source_editions.some(({ id }) => id === edition.id) &&
+      edition.verified_sources?.some(
+        (binding) =>
+          binding.game_id === identity.game_id &&
+          binding.variant_id === identity.variant_id &&
+          binding.representation_id === identity.representation_id,
+      ),
+  );
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 /** Use only the current registered observation for this port and catalog identity. */
@@ -63,47 +81,44 @@ export function verifiedHeroMediaContext(
     registered.sha256 !== source.sha256 ||
     registered.storage_sha256 !== source.storage_sha256 ||
     registered.size !== source.size ||
-    registered.storage_size !== source.storage_size ||
-    !("original_editions" in report) ||
-    !Array.isArray(report.original_editions)
+    registered.storage_size !== source.storage_size
   )
     return {};
 
-  const matches = report.original_editions.filter(
-    (
-      entry: unknown,
-    ): entry is {
-      source_edition_id: string;
-    } =>
-      typeof entry === "object" &&
-      entry !== null &&
-      "port_id" in entry &&
+  const matches = (report.original_editions ?? []).filter(
+    (entry) =>
       entry.port_id === port.id &&
-      "original_game_id" in entry &&
       entry.original_game_id === original.id &&
-      "source_edition_id" in entry &&
-      typeof entry.source_edition_id === "string" &&
       original.source_editions.some(({ id }) => id === entry.source_edition_id),
   );
   if (matches.length !== 1) return {};
 
-  const edition = reviewedGame.source_editions.find(
-    ({ id }) => id === matches[0]!.source_edition_id,
-  );
-  if (!edition) return {};
-  const identity = classification.identity;
-  const stillBound = verifiedBindings(edition).some(
-    (binding) =>
-      typeof binding === "object" &&
-      binding !== null &&
-      "game_id" in binding &&
-      binding.game_id === identity.game_id &&
-      "variant_id" in binding &&
-      binding.variant_id === identity.variant_id &&
-      "representation_id" in binding &&
-      binding.representation_id === identity.representation_id,
-  );
-  return stillBound ? { originalEditionId: edition.id } : {};
+  const edition = reviewedEditionForIdentity(port, reviewedGame, classification.identity);
+  return edition?.id === matches[0]!.source_edition_id ? { originalEditionId: edition.id } : {};
+}
+
+/** A launch card needs confirmation from the active runtime's effective source contract. */
+export function activeSourceHeroMediaContext(
+  port: HeroMediaPort,
+  status: PortStatus | undefined,
+  source: SourceRecord | null | undefined,
+  report: SourceInspectionReport | undefined,
+  reviewedGame: PortListing["original_game"] = port.presentation?.original_game,
+): HeroMediaContext {
+  if (!status?.active && !status?.external_runtime)
+    return verifiedHeroMediaContext(port, source, report, reviewedGame);
+  // The effective active runtime may use retained or prepared bytes.
+  // A wider catalog profile or readable saved path alone cannot identify them.
+  if (
+    status.port_id !== port.id ||
+    status.active?.port_id !== port.id ||
+    status.external_runtime ||
+    !source ||
+    status.readiness?.active_game_source_profile !== source.profile_id ||
+    (status.readiness.source !== "current" && status.readiness.source !== "not_checked")
+  )
+    return {};
+  return verifiedHeroMediaContext(port, source, report, reviewedGame);
 }
 
 function subjectMatches(port: HeroMediaPort, { subject }: Pick<CatalogMediaAsset, "subject">) {
