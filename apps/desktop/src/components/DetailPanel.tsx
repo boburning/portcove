@@ -4168,7 +4168,8 @@ function DetailManageSection({
                   : "No active installation"
         }
       >
-        {model.status?.active && (
+        {model.managedRouteReadbackRequired && <p>{managedRouteReadbackGuidance}</p>}
+        {!model.managedRouteReadbackRequired && model.status?.active && (
           <div className="text-sm wrap-anywhere">
             <p className="my-1 select-text">{model.status.active.path}</p>
             <p className="m-0 text-pc-muted-foreground">
@@ -4176,7 +4177,7 @@ function DetailManageSection({
             </p>
           </div>
         )}
-        {model.status?.external_runtime && (
+        {!model.managedRouteReadbackRequired && model.status?.external_runtime && (
           <div className="text-sm wrap-anywhere">
             <RuntimeLaunchFacts
               executable={model.status.external_runtime.executable}

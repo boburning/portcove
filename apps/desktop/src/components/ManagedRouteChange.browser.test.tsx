@@ -187,7 +187,12 @@ function Workspace({
 
 function LaunchReadback({ status }: { status: PortStatus }) {
   const launch = presentPortAction(useOperationPresentation(), port.id, status, "launch");
-  return <button disabled={Boolean(launch.busy)}>Play current installation</button>;
+  return (
+    <>
+      <button disabled={Boolean(launch.busy)}>Play current installation</button>
+      {launch.installReadbackRequired && <p>Current installation is awaiting readback.</p>}
+    </>
+  );
 }
 
 it("retains the managed copy through failed readback and opens only the exact current copy", async () => {
@@ -280,6 +285,7 @@ it("requires readback after a lost reply without fabricating an installation rec
   await expect.element(page.getByText(/restart Portcove before using it/)).toBeVisible();
   await page.getByRole("button", { name: "Refresh library" }).click();
   await root.rerender(workspace(2));
+  await expect.element(page.getByText("Current installation is awaiting readback.")).toBeVisible();
   await expect
     .element(page.getByRole("button", { name: "Review a Portcove-managed copy…" }))
     .not.toBeInTheDocument();

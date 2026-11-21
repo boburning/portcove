@@ -78,8 +78,12 @@ export function presentPortAction(
     pending,
     managedRouteReadbackRequired,
     installReadbackRequired:
-      action === "install" &&
-      (managedRouteReadbackRequired ||
-        Boolean(awaitingManagedReadback && !status?.active && !status?.external_runtime)),
+      managedRouteReadbackRequired ||
+      Boolean(
+        action === "install" &&
+        awaitingManagedReadback &&
+        !status?.active &&
+        !status?.external_runtime,
+      ),
   };
 }
