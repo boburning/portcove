@@ -86,7 +86,7 @@ export async function readGameFirstRelationships() {
       isRecord(value.selected_definition_entries),
   );
   const expected = value as unknown as GameFirstRelationships;
-  assert.equal(expected.audited_port_ids.length, 1648);
+  assert.equal(expected.audited_port_ids.length, 1649);
   assert.equal(Object.keys(expected.families).length, 255);
   assert.equal(Object.keys(expected.project_entries).length, 39);
   assert.equal(Object.keys(expected.intentionally_separate).length, 17);
