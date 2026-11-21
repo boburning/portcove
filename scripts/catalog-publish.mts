@@ -56,13 +56,17 @@ function positive(value: unknown, what: string) {
 /** Current online role versions of a published catalog site, or null when none exists. */
 export function priorVersions(site: string | null): Four<number> | null {
   if (!site || !existsSync(path.join(site, "metadata", "timestamp.json"))) return null;
-  const timestamp = readJson(path.join(site, "metadata", "timestamp.json"));
+  return publishedVersionsFromMetadata((file) => readJson(path.join(site, "metadata", file)));
+}
+
+export function publishedVersionsFromMetadata(read: (file: string) => unknown): Four<number> {
+  const timestamp = read("timestamp.json");
   if (!isRecord(timestamp) || !isRecord(timestamp.signed) || !isRecord(timestamp.signed.meta))
     throw new Error("prior catalog timestamp is malformed");
   const snapshotMeta = timestamp.signed.meta["snapshot.json"];
   if (!isRecord(snapshotMeta)) throw new Error("prior catalog timestamp names no snapshot");
   const snapshotVersion = positive(snapshotMeta.version, "snapshot");
-  const snapshot = readJson(path.join(site, "metadata", `${snapshotVersion}.snapshot.json`));
+  const snapshot = read(`${snapshotVersion}.snapshot.json`);
   if (!isRecord(snapshot) || !isRecord(snapshot.signed) || !isRecord(snapshot.signed.meta))
     throw new Error("prior catalog snapshot is malformed");
   const meta = snapshot.signed.meta;
@@ -218,12 +222,21 @@ export function bundleTargets(bundle: string): Record<string, string> {
 export function publishedTargets(site: string): Record<string, string> {
   const versions = priorVersions(site);
   if (!versions) return {};
+  return publishedTargetsFromMetadata(versions, (file) =>
+    readJson(path.join(site, "metadata", file)),
+  );
+}
+
+export function publishedTargetsFromMetadata(
+  versions: Four<number>,
+  read: (file: string) => unknown,
+) {
   const files: Record<string, string> = {};
   for (const [role, version] of [
     ["official-definitions", versions.definitions],
     ["official-policy", versions.policy],
   ] as const) {
-    const signed = readJson(path.join(site, "metadata", `${version}.${role}.json`));
+    const signed = read(`${version}.${role}.json`);
     if (!isRecord(signed) || !isRecord(signed.signed) || !isRecord(signed.signed.targets))
       throw new Error(`prior catalog ${role} is malformed`);
     for (const [name, entry] of Object.entries(signed.signed.targets)) {
