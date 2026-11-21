@@ -24,13 +24,6 @@ impl PortcoveService {
         {
             return Ok(true);
         }
-        if crate::external_mod_portal::is_reviewed_url(
-            &self.catalog,
-            crate::Platform::current().ok(),
-            url,
-        ) {
-            return Ok(true);
-        }
         // Retain strict project/artwork links even if a separate directory corrects its own display.
         if self.catalog.ports().iter().any(|port| {
             port.project_url == url

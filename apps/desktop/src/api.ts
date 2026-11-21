@@ -580,7 +580,7 @@ export const desktopApi = {
   openUpstreamModNotice: (
     portId: string,
     generation: number,
-    source: "quaddicted" | "mod-db-arcane-dimensions",
+    source: NonNullable<import("./types").ModSetupsView["external_mod_portals"]>[number]["source"],
     pageUrl: string,
   ) => invoke<void>("open_upstream_mod_notice", { portId, generation, source, pageUrl }),
   modProviderCatalog: (portId: string, source: string, generation: number) =>

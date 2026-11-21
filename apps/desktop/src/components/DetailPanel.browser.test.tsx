@@ -1106,7 +1106,7 @@ it("offers CoopDX's own file import on the Mods tab before installation", async 
     supported: false,
     external_mod_portals: [{ source: "coop-dx", url }],
   });
-  const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
+  const open = vi.spyOn(desktopApi, "openUpstreamModNotice").mockResolvedValue(undefined);
   try {
     await render(
       <DetailPanel
@@ -1120,7 +1120,7 @@ it("offers CoopDX's own file import on the Mods tab before installation", async 
     await page.getByRole("tab", { name: "Mods", exact: true }).click();
     const browse = page.getByRole("link", { name: "Browse CoopDX Mods" });
     await browse.click();
-    expect(open).toHaveBeenCalledWith(url);
+    expect(open).toHaveBeenCalledWith(port.id, expect.any(Number), "coop-dx", url);
     await expect.element(page.getByText(/drag the file onto the game window/)).toBeVisible();
     expect(page.getByRole("button", { name: /create.*setup/i }).query()).toBeNull();
     expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), true);

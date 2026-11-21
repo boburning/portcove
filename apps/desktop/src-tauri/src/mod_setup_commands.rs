@@ -984,25 +984,9 @@ pub(crate) async fn open_upstream_mod_notice(
         selection.clone(),
         generation,
         move |service| async move {
-            let platform = portcove_core::Platform::current()?;
-            let reviewed = match source {
-                portcove_core::ExternalModPortalSource::Quaddicted => {
-                    service
-                        .review_quaddicted_page(&port_id, platform, &page_url)
-                        .await?
-                }
-                portcove_core::ExternalModPortalSource::ModDbArcaneDimensions => {
-                    service
-                        .review_moddb_notice(&port_id, platform, &page_url)
-                        .await?
-                }
-                _ => {
-                    return Err(PortcoveError::unsupported(
-                        "This provider has no reviewed notice browser",
-                    )
-                    .into());
-                }
-            };
+            let reviewed = service
+                .review_external_mod_source_page(&port_id, source, &page_url)
+                .await?;
             crate::require_library_generation(crate::state_generation(&selection), generation)?;
             crate::open_host_target(std::ffi::OsStr::new(&reviewed))
         },

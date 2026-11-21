@@ -54,15 +54,6 @@ fn bindings() -> &'static [Binding] {
     })
 }
 
-pub(crate) fn is_reviewed_url(catalog: &Catalog, platform: Option<Platform>, url: &str) -> bool {
-    bindings().iter().any(|binding| {
-        binding.portals.iter().any(|source| source.url() == url)
-            && portals(catalog, &binding.port, platform)
-                .iter()
-                .any(|portal| portal.url == url)
-    })
-}
-
 pub(crate) fn portals(
     catalog: &Catalog,
     id: &str,
@@ -124,12 +115,47 @@ pub(crate) fn portals(
         .collect()
 }
 
+impl crate::PortcoveService {
+    /// Recheck that a clicked destination belongs to the selected port and source.
+    pub async fn review_external_mod_source_page(
+        &self,
+        port_id: &str,
+        source: ExternalModPortalSource,
+        url: &str,
+    ) -> crate::Result<String> {
+        let platform = Platform::current()?;
+        let capability = portals(self.catalog(), port_id, Some(platform))
+            .into_iter()
+            .find(|portal| portal.source == source)
+            .ok_or_else(|| {
+                crate::PortcoveError::unsupported("This port has no reviewed route for this source")
+            })?;
+        if capability.url == url {
+            return Ok(capability.url);
+        }
+        if capability.browse_available {
+            match source {
+                ExternalModPortalSource::Quaddicted => {
+                    return self.review_quaddicted_page(port_id, platform, url).await;
+                }
+                ExternalModPortalSource::ModDbArcaneDimensions => {
+                    return self.review_moddb_notice(port_id, platform, url).await;
+                }
+                _ => {}
+            }
+        }
+        Err(crate::PortcoveError::verification(
+            "This page is outside the reviewed portal",
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn every_reviewed_route_matches_the_current_catalog_and_opens_only_its_exact_url() {
+    fn every_reviewed_route_matches_the_current_catalog() {
         let catalog = Catalog::embedded().unwrap();
         assert_eq!(bindings().len(), 6);
         for binding in bindings() {
@@ -145,13 +171,7 @@ mod tests {
                     binding.port
                 );
                 for portal in offered {
-                    assert!(is_reviewed_url(&catalog, Some(platform), &portal.url));
-                    assert!(!is_reviewed_url(
-                        &catalog,
-                        Some(platform),
-                        &format!("{}?download=true", portal.url)
-                    ));
-                    assert!(!is_reviewed_url(&catalog, None, &portal.url));
+                    assert_eq!(portal.url, portal.source.url());
                 }
             }
         }
@@ -173,10 +193,46 @@ mod tests {
             assert!(!cli.supported);
             assert!(!desktop.external_mod_portals.is_empty());
             assert_eq!(desktop.external_mod_portals, cli.external_mod_portals);
-            for portal in cli.external_mod_portals {
-                assert!(service.is_reviewed_resource_url(&portal.url).unwrap());
-            }
         }
+    }
+
+    #[tokio::test]
+    async fn a_browser_only_link_checks_port_source_and_exact_page_before_opening() {
+        let root = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(root.path().join("library")).unwrap();
+        let service = crate::PortcoveService::new_read_only(library).unwrap();
+        let source = ExternalModPortalSource::CoopDx;
+        let url = source.url();
+        let port = "super-mario-64-sm64-co-op-dx";
+        assert_eq!(
+            service
+                .review_external_mod_source_page(port, source, url)
+                .await
+                .unwrap(),
+            url
+        );
+        assert!(
+            service
+                .review_external_mod_source_page(port, source, &format!("{url}?download=true"))
+                .await
+                .is_err()
+        );
+        assert!(
+            service
+                .review_external_mod_source_page("starship", source, url)
+                .await
+                .is_err()
+        );
+        assert!(
+            service
+                .review_external_mod_source_page(
+                    port,
+                    ExternalModPortalSource::NexusDaggerfallUnity,
+                    url
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[test]

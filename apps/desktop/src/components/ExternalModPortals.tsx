@@ -53,7 +53,14 @@ export function ExternalModPortals({
       <ul>
         {portals.map((portal) => (
           <li key={portal.source}>
-            <ExternalLink href={portal.url}>{actions[portal.source][0]}</ExternalLink>
+            <ExternalLink
+              href={portal.url}
+              openUrl={(href) =>
+                desktopApi.openUpstreamModNotice(port, generation, portal.source, href)
+              }
+            >
+              {actions[portal.source][0]}
+            </ExternalLink>
             <p>{actions[portal.source][1]}</p>
             {portal.browse_available &&
               (portal.source === "quaddicted" || portal.source === "mod-db-arcane-dimensions") && (
