@@ -296,6 +296,7 @@ pub struct ScopedResolvedRelease {
     selection: Option<(serde_json::Value, crate::Platform, crate::ReleaseChannel)>,
     pub(crate) github_identity: Option<GithubArtifactIdentity>,
     pub(crate) saved_variant: Option<crate::ManagedPackageVariant>,
+    pub(crate) explicit_tag_commit: Option<String>,
     /// Repository maintenance facts read during this resolution, when the provider
     /// read the repository. Never part of release authority.
     pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
@@ -310,6 +311,7 @@ impl ScopedResolvedRelease {
             selection: None,
             github_identity: None,
             saved_variant: None,
+            explicit_tag_commit: None,
             upstream_activity: None,
             fallback_reason: None,
         }
@@ -327,6 +329,7 @@ impl ScopedResolvedRelease {
             selection: None,
             github_identity: None,
             saved_variant: None,
+            explicit_tag_commit: None,
             upstream_activity: None,
             fallback_reason: None,
         })
@@ -361,6 +364,31 @@ impl ScopedResolvedRelease {
             ));
         }
         Ok(())
+    }
+
+    pub(crate) fn explicit_package_proof_sha256(&self) -> Result<Option<String>> {
+        if !self
+            .saved_variant
+            .as_ref()
+            .is_some_and(crate::ManagedPackageVariant::requires_explicit_proof)
+        {
+            return Ok(None);
+        }
+        let commit = self.explicit_tag_commit.as_ref().ok_or_else(|| {
+            PortcoveError::verification("explicit package proof has no exact tag commit")
+        })?;
+        let identity = self.github_identity.as_ref().ok_or_else(|| {
+            PortcoveError::verification("explicit package proof has no provider artifact identity")
+        })?;
+        Ok(Some(crate::signed_catalog::digest(&serde_json::to_vec(
+            &(
+                "Portcove explicit package acquisition v2",
+                &self.saved_variant,
+                identity,
+                commit,
+                &self.release,
+            ),
+        )?)))
     }
 }
 

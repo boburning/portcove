@@ -7,6 +7,7 @@ export interface GuardedCheckoutContext {
   root: string;
   head: string;
   catalog_sha256: string;
+  listings_sha256?: string;
   configuration_sha256: string;
   input_dirty: boolean;
 }
@@ -21,6 +22,7 @@ export function captureCheckoutContext(
   const invoke = (args: readonly string[]) =>
     git("git", args, { cwd: root, encoding: "utf8", timeout: 15000, windowsHide: true }).trim();
   const catalog = path.join(root, "crates/portcove-core/catalog/catalog.json");
+  const listings = path.join(root, "crates/portcove-core/catalog/listings.json");
   const configuration = path.join(root, ".github/roadmap.json");
   const digest = (file: string) => createHash("sha256").update(read(file)).digest("hex");
   return {
@@ -29,6 +31,7 @@ export function captureCheckoutContext(
     branch: invoke(["rev-parse", "--abbrev-ref", "HEAD"]),
     catalog,
     catalog_sha256: digest(catalog),
+    listings_sha256: digest(listings),
     configuration_sha256: digest(configuration),
     input_dirty: Boolean(
       invoke([
@@ -36,6 +39,7 @@ export function captureCheckoutContext(
         "--porcelain",
         "--",
         "crates/portcove-core/catalog/catalog.json",
+        "crates/portcove-core/catalog/listings.json",
         ".github/roadmap.json",
       ]),
     ),
@@ -66,6 +70,7 @@ function assertCheckoutUnchanged(before: GuardedCheckoutContext, after: GuardedC
     "root",
     "head",
     "catalog_sha256",
+    "listings_sha256",
     "configuration_sha256",
     "input_dirty",
   ] as const)

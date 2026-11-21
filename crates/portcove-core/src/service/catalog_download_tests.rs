@@ -796,11 +796,27 @@ async fn assert_embedded_player_download_holds(ids: &[&str]) {
 }
 
 async fn assert_embedded_listing_download_holds(ids: &[&str], expected_manual_setup: bool) {
+    assert_embedded_download_holds(ids, expected_manual_setup, None).await;
+}
+
+async fn assert_embedded_download_holds(
+    ids: &[&str],
+    expected_manual_setup: bool,
+    expected_provider: Option<crate::ReleaseSource>,
+) {
     for &id in ids {
         let (_temporary, mut service, mut request) = fixture();
         service.catalog = Catalog::embedded().unwrap();
         request.port_id = id.into();
-        assert!(service.catalog.port(id).is_err());
+        assert_eq!(
+            service
+                .catalog
+                .port(id)
+                .ok()
+                .map(|port| port.release.provider),
+            expected_provider,
+            "{id}"
+        );
         assert_eq!(
             service.catalog.listing(id).unwrap().manual_setup.is_some(),
             expected_manual_setup
@@ -843,6 +859,16 @@ async fn assert_embedded_listing_download_holds(ids: &[&str], expected_manual_se
         );
         assert!(service.pending_setups().unwrap().is_empty());
     }
+}
+
+#[tokio::test]
+async fn upstream_registrations_keep_unrestricted_asset_downloads_held() {
+    assert_embedded_download_holds(
+        &["grand-theft-auto-san-andreas-unity", "linewars-ii-sdl3"],
+        true,
+        Some(crate::ReleaseSource::UserPrepared),
+    )
+    .await;
 }
 
 #[tokio::test]

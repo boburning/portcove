@@ -400,6 +400,19 @@ The CLI API schema version is independent of the Portcove release version.
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
+`listing_delivery_carriers` identifies the independently versioned signed
+directory carriers a client consumes. The `gzip-base64-json-v1` carrier
+authenticates the compressed envelope under the existing delegated policy role.
+The client checks the bounded decoded length and digest and applies the same
+directory revision and replay rules as `json-v1`. It reads the legacy carrier
+when the compact target is absent from the signed repository. A failed compact
+read leaves the existing installation and admitted directory state available
+under their existing validity checks. The listing status digest identifies the
+exact decoded directory. For compact delivery, `transport_target_sha256`
+reports the independently authenticated carrier digest. The optional compact directory record and the
+legacy record share one transaction and authority floor. Older releases with a
+compatible library schema can continue to read and renew their genuine legacy
+record. The higher admitted directory revision governs a capable reader.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -431,8 +444,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 13. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -441,8 +453,11 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
@@ -558,6 +573,13 @@ since can differ.
   `listing_download_refusal: "managed-route"`: a fresh library offers Install
   there instead of the upstream listing download. A library's own
   registration, pending setup or definition hold can keep the download.
+- Each listing and operational definition also has a `content_capabilities`
+  row for each requested platform. The row reports reviewed provider coordinates,
+  loader-dependent mod operations, declared original-file profiles and any
+  upstream setup guidance. `requires_reviewed_runtime` means the catalog
+  matches a loader contract for that platform. Package review, installed
+  state and exact-runtime checks still apply. A declared source profile names
+  the recognition route and supplies no compatibility result for local files.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
@@ -2667,6 +2689,42 @@ as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
+
 ### Installing from GameBanana and Thunderstore
 
 ```text
@@ -3186,6 +3244,14 @@ requires separate setup, Play or explicit update; it cannot become an update
 through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
+
+When a Windows x64 Stable definition offers a reviewed package choice, pass
+the same `--package ID` to `installation plan` and `installation run`. The
+preview records the choice and exact asset. A changed choice or package proof
+requires a new preview. A successful installation keeps the choice for later
+updates. A newer package with a missing or ambiguous saved choice leaves the
+installed copy available for Play. Omitting `--package` uses the ordinary
+selection rules.
 
 ### Shared-directory external runtimes (API 73)
 

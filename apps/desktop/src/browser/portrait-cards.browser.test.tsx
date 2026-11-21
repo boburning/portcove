@@ -314,6 +314,13 @@ it.for([
       }
       window.scrollTo(0, 0);
       await document.fonts.ready;
+      // The Library case already hovered its fourth card above. Exercise the
+      // Discover hover too before the shared helper measures the neutral grid.
+      if (view === "catalog") {
+        await page
+          .elementLocator(document.querySelector<HTMLElement>(".discover-game-identity")!)
+          .hover();
+      }
       const { frames, fallback } = await assertPortraitLayout(view, theme, width, height);
       await page.screenshot({
         path: `../../../../outputs/uiux-game-titles/after-${view}-${theme}-${width}-${frames[0]!.width}x${frames[0]!.height}-top.png`,

@@ -513,6 +513,51 @@ void test("drift continuation survives missing routes and leaves failed archives
   assert.deepEqual(second.continuation, {});
 });
 
+void test("a handoff that omits both deferred routes preserves their positions", async () => {
+  const [generated, layout] = collectWithLayout();
+  assert.ok(generated && layout);
+  const prior = {
+    generated: "b/windows-x86-64/stable",
+    reviewed_layout: "y/windows-x86-64/stable",
+  };
+  const a = { ...generated, portId: "a" };
+  const b = { ...generated, portId: "b" };
+  const x = { ...layout, portId: "x" };
+  const y = { ...layout, portId: "y" };
+  const dependencies = {
+    now: () => now,
+    download: async () => {},
+    inspect: async (_archive: string, target: DriftTarget) =>
+      inspectionFromResponse(
+        coreResponse(target, target.baselineSource ? comparedLayout : { status: "compatible" }),
+        target,
+      ),
+  };
+  const intervening = await scanDriftTargets([x, a], new Map(), now + 1, dependencies, prior);
+  assert.deepEqual(
+    intervening.observations.map(({ target }) => target.portId),
+    ["a", "x"],
+  );
+  assert.deepEqual(intervening.unassessed, []);
+  assert.equal(intervening.attempted_bytes, a.asset.size + x.asset.size);
+  const persisted = readDriftContinuation({ format: 1, continuation: intervening.continuation });
+  assert.deepEqual(persisted, prior);
+
+  const returned = await scanDriftTargets(
+    [x, a, y, b],
+    new Map(),
+    now + 1,
+    dependencies,
+    persisted,
+  );
+  assert.deepEqual(
+    returned.observations.map(({ target }) => target.portId),
+    ["b", "a", "y", "x"],
+  );
+  assert.deepEqual(returned.unassessed, []);
+  assert.deepEqual(returned.continuation, {});
+});
+
 void test("an unfit leading layout advances to another within-limit route", async () => {
   const [generated, layout] = collectWithLayout();
   assert.ok(generated && layout);
