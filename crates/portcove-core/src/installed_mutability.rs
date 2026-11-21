@@ -251,6 +251,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         game_settings,
         managed_shared_preferences,
         managed_shared_preferences_save_id,
+        managed_runtime_applies_to,
         source_environment,
         user_data_environment,
         launch_environment,
@@ -331,6 +332,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "setup_marker": setup_marker,
         "setup_output_paths": setup_output_paths,
     });
+    if let Some(artifacts) = managed_runtime_applies_to {
+        compatibility["managed_runtime_applies_to"] = serde_json::json!(artifacts);
+    }
     // Only a declared marker joins the identity, so existing retained contracts keep theirs.
     if let Some(marker) = portable_marker_file {
         compatibility["portable_marker_file"] = serde_json::json!(marker);

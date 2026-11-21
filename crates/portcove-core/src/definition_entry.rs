@@ -90,6 +90,10 @@ impl DefinitionEntryInspection {
         self.revision
     }
 
+    pub(crate) fn has_named_features(&self) -> bool {
+        self.required_features.is_some()
+    }
+
     /// Shape-checked data; existing catalog/contract validators still govern its use.
     pub fn port(&self) -> &PortDefinition {
         &self.port
@@ -242,6 +246,18 @@ impl DefinitionContentIndex {
             require_feature(required_features.as_ref(), Feature::UpstreamActiveReviewed)?;
         }
         crate::profile_loader::validate(&port)?;
+        if port.managed_runtime_applies_to.is_some() {
+            if required_features.is_none() {
+                return Err(PortcoveError::unsupported(
+                    "reviewed runtime compatibility artifacts require definition schema 4",
+                ));
+            }
+            require_feature(
+                required_features.as_ref(),
+                Feature::ReviewedRuntimeArtifacts,
+            )?;
+            crate::managed_runtime_policy::validate_applies_to(&port)?;
+        }
         if port.mod_loader.is_some() {
             if document.definition_schema < 3 {
                 return Err(PortcoveError::verification(

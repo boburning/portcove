@@ -272,6 +272,7 @@ mod tests {
             linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
+            managed_runtime_applies_to: None,
             source_environment: None,
             user_data_environment: None,
             launch_environment: BTreeMap::new(),

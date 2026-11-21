@@ -14,14 +14,15 @@ struct ProjectionDocument {
 }
 
 impl ProjectionDocument {
-    fn validated_catalog(&self) -> Result<Catalog> {
+    fn validated_catalog(&self, selected: Option<&str>) -> Result<Catalog> {
         let catalog_json = serde_json::to_string(&self.catalog)?;
         if catalog_json.len() > crate::signed_catalog::MAX_CATALOG_BYTES {
             return Err(PortcoveError::verification(
                 "projected catalog exceeds its existing byte bound",
             ));
         }
-        let catalog = Catalog::from_json(&catalog_json)?;
+        let catalog =
+            Catalog::from_indexed_document(serde_json::from_str(&catalog_json)?, selected, None)?;
         if catalog
             .ports()
             .iter()
@@ -66,7 +67,18 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
             "unsupported definition catalog projection contract",
         ));
     }
-    let catalog = document.validated_catalog()?;
+    let proposed_subject = if document.contract_schema == 3 {
+        document
+            .catalog
+            .get("ports")
+            .and_then(Value::as_array)
+            .filter(|ports| ports.len() == 1)
+            .and_then(|ports| ports[0].get("id"))
+            .and_then(Value::as_str)
+    } else {
+        None
+    };
+    let catalog = document.validated_catalog(proposed_subject)?;
     if catalog.ports().len() != 1 {
         return Err(PortcoveError::usage(
             "definition projection preparation requires exactly one port",
@@ -257,7 +269,8 @@ impl DefinitionCatalogProjection {
             }
             sources.contracts.extend(contracts);
             sources.qualification.extend(qualification);
-            let mut catalog = Catalog::from_document(document)?;
+            let mut catalog =
+                Catalog::from_indexed_document(document, Some(selected), Some(baseline))?;
             catalog.retain_definition_snapshot(Arc::clone(&self.snapshot), self.entry.revision());
             catalog
         } else {
@@ -409,7 +422,9 @@ impl DefinitionContentIndex {
                 "unsupported definition catalog projection contract",
             ));
         }
-        let mut catalog = document.validated_catalog()?;
+        let selected =
+            (entry.has_named_features() && document.contract_schema == 3).then_some(stable_id);
+        let mut catalog = document.validated_catalog(selected)?;
         let port = catalog.port(stable_id)?;
         if let Some(sibling) = catalog
             .ports()

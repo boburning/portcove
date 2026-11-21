@@ -1262,6 +1262,19 @@ impl Installer {
                 "Managed installation requires player-data preflight before activation. Install inactive, then activate through Core; the previous installation is preserved.",
             ));
         }
+        if port.managed_runtime_applies_to.is_some() {
+            let resolution = request.qualification.acquisition.as_ref()
+                .filter(|resolved| resolved.scope.is_some())
+                .filter(|_| request.qualification.retained_contract.is_some())
+                .ok_or_else(|| PortcoveError::verification(
+                    "reviewed runtime compatibility artifacts require independent acquisition authority",
+                ))?;
+            resolution.require_selection(
+                port,
+                request.qualification.platform,
+                request.release.channel,
+            )?;
+        }
         if crate::managed_runtime_policy::requires_provider_resolution_on(
             port,
             request.qualification.platform,

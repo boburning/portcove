@@ -1785,6 +1785,11 @@ impl GithubReleaseProvider {
                 "the active acquisition policy does not authorize explicit package selection",
             ));
         }
+        if port.managed_runtime_applies_to.is_some() && scope.is_none() {
+            return Err(PortcoveError::unsupported(
+                "reviewed runtime compatibility artifacts require independent acquisition authority",
+            ));
+        }
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -2234,6 +2239,13 @@ impl GithubReleaseProvider {
                 .await?
         };
         let version = release_version(&release.tag_name);
+        crate::managed_runtime_policy::require_applies_to(
+            port,
+            &version,
+            asset.size,
+            &sha256,
+            Some(platform),
+        )?;
         if let Some(hold) = &port.managed_acquisition_hold
             && hold.excludes(&version, &sha256)
         {

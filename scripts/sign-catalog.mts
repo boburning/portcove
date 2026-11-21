@@ -131,6 +131,11 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
     ) {
       throw new Error("Format-1 signed catalogs cannot deliver reviewed package choices.");
     }
+    if ("managed_runtime_applies_to" in port) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver reviewed runtime compatibility artifacts. Use a compatible indexed definition.",
+      );
+    }
     if ("mod_loader" in port) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver native mod loader bindings. Use a compatible indexed definition.",
