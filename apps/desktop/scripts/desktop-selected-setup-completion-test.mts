@@ -113,6 +113,7 @@ interface CompletionObservations {
     | { tag: string; id: string; text: string | undefined; ariaLabel: string | null };
   return_focus?: ReturnType<typeof observeCompletionReturnFocus>;
   returned_choices?: string[];
+  alternative_review_diagnostics?: unknown;
   returned_alternative_review?: {
     status: PortStatus;
     snapshot: GameFileScanSnapshot;
@@ -1287,10 +1288,27 @@ export async function selectedSetupCompletionScenario({
       };
       const afterCompletion = await read("get_statuses");
       await click(button(`Review ${reviewPort.name} setup`));
-      await browser.wait(
-        until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
-        15_000,
-      );
+      await browser
+        .wait(
+          until.elementLocated(installDialog),
+          45_000,
+          "The exact alternative must reopen its install review after the workspace returns",
+        )
+        .catch(async (error: unknown) => {
+          try {
+            report.observations.alternative_review_diagnostics = await executeBrowserScript(
+              browser,
+              () =>
+                [...document.querySelectorAll('[role="alert"], [role="status"]')]
+                  .map((node) => node.textContent?.trim().slice(0, 240))
+                  .filter(Boolean)
+                  .slice(0, 15),
+            );
+          } catch (diagnosticError) {
+            console.error("Unable to collect alternative review diagnostics", diagnosticError);
+          }
+          throw error;
+        });
       // The open review covers the detail page, so WebDriver reports its title as
       // not displayed; textContent still identifies which game the review is for.
       assert.equal(
