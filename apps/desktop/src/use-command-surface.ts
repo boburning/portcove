@@ -19,7 +19,24 @@ import {
   originalGame,
 } from "./features/browsing/original-game";
 import type { CatalogEntry } from "./features/browsing/catalog-entry";
-import type { RecentPort, View } from "./view-model";
+import type { DetailDestination, RecentPort, View } from "./view-model";
+import {
+  settingsCategories,
+  type SettingsCategory,
+} from "./features/app-shell/settings-categories";
+
+type CurrentGameCommands = {
+  port: CatalogEntry;
+  destinations: readonly DetailDestination[];
+  open: (destination: DetailDestination) => void;
+};
+
+const detailCommandLabels: Record<DetailDestination, string> = {
+  files: "Game files",
+  saves: "Saves and backups",
+  updates: "Versions",
+  manage: "Manage",
+};
 
 interface CommandSurfaceOptions {
   recent?: RecentPort | undefined;
@@ -34,6 +51,8 @@ interface CommandSurfaceOptions {
   focusSearch: () => void;
   focusLibrarySearch: () => void;
   openUpdates?: () => void;
+  currentGame?: CurrentGameCommands | undefined;
+  openSettingsCategory?: ((category: SettingsCategory) => void) | undefined;
 }
 
 export interface SearchableGame {
@@ -66,6 +85,8 @@ export function commandSurfaceCommands({
   focusSearch,
   focusLibrarySearch,
   openUpdates,
+  currentGame,
+  openSettingsCategory,
 }: CommandSurfaceOptions): PaletteCommand[] {
   return [
     {
@@ -159,6 +180,26 @@ export function commandSurfaceCommands({
       keywords: "navigate preferences",
       action: () => setView("settings"),
     },
+    ...(openSettingsCategory
+      ? settingsCategories.map(({ id, label }) => ({
+          id: "settings-" + id,
+          group: "Preferences",
+          label: "Open " + label + " settings",
+          description: "Go to " + label + " in Settings",
+          icon: Settings,
+          action: () => openSettingsCategory(id),
+        }))
+      : []),
+    ...(currentGame
+      ? currentGame.destinations.map((destination) => ({
+          id: "current-game-" + destination,
+          group: "Current game",
+          label: "Open " + detailCommandLabels[destination] + " for this game",
+          description: gameIdentityLabel(currentGame.port),
+          icon: Gamepad2,
+          action: () => currentGame.open(destination),
+        }))
+      : []),
     {
       id: "continue",
       group: "Recent game",
@@ -265,6 +306,8 @@ export function useCommandSurface({
   setSelectedId,
   checkAll,
   openUpdates,
+  currentGame,
+  openSettingsCategory,
 }: {
   view: View;
   recent?: RecentPort | undefined;
@@ -277,6 +320,8 @@ export function useCommandSurface({
   setSelectedId: (portId: string) => void;
   checkAll: () => Promise<void>;
   openUpdates?: () => void;
+  currentGame?: CurrentGameCommands | undefined;
+  openSettingsCategory?: ((category: SettingsCategory) => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const openSearch = useCallback(
@@ -312,6 +357,8 @@ export function useCommandSurface({
         focusSearch,
         focusLibrarySearch,
         ...(openUpdates ? { openUpdates } : {}),
+        currentGame,
+        openSettingsCategory,
       }),
     [
       busy,
@@ -322,6 +369,8 @@ export function useCommandSurface({
       preferredPortByGame,
       installedCount,
       openUpdates,
+      currentGame,
+      openSettingsCategory,
       recent,
       setAdoptOpen,
       setSelectedId,

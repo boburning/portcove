@@ -137,7 +137,7 @@ import {
 import { desktopApi } from "./api";
 import { useThemePreference } from "./theme";
 import { useGamepadNavigation } from "./gamepad";
-import { focusRegion } from "./focus";
+import { focusAndReveal, focusRegion } from "./focus";
 import { overlayBackAction } from "./overlay-stack";
 import { useNativeSourceDrop } from "./native-source-drop";
 import { useCommandSurface, withLibraryVisibility } from "./use-command-surface";
@@ -806,6 +806,7 @@ function useWorkspace(props: WorkspaceProps) {
     () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
     [model.searchableGames, hiddenPortIds],
   );
+  const currentGame = ui.view === "library" || ui.view === "catalog" ? model.entry : undefined;
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
@@ -826,6 +827,25 @@ function useWorkspace(props: WorkspaceProps) {
     openUpdates: () => {
       setPrimaryView("updates");
       ui.setActivitySection("updates");
+    },
+    currentGame: currentGame
+      ? {
+          port: currentGame,
+          destinations: model.status?.active
+            ? ["files", "updates", "saves", "manage"]
+            : model.status?.external_runtime
+              ? ["files", "saves", "manage"]
+              : ["files"],
+          open: (destination) => switchPortDetails(currentGame.id, destination),
+        }
+      : undefined,
+    openSettingsCategory: (category) => {
+      setPrimaryView("settings");
+      ui.setSettingsCategory(category);
+      requestAnimationFrame(() => {
+        const heading = document.getElementById("settings-" + category + "-heading");
+        if (heading) focusAndReveal(heading);
+      });
     },
   });
   const adopting = [...operations.pendingOperations.values()].some(
