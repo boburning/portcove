@@ -15,7 +15,12 @@ import { discoverGroupForPort } from "./discover-test-helpers";
 import "../styles/index.css";
 
 const invoke = vi.hoisted(() => vi.fn(async () => null));
-vi.mock("../api", () => ({ desktopApi: new Proxy({}, { get: () => invoke }) }));
+const modSetups = vi.hoisted(() => vi.fn(async () => {
+  throw new Error("No reviewed mod source for this listing");
+}));
+vi.mock("../api", () => ({
+  desktopApi: new Proxy({ modSetups }, { get: (target, key) => Reflect.get(target, key) ?? invoke }),
+}));
 
 afterEach(cleanup);
 
