@@ -432,6 +432,18 @@ impl Catalog {
         }
     }
 
+    /// Legacy full projections carry graph rows for unrelated ports without
+    /// their loader bindings. Keep the bindings already present in the baseline.
+    pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_loader.clone_from(&original.mod_loader);
+            }
+        }
+    }
+
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
         let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
             return;

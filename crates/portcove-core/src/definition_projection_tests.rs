@@ -60,27 +60,134 @@ fn indexed_loader_entry_and_projection_share_the_schema_fence() {
     let port_id = "banjo-recomp";
     let bundle = crate::test_fixture::indexed_catalog_bundle(&base, port_id);
     let index = DefinitionContentIndex::parse(&bundle.index).unwrap();
-    let mut entry = None;
+    let mut selected = None;
     let mut contract = None;
     for (_, bytes) in &bundle.contents {
         let document: Value = serde_json::from_slice(bytes).unwrap();
         if document.get("definition_schema").is_some() {
             assert_eq!(document["definition_schema"], 3);
-            entry = Some(bytes);
+            selected = Some(bytes);
         } else {
             assert_eq!(document["contract_schema"], 3);
             contract = Some(bytes);
         }
     }
-    let entry = entry.unwrap();
+    let entry_bytes = selected.unwrap();
     let contract = contract.unwrap();
     let accepted = index
-        .inspect_catalog_projection("official", port_id, entry, contract)
+        .inspect_catalog_projection("official", port_id, entry_bytes, contract)
         .unwrap();
     assert_eq!(
         accepted.entry().port().mod_loader,
         base.port(port_id).unwrap().mod_loader
     );
+    assert_eq!(
+        accepted
+            .snapshot()
+            .catalog()
+            .unwrap()
+            .port(port_id)
+            .unwrap()
+            .mod_loader,
+        base.port(port_id).unwrap().mod_loader
+    );
+    assert_eq!(accepted.contract_bytes(), contract.as_slice());
+    for schema in [1, 2] {
+        let mut historic: Value = serde_json::from_slice(contract).unwrap();
+        historic["contract_schema"] = json!(schema);
+        let position = historic["catalog"]["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|port| port["id"] == port_id)
+            .unwrap();
+        let bytes = serde_json::to_vec(&historic).unwrap();
+        assert!(
+            inspect(&entry(&historic, &bytes, position), &bytes)
+                .unwrap_err()
+                .message
+                .contains("require indexed definition schema 3")
+        );
+    }
+}
+
+#[test]
+fn full_indexed_projection_cannot_appoint_a_sibling_loader() {
+    let baseline = Catalog::embedded().unwrap();
+    let stable_id = "render96ex";
+    let loader_id = "banjo-recomp";
+    let mut document = projection();
+    document["contract_schema"] = json!(1);
+    let ports = document["catalog"]["ports"].as_array().unwrap();
+    let selected_index = ports
+        .iter()
+        .position(|port| port["id"] == stable_id)
+        .unwrap();
+    let loader_index = ports
+        .iter()
+        .position(|port| port["id"] == loader_id)
+        .unwrap();
+
+    let legacy_leaf = serde_json::to_vec(&document).unwrap();
+    let legacy = inspect(
+        &entry(&document, &legacy_leaf, selected_index),
+        &legacy_leaf,
+    )
+    .unwrap();
+    assert_eq!(legacy.catalog().source_catalog(), baseline.source_catalog());
+    assert!(
+        legacy
+            .snapshot()
+            .catalog()
+            .unwrap()
+            .port(loader_id)
+            .unwrap()
+            .mod_loader
+            .is_none()
+    );
+    let effective = legacy.catalog_for_selection(&baseline).unwrap();
+    for port in baseline
+        .ports()
+        .iter()
+        .filter(|port| port.mod_loader.is_some())
+    {
+        assert_ne!(port.id, stable_id);
+        assert_eq!(
+            effective.port(&port.id).unwrap().mod_loader,
+            port.mod_loader
+        );
+    }
+    assert_eq!(legacy.contract_bytes(), legacy_leaf);
+
+    document["catalog"]["ports"][loader_index]["mod_loader"] =
+        serde_json::to_value(&baseline.port(loader_id).unwrap().mod_loader).unwrap();
+    for schema in [1, 3] {
+        document["contract_schema"] = json!(schema);
+        let leaf = serde_json::to_vec(&document).unwrap();
+        let selected = entry(&document, &leaf, selected_index);
+        let entry_bytes = serde_json::to_vec(&selected).unwrap();
+        let index = index(&[(&selected, &entry_bytes)], &leaf);
+        let snapshot = DefinitionSnapshot {
+            namespace: "official".into(),
+            stable_id: stable_id.into(),
+            index_json: String::from_utf8(index.bytes().to_vec()).unwrap(),
+            entry_json: String::from_utf8(entry_bytes.clone()).unwrap(),
+            contract_json: String::from_utf8(leaf.clone()).unwrap(),
+        };
+        for error in [
+            index
+                .inspect_catalog_projection("official", stable_id, &entry_bytes, &leaf)
+                .unwrap_err(),
+            snapshot.catalog().unwrap_err(),
+        ] {
+            assert!(
+                error
+                    .message
+                    .contains("native mod loader bindings must belong to the selected definition")
+            );
+            assert_eq!(error.details["port_id"], loader_id);
+        }
+    }
 }
 
 #[test]

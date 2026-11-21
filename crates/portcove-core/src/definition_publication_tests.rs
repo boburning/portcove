@@ -10,8 +10,10 @@ fn fixture_with_catalog_growth(
     additional_bytes: usize,
     padded_leaf_bytes: Option<usize>,
 ) -> BTreeMap<String, Vec<u8>> {
-    let mut document =
-        crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
+    let mut document = crate::test_fixture::indexed_fixture_document_for_port(
+        &crate::Catalog::embedded().unwrap(),
+        "shipwright",
+    );
     document
         .ports
         .iter_mut()

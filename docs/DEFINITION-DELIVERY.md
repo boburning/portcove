@@ -1283,6 +1283,11 @@ atomic commit and rechecks current authority, so a concurrent revocation defeats
 an older eligibility proof. Ordinary selection also validates the transition
 against the current format-1/embedded catalog in that same immediate transaction,
 including exact retries; a definition cannot remove or change unrelated entries.
+Only the selected port can declare a native mod loader in an indexed projection,
+and that declaration requires entry and contract schema 3. Legacy full
+projections preserve unrelated loaders from the effective baseline. Unindexed
+installation captures omit sibling loader declarations while keeping their port
+and source records.
 For its own port, that transition may keep or narrow a managed acquisition hold
 but not remove it or add a reviewed artifact, may replace but not remove a
 reviewed package layout, and may keep or remove `release.accepted_uploaders`
