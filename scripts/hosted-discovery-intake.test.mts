@@ -767,6 +767,14 @@ void test("retained intake bodies keep their original hash after the issue templ
     body: historicalBody,
     body_sha256: observationHash(historicalBody),
   };
+  assert.equal(
+    historical.body_sha256,
+    "99bba8a4b2de389f8b727a3ba69c46068fd7471fcc49391f2638bcb93eaedfbd",
+  );
+  assert.equal(
+    observationHash(hostedBody(candidate, f.request.id, "finite-route-v1")),
+    "84cfa769bdeed3db499108d73b8db4855efe73b9a475265ac54603460168a636",
+  );
   assert.notEqual(historical.body_sha256, original.body_sha256);
   const { candidate: _candidate, body: _body, ...compact } = historical;
   const retained = {
