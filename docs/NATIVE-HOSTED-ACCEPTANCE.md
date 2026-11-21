@@ -381,6 +381,9 @@ bytes. It checks that cancelling a native relink keeps the checked candidate,
 changed files require a fresh check, and explicit consent changes the same
 registration to the reviewed folder. Relinking and removing the registration
 preserve files in both folders. The scenario does not launch the fixture.
+Before opening removal after relink, the harness allows 60 seconds for the
+visible, enabled action to return after the renderer reads the same registration.
+The independent Core and file checks still run before removal.
 Controlled read failures and injected input observations retain their fixture
 labels. No private originals, real user profile, release signing or physical
 controller are required by this selection.

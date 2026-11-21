@@ -466,7 +466,20 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     ];
     artifacts.push(unknown);
     report.protected_files = protectedFiles;
-    await browser.findElement(stop).click();
+    // Independent Core readback above does not settle the renderer after relink.
+    const hydratedStop = await browser.wait(
+      async () => {
+        const [button, duplicate] = await browser.findElements(stop);
+        assert.equal(duplicate, undefined, "External removal opener must be unique");
+        return button && (await button.isDisplayed()) && (await button.isEnabled())
+          ? button
+          : false;
+      },
+      60_000,
+      "The relinked installation must expose the visible enabled removal action after readback",
+    );
+    assert.ok(hydratedStop);
+    await hydratedStop.click();
     review = await reviewed("remove", "Stop using this installation");
     await screenshot("external-runtime-remove-review");
     await review.dialog.findElement(buttonFor("Cancel")).click();
