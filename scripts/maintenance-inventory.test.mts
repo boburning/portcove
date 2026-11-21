@@ -49,6 +49,7 @@ import {
   buildReport,
   canonicalJson,
   capabilityResult,
+  collectionSql,
   collect,
   main,
   readIssueInventory,
@@ -278,6 +279,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "utf8",
   );
   type Step = {
+    if?: string;
     name?: string;
     run?: string;
     uses?: string;
@@ -386,6 +388,17 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
   assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
+  assert.match(
+    collection.run!,
+    /--artwork-health work\/maintenance-report\/cover-artwork-health\.json/u,
+  );
+  const coverHealth = collect!.steps.find(
+    (step) => step.name === "Verify a bounded window of accepted cover references",
+  )!;
+  assert.equal(coverHealth.if, "github.event_name == 'schedule'");
+  assert.equal(coverHealth.env, undefined);
+  assert.match(coverHealth.run!, /env -i PATH=/u);
+  assert.match(coverHealth.run!, /maintenance-artwork-health\.mts target\/debug\/portcove/u);
   for (const flag of [
     "--all",
     "--release-health",
@@ -4692,5 +4705,244 @@ void test(
       /fixture\/project/u,
       "opted-out progress does not leak through history rendering",
     );
+  },
+);
+
+void test("scheduled artwork health binds exact current references and keeps unavailable rows out of facts", async () => {
+  const { artworkHealthInventory, artworkHealthProducer, projectArtworkHealth } =
+    await import("./maintenance-artwork-health.mts");
+  const revision = "a".repeat(40);
+  const environment = {
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    GITHUB_WORKFLOW_SHA: revision,
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_SHA: revision,
+    GITHUB_RUN_ID: "10",
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const producer = artworkHealthProducer(environment, revision);
+  assert.throws(() =>
+    artworkHealthProducer({ ...environment, GITHUB_EVENT_NAME: "workflow_dispatch" }, revision),
+  );
+  assert.throws(() =>
+    artworkHealthProducer({ ...environment, GITHUB_WORKFLOW_REF: "another-workflow" }, revision),
+  );
+  const artwork = (image_id: string, image_sha256: string) => ({
+    game_id: 12,
+    cover_id: 5,
+    image_id,
+    image_sha256,
+    game_slug: "reviewed-game",
+    match_kind: "port",
+  });
+  const approved = "a".repeat(64);
+  const observed = "b".repeat(64);
+  const inventory = artworkHealthInventory({
+    listings: [
+      { id: "good", artwork: artwork("same", approved) },
+      { id: "different", artwork: artwork("same", observed) },
+      { id: "gone", artwork: artwork("gone", approved) },
+      { id: "unavailable", artwork: artwork("unavailable", approved) },
+      { id: "without-cover" },
+    ],
+  });
+  assert.equal(inventory.rows, 4);
+  assert.equal(inventory.images.size, 3);
+  const now = Date.parse("2026-11-18T05:00:00Z");
+  const context = { inventory, listingsSha256: approved, cliSha256: observed, producer, now };
+  const receipt = {
+    format: 1,
+    authority: "none",
+    producer,
+    listings_sha256: approved,
+    cli_sha256: observed,
+    observed_at: new Date(now).toISOString(),
+    images: [
+      { image_id: "gone", status: "gone" },
+      {
+        image_id: "same",
+        status: "read",
+        content: { sha256: approved, bytes: 10, width: 264, height: 352 },
+      },
+      { image_id: "unavailable", status: "unavailable" },
+    ],
+  };
+  const admitted = projectArtworkHealth(receipt, context);
+  assert.deepEqual(admitted.counts, {
+    unchanged: 1,
+    mismatch: 1,
+    gone: 1,
+    unavailable: 1,
+    deferred: 0,
+  });
+  assert.equal(admitted.complete, false);
+  assert.deepEqual(
+    [...admitted.facts.keys()],
+    ["port:gone@gone", "port:good@same", "port:different@same"],
+  );
+  assert.deepEqual(
+    admitted.gaps.map(({ subject_key }) => subject_key),
+    ["port:unavailable@unavailable"],
+  );
+  assert.throws(() => projectArtworkHealth(receipt, { ...context, now: now + 7_200_001 }));
+  assert.throws(() => projectArtworkHealth({ ...receipt, listings_sha256: observed }, context));
+  assert.throws(() =>
+    projectArtworkHealth({ ...receipt, producer: { ...producer, run: "11" } }, context),
+  );
+  assert.throws(() =>
+    projectArtworkHealth({ ...receipt, images: receipt.images.slice(0, 2) }, context),
+  );
+
+  const sql = collectionSql({
+    mode: "all",
+    revision,
+    cliSha256: observed,
+    apiSchema: 1,
+    runner: "fixture",
+    startedAt: receipt.observed_at,
+    platform: "linux-x86-64",
+    subjects: [],
+    artworkHealth: admitted,
+    latest: {
+      catalog: new Map(),
+      core: new Map(),
+      artworkHealth: new Map([["port:unavailable@unavailable", approved]]),
+    },
+  });
+  assert.match(sql, /cover-artwork-health/);
+  assert.match(sql, /"status":"gone"/);
+  assert.match(sql, /"status":"mismatch"/);
+  assert.match(sql, /coverage = 'partial'/);
+  assert.doesNotMatch(sql, /VALUES[^\n]*port:unavailable@unavailable/);
+});
+
+void test("credential-free fixed CDN health rotates a complete stable image inventory", async () => {
+  const { artworkHealthInventory, artworkHealthWindow, observeArtworkWindow } =
+    await import("./maintenance-artwork-health.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const inventories = artworkHealthInventory({
+    listings: Array.from({ length: 140 }, (_, index) => ({
+      id: "port-" + index,
+      artwork: {
+        game_id: index + 1,
+        cover_id: index + 1,
+        image_id: "cover" + index,
+        image_sha256: "a".repeat(64),
+        game_slug: "game-" + index,
+        match_kind: "port",
+      },
+    })),
+  });
+  const day = 86_400_000;
+  const windows = [0, 1, 2].map((date) => artworkHealthWindow(inventories, date * day));
+  assert.deepEqual(
+    windows.map((window) => window.ids.length),
+    [64, 64, 12],
+  );
+  assert.equal(new Set(windows.flatMap((window) => window.ids)).size, 140);
+  assert.deepEqual(artworkHealthWindow(inventories, day * 3), windows[0]);
+
+  const inspector = createIgdbInspector(
+    undefined,
+    () => ({
+      format: "jpeg",
+      validator: "portcove-core",
+      width: 264,
+      height: 352,
+    }),
+    async (url) => {
+      assert.match(url, /^https:\/\/images\.igdb\.com\//u);
+      if (url.endsWith("/gone.jpg")) return new Response(null, { status: 410 });
+      if (url.endsWith("/unavailable.jpg")) return new Response(null, { status: 404 });
+      return new Response("jpeg fixture", {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    },
+  );
+  const results = await observeArtworkWindow(
+    ["gone", "unavailable", "read"],
+    inspector,
+    new AbortController().signal,
+  );
+  assert.deepEqual(
+    results.map(({ status }) => status),
+    ["gone", "unavailable", "read"],
+  );
+  assert.equal(inspector.providerMetrics.authentication_requests, 0);
+  assert.equal(inspector.providerMetrics.game_requests, 0);
+  assert.equal(inspector.providerMetrics.image_requests, 3);
+});
+
+void test(
+  "partial CDN windows leave prior good observations intact in the maintenance store",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("artwork-health");
+    migrate(store.owner);
+    const revision = "a".repeat(40);
+    const earlier = { status: "unchanged", artwork: { image_sha256: "b".repeat(64) } };
+    const later = { status: "gone", artwork: { image_sha256: "c".repeat(64) } };
+    const insert = (
+      artworkHealth: NonNullable<Parameters<typeof collectionSql>[0]["artworkHealth"]>,
+      previous = new Map<string, string>(),
+    ) =>
+      runSql(
+        store.owner,
+        collectionSql({
+          mode: "all",
+          revision,
+          cliSha256: revision.padEnd(64, "a"),
+          apiSchema: 1,
+          runner: "fixture",
+          startedAt: new Date().toISOString(),
+          platform: "linux-x86-64",
+          subjects: [],
+          artworkHealth,
+          latest: { catalog: new Map(), core: new Map(), artworkHealth: previous },
+        }),
+      );
+    insert({
+      revision: "scheduled-artwork-health:1-1",
+      complete: false,
+      expected: 2,
+      gaps: [],
+      facts: new Map([["port:first@first", earlier]]),
+    });
+    insert(
+      {
+        revision: "scheduled-artwork-health:2-1",
+        complete: false,
+        expected: 2,
+        facts: new Map([["port:second@second", later]]),
+        gaps: [
+          {
+            subject_key: "port:first@first",
+            code: "unavailable",
+            message: "No admitted image observation",
+          },
+        ],
+      },
+      new Map([
+        ["port:first@first", createHash("sha256").update(canonicalJson(earlier)).digest("hex")],
+      ]),
+    );
+    const rows = runSql(
+      store.owner,
+      `
+      SELECT subject_key || ':' || (payload ->> 'status')
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r USING (run_id)
+      WHERE r.source = 'cover-artwork-health'
+      ORDER BY subject_key;
+    `,
+    )
+      .trim()
+      .split("\n");
+    assert.deepEqual(rows, ["port:first@first:unchanged", "port:second@second:gone"]);
   },
 );
