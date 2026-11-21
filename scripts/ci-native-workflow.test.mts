@@ -196,11 +196,14 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
   assert.equal(job["timeout-minutes"], 60);
   assert.equal(
     job.if,
-    "${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
+    "${{ (inputs.operation == 'presentation' || inputs.operation == 'reviewed-gallery') && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}",
   );
   assert.ok(isRecord(job.strategy) && isRecord(job.strategy.matrix));
   assert.equal(job.strategy["fail-fast"], false);
-  assert.deepEqual(job.strategy.matrix.selection, ["presentation", "interface-size"]);
+  assert.equal(
+    job.strategy.matrix.selection,
+    "${{ fromJSON(inputs.operation == 'reviewed-gallery' && '[\"reviewed-gallery\"]' || '[\"presentation\", \"interface-size\"]') }}",
+  );
   assert.ok(isRecord(job.env));
   assert.equal(
     job.env.PORTCOVE_OUTPUT_DIR,
@@ -221,6 +224,7 @@ void test("normal-app presentation uses fixed isolated Windows selections and bo
   for (const [selection, arguments_] of [
     ["presentation", "--profile presentation"],
     ["interface-size", "--scenario native-interface-size"],
+    ["reviewed-gallery", "--scenario native-reviewed-screenshot-display"],
   ]) {
     const index = steps.findIndex((step) => step.if === `matrix.selection == '${selection}'`);
     assert.ok(index > bootstrap);

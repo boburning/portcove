@@ -399,6 +399,11 @@ The operation supplies no required CI replacement or automatic acceptance claim.
 
 Run the opt-in Windows case with
 `just desktop-verify --scenario native-reviewed-screenshot-display --require-clean`.
+For the hosted run, dispatch **Native design compatibility** with operation
+**reviewed-gallery** and runner **windows-2022** on the exact reviewed source.
+It selects only the gallery case and retains the bounded lossless evidence in
+the ordinary job log.
+
 The source must embed reviewed typed IGDB screenshots. The run disables automatic
 catalog refresh in its isolated preferences, verifies embedded catalog delivery and
 compares the effective screenshot inventory with the tracked listing source. The

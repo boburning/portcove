@@ -11,6 +11,7 @@ on:
           [
             compatibility,
             presentation,
+            reviewed-gallery,
             product-workflows,
             linux-namespace-preflight,
             linux-package-boundary,
@@ -504,14 +505,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Required evidence retention failed.' }
 
   presentation:
-    if: ${{ inputs.operation == 'presentation' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
+    if: ${{ (inputs.operation == 'presentation' || inputs.operation == 'reviewed-gallery') && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof && github.repository == 'boburning/portcove' && github.event.repository.visibility == 'public' }}
     name: native-presentation (${{ matrix.selection }})
     runs-on: windows-2022
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        selection: [presentation, interface-size]
+        selection: ${{ fromJSON(inputs.operation == 'reviewed-gallery' && '["reviewed-gallery"]' || '["presentation", "interface-size"]') }}
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}
@@ -596,6 +597,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Interface-size plan failed.' }
           just desktop-verify --scenario native-interface-size --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Native interface sizing failed; retain original evidence.' }
+      - name: Observe the reviewed screenshot gallery
+        if: matrix.selection == 'reviewed-gallery'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:PATH = "$PWD/work/tool-bin;$env:PATH"
+          just desktop-verify --scenario native-reviewed-screenshot-display --require-clean --plan
+          if ($LASTEXITCODE -ne 0) { throw 'Reviewed gallery plan failed.' }
+          just desktop-verify --scenario native-reviewed-screenshot-display --require-clean
+          if ($LASTEXITCODE -ne 0) { throw 'Reviewed native gallery failed; retain original evidence.' }
       - name: Retain bounded lossless native evidence in ordinary job logs
         if: always()
         shell: pwsh
