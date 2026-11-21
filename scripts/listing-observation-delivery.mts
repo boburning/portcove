@@ -1095,6 +1095,13 @@ export async function prepareObservationBundle(options: {
     updated: projected.updated,
     source_candidates: candidates.length,
     observer_revision: observerRevision,
+    ...(cover?.deferred
+      ? {
+          cover_receipts_deferred: cover.deferred,
+          cover_receipts_resume:
+            "Authenticated checkpoint compaction is required for new cover scopes. Existing scopes continue to renew and recover.",
+        }
+      : {}),
     scummvm_guides: "scummvm_guides" in projected ? projected.scummvm_guides : null,
     scummvm_game_data: gameData
       ? {

@@ -5221,3 +5221,48 @@ test("hosted cover proposals require the exact committed declaration and admitte
     /digest differs/u,
   );
 });
+
+test("a full cover checkpoint defers new scopes and can still restore an admitted scope", async () => {
+  const { coverDeclarationScope, readArtworkCheckpoint } =
+    await import("./listing-artwork-checkpoint.mts");
+  const artwork = {
+    game_id: 1,
+    cover_id: 2,
+    game_slug: "artwork",
+    match_kind: "underlying-game" as const,
+    image_id: "co1",
+    image_sha256: "a".repeat(64),
+  };
+  const make = (id: string) => {
+    const listing = { id, artwork };
+    return {
+      id,
+      artwork,
+      scope: coverDeclarationScope(listing, artwork),
+      status: "propose_fallback",
+      report: "sha256:" + "d".repeat(64),
+      observed_at: "2026-11-21T12:00:00.000Z",
+    };
+  };
+  const all = Array.from({ length: 3072 }, (_, index) =>
+    make("c" + index.toString(36).padStart(3, "0")),
+  );
+  const first = advanceArtworkCheckpoint(null, all);
+  const wire = Buffer.from("bound fixture listing");
+  const checkpoint = first.finish(wire)!;
+  assert.equal(first.deferred, 0);
+  assert.equal(readArtworkCheckpoint(checkpoint, wire).entries.length, 3072);
+  const known = all[0]!;
+  const fresh = make("unseen-port");
+  const next = advanceArtworkCheckpoint({ bytes: checkpoint, listing: wire }, [
+    fresh,
+    { ...known, status: "verified_accepted_bytes", observed_at: "2026-11-22T12:00:00.000Z" },
+  ]);
+  assert.equal(next.deferred, 1);
+  assert.deepEqual(next.apply({ id: known.id, artwork }).artwork, artwork);
+  assert.equal(next.apply({ id: all[1]!.id, artwork }).artwork, undefined);
+  assert.deepEqual(next.apply({ id: fresh.id, artwork }).artwork, artwork);
+  const bytes = next.finish(wire)!;
+  assert.equal(readArtworkCheckpoint(bytes, wire).entries.length, 3072);
+  assert.deepEqual(advanceArtworkCheckpoint({ bytes, listing: wire }, []).finish(wire), bytes);
+});

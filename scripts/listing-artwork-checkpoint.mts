@@ -9,6 +9,8 @@ export const artworkCheckpointMax = 1024 * 1024;
 const digest = /^[a-f0-9]{64}$/u;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const maxRows = 3072;
+// Reserve enough wire space to transition any admitted row to its longer state.
+const checkpointOverhead = 256;
 
 type Row = {
   id: string;
@@ -54,6 +56,7 @@ function validRecord(row: unknown): row is Row {
     typeof row.prior_sha256 === "string" &&
     digest.test(row.prior_sha256) &&
     typeof row.observed_at === "string" &&
+    row.observed_at.length === 24 &&
     Number.isFinite(Date.parse(row.observed_at)) &&
     row.observed_at === new Date(row.observed_at).toISOString() &&
     typeof row.receipt === "string" &&
@@ -102,9 +105,14 @@ export function advanceArtworkCheckpoint(
 ) {
   const held = prior ? readArtworkCheckpoint(prior.bytes, prior.listing) : null;
   const entries = new Map(held?.entries.map((row) => [key(row), row]));
-  for (const observation of observations) {
-    if (observation.status === "hold_changed_bytes") continue;
-    const row = {
+  const reserved = (row: Row) =>
+    Buffer.byteLength(JSON.stringify({ ...row, state: "restored" })) + 1;
+  let reservation =
+    checkpointOverhead + [...entries.values()].reduce((sum, row) => sum + reserved(row), 0);
+  const deferred = new Set<string>();
+  const proposed = observations
+    .filter((observation) => observation.status !== "hold_changed_bytes")
+    .map((observation) => ({
       id: observation.id,
       scope: observation.scope,
       image_id: observation.artwork.image_id,
@@ -112,8 +120,20 @@ export function advanceArtworkCheckpoint(
       observed_at: observation.observed_at,
       receipt: observation.report,
       state: observation.status === "propose_fallback" ? "gone" : "restored",
-    };
-    if (!validRecord(row)) throw new Error("Projected cover receipt has an invalid scope");
+    }))
+    .filter((row): row is Row => {
+      if (!validRecord(row)) throw new Error("Projected cover receipt has an invalid scope");
+      return true;
+    });
+  proposed.sort((left, right) =>
+    key(left) < key(right)
+      ? -1
+      : key(left) > key(right)
+        ? 1
+        : right.observed_at.localeCompare(left.observed_at, "en") ||
+          left.state.localeCompare(right.state, "en"),
+  );
+  for (const row of proposed) {
     const identity = key(row);
     const previous = entries.get(identity);
     if (
@@ -121,13 +141,21 @@ export function advanceArtworkCheckpoint(
       (previous && row.observed_at <= previous.observed_at)
     )
       continue;
+    if (!previous) {
+      const needed = reserved(row);
+      if (entries.size >= maxRows || reservation + needed > artworkCheckpointMax) {
+        deferred.add(identity);
+        continue;
+      }
+      reservation += needed;
+    }
     entries.set(identity, row);
   }
-  if (entries.size > maxRows) throw new Error("Cover checkpoint exceeds its receipt count bound");
   const sorted = [...entries.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([, row]) => row);
   return {
+    deferred: deferred.size,
     apply(listing: Record<string, unknown>, declaration = listing) {
       if (typeof listing.id !== "string") return listing;
       const gone = (artwork: { image_id: string; image_sha256: string }) =>

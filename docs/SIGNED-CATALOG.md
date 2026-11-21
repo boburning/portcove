@@ -229,6 +229,15 @@ an explicit protected dispatch after compact delivery is active, with the
 official released CLI required to verify the exact compact listing and cover
 checkpoint in the same bundle. Compact capability by itself is insufficient.
 
+At the receipt count or byte limit, the publisher defers new scopes and
+reports their count. It carries existing decisions, including positive
+restoration, and continues unrelated publication. To resume new scopes,
+authorize and test a bounded checkpoint successor that drops only restored
+receipts older than a signed observation floor. The signer must authenticate
+that floor, retain all Gone entries, and refuse later use of observations at
+or below the floor. Existing GitHub report expiry alone cannot establish that
+replay boundary.
+
 Run `node scripts/catalog-capacity.mts --catalog PATH` for offline counts of the
 current source, compact document, representative escaped format-1 envelope and
 remaining parser headroom. The tool reads the existing Core limit constants; it
