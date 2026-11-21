@@ -94,7 +94,9 @@ it("opens a Mod DB file notice through the scoped verifier and labels a refusal"
     expect(open).toHaveBeenCalledWith(port, 3, "mod-db-arcane-dimensions", notice);
     await expect
       .element(page.getByRole("alert"))
-      .toHaveTextContent("This link is no longer confirmed. Refresh the results before opening it.");
+      .toHaveTextContent(
+        "This link is no longer confirmed. Refresh the results before opening it.",
+      );
   } finally {
     browse.mockRestore();
     open.mockRestore();
