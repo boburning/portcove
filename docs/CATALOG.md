@@ -4026,8 +4026,17 @@ candidate chains and independent role failures. Preparation may fill a missing
 background and propose one screenshot when a subject has none. It preserves
 reviewed scenes and respects catalog role limits. Exact HTTP 410 observations sweep
 all candidate references and prevent batch reselection; failed or incomplete
-requests do not establish absence or withdrawal. Preparation proposes remote URLs,
-provenance, hashes and provider terms; it grants no admission, signing, publication
+requests do not establish absence or withdrawal.
+
+The artwork evidence includes background and screenshot coverage by port,
+original release and IGDB game identity. It records existing catalog images,
+fresh proposals and exact observed withdrawals separately. An empty provider
+inventory is missing evidence for that role in that provider. A failed,
+incomplete or unrun query remains unknown. Conflicting provider identities
+stay visible for review. The default report also retains listing-only entries
+outside the proposal input, including their already reviewed media.
+
+Preparation proposes remote URLs, provenance, hashes and provider terms; it grants no admission, signing, publication
 or permission to bundle/export image payloads. `LicenseRef-IGDB-Terms` identifies
 provider access terms, not a permissive copyright license.
 
