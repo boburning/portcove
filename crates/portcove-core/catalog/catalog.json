@@ -55516,16 +55516,19 @@
       }
     },
     {
-      "id": "baldur-s-gate-ii-original-gemrb",
-      "name": "Baldur's Gate II (original) (GemRB)",
-      "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "id": "baldur-s-gate-ii-enhanced-edition-gemrb",
+      "name": "Baldur's Gate II: Enhanced Edition (GemRB)",
+      "summary": "Use your installed Baldur’s Gate II: Enhanced Edition data with GemRB. Upstream marks this edition playable and completable with experimental polish. It uses a separate data layout from the original edition.",
       "project_url": "https://github.com/gemrb/gemrb",
       "support_tier": "beta",
       "channels": [
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -55543,6 +55546,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -55550,7 +55583,148 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a complete installed original Baldur’s Gate II: Shadows of Amn working copy, with Throne of Bhaal only if you own and installed it. Enhanced Edition files and the trivial demo do not supply the original edition. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "On Windows x64 use the official SourceForge Windows ZIP and keep gemrb.exe with its companions. On Linux x86-64 use the official GemRB AppImage and provide the host libjack.so.0 library. On Intel or Apple Silicon Mac use the intact Universal 2 GemRB application from Mac Source Ports. Keep a complete working copy of your installed Baldur’s Gate II: Enhanced Edition. Point GamePath at the folder with chitin.key. Set GameType=bg2ee and configure GameLanguagePath for the language you installed, such as lang/en_US. The upstream player reads the prepared data. Set CachePath to an empty folder dedicated to this edition because GemRB clears it. SavePath is the parent that contains save/. Keep saves, settings and mods for the original edition in separate folders. Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. Choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play. The player owns the runtime, working data and profile. Back up the actual configuration, saves and mods before replacing the upstream player. Removing the registration preserves your external files.",
+        "original_game_title": "Baldur’s Gate II: Enhanced Edition",
+        "original_game": {
+          "format_version": 1,
+          "id": "baldur-s-gate-ii",
+          "evidence_urls": [
+            "https://github.com/gemrb/gemrb",
+            "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
+          ],
+          "source_editions": [
+            {
+              "id": "baldur-s-gate-ii-enhanced-edition-pc",
+              "title": "Baldur’s Gate II: Enhanced Edition",
+              "system": "pc",
+              "evidence_urls": [
+                "https://www.beamdog.com/games/baldurs-gate-2-enhanced/",
+                "https://gemrb.org/Features.html#status"
+              ]
+            }
+          ]
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Get the complete GemRB player",
+              "instruction": "On Windows x64 use the official SourceForge Windows ZIP and keep gemrb.exe with its companions. On Linux x86-64 use the official GemRB AppImage and provide the host libjack.so.0 library. On Intel or Apple Silicon Mac use the intact Universal 2 GemRB application from Mac Source Ports."
+            },
+            {
+              "title": "Prepare your own Enhanced Edition data",
+              "instruction": "Keep a complete working copy of your installed Baldur’s Gate II: Enhanced Edition. Point GamePath at the folder with chitin.key. Set GameType=bg2ee and configure GameLanguagePath for the language you installed, such as lang/en_US. The upstream player reads the prepared data."
+            },
+            {
+              "title": "Use separate game data folders",
+              "instruction": "Set CachePath to an empty folder dedicated to this edition because GemRB clears it. SavePath is the parent that contains save/. Keep saves, settings and mods for the original edition in separate folders."
+            },
+            {
+              "title": "Register the player and play",
+              "instruction": "Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. Choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play."
+            },
+            {
+              "title": "Keep your working copy and saves",
+              "instruction": "The player owns the runtime, working data and profile. Back up the actual configuration, saves and mods before replacing the upstream player. Removing the registration preserves your external files."
+            }
+          ],
+          "help_url": "https://gemrb.org/Install.html",
+          "references": [
+            {
+              "title": "Edition support status",
+              "instruction": "https://gemrb.org/Features.html#status"
+            },
+            {
+              "title": "Official GemRB downloads",
+              "instruction": "https://sourceforge.net/projects/gemrb/files/"
+            },
+            {
+              "title": "GemRB for Mac",
+              "instruction": "https://www.macsourceports.com/game/gemrb"
+            }
+          ],
+          "warnings": [
+            "Enhanced Edition support is experimental upstream. Keep the original installation, configuration and prior saves."
+          ]
+        },
+        "artwork": {
+          "game_id": 5613,
+          "cover_id": 534834,
+          "image_id": "cobgoi",
+          "image_sha256": "91ee807ba0e1ef92a517b28e43025aff7d38bff178675b4e71da749c04637d7a",
+          "game_slug": "baldur-s-gate-ii-enhanced-edition",
+          "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "baldur-s-gate-ii-original-gemrb",
+      "name": "Baldur's Gate II (original) (GemRB)",
+      "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
+      "project_url": "https://github.com/gemrb/gemrb",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "gemrb/gemrb",
+        "user_prepared": {
+          "windows-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          }
+        }
+      },
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use a complete installed original Baldur’s Gate II: Shadows of Amn working copy, with Throne of Bhaal only if you own and installed it. Enhanced Edition files and the trivial demo do not supply the original edition. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. On Windows, register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. On Linux x86-64 select the standalone GemRB AppImage with the host libjack.so.0 library. If the AppImage cannot mount, add --appimage-extract-and-run before -c. On Intel or Apple Silicon Mac select gemrb.app/Contents/MacOS/gemrb from the intact Mac Source Ports bundle. Choose the private working folder and pass -c and the absolute config path as separate arguments. Keep the dedicated empty CachePath separate from the original, saves and settings.",
         "original_game_title": "Baldur’s Gate II: Shadows of Amn",
         "original_game": {
           "format_version": 1,
@@ -55579,11 +55753,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
             },
             {
               "title": "Add the game and manage your files",
@@ -55623,7 +55797,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -55641,6 +55818,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -55648,7 +55855,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a complete installed original Baldur’s Gate working copy, including its original resources and any deliberately installed expansion. Enhanced Edition files and the bundled trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Use a complete installed original Baldur’s Gate working copy, including its original resources and any deliberately installed expansion. Enhanced Edition files and the bundled trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. On Windows, register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. On Linux x86-64 select the standalone GemRB AppImage with the host libjack.so.0 library. If the AppImage cannot mount, add --appimage-extract-and-run before -c. On Intel or Apple Silicon Mac select gemrb.app/Contents/MacOS/gemrb from the intact Mac Source Ports bundle. Choose the private working folder and pass -c and the absolute config path as separate arguments. Keep the dedicated empty CachePath separate from the original, saves and settings.",
         "original_game_title": "Baldur's Gate",
         "original_game": {
           "format_version": 1,
@@ -55676,11 +55883,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
             },
             {
               "title": "Add the game and manage your files",
@@ -66829,7 +67036,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -66847,6 +67057,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -66854,7 +67094,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a complete installed original Icewind Dale II working copy. Icewind Dale I, Enhanced Edition and the included trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Use a complete installed original Icewind Dale II working copy. Icewind Dale I, Enhanced Edition and the included trivial demo are different inputs. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. On Windows, register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. On Linux x86-64 select the standalone GemRB AppImage with the host libjack.so.0 library. If the AppImage cannot mount, add --appimage-extract-and-run before -c. On Intel or Apple Silicon Mac select gemrb.app/Contents/MacOS/gemrb from the intact Mac Source Ports bundle. Choose the private working folder and pass -c and the absolute config path as separate arguments. Keep the dedicated empty CachePath separate from the original, saves and settings.",
         "original_game_title": "Icewind Dale II",
         "original_game": {
           "format_version": 1,
@@ -66882,11 +67122,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
             },
             {
               "title": "Add the game and manage your files",
@@ -66926,7 +67166,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -66944,6 +67187,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -66951,7 +67224,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a complete installed original Icewind Dale working copy. Keep Heart of Winter/Trials of the Luremaster only with their matching installed data; do not invent those expansions from the base game or substitute Enhanced Edition data. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Use a complete installed original Icewind Dale working copy. Keep Heart of Winter/Trials of the Luremaster only with their matching installed data; do not invent those expansions from the base game or substitute Enhanced Edition data. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. On Windows, register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. On Linux x86-64 select the standalone GemRB AppImage with the host libjack.so.0 library. If the AppImage cannot mount, add --appimage-extract-and-run before -c. On Intel or Apple Silicon Mac select gemrb.app/Contents/MacOS/gemrb from the intact Mac Source Ports bundle. Choose the private working folder and pass -c and the absolute config path as separate arguments. Keep the dedicated empty CachePath separate from the original, saves and settings.",
         "original_game_title": "Icewind Dale",
         "original_game": {
           "format_version": 1,
@@ -66979,11 +67252,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
             },
             {
               "title": "Add the game and manage your files",
@@ -73267,7 +73540,10 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -73285,6 +73561,36 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
+          },
+          "macos-aarch64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -73292,7 +73598,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use a complete installed original Planescape: Torment working copy. Enhanced Edition and the included trivial demo do not supply this target. Preserve the chosen language and patches with that working copy. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Use a complete installed original Planescape: Torment working copy. Enhanced Edition and the included trivial demo do not supply this target. Preserve the chosen language and patches with that working copy. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. On Windows, register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration. Choose a dedicated empty private CachePath for this game: GemRB clears that directory, so it must never be your originals, saves or profile root. SavePath is the parent containing save/, not save/ itself. Keep a separate SavePath per game. GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. On Linux x86-64 select the standalone GemRB AppImage with the host libjack.so.0 library. If the AppImage cannot mount, add --appimage-extract-and-run before -c. On Intel or Apple Silicon Mac select gemrb.app/Contents/MacOS/gemrb from the intact Mac Source Ports bundle. Choose the private working folder and pass -c and the absolute config path as separate arguments. Keep the dedicated empty CachePath separate from the original, saves and settings.",
         "original_game_title": "Planescape: Torment",
         "original_game": {
           "format_version": 1,
@@ -73319,11 +73625,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
             },
             {
               "title": "Add the game and manage your files",
