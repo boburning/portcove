@@ -10,6 +10,7 @@ import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { transportValue } from "./transport-values.mts";
 import {
   installSecondaryPanelProbe,
+  type SecondaryPanelPhase,
   type SecondaryPanelProbeCleanup,
   type SecondaryPanelProbeObservation,
   type SecondaryPanelProbeOptions,
@@ -86,7 +87,7 @@ function installed() {
     },
     __portcoveSecondaryPanelProbe: undefined as
       | {
-          phase(value: "mods" | "preservation"): void;
+          phase(value: SecondaryPanelPhase): void;
           capture(): SecondaryPanelProbeObservation;
           restore(): SecondaryPanelProbeCleanup;
         }
@@ -133,6 +134,28 @@ test("serialized native panel probe supplies fixed views and preserves unrelated
   assert.equal(cleanup.trustworthy, true);
   assert.equal(window.fetch, original);
   assert.equal(window.__portcoveSecondaryPanelProbe, undefined);
+});
+
+test("provider presentation changes readability without changing the eligible identity", async () => {
+  const { call, probe } = installed();
+  const args = { provider: "gamebanana", projectId: "42" };
+  const catalogArgs = { source: "gamebanana" };
+  const incomplete = await responseObject(await call("get_provider_project", args));
+  const incompleteCatalog = await responseObject(
+    await call("get_mod_provider_catalog", catalogArgs),
+  );
+  probe.phase("provider-singleton");
+  const complete = await responseObject(await call("get_provider_project", args));
+  const completeCatalog = await responseObject(await call("get_mod_provider_catalog", catalogArgs));
+  assert.equal(object(incomplete.project).unreadable_files, 1);
+  assert.deepEqual(incomplete.eligible_file_ids, ["10"]);
+  assert.deepEqual(complete, {
+    ...incomplete,
+    project: { ...object(incomplete.project), unreadable_files: 0 },
+  });
+  assert.deepEqual(incompleteCatalog.projects, [incomplete.project]);
+  assert.deepEqual(completeCatalog.projects, [complete.project]);
+  assert.equal(probe.restore().trustworthy, true);
 });
 
 test("every declared secondary mutation is refused without reaching Core", async () => {

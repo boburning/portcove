@@ -503,19 +503,45 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await click(button("Close review"));
         await focused(recipe);
 
+        const singleFile = theme === "light";
+        await probe.phase(singleFile ? "provider-singleton" : "mods");
         await openMods();
         await click(button("Browse mods"));
-        await click(button(fixtures.providerProject.project.name));
-        if (theme === "light") {
+        if (singleFile) {
           await text("Pending addition");
           await clickVisible(browser, await findButton("Undo"));
         }
-        await click(button(`Add ${fixtures.providerPlan.file.file_name}`));
+        const catalogAdd = await findButton("Add");
+        const fileAddName = `Add ${fixtures.providerPlan.file.file_name}`;
+        const commandCount = async (command: string) =>
+          (await probe.capture()).trace.filter((entry) => entry.command === command).length;
+        const planCount = () => commandCount("plan_provider_install");
+        const applyCount = () => commandCount("apply_mod_setup_draft");
+        const priorPlans = await planCount();
+        const priorApplies = await applyCount();
+        await observedAction("get_provider_project", () => catalogAdd.sendKeys(Key.ENTER));
+        if (singleFile) {
+          await text("Pending addition");
+          assert.equal((await browser.findElements(button(fileAddName))).length, 0);
+          await capture(`${theme}-provider-file-queued-directly`);
+        } else {
+          const fileAdd = await findButton(fileAddName);
+          await capture(`${theme}-provider-file-chooser`, fileAdd);
+          assert.equal(await planCount(), priorPlans);
+          assert.equal(await applyCount(), priorApplies);
+          await clickVisible(browser, fileAdd);
+          await text("Pending addition");
+        }
+        assert.equal(await planCount(), priorPlans);
+        assert.equal(await applyCount(), priorApplies);
         await click(button("Review changes"));
-        await click(button("Check files"));
+        await observedAction("plan_provider_install", () => click(button("Check files")));
+        assert.equal(await planCount(), priorPlans + 1);
         const install = await findButton("Apply changes");
         await capture(`${theme}-provider-review`, install);
+        assert.equal(await applyCount(), priorApplies);
         await observedAction("apply_mod_setup_draft", () => clickVisible(browser, install));
+        assert.equal(await applyCount(), priorApplies + 1);
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-provider-refused`);
 
