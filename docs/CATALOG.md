@@ -4011,8 +4011,10 @@ Reviewed format-14 bindings connect an original release to the exact source
 game, variant and representation. Continue and game details can check one
 visible registered source within a bounded read and use its current exact
 match. An active installation uses that match only when its effective launch
-consumes this original. Prepared runtimes without an exact installed-source
-identity use the same neutral fallback as other unverified states. The full
+can use the exact default registration. A different setup original, a retained
+release that can use another saved original, or an unresolved release-specific
+input uses the neutral fallback. Prepared runtimes without an exact
+installed-source identity use the same fallback. The full
 saved-file check remains available when the bounded read cannot verify a file
 set. Players can use **Screenshot source** to view reviewed screenshots for
 an original release.

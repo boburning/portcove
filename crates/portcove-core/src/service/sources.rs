@@ -601,9 +601,12 @@ impl PortcoveService {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
     use crate::{
-        CatalogEvidenceRole, N64RecompOriginalInput, OperationCoordinator, SourceRepresentationKind,
+        CatalogEvidenceRole, InstallRecord, N64RecompOriginalInput, OperationCoordinator,
+        SourceRepresentationKind,
     };
 
     #[test]
@@ -661,7 +664,36 @@ mod tests {
         let older = service.register_source(PROFILE, &older_path).unwrap();
         assert!(service.inspect_source_record(PROFILE, &newer_path).is_err());
 
+        let install =
+            crate::test_fixture::register_qualification_install(service.library(), &retained, PORT);
         service.replace_catalog_for_test(migrated.clone());
+        let artwork_profile =
+            |catalog: &Catalog, active: InstallRecord, registered: &SourceRecord| {
+                let channel = active.channel;
+                let mut status = service.library().status(PORT, channel).unwrap();
+                status.active = Some(active);
+                service
+                    .with_launch_readiness(
+                        catalog,
+                        catalog.port(PORT).unwrap(),
+                        status,
+                        &HashMap::from([(PROFILE.into(), registered.clone())]),
+                        &mut HashMap::new(),
+                        Ok(&Some(catalog.clone())),
+                    )
+                    .unwrap()
+                    .readiness
+                    .unwrap()
+                    .active_game_source_profile
+            };
+        assert_eq!(
+            artwork_profile(&retained, install.clone(), &older).as_deref(),
+            Some(PROFILE)
+        );
+        let mut exact_release = install.clone();
+        exact_release.version = "current".into();
+        exact_release.artifact.sha256 = artifact.clone();
+        assert_eq!(artwork_profile(&migrated, exact_release, &older), None);
         let port = service.catalog().port(PORT).unwrap();
         assert!(
             !service
@@ -696,6 +728,7 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_ne!(newer.sha256, older.sha256);
+        assert_eq!(artwork_profile(&retained, install, &newer), None);
         assert!(
             service
                 .has_saved_n64_original_to_recheck(port, None, Some(&newer))

@@ -2205,9 +2205,10 @@ impl PortcoveService {
             .and_then(|profile| registered_sources.get(profile));
         // Readiness only checks prior instances for availability. Launch verifies the
         // selected instance against the retained release under the N64 read budget.
+        let migrated_original =
+            retained_catalog.is_some() && self.uses_migrated_n64_original(catalog, port);
         let recheck_saved_original = installed
-            && retained_catalog.is_some()
-            && self.uses_migrated_n64_original(catalog, port)
+            && migrated_original
             && self
                 .has_saved_n64_original_to_recheck(
                     port,
@@ -2445,12 +2446,27 @@ impl PortcoveService {
             None
         };
         let active_game_source_profile = port.source_profile.clone().filter(|profile| {
-            status.active.as_ref().is_some_and(|active| active.verified)
-                && !blockers.contains(&LaunchBlocker::InvalidInstallation)
+            let Some(active) = status.active.as_ref().filter(|active| active.verified) else {
+                return false;
+            };
+            !blockers.contains(&LaunchBlocker::InvalidInstallation)
+                && !blockers.contains(&LaunchBlocker::IncompatibleSource)
                 && !port.optional_game_source
                 && crate::preparation::launch_consumes_original(port)
+                && !release.is_some_and(|release| {
+                    crate::source_inspection::n64_release_input(catalog, &port.id, release)
+                        .is_some()
+                })
                 && Self::artwork_source_scope(catalog, &port.id, profile).is_some_and(|scope| {
                     Self::artwork_source_scope(current_catalog, &port.id, profile) == Some(scope)
+                })
+                && default_original.is_some_and(|original| {
+                    self.launch_uses_default_original(&port.id, &active.id, original)
+                        && (!migrated_original
+                            || matches!(
+                                self.has_saved_n64_original_to_recheck(port, None, Some(original)),
+                                Ok(false)
+                            ))
                 })
         });
         status.readiness = Some(LaunchReadiness {

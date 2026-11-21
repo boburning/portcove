@@ -1961,8 +1961,9 @@ export interface PortActionAssessment {
 }
 export interface LaunchReadiness {
   /**
-   * The effective active installation requires this registered game source
-   * at launch. Prepared/self-contained installs and optional inputs omit it.
+   * The effective active installation can use the default game-source registration
+   * for edition artwork after fresh byte verification. Omitted when launch can
+   * use different bytes or Core cannot establish the default's eligibility.
    */
   active_game_source_profile?: string | null;
   bios?: SourceHealth | null;
