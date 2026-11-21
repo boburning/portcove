@@ -27,6 +27,10 @@
         {
           "title": "Carry your progress to a new upstream version",
           "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
+        },
+        {
+          "title": "Add the prepared game to Portcove",
+          "instruction": "After upstream setup completes, choose Use an existing installation in Portcove. Select tetrisphere.exe on Windows or tetrisphere on Linux and its containing installation folder. Keep data and companion files together. Choose Play separately. Use the upstream launcher for future setup and replacement. Removing the registration leaves the external files in place."
         }
       ],
       "warnings": [],
