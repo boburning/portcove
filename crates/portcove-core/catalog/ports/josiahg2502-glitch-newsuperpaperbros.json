@@ -14,7 +14,7 @@
     "summary": "An experimental Super Paper Mario port with project-reported gameplay and enhancements. Windows 10/11 x64 uses Direct3D 12/Vulkan; new Linux 64-bit support needs glibc 2.35+ and Vulkan. Screenshot names do not establish macOS support. Use your own supported Wii disc and follow the project’s setup. Its source packager expects an HQ-music mod locally; that optional content is separate from engine requirements. You and the project manage installation and version changes. Exact original revision/hashes, BIOS/firmware needs and full platform/gameplay coverage are unconfirmed, and release files are not qualified packages in Portcove. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Super Paper Mario",
     "project_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
-    "platforms": ["linux-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/josiahg2502-glitch/NewSuperPaperBros",
     "issue_number": 2772,
@@ -36,7 +36,7 @@
         }
       ],
       "warnings": [
-        "Use only copies, originals, music, textures and other components you are permitted to use, retaining their applicable notices. No rights to game assets follow from a framework license. Upstream screenshots and gameplay statements do not establish Portcove native, gameplay, macOS, Linux or Android acceptance.",
+        "Use only copies, originals, music, textures and other components you are permitted to use, retaining their applicable notices. The reviewed v1.0.8 ZIP contains optional music with unresolved provenance. Use a prepared copy whose contents you are permitted to use. Upstream screenshots and gameplay statements do not establish Portcove native, gameplay, macOS, Linux or Android acceptance.",
         "Preserve old Play/UserData layouts and any upstream import backups if present; registration does not migrate, merge or certify console/Dolphin save compatibility."
       ],
       "references": [

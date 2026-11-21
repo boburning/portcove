@@ -5,6 +5,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import axe from "axe-core";
 import { desktopApi } from "../api";
+import * as filePicker from "../file-picker";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { portDefinition, portStatus, sourceProfile, fixtureValue } from "../test-fixtures";
 import { DetailPanel, type DetailActions } from "./DetailPanel";
@@ -13,6 +14,7 @@ import type { PortOutputLocation, ReadinessBlocker, SourceHealth } from "../type
 import "../styles/index.css";
 
 afterEach(cleanup);
+vi.mock("../file-picker", { spy: true });
 
 it.each([
   { theme: "dark", savedArguments: ["--fullscreen"] },
@@ -120,14 +122,17 @@ it.each([
       expect(Math.max(...serverPrefix) - Math.min(...serverPrefix)).toBeLessThanOrEqual(1);
       expect(preview).not.toHaveBeenCalled();
       await captureParityState("detail-manage-selected-launch-facts");
-      await page.getByRole("button", { name: "Edit external launch details", exact: true }).click();
+      await page.getByRole("button", { name: "Open launch details", exact: true }).click();
       await expect
         .element(page.getByRole("tab", { name: "Game files", exact: true }))
         .toHaveAttribute("aria-selected", "true");
       expect(
         document.querySelector("[data-detail-workspace]")?.getAttribute("data-detail-port-id"),
       ).toBe(port.id);
-      await page.getByRole("button", { name: "Edit launch details…", exact: true }).click();
+      const edit = page.getByRole("button", { name: "Edit launch details…", exact: true });
+      await expect.element(edit).toHaveFocus();
+      expect(preview).not.toHaveBeenCalled();
+      await edit.click();
       await expect
         .element(page.getByRole("textbox", { name: "Start in folder", exact: true }))
         .toHaveValue(directory);
@@ -146,6 +151,42 @@ it.each([
     }
   },
 );
+
+it.each([false, true])("opens prepared folder controls while busy is %s", async (busy) => {
+  const port = portDefinition();
+  const record = {
+    id: "prepared-folder",
+    port_id: port.id,
+    path: "C:/Games/Prepared copy",
+    executable: "C:/Games/Prepared copy/game.exe",
+    version: "1.2.3",
+    platform: "windows-x86-64" as const,
+    archive_sha256: "a".repeat(64),
+    immutable_tree_sha256: "b".repeat(64),
+    registered_at: 1,
+  };
+  const picker = vi.spyOn(filePicker, "pickInstallFolder").mockResolvedValue(null);
+  await render(
+    <DetailPanel
+      port={port}
+      status={{ ...portStatus(), external_runtime: record }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={detailActions}
+      libraryGeneration={19}
+      busy={busy ? "Checking the installation" : undefined}
+    />,
+  );
+  await page.getByRole("tab", { name: "Manage", exact: true }).click();
+  await page.getByRole("button", { name: "Open game folder controls", exact: true }).click();
+  const change = page.getByRole("button", { name: "Change game folder…", exact: true });
+  await expect.element(change).toBeVisible();
+  expect(change.element().matches(":disabled")).toBe(busy);
+  const destination = busy ? page.getByRole("region", { name: "Game actions" }) : change;
+  await expect.element(destination).toHaveFocus();
+  expect(picker).not.toHaveBeenCalled();
+  picker.mockRestore();
+});
 
 it.each(["dark", "light"] as const)(
   "aligns all padded disclosure markers to the first wrapped line in %s",
@@ -1200,4 +1241,50 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
   const column = page.getByTestId("narrow-details-column").element();
   await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
   expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
+});
+
+it("shows the opt-in community Mods tab before installation and alongside local setup controls", async () => {
+  const oldViewport = { width: innerWidth, height: innerHeight };
+  const props = installedSourceDetail("opengoal-jak1", "not_checked");
+  const url = "https://jakmods.dev/#installation";
+  const availability = vi.spyOn(desktopApi, "jakModsSetupUrl").mockResolvedValue(url);
+  const catalog = vi.spyOn(desktopApi, "jakModsCatalog");
+  const setups = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+    port_id: props.port.id,
+    supported: true,
+    current_install_id: props.status.active.id,
+    package_types: [],
+    later_mods_take_priority: false,
+    held_updates: [],
+    provider: null,
+    inventory: { port_id: props.port.id, profiles: [] },
+    live: null,
+  });
+  try {
+    await page.viewport(960, 800);
+    const view = await render(
+      <DetailPanel {...props} status={{ ...props.status, active: null }} libraryGeneration={101} />,
+    );
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    const tab = page.getByRole("tabpanel", { name: "Mods", exact: true });
+    await expect
+      .element(tab.getByRole("link", { name: "Set up JakMods in the OpenGOAL Launcher" }))
+      .toBeVisible();
+    expect(setups).not.toHaveBeenCalled();
+    expect(catalog).not.toHaveBeenCalled();
+    await view.rerender(<DetailPanel {...props} libraryGeneration={102} />);
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    await expect.element(tab.getByRole("button", { name: "Browse JakMods" })).toBeVisible();
+    await expect
+      .element(tab.getByText("This game has no setup yet.", { exact: false }))
+      .toBeVisible();
+    expect(availability).toHaveBeenCalledWith(props.port.id, 102);
+    expect(setups).toHaveBeenCalledWith(props.port.id, 102);
+    expect(catalog).not.toHaveBeenCalled();
+  } finally {
+    availability.mockRestore();
+    catalog.mockRestore();
+    setups.mockRestore();
+    await page.viewport(oldViewport.width, oldViewport.height);
+  }
 });

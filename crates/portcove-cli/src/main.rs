@@ -5487,6 +5487,10 @@ mod tests {
             capabilities.listing_formats,
             [5, 6, 7, 8, 9, 10, 11, 12, 13]
         );
+        assert_eq!(
+            capabilities.listing_delivery_carriers,
+            ["json-v1", "gzip-base64-json-v1"]
+        );
         assert!(
             capabilities
                 .commands

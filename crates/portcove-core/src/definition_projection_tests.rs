@@ -672,6 +672,56 @@ fn exact_n64_release_input_projection_requires_its_own_reader_and_port() {
     );
 }
 
+#[test]
+fn enforced_n64_release_inputs_require_migration_reader() {
+    let mut catalog = Catalog::embedded().unwrap().authoritative_document();
+    catalog
+        .ports
+        .retain(|port| port.id == "harvest-moon-64-recomp");
+    let sources = catalog.source_catalog.as_mut().unwrap();
+    sources
+        .contracts
+        .retain(|contract| contract.port_id == "harvest-moon-64-recomp");
+    sources
+        .qualification
+        .retain(|fact| fact.scope.port_id == "harvest-moon-64-recomp");
+    let evidence = sources
+        .evidence
+        .iter()
+        .find(|item| item.role == crate::CatalogEvidenceRole::UpstreamSupport)
+        .unwrap()
+        .id
+        .clone();
+    let contract = &mut sources.contracts[0];
+    contract.evidence_ids.push(evidence);
+    contract
+        .n64_recomp_inputs_v1
+        .push(crate::N64RecompOriginalInput {
+            upstream_ref: "new-release".into(),
+            artifact_sha256: "a".repeat(64),
+            game_id: "harvest_moon_64".into(),
+            rom_xxh3_64: "0123456789abcdef".into(),
+        });
+    let document = json!({
+        "contract_schema": 1, "representation": "catalog_projection", "catalog": catalog,
+    });
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
+    }]);
+    assert!(
+        inspect(&selected, &contract)
+            .unwrap_err()
+            .message
+            .contains("release-input reader")
+    );
+    selected["required_capabilities"] = json!([{
+        "template": "n64-recomp-portable", "minimum_version": 11, "maximum_version": 11
+    }]);
+    inspect(&selected, &contract).unwrap();
+}
+
 fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     entry_with_reference(document, &target(contract), port_index)
 }
@@ -928,6 +978,115 @@ fn settings_are_complete_operational_projection_content_not_listing_metadata() {
         .unwrap()
         .remove("game_settings");
     assert!(inspect(&absent, &contract).is_err());
+}
+
+#[test]
+fn complete_indexed_projections_keep_package_only_settings_with_the_selected_port() {
+    let baseline = Catalog::embedded().unwrap();
+    let mut complete = projection();
+    let ports = complete["catalog"]["ports"].as_array().unwrap();
+    let settings_port = "super-mario-world-recomp";
+    let settings_index = ports
+        .iter()
+        .position(|port| port["id"] == settings_port)
+        .unwrap();
+    let sibling_index = ports
+        .iter()
+        .position(|port| port["id"] == "zelda64-recomp")
+        .unwrap();
+    let settings = serde_json::to_value(
+        baseline
+            .port(settings_port)
+            .unwrap()
+            .game_settings
+            .as_ref()
+            .unwrap(),
+    )
+    .unwrap();
+    let compatible_leaf = serde_json::to_vec(&complete).unwrap();
+    let unrelated_entry = entry(&complete, &compatible_leaf, sibling_index);
+    let projection = inspect(&unrelated_entry, &compatible_leaf).unwrap();
+    let retained = projection.snapshot().catalog().unwrap();
+    assert!(
+        retained
+            .port(settings_port)
+            .unwrap()
+            .game_settings
+            .is_none()
+    );
+    let effective = projection.catalog_for_selection(&baseline).unwrap();
+    assert_eq!(
+        serde_json::to_value(&effective.port(settings_port).unwrap().game_settings).unwrap(),
+        settings
+    );
+    assert_eq!(projection.contract_bytes(), compatible_leaf);
+
+    complete["catalog"]["ports"][settings_index]["game_settings"] = settings;
+    let leaf_with_settings = serde_json::to_vec(&complete).unwrap();
+    let selected = entry(&complete, &leaf_with_settings, settings_index);
+    assert!(inspect(&selected, &leaf_with_settings).is_ok());
+
+    let sibling = entry(&complete, &leaf_with_settings, sibling_index);
+    let sibling_bytes = serde_json::to_vec(&sibling).unwrap();
+    let index = index(&[(&sibling, &sibling_bytes)], &leaf_with_settings);
+    let stable_id = sibling["stable_id"].as_str().unwrap();
+    for error in [
+        index
+            .inspect_catalog_projection("official", stable_id, &sibling_bytes, &leaf_with_settings)
+            .unwrap_err(),
+        index
+            .inspect_retained_catalog_projection(
+                "official",
+                stable_id,
+                &sibling_bytes,
+                &leaf_with_settings,
+            )
+            .unwrap_err(),
+    ] {
+        assert!(
+            error
+                .message
+                .contains("package-only settings must belong to the selected")
+        );
+        assert_eq!(error.details["port_id"], settings_port);
+    }
+}
+
+#[test]
+fn canonical_projection_keeps_the_selected_ports_package_only_settings() {
+    let mut document = projection();
+    let port_id = "super-mario-world-recomp";
+    let catalog = Catalog::embedded().unwrap();
+    let authored = catalog
+        .port(port_id)
+        .unwrap()
+        .game_settings
+        .as_ref()
+        .unwrap();
+    let ports = document["catalog"]["ports"].as_array_mut().unwrap();
+    ports.retain(|port| port["id"] == port_id);
+    ports[0]["game_settings"] = serde_json::to_value(authored).unwrap();
+    let sources = &mut document["catalog"]["source_catalog"];
+    sources["contracts"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|contract| contract["port_id"] == port_id);
+    sources["qualification"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|record| record["scope"]["port_id"] == port_id);
+
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("projection.json");
+    std::fs::write(&path, serde_json::to_vec(&document).unwrap()).unwrap();
+    let canonical = canonical_definition_projection(&path).unwrap();
+    let value = serde_json::from_str(&canonical).unwrap();
+    let leaf = canonical.as_bytes();
+    let selected = inspect(&entry(&value, leaf, 0), leaf).unwrap();
+    assert_eq!(
+        serde_json::to_value(&selected.entry().port().game_settings).unwrap(),
+        serde_json::to_value(authored).unwrap()
+    );
 }
 
 #[test]

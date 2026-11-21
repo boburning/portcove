@@ -944,6 +944,51 @@ games or targets may share one upstream. Grouping and sorting are verified by re
 remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 
+For the #4850 read-only migration inventory, run
+`node scripts/roadmap.mts doctor --stage-migration-dry-run --expected-head <sha> --json`.
+It uses complete, revision-checked Project inventory for active and archived
+items. The report retains current values with Project item IDs, issue links,
+and observed body digests, and reports missing or conflicting catalog links
+as unresolved. A failed or incomplete read establishes no migration counts.
+This mode reports migration coverage separately from global doctor health.
+
+The proposed reduced stage set keeps **Watchlist**, **Researching**,
+**Blocked**, and **Rejected** as deliberate planning values and derives
+**Cataloged**, **Automated qualification**, and **Supported** from existing catalog
+admission and platform qualification. The three historical values,
+**Source contract known**, **Release integrity qualified**, and **Manual
+qualification**, require individual review before any migration. Retain their
+source, artifact, and hands-on work evidence in the owning issue. The report
+shows each historical value beside its catalog projection when a unique link
+exists. Doctor already computes and reports drift in either direction from
+observed catalog evidence. It reports a lower stored stage as advisory and
+continues to fail when a stored qualification claim exceeds its evidence.
+A dry-run finding proposes a review of the Project assignment at the stage
+the catalog already establishes. When the catalog link is absent or ambiguous,
+the finding asks for binding verification and proposes no target. Reporting
+does not grant catalog support or change the recorded planning values.
+
+An issue-free prepared listing can record inspection, runtime observations or
+failures independently. The report includes a catalog projection for matching
+operational ports covered by the issue-free listing rule. A listing or dated
+runtime observation alone supplies no substitute for an automated or hands-on
+qualification pass. The read-only doctor report runs under existing authority.
+Changing the Project value set requires the owner's confirmation. Migrating
+existing assignments requires approval of the reviewed assignment plan,
+including preservation of the supporting evidence in their owning issues.
+
+For each historical assignment, the dry run retains the exact old value and
+issue body with the Project and issue IDs, observed revision, and body digest.
+It proposes leaving Port stage unset after evidence preservation when the
+owning issue is closed as Completed, Project Status is Done, and neither the
+issue markers nor an admitted listing establish an operational catalog binding.
+This preserves the recorded completion of limited work, including an
+upstream-owned player route. For open issues, a recorded Blocked status needs
+the existing issue blocker and resume evidence. Active investigation can map
+to Researching when the issue specifies pending qualification work and tests.
+A Triage status alone leaves the historical value on hold. An ambiguous catalog
+binding or insufficient current evidence also retains the historical value.
+
 Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mts snapshot`. Review and commit that immutable evidence document under
 `docs/releases/`. It records what the Project and catalog said at one commit;

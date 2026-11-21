@@ -302,6 +302,27 @@ impl Catalog {
                             "N64 release input must bind the selected runtime's normalized game file",
                         ));
                     }
+                    if contract.migrates_n64_legacy_admission()
+                        && document.ports.iter().any(|dependent| {
+                            dependent.bios_source_profile.as_deref() == Some(&contract.profile_id)
+                                || (dependent.source_profile.as_deref()
+                                    == Some(&contract.profile_id)
+                                    && (dependent.adapter != AdapterKind::N64RecompPortable
+                                        || !source_catalog.contracts.iter().any(|legacy| {
+                                            legacy.port_id == dependent.id
+                                                && legacy.profile_id == contract.profile_id
+                                                && legacy.role == crate::PortSourceRole::Game
+                                                && legacy.admission_mode
+                                                    == crate::CatalogAdmissionMode::Enforced
+                                                && !legacy.supported_variant_ids.is_empty()
+                                                && legacy.validator_contract_id.is_none()
+                                        })))
+                        })
+                    {
+                        return Err(PortcoveError::usage(
+                            "every consumer of a migrated N64 original must keep an enforced legacy game contract",
+                        ));
+                    }
                 }
                 let projection = source_catalog.compatibility_profiles()?;
                 if !document.source_profiles.is_empty()
@@ -432,6 +453,21 @@ impl Catalog {
         }
     }
 
+    /// A sibling projection cannot appoint or remove package-only settings.
+    pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+                && original
+                    .game_settings
+                    .as_ref()
+                    .is_some_and(crate::GameSettingsContract::package_only)
+            {
+                port.game_settings.clone_from(&original.game_settings);
+            }
+        }
+    }
+
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
         if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
             Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
@@ -500,6 +536,18 @@ impl Catalog {
 
     pub fn source_catalog(&self) -> Option<&crate::SourceCatalog> {
         self.document.source_catalog.as_ref()
+    }
+
+    pub(crate) fn n64_legacy_migrations<'a>(
+        &'a self,
+        profile_id: &'a str,
+    ) -> impl Iterator<Item = &'a crate::PortSourceContract> {
+        self.source_catalog()
+            .into_iter()
+            .flat_map(|catalog| &catalog.contracts)
+            .filter(move |contract| {
+                contract.profile_id == profile_id && contract.migrates_n64_legacy_admission()
+            })
     }
 
     pub fn reviewed_source_evidence_url(&self, evidence_id: &str) -> Result<&str> {
@@ -796,13 +844,7 @@ impl Catalog {
                 )));
             }
             if let Some(settings) = &port.game_settings {
-                settings.validate(&port.persistent_paths)?;
-                if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
-                    return Err(PortcoveError::usage(
-                        "settings contract requires a declared Windows x86-64 integration",
-                    )
-                    .detail("port_id", &port.id));
-                }
+                settings.validate_port(port)?;
             }
             let native_archive_release = port.release.provider == ReleaseSource::Github
                 || (port.release.provider == ReleaseSource::DirectManifest
