@@ -530,10 +530,14 @@ impl Library {
             ));
         }
         let now = Self::now();
-        let (baseline, provenance) =
+        let (baseline, baseline_provenance) =
             crate::catalog_store::CatalogState::read(&transaction)?.resolve(now)?;
-        let (catalog, _) =
-            crate::catalog_store::resolve_before_listings(&transaction, baseline, provenance, now)?;
+        let (catalog, _) = crate::catalog_store::resolve_before_listings(
+            &transaction,
+            baseline,
+            baseline_provenance,
+            now,
+        )?;
         candidate.document.project(catalog)?;
         provenance.require_fresh()?;
         let proof = serde_json::to_string(&candidate.proof)?;
