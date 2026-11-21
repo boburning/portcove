@@ -1203,6 +1203,7 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
 });
 
 it("shows the opt-in community Mods tab before installation and alongside local setup controls", async () => {
+  const oldViewport = { width: innerWidth, height: innerHeight };
   const props = installedSourceDetail("opengoal-jak1", "not_checked");
   const url = "https://jakmods.dev/#installation";
   const availability = vi.spyOn(desktopApi, "jakModsSetupUrl").mockResolvedValue(url);
@@ -1219,6 +1220,7 @@ it("shows the opt-in community Mods tab before installation and alongside local 
     live: null,
   });
   try {
+    await page.viewport(960, 800);
     const view = await render(
       <DetailPanel {...props} status={{ ...props.status, active: null }} libraryGeneration={101} />,
     );
@@ -1242,5 +1244,6 @@ it("shows the opt-in community Mods tab before installation and alongside local 
     availability.mockRestore();
     catalog.mockRestore();
     setups.mockRestore();
+    await page.viewport(oldViewport.width, oldViewport.height);
   }
 });
