@@ -72,10 +72,12 @@ pub(super) fn relative(value: &str) -> Result<()> {
     Ok(())
 }
 fn normalize_output(output: &Path) -> Result<PathBuf> {
-    if output.try_exists()? {
-        output.canonicalize().map_err(Into::into)
-    } else {
-        Ok(output
+    match output.symlink_metadata() {
+        Ok(_) => {
+            ancestry(output)?;
+            output.canonicalize().map_err(Into::into)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(output
             .parent()
             .ok_or_else(|| TufRepositoryError::Invalid("output parent absent".into()))?
             .canonicalize()?
@@ -83,7 +85,8 @@ fn normalize_output(output: &Path) -> Result<PathBuf> {
                 output
                     .file_name()
                     .ok_or_else(|| TufRepositoryError::Invalid("output name absent".into()))?,
-            ))
+            )),
+        Err(error) => Err(error.into()),
     }
 }
 
@@ -93,11 +96,10 @@ pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
         .iter()
         .map(|p| p.canonicalize())
         .collect::<std::io::Result<Vec<_>>>()?;
-    if inputs.iter().any(|p| {
-        normalized_output == *p
-            || normalized_output.starts_with(p)
-            || p.starts_with(&normalized_output)
-    }) {
+    if inputs
+        .iter()
+        .any(|p| output_contains(&normalized_output, p) || output_contains(p, &normalized_output))
+    {
         return invalid("catalog output overlaps original inputs");
     }
     let parent = output
@@ -115,7 +117,16 @@ pub(super) fn no_output_overlap(first: &Path, second: &Path) -> Result<()> {
 }
 #[cfg(not(windows))]
 fn output_contains(path: &Path, prefix: &Path) -> bool {
-    path.starts_with(prefix)
+    let mut components = path.components();
+    prefix.components().all(|expected| {
+        components.next().is_some_and(|actual| {
+            let actual = actual.as_os_str().as_encoded_bytes();
+            let expected = expected.as_os_str().as_encoded_bytes();
+            // Filesystem case folding and normalization may vary by volume.
+            // An unequal non-ASCII component cannot prove separation.
+            actual.eq_ignore_ascii_case(expected) || !actual.is_ascii() || !expected.is_ascii()
+        })
+    })
 }
 
 #[cfg(windows)]
@@ -143,12 +154,36 @@ fn output_contains(path: &Path, prefix: &Path) -> bool {
     })
 }
 
-pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
-    if path.try_exists()? {
-        if read(path, ROLE_MAX)? == bytes {
-            return Ok(false);
+/// A missing directory may be created. Existing links and wrong kinds are refused.
+pub(super) fn directory_exists(path: &Path) -> Result<bool> {
+    match path.symlink_metadata() {
+        Ok(metadata) => {
+            ancestry(path)?;
+            if !metadata.is_dir() {
+                return invalid("catalog output path is not a directory");
+            }
+            Ok(true)
         }
-        return invalid("catalog output already exists with different bytes; retain original");
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Check immutable reuse without writing so a different output cannot be partially created.
+pub(super) fn output_file_exists(path: &Path, bytes: &[u8]) -> Result<bool> {
+    match path.symlink_metadata() {
+        Ok(_) if read(path, ROLE_MAX)? != bytes => {
+            invalid("catalog output already exists with different bytes; retain original")
+        }
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
+    if output_file_exists(path, bytes)? {
+        return Ok(false);
     }
     create_synced(path, bytes)?;
     if read(path, ROLE_MAX)? != bytes {

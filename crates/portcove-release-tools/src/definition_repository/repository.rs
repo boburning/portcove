@@ -800,7 +800,16 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     if signing::roles(&context, &inputs[inputs.len() - 1], 4)? != roles {
         return invalid("catalog signed inputs changed during assembly");
     }
-    let changed = if output.try_exists()? {
+    let output_exists = io::directory_exists(&output)?;
+    if let Some((history, directory)) = &history_output
+        && io::directory_exists(directory)?
+        && io::directory_exists(&directory.join("sha256"))?
+    {
+        for (name, bytes) in &history.objects {
+            io::output_file_exists(&directory.join(name), bytes)?;
+        }
+    }
+    let changed = if output_exists {
         if public_identities(&output)? != files.identities() {
             return invalid("catalog assembly output exists with different bytes; retain original");
         }
@@ -833,7 +842,13 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         true
     };
     if let Some((history, directory)) = history_output {
-        fs::create_dir_all(directory.join("sha256"))?;
+        if !io::directory_exists(&directory)? {
+            fs::create_dir(&directory)?;
+        }
+        let store = directory.join("sha256");
+        if !io::directory_exists(&store)? {
+            fs::create_dir(&store)?;
+        }
         for (name, bytes) in &history.objects {
             io::write_new(&directory.join(name), bytes)?;
         }

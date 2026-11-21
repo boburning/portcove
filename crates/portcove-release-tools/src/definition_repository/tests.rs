@@ -869,11 +869,7 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
     let assembly = fixture.assembly("history-next");
     let mut assembly_json: serde_json::Value =
         serde_json::from_slice(&fs::read(&assembly).unwrap()).unwrap();
-    assembly_json["history_output"] = if cfg!(windows) {
-        json!("HISTORY-NEXT")
-    } else {
-        json!("history-next")
-    };
+    assembly_json["history_output"] = json!("HISTORY-NEXT");
     fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
     assert!(
         assemble_definition_repository(&assembly)
@@ -882,8 +878,76 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
             .to_string()
             .contains("assembly outputs overlap")
     );
+    let published = fixture.root().join("history-next");
+    let checkpoint = fixture.root().join("checkpoint-objects");
+    let store = checkpoint.join("sha256");
     assembly_json["history_output"] = json!("checkpoint-objects");
     fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+
+    fs::write(&published, b"retain wrong-kind publication root").unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!checkpoint.exists());
+    assert_eq!(
+        fs::read(&published).unwrap(),
+        b"retain wrong-kind publication root"
+    );
+    fs::remove_file(&published).unwrap();
+
+    fs::write(&checkpoint, b"retain wrong-kind history root").unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!published.exists());
+    assert_eq!(
+        fs::read(&checkpoint).unwrap(),
+        b"retain wrong-kind history root"
+    );
+    fs::remove_file(&checkpoint).unwrap();
+
+    fs::create_dir(&checkpoint).unwrap();
+    fs::write(&store, b"retain wrong-kind history store").unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!published.exists());
+    assert_eq!(
+        fs::read(&store).unwrap(),
+        b"retain wrong-kind history store"
+    );
+    fs::remove_file(&store).unwrap();
+
+    #[cfg(unix)]
+    {
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), &store).unwrap();
+        assert!(assemble_definition_repository(&assembly).await.is_err());
+        assert!(!published.exists());
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+        fs::remove_file(&store).unwrap();
+
+        fs::remove_dir(&checkpoint).unwrap();
+        std::os::unix::fs::symlink(outside.path(), &checkpoint).unwrap();
+        assert!(assemble_definition_repository(&assembly).await.is_err());
+        assert!(!published.exists());
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+        fs::remove_file(&checkpoint).unwrap();
+    }
+
+    fs::create_dir_all(&store).unwrap();
+    let context = load_context(&fixture.context).await.unwrap();
+    let (object, _) = context
+        .history
+        .as_ref()
+        .unwrap()
+        .objects
+        .iter()
+        .next()
+        .unwrap();
+    let retained = checkpoint.join(object);
+    fs::create_dir(&retained).unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!published.exists());
+    assert!(retained.is_dir());
+    fs::remove_dir(&retained).unwrap();
+    fs::remove_dir(&store).unwrap();
+    fs::remove_dir(&checkpoint).unwrap();
+
     let assembled = assemble_definition_repository(&assembly).await.unwrap();
     assert!(
         assembled
@@ -1228,7 +1292,7 @@ async fn deletion_then_reintroduction_cannot_erase_authenticated_catalog_revisio
 fn replace_listing_directory(fixture: &Fixture, revision: u64) {
     let target = "policy/official/catalog.listings.json";
     let listings = (0..40).map(|index| json!({"id":format!("listing-{index}"),"name":format!("Listing {index} revision {revision}"),"summary":"x".repeat(2000),"project_url":"https://example.invalid/project","availability":"source-only"})).collect::<Vec<_>>();
-    let bytes = serde_json::to_vec(&json!({"listing_delivery_schema":1,"revision":revision,"withdrawn_ids":[],"directory":{"format_version":1,"listings":listings}})).unwrap();
+    let bytes = serde_json::to_vec(&json!({"listing_delivery_schema":1,"revision":revision,"withdrawn_ids":[],"directory":{"format_version":11,"listings":listings}})).unwrap();
     assert!(bytes.len() > 65536);
     fs::write(fixture.root().join("bundle").join(target), &bytes).unwrap();
     let files = io::tree(&fixture.root().join("bundle"), BUNDLE_FILES, BUNDLE_MAX).unwrap();
