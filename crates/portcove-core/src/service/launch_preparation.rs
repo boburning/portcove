@@ -93,6 +93,16 @@ impl PortcoveService {
         let release = (active.version.as_str(), active.artifact.sha256.as_str());
         let n64_input_required = has_retained
             && crate::source_inspection::n64_release_input(&catalog, &port.id, release).is_some();
+        let migrated_n64 = has_retained && self.uses_migrated_n64_original(&catalog, port);
+        let verify_migrated_original = |source: &SourceRecord| {
+            crate::source_inspection::verify_saved_n64_original(
+                &catalog,
+                &port.id,
+                source,
+                release,
+                &mut crate::source_inspection::n64_input_hash_budget(&checkpoint),
+            )
+        };
         let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
@@ -108,6 +118,9 @@ impl PortcoveService {
             if let Some(binding) = self.pinned_original(&port.id, profile_id, &active.id)? {
                 crate::profile_originals::require_original_bytes(&binding, &source)?;
             }
+            if migrated_n64 && !n64_input_required {
+                verify_migrated_original(&source)?;
+            }
             checkpoint()?;
             Some(source)
         } else if self_contained && !n64_input_required {
@@ -118,7 +131,22 @@ impl PortcoveService {
             let source = self
                 .pinned_original(&port.id, profile, &active.id)
                 .and_then(|binding| match binding {
-                    Some(binding) => self.registered_profile_original(&binding).map(Some),
+                    Some(binding) => {
+                        let source = self.registered_profile_original(&binding)?;
+                        if migrated_n64 && !n64_input_required {
+                            verify_migrated_original(&source)?;
+                        }
+                        Ok(Some(source))
+                    }
+                    None if migrated_n64 => self
+                        .resolve_saved_n64_original(
+                            &catalog,
+                            &port.id,
+                            profile,
+                            release,
+                            &checkpoint,
+                        )
+                        .map(Some),
                     None => self.library.source(profile),
                 })
                 .and_then(|source| match source {
@@ -129,7 +157,13 @@ impl PortcoveService {
                         Ok(None)
                     }
                     Some(record) => {
-                        Self::verify_source_record_with_checkpoint(&catalog, &record, &checkpoint)?;
+                        if !migrated_n64 {
+                            Self::verify_source_record_with_checkpoint(
+                                &catalog,
+                                &record,
+                                &checkpoint,
+                            )?;
+                        }
                         Ok(Some(record))
                     }
                     None => Ok(None),
@@ -369,7 +403,17 @@ impl PortcoveService {
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;
         if let Some(source) = &source {
-            Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
+            if self.uses_migrated_n64_original(&catalog, port) {
+                crate::source_inspection::verify_saved_n64_original(
+                    &catalog,
+                    &port.id,
+                    source,
+                    (&active.version, &active.artifact.sha256),
+                    &mut crate::source_inspection::n64_input_hash_budget(&checkpoint),
+                )?;
+            } else {
+                Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
+            }
         }
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
