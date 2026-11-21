@@ -261,7 +261,11 @@ function evidenceUrl(value: unknown) {
   return evidence.href;
 }
 
-function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): DeclaredIdentity {
+function declaredIdentity(
+  value: unknown,
+  requestedKind?: IgdbArtworkMatch,
+  allowUnnamedExact = false,
+): DeclaredIdentity {
   const kind = requestedKind ?? (isRecord(value) ? (value.kind ?? "port") : "port");
   if (kind !== "port" && kind !== "underlying-game")
     throw new Error("Artwork identity kind is invalid.");
@@ -270,7 +274,12 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
     (value.game_id != null && !positiveId(value.game_id)) ||
     (value.slug != null && !matchesString(slugPattern, value.slug)) ||
     !Array.isArray(value.names) ||
-    !value.names.length ||
+    (!value.names.length &&
+      !(
+        allowUnnamedExact &&
+        positiveId(value.game_id) &&
+        matchesString(slugPattern, value.slug)
+      )) ||
     value.names.length > 16 ||
     !value.names.every(
       (name: unknown): name is string =>
@@ -346,6 +355,7 @@ function matchesIdentity(game: ObservedGame, declared: DeclaredIdentity) {
       : []),
   ];
   if (
+    declared.names.length > 0 &&
     !declared.names.some((name) =>
       names.some((observed) => typeof observed === "string" && nameKey(name) === nameKey(observed)),
     )
@@ -613,6 +623,7 @@ async function selectCover(
   context: ArtworkContext,
   exceptions: ArtworkException[],
   authoredRegional?: IgdbRegionalCover,
+  allowUnnamedExact = false,
 ): Promise<SelectedCover | null> {
   if (!identity) {
     exceptions.push(exception(kind, "identity-not-declared"));
@@ -620,7 +631,7 @@ async function selectCover(
   }
   let declared;
   try {
-    declared = declaredIdentity(identity, kind);
+    declared = declaredIdentity(identity, kind, allowUnnamedExact);
     if (declared.localization && !authoredRegional)
       throw new Error("Regional cover selection requires an authored port record.");
   } catch {
@@ -988,10 +999,19 @@ export async function prepareCatalogArtwork(
       retainedIdentity?.kind === "port" ? declarations.port : declarations.underlying_game;
     const selected = retainedIdentity
       ? await selectCover(
-          { ...(isRecord(retainedDeclaration) ? retainedDeclaration : {}), ...retainedIdentity },
+          {
+            ...(retainedDeclaration === undefined
+              ? { names: [], evidence_url: port.project_url }
+              : isRecord(retainedDeclaration)
+                ? retainedDeclaration
+                : {}),
+            ...retainedIdentity,
+          },
           retainedIdentity.kind,
           context,
           exceptions,
+          undefined,
+          retainedDeclaration === undefined,
         )
       : regional
         ? await selectCover(
@@ -1461,7 +1481,7 @@ export function createIgdbInspector(
       deadline = Date.now() + 15 * 60 * 1000;
     },
     async inspectGame(identity: unknown): Promise<unknown> {
-      const verified = declaredIdentity(identity);
+      const verified = declaredIdentity(identity, undefined, true);
       return inspectMetadata(
         "games",
         `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id${verified.localization ? ",game_localizations.id,game_localizations.game,game_localizations.region,game_localizations.cover.id,game_localizations.cover.image_id,game_localizations.cover.game_localization" : ""}; where ${

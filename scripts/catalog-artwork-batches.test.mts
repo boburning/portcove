@@ -1252,6 +1252,69 @@ void test("due maintenance revalidates the same game and cover role", async () =
   }
 });
 
+void test("maintenance refreshes an accepted original cover without an authored original title", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-unnamed-original-"));
+  const fixture = scalableArtworkFixture(1);
+  const artwork = {
+    game_id: 1,
+    cover_id: 1,
+    image_id: "approvedimage",
+    image_sha256: "d".repeat(64),
+    game_slug: "scale-0",
+    match_kind: "underlying-game",
+  };
+  fixture.catalog.ports[0]!.presentation = { artwork };
+  let game = { id: 1, slug: "different-edition", imageId: "unapprovedimage" };
+  const options = {
+    root: scratch,
+    validatorIdentity: null,
+    identities: {},
+    maintenance: true,
+    inspector: {
+      inspectGame(identity: Parameters<NonNullable<ArtworkPreparationOptions["inspectGame"]>>[0]) {
+        assert.equal(identity.kind, "underlying-game");
+        assert.equal(identity.game_id, 1);
+        assert.equal(identity.slug, "scale-0");
+        assert.deepEqual(identity.names, []);
+        return [
+          {
+            id: game.id,
+            slug: game.slug,
+            name: "Original Title",
+            cover: { id: 3, image_id: game.imageId },
+          },
+        ];
+      },
+      inspectImage(imageId: string) {
+        assert.equal(imageId, "observedimage");
+        return fixture.inspector.inspectImage();
+      },
+    },
+  };
+  try {
+    const wrongSlug = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(wrongSlug.continuation.complete, false);
+    assert.deepEqual(wrongSlug.records[0]?.mapping, artwork);
+
+    game = { id: 2, slug: "scale-0", imageId: "unapprovedimage" };
+    const wrongId = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(wrongId.continuation.complete, false);
+    assert.deepEqual(wrongId.records[0]?.mapping, artwork);
+
+    game = { id: 1, slug: "scale-0", imageId: "observedimage" };
+    const result = await prepareArtworkWorkset(fixture.catalog, options);
+    assert.equal(result.continuation.complete, true);
+    assert.deepEqual(result.records[0]?.mapping, {
+      ...artwork,
+      cover_id: 3,
+      image_id: "observedimage",
+    });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 void test("provider backoff survives continuation and applies to newly added identities", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const { ArtworkBatchExhausted } = await import("./inspect-igdb-artwork.mts");

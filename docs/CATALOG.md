@@ -1826,8 +1826,10 @@ missing, invalid and then oldest observed references automatically against the
 `--artwork-ids ID,OTHER_ID --refresh-artwork ID,OTHER_ID` remains supported.
 This is the existing operator cadence, not a new scheduler or player startup task.
 Due refresh of a retained cover revalidates its approved IGDB game ID, slug
-and cover role. If the exact identity cannot be confirmed, retain its allowed
-mapping. A different game or role needs separate reviewed preparation. Exact
+and cover role. An accepted mapping can be revalidated by exact ID and slug
+even when the listing lacks an original title. This does not establish a new
+artwork relationship or runtime eligibility. If the exact identity cannot be
+confirmed, retain its allowed mapping. A different game or role needs separate reviewed preparation. Exact
 confirmed Gone still removes the affected image references.
 For a bounded retained-cover pass, add `--artwork-retained-limit COUNT` to
 `@due`. This selects up to 400 due rows with an accepted cover or cover collection
