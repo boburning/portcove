@@ -1159,14 +1159,38 @@ pub fn inspect_package_shape_archive_observed(
     crate::native_external_profile::openmohaa::prepare_package(port, platform, &payload)?;
     let roots = roots(port, &qualification, platform, &payload)?;
     let shape = derive(port, platform, &roots)?;
-    let (verdict, provenance) = evaluate(
-        port,
-        platform,
-        expected_sha256,
-        &shape,
-        None,
-        reviewed_layout,
-    );
+    let predecessor_scope_unassessed = predecessor.is_none()
+        && preferred_generated_entry(generated_table(), &port.id, platform, expected_sha256)
+            .is_none()
+        && port
+            .reviewed_predecessor_package_layouts_v1
+            .get(&platform)
+            .is_some_and(|rules| {
+                rules.iter().any(|rule| {
+                    rule.artifact.size == expected_size
+                        && rule.artifact.sha256.eq_ignore_ascii_case(expected_sha256)
+                })
+            });
+    let (verdict, provenance) = if predecessor_scope_unassessed {
+        (
+            ShapeVerdict::Unknown {
+                baseline: Some(ShapeBaseline::ReviewedLayout),
+                reason: ShapeUnknownReason::IncompleteComparison,
+                unknown: ShapeComponent::ALL.to_vec(),
+                detail: Some("These bytes match a reviewed predecessor. The provider release and asset scope were not established.".into()),
+            },
+            ShapeProvenance::Unreviewed,
+        )
+    } else {
+        evaluate(
+            port,
+            platform,
+            expected_sha256,
+            &shape,
+            None,
+            reviewed_layout,
+        )
+    };
     Ok(PackageShapeInspection {
         port_id: port.id.clone(),
         platform,
