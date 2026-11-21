@@ -337,7 +337,7 @@ void test("unknown owned identity and failed evidence writes preserve the origin
   }
 });
 
-void test("install readback allows independent catalog refresh while retaining exact no-repeat guards", async () => {
+void test("install readback permits known background commands and still refuses replay", async () => {
   const source = await readFile(new URL("./desktop-install-test.mts", import.meta.url), "utf8");
   const start = source.indexOf("const retryAndBackgroundCommands = new Set(");
   const end = source.indexOf("observations.retry_did_not_repeat_install = true;", start);
@@ -352,6 +352,20 @@ void test("install readback allows independent catalog refresh while retaining e
     });
   run(
     ["get_workspace_snapshot", "refresh_official_catalog_automatically", "get_artwork"],
+    ["install_port"],
+    2,
+  );
+  run(
+    [
+      "get_workspace_snapshot",
+      "get_launch_failure",
+      "get_runtime_prerequisites",
+      "get_port_capabilities",
+      "get_cli_command_context",
+      "get_port_capabilities",
+      "get_mod_setups",
+      "get_backups",
+    ],
     ["install_port"],
     2,
   );

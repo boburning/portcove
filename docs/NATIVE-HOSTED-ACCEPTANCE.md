@@ -338,7 +338,11 @@ run 43616138586 measured debug-build capability reads at 12-15 s, update plans a
 about 10 s and workspace snapshots at 6-15 s. The game update review's release and
 keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
 from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
-300 s and 180 s to 600 s. The wait for a settled update outcome to close its observation
+300 s and 180 s to 600 s. The install-refresh retry now allows 60 s for the exact game’s Ready to play
+state. Hosted job 136875392758 retained one successful transfer and install,
+but was still refreshing at the old 15 s limit. The existing no-replay
+assertions and application timing stay in force.
+The wait for a settled update outcome to close its observation
 review is calibrated from 5 s to 60 s: the review closes after the outcome's
 workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. The waits for a
 supplied update outcome to render after Apply and to show its summary are calibrated
@@ -363,6 +367,13 @@ retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
 observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
 first-beta baseline.
+In hosted Windows job 136791041548, install recovery transferred and installed
+the exact fixture once. Retrying the workspace read reached Ready to play, then
+the harness rejected the read-only CLI handoff context requested by game details.
+The retry assertion now accepts that exact read. It still requires a workspace
+snapshot and one installation command and transfer. The update-acquisition
+scenario never ran in that job.
+
 The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
