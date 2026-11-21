@@ -300,19 +300,29 @@ mod tests {
         assert!(service.status(PORT).unwrap().active.is_none());
     }
 
-    #[test]
-    fn original_setup_preserves_supported_replacements_and_unknown_informational_inputs() {
-        use crate::OperationCoordinator;
+    #[tokio::test]
+    async fn original_setup_preserves_supported_replacements_and_unknown_informational_inputs() {
+        use crate::{OperationCoordinator, Platform, ReleaseChannel};
         let (temporary, service, gamecube) = source_setup_fixture("ntsc-u-gamecube");
         let operation = OperationCoordinator::new("source-setup-contract", None);
         {
             let port = service.catalog().port("2ship2harkinian").unwrap();
+            let release = service
+                .resolve_release(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+                .await
+                .unwrap()
+                .release;
             let _lock = service
                 .library()
                 .try_lock_port(&port.id, "install")
                 .unwrap();
             let accepted = service
-                .validate_and_remember_source(port, Some(&gamecube), &operation)
+                .validate_and_remember_source(
+                    port,
+                    Some(&gamecube),
+                    (&release.version, &release.asset.sha256),
+                    &operation,
+                )
                 .unwrap()
                 .unwrap();
             assert_eq!(
@@ -333,11 +343,21 @@ mod tests {
             b"\x80\x37\x12\x40controlled legacy informational input",
         )
         .unwrap();
+        let port = service.catalog().port(PORT).unwrap();
+        let release = service
+            .resolve_release(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap()
+            .release;
         for selected in [&usa, &unknown] {
-            let port = service.catalog().port(PORT).unwrap();
             let _lock = service.library().try_lock_port(PORT, "install").unwrap();
             let accepted = service
-                .validate_and_remember_source(port, Some(selected), &operation)
+                .validate_and_remember_source(
+                    port,
+                    Some(selected),
+                    (&release.version, &release.asset.sha256),
+                    &operation,
+                )
                 .unwrap()
                 .unwrap();
             assert_eq!(

@@ -66,6 +66,7 @@ fn fixture() -> SourceCatalog {
             admission_mode: CatalogAdmissionMode::Enforced,
             supported_variant_ids: vec!["usa-1-0".into()],
             variant_list_recognition_only: false,
+            n64_recomp_inputs_v1: Vec::new(),
             validator_contract_id: None,
             evidence_ids: vec!["upstream-source-table".into()],
             authority_ref: "v1.0.0".into(),
