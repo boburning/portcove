@@ -713,9 +713,18 @@ export async function installScenarios({
         );
         return buttons.length === 0;
       }, 15_000);
+      // Job 136875392758 still showed an in-flight library refresh at 15 s.
+      // Require the same Ready state on the exact owned game before inspecting replay.
       await browser.wait(
-        until.elementLocated(By.xpath('//*[normalize-space(.)="Ready to play"]')),
-        15_000,
+        until.elementLocated(
+          By.xpath(
+            '//*[@data-detail-port-id="' +
+              port.id +
+              '"]//*[@data-detail-readiness][normalize-space(.)="Ready to play"]',
+          ),
+        ),
+        60_000,
+        "The exact installed game must become Ready to play after the library refresh",
       );
       observations.commands_after_retry = await executeBrowserScript(browser, () => {
         const runtime = window as InstallWindow;
