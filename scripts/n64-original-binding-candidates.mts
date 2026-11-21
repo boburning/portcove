@@ -77,7 +77,10 @@ export function planN64OriginalBindings(
   )
     return;
 
-  const filename = port.runtime_source_filename;
+  const filename =
+    typeof port.runtime_source_filename === "string"
+      ? port.runtime_source_filename.split("/").at(-1)
+      : undefined;
   const sameGame = fact.games.filter((game) => filename === game.game_id + ".z64");
   const game = sameGame.length === 1 ? sameGame[0] : undefined;
   const runtime =

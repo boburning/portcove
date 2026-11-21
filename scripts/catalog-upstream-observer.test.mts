@@ -1105,7 +1105,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     Object.assign(h.input.ports[0]!, {
       adapter: `${family}-portable`,
       source_profile: "example",
-      runtime_source_filename: "fixture.us.z64",
+      runtime_source_filename: "user/fixture.us.z64",
       executable_hints: { "linux-x86-64": ["FixtureRecompiled"] },
     });
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
