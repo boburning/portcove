@@ -194,6 +194,23 @@ pub(super) struct ListingTargets {
     pub compact: Option<ListingRevision>,
 }
 
+pub(super) fn checked_cover_checkpoint(files: &Files) -> Result<Option<(&[u8], String)>> {
+    use portcove_listing_carrier::{COMPACT_TARGET, COVER_CHECKPOINT_TARGET, LEGACY_TARGET};
+    let Some(cover) = files.get(COVER_CHECKPOINT_TARGET) else {
+        return Ok(None);
+    };
+    let active = [COMPACT_TARGET, LEGACY_TARGET]
+        .into_iter()
+        .find_map(|target| files.get(target).map(|bytes| (target, bytes)))
+        .ok_or_else(|| {
+            TufRepositoryError::Invalid("cover checkpoint has no active listing".into())
+        })?;
+    let listing = listing_revision(active.0, active.1)?;
+    portcove_listing_carrier::check_cover_checkpoint(cover, &listing.decoded_sha256)
+        .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+    Ok(Some((cover, listing.decoded_sha256)))
+}
+
 pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {
     let inspect = |name: &str| {
         files
@@ -257,6 +274,9 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
         return invalid("catalog index/inspection definition inventory differs");
     }
     let mut allowed = BTreeSet::from(["definitions/index.json".to_owned()]);
+    if checked_cover_checkpoint(&files)?.is_some() {
+        allowed.insert(portcove_listing_carrier::COVER_CHECKPOINT_TARGET.into());
+    }
     let listing_targets = listing_targets(&files)?;
     let active_listings = if let Some(compact) = &listing_targets.compact {
         allowed.insert(portcove_listing_carrier::COMPACT_TARGET.into());

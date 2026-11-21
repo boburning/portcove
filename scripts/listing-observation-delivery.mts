@@ -20,6 +20,14 @@ import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
+  advanceArtworkCheckpoint,
+  artworkCheckpointMax,
+  artworkCheckpointTarget,
+  coverDeclarationScope,
+  readArtworkCheckpoint,
+} from "./listing-artwork-checkpoint.mts";
+import { applicableCoverHealth, readHostedCoverHealth } from "./listing-artwork-observation.mts";
+import {
   observeScummvmGameData,
   projectScummvmGameData,
   projectScummvmPreparation,
@@ -40,6 +48,8 @@ import {
 export { listingDeliveryTarget };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
+const maximumProjectableListingFormat = 13;
+const verifiedEditionsListingFormat = 14;
 interface Directory {
   format_version: number;
   listings: Record<string, unknown>[];
@@ -50,12 +60,12 @@ interface Delivery {
   withdrawn_ids: string[];
   directory: Directory;
 }
-function directory(value: unknown): Directory {
+function directory(value: unknown, maximumFormat = maximumProjectableListingFormat): Directory {
   if (
     !isRecord(value) ||
     !Number.isSafeInteger(value.format_version) ||
     Number(value.format_version) < 1 ||
-    Number(value.format_version) > 13 ||
+    Number(value.format_version) > maximumFormat ||
     !Array.isArray(value.listings) ||
     value.listings.length > 10000
   )
@@ -74,6 +84,67 @@ function directory(value: unknown): Directory {
   }
   return value as unknown as Directory;
 }
+/** Format 14 adds one optional source-binding field to the format-13 row.
+ * The exact remaining shape is validated by Core as a normal format-13 input. */
+function stripVerifiedSourceBindings(listing: Record<string, unknown>) {
+  if (!Object.hasOwn(listing, "original_game")) return listing;
+  const game = listing.original_game;
+  const invalid = () => new Error("Invalid format-14 verified source edition binding");
+  if (!isRecord(game) || !Array.isArray(game.source_editions) || game.source_editions.length > 16)
+    throw invalid();
+  const identities = new Set<string>();
+  const validId = (value: unknown): value is string =>
+    typeof value === "string" && value.length <= 128 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value);
+  const source_editions = game.source_editions.map((edition: unknown) => {
+    if (!isRecord(edition)) throw invalid();
+    if (!Object.hasOwn(edition, "verified_sources")) return edition;
+    const { verified_sources, ...compatible } = edition;
+    if (
+      !Array.isArray(verified_sources) ||
+      verified_sources.length < 1 ||
+      verified_sources.length > 16
+    )
+      throw invalid();
+    for (const source of verified_sources) {
+      if (
+        !isRecord(source) ||
+        Object.keys(source).length !== 3 ||
+        !validId(source.game_id) ||
+        !validId(source.variant_id) ||
+        !validId(source.representation_id)
+      )
+        throw invalid();
+      const identity = `${source.game_id}:${source.variant_id}:${source.representation_id}`;
+      if (identities.has(identity)) throw invalid();
+      identities.add(identity);
+    }
+    return compatible;
+  });
+  return { ...listing, original_game: { ...game, source_editions } };
+}
+
+/** Core may fill defaults. Anything explicitly present must survive export. */
+function retainedDeclaration(input: unknown, output: unknown): boolean {
+  if (Array.isArray(input)) {
+    return (
+      Array.isArray(output) &&
+      input.length === output.length &&
+      input.every((item: unknown, index) => retainedDeclaration(item, output[index]))
+    );
+  }
+  if (isRecord(input)) {
+    return (
+      isRecord(output) &&
+      Object.entries(input).every(
+        ([key, value]) => Object.hasOwn(output, key) && retainedDeclaration(value, output[key]),
+      )
+    );
+  }
+  if (typeof input === "number" && Number.isInteger(input) && !Number.isSafeInteger(input))
+    return false;
+  return Object.is(input, output);
+}
+
 function delivery(value: unknown): Delivery {
   if (
     !isRecord(value) ||
@@ -133,7 +204,7 @@ export function completedListingCandidates(
   gaps: string[] = [],
 ) {
   const checkpoint = validateCatalogObserverCheckpoint(input.checkpoint, now);
-  const currentDirectory = directory(canonical);
+  const currentDirectory = directory(canonical, verifiedEditionsListingFormat);
   const declarations = new Map(currentDirectory.listings.map((listing) => [listing.id, listing]));
   const currentPorts = new Map(
     (isRecord(current) && Array.isArray(current.ports) ? current.ports : [])
@@ -279,6 +350,7 @@ export function projectListingDelivery(
   reviewedWithdrawals: readonly string[] = [],
   requireComplete = false,
   scummvmGameData?: ScummvmGameDataObservation,
+  artwork?: ReturnType<typeof advanceArtworkCheckpoint>,
 ) {
   const raw = directory(canonical);
   const previousDocument = previous
@@ -339,7 +411,8 @@ export function projectListingDelivery(
           isRecord(listing.upstream_observation)),
     )
     .map((listing) => {
-      const result = structuredClone(listing);
+      const declaration = declarations.get(listing.id)!;
+      const result = structuredClone(artwork?.apply(listing, declaration) ?? listing);
       const old = previousListings.get(listing.id);
       let comparable = listing;
       // Pre-format-13 signed rows could not carry typed scenes.
@@ -356,10 +429,15 @@ export function projectListingDelivery(
         if (media.length > 0) comparable.media = media;
         else delete comparable.media;
       }
+      const withoutCovers = (row: Record<string, unknown>) => {
+        if (!artwork) return row;
+        const { artwork: _artwork, collection_covers: _collection, ...identity } = row;
+        return identity;
+      };
       const prior =
         old &&
-        listingDeclarationHash(withoutScummvmGameData(old, comparable)) ===
-          listingDeclarationHash(comparable) &&
+        listingDeclarationHash(withoutCovers(withoutScummvmGameData(old, comparable))) ===
+          listingDeclarationHash(withoutCovers(comparable)) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
@@ -523,12 +601,56 @@ function readDeliveryCarrier(wire: Buffer, carrier: string) {
   return { bytes, document: delivery(parseCatalogSource(bytes.toString("utf8"))) };
 }
 
+export function requireExactReleasedCoverInspection(
+  inspection: unknown,
+  cover: Buffer,
+  compactWire: Buffer,
+) {
+  if (
+    !isRecord(inspection) ||
+    inspection.ok !== true ||
+    inspection.error !== null ||
+    inspection.command !== "catalog.inspect-definition-publication" ||
+    !isRecord(inspection.data) ||
+    inspection.data.publication_schema !== 2 ||
+    inspection.data.authority !== "none" ||
+    !isRecord(inspection.data.listings) ||
+    inspection.data.listings.target !== compactListingDeliveryTarget ||
+    inspection.data.listings.sha256 !== hash(compactWire) ||
+    !Array.isArray(inspection.data.files)
+  )
+    throw new Error("Released reader did not verify the active compact listing");
+  const entries = (inspection.data.files as unknown[]).filter(
+    (row) => isRecord(row) && row.target === artworkCheckpointTarget,
+  );
+  if (
+    entries.length !== 1 ||
+    !isRecord(entries[0]) ||
+    entries[0].bytes !== cover.length ||
+    entries[0].sha256 !== hash(cover)
+  )
+    throw new Error(
+      "Released reader did not verify the exact cover checkpoint in the prepared bundle",
+    );
+}
+
 /** The caller must obtain this report from the existing compiled verifier.
  * No path is guessed, and an unreferenced blob is never a signed last-good. */
 export async function verifiedPriorListing(
   prior: string,
   verification: unknown,
   carrier = listingDeliveryTarget,
+): Promise<Buffer | null> {
+  const bytes = await verifiedPriorTarget(prior, verification, carrier, maximum);
+  if (bytes) readDeliveryCarrier(bytes, carrier);
+  return bytes;
+}
+
+async function verifiedPriorTarget(
+  prior: string,
+  verification: unknown,
+  carrier: string,
+  limit: number,
 ): Promise<Buffer | null> {
   if (
     !isRecord(verification) ||
@@ -545,10 +667,9 @@ export async function verifiedPriorListing(
   const entry = verifiedFiles.find((raw) => isRecord(raw) && raw.target === target);
   if (!isRecord(entry) || entry.sha256 !== identity)
     throw new Error("Prior listing is not referenced by verified repository inventory");
-  const bytes = await readControllerToolFile(path.join(prior, target), maximum);
+  const bytes = await readControllerToolFile(path.join(prior, target), limit);
   if (bytes.length !== entry.bytes || hash(bytes) !== identity)
     throw new Error("Prior signed listing bytes differ");
-  readDeliveryCarrier(bytes, carrier);
   return bytes;
 }
 
@@ -621,6 +742,8 @@ export async function prepareObservationBundle(options: {
   releasedReader?: { cli: string; sha256: string };
   readObservation?: () => Promise<UpstreamInput>;
   readScummvmObservation?: () => Promise<ScummvmGameDataObservation>;
+  coverCheckpoint?: boolean;
+  readCoverHealth?: typeof readHostedCoverHealth;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
   mkdirSync(options.output, { recursive: true });
@@ -630,7 +753,21 @@ export async function prepareObservationBundle(options: {
   const diagnostics: string[] = [];
   const canonicalBytes = await readControllerToolFile(options.canonical, maximum);
   const catalogBytes = await readControllerToolFile(options.catalog, 32 * 1024 * 1024);
-  const canonical = directory(parseCatalogSource(canonicalBytes.toString("utf8")));
+  const canonicalInput = parseCatalogSource(
+    new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(canonicalBytes),
+  );
+  const futureCanonical =
+    isRecord(canonicalInput) &&
+    Number.isSafeInteger(canonicalInput.format_version) &&
+    Number(canonicalInput.format_version) > maximumProjectableListingFormat;
+  if (futureCanonical && (options.compact || options.coverCheckpoint))
+    throw new Error("Explicit listing activation requires a supported canonical format");
+  // Only the bounded identity inventory is read until the prior wire format and
+  // its eligibility for the reviewed edition projection have been established.
+  const sourceCanonical = directory(
+    canonicalInput,
+    futureCanonical ? Number.MAX_SAFE_INTEGER : maximumProjectableListingFormat,
+  );
   const current = parseCatalogSource(catalogBytes.toString("utf8"));
   const cli = (args: string[]) =>
     execFileSync(options.cli, args, {
@@ -640,13 +777,13 @@ export async function prepareObservationBundle(options: {
       encoding: "utf8",
     });
   const canonicalPath = path.join(workspace, "canonical.json");
-  writeFileSync(canonicalPath, canonicalBytes, { flag: "wx" });
   const authoredPath = path.join(options.bundle, listingDeliveryTarget);
   const authoredLegacy = existsSync(authoredPath)
     ? await readControllerToolFile(authoredPath, maximum)
     : null;
   let previous: Buffer | null = null;
   let previousWire: Buffer | null = null;
+  let previousCover: Buffer | null = null;
   let retainedLegacy: Buffer | null = null;
   let useCompact = options.compact === true;
   let priorCompact = false;
@@ -689,6 +826,13 @@ export async function prepareObservationBundle(options: {
       );
       previousWire = await verifiedPriorListing(prior, report, previousCarrier);
       previous = previousWire ? readDeliveryCarrier(previousWire, previousCarrier).bytes : null;
+      previousCover = await verifiedPriorTarget(
+        prior,
+        report,
+        artworkCheckpointTarget,
+        artworkCheckpointMax,
+      );
+      if (previousCover) readArtworkCheckpoint(previousCover, previous!);
       if (useCompact || options.compactIfCapable || options.officialReleasedReader)
         retainedLegacy = priorCompact ? await verifiedPriorListing(prior, report) : previous;
     } catch (error) {
@@ -696,16 +840,30 @@ export async function prepareObservationBundle(options: {
       // an unauthenticated observation, or replace a directory we could not read.
       renewal = await priorListingForRenewal(
         options.prior,
-        canonical.listings.length,
+        sourceCanonical.listings.length,
         previousCarrier,
       );
       previousWire = renewal.wire;
+      const coverDigest = publishedTargets(options.prior)[artworkCheckpointTarget];
+      if (coverDigest !== undefined) {
+        if (!/^[a-f0-9]{64}$/u.test(coverDigest))
+          throw new Error("Invalid prior cover checkpoint digest");
+        const raw = await readControllerToolFile(
+          path.join(options.prior, `targets/${coverDigest}.${artworkCheckpointTarget}`),
+          artworkCheckpointMax,
+        );
+        if (hash(raw) !== coverDigest)
+          throw new Error("Historical cover checkpoint digest differs");
+        readArtworkCheckpoint(raw, renewal.bytes);
+        previousCover = raw;
+      }
       // An expired baseline can renew its exact existing representation. First
       // compact publication requires a separately current authenticated legacy.
       useCompact = priorCompact;
       if (useCompact)
-        retainedLegacy = (await priorListingForRenewal(options.prior, canonical.listings.length))
-          .wire;
+        retainedLegacy = (
+          await priorListingForRenewal(options.prior, sourceCanonical.listings.length)
+        ).wire;
       diagnostics.push(
         `retained exact previous listing bytes for historical signer verification; prior unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "verification failed"}`,
       );
@@ -718,15 +876,55 @@ export async function prepareObservationBundle(options: {
   const previousDocument = previous
     ? delivery(parseCatalogSource(previous.toString("utf8")))
     : null;
+  const editionCompatibility =
+    sourceCanonical.format_version === verifiedEditionsListingFormat &&
+    priorCompact &&
+    previousDocument?.directory.format_version === maximumProjectableListingFormat &&
+    !renewal &&
+    !authoredLegacy;
+  const canonical = editionCompatibility
+    ? {
+        ...sourceCanonical,
+        format_version: maximumProjectableListingFormat,
+        listings: sourceCanonical.listings.map(stripVerifiedSourceBindings),
+      }
+    : sourceCanonical;
   const automatic =
     !options.compact && (options.compactIfCapable || options.officialReleasedReader);
   const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
+  const implicitElevation =
+    priorCompact &&
+    !options.compact &&
+    previousDocument !== null &&
+    candidateFormat > previousDocument.directory.format_version;
+  if ((futureCanonical && !editionCompatibility) || implicitElevation) {
+    if (!renewal) {
+      if (!previousWire || (priorCompact && !retainedLegacy))
+        throw new Error("Cannot defer listing format change without authenticated prior targets");
+      renewal = retainedListingRenewal(
+        previousWire,
+        canonical.listings.length,
+        priorCompact ? compactListingDeliveryTarget : listingDeliveryTarget,
+      );
+    }
+    diagnostics.push(
+      `Canonical listing format ${canonical.format_version} deferred; retaining exact prior listing targets`,
+    );
+  }
+  const firstCover = options.coverCheckpoint === true && previousCover === null;
+  if (firstCover && (!priorCompact || options.officialReleasedReader !== true))
+    throw new Error(
+      "First cover checkpoint requires existing compact delivery and official released-reader qualification",
+    );
   let officialReader: Awaited<ReturnType<typeof acquireCatalogReleasedReader>> | undefined;
   let releasedReader: { version: string; sha256: string } | undefined;
+  let coverReader: { cli: string; env: NodeJS.ProcessEnv } | undefined;
   if (
     !renewal &&
     (useCompact || (automatic && retainedLegacy)) &&
-    (!priorCompact || candidateFormat > (previousDocument?.directory.format_version ?? 0))
+    (firstCover ||
+      !priorCompact ||
+      candidateFormat > (previousDocument?.directory.format_version ?? 0))
   ) {
     try {
       officialReader = options.officialReleasedReader
@@ -778,6 +976,7 @@ export async function prepareObservationBundle(options: {
         throw new Error("Released CLI capabilities version differs from its official release");
       useCompact = true;
       releasedReader = { version, sha256: digest };
+      if (firstCover && officialReader) coverReader = { cli: frozen, env: probeEnv };
     } catch (cause) {
       if (!automatic) throw cause;
       diagnostics.push(
@@ -813,6 +1012,13 @@ export async function prepareObservationBundle(options: {
       : legacyListingFormat;
   let compatible: Directory | undefined;
   if (!renewal) {
+    writeFileSync(
+      canonicalPath,
+      editionCompatibility ? JSON.stringify(canonical) : canonicalBytes,
+      {
+        flag: "wx",
+      },
+    );
     const baseline: unknown = JSON.parse(
       cli([
         "--json",
@@ -827,6 +1033,8 @@ export async function prepareObservationBundle(options: {
     if (!isRecord(baseline) || baseline.ok !== true)
       throw new Error("Core could not export the exact canonical directory for format " + format);
     compatible = directory(baseline.data);
+    if (editionCompatibility && !retainedDeclaration(canonical, compatible))
+      throw new Error("Format-14 projection changed a format-13 declaration");
   }
   if (!isRecord(current) || !Array.isArray(current.ports))
     throw new Error("Operational catalog requires a complete port array");
@@ -851,7 +1059,8 @@ export async function prepareObservationBundle(options: {
           ))
       )();
       observerRevision = input.revision;
-      candidates = completedListingCandidates(input, current, canonical, now, diagnostics);
+      const matched = completedListingCandidates(input, current, sourceCanonical, now, diagnostics);
+      candidates = editionCompatibility ? matched.map(stripVerifiedSourceBindings) : matched;
     } catch (error) {
       diagnostics.push(
         `observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
@@ -868,6 +1077,47 @@ export async function prepareObservationBundle(options: {
       );
     }
   }
+  const coverEnabled = options.coverCheckpoint === true || previousCover !== null;
+  if (
+    coverEnabled &&
+    (!options.prior ||
+      !Object.hasOwn(
+        publishedTargets(options.prior),
+        "policy/official/catalog.history-checkpoint.json",
+      ))
+  )
+    throw new Error("Cover observations require an existing protected publisher checkpoint");
+  let coverEvidence: Awaited<ReturnType<typeof readHostedCoverHealth>> = null;
+  if (coverEnabled && !renewal && options.observe !== false) {
+    try {
+      coverEvidence = await (options.readCoverHealth ?? readHostedCoverHealth)();
+    } catch (error) {
+      diagnostics.push(
+        `cover evidence unavailable: ${error instanceof Error ? error.message.slice(0, 180) : "read failed"}`,
+      );
+    }
+  }
+  const applicableCovers = coverEvidence
+    ? applicableCoverHealth(sourceCanonical, coverEvidence)
+    : [];
+  // Authenticate each observation against the full source declaration before
+  // translating its scope to the format-13 declaration retained by the checkpoint.
+  const coverDeclarations = editionCompatibility
+    ? new Map(canonical.listings.map((listing) => [listing.id, listing]))
+    : null;
+  const projectedCovers = coverDeclarations
+    ? applicableCovers.map((observation) => ({
+        ...observation,
+        scope: coverDeclarationScope(coverDeclarations.get(observation.id)!, observation.artwork),
+      }))
+    : applicableCovers;
+  const cover =
+    coverEnabled && !renewal
+      ? advanceArtworkCheckpoint(
+          previousCover && previous ? { bytes: previousCover, listing: previous } : null,
+          projectedCovers,
+        )
+      : undefined;
   const project = (
     observations: readonly Record<string, unknown>[],
     scummvm?: ScummvmGameDataObservation,
@@ -884,6 +1134,7 @@ export async function prepareObservationBundle(options: {
       withdrawal?.withdrawn_ids,
       useCompact,
       scummvm,
+      cover,
     );
   let projected = renewal ?? project(candidates, gameData);
   const inspect = (bytes: Buffer) => {
@@ -933,9 +1184,32 @@ export async function prepareObservationBundle(options: {
   writeFileSync(destination, (useCompact ? retainedLegacy : null) ?? projected.bytes, {
     flag: "wx",
   });
+  const coverBytes = renewal ? previousCover : cover?.finish(projected.bytes);
+  if (coverBytes)
+    writeFileSync(path.join(bundle, artworkCheckpointTarget), coverBytes, { flag: "wx" });
   if (compactWire) {
     writeFileSync(path.join(bundle, compactListingDeliveryTarget), compactWire, { flag: "wx" });
+  }
+  if (compactWire || coverBytes) {
     cli(["--json", "catalog", "inspect-definition-publication", bundle]);
+  }
+  if (firstCover && coverBytes) {
+    if (!coverReader || !compactWire)
+      throw new Error("The released cover-checkpoint reader was not verified");
+    const inspection: unknown = JSON.parse(
+      execFileSync(
+        coverReader.cli,
+        ["--json", "catalog", "inspect-definition-publication", bundle],
+        {
+          cwd: workspace,
+          env: coverReader.env,
+          timeout: 30_000,
+          maxBuffer: 4 * 1024 * 1024,
+          encoding: "utf8",
+        },
+      ),
+    );
+    requireExactReleasedCoverInspection(inspection, coverBytes, compactWire);
   }
   const report = {
     bundle,
@@ -956,6 +1230,13 @@ export async function prepareObservationBundle(options: {
     updated: projected.updated,
     source_candidates: candidates.length,
     observer_revision: observerRevision,
+    ...(cover?.deferred
+      ? {
+          cover_receipts_deferred: cover.deferred,
+          cover_receipts_resume:
+            "Authenticated checkpoint compaction is required for new cover scopes. Existing scopes continue to renew and recover.",
+        }
+      : {}),
     scummvm_guides: "scummvm_guides" in projected ? projected.scummvm_guides : null,
     scummvm_game_data: gameData
       ? {
@@ -966,6 +1247,7 @@ export async function prepareObservationBundle(options: {
         }
       : null,
     canonical_sha256: hash(canonicalBytes),
+    canonical_listing_format: sourceCanonical.format_version,
     catalog_sha256: hash(catalogBytes),
     canonical_records: projected.canonical_records,
     delivered_records: projected.delivered_records,
@@ -1012,6 +1294,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "offline-targets": { type: "string" },
       offline: { type: "boolean", default: false },
       compact: { type: "boolean", default: false },
+      "cover-checkpoint": { type: "boolean", default: false },
       "compact-if-capable": { type: "boolean", default: false },
       "official-released-reader": { type: "boolean", default: false },
       "released-reader": { type: "string" },
@@ -1049,6 +1332,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
         compact: values.compact,
+        coverCheckpoint: values["cover-checkpoint"],
         compactIfCapable: values["compact-if-capable"],
         officialReleasedReader: values["official-released-reader"],
         ...(values["released-reader"] && values["released-reader-sha256"]

@@ -6,6 +6,12 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
+mod cover_checkpoint;
+pub use cover_checkpoint::{
+    COVER_CHECKPOINT_MAX, COVER_CHECKPOINT_TARGET, check_cover_checkpoint,
+    check_cover_checkpoint_successor,
+};
+
 pub const LEGACY_TARGET: &str = "policy/official/catalog.listings.json";
 pub const MAX_BYTES: usize = 8 * 1024 * 1024;
 pub const MAX_COMPACT_DECODED_BYTES: usize = 32 * 1024 * 1024;

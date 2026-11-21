@@ -1,8 +1,9 @@
 import { errorCode, isRecord } from "./runtime-values.mts";
 import { readProcessIdentity } from "./heavy-rust-test-lock.mts";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readlink, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { hostname } from "node:os";
 
 interface ProcessLockOwner {
   format_version: 1;
@@ -224,4 +225,54 @@ export async function acquireOwnedProcessLock(
     }
   }
   throw new Error(`${label} lock changed repeatedly; retry after the active run settles`);
+}
+
+/** A checkpoint may reclaim a lock only for the exact scoped local process
+ * owner after that PID is definitely absent. Anonymous, foreign, or reused
+ * PID locks require reconciliation. */
+export async function acquireCheckpointProcessLock(lockPath: string, scope: string) {
+  const label = "Preparation checkpoint";
+  const localNamespace =
+    process.platform === "linux"
+      ? [
+          (await readFile("/proc/sys/kernel/random/boot_id", "utf8")).trim(),
+          await readlink("/proc/self/ns/pid"),
+        ]
+      : null;
+  const workspace = JSON.stringify([hostname(), localNamespace, path.resolve(lockPath), scope]);
+  let expectedStaleOwner: ProcessLockOptions["expectedStaleOwner"];
+  try {
+    const info = await lstat(lockPath);
+    if (!info.isDirectory() || !(await lstat(path.join(lockPath, "owner.json"))).isFile())
+      throw new Error(`${label} lock ownership is ambiguous; retaining it.`);
+    const owner = await readProcessLockOwner(lockPath, label);
+    const identity =
+      typeof owner.process_identity === "string"
+        ? /^linux:([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}):([1-9][0-9]*):[1-9][0-9]*$/u.exec(
+            owner.process_identity,
+          )
+        : null;
+    if (
+      localNamespace &&
+      owner.workspace === workspace &&
+      owner.command === label &&
+      identity?.[0] === owner.process_identity &&
+      identity?.[1] === localNamespace[0] &&
+      identity?.[2] === String(owner.pid) &&
+      !isProcessAlive(owner.pid)
+    )
+      expectedStaleOwner = owner;
+  } catch (error) {
+    if (errorCode(error) !== "ENOENT") throw error;
+  }
+  return acquireOwnedProcessLock(
+    lockPath,
+    { workspace, command: label },
+    {
+      label,
+      verifyIdentity: localNamespace !== null,
+      canReclaim: expectedStaleOwner !== undefined,
+      ...(expectedStaleOwner ? { expectedStaleOwner } : {}),
+    },
+  );
 }

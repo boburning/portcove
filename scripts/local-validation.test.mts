@@ -1697,6 +1697,7 @@ void test("the embedded catalog and historical fixtures select their generator c
     "scripts/catalog-artwork-dispatch.test.mts",
     "scripts/catalog-artwork-lifecycle.test.mts",
     "scripts/catalog-artwork-provider.test.mts",
+    "scripts/catalog-cover-replacement-review.test.mts",
     "scripts/catalog-game-identity.test.mts",
     "scripts/catalog-game-review.test.mts",
     "scripts/catalog-proposal-comparison.test.mts",

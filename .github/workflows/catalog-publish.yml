@@ -23,6 +23,11 @@ on:
   schedule:
     - cron: "13 5,17 * * *"
   workflow_dispatch:
+    inputs:
+      admit_cover_checkpoint:
+        description: Verify and admit the first cover checkpoint after compact delivery is active
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -120,8 +125,14 @@ jobs:
       - name: Project completed shared observations into the existing descriptive target
         id: observe
         if: steps.decide.outputs.publish == 'true'
+        env:
+          ADMIT_COVER_CHECKPOINT: ${{ github.event_name == 'workflow_dispatch' && inputs.admit_cover_checkpoint }}
         run: |
           set -euo pipefail
+          cover_options=()
+          if [[ "$ADMIT_COVER_CHECKPOINT" == true ]]; then
+            cover_options=(--official-released-reader --cover-checkpoint)
+          fi
           node scripts/listing-observation-delivery.mts \
             --bundle release/catalog-publication/bundle \
             --canonical crates/portcove-core/catalog/listings.json \
@@ -129,7 +140,8 @@ jobs:
             --prior "$PRIOR" --output "$RUNNER_TEMP/observation-bundle" \
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
-            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+            --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            "${cover_options[@]}"
           jq -r '"reader_activation=" + ((.released_reader_activation // "") | if type == "object" then tojson else . end)' \
             "$RUNNER_TEMP/observation-bundle/report.json" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
