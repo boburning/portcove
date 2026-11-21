@@ -115,6 +115,78 @@ function dialog() {
   return document.body.querySelector("[data-game-update-review]");
 }
 
+it("downloads the exact archive already shown in the update review", async () => {
+  const archiveDigest = "9".repeat(64);
+  const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    activate: true,
+    plan_sha256: "8".repeat(64),
+    archive_only_plan_sha256: archiveDigest,
+    plan: {
+      ...plan.plan,
+      download_bytes: 1536,
+      release: {
+        ...plan.plan.release,
+        asset: {
+          ...plan.plan.release.asset,
+          url: "https://example.com/sample.zip?key=fixture-only",
+        },
+      },
+      bundled_runtime: {
+        asset: {
+          ...plan.plan.release.asset,
+          name: "runtime.zip",
+          url: "https://example.net/runtime.zip",
+          size: 512,
+        },
+        archive_root: ".",
+        target_directory: "runtime",
+        executable: "runtime.exe",
+      },
+    },
+  });
+  const archiveReview = vi.spyOn(desktopApi, "planGameUpdateAcquisition");
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+
+  await click("Update now");
+  const reviewDialog = page.getByRole("dialog");
+  await expect.element(reviewDialog.getByText("2.0", { exact: true })).toBeVisible();
+  await expect.element(reviewDialog.getByText("sample.zip", { exact: true })).toBeVisible();
+  await expect
+    .element(reviewDialog.getByText("https://example.com/sample.zip", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      reviewDialog.getByText(
+        "Downloading the archive keeps your installed version and saves as they are.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(reviewDialog.getByText("https://example.net/runtime.zip", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(reviewDialog.getByText("1.5 KiB to download", { exact: true }))
+    .toBeVisible();
+  expect(reviewDialog.element().textContent).not.toContain("fixture-only");
+  expect(acquire).not.toHaveBeenCalled();
+  await click("Download archive for later");
+  expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
+  expect(archiveReview).not.toHaveBeenCalled();
+  expect(acquire).toHaveBeenCalledExactlyOnceWith("sample", archiveDigest, 9, expect.any(Function));
+  expect(apply).not.toHaveBeenCalled();
+});
+
 it("keeps Download for later available across detail tabs and acquires only its reviewed target", async () => {
   vi.unstubAllGlobals();
   const review = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);

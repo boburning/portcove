@@ -46,7 +46,10 @@ import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
-import { targetInvocationContext } from "./features/operations/invocation-state";
+import {
+  canOpenExternalRegistration,
+  targetInvocationContext,
+} from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
   useInstallPlanning,
@@ -58,10 +61,12 @@ import {
   type LibraryBrowsingContext,
 } from "./features/app-shell/use-library-browsing-context";
 import { useDetailWorkspaceNavigation } from "./features/app-shell/use-detail-workspace-navigation";
+import { CurrentGamePlayControl, currentGamePlayKey } from "./features/app-shell/current-game-play";
 import type { DetailOpening } from "./features/game-details/detail-sections";
 import { focusDiscTool } from "./features/app-shell/focus-disc-tool";
 import {
   focusSettingsTarget,
+  revealSettingsHeading,
   settingsCategoryForTarget,
 } from "./features/app-shell/focus-settings-target";
 import { GameFileScanProvider } from "./features/game-file-discovery/use-game-file-scan";
@@ -842,6 +847,16 @@ function useWorkspace(props: WorkspaceProps) {
     () => withLibraryVisibility(model.searchableGames, hiddenPortIds),
     [model.searchableGames, hiddenPortIds],
   );
+  const currentGame = model.entry;
+  const playKey = currentGame
+    ? currentGamePlayKey(currentGame.id, bootstrap.generation, model.status)
+    : undefined;
+  const [playControl, setPlayControl] = useState<HTMLButtonElement | null>(null);
+  const canActivatePlay = () =>
+    playControl?.isConnected &&
+    playControl.dataset.currentGamePlay === playKey &&
+    !playControl.disabled &&
+    playControl.getAttribute("aria-disabled") !== "true";
   const commandSurface = useCommandSurface({
     view: ui.view,
     recent: model.recent,
@@ -862,6 +877,28 @@ function useWorkspace(props: WorkspaceProps) {
     openUpdates: () => {
       setPrimaryView("updates");
       ui.setActivitySection("updates");
+    },
+    currentGame: currentGame
+      ? {
+          port: currentGame,
+          destinations: model.status?.active
+            ? ["files", "updates", "saves", "manage"]
+            : model.status?.external_runtime
+              ? ["files", "saves", "manage"]
+              : ["files"],
+          open: (destination) => switchPortDetails(currentGame.id, destination),
+          play:
+            playControl && canActivatePlay()
+              ? () => {
+                  if (canActivatePlay()) playControl.click();
+                }
+              : undefined,
+        }
+      : undefined,
+    openSettingsCategory: (category) => {
+      setPrimaryView("settings");
+      ui.setSettingsCategory(category);
+      revealSettingsHeading("settings-" + category + "-heading");
     },
   });
   const adopting = [...operations.pendingOperations.values()].some(
@@ -992,7 +1029,12 @@ function useWorkspace(props: WorkspaceProps) {
       />
     </>
   );
-  const renderWorkspaceView = () =>
+  const renderWorkspaceView = () => (
+    <CurrentGamePlayControl.Provider value={setPlayControl}>
+      {renderWorkspaceContent()}
+    </CurrentGamePlayControl.Provider>
+  );
+  const renderWorkspaceContent = () =>
     model.entry && usesSelfServiceDetail(model.entry, model.status) ? (
       <ListingDetailPanel
         backLabel={detailBackLabel}
@@ -1014,9 +1056,7 @@ function useWorkspace(props: WorkspaceProps) {
         status={model.status}
         generation={bootstrap.generation}
         perform={operations.perform}
-        onChanged={() => {
-          void data.refreshAfterMutation();
-        }}
+        onChanged={data.refreshAfterMutation}
         close={closePortDetails}
       />
     ) : model.port ? (
@@ -1040,9 +1080,7 @@ function useWorkspace(props: WorkspaceProps) {
                   status={model.status}
                   generation={bootstrap.generation}
                   perform={operations.perform}
-                  onChanged={() => {
-                    void data.refreshAfterMutation();
-                  }}
+                  onChanged={data.refreshAfterMutation}
                 />
               </div>
             )
@@ -1063,9 +1101,7 @@ function useWorkspace(props: WorkspaceProps) {
           activities={data.activities}
           libraryGeneration={bootstrap.generation}
           libraryRoot={bootstrap.library_root ?? undefined}
-          refreshAfterMutation={() => {
-            void data.refreshAfterMutation();
-          }}
+          refreshAfterMutation={data.refreshAfterMutation}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
           setupOriginalRequests={setupOriginalRequests}
@@ -1277,6 +1313,8 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       generation={model.bootstrap.generation}
       pending={model.operations.pendingOperations}
       unreadInstallPorts={model.operations.unreadInstallPorts}
+      unreadExternalPorts={model.operations.unreadExternalPorts}
+      perform={model.operations.perform}
     >
       <ArtworkProvider
         generation={model.bootstrap.generation}
@@ -1372,7 +1410,7 @@ type WorkspaceFeedbackModel = Pick<
   | "renderPreferenceFailure"
 > & {
   ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity">;
-  model: Pick<WorkspaceModel["model"], "statusMap">;
+  model: Pick<WorkspaceModel["model"], "entries" | "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
 
@@ -1411,6 +1449,21 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           )
             return undefined;
           return () => model.openPortDetails(target.id, `install-result:${record.id}`);
+        }}
+        openExternalGame={(record) => {
+          const { target } = record.context;
+          if (
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenExternalRegistration(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadExternalPorts,
+            )
+          )
+            return undefined;
+          return () => model.openPortDetails(target.id, "external-result:" + record.id);
         }}
         completedActivityAvailable={(id) =>
           model.data.activities.some(
@@ -2151,7 +2204,7 @@ function SelectedPortPanel({
   activities: ActivityRecord[];
   libraryGeneration: number;
   libraryRoot?: string | undefined;
-  refreshAfterMutation: () => void;
+  refreshAfterMutation: () => void | Promise<unknown>;
   checkAgain: () => Promise<unknown>;
   openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
   setupOriginalRequests: { current: LatestRequestGeneration };
@@ -2381,7 +2434,7 @@ function SelectedPortPanel({
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();
-        refreshAfterMutation();
+        return refreshAfterMutation();
       }}
       checkAgain={checkAgain}
       pickSource={pickSource}

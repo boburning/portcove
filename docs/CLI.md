@@ -400,6 +400,19 @@ The CLI API schema version is independent of the Portcove release version.
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
+`listing_delivery_carriers` identifies the independently versioned signed
+directory carriers a client consumes. The `gzip-base64-json-v1` carrier
+authenticates the compressed envelope under the existing delegated policy role.
+The client checks the bounded decoded length and digest and applies the same
+directory revision and replay rules as `json-v1`. It reads the legacy carrier
+when the compact target is absent from the signed repository. A failed compact
+read leaves the existing installation and admitted directory state available
+under their existing validity checks. The listing status digest identifies the
+exact decoded directory. For compact delivery, `transport_target_sha256`
+reports the independently authenticated carrier digest. The optional compact directory record and the
+legacy record share one transaction and authority floor. Older releases with a
+compatible library schema can continue to read and renew their genuine legacy
+record. The higher admitted directory revision governs a capable reader.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -431,7 +444,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 13. An export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 14. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -443,8 +456,15 @@ so an earlier strict retained reader can still open its established launch contr
 Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
 through format 12 keep earlier descriptive media and omit the new typed records.
 
+Listing format 14 adds reviewed bindings from an original edition to an exact
+Core source game, variant and representation. Exports through format 13 omit
+those bindings. A current registered file must pass Core recognition and
+admission under the selected Game contract before Desktop can use a matching
+edition's artwork. The binding leaves the launch requirements unchanged.
+The directory format applies independently of the signed carrier.
+
 The catalog listing document has its own format version. Readers accept formats
-1–13 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–14 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
 and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
