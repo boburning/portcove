@@ -196,6 +196,14 @@ export async function openCatalogFilters(browser: WebDriver, options: ReviewClic
   return panel;
 }
 
+export async function openMoreCatalogFilters(browser: WebDriver, options: ReviewClickOptions = {}) {
+  const panel = await openCatalogFilters(browser, options);
+  const disclosure = await panel.findElement(By.css("details.catalog-filter-advanced"));
+  if ((await disclosure.getAttribute("open")) === null)
+    await clickVisible(browser, await disclosure.findElement(By.css("summary")), options);
+  return panel;
+}
+
 export async function clearCatalogFilters(browser: WebDriver, options: ReviewClickOptions = {}) {
   const panel = await openCatalogFilters(browser, options);
   await clickVisible(

@@ -2367,6 +2367,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -4353,6 +4357,10 @@ export interface OutputGameUpdatePlan {
    */
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
+  /**
+   * Archive-only review for the same candidate. Acquisition still revalidates it.
+   */
+  archive_only_plan_sha256?: string | null;
   assessment: PortActionAssessment3;
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
@@ -5044,6 +5052,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }

@@ -86,7 +86,12 @@ impl PortcoveService {
                 "this retained installation does not offer optional settings",
             )
         })?;
-        descriptor.validate(&port.persistent_paths)?;
+        descriptor.validate_port(&port)?;
+        if descriptor.package_only() {
+            return Err(PortcoveError::unsupported(
+                "this installed release has no individually editable settings",
+            ));
+        }
         if !descriptor.covers_archive(platform, &install.version, &install.artifact.sha256) {
             return Err(PortcoveError::unsupported(
                 "this installed release/artifact has no verified settings contract",

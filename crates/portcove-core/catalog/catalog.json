@@ -40054,6 +40054,50 @@
           "SuperMarioWorldSNESRecomp.exe"
         ]
       },
+      "game_settings": {
+        "format_version": 2,
+        "releases": [
+          {
+            "version": "v0.15.9",
+            "platform": "windows-x86-64",
+            "archive_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+            "source_commit": "8c280aac7ea08456372cd2b42603bb2ad7ab51eb",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.9",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.10",
+            "platform": "windows-x86-64",
+            "archive_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+            "source_commit": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.10",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.11",
+            "platform": "windows-x86-64",
+            "archive_sha256": "c4c0933bcbbf575ce1d74389b7ce89c9e34960aed395c18764683c483ecdc5cd",
+            "source_commit": "cbbf35c57dd637102925798d0cc092803dd44c32",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.11",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/cbbf35c57dd637102925798d0cc092803dd44c32/src/config.c"
+            ]
+          }
+        ],
+        "files": [
+          {
+            "id": "graphics-config",
+            "path": "config.ini",
+            "format": "ini",
+            "maximum_bytes": 32767,
+            "settings": []
+          }
+        ]
+      },
       "presentation": {
         "installation_method": "portable-recompilation",
         "source_requirements": [
@@ -48338,6 +48382,21 @@
           "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
           "game_slug": "medievil-ii--1",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "bios",
+            "docs",
+            "licenses",
+            "mods",
+            "tools"
+          ],
+          "executables": [
+            "medieviliirecomp.exe"
+          ]
         }
       }
     },

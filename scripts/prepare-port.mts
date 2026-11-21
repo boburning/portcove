@@ -283,7 +283,7 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
   if (record.openx_portable_v1) {
     projections.push({
       field: "openx_portable_v1",
-      scope: "Reviewed OpenXW and OpenXvT archive selectors and local config.yaml.",
+      scope: "Reviewed Windows ZIP and Linux TAR.XZ selectors and local config.yaml.",
       next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
     });
   }
@@ -1432,10 +1432,11 @@ export async function prepareArtworkBatch(
   const identities = options.identities ?? {};
   openCheckpoint(root);
   try {
-    // Read exact pre-workset batch receipts only in checkpoints that still carry them.
+    // Old batch receipts have no per-ID live clock and cannot satisfy a refresh.
     let artworkResult;
     if (
       !options.maintenance &&
+      refreshPortIds.length === 0 &&
       !existsSync(join(root, "artwork-gone.json")) &&
       readdirSync(root).some((name) => /^artwork-batch-[a-f0-9]{64}\.json$/u.test(name))
     ) {
@@ -1496,7 +1497,11 @@ export async function prepareArtworkBatch(
     for (const record of artworkResult.records) {
       if (!isRecord(record) || typeof record.port_id !== "string" || !known.has(record.port_id))
         throw new Error("Malformed artwork batch record identity.");
-      if (record.mapping === null) pendingPortIds.push(record.port_id);
+      if (
+        record.mapping === null &&
+        (!Array.isArray(record.collection) || record.collection.length === 0)
+      )
+        pendingPortIds.push(record.port_id);
     }
     if (
       isRecord(artworkResult.continuation) &&

@@ -265,6 +265,22 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
                 ));
             }
         }
+        let package_only = crate::GameSettingsContract::package_only;
+        if port.game_settings.as_ref().is_some_and(package_only) {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver package-only settings authority",
+            ));
+        }
+        if original.game_settings.as_ref().is_some_and(package_only) {
+            if port.game_settings.is_some()
+                || serde_json::to_value(&port.release)? != serde_json::to_value(&original.release)?
+            {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot replace compiled package-only settings authority",
+                ));
+            }
+            port.game_settings.clone_from(&original.game_settings);
+        }
         if port.mod_provider_bindings.is_some() {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver mod provider bindings",
