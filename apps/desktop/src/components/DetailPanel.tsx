@@ -210,7 +210,7 @@ interface DetailPanelProps {
   browsingMatch?: CatalogQueryResult | undefined;
   browsingBinding?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   /** Rereads workspace state without changing it; offered when setup or readiness is unknown. */
   checkAgain?: (() => Promise<unknown>) | undefined;
   openSourceEvidence?: ((evidenceId: string) => void) | undefined;
@@ -546,7 +546,7 @@ function DetailBody(model: {
   libraryGeneration: number;
   libraryRoot?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   checkAgain?: (() => Promise<unknown>) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
@@ -871,7 +871,7 @@ function useStatusActionsGroup({
   installPlan?: InstallPlan | undefined;
   busy?: string | undefined;
   libraryGeneration: number;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
@@ -4492,7 +4492,7 @@ function ManualSetupActions({
             data-focusable
             variant="outline"
             disabled={Boolean(model.busy) || !model.onChanged}
-            onClick={() => model.onChanged?.()}
+            onClick={() => void model.onChanged?.()}
           >
             Check setup again
           </Button>
