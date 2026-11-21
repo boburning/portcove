@@ -1771,10 +1771,10 @@ prior and proposed bundles.
 The amendment requires an existing official schema-4 managed grant. Every
 effective package must match the retained curated repository, release, commit,
 platform, digest and reviewed runtime layout. The candidate preserves the port,
-older input bindings, publisher grant, and launch assessments. It raises the
-required reader minimum within the existing maximum to capability 10 for an
-informational original or 11 for an enforced legacy contract. An unsupported
-maximum holds preparation. The existing protected publisher authenticates the
+older input bindings, publisher grant, launch assessments, and the full
+existing capability range. The prior minimum must already require capability
+10 for an informational original or 11 for an enforced legacy contract.
+Preparation holds while the existing range admits an older reader. The existing protected publisher authenticates the
 prior publication and controls signing. New curated identities remain on the
 independent acquisition admission route.
 

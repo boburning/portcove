@@ -101,23 +101,32 @@ export function managedN64OriginalProjection(
   );
 }
 
+function requireAdmittedReader(entry: RecordValue, reader: unknown): asserts reader is 10 | 11 {
+  const requirement = one(
+    records(entry.required_capabilities),
+    ({ template: key }) => key === template,
+  );
+  const { minimum_version: minimum, maximum_version: maximum } = requirement;
+  if (
+    (reader !== 10 && reader !== 11) ||
+    typeof minimum !== "number" ||
+    !Number.isSafeInteger(minimum) ||
+    typeof maximum !== "number" ||
+    !Number.isSafeInteger(maximum) ||
+    minimum < reader ||
+    maximum < minimum
+  )
+    throw new Error("Prior managed reader range cannot carry this original-input amendment");
+}
+
 export function projectVerifiedN64OriginalAmendment(
   prior: Files,
   portId: string,
   amendment: RecordValue,
 ) {
   const { entry, policy, decision, port, projection, graph } = managedN64Entry(prior, portId);
-  const requirement = one(
-    records(entry.required_capabilities),
-    ({ template: key }) => key === template,
-  );
   const reader = amendment.requires_reader;
-  if (
-    (reader !== 10 && reader !== 11) ||
-    typeof requirement.maximum_version !== "number" ||
-    requirement.maximum_version < reader
-  )
-    throw new Error("Prior managed reader range cannot carry this original-input amendment");
+  requireAdmittedReader(entry, reader);
   if (decision.repository_id !== amendment.repository_id)
     throw new Error("Observed repository differs from the retained approved repository");
   const release = record(port.release);
@@ -241,26 +250,16 @@ export function verifyManagedN64OriginalProposal(
 ) {
   const old = managedN64Entry(prior, portId);
   const next = managedN64Entry(candidate, portId);
-  function expected(entry: RecordValue, update: boolean) {
+  requireAdmittedReader(old.entry, reader);
+  function expected(entry: RecordValue) {
     const {
       revision: _revision,
       execution_contract: _execution,
       persistence_contract: _persistence,
       source_contracts: _source,
-      required_capabilities,
       ...rest
     } = entry;
-    return {
-      ...rest,
-      required_capabilities: records(required_capabilities).map((requirement) =>
-        update && requirement.template === template
-          ? {
-              ...requirement,
-              minimum_version: Math.max(Number(requirement.minimum_version), reader),
-            }
-          : requirement,
-      ),
-    };
+    return rest;
   }
   function scope(policy: RecordValue) {
     const { policy_revision: _revision, decision, ...identity } = policy;
@@ -283,7 +282,7 @@ export function verifyManagedN64OriginalProposal(
     return assessments;
   }
   if (
-    !isDeepStrictEqual(expected(old.entry, true), expected(next.entry, false)) ||
+    !isDeepStrictEqual(expected(old.entry), expected(next.entry)) ||
     !isDeepStrictEqual(scope(old.policy), scope(next.policy)) ||
     !isDeepStrictEqual(launch(prior), launch(candidate))
   )

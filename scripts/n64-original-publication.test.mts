@@ -106,7 +106,7 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
   );
 
   // The real signed bundle has a capability-1 ceiling. Extend only this in-memory
-  // fixture with a supported ceiling to exercise a future eligible grant.
+  // fixture to exercise both a mixed reader grant and a future eligible grant.
   const prior = new Map(original);
   const replaceEntry = (files: Map<string, Buffer>, advance: boolean) => {
     const oldTarget = row.target;
@@ -147,6 +147,13 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
     }
   };
   entry.required_capabilities[0]!.maximum_version = 11;
+  replaceEntry(prior, false);
+  assert.throws(
+    () => projectVerifiedN64OriginalAmendment(prior, id, amendment),
+    /prior managed reader range/iu,
+  );
+  entry.required_capabilities[0]!.minimum_version = 11;
+  entry.required_capabilities[0]!.maximum_version = 12;
   replaceEntry(prior, false);
   assert.throws(() => managedN64OriginalProjection(prior, id, catalog, null), /checkpoint/iu);
   assert.throws(
@@ -189,7 +196,6 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
 
   const edited = new Map(prior);
   const projectionTarget = target(output.draft);
-  entry.required_capabilities[0]!.minimum_version = 11;
   entry.source_contracts = [projectionTarget];
   entry.execution_contract = projectionTarget;
   entry.persistence_contract = projectionTarget;
@@ -202,6 +208,13 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
   replaceEntry(edited, true);
   const prepared = assembleReviewedPublication(prior, edited, id, output.draft);
   verifyManagedN64OriginalProposal(prior, prepared.files, id, 11);
+  const incompatible = new Map(prepared.files);
+  entry.required_capabilities[0]!.maximum_version = 11;
+  replaceEntry(incompatible, true);
+  assert.throws(
+    () => verifyManagedN64OriginalProposal(prior, incompatible, id, 11),
+    /widens existing/iu,
+  );
   const scopeChange = new Map(prepared.files);
   const launch = JSON.parse(prepared.files.get(launchPath)!.toString()) as {
     assessments: unknown[];
