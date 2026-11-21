@@ -1639,6 +1639,7 @@
           "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
+            "ordinary maintenance report and history page preserve the full restored timeline",
             "maintenance store guards history and survives an independent PostgreSQL restore",
             "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",

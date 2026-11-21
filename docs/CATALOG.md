@@ -74,6 +74,20 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+### Exact release withdrawal in status
+
+Status reports curated distribution withdrawal only for the exact recommended
+artifact or exact active installation. In machine output, the Install
+assessment identifies the installed copy with `retained: true`. The reason
+is `curated_distribution_withdrawn`. The badge and details use the catalog
+maintainer when no further explanation is recorded. Both appear when both
+releases are withdrawn. Status omits an actionable cached update offer only
+when the cached metadata identifies one exact admitted artifact whose
+distribution is withdrawn. The stored check remains available as historical
+evidence, even after a different artifact becomes the recommendation.
+Installed launch and rollback keep their existing checks. Local files and
+saves are preserved.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing
@@ -362,10 +376,10 @@ its reason code in `restriction`; attaching an existing copy applies
 download offer drops a held sibling asset and names it in its limitations; when
 every asset is held the offer is refused with the explanation.
 
-Listing format 14 carries `restrictions`. In a format-14 document the legacy
+Listing format 15 carries `restrictions`. In a format-15 document the legacy
 `download_block_reason` must equal the explanation of the first hold that
-names `download`, at any scope, so a reader limited to format 13 is never less
-restricted than a capable one. Exports below format 14 omit `restrictions` and
+names `download`, at any scope, so a reader limited to format 14 is never less
+restricted than a capable one. Exports below format 15 omit `restrictions` and
 keep that string. Signed listing delivery stays at format 11; a delivered
 listing that repeats the current string for the same project and game keeps
 the typed restrictions, and any other delivered value replaces them.
@@ -3227,6 +3241,16 @@ eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
+
+Use an exact `integration.mod_provider_bindings` scope with an already reviewed
+loader. Shipwright declares its GameBanana game ID and Zelda 64: Recompiled
+declares its Thunderstore community. Ordinary projects, files and compatible
+updates within those scopes use the existing provider selectors. Retained
+package references can still replay their original compiled binding. When an
+indexed provider selection expires or is withdrawn, new provider operations
+wait for a current authenticated selection. Use the
+[indexed definition binding contract](DEFINITION-DELIVERY.md#reviewed-mod-provider-bindings)
+when delivering a binding through the signed feed.
 
 Run `node scripts/catalog-chip-gaps.mts` for read-only source system and supported
 OS coverage. Add `--json` for per-port detail. An authored

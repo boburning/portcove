@@ -108,7 +108,7 @@ void test("every reviewed row is typed and projects to its generated legacy byte
     listings: Record<string, unknown>[];
   };
   const catalog = json(join(catalogRoot, "catalog.json")) as { ports: Record<string, unknown>[] };
-  assert.equal(listings.format_version, 14);
+  assert.equal(listings.format_version, 15);
   let listingRows = 0;
   let managedRows = 0;
   for (const file of readdirSync(portsRoot).sort()) {

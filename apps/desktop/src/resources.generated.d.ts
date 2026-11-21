@@ -502,6 +502,7 @@ export default interface Resources {
       "noticePublisherTrusted": "Publisher trusted.",
       "noticeUpdateApplied": "Catalog update applied.",
       "originBuiltIn": "Built-in catalog",
+      "originDefinitionSelected": "Using selected catalog definitions",
       "originSigned": "Signed catalog · version {{version}}",
       "originSignedPrevious": "Signed catalog · version {{version}} · using the previous valid update",
       "planDetailsLabel": "Technical details for catalog update sequence {{sequence}}",
@@ -875,6 +876,17 @@ export default interface Resources {
       "overview": "Overview",
       "saves": "Saves & backups",
       "versions": "Versions & updates"
+    },
+    "withdrawal": {
+      "installedBadge": "Installed release withdrawn",
+      "installedNext": "You can keep your installed copy and its saves.",
+      "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+      "label": "Withdrawn release",
+      "recommendedBadge": "Recommended release withdrawn",
+      "recommendedNext": "Wait for a compatible release or review the available versions.",
+      "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
+      "rollback": "Review rollback",
+      "versions": "View versions"
     }
   },
   "gameFiles": {

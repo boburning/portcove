@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 /// The first listing format that carries typed restrictions.
-pub(crate) const RESTRICTION_LISTING_FORMAT: u32 = 14;
+pub(crate) const RESTRICTION_LISTING_FORMAT: u32 = 15;
 const MAX_RESTRICTIONS: usize = 64;
 const MAX_SCOPE_VALUES: usize = 64;
 
@@ -91,6 +91,8 @@ impl RestrictedOperation {
         }
     }
 
+    // Total vocabulary maps; tested now, consumed when a carrier names these operations.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn from_definition_operation(
         operation: crate::DefinitionOperation,
     ) -> Option<Self> {
@@ -105,6 +107,8 @@ impl RestrictedOperation {
         }
     }
 
+    // Total vocabulary maps; tested now, consumed when a carrier names these operations.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn curated_operation(
         self,
     ) -> Option<crate::definition_repository::publisher_policy::CuratedArtifactOperation> {

@@ -336,6 +336,25 @@ pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::Catal
     {
         *port = legacy_opentyrian_indexed_port(port);
     }
+    for port in &mut document.ports {
+        port.mod_loader = None;
+    }
+    document
+}
+
+pub(crate) fn indexed_fixture_document_for_port(
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> crate::CatalogDocument {
+    let mut document = indexed_fixture_document(catalog);
+    let selected = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap();
+    let port = catalog.port(port_id).unwrap();
+    selected.mod_loader.clone_from(&port.mod_loader);
+    selected.game_settings.clone_from(&port.game_settings);
     document
 }
 
@@ -409,19 +428,12 @@ impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
         use sha2::{Digest, Sha256};
         let port = catalog.port(port_id).unwrap();
-        let mut document = indexed_fixture_document(catalog);
-        document
-            .ports
-            .iter_mut()
-            .find(|candidate| candidate.id == port_id)
-            .unwrap()
-            .game_settings
-            .clone_from(&port.game_settings);
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
+        let schema = if port.mod_loader.is_some() { 3 } else { 1 };
         let mut contract = serde_json::to_vec(&serde_json::json!({
-            "contract_schema":1,"representation":"catalog_projection",
-            "catalog":document
+            "contract_schema":schema,"representation":"catalog_projection",
+            "catalog":indexed_fixture_document_for_port(catalog, port_id)
         }))
         .unwrap();
         contract.push(b'\n');
@@ -599,7 +611,7 @@ impl<'a> IndexedCatalogFixture<'a> {
             1
         };
         let entry = serde_json::to_vec_pretty(&json!({
-        "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
+        "definition_schema":if port.mod_loader.is_some() { 3 } else { 1 },"namespace":"official","stable_id":port_id,"revision":revision,
         "required_capabilities":definition_requirements(port, capability_version),
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]
@@ -680,7 +692,7 @@ fn indexed_fixture_revisions_preserve_full_catalog_projection() {
         assert_eq!(projection.entry().revision(), revision);
         assert_eq!(
             serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
-            serde_json::to_value(indexed_fixture_document(&catalog)).unwrap()
+            serde_json::to_value(indexed_fixture_document_for_port(&catalog, port_id)).unwrap()
         );
     }
 }

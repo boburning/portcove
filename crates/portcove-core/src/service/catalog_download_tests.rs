@@ -3473,7 +3473,7 @@ const SCOPED_HOLD: &str = "Sibling packages bundle original game data.";
 /// A whole download hold with one reviewed package permitted through data alone.
 fn permit_reviewed_package(service: &mut PortcoveService, sha256: &str) {
     let mut document = service.catalog.listing_document().clone();
-    document.format_version = 14;
+    document.format_version = 15;
     let listing = &mut document.listings[0];
     listing.download_block_reason = Some(SCOPED_HOLD.into());
     listing.restrictions = serde_json::from_value(json!([
@@ -3545,7 +3545,7 @@ async fn a_reviewed_package_is_offered_while_its_held_siblings_stay_withheld() {
     let legacy = service
         .catalog
         .listing_document()
-        .export_format(13)
+        .export_format(14)
         .unwrap();
     assert!(legacy.listings[0].restrictions.is_empty());
     assert_eq!(

@@ -568,7 +568,7 @@ fn an_unseen_identity_gains_a_scoped_permit_through_data_alone() {
         "id": "fixture-reviewed-package", "effect": "permit", "operations": ["download"],
         "scope": {"artifacts": [{"version": "fixture-v1", "sha256": SHA_A, "asset_name": "fixture.zip"}]}
     })));
-    let changed = catalog.with_listing_document(directory).unwrap();
+    let changed = catalog.clone().with_listing_document(directory).unwrap();
     let restrictions = EffectiveRestrictions::of(&changed, &id);
     let offer =
         RestrictionSubject::deferred(RestrictedOperation::Download).on(Platform::WindowsX86_64);
@@ -586,7 +586,7 @@ fn an_unseen_identity_gains_a_scoped_permit_through_data_alone() {
     );
     assert!(restrictions.evaluate(&bytes(SHA_B)).is_held());
     // Older readers still see the whole legacy hold.
-    let legacy = changed.listing_document().export_format(13).unwrap();
+    let legacy = changed.listing_document().export_format(14).unwrap();
     let exported = legacy.listings.iter().find(|l| l.id == id).unwrap();
     assert!(exported.restrictions.is_empty());
     assert_eq!(
@@ -596,19 +596,19 @@ fn an_unseen_identity_gains_a_scoped_permit_through_data_alone() {
 }
 
 #[test]
-fn a_format_13_reader_refuses_typed_restrictions_and_a_diverging_legacy_string() {
+fn a_format_14_reader_refuses_typed_restrictions_and_a_diverging_legacy_string() {
     let catalog = Catalog::embedded().unwrap();
     let document = catalog.listing_document().clone();
     assert_eq!(document.format_version, RESTRICTION_LISTING_FORMAT);
     let mut older = document.clone();
-    older.format_version = 13;
+    older.format_version = 14;
     let error = older.validate().unwrap_err();
     assert!(
-        error.message.contains("listing format 14"),
+        error.message.contains("listing format 15"),
         "{}",
         error.message
     );
-    let exported = document.export_format(13).unwrap();
+    let exported = document.export_format(14).unwrap();
     assert!(exported.listings.iter().all(|l| l.restrictions.is_empty()));
     assert_eq!(
         exported
@@ -684,7 +684,7 @@ fn target_inspection_reports_a_scoped_permit_as_an_offered_download() {
         "id": "fixture-reviewed-package", "effect": "permit", "operations": ["download"],
         "scope": {"artifacts": [{"version": "fixture-v1", "sha256": SHA_A}]}
     })));
-    let changed = catalog.with_listing_document(directory).unwrap();
+    let changed = catalog.clone().with_listing_document(directory).unwrap();
     let after = crate::inspect_targets(&changed, std::slice::from_ref(&id), &[]).unwrap();
     assert!(after.ports[0].download_restriction.is_none());
     for port in catalog
