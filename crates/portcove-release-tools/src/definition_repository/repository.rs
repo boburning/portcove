@@ -853,9 +853,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         Ok(())
     })();
     if let Err(error) = reserve_result {
-        for directory in reserved.iter().rev() {
-            directory.remove_if_owned();
-        }
+        io::OutputReservation::remove_all_owned(reserved);
         return Err(error);
     }
 

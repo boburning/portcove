@@ -233,7 +233,15 @@ impl OutputReservation {
         })
     }
 
-    pub(super) fn remove_if_owned(&self) {
+    pub(super) fn remove_all_owned(reservations: Vec<Self>) {
+        // Windows finishes removing a directory when its last handle closes.
+        // Drop each child reservation before attempting to remove its parent.
+        for reservation in reservations.into_iter().rev() {
+            reservation.remove_if_owned();
+        }
+    }
+
+    fn remove_if_owned(self) {
         let held = self.handle.as_ref().and_then(directory_identity);
         if held.is_some()
             && open_reserved_directory(&self.path)
@@ -448,9 +456,19 @@ impl<T, F: Fn(&str, Vec<u8>) -> T> TreeWalk<T, F> {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(test, any(unix, windows)))]
 mod reservation_tests {
     use super::*;
+
+    #[test]
+    fn reservation_cleanup_removes_children_before_parents() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap().join("history");
+        let parent = OutputReservation::create(&root).unwrap();
+        let child = OutputReservation::create(&root.join("sha256")).unwrap();
+        OutputReservation::remove_all_owned(vec![parent, child]);
+        assert!(!root.exists());
+    }
 
     #[test]
     fn reservation_cleanup_keeps_a_replacement_directory() {
