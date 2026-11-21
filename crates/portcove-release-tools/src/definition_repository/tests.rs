@@ -962,6 +962,7 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
     fixture.roles = fixture.root().join("history-roles-three");
     fs::create_dir(&fixture.roles).unwrap();
     fixture.sign_all().await;
+    let mut context = fixture.context_value();
     context["previous_repository"] = json!("history-next");
     fixture.set_context(context);
     let assembly = fixture.assembly("history-third");
