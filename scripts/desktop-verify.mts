@@ -53,6 +53,7 @@ Selection:
   --acceptance-packet FILE      Completed receipt to revalidate (repeatable)
 
 Options:
+  --cover-port-id ID            Repeat for a focused native cover cohort
   --restart-cycles 1..10        Default: 1
   --reload-cycles 0..25         Default: 0; positive values opt profiles into reload
   --require-clean               Refuse a dirty source tree
@@ -124,6 +125,7 @@ export function parseDesktopVerifyArgs(args: string[]) {
       "qualification-evidence": { type: "string" },
       "current-preflight": { type: "string", multiple: true, default: [] },
       "acceptance-packet": { type: "string", multiple: true, default: [] },
+      "cover-port-id": { type: "string", multiple: true, default: [] },
       "restart-cycles": { type: "string", default: "1" },
       "reload-cycles": { type: "string", default: "0" },
       "require-clean": { type: "boolean", default: false },
@@ -144,6 +146,24 @@ export function parseDesktopVerifyArgs(args: string[]) {
     !values["qualification-evidence"]
   )
     throw new Error("Receipt inputs require --qualification-evidence");
+  const coverPortIds = values["cover-port-id"];
+  if (coverPortIds.length) {
+    if (
+      values.profile ||
+      values["list-scenarios"] ||
+      values.scenario.length !== 1 ||
+      !["native-default-cover-display", "native-default-cover-cache-conditions"].includes(
+        values.scenario[0] ?? "",
+      )
+    )
+      throw new Error("--cover-port-id requires one explicit native default-cover scenario");
+    if (
+      coverPortIds.length > 16 ||
+      new Set(coverPortIds).size !== coverPortIds.length ||
+      coverPortIds.some((id) => !/^[a-z0-9][a-z0-9-]{0,127}$/u.test(id))
+    )
+      throw new Error("Choose up to 16 unique catalog port IDs");
+  }
   const restartCycles = Number(values["restart-cycles"]);
   const reloadCycles = Number(values["reload-cycles"]);
   if (!Number.isInteger(restartCycles) || restartCycles < 1 || restartCycles > 10)
@@ -169,6 +189,7 @@ export function parseDesktopVerifyArgs(args: string[]) {
           },
         }
       : {}),
+    coverPortIds,
     restartCycles,
     reloadCycles,
     requireClean: values["require-clean"],
@@ -480,19 +501,24 @@ async function runVerification(
   const frontendCommand = frontendCommandPlan({
     cwd: path.join(root, "apps", "desktop"),
   });
-  const plan = buildDesktopVerifyPlan({
-    selection,
-    paths,
-    drivers,
-    source,
-    packages,
-    frontendCommand,
-  });
+  const plan = {
+    ...buildDesktopVerifyPlan({
+      selection,
+      paths,
+      drivers,
+      source,
+      packages,
+      frontendCommand,
+    }),
+    ...(options.coverPortIds.length ? { cover_port_ids: options.coverPortIds } : {}),
+  };
   if (options.plan) {
     if (options.json) console.log(JSON.stringify(plan, null, 2));
     else {
       console.log(`Desktop verification plan: ${selection.profile ?? "exact scenarios"}`);
       console.log(`Selected: ${selection.selected_scenarios.join(", ")}`);
+      if (options.coverPortIds.length)
+        console.log(`Cover cohort: ${options.coverPortIds.join(", ")}`);
       console.log(`Setup: ${selection.setup_scenarios.join(", ") || "none"}`);
       console.log(`Harness deadline: ${plan.harness_deadline_ms} ms`);
       console.log(
@@ -722,6 +748,7 @@ async function runVerification(
       ...(selection.profile
         ? ["--profile", selection.profile]
         : selection.requested_scenarios.flatMap((id) => ["--scenario", id])),
+      ...options.coverPortIds.flatMap((id) => ["--cover-port-id", id]),
       ...preparationArgs,
     ];
     const harnessEnvironment = {

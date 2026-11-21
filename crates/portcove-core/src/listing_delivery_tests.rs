@@ -199,6 +199,81 @@ async fn authenticated_listings_add_correct_withdraw_without_managed_authority()
 }
 
 #[tokio::test]
+async fn artwork_snapshot_rechecks_a_withdrawn_cover_on_an_unchanged_receiver() {
+    use crate::{
+        ArtworkResolvedSource, ArtworkSlot, CompositeReleaseProvider, DestinationArtworkRole,
+    };
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let mut first = feed(1);
+    first["directory"]["format_version"] = json!(3);
+    let listings = first["directory"]["listings"].as_array_mut().unwrap();
+    listings[0]["original_game"] = json!({
+        "format_version": 1,
+        "id": "shared-cover-game",
+        "evidence_urls": ["https://example.invalid/game"],
+        "source_editions": [{
+            "id": "console",
+            "title": "Console edition",
+            "system": "xbox",
+            "evidence_urls": ["https://example.invalid/edition"]
+        }]
+    });
+    let mut donor = listings[0].clone();
+    donor["id"] = json!("cover-donor");
+    donor["artwork"] = json!({
+        "game_id": 1, "cover_id": 2, "image_id": "co1abc",
+        "image_sha256": "5".repeat(64), "game_slug": "shared-cover-game",
+        "match_kind": "underlying-game"
+    });
+    listings.push(donor);
+    let root = publish(&fixture, &key, 1, &first).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+
+    let receiver = "new-unmanaged-port";
+    let releases = std::sync::Arc::new(CompositeReleaseProvider::for_library(&library).unwrap());
+    let held =
+        PortcoveService::with_provider_for_artwork(library.clone(), releases.clone()).unwrap();
+    let before = held.catalog().listing(receiver).unwrap().clone();
+    assert!(matches!(
+        held.artwork(receiver, ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::IgdbCover { .. }
+    ));
+
+    first["revision"] = json!(2);
+    first["directory"]["listings"][1]
+        .as_object_mut()
+        .unwrap()
+        .remove("artwork");
+    let root = publish(&fixture, &key, 2, &first).await;
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let current = PortcoveService::with_provider_for_artwork(library, releases).unwrap();
+    assert_eq!(current.catalog().listing(receiver).unwrap(), &before);
+    assert_eq!(
+        held.artwork(receiver, ArtworkSlot::Cover).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        held.destination_artwork(receiver, DestinationArtworkRole::PortraitCover)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(
+        current
+            .artwork(receiver, ArtworkSlot::Cover)
+            .unwrap()
+            .resolved_source,
+        ArtworkResolvedSource::GeneratedFallback
+    );
+}
+
+#[tokio::test]
 async fn listing_replay_equivocation_and_failed_refresh_preserve_last_selection() {
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
@@ -449,8 +524,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format follows the accepted implementation format 12.
-    candidate["directory"]["format_version"] = json!(13);
+    // The next unknown format follows the accepted IGDB scene format 13.
+    candidate["directory"]["format_version"] = json!(14);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(

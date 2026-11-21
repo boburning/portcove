@@ -30,11 +30,20 @@ pub(crate) fn copy_content(
     content: &[LibraryTreePlan],
 ) -> Result<()> {
     let work = destination_root.join(".portcove-transfer-work");
-    ensure_directory(&work)?;
+    copy_content_with_work(source_root, destination_root, content, &work)
+}
+
+pub(crate) fn copy_content_with_work(
+    source_root: &Path,
+    destination_root: &Path,
+    content: &[LibraryTreePlan],
+    work: &Path,
+) -> Result<()> {
+    ensure_directory(work)?;
     for tree in content {
         let source = source_root.join(&tree.relative_path);
         let destination = destination_root.join(&tree.relative_path);
-        copy_reviewed_tree(&source, &destination, &tree.copy, &work)?;
+        copy_reviewed_tree(&source, &destination, &tree.copy, work)?;
     }
     Ok(())
 }
@@ -245,6 +254,26 @@ pub(crate) fn verify_destination(
             "destination database integrity check failed",
         ));
     }
+    verify_installations(library, expected_metadata, &catalogs)?;
+    for relative in &expected_metadata.application_versions {
+        if crate::runtime_path_policy::has_bundled_manifest_path_limit(
+            &relative.port_id,
+            &relative.artifact.sha256,
+        ) {
+            let mut installed = relative.clone();
+            installed.path = destination_root.join(&relative.path);
+            crate::install::check_retained_launch_destination(&installed, &installed.path)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn verify_installations(
+    library: &Library,
+    expected_metadata: &LibraryMetadata,
+    catalogs: &crate::library_import::PortabilityCatalogs,
+) -> Result<()> {
+    let destination_root = library.root();
     let installer = crate::install::Installer::new(library.clone())?;
     let platform = crate::Platform::current()?;
     for relative in &expected_metadata.application_versions {

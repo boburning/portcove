@@ -92,11 +92,11 @@ function Screenshot({
   onOpen: (element: HTMLButtonElement) => void;
 }) {
   const { t } = useAppTranslation("browsing");
-  const { element, visible } = useArtworkVisibility();
-  const { display, retry } = useCatalogMedia(portId, media, visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display, retry } = useCatalogMedia(portId, media, visible, priority);
   return (
     <figure ref={element} className="m-0 min-w-0">
-      {display.error ? (
+      {!display.image && display.error ? (
         <div className="grid gap-2 rounded-pc-md border border-pc-border p-3 text-sm">
           <span>
             <Trans

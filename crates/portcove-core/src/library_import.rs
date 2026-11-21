@@ -90,7 +90,15 @@ impl PortabilityCatalogs {
                     .detail("install_id", &install.id));
                 }
             }
-            let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
+            let (retained, choice) =
+                crate::install::portable_install_contract(&absolute, &embedded)?;
+            if let Some(choice) = choice {
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_embedded_choice(
+                        install, &choice,
+                    )?,
+                );
+            }
             if let Some(identity) = retained
                 .as_ref()
                 .and_then(|catalog| catalog.definition_selection(&install.port_id))
@@ -318,8 +326,12 @@ impl PortcoveService {
                 .port(&install.port_id)?
                 .windows_runtime_path_policy
                 == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+                || crate::runtime_path_policy::has_bundled_manifest_path_limit(
+                    &install.port_id,
+                    &install.artifact.sha256,
+                )
             {
-                crate::install::check_retained_runtime_paths(
+                crate::install::check_retained_launch_destination(
                     &observed,
                     &destination_root.join(relative),
                 )?;
@@ -343,20 +355,7 @@ impl PortcoveService {
                 "import destination overlaps the metadata export",
             ));
         }
-        let content = metadata
-            .content_roots
-            .iter()
-            .map(|root| {
-                Ok(LibraryTreePlan {
-                    kind: root.kind,
-                    relative_path: root.relative_path.clone(),
-                    copy: crate::library_transfer::reviewed_tree(
-                        &content_root.join(&root.relative_path),
-                    )?,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-        crate::artwork_store::validate_transfer_inventory(&metadata, &content)?;
+        let content = crate::library_transfer::plan_portable_content(&metadata, &content_root)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size

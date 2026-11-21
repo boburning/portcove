@@ -1399,7 +1399,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":13,"listings":[]}),
+            json!({"format_version":14,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1955,11 +1955,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 13;
+        future.format_version = 14;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 13);
+        assert_eq!(future.format_version, 14);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 13).is_err());
+        assert!(parse(&value, 14).is_err());
     }
 
     #[test]

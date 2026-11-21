@@ -6914,6 +6914,12 @@
       "GameInstallPlan": {
         "description": "Exact registered-input review for the first managed installation.",
         "properties": {
+          "package_choice": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "plan": {
             "$ref": "#/$defs/InstallPlan"
           },
@@ -9780,12 +9786,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
-        "type": "string",
         "enum": [
           "logo",
           "artwork",
           "screenshot"
-        ]
+        ],
+        "type": "string"
       },
       "ListingAvailability": {
         "description": "A dated discovery fact, not a managed support or artifact admission decision.",
@@ -13332,6 +13338,30 @@
         ],
         "type": "object"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -13531,6 +13561,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -13573,6 +13610,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -15565,6 +15606,30 @@
         ],
         "type": "string"
       },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
       "ObservedSourceComponent": {
         "properties": {
           "digests": {
@@ -15764,6 +15829,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -15806,6 +15878,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -22494,12 +22570,12 @@
         "type": "object"
       },
       "IgdbGameImageKind": {
-        "type": "string",
         "enum": [
           "logo",
           "artwork",
           "screenshot"
-        ]
+        ],
+        "type": "string"
       },
       "InstallRecord": {
         "properties": {
@@ -23319,6 +23395,30 @@
           "unknown"
         ],
         "type": "string"
+      },
+      "N64RecompOriginalInput": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact_sha256": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "rom_xxh3_64": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "upstream_ref",
+          "artifact_sha256",
+          "game_id",
+          "rom_xxh3_64"
+        ],
+        "type": "object"
       },
       "ObservedSourceComponent": {
         "properties": {
@@ -24906,6 +25006,13 @@
               "null"
             ]
           },
+          "n64_recomp_inputs_v1": {
+            "description": "Required ROM identity for the selected upstream game and exact artifact.\nThis digests the padded, normalized N64 bytes the runtime checks.",
+            "items": {
+              "$ref": "#/$defs/N64RecompOriginalInput"
+            },
+            "type": "array"
+          },
           "port_id": {
             "type": "string"
           },
@@ -24948,6 +25055,10 @@
               "string",
               "null"
             ]
+          },
+          "variant_list_recognition_only": {
+            "description": "Upstream enumerates recognizable variants for an exact release. A\nmissing variant cannot reject setup. Historical lists keep their policy.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -25643,6 +25754,16 @@
             "default": "",
             "type": "string"
           },
+          "reviewed_package_choices_v2": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ReviewedPackageChoicesV2"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "rolling_tag": {
             "default": null,
             "type": [
@@ -25736,6 +25857,32 @@
         "required": [
           "version",
           "sha256"
+        ],
+        "type": "object"
+      },
+      "ReviewedPackageChoicesV2": {
+        "additionalProperties": false,
+        "description": "Reviewed same-target Windows ZIP families. The GitHub tag commit fills the\nseven-hex filename slot between the numeric release and the chosen suffix.",
+        "properties": {
+          "choices": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repository_id",
+          "prefix",
+          "choices"
         ],
         "type": "object"
       },

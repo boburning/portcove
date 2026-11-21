@@ -93,24 +93,6 @@
       "linux-x86-64": ["DK64Recompiled"],
       "macos-aarch64": ["DK64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "technical.json",
-      "technical.json.bak",
-      "DK64.z64"
-    ],
     "runtime_source_filename": "DK64.z64",
     "presentation": {
       "installation_method": "portable-recompilation",
@@ -134,5 +116,6 @@
         "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme"
       }
     }
-  }
+  },
+  "n64_recomp_persistence_v1": "technical-settings"
 }

@@ -2174,6 +2174,7 @@ pub(crate) fn registered_launch_assessment(
         )
         .map(|digest| digest.value.clone()),
         canonical_n64_size: canonical.map(|digest| digest.size),
+        canonical_n64_xxh3_64: None,
         // Durable digests keep the headerless pair; it differs from the whole
         // file only when a header was present.
         copier_headerless_sha256: digest(
@@ -2222,11 +2223,15 @@ pub(crate) fn registered_launch_assessment(
     let [contract] = contracts.as_slice() else {
         return assessment;
     };
-    assessment.contract = if contract.admission_mode == crate::CatalogAdmissionMode::Informational {
+    let release_is_bound =
+        release.is_some_and(|(version, hash)| contract.applies_to_release(version, hash));
+    assessment.contract = if contract.variant_list_recognition_only && !release_is_bound {
+        SourceContractResult::UnreviewedForRelease
+    } else if contract.admission_mode == crate::CatalogAdmissionMode::Informational {
         SourceContractResult::Informational {
             contract_id: contract.id.clone(),
         }
-    } else if !release.is_some_and(|(version, hash)| contract.applies_to_release(version, hash)) {
+    } else if !release_is_bound {
         SourceContractResult::UnreviewedForRelease
     } else if let SourceClassification::Recognized { identity } = &assessment.classification {
         if contract
@@ -2245,6 +2250,134 @@ pub(crate) fn registered_launch_assessment(
         SourceContractResult::NotEvaluated
     };
     assessment
+}
+
+pub(crate) fn n64_release_input<'a>(
+    catalog: &'a Catalog,
+    port_id: &str,
+    release: (&str, &str),
+) -> Option<(&'a str, &'a crate::N64RecompOriginalInput)> {
+    let contract = catalog
+        .source_catalog()?
+        .contracts
+        .iter()
+        .find(|contract| {
+            contract.port_id == port_id && contract.role == crate::PortSourceRole::Game
+        })?;
+    let input = contract.n64_recomp_inputs_v1.iter().find(|input| {
+        input.upstream_ref == release.0 && input.artifact_sha256.eq_ignore_ascii_case(release.1)
+    })?;
+    Some((&contract.profile_id, input))
+}
+
+#[derive(Debug)]
+pub(crate) struct N64ReleaseInputProof {
+    canonical_sha256: String,
+    canonical_size: u64,
+}
+
+impl N64ReleaseInputProof {
+    pub(crate) fn require_materialized(
+        &self,
+        path: &Path,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        crate::path::refuse_symlink_ancestors(path)?;
+        let (sha256, size) = crate::adapter::hash_file_bounded_with_checkpoint(
+            path,
+            self.canonical_size,
+            checkpoint,
+        )?;
+        if sha256 != self.canonical_sha256 || size != self.canonical_size {
+            return Err(PortcoveError::verification(
+                "The installed N64 game file differs from the checked original. Repair the game files before playing.",
+            ));
+        }
+        Ok(())
+    }
+}
+
+pub(crate) fn require_n64_release_input(
+    catalog: &Catalog,
+    port_id: &str,
+    source: &SourceRecord,
+    release: (&str, &str),
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    verify_n64_release_input(catalog, port_id, Some(source), release, checkpoint).map(|_| ())
+}
+
+/// Select the required original only for an exact release and artifact.
+pub(crate) fn verify_n64_release_input(
+    catalog: &Catalog,
+    port_id: &str,
+    source: Option<&SourceRecord>,
+    release: (&str, &str),
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<Option<N64ReleaseInputProof>> {
+    let Some((profile_id, input)) = n64_release_input(catalog, port_id, release) else {
+        return Ok(None);
+    };
+    let source = source
+        .filter(|source| source.profile_id == profile_id)
+        .ok_or_else(|| {
+            PortcoveError::source(
+                "Choose the original game file required by this N64 Recomp release.",
+            )
+            .detail("profile_id", profile_id)
+        })?;
+    // The same bounded reader verifies the exact stored bytes and the selected
+    // archive member, then computes the upstream check on normalized content.
+    const MAXIMUM_INPUT_BYTES: u64 = 512 * 1024 * 1024;
+    let mut budget = HashBudget {
+        checkpoint: Some(checkpoint),
+        operation: None,
+        limit: MAXIMUM_INPUT_BYTES * 2,
+        hashed: 0,
+        max_zip_entries: 4096,
+    };
+    let identity = read_identity(
+        &source.path,
+        &catalog
+            .source_profile(&source.profile_id)?
+            .accepted_extensions,
+        MAXIMUM_INPUT_BYTES,
+        &mut budget,
+    )?;
+    if !identity
+        .storage_sha256
+        .eq_ignore_ascii_case(&source.storage_sha256)
+        || identity.storage_size != source.storage_size
+        || !identity.sha256.eq_ignore_ascii_case(&source.sha256)
+        || identity.size != source.size
+    {
+        return Err(PortcoveError::verification(
+            "The original file changed after it was checked. Check the saved location again.",
+        )
+        .detail("profile_id", &source.profile_id));
+    }
+    let expected = u64::from_str_radix(&input.rom_xxh3_64, 16)
+        .map_err(|_| PortcoveError::state("invalid normalized N64 source digest in definition"))?;
+    if identity.canonical_n64_xxh3_64 != Some(expected) {
+        return Err(PortcoveError::source(
+            "This original does not match the edition required by the selected N64 Recomp release. Choose another original.",
+        )
+        .detail("profile_id", &source.profile_id)
+        .detail("upstream_ref", release.0)
+        .detail("native_game_id", &input.game_id));
+    }
+    let (Some(canonical_sha256), Some(canonical_size)) =
+        (identity.canonical_n64_sha256, identity.canonical_n64_size)
+    else {
+        return Err(PortcoveError::state(
+            "N64 input check omitted its normalized identity",
+        ));
+    };
+    checkpoint()?;
+    Ok(Some(N64ReleaseInputProof {
+        canonical_sha256,
+        canonical_size,
+    }))
 }
 
 pub(crate) fn require_launch_source_compatibility(
@@ -2532,6 +2665,89 @@ mod tests {
     #[cfg(test)]
     use sha2::{Digest, Sha256};
     use std::{fs, io::Write};
+
+    #[test]
+    fn n64_release_input_requires_the_exact_asset_and_normalized_original() {
+        const PORT: &str = "zelda64-recomp";
+        const PROFILE: &str = "majoras-mask";
+        const TAG: &str = "test-release";
+        let artifact = "a".repeat(64);
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let source_catalog = document.source_catalog.as_mut().unwrap();
+        let contract = source_catalog
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.port_id == PORT)
+            .unwrap();
+        contract.supported_variant_ids.clear();
+        contract
+            .n64_recomp_inputs_v1
+            .push(crate::N64RecompOriginalInput {
+                upstream_ref: TAG.into(),
+                artifact_sha256: artifact.clone(),
+                game_id: "mm.n64.us.1.0".into(),
+                // Fixed reference from upstream libxxhash on the eight normalized bytes.
+                rom_xxh3_64: "922d8d44f9f2e9a9".into(),
+            });
+        let catalog = Catalog::from_document(document).unwrap();
+        let temporary = tempfile::tempdir().unwrap();
+        let big = temporary.path().join("short.z64");
+        let little = temporary.path().join("swapped.n64");
+        let rejected = temporary.path().join("other.z64");
+        fs::write(&big, [0x80, 0x37, 0x12, 0x40, 0xa1, 0xb2, 0xc3]).unwrap();
+        fs::write(&little, [0x40, 0x12, 0x37, 0x80, 0, 0xc3, 0xb2, 0xa1]).unwrap();
+        fs::write(&rejected, [0x80, 0x37, 0x12, 0x40, 1, 2, 3]).unwrap();
+        let inspect = |path: &Path| {
+            inspect_with_checkpoint(&catalog, PROFILE, path, &|| Ok(()))
+                .unwrap()
+                .require_admitted_record()
+                .unwrap()
+        };
+        let fixed = inspect(&big);
+        let swapped = inspect(&little);
+        let other = inspect(&rejected);
+        assert_ne!(fixed.sha256, swapped.sha256);
+        for source in [&fixed, &swapped] {
+            require_n64_release_input(&catalog, PORT, source, (TAG, &artifact), &|| Ok(()))
+                .unwrap();
+        }
+        let reject =
+            require_n64_release_input(&catalog, PORT, &other, (TAG, &artifact), &|| Ok(()))
+                .unwrap_err();
+        assert_eq!(reject.code, crate::ErrorCode::SourceInvalid);
+        assert_eq!(reject.details["native_game_id"], "mm.n64.us.1.0");
+        let missing = verify_n64_release_input(&catalog, PORT, None, (TAG, &artifact), &|| Ok(()))
+            .unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::SourceInvalid);
+
+        let proof =
+            verify_n64_release_input(&catalog, PORT, Some(&fixed), (TAG, &artifact), &|| Ok(()))
+                .unwrap()
+                .unwrap();
+        let derived = temporary.path().join("installed.z64");
+        fs::write(&derived, [0x80, 0x37, 0x12, 0x40, 0xa1, 0xb2, 0xc3, 0]).unwrap();
+        proof.require_materialized(&derived, &|| Ok(())).unwrap();
+        fs::write(&derived, [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 0]).unwrap();
+        assert_eq!(
+            proof
+                .require_materialized(&derived, &|| Ok(()))
+                .unwrap_err()
+                .code,
+            crate::ErrorCode::Verification
+        );
+        let other_asset = "b".repeat(64);
+        for release in [
+            (TAG, other_asset.as_str()),
+            ("earlier-release", artifact.as_str()),
+        ] {
+            require_n64_release_input(&catalog, PORT, &other, release, &|| Ok(())).unwrap();
+        }
+        fs::write(&big, fs::read(&rejected).unwrap()).unwrap();
+        let changed =
+            require_n64_release_input(&catalog, PORT, &fixed, (TAG, &artifact), &|| Ok(()))
+                .unwrap_err();
+        assert_eq!(changed.code, crate::ErrorCode::Verification);
+    }
 
     proptest! {
         #[test]
