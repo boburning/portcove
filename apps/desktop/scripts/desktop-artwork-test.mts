@@ -369,8 +369,9 @@ export async function artworkScenario({
         );
         if (slot === "detail") {
           const narrow = await browser.wait(
-            until.elementLocated(By.css('input[type="range"][name="narrow-x"]')),
-            10_000,
+            until.elementLocated(By.css('input[type="range"][name="narrow-x"]:enabled')),
+            30_000,
+            "The reviewed Background framing control did not become actionable",
           );
           assert.deepEqual(await state(slot), previous);
           await narrow.sendKeys(Key.END);

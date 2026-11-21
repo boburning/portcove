@@ -246,6 +246,70 @@ describe("local artwork controls", () => {
     },
   );
 
+  async function startBackgroundPreview() {
+    let revision = 0;
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      artworkState(port, slot, slot === "detail" ? revision : 0),
+    );
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    let finish!: (image: typeof reviewedImage) => void;
+    const preview = vi
+      .mocked(desktopApi.previewLocalArtwork)
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const save = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockResolvedValue(artworkState("sample", "detail", 1, true));
+    await render("sample", 7, "old-cover");
+    await open();
+    await selectSlot("detail");
+    await expect.element(page.elementLocator(button("detail", "Choose local image"))).toBeEnabled();
+    await click("detail", "Choose local image");
+    expect(preview).toHaveBeenCalledExactlyOnceWith("sample", "E:/owned.png", 7);
+    return {
+      save,
+      refreshCatalog: async (currentRevision: number) => {
+        revision = currentRevision;
+        await render("sample", 7, "corrected-cover");
+      },
+      finishPreview: async () => {
+        await act(async () => finish(reviewedImage));
+        const review = page.getByRole("form", { name: "Review Background", exact: true });
+        await expect.element(review).toBeVisible();
+        expect(save).not.toHaveBeenCalled();
+        return review;
+      },
+    };
+  }
+
+  it("retains a local Background preview across a catalog refresh of the same choice", async () => {
+    const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
+    await refreshCatalog(0);
+    const review = await finishPreview();
+    const apply = review.getByRole("button", { name: "Apply", exact: true });
+    await expect.element(apply).toBeEnabled();
+    await apply.click();
+    expect(save).toHaveBeenCalledExactlyOnceWith("sample", "detail", "E:/owned.png", 0, 7, {
+      preview_sha256: reviewedImage.original_sha256,
+      framing: null,
+    });
+  });
+
+  it("retains a stale preview without moving focus or permitting Apply after the choice changes", async () => {
+    const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
+    await refreshCatalog(1);
+    const close = page
+      .getByRole("dialog", { name: "Change artwork" })
+      .getByRole("button", { name: "Close", exact: true });
+    await act(async () => (close.element() as HTMLElement).focus());
+    const review = await finishPreview();
+    await expect
+      .element(review.getByText("The artwork changed. Cancel and preview the image again."))
+      .toBeVisible();
+    await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+    await expect.element(close).toHaveFocus();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("requires a new preview when the selected image changes before Apply", async () => {
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     const preview = vi.mocked(desktopApi.previewLocalArtwork).mockResolvedValueOnce(reviewedImage);
