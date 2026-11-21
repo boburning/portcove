@@ -7,6 +7,7 @@ import {
 } from "./desktop-scenario-state.mts";
 import type { WebDriver, WebElement } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
+import { assertOwnedUnlinkedPath } from "../../../scripts/release-path-safety.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
@@ -448,14 +449,21 @@ export async function installScenarios({
     const audio = object(scope.files[0]);
     assert.equal(audio.file_id, "audio");
     assert.equal(audio.path, "fixture-settings.json");
-    const configPaths = [audio.canonical_path, audio.runtime_path].map((candidate) => {
-      assert.equal(typeof candidate, "string");
-      assert.ok(typeof candidate === "string");
-      const relative = path.relative(library, candidate);
-      assert.ok(relative && !path.isAbsolute(relative) && relative.split(path.sep)[0] !== "..");
-      return candidate;
-    });
-    assert.notEqual(configPaths[0], configPaths[1]);
+    // The Core scope can return extended-length paths while the runner's
+    // library path uses ordinary Windows spelling. Check both in one namespace.
+    const ownedLibrary = path.toNamespacedPath(library);
+    const configPaths = await Promise.all(
+      [audio.canonical_path, audio.runtime_path].map(async (candidate) => {
+        assert.ok(typeof candidate === "string" && path.isAbsolute(candidate));
+        assert.equal(path.basename(candidate), audio.path);
+        return assertOwnedUnlinkedPath(
+          ownedLibrary,
+          path.toNamespacedPath(candidate),
+          "Owned native settings fixture file",
+        );
+      }),
+    );
+    assert.ok(path.relative(required(configPaths[0]), required(configPaths[1])));
     const initial = { master: 40, music: 60, keep: ["unrelated", true] };
     const snapshot = async (phase: string) => {
       const copies = await Promise.all(configPaths.map((file) => readFile(file)));
