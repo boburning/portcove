@@ -7547,6 +7547,23 @@ async fn authenticated_forge_install_fixture(gitlab: bool) {
             .unwrap()
             .valid
     );
+    server.status(404, "Not Found");
+    assert!(!service.can_review_exact_release(ID).unwrap());
+    let review = service.review_exact_release(ID, "v1").await.unwrap_err();
+    let pin = service
+        .pin_exact_release(ID, "v1", &"0".repeat(64))
+        .await
+        .unwrap_err();
+    for error in [review, pin] {
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(
+            error
+                .message
+                .contains("independently admitted package selection")
+        );
+    }
+    assert!(service.status(ID).unwrap().exact_release.is_none());
+
     let requests = server.requests.lock().unwrap();
     let expected = if gitlab {
         [
