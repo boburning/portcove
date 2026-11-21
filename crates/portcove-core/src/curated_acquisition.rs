@@ -364,6 +364,53 @@ pub(crate) fn repository_for_retained_record(
         .map_err(|_| PortcoveError::state("retained curated repository identity is invalid"))
 }
 
+/// A cached release contains the selected bytes and canonical provider URL, but
+/// has no retained numeric asset IDs. Only a unique exact scoped admission can
+/// recover them. Never infer identity from today's recommended definition.
+pub(crate) fn scoped_identity_for_cached_offer(
+    connection: &Connection,
+    port_id: &str,
+    release: &crate::ResolvedRelease,
+) -> Result<Option<(u64, u64)>> {
+    require_complete_history(connection)?;
+    let mut statement = connection.prepare(
+        "SELECT DISTINCT admission.repository_id, admission.asset_id
+         FROM curated_artifact_admissions AS admission
+         JOIN curated_artifact_scopes AS scope
+           USING(repository_id, asset_id)
+         WHERE scope.stable_id = ?1
+           AND json_extract(admission.identity_json, '$.tag') = ?2
+           AND json_extract(admission.identity_json, '$.filename') = ?3
+           AND json_extract(admission.identity_json, '$.size') = ?4
+           AND json_extract(admission.identity_json, '$.sha256') = ?5
+           AND json_extract(admission.identity_json, '$.acquisition_url') = ?6
+         LIMIT 2",
+    )?;
+    let asset = &release.asset;
+    let matches = statement
+        .query_map(
+            params![
+                port_id,
+                release.version,
+                asset.name,
+                asset.size,
+                asset.sha256,
+                asset.url
+            ],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let [(repository_id, asset_id)] = matches.as_slice() else {
+        return Ok(None);
+    };
+    match (repository_id.parse(), asset_id.parse()) {
+        (Ok(repository), Ok(asset)) => Ok(Some((repository, asset))),
+        _ => Err(PortcoveError::verification(
+            "cached offer matched invalid retained curated identifiers",
+        )),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CuratedEvidenceReference {

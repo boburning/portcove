@@ -2502,4 +2502,16 @@ it("shows only exact installed and recommended distribution withdrawal", () => {
   expect(recommended).toContain("Recommended release withdrawn");
   expect(recommended).toContain("Wait for a compatible release");
   expect(recommended).not.toContain("Review rollback");
+  const both = markup({
+    ...installed,
+    definition_operations: [
+      held(true, "curated_distribution_withdrawn"),
+      held(false, "curated_distribution_withdrawn"),
+    ],
+  });
+  expect(both).toContain("Installed release withdrawn");
+  expect(both).toContain("Recommended release withdrawn");
+  expect(both).toContain("keep your installed copy and its saves");
+  expect(both).toContain("Wait for a compatible release");
+  expect(both).toContain("Review rollback");
 });

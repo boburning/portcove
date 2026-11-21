@@ -4888,6 +4888,33 @@ mod tests {
     }
 
     #[test]
+    fn status_discloses_both_installed_and_recommended_release_withdrawals() {
+        let mut status = status_disclosure_fixture();
+        status.active = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "fixture-install", "port_id": status.port_id,
+                "version": "v1", "path": "installed", "channel": "stable",
+                "installed_at": 1, "verified": true, "staged": false
+            }))
+            .unwrap(),
+        );
+        for retained in [true, false] {
+            status.definition_operations.push(portcove_core::DefinitionOperationAssessment {
+                operation: portcove_core::DefinitionOperation::Install,
+                eligibility: portcove_core::DefinitionEligibility {
+                    outcome: portcove_core::DefinitionEligibilityOutcome::Hold,
+                    reason: portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn,
+                },
+                retained,
+            });
+        }
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let output = super::status(&status, &catalog);
+        assert!(output.contains("Installed release v1 withdrawn by the catalog maintainer."));
+        assert!(output.contains("Recommended release withdrawn by the catalog maintainer."));
+    }
+
+    #[test]
     fn status_disclosure_omits_legacy_empty_actions_and_keeps_groups_with_their_ports() {
         let empty = status_disclosure_fixture();
         assert!(

@@ -9,18 +9,21 @@ function withdrawal(status: PortStatus | undefined) {
       eligibility.outcome === "hold" &&
       eligibility.reason === "curated_distribution_withdrawn",
   );
-  if (status?.active && holds?.some(({ retained }) => retained)) return "installed";
-  if (holds?.some(({ retained }) => !retained)) return "recommended";
-  return null;
+  return {
+    installed: Boolean(status?.active && holds?.some(({ retained }) => retained)),
+    recommended: Boolean(holds?.some(({ retained }) => !retained)),
+  };
 }
 
 export function ReleaseWithdrawalBadge({ status }: { status: PortStatus | undefined }) {
   const { t } = useAppTranslation("detail");
-  const target = withdrawal(status);
-  if (!target) return null;
+  const { installed, recommended } = withdrawal(status);
+  if (!installed && !recommended) return null;
+  const style = "inline-flex rounded-sm border border-pc-border px-1.5 py-0.5 text-xs font-semibold";
   return (
-    <span className="inline-flex rounded-sm border border-pc-border px-1.5 py-0.5 text-xs font-semibold">
-      {target === "installed" ? t("withdrawal.installedBadge") : t("withdrawal.recommendedBadge")}
+    <span className="inline-flex flex-wrap gap-1">
+      {installed && <span className={style}>{t("withdrawal.installedBadge")}</span>}
+      {recommended && <span className={style}>{t("withdrawal.recommendedBadge")}</span>}
     </span>
   );
 }
@@ -33,9 +36,8 @@ export function ReleaseWithdrawalNotice({
   reviewVersions: () => void;
 }) {
   const { t } = useAppTranslation("detail");
-  const target = withdrawal(status);
-  if (!target) return null;
-  const installed = target === "installed";
+  const { installed, recommended } = withdrawal(status);
+  if (!installed && !recommended) return null;
   const canRollBack =
     installed &&
     status?.previous &&
@@ -47,22 +49,26 @@ export function ReleaseWithdrawalNotice({
       aria-label={t("withdrawal.label")}
       className="grid justify-items-start gap-2 rounded-pc-md border border-pc-border bg-pc-surface p-4"
     >
-      <p className="m-0 font-semibold">
-        {installed
-          ? t("withdrawal.installedReason", { version: status?.active?.version })
-          : t("withdrawal.recommendedReason")}
-      </p>
-      <p className="m-0 text-sm text-pc-muted-foreground">
-        {installed
-          ? t("withdrawal.installedNext")
-          : t("withdrawal.recommendedNext")}
-      </p>
+      {installed && (
+        <div className="grid gap-1">
+          <p className="m-0 font-semibold">
+            {t("withdrawal.installedReason", { version: status?.active?.version })}
+          </p>
+          <p className="m-0 text-sm text-pc-muted-foreground">{t("withdrawal.installedNext")}</p>
+        </div>
+      )}
+      {recommended && (
+        <div className="grid gap-1">
+          <p className="m-0 font-semibold">{t("withdrawal.recommendedReason")}</p>
+          <p className="m-0 text-sm text-pc-muted-foreground">{t("withdrawal.recommendedNext")}</p>
+        </div>
+      )}
       {canRollBack && (
         <Button variant="outline" onClick={reviewVersions}>
           {t("withdrawal.rollback")}
         </Button>
       )}
-      {!installed && (
+      {recommended && !canRollBack && (
         <Button variant="outline" onClick={reviewVersions}>
           {t("withdrawal.versions")}
         </Button>

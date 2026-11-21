@@ -80,9 +80,13 @@ Status reports curated distribution withdrawal only for the exact recommended
 artifact or exact active installation. In machine output, the Install
 assessment identifies the installed copy with `retained: true`. The reason
 is `curated_distribution_withdrawn`. The badge and details use the catalog
-maintainer as the reason when no further explanation is recorded. A
-withdrawal controls acquisition. Installed launch and rollback stay subject
-to their existing checks, and no local files or saves are changed.
+maintainer when no further explanation is recorded. Both appear when both
+releases are withdrawn. Status omits an actionable cached update offer only
+when the cached metadata identifies one exact admitted artifact whose
+distribution is withdrawn. The stored check remains available as historical
+evidence, even after a different artifact becomes the recommendation.
+Installed launch and rollback keep their existing checks. Local files and
+saves are preserved.
 
 ## Descriptive compatibility advisories
 

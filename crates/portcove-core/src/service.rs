@@ -1342,6 +1342,40 @@ impl PortcoveService {
     fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
         status.readiness = None;
         status.definition_operations.clear();
+        if let Some(snapshot) = &status.last_update_check
+            && snapshot.check.update_available
+            && snapshot.check.port_id == status.port_id
+        {
+            use crate::definition_repository::publisher_policy::{
+                CuratedArtifactOperation, assess_known_artifact_operation,
+            };
+            let withdrawn = (|| -> Result<bool> {
+                let connection = self.library.connection()?;
+                let release = &snapshot.check.release;
+                let Some((repository_id, asset_id)) =
+                    crate::curated_acquisition::scoped_identity_for_cached_offer(
+                        &connection,
+                        &status.port_id,
+                        release,
+                    )?
+                else {
+                    return Ok(false);
+                };
+                let eligibility = assess_known_artifact_operation(
+                    &connection,
+                    repository_id,
+                    asset_id,
+                    &release.asset.sha256,
+                    CuratedArtifactOperation::Acquisition,
+                )?;
+                Ok(eligibility.reason
+                    == crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn)
+            })();
+            if withdrawn.unwrap_or(false) {
+                // The durable check still describes the historical observation.
+                status.last_update_check = None;
+            }
+        }
         status.port_actions = [
             PortAction::Install,
             PortAction::Launch,
@@ -2602,16 +2636,6 @@ impl PortcoveService {
                     &connection, repository_id, record,
                     crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
                 )?;
-                if eligibility.reason
-                    == crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
-                    && status.last_update_check.as_ref().is_some_and(|snapshot| {
-                        cached_curated_offer_matches(snapshot, &status.port_id, record)
-                    })
-                {
-                    // The persisted last-good check owns its own provenance.
-                    // Only its withdrawn offer disappears from the read model.
-                    status.last_update_check = None;
-                }
             }
             status
                 .definition_operations
@@ -7952,21 +7976,6 @@ fn repair_path_identity(path: &Path) -> PathBuf {
     }
     #[cfg(not(windows))]
     path.to_path_buf()
-}
-
-fn cached_curated_offer_matches(
-    snapshot: &crate::UpdateSnapshot,
-    port_id: &str,
-    record: &crate::CuratedAcquisitionRecord,
-) -> bool {
-    let release = &snapshot.check.release;
-    let asset = &release.asset;
-    snapshot.check.port_id == port_id
-        && release.version == record.tag
-        && asset.name == record.filename
-        && asset.size == record.size
-        && asset.sha256 == record.sha256
-        && (asset.url == record.acquisition_url || record.preserved_locations.contains(&asset.url))
 }
 
 fn default_channel(port: &PortDefinition) -> ReleaseChannel {
@@ -18778,34 +18787,6 @@ fn main() {
             original
         );
         assert!(service.status(id).unwrap().active.is_none());
-    }
-
-    #[test]
-    fn withdrawal_matches_only_the_exact_retained_update_offer() {
-        let record = crate::curated_acquisition::fixture_record();
-        let mut snapshot: crate::UpdateSnapshot = serde_json::from_value(serde_json::json!({
-            "checked_at": 1,
-            "check": {
-                "port_id": "dkr-r", "channel": "stable", "installed_version": null,
-                "update_available": true,
-                "release": {
-                    "version": record.tag, "channel": "stable", "published_at": null,
-                    "asset": {"name": record.filename, "size": record.size,
-                        "url": record.acquisition_url, "sha256": record.sha256}
-                }
-            }
-        }))
-        .unwrap();
-        assert!(super::cached_curated_offer_matches(
-            &snapshot, "dkr-r", &record
-        ));
-        assert!(!super::cached_curated_offer_matches(
-            &snapshot, "other", &record
-        ));
-        snapshot.check.release.asset.sha256 = "e".repeat(64);
-        assert!(!super::cached_curated_offer_matches(
-            &snapshot, "dkr-r", &record
-        ));
     }
 
     fn assert_catalog_contract_retention(retained_format: u32) {
