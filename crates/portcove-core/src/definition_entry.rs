@@ -178,6 +178,9 @@ impl DefinitionContentIndex {
                 "a reviewed active project requires indexed definition schema 2",
             ));
         }
+        if let Some(settings) = &port.game_settings {
+            settings.validate_port(&port)?;
+        }
         crate::provider_binding::validate(&port)?;
         port.release.validate_github_streams(&port.platforms)?;
         if port.mod_provider_bindings.is_some() {
@@ -197,16 +200,14 @@ impl DefinitionContentIndex {
         }
         let adapter = serde_json::to_value(port.adapter)?;
         crate::managed_runtime_policy::validate_exact_exclusions(&port)?;
-        if crate::managed_runtime_policy::has_exact_exclusions(&port)
+        if let Some((template, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(&port)
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable"
-                    && requirement.minimum_version
-                        >= crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+                requirement.template == template && requirement.minimum_version >= minimum
             })
         {
             return Err(PortcoveError::verification(format!(
-                "exact release exclusions require staged-source capability version {}",
-                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+                "exact release exclusions require {template} capability version {minimum}"
             )));
         }
         if (!retained && !port.reviewed_package_layouts.is_empty())

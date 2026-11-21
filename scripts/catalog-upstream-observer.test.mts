@@ -1,3 +1,14 @@
+import { upstreamFacts } from "./maintenance-upstream.mts";
+import { createHash } from "node:crypto";
+import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
+import {
+  n64AuthoringScope,
+  n64PackagedInputLayout,
+  planN64OriginalBindings,
+  prepareN64OriginalContractAmendment,
+} from "./n64-original-binding-candidates.mts";
+import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
+import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
 import { ObservationFailure } from "./upstream-observer.mts";
 import assert from "node:assert/strict";
@@ -22,6 +33,7 @@ import {
   advanceCatalogObservations,
   catalogObservationSources,
   newCatalogObserverCheckpoint,
+  orderHostedObservationTurns,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import type {
@@ -1043,6 +1055,782 @@ void test("reviewed declarations share provider collection while keeping port-sp
   );
 });
 
+const gameEntryFixture = `std::vector<recomp::GameEntry> supported_games = {
+  { .rom_hash = 0x0123456789ABCDEFULL, .game_id = u8"fixture.us", .mod_game_id = "fixture",
+    .ignored = callback(1, 2) },
+  { .rom_hash = 0x1234ULL, .game_id = u8"fixture.eu" },
+};`;
+
+void test("N64 game entries require a single unconditional table and literal identities", () => {
+  assert.deepEqual(parseN64GameTable("/* unused declaration */\n" + gameEntryFixture), [
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
+    { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
+  ]);
+  for (const invalid of [
+    `#if ENABLED
+${gameEntryFixture}
+#endif`,
+    `/* marker */ #if 0
+${gameEntryFixture}
+/* marker */ #endif`,
+    `#/**/if 0
+${gameEntryFixture}
+#/**/endif`,
+    `%:if 0
+${gameEntryFixture}
+%:endif`,
+    ["// hidden " + String.fromCharCode(92) + "   ", gameEntryFixture.replace(/\n/gu, " ")].join(
+      "\n",
+    ),
+    ["// hidden " + String.fromCharCode(92), gameEntryFixture.replace(/\n/gu, " ")].join("\r"),
+    `/* ${gameEntryFixture} */`,
+    `/* missing terminator
+${gameEntryFixture}`,
+    `auto s = R"(
+${gameEntryFixture}
+)";`,
+    `${gameEntryFixture}
+${gameEntryFixture}`,
+    gameEntryFixture.replace("0x1234ULL", "PLATFORM_HASH"),
+    gameEntryFixture.replace("fixture.eu", "fixture.us"),
+    gameEntryFixture.replace('.mod_game_id = "fixture",', '.mod_game_id = "fi" "xture",'),
+    gameEntryFixture.replace(
+      ".ignored = callback(1, 2)",
+      `
+#if ENABLED
+.ignored = callback(1, 2)
+#endif
+`,
+    ),
+  ])
+    assert.throws(() => parseN64GameTable(invalid), /unsupported or ambiguous/u);
+});
+
+for (const family of ["libultraship", "n64-recomp"] as const) {
+  void test(`scheduled ${family} original source facts retain exact evidence across refresh and optional failure`, async () => {
+    const h = harness();
+    Object.assign(h.input.ports[0]!, {
+      adapter: `${family}-portable`,
+      source_profile: "example",
+      runtime_source_filename: "user/fixture.us.z64",
+      platforms: ["linux-x86-64", "windows-x86-64"],
+      executable_hints: { "linux-x86-64": ["FixtureRecompiled"] },
+    });
+    h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
+    const authoringCatalog = {
+      ...h.input,
+      source_catalog: {
+        identities: [
+          {
+            id: "example",
+            kind: "file",
+            variants: [{ representations: [{ kind: "canonical-n64" }] }],
+          },
+        ],
+        evidence: [],
+        contracts: [
+          {
+            id: "example-game",
+            port_id: "stable-port",
+            profile_id: "example",
+            role: "game",
+            admission_mode: "enforced",
+            supported_variant_ids: ["legacy-accepted"],
+          },
+        ],
+      },
+    };
+    const baseProject = h.options.project;
+    let unavailable: "budget" | "rate-limit" | null = null;
+    let additionalPlatform = false;
+    let outputExpired = false;
+    h.options.project = async (portId, repositoryId, observation) => {
+      const policy = await baseProject(portId, repositoryId, observation);
+      if (
+        portId !== "stable-port" &&
+        !(portId === "stable-port-second" && unavailable === "rate-limit")
+      )
+        return policy;
+      const release = observation.facts.releases.find((release) => release.id === 1);
+      assert.ok(release);
+      return {
+        ...(policy as Record<string, unknown>),
+        projections: [
+          {
+            channel: "stable",
+            platform: "linux-x86-64",
+            channel_candidate: { id: 1, tag: release.tag_name },
+            latest_eligible: {
+              release_id: 1,
+              release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
+            },
+          },
+          ...(additionalPlatform
+            ? [
+                {
+                  channel: "stable",
+                  platform: "windows-x86-64",
+                  channel_candidate: { id: 1, tag: release.tag_name },
+                  latest_eligible: {
+                    release_id: 1,
+                    release: { version: release.tag_name, asset: { sha256: "b".repeat(64) } },
+                  },
+                },
+              ]
+            : []),
+        ],
+      };
+    };
+    const raw = Buffer.from(
+      family === "n64-recomp"
+        ? gameEntryFixture
+        : JSON.stringify([{ name: "Fixture", sha1: "b".repeat(40) }]),
+    );
+    const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
+    const requests: string[] = [];
+    const runtimeRequests: string[] = [];
+    const buildRequests: string[] = [];
+    const jobLogs: [number, number][] = [];
+    const run = {
+      id: 70,
+      repository: { id: 7 },
+      head_repository: { id: 7 },
+      head_sha: "c".repeat(40),
+      event: "push",
+      status: "completed",
+      conclusion: "success",
+      run_attempt: 1,
+      workflow_id: 71,
+      path: ".github/workflows/release.yml",
+      run_started_at: "2026-10-26T12:00:00Z",
+      updated_at: "2026-10-26T12:05:00Z",
+    };
+    h.options.observeN64Runtime = family === "n64-recomp";
+    let gitlinkResponse: "deferred" | "incomplete" | "unsupported" = "deferred";
+    let tagSha = "c".repeat(40);
+    let retryAt: string | null = null;
+    h.options.readOriginalRecognition = async (repository, endpoint, account) => {
+      account.admitRequest();
+      if (endpoint.includes(`/contents/${n64RuntimeLinkPath}`)) {
+        runtimeRequests.push(endpoint);
+        if (gitlinkResponse === "deferred")
+          throw new ObservationFailure("budget", "fixture runtime metadata deferred");
+        return gitlinkResponse === "incomplete"
+          ? { path: n64RuntimeLinkPath, type: "submodule" }
+          : { path: n64RuntimeLinkPath, type: "dir", sha: "4".repeat(40) };
+      }
+      if (endpoint.includes("/actions/runs")) {
+        buildRequests.push(endpoint);
+        if (endpoint.includes("head_sha=")) return { total_count: 1, workflow_runs: [run] };
+        if (endpoint.includes("/attempts/1/jobs?"))
+          return {
+            total_count: 1,
+            jobs: [
+              {
+                id: 77,
+                run_id: 70,
+                run_attempt: 1,
+                head_sha: run.head_sha,
+                status: "completed",
+                conclusion: "success",
+                steps: [
+                  { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+                  {
+                    number: 10,
+                    name: "Build FixtureRecompiled",
+                    status: "completed",
+                    conclusion: "success",
+                  },
+                  {
+                    number: 12,
+                    name: "Archive game",
+                    status: "completed",
+                    conclusion: "success",
+                    started_at: "2026-10-26T12:03:00Z",
+                    completed_at: "2026-10-26T12:04:00Z",
+                  },
+                ],
+              },
+            ],
+          };
+        if (!endpoint.includes("/artifacts?")) return run;
+        return {
+          total_count: 1,
+          artifacts: [
+            {
+              id: 72,
+              digest: "sha256:" + "a".repeat(64),
+              expired: outputExpired,
+              size_in_bytes: 1024,
+              created_at: "2026-10-26T12:04:00Z",
+              workflow_run: {
+                id: 70,
+                repository_id: 7,
+                head_repository_id: 7,
+                head_sha: run.head_sha,
+              },
+            },
+          ],
+        };
+      }
+      requests.push(endpoint);
+      if (unavailable)
+        throw new ObservationFailure(unavailable, "fixture metadata deferred", retryAt);
+      const ref = endpoint.split("/git/ref/tags/")[1];
+      if (ref !== undefined)
+        return {
+          ref: `refs/tags/${ref}`,
+          object: { type: "commit", sha: tagSha },
+        };
+      if (endpoint.includes("/contents/"))
+        return {
+          type: "file",
+          path: sourcePath,
+          encoding: "base64",
+          size: raw.length,
+          content: raw.toString("base64"),
+          sha: createHash("sha1").update(`blob ${raw.length}\0`).update(raw).digest("hex"),
+        };
+      return { id: 7, full_name: repository };
+    };
+    const retained = (checkpoint: CatalogObserverCheckpoint) => {
+      const source = Object.values(checkpoint.sources).find(
+        (source) => source.repository === "owner/shared",
+      );
+      const policy = source?.last_complete_policies.find(
+        (policy) => policy.port_id === "stable-port",
+      );
+      return readOriginalSourceProgress(
+        policy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      );
+    };
+    const initial = await advanceCatalogObservations(authoringCatalog, null, h.options);
+    let observation = retained(initial.checkpoint);
+    assert.equal(observation?.state, "observed");
+    const fact = observation?.last_complete?.fact;
+    assert.equal(fact?.release_tag, "v1.0.0");
+    assert.equal(
+      fact?.coverage,
+      family === "n64-recomp" ? "source-declaration" : "recognition-only",
+    );
+    assert.ok(
+      requests.some((endpoint) => endpoint.endsWith(`/contents/${sourcePath}?ref=${tagSha}`)),
+    );
+    const stored = upstreamFacts(initial.checkpoint, authoringCatalog, h.options.now!()).facts;
+    const port = stored.get("port:stable-port");
+    assert.ok(isRecord(port) && Array.isArray(port.sources) && isRecord(port.sources[0]));
+    assert.deepEqual(port.sources[0][inputEvidenceKey(family)], observation);
+    assert.equal(requests.length, 4);
+
+    h.advanceClock(48 * 3600_000);
+    gitlinkResponse = "incomplete";
+    let refreshed = await advanceCatalogObservations(
+      authoringCatalog,
+      initial.checkpoint,
+      h.options,
+    );
+    let extraTagReads = 0;
+    if (family === "n64-recomp") {
+      assert.ok(fact?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(fact.runtime_source, { state: "unavailable" });
+      assert.deepEqual(retained(refreshed.checkpoint)?.last_complete, observation?.last_complete);
+      h.advanceClock(48 * 3600_000);
+      gitlinkResponse = "unsupported";
+      refreshed = await advanceCatalogObservations(
+        authoringCatalog,
+        refreshed.checkpoint,
+        h.options,
+      );
+      extraTagReads++;
+      assert.deepEqual(runtimeRequests, [
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+        `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
+      ]);
+      const refreshedObservation = retained(refreshed.checkpoint);
+      const refreshedFact = refreshedObservation?.last_complete?.fact;
+      assert.deepEqual(refreshedFact, {
+        ...fact,
+        runtime_source: { state: "unsupported-gitlink" },
+      });
+      observation = refreshedObservation;
+    } else {
+      assert.deepEqual(retained(refreshed.checkpoint), observation);
+      assert.equal(runtimeRequests.length, 0);
+    }
+    assert.equal(requests.length, 5 + extraTagReads);
+
+    let previous = refreshed.checkpoint;
+    if (family === "n64-recomp") {
+      // Feed the same retained runtime/header receipt shape the real observer reads.
+      // The unrelated synthetic game table above does not serve as runtime source.
+      const retainedPolicy = Object.values(previous.sources)
+        .find((source) => source.repository === "owner/shared")
+        ?.last_complete_policies.find((policy) => policy.port_id === "stable-port");
+      const sourceFact = observation?.last_complete?.fact;
+      assert.ok(
+        retainedPolicy &&
+          observation?.last_complete &&
+          sourceFact?.parser === "n64-recomp-game-entry-v1",
+      );
+      retainedPolicy[inputEvidenceKey(family)] = {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: {
+            ...sourceFact,
+            runtime_source: {
+              state: "observed",
+              source: {
+                repository: "N64Recomp/N64ModernRuntime",
+                repository_id: 802962241,
+                source_path: "librecomp/src/recomp.cpp",
+                revision: "a".repeat(40),
+                blob_sha1: "b".repeat(40),
+                source_sha256: "c".repeat(64),
+                input_blocks_sha256:
+                  "0c7cf4bad35b597ac6fd332cb9110907bf28ab182ab4e526bec3e641f0e21dbc",
+                matched_input_blocks: "n64modernruntime-padded-xxh3-call-sites-v1",
+                hash_source: {
+                  state: "observed",
+                  repository: "Cyan4973/xxHash",
+                  repository_id: 19330466,
+                  revision: "d".repeat(40),
+                  headers: [
+                    ["xxh3.h", "a927ee0e6e0800835baed52b16bc981ec39f46287271a1a3f77c22cc48634430"],
+                    [
+                      "xxhash.h",
+                      "ccc7934d982bfd4f51624e7fdd93a6c40bc3d5c33f66463b54e70c21932d9129",
+                    ],
+                  ].map(([source_path, source_sha256]) => ({
+                    source_path,
+                    source_blob_sha1: "e".repeat(40),
+                    source_sha256,
+                  })),
+                },
+              },
+            },
+          },
+        },
+      };
+      h.options.readN64BuildStepLog = async (repository, job, step, account) => {
+        account.admitRequest();
+        jobLogs.push([job, step]);
+        const lines =
+          step === 2
+            ? [
+                "##[group]Run actions/checkout@v4",
+                "Syncing repository: " + repository,
+                "Submodule path 'lib/N64ModernRuntime': checked out '" + "a".repeat(40) + "'",
+                "Submodule path 'lib/N64ModernRuntime/thirdparty/xxHash': checked out '" +
+                  "d".repeat(40) +
+                  "'",
+                run.head_sha,
+              ]
+            : step === 10
+              ? [
+                  "[100/103] Building CXX object lib/N64ModernRuntime/librecomp/CMakeFiles/librecomp.dir/src/recomp.cpp.o",
+                  "[102/103] Linking CXX static library lib/N64ModernRuntime/librecomp/liblibrecomp.a",
+                  "[103/103] Linking CXX executable FixtureRecompiled",
+                ]
+              : [
+                  "##[group]Run actions/upload-artifact@v4",
+                  "SHA256 digest of uploaded artifact zip is " + "a".repeat(64),
+                  "Artifact Build.zip successfully finalized. Artifact ID 72",
+                  "Artifact Build has been successfully uploaded! Final size is 1024 bytes. Artifact ID is 72",
+                ];
+        const bytes = Buffer.from(lines.map((line) => "2026-10-26T12:04:00Z " + line).join("\r\n"));
+        account.consumeResponseBytes(bytes.byteLength);
+        return bytes;
+      };
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(authoringCatalog, previous, h.options))
+        .checkpoint;
+      extraTagReads++;
+      observation = retained(previous);
+      const built = observation?.last_complete?.fact;
+      assert.ok(built?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(
+        built.build_outputs?.matches.map((match) => match.artifact_id),
+        [72],
+      );
+      assert.equal(built.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 4);
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+      ]);
+      assert.deepEqual(
+        built.build_jobs?.matches.map((match) => match.job_id),
+        [77],
+      );
+      const projected = upstreamFacts(previous, authoringCatalog, h.options.now!()).facts.get(
+        "port:stable-port",
+      );
+      assert.ok(
+        isRecord(projected) && Array.isArray(projected.sources) && isRecord(projected.sources[0]),
+      );
+      assert.deepEqual(projected.sources[0][inputEvidenceKey(family)], observation);
+
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(authoringCatalog, previous, h.options))
+        .checkpoint;
+      extraTagReads++;
+      observation = retained(previous);
+      const compiled = observation?.last_complete?.fact;
+      assert.ok(compiled?.parser === "n64-recomp-game-entry-v1");
+      assert.equal(compiled.build_jobs?.matches[0]?.compile?.executable, "FixtureRecompiled");
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+        [77, 10],
+      ]);
+      const readProjectedSource = (catalog: unknown) => {
+        const projectedBinding = upstreamFacts(previous, catalog, h.options.now!()).facts.get(
+          "port:stable-port",
+        );
+        assert.ok(
+          isRecord(projectedBinding) &&
+            Array.isArray(projectedBinding.sources) &&
+            isRecord(projectedBinding.sources[0]),
+        );
+        return projectedBinding.sources[0];
+      };
+      const plan = readProjectedSource(authoringCatalog).n64_original_binding_plan;
+      assert.ok(isRecord(plan));
+      assert.equal(plan.authority, "authoring-input-only");
+      assert.equal(plan.n64_recomp_inputs_v1, undefined);
+      assert.deepEqual(plan.platforms, [
+        {
+          platform: "linux-x86-64",
+          artifact_sha256: "a".repeat(64),
+          build_job_id: 77,
+          state: "legacy-contract-migration-required",
+          proposed_input: {
+            upstream_ref: "v1.0.0",
+            artifact_sha256: "a".repeat(64),
+            game_id: "fixture.us",
+            rom_xxh3_64: "0123456789abcdef",
+          },
+        },
+        { platform: "windows-x86-64", state: "no-current-artifact" },
+      ]);
+      const migratedSources = {
+        ...authoringCatalog.source_catalog,
+        contracts: authoringCatalog.source_catalog.contracts.map((contract) => ({
+          ...contract,
+          n64_recomp_inputs_v1: [
+            {
+              upstream_ref: "older",
+              artifact_sha256: "c".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "1111111111111111",
+            },
+          ],
+        })),
+      };
+      const port = authoringCatalog.ports[0];
+      assert.ok(observation?.last_complete && port);
+      const migratedScope = n64AuthoringScope(port, migratedSources);
+      assert.ok(migratedScope);
+      const migratedPlan = planN64OriginalBindings(port, migratedSources, {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: {
+            ...compiled,
+            authoring_scope_sha256: migratedScope,
+          },
+        },
+      });
+      assert.equal(migratedPlan?.platforms[0]?.state, "awaiting-effective-build-proof");
+      const successorObservation = {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: { ...compiled, authoring_scope_sha256: migratedScope },
+        },
+      };
+      assert.equal(
+        readProjectedSource(authoringCatalog).n64_original_contract_amendment,
+        undefined,
+      );
+      const runtime =
+        compiled.runtime_source?.state === "observed" ? compiled.runtime_source.source : undefined;
+      const hash = runtime?.hash_source?.state === "observed" ? runtime.hash_source : undefined;
+      const job = compiled.build_jobs?.matches[0];
+      assert.ok(runtime && hash && job?.compile);
+      const receipt = {
+        repository_id: compiled.repository_id,
+        release_id: compiled.release_id,
+        source_commit: compiled.source_commit,
+        source_blob_sha1: compiled.source_blob_sha1,
+        runtime_revision: runtime.revision,
+        hash_revision: hash.revision,
+        game_id: "fixture.us",
+        rom_xxh3_64: "0123456789abcdef",
+        review_url: "https://example.com/package-review",
+        reviewed_at: "2026-10-26",
+        packages: [
+          {
+            platform: "linux-x86-64",
+            layout_sha256: n64PackagedInputLayout(port, "linux-x86-64"),
+            artifact_sha256: "a".repeat(64),
+            job_id: job.job_id,
+            compile_sha256: job.compile.log_sha256,
+            executable_sha256: "e".repeat(64),
+          },
+        ],
+      };
+      const amendment = prepareN64OriginalContractAmendment(
+        port,
+        migratedSources,
+        successorObservation,
+        [port],
+        [receipt],
+      );
+      assert.equal(amendment?.requires_reader, 11);
+      assert.equal(amendment?.contract_id, "example-game");
+      assert.equal(amendment?.upstream_support_evidence.role, "upstream_support");
+      assert.deepEqual(amendment?.n64_recomp_inputs_v1, [
+        ...migratedSources.contracts[0]!.n64_recomp_inputs_v1,
+        {
+          upstream_ref: "v1.0.0",
+          artifact_sha256: "a".repeat(64),
+          game_id: "fixture.us",
+          rom_xxh3_64: "0123456789abcdef",
+        },
+      ]);
+      const sharedPackage = {
+        ...successorObservation,
+        last_complete: {
+          ...successorObservation.last_complete,
+          fact: {
+            ...successorObservation.last_complete.fact,
+            artifacts: [
+              ...compiled.artifacts,
+              { platform: "windows-x86-64", sha256: "a".repeat(64) },
+            ],
+          },
+        },
+      };
+      assert.equal(
+        prepareN64OriginalContractAmendment(
+          port,
+          migratedSources,
+          sharedPackage,
+          [port],
+          [receipt],
+        ),
+        undefined,
+      );
+      assert.equal(
+        prepareN64OriginalContractAmendment(
+          port,
+          migratedSources,
+          successorObservation,
+          [port],
+          [{ ...receipt, rom_xxh3_64: "f".repeat(16) }],
+        ),
+        undefined,
+      );
+
+      const reobservedAmendment = (
+        changedPort: typeof port & Record<string, unknown>,
+        changedSources: typeof migratedSources,
+        consumers: readonly unknown[] = [changedPort],
+      ) =>
+        prepareN64OriginalContractAmendment(
+          changedPort,
+          changedSources,
+          {
+            ...successorObservation,
+            last_complete: {
+              ...successorObservation.last_complete,
+              fact: {
+                ...compiled,
+                authoring_scope_sha256: n64AuthoringScope(changedPort, changedSources)!,
+              },
+            },
+          },
+          consumers,
+          [receipt],
+        );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            executable_hints: { "linux-x86-64": ["Alternate", "FixtureRecompiled"] },
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            runtime_subdirectory: "alternate-root",
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            runtime_source_materialization: "copy",
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(port, migratedSources, [
+          port,
+          { id: "dependent", bios_source_profile: "example" },
+        ]),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(port, migratedSources, [port, { ...port, id: "dependent" }]),
+        undefined,
+      );
+      const equivalentSources = {
+        ...migratedSources,
+        contracts: migratedSources.contracts.map((contract) => ({
+          ...contract,
+          n64_recomp_inputs_v1: [
+            ...contract.n64_recomp_inputs_v1,
+            {
+              upstream_ref: "v1.0.0",
+              artifact_sha256: "A".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "0123456789ABCDEF",
+            },
+          ],
+        })),
+      };
+      assert.equal(reobservedAmendment(port, equivalentSources), undefined);
+      const conflictingSources = structuredClone(equivalentSources);
+      conflictingSources.contracts[0]!.n64_recomp_inputs_v1[1]!.rom_xxh3_64 = "F".repeat(16);
+      assert.equal(reobservedAmendment(port, conflictingSources), undefined);
+      const changedDefinition = {
+        ...authoringCatalog,
+        ports: authoringCatalog.ports.map((port) =>
+          port.id === "stable-port"
+            ? {
+                ...port,
+                release: { ...port.release, asset_hints: { "linux-x86-64": ["new-archive.zip"] } },
+              }
+            : port,
+        ),
+      };
+      const stale = readProjectedSource(changedDefinition);
+      assert.equal(stale.n64_original_binding_plan, undefined);
+      assert.deepEqual(stale[inputEvidenceKey(family)], observation);
+      const changedContract = {
+        ...authoringCatalog,
+        source_catalog: {
+          ...authoringCatalog.source_catalog,
+          contracts: authoringCatalog.source_catalog.contracts.map((contract) => ({
+            ...contract,
+            admission_mode: "informational",
+          })),
+        },
+      };
+      assert.equal(readProjectedSource(changedContract).n64_original_binding_plan, undefined);
+
+      additionalPlatform = true;
+      outputExpired = true;
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(authoringCatalog, previous, h.options))
+        .checkpoint;
+      extraTagReads += 4;
+      observation = retained(previous);
+      const expanded = observation?.last_complete?.fact;
+      assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
+      assert.deepEqual(expanded.build_jobs?.matches, compiled.build_jobs?.matches);
+      const expandedPlan = readProjectedSource(authoringCatalog).n64_original_binding_plan;
+      assert.ok(isRecord(expandedPlan) && Array.isArray(expandedPlan.platforms));
+      assert.deepEqual(expandedPlan.platforms[1], {
+        platform: "windows-x86-64",
+        artifact_sha256: "b".repeat(64),
+        state: "awaiting-build",
+      });
+      assert.notEqual(expanded.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 7);
+      assert.equal(jobLogs.length, 3);
+    }
+
+    h.advanceClock(48 * 3600_000);
+    tagSha = "d".repeat(40);
+    const moved = await advanceCatalogObservations(authoringCatalog, previous, h.options);
+    assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
+    assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(requests.length, 6 + extraTagReads);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 7 : 0);
+
+    h.advanceClock(48 * 3600_000);
+    h.bumpRelease();
+    unavailable = "budget";
+    const deferred = await advanceCatalogObservations(
+      authoringCatalog,
+      moved.checkpoint,
+      h.options,
+    );
+    assert.equal(retained(deferred.checkpoint)?.state, "budget");
+    assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(deferred.report.completed_source_keys.length, 2);
+    assert.equal(requests.length, 7 + extraTagReads);
+
+    h.advanceClock(48 * 3600_000);
+    unavailable = "rate-limit";
+    h.setQuota(100);
+    retryAt = new Date(h.options.now!() + 100_000).toISOString();
+    const limited = await advanceCatalogObservations(
+      authoringCatalog,
+      deferred.checkpoint,
+      h.options,
+    );
+    assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
+    assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
+    assert.equal(limited.checkpoint.provider_retry_at, retryAt);
+    const secondPolicy = Object.values(limited.checkpoint.sources)
+      .find((source) => source.repository === "owner/shared")
+      ?.last_complete_policies.find((policy) => policy.port_id === "stable-port-second");
+    assert.equal(
+      readOriginalSourceProgress(
+        secondPolicy?.[inputEvidenceKey(family)],
+        {
+          repository: "owner/shared",
+          repository_id: 7,
+        },
+        family,
+      )?.state,
+      "budget",
+    );
+    const projected = upstreamFacts(
+      limited.checkpoint,
+      authoringCatalog,
+      h.options.now!(),
+    ).facts.get("port:stable-port");
+    assert.ok(isRecord(projected) && Array.isArray(projected.sources));
+    const source: unknown = projected.sources.find(
+      (value: unknown) => isRecord(value) && value.repository === "owner/shared",
+    );
+    assert.ok(isRecord(source));
+    assert.deepEqual(source[inputEvidenceKey(family)], retained(limited.checkpoint));
+  });
+}
+
 void test("unknown quota admits finite batches, durable turns prevent starvation, and completed sources are not refetched", async () => {
   const h = harness(2);
   let state: CatalogObserverCheckpoint | null = null;
@@ -1115,6 +1903,181 @@ void test("untouched managed sources are admitted before listing-only sources", 
     .filter((position) => position !== -1);
   assert.ok(managed.every((source) => order.includes(source.key)));
   assert.ok(listingPositions.every((position) => position > lastManaged));
+});
+
+void test("hosted recovery rotates stale sources through ordinary managed backlog", () => {
+  const hour = 3_600_000;
+  const now = Date.parse("2026-11-21T04:37:34.422Z");
+  const clock = (age: number) => new Date(now - age * hour).toISOString();
+  const turn = (
+    key: string,
+    attemptedSequence: number,
+    freshnessObservedAt: string | null,
+    managed = false,
+    appointment = false,
+  ) => ({ key, attemptedSequence, freshnessObservedAt, managed, appointment });
+  const stale = turn("stale", 7, clock(20));
+  const never = turn("never", -1, null);
+  const recentlyFailed = turn("exception", 21, null);
+  const ordinary = Array.from({ length: 9 }, (_, index) =>
+    turn(`ordinary-${index}`, index, clock(8), true),
+  );
+  const candidates = [
+    ...ordinary,
+    recentlyFailed,
+    stale,
+    never,
+    turn("fresh-listing", 0, clock(8)),
+    turn("critical", 9, clock(11.99), true),
+    turn("appointed", 30, clock(6), false, true),
+  ];
+  const limits = { now, deadline: now + 60_000, freshnessMs: 12 * hour };
+  const order = (turns: typeof candidates) =>
+    orderHostedObservationTurns(turns, limits).map(({ key }) => key);
+  assert.deepEqual(order(candidates), [
+    "appointed",
+    "critical",
+    "never",
+    "ordinary-0",
+    "ordinary-1",
+    "ordinary-2",
+    "stale",
+    "ordinary-3",
+    "ordinary-4",
+    "ordinary-5",
+    "exception",
+    "ordinary-6",
+    "ordinary-7",
+    "ordinary-8",
+    "fresh-listing",
+  ]);
+  assert.deepEqual(
+    order(
+      candidates.map((item) => (item === never ? { ...item, attemptedSequence: 32 } : item)),
+    ).slice(0, 3),
+    ["appointed", "critical", "stale"],
+  );
+});
+
+void test("hosted listing turns protect expiring managed work and reduce purely descriptive debt", async () => {
+  const h = harness();
+  const input = {
+    ...h.input,
+    listings: ["alpha", "beta", "gamma"].map((name) => ({
+      id: `listing-${name}`,
+      name: `Listing ${name}`,
+      summary: "Descriptive fixture",
+      project_url: `https://github.com/listing-owner/${name}`,
+    })),
+  };
+  const { sources } = catalogObservationSources(input);
+  const critical = sources.find((source) => source.repository === "owner/shared")!;
+  const ordinary = sources.find((source) => source.repository === "owner/other")!;
+  const listings = sources
+    .filter((source) => source.repository.startsWith("listing-owner/"))
+    .sort((a, b) => a.key.localeCompare(b.key));
+  const [deferred, oldest, next] = listings;
+  assert.ok(deferred && oldest && next);
+  const listingIds = new Map(listings.map((source, index) => [source.repository, 20 + index]));
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    repositoryId: async (source, transport) => {
+      const id = listingIds.get(source.repository);
+      if (id === undefined) return h.options.repositoryId(source, transport);
+      transport.admitRequest();
+      return id;
+    },
+    fetch: async (url, init) => {
+      const pathname = new URL(url).pathname;
+      for (const [repository, id] of listingIds) {
+        if (pathname === `/repos/${repository}`)
+          return new Response(JSON.stringify({ id, full_name: repository, archived: false }), {
+            headers: { "content-type": "application/json" },
+          });
+        if (pathname.startsWith(`/repos/${repository}/`))
+          return new Response("[]", { headers: { "content-type": "application/json" } });
+      }
+      return h.options.fetch!(url, init);
+    },
+  };
+  const first = await advanceCatalogObservations(input, null, {
+    ...options,
+    excludedSources: new Set([oldest.key, next.key]),
+  });
+  const initial = first.checkpoint.sources[critical.key]?.freshness_observed_at;
+  assert.ok(initial);
+  const hour = 3600000;
+  h.advanceClock(6 * hour);
+  const fresh = await advanceCatalogObservations(input, first.checkpoint, {
+    ...options,
+    excludedSources: new Set([critical, ...listings].map(({ key }) => key)),
+  });
+  const verified = fresh.checkpoint.sources[ordinary.key]?.freshness_observed_at;
+  assert.ok(verified && verified !== initial);
+  h.advanceClock(6 * hour - 60000);
+  const prior = fresh.checkpoint;
+  // Ordinary due work is older in rotation than the freshness-critical source.
+  // The reservation must protect the latter even when order alone would not.
+  prior.sources[ordinary.key]!.attempted_sequence = 1;
+  prior.sources[critical.key]!.attempted_sequence = prior.sequence;
+  prior.sources[deferred.key]!.retry_at = new Date(options.now!() + hour).toISOString();
+  const baselineTime = options.now!();
+  const perBatch = options.config.budget.duration_ms;
+  const displace = {
+    ...options,
+    policyIdentity: "b".repeat(64),
+    project: async (...args: Parameters<CatalogObservationOptions["project"]>) => {
+      if (args[0] === "other-port") h.advanceClock(perBatch);
+      return options.project(...args);
+    },
+  };
+  const beforeSourceCheckpoints = new Map(h.states);
+  const baseline = await advanceCatalogObservations(input, prior, displace);
+  assert.deepEqual(baseline.report.attempted_source_keys, [ordinary.key]);
+  h.advanceClock(baselineTime - options.now!());
+  h.states.clear();
+  for (const [key, value] of beforeSourceCheckpoints) h.states.set(key, value);
+
+  const reserved = await advanceCatalogObservations(input, prior, {
+    ...displace,
+    rotateStaleSources: true,
+  });
+  assert.deepEqual(reserved.report.attempted_source_keys, [critical.key, oldest.key, ordinary.key]);
+  assert.ok(reserved.report.completed_source_keys.includes(oldest.key));
+  assert.equal(reserved.checkpoint.sources[next.key], undefined);
+  assert.deepEqual(reserved.checkpoint.sources[deferred.key], prior.sources[deferred.key]);
+  for (const source of [critical, ordinary]) {
+    assert.equal(
+      reserved.checkpoint.sources[source.key]?.freshness_observed_at,
+      baseline.checkpoint.sources[source.key]?.freshness_observed_at,
+    );
+  }
+  const retained = reserved.checkpoint.sources[oldest.key]!;
+  assert.ok(retained.freshness_observed_at && retained.completed_at && retained.next_due_at);
+
+  const empty = await advanceCatalogObservations(input, reserved.checkpoint, {
+    ...options,
+    requestLimit: 0,
+    excludedSources: new Set([critical.key, ordinary.key]),
+    rotateStaleSources: true,
+  });
+  assert.equal(empty.report.requests, 0);
+  assert.deepEqual(empty.report.attempted_source_keys, []);
+  assert.deepEqual(empty.checkpoint, reserved.checkpoint);
+
+  const resumed = await advanceCatalogObservations(input, empty.checkpoint, {
+    ...options,
+    policyIdentity: displace.policyIdentity,
+    rotateStaleSources: true,
+  });
+  assert.ok(resumed.report.completed_source_keys.includes(next.key));
+  assert.equal(resumed.report.attempted_source_keys[0], critical.key);
+  assert.deepEqual(resumed.checkpoint.sources[oldest.key], retained);
+  assert.deepEqual(resumed.checkpoint.sources[deferred.key], prior.sources[deferred.key]);
+  assert.ok(
+    Date.parse(resumed.checkpoint.sources[critical.key]!.freshness_observed_at!) >
+      Date.parse(initial),
+  );
 });
 
 void test("failing managed sources rejoin ordinary rotation instead of starving listings", async () => {
@@ -3062,6 +4025,131 @@ void test("descriptive consumers share one repository collection without managed
   assert.equal(h.network.filter((url) => url === "identity:owner/shared").length, 1);
 });
 
+void test("Core rebuilds retain pure listing completion and invalidate exact managed and mixed scopes", async () => {
+  const h = harness();
+  const catalog = {
+    ...h.input,
+    listings: [
+      { id: "pure-description", project_url: "https://github.com/owner/pure" },
+      { id: "mixed-description", project_url: "https://github.com/owner/shared" },
+    ],
+  };
+  const sources = catalogObservationSources(catalog).sources;
+  const pure = sources.find((source) => source.repository === "owner/pure")!;
+  const managed = sources.filter((source) => source.key !== pure.key);
+  const originalFetch = h.options.fetch!;
+  h.options.fetch = async (input, init) => {
+    const url = new URL(input);
+    if (url.pathname.endsWith("/owner/pure")) {
+      return Response.json({ id: 8, full_name: "owner/pure", archived: false });
+    }
+    return originalFetch(input, init);
+  };
+  const previousBinding = (source: (typeof sources)[number], policy = h.options.policyIdentity) =>
+    observationHash({
+      contract: "normalized-current-catalog-core-policy-v1",
+      policy,
+      scope: source.scope_sha256,
+      definitions: source.ports.map((port) => [
+        port.id,
+        port.kind === "listing" ? port.definition_sha256 : h.options.definitionHash(port.id),
+      ]),
+    });
+  const first = await advanceCatalogObservations(catalog, null, h.options);
+  assert.deepEqual(first.report.failures, []);
+  for (const source of managed) {
+    assert.equal(
+      first.checkpoint.sources[source.key]!.completed_scope_sha256,
+      previousBinding(source),
+    );
+  }
+  const pureProgress = first.checkpoint.sources[pure.key]!;
+  assert.ok(pureProgress.completed_scope_sha256);
+  assert.equal(
+    pureProgress.last_complete_policies[0]!.authority,
+    "descriptive-listing-observation-only",
+  );
+  assert.deepEqual(pureProgress.last_complete_policies[0]!.projections, []);
+
+  h.advanceClock(1000);
+  const rebuilt = await advanceCatalogObservations(catalog, first.checkpoint, {
+    ...h.options,
+    policyIdentity: "b".repeat(64),
+    requestLimit: 0,
+  });
+  assert.deepEqual(rebuilt.report.failures, []);
+  assert.equal(rebuilt.report.requests, 0);
+  assert.deepEqual(
+    rebuilt.report.attempted_source_keys.toSorted(),
+    managed.map(({ key }) => key).toSorted(),
+  );
+  assert.deepEqual(rebuilt.checkpoint.sources[pure.key], pureProgress);
+  for (const source of managed) {
+    assert.equal(
+      rebuilt.checkpoint.sources[source.key]!.completed_scope_sha256,
+      previousBinding(source, "b".repeat(64)),
+    );
+  }
+
+  const legacy = structuredClone(first.checkpoint);
+  const priorPure = legacy.sources[pure.key]!;
+  priorPure.completed_scope_sha256 = previousBinding(pure);
+  priorPure.change_intervals = 2;
+  priorPure.mean_change_interval_ms = 20 * 3600000;
+  priorPure.next_due_at = new Date(h.options.now!() + 8 * 3600000).toISOString();
+  const deferred = await advanceCatalogObservations(catalog, legacy, {
+    ...h.options,
+    excludedSources: new Set(sources.map(({ key }) => key)),
+  });
+  assert.equal(
+    deferred.report.source_statuses.find((source) => source.source_key === pure.key)
+      ?.current_scope_complete,
+    false,
+  );
+  const reprojected = await advanceCatalogObservations(catalog, deferred.checkpoint, {
+    ...h.options,
+    requestLimit: 0,
+  });
+  assert.deepEqual(reprojected.report.failures, []);
+  assert.deepEqual(reprojected.report.completed_source_keys, [pure.key]);
+  assert.equal(reprojected.report.requests, 0);
+  const currentPure = reprojected.checkpoint.sources[pure.key]!;
+  assert.equal(currentPure.completed_scope_sha256, pureProgress.completed_scope_sha256);
+  for (const key of [
+    "last_complete_facts_sha256",
+    "freshness_observed_at",
+    "completed_at",
+    "last_change_at",
+    "change_intervals",
+    "mean_change_interval_ms",
+    "next_due_at",
+  ] as const)
+    assert.equal(currentPure[key], priorPure[key], key);
+
+  const revised = await advanceCatalogObservations(catalog, reprojected.checkpoint, {
+    ...h.options,
+    config: { ...h.options.config, stale_after_hours: 24 },
+    excludedSources: new Set([pure.key]),
+  });
+  assert.equal(
+    revised.report.source_statuses.find((source) => source.source_key === pure.key)
+      ?.current_scope_complete,
+    false,
+  );
+
+  priorPure.next_due_at = new Date(h.options.now!()).toISOString();
+  const due = await advanceCatalogObservations(catalog, legacy, { ...h.options, requestLimit: 0 });
+  assert.ok(!due.report.attempted_source_keys.includes(pure.key));
+  assert.equal(due.checkpoint.sources[pure.key]!.completed_scope_sha256, previousBinding(pure));
+  const refreshed = await advanceCatalogObservations(catalog, due.checkpoint, h.options);
+  assert.ok(refreshed.report.requests > 0);
+  assert.ok(refreshed.report.completed_source_keys.includes(pure.key));
+  assert.equal(
+    refreshed.checkpoint.sources[pure.key]!.freshness_observed_at,
+    new Date(h.options.now!()).toISOString(),
+  );
+});
+
 void test("descriptive projection retains asset identity without manufacturing package or managed eligibility", async () => {
   const { projectListingObservation, listingDeclarationHash } =
     await import("./listing-upstream-observation.mts");
@@ -3348,7 +4436,8 @@ void test("GitLab descriptive listings reuse the provider collector and export n
   const catalog = { ports: [], listings: [listing] };
   const calls: string[] = [];
   let exported: unknown[] = [];
-  const result = await advanceCatalogObservations(catalog, null, {
+  let providerObservations: Record<string, unknown>[] = [];
+  const options: CatalogObservationOptions = {
     ...h.options,
     projectProvider: async () => {
       throw new Error("Descriptive listing must never enter managed Core policy");
@@ -3389,10 +4478,12 @@ void test("GitLab descriptive listings reuse the provider collector and export n
         headers: { "x-page": "1", "x-per-page": "100", "x-next-page": "" },
       });
     },
-    exportProvider: async (_source, _observations, policies) => {
+    exportProvider: async (_source, observations, policies) => {
       exported = policies;
+      providerObservations = observations;
     },
-  });
+  };
+  const result = await advanceCatalogObservations(catalog, null, options);
   assert.deepEqual(result.report.failures, []);
   assert.equal(result.report.completed_source_keys.length, 1);
   assert.equal(calls.length, 4);
@@ -3420,6 +4511,86 @@ void test("GitLab descriptive listings reuse the provider collector and export n
       url: "https://gitlab.com/api/v4/projects/27/packages/generic/game/1.2.0/game-windows-x64.zip",
     },
   ]);
+  const key = result.report.completed_source_keys[0]!;
+  let registryRequests = 0;
+  let gitLabRequests = 0;
+  const bounded = await advanceCatalogObservations(catalog, null, {
+    ...options,
+    requestLimit: 2,
+    exportProvider: async () => {},
+    modProviderRegistryFetch: async () => {
+      registryRequests++;
+      return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+    },
+    providerFetch: async () => {
+      gitLabRequests++;
+      return Response.json({ id: 27, path_with_namespace: "owner/subgroup/lab", archived: false });
+    },
+  });
+  assert.equal(registryRequests, 1);
+  assert.equal(gitLabRequests, 1);
+  assert.equal(bounded.report.requests, 2);
+  h.advanceClock(1000);
+  const rebuilt = await advanceCatalogObservations(catalog, result.checkpoint, {
+    ...options,
+    policyIdentity: "b".repeat(64),
+  });
+  assert.equal(calls.length, 4);
+  assert.deepEqual(rebuilt.report.attempted_source_keys, []);
+  assert.deepEqual(rebuilt.checkpoint.sources[key], result.checkpoint.sources[key]);
+  assert.equal(rebuilt.report.source_statuses[0]!.current_scope_complete, true);
+
+  const legacy = structuredClone(result.checkpoint);
+  const prior = legacy.sources[key]!;
+  prior.completed_scope_sha256 = "f".repeat(64);
+  const providerCompletion = providerObservations[0]?.completed_at;
+  assert.equal(typeof providerCompletion, "string");
+  prior.completed_at = new Date(Date.parse(prior.completed_at!) + 250).toISOString();
+  prior.change_intervals = 2;
+  prior.mean_change_interval_ms = 16 * 3600000;
+  const migrated = await advanceCatalogObservations(catalog, legacy, options);
+  assert.deepEqual(migrated.report.failures, []);
+  assert.deepEqual(migrated.report.completed_source_keys, [key]);
+  assert.equal(calls.length, 4);
+  const migratedSource = migrated.checkpoint.sources[key]!;
+  for (const field of [
+    "last_complete_facts_sha256",
+    "completed_at",
+    "freshness_observed_at",
+    "last_change_at",
+    "change_intervals",
+    "mean_change_interval_ms",
+    "next_due_at",
+  ] as const)
+    assert.equal(migratedSource[field], prior[field], field);
+  assert.equal(providerObservations[0]?.completed_at, providerCompletion);
+
+  const tightenedConfig = { ...options.config, stale_after_hours: 6 };
+  const tightened = await advanceCatalogObservations(catalog, legacy, {
+    ...options,
+    config: tightenedConfig,
+  });
+  assert.equal(calls.length, 4);
+  assert.equal(
+    tightened.checkpoint.sources[key]!.next_due_at,
+    new Date(
+      Date.parse(prior.freshness_observed_at!) +
+        tightenedConfig.stale_after_hours * 3600000 -
+        tightenedConfig.budget.duration_ms,
+    ).toISOString(),
+  );
+  assert.equal(tightened.checkpoint.sources[key]!.completed_at, prior.completed_at);
+
+  prior.next_due_at = new Date(h.options.now!()).toISOString();
+  const refreshed = await advanceCatalogObservations(catalog, legacy, options);
+  assert.deepEqual(refreshed.report.failures, []);
+  assert.deepEqual(refreshed.report.completed_source_keys, [key]);
+  assert.equal(calls.length, 8);
+  assert.equal(
+    refreshed.checkpoint.sources[key]!.completed_at,
+    new Date(h.options.now!()).toISOString(),
+  );
+  assert.equal(providerObservations[0]?.completed_at, new Date(h.options.now!()).toISOString());
 });
 
 void test("descriptive provider identity refuses arbitrary hosts and reports unsupported observation without release absence", async () => {
@@ -3572,4 +4743,156 @@ void test("GitLab provider failures export a descriptive failure candidate witho
   const state = Object.values(result.checkpoint.sources)[0]!;
   assert.equal(state.freshness_observed_at, null);
   assert.equal(state.last_complete_facts_sha256, null);
+});
+
+void test("the mod-provider registry keeps exact discovery evidence across observer restart and incomplete reads", async () => {
+  const h = harness();
+  const { upstreamFacts } = await import("./maintenance-upstream.mts");
+  const { thunderstoreRegistrySubject, thunderstoreRegistryUrl } =
+    await import("./upstream-mod-provider-registry.mts");
+  const ship = {
+    uuid: "9fb26233-032a-43e3-bbe7-6e058f5daf15",
+    label: "ship-of-harkinian",
+    thunderstore: { listed: true, wikiUrl: "https://gamebanana.com/games/16121" },
+  };
+  const twoShip = {
+    uuid: "245724c1-1b08-4fd5-b827-1e9816bda1e1",
+    label: "2-ship-2-harkinian",
+    thunderstore: { listed: false, wikiUrl: "https://gamebanana.com/games/20371" },
+  };
+  const registry = (...games: (typeof ship)[]) => ({
+    schemaVersion: "0.3.0",
+    games: Object.fromEntries(games.map((game) => [game.label, game])),
+    communities: Object.fromEntries(games.map((game) => [game.label, game.thunderstore])),
+  });
+  let response = () => Response.json(registry(ship, twoShip));
+  let requests = 0;
+  h.options.modProviderRegistryFetch = async (url, init) => {
+    assert.equal(
+      url instanceof URL ? url.href : typeof url === "string" ? url : url.url,
+      thunderstoreRegistryUrl,
+    );
+    assert.equal(init?.redirect, "manual");
+    assert.equal(new Headers(init?.headers).get("Authorization"), null);
+    requests++;
+    return response();
+  };
+  const observe = (prior: CatalogObserverCheckpoint | null) =>
+    advanceCatalogObservations(h.input, prior, h.options);
+  const first = await observe(null);
+  const complete = first.checkpoint.mod_provider_registry?.last_complete;
+  assert.ok(complete);
+  assert.equal(requests, 1);
+  assert.deepEqual(complete.communities, [
+    {
+      community: twoShip.label,
+      game_uuid: twoShip.uuid,
+      listed: false,
+      gamebanana_game: 20371,
+    },
+    {
+      community: ship.label,
+      game_uuid: ship.uuid,
+      listed: true,
+      gamebanana_game: 16121,
+    },
+  ]);
+  const published = upstreamFacts(first.checkpoint, h.input, h.options.now!());
+  assert.equal(published.expected, h.input.ports.length + 1);
+  assert.ok(published.facts.has(thunderstoreRegistrySubject));
+  assert.ok(first.report.completed_source_keys.length > 0);
+
+  const saved: unknown = JSON.parse(JSON.stringify(h.snapshots.at(-1)));
+  const restarted = await observe(validateCatalogObserverCheckpoint(saved, h.options.now!()));
+  assert.equal(requests, 1);
+  assert.deepEqual(restarted.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    new Response(Buffer.alloc(h.options.config.budget.response_bytes + 1), {
+      status: 429,
+      headers: { "retry-after": new Date(h.options.now!() + 120000).toUTCString() },
+    });
+  const limited = await observe(restarted.checkpoint);
+  assert.equal(limited.checkpoint.mod_provider_registry?.exception, "rate-limit");
+  assert.deepEqual(limited.checkpoint.mod_provider_registry?.last_complete, complete);
+  assert.equal(limited.checkpoint.provider_retry_at, null);
+  assert.ok(limited.report.completed_source_keys.length > 0);
+  const held = upstreamFacts(limited.checkpoint, h.input, h.options.now!());
+  assert.equal(held.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(held.gaps.some((gap) => gap.subject_key === thunderstoreRegistrySubject));
+  await observe(limited.checkpoint);
+  assert.equal(requests, 2);
+  const controller = new AbortController();
+  let beforeSource: CatalogObserverCheckpoint | undefined;
+  await advanceCatalogObservations(h.input, restarted.checkpoint, {
+    ...h.options,
+    signal: controller.signal,
+    commit: async (checkpoint) => {
+      beforeSource ??= structuredClone(checkpoint);
+    },
+    withSourceLock: async () => {
+      controller.abort();
+      throw new ObservationFailure("cancelled", "fixture cancelled the source turn");
+    },
+  });
+  assert.equal(controller.signal.aborted, true);
+  assert.ok(beforeSource);
+  assert.deepEqual(beforeSource.mod_provider_registry, limited.checkpoint.mod_provider_registry);
+  await observe(beforeSource);
+  assert.equal(requests, 3);
+
+  h.advanceClock(120000);
+  response = () => Response.json(registry(ship));
+  const incomplete = await observe(limited.checkpoint);
+  assert.equal(incomplete.checkpoint.mod_provider_registry?.exception, "identity-changed");
+  assert.deepEqual(incomplete.checkpoint.mod_provider_registry?.last_complete, complete);
+
+  h.advanceClock(h.options.config.cadence_hours * 3600000);
+  response = () =>
+    Response.json(
+      registry(ship, {
+        ...twoShip,
+        thunderstore: { listed: false, wikiUrl: "https://example.com/games/20371" },
+      }),
+    );
+  const recovered = await observe(incomplete.checkpoint);
+  assert.equal(recovered.checkpoint.mod_provider_registry?.exception, null);
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.gamebanana_game,
+    null,
+  );
+  assert.equal(
+    recovered.checkpoint.mod_provider_registry?.last_complete?.communities[0]?.game_uuid,
+    twoShip.uuid,
+  );
+  assert.ok(
+    upstreamFacts(recovered.checkpoint, h.input, h.options.now!()).facts.has(
+      thunderstoreRegistrySubject,
+    ),
+  );
+  h.advanceClock(h.options.config.stale_after_hours * 3600000);
+  const expired = upstreamFacts(recovered.checkpoint, h.input, h.options.now!());
+  assert.equal(expired.facts.has(thunderstoreRegistrySubject), false);
+  assert.ok(
+    expired.gaps.some(
+      (gap) => gap.subject_key === thunderstoreRegistrySubject && gap.code === "stale",
+    ),
+  ); // Ordinary source growth must not replace a readable recovered controller
+  // with a checkpoint that cannot be read on the next scheduled run.
+  const retainedRegistry = recovered.checkpoint.mod_provider_registry;
+  assert.ok(retainedRegistry);
+  const large = {
+    ...newCatalogObserverCheckpoint(),
+    mod_provider_registry: retainedRegistry,
+    fixture_padding: "",
+  };
+  large.fixture_padding = "x".repeat(
+    32 * 1024 * 1024 - Buffer.byteLength(JSON.stringify(large)) - 8,
+  );
+  const written = h.snapshots.length;
+  const registryRequestsBeforeHold = requests;
+  await assert.rejects(observe(large), /exceed the checkpoint envelope/u);
+  assert.equal(h.snapshots.length, written);
+  assert.equal(requests, registryRequestsBeforeHold);
 });

@@ -61,6 +61,73 @@ fn fixture(active: bool) -> (tempfile::TempDir, PortcoveService, InstallRecord) 
     (temporary, service, install)
 }
 
+#[test]
+fn nested_portable_launch_collects_data_beside_the_selected_executable() {
+    let platform = Platform::current().unwrap();
+    let (directory, player) = match platform {
+        Platform::WindowsX86_64 => ("BeetleRecomp-Windows-x64", "BeetleRecomp.exe"),
+        Platform::LinuxX86_64 => ("BeetleRecomp-Linux-x64", "BeetleRecomp"),
+        _ => return,
+    };
+    let id = "beetle-recomp";
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let port = service.catalog.port(id).unwrap();
+    let root = library.versions_dir().join(id).join("fixture");
+    let runtime = root.join(directory);
+    executable(&runtime, player);
+    let artifact = crate::ArtifactIdentity {
+        asset_name: "inert-fixture.zip".into(),
+        sha256: "a".repeat(64),
+        size: 1,
+    };
+    let qualification = InstallQualification::from_catalog(&service.catalog, id, platform).unwrap();
+    let (manifest_sha256, selected_executable, retained_runtime) = Installer::new(library.clone())
+        .unwrap()
+        .create_manifest("fixture", id, "fixture", &artifact, &qualification, &root)
+        .unwrap();
+    let install = InstallRecord {
+        id: "fixture".into(),
+        port_id: id.into(),
+        version: "fixture".into(),
+        path: root,
+        channel: ReleaseChannel::Stable,
+        installed_at: 0,
+        verified: true,
+        staged: false,
+        artifact,
+        runtime: retained_runtime,
+        manifest_sha256,
+        selected_executable,
+    };
+    library.register_install(&install, true).unwrap();
+    let source = temporary.path().join("beetle.z64");
+    let original = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+    fs::write(&source, original).unwrap();
+    let spec = crate::adapter::AdapterRegistry
+        .get(crate::AdapterKind::N64RecompPortable)
+        .prepare_launch(&library, port, platform, &install.path, Some(&source))
+        .unwrap();
+
+    assert_eq!(spec.working_directory, runtime);
+    assert!(runtime.join("portable.txt").is_file());
+    assert_eq!(fs::read(runtime.join("bar.n64.us.z64")).unwrap(), original);
+    assert!(!install.path.join("portable.txt").exists());
+    assert!(!install.path.join("bar.n64.us.z64").exists());
+    write(&runtime, "saves/slot.bin", b"fixture progress");
+    write(&install.path, LAUNCH_MARKER, b"");
+    service
+        .collect_user_data_from_install(id, &install.path)
+        .unwrap();
+    assert_eq!(
+        fs::read(library.user_dir(id).join(directory).join("saves/slot.bin")).unwrap(),
+        b"fixture progress"
+    );
+    assert!(!library.user_dir(id).join("saves/slot.bin").exists());
+    assert_eq!(fs::read(source).unwrap(), original);
+}
+
 fn assert_preserved(service: &PortcoveService, install: &InstallRecord) {
     assert_eq!(
         fs::read(install.path.join("save.lua")).unwrap(),

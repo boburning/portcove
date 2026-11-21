@@ -44,6 +44,7 @@
       ]
     }
   },
+  "psx_managed_windows_v1": "technically-computers-input-files",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -65,18 +66,6 @@
       "macos-x86-64": ["Final_Fantasy_7"],
       "macos-aarch64": ["Final_Fantasy_7"]
     },
-    "persistent_paths": [
-      "saves",
-      "config",
-      "mods",
-      "settings.toml",
-      "game_options.json",
-      "graphics.json",
-      "input.json",
-      "sound.json",
-      "input.ini",
-      "keybinds.ini"
-    ],
     "runtime_mutable_paths": [
       "bios.cfg",
       "disc.cfg",

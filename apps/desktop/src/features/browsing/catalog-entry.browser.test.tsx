@@ -159,7 +159,9 @@ it("carries reviewed listing identity and media from grouped old definitions int
   await expect.element(enlarge).toBeEnabled();
   await enlarge.click();
   const viewer = page.getByRole("dialog");
-  await expect.element(viewer.getByText(/Original release · reviewed-edition/)).toBeVisible();
+  await expect
+    .element(viewer.getByText(/Original release · Reviewed original edition/))
+    .toBeVisible();
   await expect
     .element(viewer.getByRole("link", { name: "CC0-1.0", exact: true }))
     .toHaveAttribute("href", screenshot.rights_url);
@@ -177,11 +179,20 @@ it("retains grouping and source edition identity while explicit strict media cle
   expect(read).not.toHaveBeenCalled();
 });
 
-it("keeps legacy original-edition media out of details until applicability is reviewed or selected", async () => {
+it("loads only the chosen screenshot in details when the original edition is unknown", async () => {
   const read = await openProjectedDetail(false, false);
   expect(document.querySelector(".game-hero-background")).toBeNull();
-  await expect
-    .element(page.getByRole("region", { name: "Screenshots", exact: true }))
-    .not.toBeInTheDocument();
+  const gallery = page.getByRole("region", { name: "Screenshots", exact: true });
+  const picker = gallery.getByRole("combobox", { name: /^Screenshot source/ });
+  await expect.element(picker).toHaveAccessibleName("Screenshot source Choose an original release");
   expect(read).not.toHaveBeenCalled();
+  await picker.click();
+  await page.getByRole("option", { name: "Reviewed original edition", exact: true }).click();
+  await expect
+    .element(
+      gallery.getByRole("button", { name: "Enlarge screenshot 1: Synthetic original scene" }),
+    )
+    .toBeEnabled();
+  expect(read.mock.calls).toEqual([["first-project", screenshot.id, screenshot.sha256, 7]]);
+  expect(document.querySelector(".game-hero-background")).toBeNull();
 });

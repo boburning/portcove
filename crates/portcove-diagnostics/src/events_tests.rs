@@ -239,6 +239,34 @@ fn escaped_values_and_oversized_messages_remain_bounded_valid_json() {
 }
 
 #[test]
+fn artwork_stage_observations_retain_typed_counts_and_admission_lane() {
+    let (records, _) = capture(|| {
+        tracing::debug!(
+            message = "Artwork thumbnail worker admission",
+            elapsed_us = 6_u64,
+            remote = false
+        );
+        tracing::debug!(
+            message = "Artwork thumbnail encoding",
+            input_bytes = 12_u64,
+            output_bytes = 16_u64
+        );
+    });
+    let fields = |index: usize| {
+        let record: Value = serde_json::from_slice(&records[index]).unwrap();
+        record["fields"].clone()
+    };
+    let admission = fields(0);
+    assert_eq!(admission["message"], "Artwork thumbnail worker admission");
+    assert_eq!(admission["elapsed_us"], 6);
+    assert_eq!(admission["remote"], false);
+    let encoding = fields(1);
+    assert_eq!(encoding["message"], "Artwork thumbnail encoding");
+    assert_eq!(encoding["input_bytes"], 12);
+    assert_eq!(encoding["output_bytes"], 16);
+}
+
+#[test]
 fn export_preserves_null_auth_code_and_refuses_unknown_or_malformed_envelopes() {
     let (records, _) = capture(|| {
         tracing::debug!(

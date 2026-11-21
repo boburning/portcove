@@ -82,9 +82,11 @@ plan binds the exact proposed bodies, primary bindings and `plan_sha256`.
 New receipts use `plan_encoding: proposal-bound-v1`: each ordered descriptor
 records the candidate index/key, body hash and primary evidence bindings rather
 than repeating the proposal text and rendered body. Reconstruct the body with
-the maintained `hostedBody` renderer from the exact hash-matching proposal;
-the recorded body hash must match before recovery or completion readback.
-Legacy full-plan receipts remain readable and completed receipts are not rewritten.
+the maintained `hostedBody` renderer from the exact hash-matching proposal.
+A retained slot must match its exact recorded body hash against a supported
+rendering version. Keep the existing rendering versions when changing the
+default issue template. New slots use the current template, and completed
+receipts keep their original bytes.
 Before delivery, Actions sizes the encoded receipt against the bounded delivery
 and hold fields and reserves room for its final doctor and diagnostics. The
 logical batch stays together when it fits the existing comment limit.
@@ -291,6 +293,30 @@ both reads to the same byte/request/time envelope before any write. Malformed or
 denied responses and transport failures are not retried. A still-stale observation
 can enter the same bounded fresh-worker continuation only when no mutation is
 uncertain. Active provider backoff and ambiguous writes remain holds.
+
+To finish a retained large batch whose candidate receipts are complete and whose
+full audit is pending, the owner can dispatch `hosted-discovery-intake.yml` on
+`main` with `mode=audit` and `audit_request=<original proposal comment ID>`.
+Check the active proposal, its bound receipt, owner changes and any refusal first.
+Every admitted pass stays on that request. The executor uses the current full
+Roadmap audit and the original scoped receipts, preserving later Project edits.
+The result is an assisted audit recovery. It adds no natural scheduled sample.
+
+The original owner proposal or an explicit final-audit dispatch on main records
+its Actions run, attempt and head in the bot receipt before the audit starts. The
+existing daily maintenance collection passes unfinished authorized audits to
+the same intake worker after a complete native read. It resumes only an
+interrupted audit or a recorded inventory-change or budget continuation. The
+worker verifies the protected scheduled caller, original owner action,
+request-specific Actions run title, current request/plan/receipt binding and
+available durable checkpoints. If the worker stopped after committing the
+audit authorization to PostgreSQL and before updating GitHub, the collector
+can pass a retry from that checkpoint. Before projecting it, the worker checks
+the original owner action, the exact live predecessor and the retained delivery
+proofs. Each selected request has its own outcome, including a request withdrawn
+or removed after collection. Candidate work, withdrawn or superseded requests
+and permanent refusals stay outside this path. The original run and the later
+worker each retain their own receipts and budgets.
 
 Hosted reporting reads the bot receipt and exact request/plan binding. Use the
 maintained read-only status route when CLI access is available:

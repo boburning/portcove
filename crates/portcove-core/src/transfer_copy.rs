@@ -309,7 +309,18 @@ pub(crate) fn verify_destination(
             "destination database integrity check failed",
         ));
     }
-    verify_installations(library, expected_metadata, &catalogs)
+    verify_installations(library, expected_metadata, &catalogs)?;
+    for relative in &expected_metadata.application_versions {
+        if crate::runtime_path_policy::has_bundled_manifest_path_limit(
+            &relative.port_id,
+            &relative.artifact.sha256,
+        ) {
+            let mut installed = relative.clone();
+            installed.path = destination_root.join(&relative.path);
+            crate::install::check_retained_launch_destination(&installed, &installed.path)?;
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn verify_installations(

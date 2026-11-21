@@ -31,7 +31,34 @@
           ]
         }
       ]
-    }
+    },
+    "media": [
+      {
+        "id": "igdb-screenshot-port-820297",
+        "role": "screenshot",
+        "subject": {
+          "kind": "port",
+          "port_id": "opengoal-jak1"
+        },
+        "caption": "Game screenshot",
+        "url": "https://images.igdb.com/igdb/image/upload/t_720p/schky1.png",
+        "sha256": "022f539b53c4a8c1a506eb2dfe8321ad9ad1c7bd8f7db22054b0bfb6fdce251b",
+        "width": 1280,
+        "height": 720,
+        "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+        "source_url": "https://www.igdb.com/games/opengoal-jak-and-daxter-the-precursor-legacy",
+        "license": "LicenseRef-IGDB-Terms",
+        "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+        "igdb": {
+          "game_id": 206008,
+          "record_id": 820297,
+          "kind": "screenshot",
+          "image_id": "schky1",
+          "game_slug": "opengoal-jak-and-daxter-the-precursor-legacy",
+          "alpha_channel": false
+        }
+      }
+    ]
   },
   "opengoal_setup_v1": true,
   "integration": {

@@ -1,4 +1,5 @@
 import { fixtureIssueInventory } from "./repository-issue-inventory.fixture.mts";
+import { issueFreeCatalogIds } from "./roadmap-qualification.mts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -194,6 +195,55 @@ void test("one-port-one-issue coverage rejects missing duplicate grouped and dra
       [first],
     ).some((value) => value.includes("not in the Project")),
   );
+});
+
+void test("issue-free catalog coverage requires a matching reviewed listing and preserves Project checks", () => {
+  const url = "https://github.com/example/game";
+  const original_game = {
+    format_version: 1,
+    id: "game",
+    evidence_urls: [url],
+    source_editions: [],
+  };
+  const catalog = {
+    ports: [
+      { id: "unowned", project_url: url },
+      { id: "owned", project_url: url },
+      { id: "other-source", project_url: url },
+      { id: "unreviewed", project_url: url },
+    ],
+  };
+  const directory = {
+    listings: [
+      { id: "unowned", project_url: url, original_game },
+      { id: "owned", project_url: url, original_game, issue_number: 20 },
+      { id: "other-source", project_url: "https://github.com/other/game", original_game },
+      { id: "unreviewed", project_url: url },
+    ],
+  };
+  const issueFree = issueFreeCatalogIds(catalog, directory);
+  assert.deepEqual([...issueFree], ["unowned"]);
+  assert.deepEqual(
+    validatePortIssueCoverage(catalog, [], "boburning/portcove", [], issueFree),
+    ["owned", "other-source", "unreviewed"].map(
+      (id) => `Catalog port lacks a canonical Project issue: ${id}`,
+    ),
+  );
+  const duplicateClaims = [31, 32].map((number) => ({
+    number,
+    title: `[Port] Fixture ${number}`,
+    url: `https://github.com/boburning/portcove/issues/${number}`,
+    body: renderPortIssueBody({ title: "Fixture", upstream: url, catalogId: "unowned" }),
+  }));
+  const errors = validatePortIssueCoverage(
+    catalog,
+    [],
+    "boburning/portcove",
+    duplicateClaims,
+    issueFree,
+  );
+  assert(errors.some((error) => error.includes("Two live issues represent catalog ID unowned")));
+  assert(errors.some((error) => error.includes("is not in the Project")));
 });
 
 void test("intake permits integration completion without inventing gameplay qualification", () => {
@@ -1124,3 +1174,35 @@ for (const claim of listingClaimCases) {
     assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 0);
   });
 }
+
+void test("direct port intake retains reviewed source-title ownership after original-game display cleanup", () => {
+  const upstream = "https://github.com/example/portable";
+  const existing = {
+    number: 17,
+    title: "[Port] Super Mario Advance 2 / Portable Project",
+    state: "CLOSED",
+    body: `Underlying game: **Super Mario Advance 2**.\nGitHub repository ID: 42.\n<!-- portcove-port -->\n<!-- portcove-port-key: portable-old -->\n<!-- portcove-upstream: ${upstream} -->`,
+  };
+  const records = [
+    {
+      format_version: 1 as const,
+      listing: {
+        id: "portable-old",
+        name: "Portable Project",
+        summary: "Retained source edition.",
+        project_url: upstream,
+        issue_number: 17,
+        original_game_title: "Super Mario World",
+      },
+    },
+  ];
+  const matches = findPortIssueDuplicates([existing], {
+    title: existing.title,
+    upstream,
+    portKey: "portable-new",
+    repositoryIdentity: { id: 42, game: "Super Mario Advance 2" },
+    catalogRecords: records,
+  });
+  assert.equal(matches.length, 1);
+  assert.ok(matches[0]!.reasons.some((reason) => reason.startsWith("normalized title")));
+});

@@ -8,6 +8,10 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import { canOpenExternalRegistration } from "../features/operations/invocation-state";
+import { OperationPresentationProvider } from "../features/operations/operation-presentation";
+import { useOperationState } from "../features/operations/use-operation-state";
+import { StatusLayer } from "./Chrome";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
@@ -36,6 +40,7 @@ const listings = listingsDirectory as unknown as {
   listings: { id: string; manual_setup?: ListingGuide }[];
 };
 import { catalogEntries } from "../features/browsing/catalog-entry";
+import { SetupLaunchDraftsProvider } from "../features/browsing/setup-launch-drafts";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { DetailLayout } from "./DetailLayout";
 import { SelfServiceSetup } from "./SelfServiceSetup";
@@ -200,6 +205,278 @@ it("retains external launch drafts across detail tabs and reviews the same targe
   );
   expect(document.body.textContent).toContain("Fixture review reached");
   expect(apply).not.toHaveBeenCalled();
+});
+
+it("retains external launch inputs after a failed review and reopening the detail", async () => {
+  const executable = "C:/Player/External/game.exe";
+  const directory = "C:/Player/Retained directory";
+  const argumentLines = "--fullscreen\n\nC:/My Games/Level one";
+  const preview = vi
+    .spyOn(desktopApi, "previewUserSelectedRuntime")
+    .mockRejectedValue(new Error("Folder changed before review"));
+  const register = vi.spyOn(desktopApi, "registerUserSelectedRuntime");
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(executable);
+  const status = portStatus();
+  const pending: PendingSetupRecord = {
+    id: "downloaded-draft-transition",
+    reason: null,
+    port_id: port.id,
+    listing: { ...(proposals.listings[0] as PortListing), id: port.id },
+    path: "C:/Player/Downloaded game",
+    state: "downloaded",
+    downloaded_at: "2026-11-20T00:00:00Z",
+    archive_sha256: "a".repeat(64),
+    artifact: {
+      release_id: 1,
+      asset_id: 2,
+      release_tag: "v1",
+      name: "game.zip",
+      size: 1024,
+      release_url: "https://example.com/v1",
+      download_url: "https://example.com/game.zip",
+      can_extract: true,
+      sha256: null,
+    },
+  };
+  const discover = vi.spyOn(desktopApi, "discoverSetupLaunchTargets").mockResolvedValue({
+    port_id: port.id,
+    pending_id: pending.id,
+    candidates: [],
+    complete: true,
+    entries_checked: 0,
+    explanation: "No suggested program",
+    recommended_executable: null,
+  });
+  const view = (
+    generation: number,
+    details = true,
+    initialDirectory?: string,
+    pendingSetup?: PendingSetupRecord,
+  ) => (
+    <SetupLaunchDraftsProvider key={generation}>
+      {details ? (
+        <UserSelectedRuntimeControl
+          port={pendingSetup ? { ...port, pendingSetup } : port}
+          status={status}
+          listingStatus={{
+            port_id: port.id,
+            status,
+            actions: [{ action: "attach-existing", allowed: true }],
+          }}
+          generation={generation}
+          libraryRoot="C:/Portcove"
+          initialDirectory={initialDirectory}
+          busy={false}
+        />
+      ) : (
+        <h1>Library</h1>
+      )}
+    </SetupLaunchDraftsProvider>
+  );
+  const startFolder = page.getByRole("textbox", { name: "Start in folder", exact: true });
+  const launchOptions = page.getByRole("textbox", { name: /^Launch options/ });
+  const openArguments = () => page.getByText("Advanced launch options", { exact: true }).click();
+  const expectedArguments = ["--fullscreen", "", "C:/My Games/Level one"];
+
+  await root.rerender(view(7));
+  await click("Choose game executable…");
+  await startFolder.fill(directory);
+  await openArguments();
+  await launchOptions.fill(argumentLines);
+  await click("Review launch details");
+  await expect
+    .element(page.getByText("Folder changed before review", { exact: true }))
+    .toBeVisible();
+  await click("Cancel");
+
+  await root.rerender(view(7, false));
+  await expect.element(page.getByRole("heading", { name: "Library", exact: true })).toBeVisible();
+  await root.rerender(view(7));
+  await expect.element(startFolder).toHaveValue(directory);
+  await openArguments();
+  await expect.element(launchOptions).toHaveValue(argumentLines);
+  expect(preview).toHaveBeenCalledOnce();
+  await click("Review launch details");
+  expect(preview.mock.calls).toEqual([
+    [port.id, executable, directory, expectedArguments, 7],
+    [port.id, executable, directory, expectedArguments, 7],
+  ]);
+  expect(register).not.toHaveBeenCalled();
+  await click("Cancel");
+
+  await root.rerender(view(7, true, "C:/A different target"));
+  await expect.element(startFolder).toHaveValue("C:/A different target");
+  await root.rerender(view(7));
+  await expect.element(startFolder).toHaveValue("");
+
+  await click("Choose game executable…");
+  await startFolder.fill(directory);
+  await root.rerender(view(7, true, pending.path, pending));
+  await expect.poll(() => discover.mock.calls).toEqual([[port.id, pending.id, 7]]);
+  await root.rerender(view(7));
+  await expect.element(startFolder).toHaveValue("");
+
+  await click("Choose game executable…");
+  await startFolder.fill(directory);
+  await root.rerender(view(8));
+  await expect.element(startFolder).toHaveValue("");
+  expect(preview).toHaveBeenCalledTimes(2);
+});
+
+it("keeps the registered result after leaving and offers Open only for confirmed readback", async () => {
+  const registered = {
+    ...record,
+    archive_sha256: "",
+    immutable_tree_sha256: "",
+    user_selected: { arguments: [] },
+  };
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(record.executable);
+  vi.spyOn(desktopApi, "previewUserSelectedRuntime").mockResolvedValue({
+    port_id: registered.port_id,
+    version: registered.version,
+    path: registered.path,
+    executable: registered.executable,
+    archive_sha256: registered.archive_sha256,
+    immutable_tree_sha256: registered.immutable_tree_sha256,
+    immutable_file_count: 0,
+    user_selected: registered.user_selected,
+    preview_sha256: "register-review",
+  });
+  const register = vi
+    .spyOn(desktopApi, "registerUserSelectedRuntime")
+    .mockResolvedValue(registered);
+  const launch = vi.spyOn(desktopApi, "launch");
+  const open = vi.fn<(portId: string) => void>();
+  const staleLaunch = vi.fn(async () => true);
+  const refresh = vi.fn().mockRejectedValue(new Error("Could not refresh the library"));
+  const status = portStatus();
+  function Workspace({
+    revision,
+    showEditor,
+    current,
+  }: {
+    revision: number;
+    showEditor: boolean;
+    current?: ExternalRuntimeRecord;
+  }) {
+    const operations = useOperationState({
+      refresh,
+      workspaceReadRevision: revision,
+      startedWorkspaceReadRevision: () => 1,
+      libraryGeneration: 7,
+    });
+    return (
+      <OperationPresentationProvider
+        generation={7}
+        pending={operations.pendingOperations}
+        unreadExternalPorts={operations.unreadExternalPorts}
+        perform={operations.perform}
+      >
+        <StatusLayer
+          invocations={operations.invocations}
+          clearError={() => undefined}
+          dismissInvocation={operations.dismissInvocation}
+          openExternalGame={(result) =>
+            canOpenExternalRegistration(
+              result,
+              { ...status, external_runtime: current ?? null },
+              7,
+              showEditor ? port.id : undefined,
+              operations.unreadExternalPorts,
+            )
+              ? () => open(result.context.target.id)
+              : undefined
+          }
+        />
+        <button
+          onClick={() =>
+            void operations.perform("launch", staleLaunch, {
+              context: {
+                action: "Launch",
+                operation: "launch",
+                target: { kind: "port", id: port.id, label: port.name },
+                libraryGeneration: 7,
+                exclusionScope: "target",
+              },
+            })
+          }
+        >
+          Launch from prior view
+        </button>
+        {showEditor ? (
+          <UserSelectedRuntimeControl
+            port={port}
+            status={status}
+            listingStatus={{
+              port_id: port.id,
+              status,
+              actions: [{ action: "attach-existing", allowed: true }],
+            }}
+            generation={7}
+            busy={Boolean(operations.busy)}
+            onChanged={refresh}
+          />
+        ) : (
+          <h1>Library</h1>
+        )}
+      </OperationPresentationProvider>
+    );
+  }
+
+  await root.rerender(<Workspace revision={1} showEditor />);
+  await click("Choose game executable…");
+  await click("Review launch details");
+  await click("Use this installation");
+  expect(refresh).toHaveBeenCalledOnce();
+  await expect
+    .element(page.getByText("Could not refresh the library", { exact: false }))
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByText(
+        "Launch details saved. Waiting for the library to confirm the current registration.",
+      ),
+    )
+    .toBeVisible();
+  const result = page.getByText("Saved external launch details for", { exact: false });
+  await expect.element(result).toBeVisible();
+
+  const openGame = page.getByRole("button", { name: "Open game", exact: true });
+  await root.rerender(<Workspace revision={1} showEditor={false} current={registered} />);
+  await expect.element(result).toBeVisible();
+  await expect.element(openGame).not.toBeInTheDocument();
+  await click("Launch from prior view");
+  expect(staleLaunch).not.toHaveBeenCalled();
+
+  const replacement = { ...registered, user_selected: { arguments: ["--replacement"] } };
+  await root.rerender(<Workspace revision={2} showEditor={false} current={replacement} />);
+  await expect.element(openGame).not.toBeInTheDocument();
+
+  const newDownload = {
+    ...registered,
+    setup_download: {
+      release_id: 200,
+      asset_id: 201,
+      release_tag: "v2",
+      filename: "replacement.zip",
+      download_sha256: "c".repeat(64),
+    },
+  };
+  await root.rerender(<Workspace revision={3} showEditor={false} current={newDownload} />);
+  await expect.element(openGame).not.toBeInTheDocument();
+
+  await root.rerender(<Workspace revision={4} showEditor={false} current={registered} />);
+  await openGame.click();
+  expect(open).toHaveBeenCalledExactlyOnceWith(port.id);
+  expect(register).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    registered.executable,
+    registered.path,
+    [],
+    "register-review",
+    7,
+  );
+  expect(launch).not.toHaveBeenCalled();
 });
 
 it("registers a listing-only identity only when Core offers the action", async () => {
