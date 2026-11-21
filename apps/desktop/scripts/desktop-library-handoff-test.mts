@@ -492,6 +492,75 @@ export async function libraryRecoveryBundleScenario({
       { flag: "wx" },
     );
     artifacts.push(report);
+
+    await selectPrimaryNavigation(browser, "Library");
+    const cover = await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (portId) => {
+            const selector =
+              '.collection-entry button[data-detail-game-id="' + CSS.escape(portId) + '"]';
+            const target = [...document.querySelectorAll<HTMLButtonElement>(selector)].find(
+              (element) => !element.closest("[hidden], [inert]") && element.getClientRects().length,
+            );
+            const image = target?.querySelector<HTMLImageElement>(
+              '[data-artwork-source="local_import"] img',
+            );
+            if (!image?.naturalWidth || !image.naturalHeight) return false;
+            const bounds = image.getBoundingClientRect();
+            if (
+              !bounds.width ||
+              !bounds.height ||
+              bounds.left < 0 ||
+              bounds.top < 0 ||
+              bounds.right > innerWidth ||
+              bounds.bottom > innerHeight
+            )
+              return false;
+            return {
+              src: image.currentSrc,
+              width: image.naturalWidth,
+              height: image.naturalHeight,
+            };
+          },
+          portId,
+        ),
+      60_000,
+      "The exact restored Library card must display its decoded local cover",
+    );
+    assert.ok(cover);
+    const thumbnail = object(
+      success(
+        await invoke("get_artwork_thumbnail", {
+          generation: reopened.generation,
+          portId,
+          slot: "cover",
+          expectedRevision: restoredArtwork.choice.revision,
+          cacheOnly: true,
+        }),
+      ),
+    );
+    assert.equal(thumbnail.asset_sha256, artworkChoice.asset_sha256);
+    assert.equal(thumbnail.choice_revision, artworkChoice.revision);
+    assert.ok(typeof thumbnail.png_base64 === "string");
+    assert.ok(cover.src === "data:image/png;base64," + thumbnail.png_base64);
+    const coverReport = path.join(output, "native-recovery-restored-cover.json");
+    await writeFile(
+      coverReport,
+      JSON.stringify({
+        port_id: portId,
+        library_id: reopened.id,
+        generation: reopened.generation,
+        revision: thumbnail.choice_revision,
+        asset_sha256: thumbnail.asset_sha256,
+        width: cover.width,
+        height: cover.height,
+      }),
+      { flag: "wx" },
+    );
+    artifacts.push(coverReport);
+    await capture("native-recovery-restored-cover");
   });
 }
 
