@@ -277,6 +277,14 @@ require exact readback or a visible, enabled action. The BIOS scan includes a
 same-size unrelated file and requires the exact BIOS as its only candidate before
 verifying the same game and source profiles in the resumed setup.
 
+In Windows job [136782688592](https://github.com/boburning/portcove/actions/runs/44883170193/job/136782688592),
+the selected game opened and its Review installation operation still showed
+Working when the 15-second dialog wait expired. The first selected review now
+has a 60-second observation window inside the existing scenario budget. The harness
+still requires the exact selected game, the installation review dialog, and
+unchanged Core status before consent. The original timeout remains a failed
+observation for that source.
+
 The install readback probe allows the independent scheduled catalog refresh while
 still requiring one install command and one fixture download. Steam batch review
 checks the singular one-game label before root/profile selection and the plural

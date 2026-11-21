@@ -781,9 +781,13 @@ export async function selectedSetupCompletionScenario({
         5_000,
         "Selected setup must open the expected game details",
       );
+      const installDialog = By.css('[aria-labelledby="install-review-title"]');
+      // The selected setup starts the real review operation. Wait for its
+      // dialog without clicking again while the operation is still pending.
       await browser.wait(
-        until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
-        15_000,
+        until.elementLocated(installDialog),
+        60_000,
+        "The selected game must finish its installation review and open its dialog",
       );
       assert.deepEqual(
         await read("get_statuses"),
@@ -799,7 +803,6 @@ export async function selectedSetupCompletionScenario({
         5_000,
       );
 
-      const installDialog = By.css('[aria-labelledby="install-review-title"]');
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
       const openInstall = async () => {
         const reviewTrigger = button("Review installation");
