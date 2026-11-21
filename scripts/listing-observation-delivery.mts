@@ -39,6 +39,7 @@ import {
 export { listingDeliveryTarget };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
+const latestListingFormat = 14;
 interface Directory {
   format_version: number;
   listings: Record<string, unknown>[];
@@ -54,7 +55,7 @@ function directory(value: unknown): Directory {
     !isRecord(value) ||
     !Number.isSafeInteger(value.format_version) ||
     Number(value.format_version) < 1 ||
-    Number(value.format_version) > 13 ||
+    Number(value.format_version) > latestListingFormat ||
     !Array.isArray(value.listings) ||
     value.listings.length > 10000
   )

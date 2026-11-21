@@ -1114,6 +1114,113 @@ void test("compact activation requires both capabilities from the reviewed relea
   );
 });
 
+void test("format 14 edition bindings require both released capabilities and stay out of older projections", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const {
+    compactListingCarrier,
+    compactListingDecodedMaximum,
+    encodeCompactListing,
+    decodeRetainedCompactListing,
+  } = await import("./listing-directory-carrier.mts");
+  const release = (listing_formats: number[], listing_delivery_carriers: string[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers,
+    },
+  });
+  assert.equal(
+    requireCompactListingReader(release([12, 13], [compactListingCarrier]), 13),
+    "fixture",
+  );
+  for (const reader of [release([12, 13], [compactListingCarrier]), release([14], ["json-v1"])])
+    assert.throws(
+      () => requireCompactListingReader(reader, 14),
+      /gzip-base64-json-v1 and listing format 14/u,
+    );
+  assert.equal(
+    requireCompactListingReader(release([12, 13, 14], [compactListingCarrier]), 14),
+    "fixture",
+  );
+
+  const edition = { id: "disc", title: "Original", system: "PlayStation", evidence_urls: [] };
+  const original = {
+    format_version: 1,
+    id: "original",
+    source_editions: [edition],
+    evidence_urls: [],
+  };
+  const binding = { game_id: "original", variant_id: "disc", representation_id: "disc-bin" };
+  const scene = { id: "scene", role: "screenshot", igdb: { kind: "screenshot" } };
+  const legacy = { ...fixtureListing, original_game: original };
+  const format13 = { ...legacy, media: [scene] };
+  const current = {
+    ...format13,
+    original_game: {
+      ...original,
+      source_editions: [{ ...edition, verified_sources: [binding] }],
+    },
+  };
+  const canonical = { format_version: 14, listings: [current] };
+  const old = decodedListingDelivery(fixtureDelivery());
+  const prior13 = Buffer.from(
+    JSON.stringify({
+      ...old,
+      directory: { format_version: 13, listings: [format13] },
+    }),
+  );
+  const completeSnapshot = (source: unknown, projection: unknown, previous: Buffer) =>
+    projectListingDelivery(
+      source,
+      [],
+      previous,
+      0,
+      compactListingDecodedMaximum,
+      projection,
+      new Set(),
+      0,
+      [],
+      true,
+    );
+  const projected = completeSnapshot(canonical, canonical, prior13);
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 14);
+  assert.equal(projected.delivered_records, 1);
+  assert.deepEqual(projected.omitted, []);
+  assert.deepEqual(decoded.directory.listings[0]!.original_game, current.original_game);
+  assert.deepEqual(decoded.directory.listings[0]!.media, [scene]);
+  assert.equal(decoded.revision, old.revision + 1);
+
+  assert.throws(
+    () => completeSnapshot(canonical, { format_version: 13, listings: [format13] }, prior13),
+    /changed canonical identities or format/u,
+  );
+  const legacyProjection = projectListingDelivery(canonical, [], fixtureDelivery(), 0, undefined, {
+    format_version: 11,
+    listings: [legacy],
+  });
+  const oldDirectory = decodedListingDelivery(legacyProjection.bytes).directory;
+  assert.equal(oldDirectory.format_version, 11);
+  assert.deepEqual(oldDirectory.listings[0]!.original_game, original);
+  assert.equal(oldDirectory.listings[0]!.media, undefined);
+  const removed = completeSnapshot(
+    { format_version: 13, listings: [format13] },
+    { format_version: 14, listings: [format13] },
+    projected.bytes,
+  );
+  const withdrawn = decodedListingDelivery(removed.bytes).directory;
+  assert.equal(withdrawn.format_version, 14);
+  assert.deepEqual(withdrawn.listings[0]!.original_game, original);
+});
+
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
   const { fixtureListing, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
