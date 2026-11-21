@@ -168,9 +168,12 @@ retains the source commit, release and asset IDs, and archive digest.
 
 Until a verified release reports both the required format and compact carrier,
 ordinary legacy renewal continues. A current signed legacy target is required
-for first activation. An existing compact publication still requires a capable
-reader to raise its format. The catalog signer and publication gates are the
-same for this route. The Prepare workflow must opt in after review, using a
+for first activation. If a compatible release cannot be verified for a
+format increase, renewal preserves both exact signed targets. When Prepare
+selects a new carrier or format, Publish rechecks the exact release selection
+and withdrawal state at each fresh Pages base. A racing withdrawal forces the
+normal fast-forward push to retry against the new base. The catalog signer and
+publication gates are the same for this route. The Prepare workflow must opt in after review, using a
 GitHub CLI that supports `gh release verify-asset`.
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets

@@ -48,6 +48,7 @@ jobs:
       prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
+      reader_activation: ${{ steps.observe.outputs.reader_activation }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -117,6 +118,7 @@ jobs:
         if: steps.decide.outputs.publish == 'true'
         run: cargo build --locked --release -p portcove-cli -p portcove-release-tools
       - name: Project completed shared observations into the existing descriptive target
+        id: observe
         if: steps.decide.outputs.publish == 'true'
         run: |
           set -euo pipefail
@@ -128,6 +130,8 @@ jobs:
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json
+          jq -r '"reader_activation=" + ((.released_reader_activation // "") | if type == "object" then tojson else . end)' \
+            "$RUNNER_TEMP/observation-bundle/report.json" >> "$GITHUB_OUTPUT"
           echo "BUNDLE=$RUNNER_TEMP/observation-bundle/bundle" >> "$GITHUB_ENV"
       - name: Inspect the bundle and plan the next versions
         id: prepare
@@ -216,6 +220,7 @@ jobs:
       PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
       PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
       HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+      CATALOG_READER_ACTIVATION: ${{ needs.prepare.outputs.reader_activation }}
     steps:
       # Credentials stay for the gh-pages push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -272,6 +277,11 @@ jobs:
           for attempt in 1 2 3 4; do
             git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
+            # Publication uses a normal fast-forward push. A racing withdrawal
+            # changes the parent and forces the next attempt to recheck it.
+            if [[ -n "$CATALOG_READER_ACTIVATION" ]]; then
+              node scripts/catalog-released-reader.mts site
+            fi
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \

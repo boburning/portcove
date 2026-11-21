@@ -565,6 +565,10 @@ export async function priorListingForRenewal(
     maximum,
   );
   if (hash(wire) !== identity) throw new Error("Historical listing target digest differs");
+  return retainedListingRenewal(wire, canonicalRecords, carrier);
+}
+
+function retainedListingRenewal(wire: Buffer, canonicalRecords: number, carrier: string) {
   const { bytes, document: old } = readDeliveryCarrier(wire, carrier);
   return {
     bytes,
@@ -711,6 +715,85 @@ export async function prepareObservationBundle(options: {
     throw new Error("Compact listing publication requires a retained legacy listing");
   if (authoredLegacy && (!priorCompact || !retainedLegacy))
     throw new Error("Reviewed legacy withdrawal requires existing compact and legacy targets");
+  const previousDocument = previous
+    ? delivery(parseCatalogSource(previous.toString("utf8")))
+    : null;
+  const automatic =
+    !options.compact && (options.compactIfCapable || options.officialReleasedReader);
+  const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
+  let officialReader: ReturnType<typeof acquireCatalogReleasedReader> | undefined;
+  let releasedReader: { version: string; sha256: string } | undefined;
+  if (
+    !renewal &&
+    (useCompact || (automatic && retainedLegacy)) &&
+    (!priorCompact || candidateFormat > (previousDocument?.directory.format_version ?? 0))
+  ) {
+    try {
+      officialReader = options.officialReleasedReader
+        ? acquireCatalogReleasedReader(workspace)
+        : undefined;
+      const reviewedReader = officialReader ?? options.releasedReader;
+      if (!reviewedReader || !/^[a-f0-9]{64}$/u.test(reviewedReader.sha256))
+        throw new Error(
+          "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
+        );
+      const bytes = await readControllerToolFile(reviewedReader.cli);
+      const digest = hash(bytes);
+      if (digest !== reviewedReader.sha256)
+        throw new Error("Reviewed released CLI SHA-256 differs");
+      const frozen = path.join(
+        workspace,
+        process.platform === "win32" ? "released-reader.exe" : "released-reader",
+      );
+      writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
+      const probeEnv = Object.fromEntries(
+        [
+          "PATH",
+          "HOME",
+          "USERPROFILE",
+          "APPDATA",
+          "LOCALAPPDATA",
+          "XDG_CONFIG_HOME",
+          "XDG_CACHE_HOME",
+          "XDG_DATA_HOME",
+          "XDG_STATE_HOME",
+          "PORTCOVE_PREFERENCES",
+          "SystemRoot",
+        ].map((name) => [name, environment[name]]),
+      );
+      const probeTemp = path.join(workspace, "reader-temp");
+      mkdirSync(probeTemp);
+      Object.assign(probeEnv, { TEMP: probeTemp, TMP: probeTemp, TMPDIR: probeTemp });
+      const report: unknown = JSON.parse(
+        execFileSync(frozen, ["--json", "capabilities"], {
+          cwd: workspace,
+          env: probeEnv,
+          timeout: 30000,
+          maxBuffer: 1024 * 1024,
+          encoding: "utf8",
+        }),
+      );
+      const version = requireCompactListingReader(report, candidateFormat);
+      if (officialReader && version !== officialReader.version)
+        throw new Error("Released CLI capabilities version differs from its official release");
+      useCompact = true;
+      releasedReader = { version, sha256: digest };
+    } catch (cause) {
+      if (!automatic) throw cause;
+      diagnostics.push(
+        "Verified compatible released CLI unavailable; retaining prior listing format",
+      );
+      if (priorCompact) {
+        if (!previousWire || !retainedLegacy)
+          throw new Error("Compact renewal requires both authenticated prior targets", { cause });
+        renewal = retainedListingRenewal(
+          previousWire,
+          canonical.listings.length,
+          compactListingDeliveryTarget,
+        );
+      }
+    }
+  }
   if (authoredLegacy && retainedLegacy && !authoredLegacy.equals(retainedLegacy)) {
     if (renewal) {
       diagnostics.push("Deferred the authored withdrawal until the exact signed prior is current");
@@ -723,96 +806,11 @@ export async function prepareObservationBundle(options: {
       retainedLegacy = authoredLegacy;
     }
   }
-  const previousDocument = previous
-    ? delivery(parseCatalogSource(previous.toString("utf8")))
-    : null;
-  let reviewedReader = options.releasedReader;
-  let officialReader: ReturnType<typeof acquireCatalogReleasedReader> | undefined;
-  const eligible = !renewal && Boolean(retainedLegacy);
-  const candidateFormat = compactDirectoryFormat(canonical, previousDocument);
-  if (
-    options.officialReleasedReader &&
-    eligible &&
-    (!priorCompact || candidateFormat > (previousDocument?.directory.format_version ?? 0))
-  ) {
-    try {
-      officialReader = acquireCatalogReleasedReader(workspace);
-      reviewedReader = officialReader;
-    } catch {
-      diagnostics.push("Official released CLI verification unavailable");
-    }
-  }
-  const tryFirstCompact = Boolean(
-    (options.compactIfCapable || options.officialReleasedReader) &&
-    reviewedReader &&
-    !useCompact &&
-    eligible,
-  );
-  let format = renewal
+  const format = renewal
     ? delivery(parseCatalogSource(renewal.bytes.toString("utf8"))).directory.format_version
-    : useCompact || tryFirstCompact
+    : useCompact
       ? candidateFormat
       : legacyListingFormat;
-  let releasedReader: { version: string; sha256: string } | undefined;
-  if (
-    !renewal &&
-    (useCompact || tryFirstCompact) &&
-    (!priorCompact || format > (previousDocument?.directory.format_version ?? 0))
-  ) {
-    if (!reviewedReader || !/^[a-f0-9]{64}$/u.test(reviewedReader.sha256))
-      throw new Error(
-        "Compact listing activation requires a reviewed released CLI and its exact SHA-256",
-      );
-    const bytes = await readControllerToolFile(reviewedReader.cli);
-    const digest = hash(bytes);
-    if (digest !== reviewedReader.sha256) throw new Error("Reviewed released CLI SHA-256 differs");
-    const frozen = path.join(
-      workspace,
-      process.platform === "win32" ? "released-reader.exe" : "released-reader",
-    );
-    writeFileSync(frozen, bytes, { flag: "wx", mode: 0o700 });
-    const probeEnv = Object.fromEntries(
-      [
-        "PATH",
-        "HOME",
-        "USERPROFILE",
-        "APPDATA",
-        "LOCALAPPDATA",
-        "XDG_CONFIG_HOME",
-        "XDG_CACHE_HOME",
-        "XDG_DATA_HOME",
-        "XDG_STATE_HOME",
-        "PORTCOVE_PREFERENCES",
-        "SystemRoot",
-      ].map((name) => [name, environment[name]]),
-    );
-    const probeTemp = path.join(workspace, "reader-temp");
-    mkdirSync(probeTemp);
-    Object.assign(probeEnv, { TEMP: probeTemp, TMP: probeTemp, TMPDIR: probeTemp });
-    const report: unknown = JSON.parse(
-      execFileSync(frozen, ["--json", "capabilities"], {
-        cwd: workspace,
-        env: probeEnv,
-        timeout: 30000,
-        maxBuffer: 1024 * 1024,
-        encoding: "utf8",
-      }),
-    );
-    const version = tryFirstCompact
-      ? compactListingReaderVersion(report, format)
-      : requireCompactListingReader(report, format);
-    if (version) {
-      if (officialReader && version !== officialReader.version)
-        throw new Error("Released CLI capabilities version differs from its official release");
-      useCompact = true;
-      releasedReader = { version, sha256: digest };
-    } else {
-      format = legacyListingFormat;
-      diagnostics.push(
-        "Reviewed released CLI lacks compact listing support for the required format",
-      );
-    }
-  }
   let compatible: Directory | undefined;
   if (!renewal) {
     const baseline: unknown = JSON.parse(
@@ -945,6 +943,14 @@ export async function prepareObservationBundle(options: {
     listing_format: format,
     ...(releasedReader ? { released_reader: releasedReader } : {}),
     ...(officialReader ? { released_reader_source: officialReader.receipt } : {}),
+    ...(releasedReader && officialReader
+      ? {
+          released_reader_activation: {
+            version: officialReader.version,
+            tag: officialReader.receipt.tag,
+          },
+        }
+      : {}),
     changed: projected.changed,
     retained: projected.retained,
     updated: projected.updated,

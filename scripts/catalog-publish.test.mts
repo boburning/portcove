@@ -1737,3 +1737,201 @@ void test("the verified release statement binds the exact tag object, release, a
   subject.push({ name: "cli.tar.gz", digest: { sha256: "archive" } });
   assert.throws(() => requireCatalogReleaseAttestation(verified, expected), /subject/);
 });
+
+void test(
+  "automatic reader preparation retains exact prior carriers until a compatible probe recovers",
+  { skip: process.platform === "win32" },
+  async (t) => {
+    const { fixtureDelivery, fixtureListing } =
+      await import("./fixtures/listing-observation-delivery-fixture.mts");
+    const { prepareObservationBundle, listingDeliveryTarget } =
+      await import("./listing-observation-delivery.mts");
+    const { compactListingDeliveryTarget, encodeCompactListing } =
+      await import("./listing-directory-carrier.mts");
+    const dir = temp(t);
+    const legacy = fixtureDelivery().toString();
+    const compact = encodeCompactListing(Buffer.from(legacy)).toString();
+    function prior(name: string, inputs: Record<string, string>) {
+      const base = path.join(dir, name);
+      const identities = Object.fromEntries(
+        Object.entries(inputs).map(([key, bytes]) => [key, overlaySha256(bytes)]),
+      );
+      site(base, identities);
+      const files = Object.entries(inputs).map(([key, bytes]) => {
+        const sha256 = identities[key]!;
+        const target = `targets/${sha256}.${key}`;
+        put(base, target, bytes);
+        return { target, sha256, bytes: Buffer.byteLength(bytes) };
+      });
+      const tools = executable(
+        `verify-${name}`,
+        `console.log(${JSON.stringify(JSON.stringify({ schema_version: 1, authority: "none", files }))});`,
+      );
+      return { prior: base, tools };
+    }
+    function executable(name: string, code: string) {
+      const full = path.join(dir, name);
+      writeFileSync(full, `#!/usr/bin/env node\n${code}\n`, { mode: 0o700 });
+      return full;
+    }
+    function reader(name: string, code: string) {
+      const cli = executable(name, code);
+      return { cli, sha256: overlaySha256(readFileSync(cli, "utf8")) };
+    }
+    function reporting(formats: number[], carriers: string[]) {
+      return `console.log(${JSON.stringify(JSON.stringify({ ok: true, command: "capabilities", data: { product: "Portcove", product_version: "0.1.0", listing_formats: formats, listing_delivery_carriers: carriers } }))});`;
+    }
+    const missing = undefined;
+    const old = reader("old", reporting([11, 12, 13], []));
+    const incompatible = reader("incompatible", reporting([11, 12], ["gzip-base64-json-v1"]));
+    const broken = reader("broken", "process.exit(1);");
+    const malformed = reader("malformed", 'console.log("not-json");');
+    const capable = reader("capable", reporting([11, 12, 13], ["gzip-base64-json-v1"]));
+    const wrongDigest = { ...capable, sha256: "0".repeat(64) };
+    const options = {
+      bundle: path.join(dir, "bundle"),
+      canonical: path.join(dir, "canonical"),
+      catalog: path.join(dir, "catalog"),
+      cli: executable(
+        "projector",
+        `
+      const fs = require("node:fs");
+      const file = process.argv[process.argv.indexOf("--path") + 1];
+      if (process.argv.includes("--format-version")) {
+        const data = JSON.parse(fs.readFileSync(file, "utf8"));
+        data.format_version = Number(process.argv.at(-1));
+        console.log(JSON.stringify({ ok: true, data }));
+      } else console.log(JSON.stringify({ ok: true }));
+    `,
+      ),
+      root: path.join(dir, "root"),
+      offlineTargets: path.join(dir, "top"),
+      observe: false,
+    };
+    mkdirSync(options.bundle);
+    put(dir, "canonical", { format_version: 13, listings: [fixtureListing] });
+    put(dir, "catalog", { ports: [{ id: fixtureListing.id }] });
+    put(dir, "root", {});
+    put(dir, "top", {});
+    const legacyPrior = prior("legacy-prior", { [listingDeliveryTarget]: legacy });
+    const compactPrior = prior("compact-prior", {
+      [listingDeliveryTarget]: legacy,
+      [compactListingDeliveryTarget]: compact,
+    });
+    for (const [boundary, source] of Object.entries({
+      first: legacyPrior,
+      upgrade: compactPrior,
+    })) {
+      const baseline =
+        boundary === "first"
+          ? await prepareObservationBundle({
+              ...options,
+              ...source,
+              output: path.join(dir, "baseline"),
+            })
+          : undefined;
+      for (const [name, releasedReader] of Object.entries({
+        missing,
+        old,
+        incompatible,
+        broken,
+        malformed,
+        wrongDigest,
+      })) {
+        const result = await prepareObservationBundle({
+          ...options,
+          ...source,
+          output: path.join(dir, boundary + "-" + name),
+          compactIfCapable: true,
+          ...(releasedReader ? { releasedReader } : {}),
+        });
+        assert.equal(result.listing_format, 11);
+        assert.equal(result.released_reader, undefined);
+        const expectedLegacy = baseline
+          ? readFileSync(path.join(baseline.bundle, listingDeliveryTarget), "utf8")
+          : legacy;
+        assert.equal(
+          readFileSync(path.join(result.bundle, listingDeliveryTarget), "utf8"),
+          expectedLegacy,
+        );
+        if (boundary === "upgrade") {
+          assert.equal(result.changed, false);
+          assert.equal(
+            readFileSync(path.join(result.bundle, compactListingDeliveryTarget), "utf8"),
+            compact,
+          );
+        } else
+          assert.equal(existsSync(path.join(result.bundle, compactListingDeliveryTarget)), false);
+      }
+      await assert.rejects(
+        prepareObservationBundle({
+          ...options,
+          ...source,
+          output: path.join(dir, boundary + "-strict"),
+          compact: true,
+          releasedReader: malformed,
+        }),
+        SyntaxError,
+      );
+      const recovered = await prepareObservationBundle({
+        ...options,
+        ...source,
+        output: path.join(dir, boundary + "-recovered"),
+        compactIfCapable: true,
+        releasedReader: capable,
+      });
+      assert.equal(recovered.listing_format, 13);
+      assert.equal(recovered.released_reader?.sha256, capable.sha256);
+      assert.equal(
+        readFileSync(path.join(recovered.bundle, listingDeliveryTarget), "utf8"),
+        legacy,
+      );
+      assert.notEqual(
+        readFileSync(path.join(recovered.bundle, compactListingDeliveryTarget), "utf8"),
+        compact,
+      );
+    }
+  },
+);
+
+void test("a Pages push retry refuses a reader withdrawn after preparation", async (t) => {
+  const { requireCurrentCatalogReaderSelection } = await import("./catalog-released-reader.mts");
+  const dir = temp(t);
+  const upstream = path.join(dir, "upstream");
+  const publisher = path.join(dir, "publisher");
+  mkdirSync(upstream);
+  const git = (cwd: string, ...args: string[]) =>
+    execFileSync(
+      "git",
+      ["-C", cwd, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", ...args],
+      { stdio: "pipe" },
+    );
+  git(upstream, "init", "--initial-branch=gh-pages");
+  const version = "0.1.0-preview.13";
+  const tag = `nightly-${version}`;
+  put(upstream, "updates/preview/latest.json", {
+    version,
+    platforms: {
+      "linux-x86_64": {
+        url: `https://github.com/boburning/portcove/releases/download/${tag}/Portcove_${version}_amd64.AppImage`,
+      },
+    },
+  });
+  git(upstream, "add", ".");
+  git(upstream, "commit", "-m", "Select capable reader");
+  git(upstream, "config", "receive.denyCurrentBranch", "updateInstead");
+  git(dir, "clone", upstream, publisher);
+  const prepared = { version, tag };
+  assert.doesNotThrow(() => requireCurrentCatalogReaderSelection(prepared, publisher));
+  put(publisher, "catalog/timestamp", "candidate");
+  git(publisher, "add", ".");
+  git(publisher, "commit", "-m", "Publish candidate");
+  put(upstream, "updates/withdrawn.json", [version]);
+  git(upstream, "add", ".");
+  git(upstream, "commit", "-m", "Withdraw reader");
+  assert.throws(() => git(publisher, "push", "origin", "HEAD:refs/heads/gh-pages"));
+  git(publisher, "fetch", "origin", "gh-pages");
+  git(publisher, "checkout", "--detach", "origin/gh-pages");
+  assert.throws(() => requireCurrentCatalogReaderSelection(prepared, publisher), /withdrawn/);
+  assert.equal(existsSync(path.join(upstream, "catalog/timestamp")), false);
+});

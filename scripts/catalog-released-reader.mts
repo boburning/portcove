@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { unpackFixedLinuxCli } from "./release-compiler-outputs.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -122,17 +123,36 @@ export function requireCatalogReleaseAttestation(
   for (const [name, sha] of Object.entries(expected.subjects)) confirm("name", name, "sha256", sha);
 }
 
+function previewAt(siteRevision: string, worktree = ".") {
+  const feed: unknown = JSON.parse(
+    git("-C", worktree, "show", `${siteRevision}:updates/preview/latest.json`),
+  );
+  const withdrawalEntries = git(
+    "-C",
+    worktree,
+    "ls-tree",
+    siteRevision,
+    "--",
+    "updates/withdrawn.json",
+  );
+  const withdrawn: unknown = withdrawalEntries
+    ? JSON.parse(git("-C", worktree, "show", `${siteRevision}:updates/withdrawn.json`))
+    : [];
+  return selectedPreview(feed, withdrawn);
+}
+
+export function requireCurrentCatalogReaderSelection(expected: unknown, site: string) {
+  const fresh = previewAt(git("-C", site, "rev-parse", "HEAD").trim(), site);
+  if (!isRecord(expected) || expected.version !== fresh.version || expected.tag !== fresh.tag)
+    throw new Error("Official reader release selection changed before publication");
+}
+
 /** Only the checked-out protected Pages pointer may select an official immutable release. */
 export function acquireCatalogReleasedReader(privateRoot: string) {
   if (process.platform !== "linux" || process.arch !== "x64")
     throw new Error("Released catalog reader acquisition requires Linux x86-64");
   const siteRevision = git("rev-parse", "refs/remotes/origin/gh-pages").trim();
-  const feed: unknown = JSON.parse(git("show", `${siteRevision}:updates/preview/latest.json`));
-  const withdrawalEntries = git("ls-tree", siteRevision, "--", "updates/withdrawn.json");
-  const withdrawn: unknown = withdrawalEntries
-    ? JSON.parse(git("show", `${siteRevision}:updates/withdrawn.json`))
-    : [];
-  const { version, tag } = selectedPreview(feed, withdrawn);
+  const { version, tag } = previewAt(siteRevision);
   const release: unknown = JSON.parse(
     gh(["api", `repos/${repository}/releases/tags/${tag}`]).toString("utf8"),
   );
@@ -218,4 +238,11 @@ export function acquireCatalogReleasedReader(privateRoot: string) {
       checksum_sha256: checksumIdentity.sha256,
     },
   };
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const site = process.argv[2];
+  if (!site) throw new Error("Fresh Pages worktree path is required");
+  const expected: unknown = JSON.parse(process.env.CATALOG_READER_ACTIVATION ?? "");
+  requireCurrentCatalogReaderSelection(expected, site);
 }
