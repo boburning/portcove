@@ -568,6 +568,21 @@ export const desktopApi = {
     expectedUrl: string,
     projectId?: string,
   ) => invoke<void>("open_jakmods_resource", { portId, generation, projectId, expectedUrl }),
+  quaddictedCatalog: (portId: string, generation: number, page: number, filenameSearch?: string) =>
+    invoke<import("./types").QuaddictedCatalog>("get_quaddicted_catalog", {
+      portId,
+      generation,
+      page,
+      filenameSearch,
+    }),
+  modDbFileNotices: (portId: string, generation: number) =>
+    invoke<import("./types").ModDbFileNotices>("get_moddb_file_notices", { portId, generation }),
+  openUpstreamModNotice: (
+    portId: string,
+    generation: number,
+    source: "quaddicted" | "mod-db-arcane-dimensions",
+    pageUrl: string,
+  ) => invoke<void>("open_upstream_mod_notice", { portId, generation, source, pageUrl }),
   modProviderCatalog: (portId: string, source: string, generation: number) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,

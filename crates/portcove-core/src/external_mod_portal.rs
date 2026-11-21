@@ -11,6 +11,7 @@ pub enum ExternalModPortalSource {
     ModIoOpenXcom,
     Quaddicted,
     ModDbOpenXcom,
+    ModDbArcaneDimensions,
 }
 
 impl ExternalModPortalSource {
@@ -21,6 +22,7 @@ impl ExternalModPortalSource {
             Self::ModIoOpenXcom => "https://mod.io/g/openxcom/",
             Self::Quaddicted => "https://www.quaddicted.com/db/v2/",
             Self::ModDbOpenXcom => "https://www.moddb.com/games/openxcom/mods",
+            Self::ModDbArcaneDimensions => "https://www.moddb.com/mods/arcane-dimensions/downloads",
         }
     }
 }
@@ -29,6 +31,9 @@ impl ExternalModPortalSource {
 pub struct ExternalModPortal {
     pub source: ExternalModPortalSource,
     pub url: String,
+    /// The current port and platform qualify for the optional read-only provider browser.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub browse_available: bool,
 }
 
 #[derive(Deserialize)]
@@ -106,6 +111,15 @@ pub(crate) fn portals(
         .map(|source| ExternalModPortal {
             source: *source,
             url: source.url().into(),
+            browse_available: port.is_some_and(|port| match source {
+                ExternalModPortalSource::Quaddicted => {
+                    crate::quaddicted::source(port, platform).is_some()
+                }
+                ExternalModPortalSource::ModDbArcaneDimensions => {
+                    crate::quake_mod_browser::has_moddb_notices(port, platform)
+                }
+                _ => false,
+            }),
         })
         .collect()
 }
@@ -117,7 +131,7 @@ mod tests {
     #[test]
     fn every_reviewed_route_matches_the_current_catalog_and_opens_only_its_exact_url() {
         let catalog = Catalog::embedded().unwrap();
-        assert_eq!(bindings().len(), 5);
+        assert_eq!(bindings().len(), 6);
         for binding in bindings() {
             for &platform in &binding.platforms {
                 let offered = portals(&catalog, &binding.port, Some(platform));

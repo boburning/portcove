@@ -2717,8 +2717,15 @@ install and update files outside Portcove.
   requirements before choosing a file. Some listings target a different engine
   variant. [OpenXcom community](https://github.com/OpenXcom/OpenXcom#mods) ·
   [OpenXcom on Mod DB](https://www.moddb.com/games/openxcom/mods)
-- vkQuake links to Quaddicted. Check the project's compatibility notes and
+- vkQuake and Ironwail link to Quaddicted. Check the project's compatibility notes and
   follow the author's setup in a separate Quake copy. [vkQuake compatibility](https://github.com/Novum/vkQuake)
+
+On supported Windows and Linux routes for vkQuake and Ironwail, use
+`portcove profile quaddicted PORT_ID` to see newest entries, or pass
+`--search SEARCH` and `--page 2` to narrow or continue the results. The
+vkQuake route also offers Arcane Dimensions file notices via
+`portcove profile mod-db-notices quake-vkquake`. These notices can include
+patches and documentation. Use the source page to see its instructions.
 
 The Core binding in `crates/portcove-core/catalog/external-mod-portals.json`
 specifies the exact port ID, original game ID, project URL and host platforms.

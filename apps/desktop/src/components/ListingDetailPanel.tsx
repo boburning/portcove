@@ -325,7 +325,17 @@ export function ListingDetailPanel({
           }
         >
           {(reveal) => ({
-            ...(modPortals.length ? { mods: <ExternalModPortals portals={modPortals} /> } : {}),
+            ...(modPortals.length
+              ? {
+                  mods: (
+                    <ExternalModPortals
+                      portals={modPortals}
+                      port={entry.id}
+                      generation={generation}
+                    />
+                  ),
+                }
+              : {}),
             overview: (
               <>
                 <section className="detail-about" aria-label="About this port">

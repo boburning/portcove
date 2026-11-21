@@ -860,7 +860,12 @@ export type RecompExecution = "recompiled_code" | "native_libraries" | "external
  * Upstream-owned browser routes. These grant no download or import capability.
  */
 export type ExternalModPortalSource =
-  "nexus-daggerfall-unity" | "coop-dx" | "mod-io-open-xcom" | "quaddicted" | "mod-db-open-xcom";
+  | "nexus-daggerfall-unity"
+  | "coop-dx"
+  | "mod-io-open-xcom"
+  | "quaddicted"
+  | "mod-db-open-xcom"
+  | "mod-db-arcane-dimensions";
 /**
  * `Present` is limited to ordinary setup metadata previews; it does not
  * establish current immutable payload integrity. Strict inspection uses `Verified`.
@@ -999,6 +1004,8 @@ export type ProfileRecoveryProgress = "keep_current";
  */
 export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+export type QuakeEngine = "vk_quake" | "ironwail";
+export type QuaddictedEngineCompatibility = "unverified" | "declares_another_required_engine";
 export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
@@ -1349,6 +1356,7 @@ export interface TransportOutputs {
   mod_file_preservation_result: OutputModFilePreservationResult;
   mod_setup_draft_preview: OutputModSetupDraftPreview;
   mod_setups_view: OutputModSetupsView;
+  moddb_file_notices: OutputModdbFileNotices;
   official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
@@ -1381,6 +1389,7 @@ export interface TransportOutputs {
   provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
+  quaddicted_catalog: OutputQuaddictedCatalog;
   recipe_acquisition_plan: RecipeAcquisitionPlan;
   recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
@@ -5425,6 +5434,10 @@ export interface OutputModSetupsView {
   [k: string]: unknown;
 }
 export interface ExternalModPortal {
+  /**
+   * The current port and platform qualify for the optional read-only provider browser.
+   */
+  browse_available?: boolean;
   source: ExternalModPortalSource;
   url: string;
   [k: string]: unknown;
@@ -5478,6 +5491,37 @@ export interface ProviderAutoUpdateCheck {
    * None means a current observation offered no update.
    */
   result: ProviderAutoUpdateOutcome | null;
+  [k: string]: unknown;
+}
+export interface OutputModdbFileNotices {
+  freshness: ProviderFreshness;
+  /**
+   * Unix seconds when the provider data was last confirmed.
+   */
+  observed_at: number;
+  value: ModDbFileNotices;
+  [k: string]: unknown;
+}
+/**
+ * Provider-attributed Arcane Dimensions file notices, including nonrelease notices.
+ */
+export interface ModDbFileNotices {
+  attribution: string;
+  notices: FileNotice[];
+  platform: Platform;
+  port_id: string;
+  source_url: string;
+  [k: string]: unknown;
+}
+/**
+ * Mod DB's Files channel also contains tutorials and patches. A notice
+ * identifies a page to open, without classifying it as an installable release.
+ */
+export interface FileNotice {
+  page_url: string;
+  published_at: string | null;
+  source_id: string;
+  title: string;
   [k: string]: unknown;
 }
 /**
@@ -6362,6 +6406,66 @@ export interface OutputProviderUpdateObservation {
    * False with `NewerFiles` means files changed under an unchanged version label.
    */
   version_changed: boolean;
+  [k: string]: unknown;
+}
+export interface OutputQuaddictedCatalog {
+  freshness: ProviderFreshness;
+  /**
+   * Unix seconds when the provider data was last confirmed.
+   */
+  observed_at: number;
+  value: QuaddictedPage;
+  [k: string]: unknown;
+}
+export interface QuaddictedPage {
+  attribution: string;
+  engine: QuakeEngine;
+  entries: QuaddictedEntry[];
+  /**
+   * A full page below the client limit suggests another page may be available.
+   */
+  may_have_more: boolean;
+  page: number;
+  source_url: string;
+  unreadable_rows: number;
+  [k: string]: unknown;
+}
+export interface QuaddictedEntry {
+  authors: string[];
+  claimed_bytes: number | null;
+  /**
+   * Publisher metadata claim. This adapter never verifies or downloads bytes.
+   */
+  claimed_sha256: string;
+  content_kind: string[];
+  engine_compatibility: QuaddictedEngineCompatibility;
+  engine_requirements: string[];
+  filename: string | null;
+  install_notes: QuaddictedInstallNotes;
+  page_url: string;
+  /**
+   * Provider notes, for text rendering only. May contain markup as literal text.
+   */
+  provider_notes: string[];
+  release_date: string | null;
+  /**
+   * Exact provider-declared locations. These are display data.
+   */
+  source_urls: string[];
+  title: string;
+  [k: string]: unknown;
+}
+/**
+ * Inert extraction/launch descriptions. Never interpreted by this adapter.
+ */
+export interface QuaddictedInstallNotes {
+  command_line: string[];
+  dependencies: string[];
+  extract: string | null;
+  extract_mapping: {
+    [k: string]: string;
+  };
+  start_maps: string[];
   [k: string]: unknown;
 }
 /**

@@ -792,7 +792,11 @@ function DetailBody(model: {
           ? {
               mods: (
                 <>
-                  <ExternalModPortals portals={externalModPortals} />
+                  <ExternalModPortals
+                    portals={externalModPortals}
+                    port={model.port.id}
+                    generation={model.libraryGeneration}
+                  />
                   {hasCommunitySource && (
                     <JakModsBrowser
                       setupUrl={communitySource.url}

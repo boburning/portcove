@@ -32,6 +32,13 @@
     "game": "quake",
     "project": "https://github.com/Novum/vkQuake",
     "platforms": ["linux-x86-64", "macos-aarch64", "macos-x86-64", "windows-x86-64"],
+    "portals": ["quaddicted", "mod-db-arcane-dimensions"]
+  },
+  {
+    "port": "quake-ironwail",
+    "game": "quake",
+    "project": "https://github.com/andrei-drexler/ironwail",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "portals": ["quaddicted"]
   }
 ]

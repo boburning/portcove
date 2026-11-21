@@ -41,6 +41,21 @@ fn requests_bind_scope_query_order_and_limits() {
     assert!(endpoint(None, MAX_PAGE + 1).is_err());
 }
 
+#[test]
+fn a_full_final_page_does_not_offer_an_out_of_bounds_next_page() {
+    let rows = json!(vec![Value::Null; PAGE_SIZE]);
+    assert!(
+        project(&rows, QuakeEngine::VkQuake, MAX_PAGE - 1)
+            .unwrap()
+            .may_have_more
+    );
+    assert!(
+        !project(&rows, QuakeEngine::VkQuake, MAX_PAGE)
+            .unwrap()
+            .may_have_more
+    );
+}
+
 fn documented_row(sha: &str) -> Value {
     json!({
         "sha256": sha.repeat(64),

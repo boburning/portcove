@@ -85,7 +85,7 @@ pub struct QuaddictedPage {
     pub page: u32,
     pub entries: Vec<QuaddictedEntry>,
     pub unreadable_rows: usize,
-    /// The upstream response has no total. A full page only suggests more rows.
+    /// A full page below the client limit suggests another page may be available.
     pub may_have_more: bool,
 }
 
@@ -219,7 +219,7 @@ fn project(value: &Value, engine: QuakeEngine, page: u32) -> Result<QuaddictedPa
         engine,
         page,
         unreadable_rows: rows.len() - entries.len(),
-        may_have_more: rows.len() == PAGE_SIZE,
+        may_have_more: page < MAX_PAGE && rows.len() == PAGE_SIZE,
         entries,
     })
 }

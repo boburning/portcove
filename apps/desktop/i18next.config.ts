@@ -35,6 +35,7 @@ export default defineConfig({
       "src/components/ui/combobox.tsx",
       "src/components/ExternalLink.tsx",
       "src/components/ExternalModPortals.tsx",
+      "src/components/UpstreamModNotices.tsx",
       "src/components/AuthoredSetupWarnings.tsx",
       "src/components/InvocationAnnouncements.tsx",
       "src/features/browsing/ImplementationChoice.tsx",
