@@ -347,6 +347,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-game-settings-review",
+    "A reviewed two-field Game settings change set is saved through native IPC to the exact installed target.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-update-acquisition-lifecycle",
     "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, a real Restore previous version then keeps saves and one labelled rollback snapshot, and retained cancellation is discarded after reviewed uninstall.",
     {
@@ -897,6 +907,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-standing-setup-source-return requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-game-settings-review") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-game-settings-review requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-selected-setup-completion")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-selected-setup-completion requires one exact standalone scenario");
@@ -1083,6 +1098,7 @@ export function desktopHarnessDeadlineMs(
   // Calibrated from 180 s (#4879): with its waits calibrated for the debug build,
   // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
   // 180 s watchdog left no room for failure capture and cleanup. Harness only.
+  if (selection.selected_scenarios.includes("native-game-settings-review")) return 600_000;
   if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
   // Saved-source scan, two bounded installs, one fresh-session read and cleanup.
   if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) return 600_000;

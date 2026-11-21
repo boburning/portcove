@@ -662,6 +662,9 @@ jobs:
           - selection: selected-setup
             scenarios:
               - native-selected-setup-completion
+          - selection: game-settings-review
+            scenarios:
+              - native-game-settings-review
           - selection: update-acquisition
             scenarios:
               - native-update-acquisition-lifecycle

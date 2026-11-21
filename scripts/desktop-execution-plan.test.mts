@@ -44,6 +44,26 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("the game settings review plans one owned Windows fixture", () => {
+  const id = "native-game-settings-review";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.gameSettingsJourney, true);
+  assert.equal(plan.fixtures.install, true);
+  assert.deepEqual(plan.build.cliFeatures, ["portcove-cli/qualification-fixtures"]);
+  assert.ok(plan.build.qualificationFeatures.includes("qualification-fixtures"));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "linux" }),
+    /standalone Windows/,
+  );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone Windows/,
+  );
+});
+
 void test("native review presentation dependency is retained once for every platform and profile", () => {
   const dependency = "apps/desktop/scripts/desktop-review-presentation.mts";
   assert.equal(nativeTransportReceiptSources.filter((source) => source === dependency).length, 1);
@@ -434,6 +454,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-secondary-panel-presentation",
             "native-collection-artwork-presentation",
             "native-update-acquisition-lifecycle",
+            "native-game-settings-review",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
             "native-game-first-installed-picori",
@@ -441,6 +462,7 @@ void test("execution planning preserves the independently reviewed pre-change or
           ].includes(id),
       ),
     });
+    assert.ok(selection.excluded_scenarios.includes("native-game-settings-review"));
     assert.ok(!selection.selected_scenarios.includes("native-preliminary-source-review"));
     assert.ok(selection.excluded_scenarios.includes("native-preliminary-source-review"));
     assert.ok(!selection.selected_scenarios.includes("native-saved-folder-hash-resume"));

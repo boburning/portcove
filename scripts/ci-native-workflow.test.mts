@@ -280,6 +280,7 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
       "library-layout",
       "library-organization",
       "selected-setup",
+      "game-settings-review",
       "update-acquisition",
       "staged-update",
       "external-runtime",
