@@ -136,5 +136,16 @@
       "recipe": "yoshis-cookie-nes-cycle-v1.1.0",
       "projection": "yoshis-cookie-recomp"
     }
-  ]
+  ],
+  "forbidden_memories_producer": {
+    "repository": "Unchiga/YuGiOhForbiddenMemoriesRecomp",
+    "repository_id": 1339885631,
+    "release_id": 387954225,
+    "asset_id": 561508224,
+    "tag": "v0.6.1",
+    "asset_name": "ygofm-0.6.1-win-x64.zip",
+    "size": 34799128,
+    "sha256": "4eed315000952dee7a751a05de4413a88777cf49609d29ab77ee3765a44d0f53",
+    "url": "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/releases/download/v0.6.1/ygofm-0.6.1-win-x64.zip"
+  }
 }

@@ -10,6 +10,14 @@ struct Registry {
     direct: Vec<LegacyDirectArtifact>,
     packages: Vec<HistoricalPackage>,
     cartridge: Vec<CartridgeContract>,
+    #[cfg_attr(
+        not(any(test, feature = "qualification-fixtures")),
+        serde(rename = "forbidden_memories_producer")
+    )]
+    #[cfg(not(any(test, feature = "qualification-fixtures")))]
+    _forbidden_memories_producer: serde::de::IgnoredAny,
+    #[cfg(any(test, feature = "qualification-fixtures"))]
+    forbidden_memories_producer: HistoricalGithubProducer,
 }
 
 static REGISTRY: LazyLock<Registry> = LazyLock::new(|| {
@@ -172,6 +180,26 @@ pub(crate) fn cartridge_definition(
         .find(|row| row.port_id == port_id && row.recipe == recipe)
         .map(|row| Ok(serde_json::from_str(row.projection.bytes())?))
         .transpose()
+}
+
+#[cfg(any(test, feature = "qualification-fixtures"))]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct HistoricalGithubProducer {
+    pub(crate) repository: String,
+    pub(crate) repository_id: u64,
+    pub(crate) release_id: u64,
+    pub(crate) asset_id: u64,
+    pub(crate) tag: String,
+    pub(crate) asset_name: String,
+    pub(crate) size: u64,
+    pub(crate) sha256: String,
+    pub(crate) url: String,
+}
+
+#[cfg(any(test, feature = "qualification-fixtures"))]
+pub(crate) fn forbidden_memories_producer() -> &'static HistoricalGithubProducer {
+    &REGISTRY.forbidden_memories_producer
 }
 
 #[cfg(test)]
