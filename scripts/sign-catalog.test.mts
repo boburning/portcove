@@ -531,3 +531,14 @@ void test("legacy signer refuses empty-middle file patterns before key access", 
   );
   assert.equal(existsSync(item.output), false);
 });
+
+void test("legacy signer refuses an alternate forge selector before key access", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  rmSync(item.key);
+  writeFileSync(item.catalog, JSON.stringify({ ports: [{ release: { provider: "reviewed-forge" } }] }));
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Format-1 signed catalogs cannot deliver reviewed alternate forge selectors/u);
+  assert.equal(existsSync(item.output), false);
+});

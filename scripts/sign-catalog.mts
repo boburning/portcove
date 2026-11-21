@@ -131,6 +131,17 @@ if (catalog && typeof catalog === "object" && "ports" in catalog && Array.isArra
     ) {
       throw new Error("Format-1 signed catalogs cannot deliver reviewed package choices.");
     }
+    if (
+      "release" in port &&
+      port.release &&
+      typeof port.release === "object" &&
+      "provider" in port.release &&
+      port.release.provider === "reviewed-forge"
+    ) {
+      throw new Error(
+        "Format-1 signed catalogs cannot deliver reviewed alternate forge selectors. Use a compatible indexed definition.",
+      );
+    }
     if ("reviewed_launch_contract_v1" in port) {
       throw new Error(
         "Format-1 signed catalogs cannot deliver reviewed package and launch declarations. Use a compatible indexed definition.",
