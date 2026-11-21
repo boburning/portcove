@@ -560,12 +560,19 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-relink",
           replacement,
         );
-        await browser.wait(async () => {
-          const roots = await read("get_game_file_roots");
-          return (
-            roots.length === 2 && roots.find((root) => root.id === second.id)?.path !== second.path
-          );
-        }, 5_000);
+        // Hosted GTK run 44952451526 returned the chosen path while the
+        // selected row was still settling. Wait for the same ID to change.
+        await browser.wait(
+          async () => {
+            const roots = await read("get_game_file_roots");
+            return (
+              roots.length === 2 &&
+              roots.some((root) => root.id === second.id && root.path !== second.path)
+            );
+          },
+          30_000,
+          "Core did not finish relinking the selected folder",
+        );
         const relinked = required(
           (await read("get_game_file_roots")).find((root) => root.id === second.id),
         );
