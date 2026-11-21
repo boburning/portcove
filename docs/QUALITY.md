@@ -459,6 +459,14 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+On November 21, two guarded WSL commands hit the 30-second checkout scan
+deadline before starting their payloads. One read-only scan of the #8115
+checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing
+probe supervisor with a 120-second budget. WSL full I/O pressure averaged
+88.34% over the preceding ten seconds. The local override allows 30 to 120
+seconds per scan and leaves the default at 30 seconds. Both scans still cover
+all Git-visible inputs and a mismatch still prevents execution.
+
 The macOS contributor frontend check in run `44772676894`, attempt 1, reached
 the final **Back to Library** click in the combined mod setup, version, backup,
 and settings-draft journey with about one second left in its 15-second test

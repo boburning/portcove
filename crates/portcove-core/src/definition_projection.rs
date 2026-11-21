@@ -260,6 +260,7 @@ impl DefinitionCatalogProjection {
         catalog.retain_embedded_file_patterns(baseline, selected)?;
         catalog.retain_unrelated_upstream_reviews(baseline, selected);
         catalog.retain_unrelated_mod_loaders(baseline, selected);
+        catalog.retain_unrelated_package_settings(baseline, selected);
         crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
         Ok(catalog)
     }
@@ -412,6 +413,18 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "native mod loader bindings must belong to the selected definition",
+            )
+            .detail("port_id", &sibling.id));
+        }
+        if let Some(sibling) = catalog.ports().iter().find(|sibling| {
+            sibling.id != stable_id
+                && sibling
+                    .game_settings
+                    .as_ref()
+                    .is_some_and(crate::GameSettingsContract::package_only)
+        }) {
+            return Err(PortcoveError::verification(
+                "package-only settings must belong to the selected definition",
             )
             .detail("port_id", &sibling.id));
         }

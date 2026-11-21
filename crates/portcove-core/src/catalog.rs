@@ -444,6 +444,21 @@ impl Catalog {
         }
     }
 
+    /// A sibling projection cannot appoint or remove package-only settings.
+    pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+                && original
+                    .game_settings
+                    .as_ref()
+                    .is_some_and(crate::GameSettingsContract::package_only)
+            {
+                port.game_settings.clone_from(&original.game_settings);
+            }
+        }
+    }
+
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
         let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
             return;
@@ -816,13 +831,7 @@ impl Catalog {
                 )));
             }
             if let Some(settings) = &port.game_settings {
-                settings.validate(&port.persistent_paths)?;
-                if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
-                    return Err(PortcoveError::usage(
-                        "settings contract requires a declared Windows x86-64 integration",
-                    )
-                    .detail("port_id", &port.id));
-                }
+                settings.validate_port(port)?;
             }
             let native_archive_release = port.release.provider == ReleaseSource::Github
                 || (port.release.provider == ReleaseSource::DirectManifest
@@ -967,10 +976,19 @@ impl Catalog {
                 if let Some(game) = &presentation.original_game {
                     game.validate()?;
                 }
+                let media = presentation.media.as_deref().unwrap_or_default();
+                if media
+                    .iter()
+                    .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                {
+                    return Err(PortcoveError::unsupported(
+                        "IGDB backgrounds and screenshots belong in listing format 13",
+                    ));
+                }
                 crate::catalog_media::validate_catalog_media(
                     &port.id,
                     presentation.original_game.as_ref(),
-                    presentation.media.as_deref().unwrap_or_default(),
+                    media,
                 )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),

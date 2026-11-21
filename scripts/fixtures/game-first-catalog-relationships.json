@@ -754,6 +754,7 @@
     "lethal-guitar-rigelengine",
     "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
     "lighthouse",
+    "linewars-ii-sdl3",
     "linkssy2-darkwatchdarkeredition",
     "linkssy2-urbanchaosriotresponseburneredition",
     "linkzenic-2ship2harkinian-android",
@@ -2056,6 +2057,7 @@
       "legend-of-legaia-legend-of-legaia-recomp",
       "legend-of-legaia-re-andrewaltimit-legend-of-legaia"
     ],
+    "linewars-ii": ["linewars-ii-sdl3"],
     "little-fighter-2": ["little-fighter-2-lf2-port", "little-fighter-2-openlf2"],
     "luigi-s-mansion": [
       "luigi-s-mansion-luigi-s-mansion-recompiled",
@@ -2624,6 +2626,15 @@
     "decision": "Same original Transport Tycoon Deluxe, separate Android implementation and external setup/update/player-data owner. Reviewed expected membership extends the original audit; no relationship was derived from generated output."
   },
   "target_reconciliations": [
+    {
+      "target_revision": "d1e28e6630d019976f7b465041360ce85cd28edf",
+      "added_port_ids": ["linewars-ii-sdl3"],
+      "evidence_urls": [
+        "https://github.com/boburning/portcove/pull/8414",
+        "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/NOTICE.md"
+      ],
+      "decision": "The SDL3 release preserves the LineWars II original identity. Its external registration keeps update, save and settings ownership with the player."
+    },
     {
       "target_revision": "f1e167f032e6285a7d1e57cc31703ccea2817eaa",
       "added_port_ids": [

@@ -2260,11 +2260,20 @@ fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     // Exercise generic persistence validation rather than the earlier loader fence.
     port.remove("mod_loader");
     port.remove("mod_provider_bindings");
-    port.insert("persistent_paths".into(), json!(["../outside"]));
+    // Keep the fixture's authored settings targets in the persistence contract.
+    port.get_mut("persistent_paths")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+        .push(json!("../outside"));
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
-    assert!(crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).is_err());
+    let error = crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).unwrap_err();
+    assert!(
+        error.message.contains("unsafe persistent path: ../outside"),
+        "{error}"
+    );
 }
 
 #[test]

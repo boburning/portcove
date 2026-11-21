@@ -40124,6 +40124,50 @@
           "SuperMarioWorldSNESRecomp.exe"
         ]
       },
+      "game_settings": {
+        "format_version": 2,
+        "releases": [
+          {
+            "version": "v0.15.9",
+            "platform": "windows-x86-64",
+            "archive_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+            "source_commit": "8c280aac7ea08456372cd2b42603bb2ad7ab51eb",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.9",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.10",
+            "platform": "windows-x86-64",
+            "archive_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+            "source_commit": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.10",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.11",
+            "platform": "windows-x86-64",
+            "archive_sha256": "c4c0933bcbbf575ce1d74389b7ce89c9e34960aed395c18764683c483ecdc5cd",
+            "source_commit": "cbbf35c57dd637102925798d0cc092803dd44c32",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.11",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/cbbf35c57dd637102925798d0cc092803dd44c32/src/config.c"
+            ]
+          }
+        ],
+        "files": [
+          {
+            "id": "graphics-config",
+            "path": "config.ini",
+            "format": "ini",
+            "maximum_bytes": 32767,
+            "settings": []
+          }
+        ]
+      },
       "presentation": {
         "installation_method": "portable-recompilation",
         "source_requirements": [
@@ -48408,6 +48452,21 @@
           "image_sha256": "a7a6b4931e4693816a02c5e8bd22b7c6cfca8b7f6f4d58a2c65e9c45504c62ff",
           "game_slug": "medievil-ii--1",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "bios",
+            "docs",
+            "licenses",
+            "mods",
+            "tools"
+          ],
+          "executables": [
+            "medieviliirecomp.exe"
+          ]
         }
       }
     },
@@ -62916,7 +62975,7 @@
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
       "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
-      "summary": "Use the official DUDE Windows player with your own classic Doom 3 files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
+      "summary": "Use the official DUDE player on Windows or Linux with your own classic Doom 3 files. First Play on Windows can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "project_url": "https://github.com/Inkub0/dude",
       "support_tier": "beta",
       "channels": [
@@ -62957,7 +63016,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official player package with its own libraries and resources; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Back up the actual external dude config and save folders separately. Use a separately prepared copy for custom paths or native mods. If the Linux first launch would copy a legacy dhewm3 profile, complete that setup with an upstream copy and preserve both profiles.",
+        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official player package with its own libraries and resources; do not overwrite them with old engine files. Optional graphics packs and custom mods stay upstream-owned. Use custom mods in a separate external copy outside the managed library. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Back up the actual external dude config and save folders separately. Use a separately prepared copy for custom paths or native mods. If the Linux first launch would copy a legacy dhewm3 profile, complete that setup with an upstream copy and preserve both profiles.",
         "original_game_title": "Doom 3 (classic)",
         "original_game": {
           "format_version": 1,
@@ -62981,7 +63040,7 @@
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
+              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official platform package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional graphics packs and custom mods stay upstream-owned. Use custom mods in a separate external copy outside the managed library. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
             },
             {
               "title": "Review first-launch profile copying",
@@ -62989,7 +63048,7 @@
             },
             {
               "title": "Keep an existing prepared copy",
-              "instruction": "Keep the complete official Windows player package and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. This is an external registration: you and upstream own its runtime replacement and all files. Removing its registration preserves those files. It does not migrate or adopt the copy into a managed installation."
+              "instruction": "Keep the complete official package and its libraries and resources together. Register dude.exe on Windows or dude on Linux in its containing runtime folder. Point to the folder containing base with three separate argument lines: +set, fs_basepath, then the absolute data-root path. DUDE can offer to download or replace a mod code library. Review its source and licence before approving it. Supply the mod data separately. Set com_allowModDownload 0 in DUDE to disable mod-library downloads. Optional graphics packs are separate. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. This is an external registration: you and upstream own its runtime replacement and all files. Removing its registration preserves those files. It does not migrate or adopt the copy into a managed installation."
             }
           ],
           "warnings": [
@@ -63276,7 +63335,7 @@
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
       "name": "Doom 3: Resurrection of Evil (classic) (DUDE — Doom 3 Unified Development Engine)",
-      "summary": "Use the official DUDE Windows player with your own classic Doom 3 and Resurrection of Evil files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
+      "summary": "Use the official DUDE player on Windows or Linux with your own classic Doom 3 and Resurrection of Evil files. First Play on Windows can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "project_url": "https://github.com/Inkub0/dude",
       "support_tier": "beta",
       "channels": [
@@ -63317,7 +63376,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official player package with its own libraries and resources; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Back up the actual external dude config and save folders separately. Use a separately prepared copy for custom paths or native mods. If the Linux first launch would copy a legacy dhewm3 profile, complete that setup with an upstream copy and preserve both profiles.",
+        "manual_preparation": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official player package with its own libraries and resources; do not overwrite them with old engine files. Optional graphics packs and custom mods stay upstream-owned. Use custom mods in a separate external copy outside the managed library. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification. Windows normally stores saves and settings under the actual Documents/My Games/dude profile, with base/d3xp scopes. Explicit fs_savepath or mod paths can redirect writes. Preserve the actual profile, originals and creating runtime. Before first Play on Windows, preserve both the existing Documents/My Games/dhewm3 profile and its creating runtime as well as any dude profile. If the dude profile is missing, this upstream Windows build silently copies the existing dhewm3 tree into it. A private original/runtime copy does not isolate that profile behavior. The game copies that profile without moving the original. Portcove does not manage the copied profile, and save compatibility has not been confirmed. Decide whether to allow this before choosing Play. Portcove replaces only its separate official managed runtime and preserves the declared copied PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover external profiles. Runtime rollback carries current declared inputs; it does not rewind saves or promise compatibility with another engine, older runtime, mod or recorded demo. Keep the managed Windows library path short and limited to plain ASCII characters; external profile locations have their own upstream limits. Older installations retain their original path contract. Custom path overrides, dedicated servers, optional resources and custom mods can retain an external registration. Existing registrations retain their files and user/upstream runtime owner. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Back up the actual external dude config and save folders separately. Use a separately prepared copy for custom paths or native mods. If the Linux first launch would copy a legacy dhewm3 profile, complete that setup with an upstream copy and preserve both profiles.",
         "original_game_title": "Doom 3: Resurrection of Evil (classic)",
         "original_game": {
           "format_version": 1,
@@ -63341,7 +63400,7 @@
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official Windows player package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional baked-AO packages and custom mods use their own setup instructions and are outside this managed route. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
+              "instruction": "Before Play, copy base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into base beside dude.exe on Windows or dude on Linux. Also copy your own classic Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp; the base game is required and the maintained arguments select the expansion. Keep the originals separately. BFG Edition is a different product. Portcove does not verify original-game identity. Keep the complete official platform package and all its own DLLs and resources together; do not overwrite them with old engine files. Optional graphics packs and custom mods stay upstream-owned. Use custom mods in a separate external copy outside the managed library. Check upstream renderer and hardware requirements for your selected mode; this fork does not inherit dhewm3 qualification."
             },
             {
               "title": "Review first-launch profile copying",
@@ -63349,7 +63408,7 @@
             },
             {
               "title": "Keep an existing prepared copy",
-              "instruction": "Keep the complete official Windows player package and its DLL/resources together. Register dude.exe in its runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. Optional baked-AO downloads are separate from the player. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. This is an external registration: you and upstream own its runtime replacement and all files. Removing its registration preserves those files. It does not migrate or adopt the copy into a managed installation."
+              "instruction": "Keep the complete official package and its libraries and resources together. Register dude.exe on Windows or dude on Linux in its containing runtime folder. Point to the folder containing base and d3xp with three separate argument lines: +set, fs_basepath, then the absolute data-root path. Add three more literal lines: +set, fs_game, d3xp. DUDE can offer to download or replace a mod code library. Review its source and licence before approving it. Supply the mod data separately. Set com_allowModDownload 0 in DUDE to disable mod-library downloads. Optional graphics packs are separate. Check the upstream renderer and hardware requirements for your chosen mode; dhewm3 test results do not apply to this fork. This is an external registration: you and upstream own its runtime replacement and all files. Removing its registration preserves those files. It does not migrate or adopt the copy into a managed installation."
             }
           ],
           "warnings": [

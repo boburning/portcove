@@ -80,6 +80,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
+        listing.media.retain(|asset| !asset.is_typed_igdb_scene());
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -109,9 +110,16 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(
-        &crate::installed_contract::legacy_retained_document(catalog, port_id, None),
-    )?)
+    let mut document = crate::installed_contract::legacy_retained_document(catalog, port_id, None);
+    if let Some(port) = document.ports.iter_mut().find(|port| port.id == port_id)
+        && port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+    {
+        port.game_settings = None;
+    }
+    Ok(serde_json::to_string(&document)?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -131,6 +139,11 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
+            || retained
+                .listing
+                .media
+                .iter()
+                .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(

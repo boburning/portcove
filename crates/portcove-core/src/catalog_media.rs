@@ -12,6 +12,8 @@ use crate::{
     ArtworkThumbnail, Library, OriginalGameIdentity, PortcoveError, PortcoveService, Result,
 };
 
+pub(crate) const IGDB_SCENE_LISTING_FORMAT: u32 = 13;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CatalogMediaRole {
@@ -38,9 +40,10 @@ pub enum CatalogMediaSubject {
 pub enum IgdbGameImageKind {
     Logo,
     Artwork,
+    Screenshot,
 }
 
-/// A reviewed mapping from IGDB's game-logo or artwork endpoint. These are
+/// A reviewed mapping from IGDB's logo, artwork or screenshot endpoint. These are
 /// public descriptive IDs, never API credentials or installation authority.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -79,6 +82,18 @@ pub struct CatalogMediaAsset {
     pub edition_neutral: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub igdb: Option<IgdbGameImage>,
+}
+
+impl CatalogMediaAsset {
+    /// New scene records live in the descriptive directory, with a versioned
+    /// reader requirement independent of the operational catalog schema.
+    pub(crate) fn is_typed_igdb_scene(&self) -> bool {
+        self.igdb.is_some()
+            && matches!(
+                self.role,
+                CatalogMediaRole::Header | CatalogMediaRole::Screenshot
+            )
+    }
 }
 
 pub fn validate_catalog_media(
@@ -159,10 +174,6 @@ pub fn validate_catalog_media(
                     | "GPL-3.0-or-later"
                     | "LicenseRef-Permission"
             ) || (asset.license == "LicenseRef-IGDB-Terms"
-                && matches!(
-                    asset.role,
-                    CatalogMediaRole::Logo | CatalogMediaRole::KeyArt
-                )
                 && asset.igdb.is_some()
                 && asset.rights_url == "https://www.twitch.tv/p/en/legal/developer-agreement/"))
         {
@@ -196,18 +207,15 @@ pub fn validate_catalog_media(
     Ok(())
 }
 
-fn is_key_art_type_name(name: &str) -> bool {
+fn normalized_artwork_type(name: &str) -> Option<String> {
     if !valid_text(name, 128) {
-        return false;
+        return None;
     }
-    let normalized: String = name
-        .chars()
-        .filter(char::is_ascii_alphanumeric)
-        .flat_map(char::to_lowercase)
-        .collect();
-    matches!(
-        normalized.as_str(),
-        "keyart" | "keyartwithlogo" | "keyartwithoutlogo"
+    Some(
+        name.chars()
+            .filter(char::is_ascii_alphanumeric)
+            .map(|character| character.to_ascii_lowercase())
+            .collect(),
     )
 }
 
@@ -224,14 +232,28 @@ fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
             ))
         };
     };
+    let artwork_type = image
+        .image_type
+        .and_then(|_| image.image_type_name.as_deref())
+        .and_then(normalized_artwork_type);
     let variant = match (asset.role, image.kind) {
         (CatalogMediaRole::Logo, IgdbGameImageKind::Logo) => "logo_med_2x",
         (CatalogMediaRole::KeyArt, IgdbGameImageKind::Artwork)
-            if image.image_type.is_some()
-                && image
-                    .image_type_name
-                    .as_deref()
-                    .is_some_and(is_key_art_type_name) =>
+            if matches!(
+                artwork_type.as_deref(),
+                Some("keyart" | "keyartwithlogo" | "keyartwithoutlogo")
+            ) =>
+        {
+            "720p"
+        }
+        (CatalogMediaRole::Header, IgdbGameImageKind::Artwork)
+            if artwork_type.as_deref() == Some("keyartwithoutlogo")
+                && u64::from(asset.width) * 2 >= u64::from(asset.height) * 3 =>
+        {
+            "720p"
+        }
+        (CatalogMediaRole::Screenshot, IgdbGameImageKind::Screenshot)
+            if image.image_type.is_none() && image.image_type_name.is_none() =>
         {
             "720p"
         }
@@ -266,7 +288,7 @@ fn validate_igdb_media(asset: &CatalogMediaAsset) -> Result<()> {
         || asset.source_url != format!("https://www.igdb.com/games/{}", image.game_slug)
     {
         return Err(PortcoveError::usage(
-            "foreground game images require an exact reviewed IGDB mapping and bounded fit image",
+            "IGDB game images require an exact reviewed mapping and bounded fit image",
         ));
     }
     Ok(())
@@ -608,6 +630,42 @@ mod tests {
         }
         image.igdb.as_mut().unwrap().image_type_name = None;
         assert!(validate_catalog_media("example", None, &[image]).is_err());
+    }
+
+    #[test]
+    fn typed_igdb_scenes_require_the_right_record_and_fit() {
+        let mut screenshot = logo();
+        screenshot.role = CatalogMediaRole::Screenshot;
+        screenshot.url = screenshot.url.replace("logo_med_2x", "720p");
+        screenshot.license = "LicenseRef-IGDB-Terms".into();
+        screenshot.rights_url = "https://www.twitch.tv/p/en/legal/developer-agreement/".into();
+        screenshot.igdb.as_mut().unwrap().kind = IgdbGameImageKind::Screenshot;
+        let validate = |asset: &CatalogMediaAsset| {
+            validate_catalog_media("example", None, std::slice::from_ref(asset))
+        };
+        assert!(validate(&screenshot).is_ok());
+
+        let mut background = screenshot.clone();
+        background.role = CatalogMediaRole::Header;
+        assert!(validate(&background).is_err());
+        let image = background.igdb.as_mut().unwrap();
+        image.kind = IgdbGameImageKind::Artwork;
+        image.image_type = Some(48);
+        image.image_type_name = Some("Key Art Without Logo".into());
+        assert!(validate(&background).is_ok());
+        for incorrect_type in ["Concept Art", "Key Art", "Key Art With Logo"] {
+            let mut invalid = background.clone();
+            invalid.igdb.as_mut().unwrap().image_type_name = Some(incorrect_type.into());
+            assert!(validate(&invalid).is_err(), "{incorrect_type}");
+        }
+        let mut portrait = background.clone();
+        portrait.height = 4;
+        assert!(validate(&portrait).is_err());
+        let mut wrong_url = background;
+        wrong_url.url = wrong_url.url.replace("t_720p", "t_original");
+        assert!(validate(&wrong_url).is_err());
+        screenshot.igdb.as_mut().unwrap().image_type = Some(48);
+        assert!(validate(&screenshot).is_err());
     }
 
     #[test]

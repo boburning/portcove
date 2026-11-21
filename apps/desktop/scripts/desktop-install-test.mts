@@ -1473,7 +1473,7 @@ export async function installScenarios({
           ))
             if (
               (await section.isDisplayed()) &&
-              (await section.getText()).includes("Update downloaded, not installed")
+              (await section.getText()).includes("Update archive downloaded")
             )
               return true;
           return false;

@@ -33,6 +33,7 @@ import type { ImageValidator } from "./inspect-igdb-artwork.mts";
 import {
   prepareCoverArtworkInOperations,
   prepareGameMediaInOperations,
+  sceneCoverage,
 } from "./artwork-operations.mts";
 import {
   managedSetupReleaseAdvice,
@@ -409,7 +410,12 @@ const acceptedArtwork = {
         ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
         name: listing.name,
         project_url: listing.project_url,
-        presentation: { artwork: listing.artwork, collection_covers: listing.collection_covers },
+        presentation: {
+          artwork: listing.artwork,
+          collection_covers: listing.collection_covers,
+          original_game: listing.original_game,
+          media: listing.media,
+        },
       })),
   ],
 };
@@ -606,7 +612,13 @@ async function prepareArtworkProposal(fullProposal = false) {
     gone_image_ids: result.gone_image_ids,
     provider_metrics: inspector.providerMetrics,
     ...(gameMedia
-      ? { game_media: { records: gameMedia.records, gone_image_ids: gameMedia.gone_image_ids } }
+      ? {
+          game_media: {
+            records: gameMedia.records,
+            gone_image_ids: gameMedia.gone_image_ids,
+            coverage: sceneCoverage(acceptedArtwork, gameMedia, selectedPortIds),
+          },
+        }
       : {}),
     scope: gameMedia
       ? "Maintainer cover and remote game-media proposal; no admission, signature, publication, image-payload redistribution, runtime or user-choice mutation."
