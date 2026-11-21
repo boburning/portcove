@@ -270,6 +270,7 @@ it("retains the exact support report and folder action across workspace navigati
     expect(open).toHaveBeenCalledExactlyOnceWith();
     expect(create).toHaveBeenCalledExactlyOnceWith(1);
   } finally {
+    await root.rerender(null);
     transport.dispose();
   }
 });
