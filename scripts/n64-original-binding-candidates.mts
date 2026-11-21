@@ -157,7 +157,7 @@ export function planN64OriginalBindings(
       continue;
     }
     const hints = isRecord(port.executable_hints) ? port.executable_hints[platform] : undefined;
-    if (!Array.isArray(hints) || !hints.includes(job.compile.executable)) {
+    if (!Array.isArray(hints) || hints.length !== 1 || hints[0] !== job.compile.executable) {
       platforms.push({ ...identity, state: "unbound-executable" });
       continue;
     }
@@ -194,6 +194,24 @@ export function planN64OriginalBindings(
   } as const;
 }
 
+/** Bind a package review to the adapter inputs that select the executable and its root. */
+export function n64PackagedInputLayout(port: Record<string, unknown>, platform: string) {
+  const hints = isRecord(port.executable_hints) ? port.executable_hints[platform] : undefined;
+  const root = isRecord(port.runtime_subdirectory_by_platform)
+    ? port.runtime_subdirectory_by_platform[platform]
+    : undefined;
+  return orderedJsonSha256({
+    adapter: port.adapter,
+    executable_hints: hints,
+    runtime_subdirectory: root ?? port.runtime_subdirectory,
+    archive_file_links: isRecord(port.release) && port.release.archive_file_links === true,
+    launch_from_install_root: port.launch_from_install_root === true,
+    n64_runtime_at_executable_parent: port.n64_runtime_at_executable_parent === true,
+    runtime_source_filename: port.runtime_source_filename,
+    runtime_source_materialization: port.runtime_source_materialization ?? "n64-big-endian",
+  });
+}
+
 // A reviewed binary receipt ties the matching native entry and checked code
 // paths to the deployed image, including individual universal-package slices.
 type ReviewedPackagedInput = (typeof reviewedPackagedInputs.receipts)[number];
@@ -202,6 +220,7 @@ export function prepareN64OriginalContractAmendment(
   port: unknown,
   sourceCatalog: unknown,
   evidence: OriginalSourceProgress,
+  catalogPorts: readonly unknown[],
   receipts: readonly ReviewedPackagedInput[] = reviewedPackagedInputs.receipts,
 ) {
   const plan = planN64OriginalBindings(port, sourceCatalog, evidence);
@@ -212,6 +231,8 @@ export function prepareN64OriginalContractAmendment(
     !plan ||
     fact?.parser !== "n64-recomp-game-entry-v1" ||
     !isRecord(port) ||
+    (port.runtime_source_materialization != null &&
+      port.runtime_source_materialization !== "n64-big-endian") ||
     !isRecord(sourceCatalog) ||
     !Array.isArray(sourceCatalog.contracts) ||
     !Array.isArray(sourceCatalog.identities) ||
@@ -221,7 +242,8 @@ export function prepareN64OriginalContractAmendment(
   )
     return;
 
-  const contract = (sourceCatalog.contracts as unknown[]).find(
+  const contracts: unknown[] = sourceCatalog.contracts;
+  const contract = contracts.find(
     (entry) =>
       isRecord(entry) &&
       entry.port_id === port.id &&
@@ -230,6 +252,25 @@ export function prepareN64OriginalContractAmendment(
   );
   if (!isRecord(contract) || typeof contract.id !== "string") return;
   if (contract.admission_mode === "enforced") {
+    const incompatibleConsumer = catalogPorts.some(
+      (consumer) =>
+        isRecord(consumer) &&
+        (consumer.bios_source_profile === contract.profile_id ||
+          (consumer.source_profile === contract.profile_id &&
+            (consumer.adapter !== "n64-recomp-portable" ||
+              !contracts.some(
+                (legacy) =>
+                  isRecord(legacy) &&
+                  legacy.port_id === consumer.id &&
+                  legacy.profile_id === contract.profile_id &&
+                  legacy.role === "game" &&
+                  legacy.admission_mode === "enforced" &&
+                  Array.isArray(legacy.supported_variant_ids) &&
+                  legacy.supported_variant_ids.length > 0 &&
+                  legacy.validator_contract_id == null,
+              )))),
+    );
+    if (incompatibleConsumer) return;
     const profile = (sourceCatalog.identities as unknown[]).find(
       (entry) => isRecord(entry) && entry.id === contract.profile_id,
     );
@@ -259,6 +300,8 @@ export function prepareN64OriginalContractAmendment(
     )
       return [];
     const input = row.proposed_input;
+    if (!Array.isArray(port.platforms) || !port.platforms.includes(row.platform)) return [];
+    const layout = n64PackagedInputLayout(port, row.platform);
     const job = fact.build_jobs?.matches.find(
       (match) =>
         match.job_id === row.build_job_id && match.artifact_sha256 === input.artifact_sha256,
@@ -280,6 +323,7 @@ export function prepareN64OriginalContractAmendment(
         .filter(
           (entry) =>
             entry.platform === row.platform &&
+            entry.layout_sha256 === layout &&
             entry.artifact_sha256 === input.artifact_sha256 &&
             entry.job_id === job.job_id &&
             entry.compile_sha256 === job.compile?.log_sha256 &&
@@ -298,7 +342,12 @@ export function prepareN64OriginalContractAmendment(
   // selected architecture must have proof before the binding can apply.
   const unprovedArtifacts = new Set(
     fact.artifacts
-      .filter(({ platform }) => !inputRows.some(({ proof }) => proof.platform === platform))
+      .filter(
+        ({ platform, sha256 }) =>
+          !inputRows.some(
+            ({ proof }) => proof.platform === platform && proof.artifact_sha256 === sha256,
+          ),
+      )
       .map(({ sha256 }) => sha256),
   );
   const admittedRows = inputRows.filter(
@@ -306,17 +355,33 @@ export function prepareN64OriginalContractAmendment(
   );
   const existing = contract.n64_recomp_inputs_v1 ?? [];
   if (!Array.isArray(existing) || !admittedRows.length) return;
-  const bindings = new Map<string, unknown>();
+  const bindings = new Map<string, Record<string, unknown>>();
   for (const entry of existing as unknown[]) {
-    if (!isRecord(entry)) return;
-    bindings.set(orderedJsonSha256([entry.upstream_ref, entry.artifact_sha256]), entry);
+    if (
+      !isRecord(entry) ||
+      typeof entry.upstream_ref !== "string" ||
+      typeof entry.artifact_sha256 !== "string" ||
+      !/^[a-fA-F0-9]{64}$/u.test(entry.artifact_sha256)
+    )
+      return;
+    const key = orderedJsonSha256([entry.upstream_ref, entry.artifact_sha256.toLowerCase()]);
+    if (bindings.has(key)) return;
+    bindings.set(key, entry);
   }
   const originalCount = bindings.size;
   for (const { input } of admittedRows) {
     const key = orderedJsonSha256([input.upstream_ref, input.artifact_sha256]);
     const previous = bindings.get(key);
-    if (previous && orderedJsonSha256(previous) !== orderedJsonSha256(input)) return;
-    bindings.set(key, input);
+    if (previous) {
+      if (
+        previous.game_id !== input.game_id ||
+        typeof previous.rom_xxh3_64 !== "string" ||
+        previous.rom_xxh3_64.toLowerCase() !== input.rom_xxh3_64
+      )
+        return;
+      continue;
+    }
+    bindings.set(key, { ...input });
   }
   if (bindings.size === originalCount || bindings.size > 64) return;
   return {

@@ -269,8 +269,8 @@ and upload. An unavailable compile log keeps the previously checked steps.
 Maintenance projects a provisional original-file binding for the exact port
 definition, source contracts, and package selection evaluated by the observer.
 It uses the native game ID from the configured runtime filename, the reviewed
-hash-header bytes, and the linked executable's name against the port's platform
-hints. The proposal remains held until the packaged executable and its effective
+hash-header bytes, and the linked executable's name against the port's sole executable hint
+for that platform. A package review also binds the selected runtime layout. The proposal remains held until the packaged executable and its effective
 hash behavior are verified. A checked package receipt joins the selected platform and artifact digest
 to the observed source, runtime, hash dependency and exact build job. For a
 universal package, each selected architecture needs its own review. The

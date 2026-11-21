@@ -449,6 +449,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               definitions.get(port.id),
               rawCatalog.source_catalog,
               inputEvidence,
+              [...definitions.values()],
             )
           : undefined;
       entries.set(port.id, [

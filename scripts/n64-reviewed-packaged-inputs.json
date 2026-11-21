@@ -15,28 +15,32 @@
           "artifact_sha256": "bbea76c78256eb40da61ed951dbd2efdee9dfdcaffc501c24bab1ad39ac2c896",
           "job_id": 108247503777,
           "compile_sha256": "f5804a186a3aff83eb80a91e430a4313b82f393f140baceef800c46fbf3e4554",
-          "executable_sha256": "447b17337d883bbe7832cf740f0946126818f0f6b1d99c9a25cabaaa66f37711"
+          "executable_sha256": "447b17337d883bbe7832cf740f0946126818f0f6b1d99c9a25cabaaa66f37711",
+          "layout_sha256": "0f6fb36c6a5d12d893604f549aebf28063527e2ce21da77817ff692d67acc68f"
         },
         {
           "platform": "linux-x86-64",
           "artifact_sha256": "ae0865eaa1092a88a9321e776ca71dcab86c69c4f74d1004dc4f2d6f2224685c",
           "job_id": 108247503508,
           "compile_sha256": "db66747a835d297367ec3a1dd9698a39ea04691956d63fe0ddd3510c51e6d25d",
-          "executable_sha256": "a7bd0eb7a6e7544d517e89e3475e53a1694313fc2f712d9d1fce557a83c7f2ab"
+          "executable_sha256": "a7bd0eb7a6e7544d517e89e3475e53a1694313fc2f712d9d1fce557a83c7f2ab",
+          "layout_sha256": "ba3ac35f1141ddb1876d5cf33a2d544f3e75930a581261b20254f93dfb23d267"
         },
         {
           "platform": "macos-x86-64",
           "artifact_sha256": "9af5612942f0d40310ea83769fc8a5a221ab0e93a3e55532d5e3ece295cc0080",
           "job_id": 108247503810,
           "compile_sha256": "2f8f3db2b6fb600e041e7c6e387c90deabca20ffbc1f0414fecc0d6a0504119c",
-          "executable_sha256": "3917303fd9adc63141ea21402647401b5f71ebbac7d9dc5fa53a242fdc08af0e"
+          "executable_sha256": "3917303fd9adc63141ea21402647401b5f71ebbac7d9dc5fa53a242fdc08af0e",
+          "layout_sha256": "ba3ac35f1141ddb1876d5cf33a2d544f3e75930a581261b20254f93dfb23d267"
         },
         {
           "platform": "macos-aarch64",
           "artifact_sha256": "9af5612942f0d40310ea83769fc8a5a221ab0e93a3e55532d5e3ece295cc0080",
           "job_id": 108247503810,
           "compile_sha256": "2f8f3db2b6fb600e041e7c6e387c90deabca20ffbc1f0414fecc0d6a0504119c",
-          "executable_sha256": "f3b1541549627bfa887e92d4516b2e9305b86afbea2f7344d535c38a432725f0"
+          "executable_sha256": "f3b1541549627bfa887e92d4516b2e9305b86afbea2f7344d535c38a432725f0",
+          "layout_sha256": "ba3ac35f1141ddb1876d5cf33a2d544f3e75930a581261b20254f93dfb23d267"
         }
       ],
       "game_id": "harvest_moon_64",

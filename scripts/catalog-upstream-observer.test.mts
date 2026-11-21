@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
 import {
   n64AuthoringScope,
+  n64PackagedInputLayout,
   planN64OriginalBindings,
   prepareN64OriginalContractAmendment,
 } from "./n64-original-binding-candidates.mts";
@@ -1577,6 +1578,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         packages: [
           {
             platform: "linux-x86-64",
+            layout_sha256: n64PackagedInputLayout(port, "linux-x86-64"),
             artifact_sha256: "a".repeat(64),
             job_id: job.job_id,
             compile_sha256: job.compile.log_sha256,
@@ -1588,6 +1590,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         port,
         migratedSources,
         successorObservation,
+        [port],
         [receipt],
       );
       assert.equal(amendment?.requires_reader, 11);
@@ -1616,16 +1619,107 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         },
       };
       assert.equal(
-        prepareN64OriginalContractAmendment(port, migratedSources, sharedPackage, [receipt]),
+        prepareN64OriginalContractAmendment(
+          port,
+          migratedSources,
+          sharedPackage,
+          [port],
+          [receipt],
+        ),
         undefined,
       );
       assert.equal(
-        prepareN64OriginalContractAmendment(port, migratedSources, successorObservation, [
-          { ...receipt, rom_xxh3_64: "f".repeat(16) },
-        ]),
+        prepareN64OriginalContractAmendment(
+          port,
+          migratedSources,
+          successorObservation,
+          [port],
+          [{ ...receipt, rom_xxh3_64: "f".repeat(16) }],
+        ),
         undefined,
       );
 
+      const reobservedAmendment = (
+        changedPort: typeof port & Record<string, unknown>,
+        changedSources: typeof migratedSources,
+        consumers: readonly unknown[] = [changedPort],
+      ) =>
+        prepareN64OriginalContractAmendment(
+          changedPort,
+          changedSources,
+          {
+            ...successorObservation,
+            last_complete: {
+              ...successorObservation.last_complete,
+              fact: {
+                ...compiled,
+                authoring_scope_sha256: n64AuthoringScope(changedPort, changedSources)!,
+              },
+            },
+          },
+          consumers,
+          [receipt],
+        );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            executable_hints: { "linux-x86-64": ["Alternate", "FixtureRecompiled"] },
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            runtime_subdirectory: "alternate-root",
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            runtime_source_materialization: "copy",
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(port, migratedSources, [
+          port,
+          { id: "dependent", bios_source_profile: "example" },
+        ]),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(port, migratedSources, [port, { ...port, id: "dependent" }]),
+        undefined,
+      );
+      const equivalentSources = {
+        ...migratedSources,
+        contracts: migratedSources.contracts.map((contract) => ({
+          ...contract,
+          n64_recomp_inputs_v1: [
+            ...contract.n64_recomp_inputs_v1,
+            {
+              upstream_ref: "v1.0.0",
+              artifact_sha256: "A".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "0123456789ABCDEF",
+            },
+          ],
+        })),
+      };
+      assert.equal(reobservedAmendment(port, equivalentSources), undefined);
+      const conflictingSources = structuredClone(equivalentSources);
+      conflictingSources.contracts[0]!.n64_recomp_inputs_v1[1]!.rom_xxh3_64 = "F".repeat(16);
+      assert.equal(reobservedAmendment(port, conflictingSources), undefined);
       const changedDefinition = {
         ...authoringCatalog,
         ports: authoringCatalog.ports.map((port) =>
