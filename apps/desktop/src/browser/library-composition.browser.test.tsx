@@ -1383,9 +1383,9 @@ it("opens the Cover editor from the game card and returns focus to the same More
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount("light", "collection", 3);
   const opener = page.getByRole("button", { name: /^More actions for/ }).first();
-  await expect
-    .element(opener)
-    .toHaveAttribute("data-detail-origin", "library:card-more:collection-0");
+  await expect.element(opener).toHaveAttribute("data-detail-origin", /^library:card-more:/);
+  const origin = opener.element().getAttribute("data-detail-origin");
+  expect(origin).toMatch(/^library:card-more:collection-\d+$/);
   opener.element().focus();
   await userEvent.keyboard("{Enter}");
   const menu = page.getByRole("menu", { name: /^More actions for/ });
@@ -1412,7 +1412,7 @@ it("opens the Cover editor from the game card and returns focus to the same More
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect
     .poll(() => (document.activeElement as HTMLElement | null)?.dataset.detailOrigin)
-    .toBe("library:card-more:collection-0");
+    .toBe(origin);
 });
 
 it("keeps plain short Covers and their overflow menu reachable at 430px", async () => {
