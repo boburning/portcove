@@ -620,6 +620,11 @@ jobs:
           - selection: owned-update-review
             scenarios:
               - native-game-update-review
+    env:
+      PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-product-workflows-${{ matrix.selection }}
+      PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-product-workflows-${{ matrix.selection }}
+      NATIVE_SCENARIOS: ${{ toJSON(matrix.scenarios) }}
+      pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
