@@ -68147,16 +68147,16 @@
       "manual_setup": {
         "steps": [
           {
+            "title": "Get the official player",
+            "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
+          },
+          {
             "title": "Import your original",
             "instruction": "Use your own canonical US English 2 MiB Pokémon Crystal Game Boy Color ROM, revision 1.0 SHA-1 f4cd194bdee0d04ca4eac29e09b8e4e9d818c133 or revision 1.1 SHA-1 f2f52230b536214ef7c9924f483392993e226cfb. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
           },
           {
-            "title": "Select the upstream player",
-            "instruction": "Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder."
-          },
-          {
             "title": "Add the game and play",
-            "instruction": "Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
           },
           {
             "title": "Keep your game data",
@@ -68545,16 +68545,16 @@
       "manual_setup": {
         "steps": [
           {
+            "title": "Get the official player",
+            "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
+          },
+          {
             "title": "Import your original",
             "instruction": "Use your own canonical US English 2 MiB Pokémon Gold Game Boy Color ROM, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
           },
           {
-            "title": "Select the upstream player",
-            "instruction": "Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder."
-          },
-          {
             "title": "Add the game and play",
-            "instruction": "Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
           },
           {
             "title": "Keep your game data",
@@ -69350,16 +69350,16 @@
       "manual_setup": {
         "steps": [
           {
+            "title": "Get the official player",
+            "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
+          },
+          {
             "title": "Import your original",
             "instruction": "Use your own canonical US English 2 MiB Pokémon Silver Game Boy Color ROM, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
           },
           {
-            "title": "Select the upstream player",
-            "instruction": "Use the official upstream release. On Windows x64 extract the entire Windows ZIP and select gen1recomp.exe and its containing directory. On Linux x86-64 make the official AppImage executable and select it and its containing directory. On either Mac architecture keep the complete gen1recomp.app bundle. Select Contents/MacOS/love and the Contents/MacOS folder."
-          },
-          {
             "title": "Add the game and play",
-            "instruction": "Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
           },
           {
             "title": "Keep your game data",
