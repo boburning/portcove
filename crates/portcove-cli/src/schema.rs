@@ -256,6 +256,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "successor_evidence_preparation",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::SuccessorEvidencePreparation,
+                >(contract)),
+            ),
+            (
                 "definition_authority_review",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::DefinitionAuthorityReview,

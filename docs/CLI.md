@@ -641,6 +641,19 @@ managed profile for a declared executable, which unwraps a lone inner archive.
 The command runs before opening a library and does not execute the package or
 establish release authority.
 
+### Prepare successor evidence
+
+```powershell
+portcove --library CURRENT --json catalog prepare-successor-evidence PORT --predecessor-library PREVIOUS
+```
+
+Use two existing, independently admitted libraries. The command checks both
+admissions before contacting GitHub. Its bounded, credential-free metadata
+requests must confirm the exact current release and asset. It does not download
+game archives or write support claims. The machine command is
+`catalog.prepare-successor-evidence`. The schema export key is
+`successor_evidence_preparation`.
+
 ### Package shape inspection
 
 Run `portcove --json catalog inspect-package-shape ARCHIVE --port PORT_ID --platform PLATFORM --size BYTES --sha256 SHA256`

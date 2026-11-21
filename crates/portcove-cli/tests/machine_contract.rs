@@ -634,6 +634,44 @@ fn preparation_plan_reports_missing_inputs_without_starting_work() {
 }
 
 #[test]
+fn successor_preparation_declares_its_command_and_schema() {
+    let directory = tempfile::tempdir().unwrap();
+    let missing = directory.path().join("unopened");
+    let caps = json_stdout(&portcove(&missing, &["--json", "capabilities"]));
+    assert!(
+        caps["data"]["commands"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|name| name == "catalog.prepare-successor-evidence")
+    );
+    let schema = json_stdout(&portcove(
+        &missing,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    let preparation = &schema["data"]["successor_evidence_preparation"];
+    for field in [
+        "predecessor",
+        "successor",
+        "anchor_observations",
+        "selected_at",
+    ] {
+        assert!(preparation["properties"][field].is_object(), "{field}");
+    }
+    let help = portcove(
+        &missing,
+        &["catalog", "prepare-successor-evidence", "--help"],
+    );
+    assert!(help.status.success());
+    assert!(
+        String::from_utf8(help.stdout)
+            .unwrap()
+            .contains("--predecessor-library")
+    );
+    assert!(!missing.exists());
+}
+
+#[test]
 fn schema_contract_direction_is_explicit_compatible_and_library_free() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");

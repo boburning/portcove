@@ -1,5 +1,6 @@
 //! Exact operands for reviewing support inheritance while activation is disabled.
 
+use schemars::JsonSchema;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -16,7 +17,7 @@ use crate::{
 const RULE_VERSION: u32 = 1;
 
 /// Conservative comparisons derived from complete typed operational coordinates.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SupportCoordinates {
     pub setup: String,
     pub launch: String,
@@ -25,7 +26,7 @@ pub struct SupportCoordinates {
 
 /// Immutable operands for a future exact lifecycle evidence check. Preparation
 /// has no publication or support authority.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SuccessorEvidencePreparation {
     pub rule_version: u32,
     pub selected_at: i64,
@@ -35,7 +36,7 @@ pub struct SuccessorEvidencePreparation {
 }
 
 /// The custody and operational coordinates of one exact managed package.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct SuccessorEvidenceSubject {
     pub definition: crate::DefinitionSelectionIdentity,
     pub definition_sha256: String,

@@ -341,7 +341,7 @@ pub(crate) async fn execute(
                     "Prepared {} to {} for offline evidence review.",
                     prepared.predecessor.tag, prepared.successor.tag,
                 )
-            })?;
+            })
         }
         CatalogCommand::Compare {
             port_id,
