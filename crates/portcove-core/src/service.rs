@@ -9133,7 +9133,7 @@ mod tests {
         library.register_install(&install, true).unwrap();
         let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
         let check = service
-            .record_update_check(port_id, &status, &release, None)
+            .record_update_check(port_id, &status, &release, None, None)
             .unwrap();
         assert!(check.update_available);
         assert_eq!(check.installed_version.as_deref(), Some("v0.4.6"));
