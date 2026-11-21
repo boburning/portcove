@@ -1485,7 +1485,13 @@ export async function installScenarios({
         assert.deepEqual(activationPlan.plan.release.asset, asset);
       }
       const reviewWaitStarted = Date.now();
-      await reviewGameUpdateDisposition(browser, fromExistingReview ? "install" : "download");
+      // Hosted Windows job 136981643063 observed exact exit and the offered
+      // update while Update now was still disabled below the finished session.
+      await reviewGameUpdateDisposition(
+        browser,
+        fromExistingReview ? "install" : "download",
+        fromExistingReview ? acquisitionScriptBudgetMs : undefined,
+      );
       // Hosted Windows can need more than 15 s to settle this exact review.
       const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),

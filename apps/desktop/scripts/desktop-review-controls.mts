@@ -560,6 +560,7 @@ export function reviewControls(browser: WebDriver, options: ReviewClickOptions =
 export async function reviewGameUpdateDisposition(
   browser: WebDriver,
   choice: "install" | "prepare" | "download",
+  actionableBudgetMs?: number,
 ) {
   const section = await browser.wait(
     until.elementLocated(By.css('section[aria-label="Review game update"]')),
@@ -577,10 +578,14 @@ export async function reviewGameUpdateDisposition(
     prepare: "Prepare for later",
     download: "Download for later",
   }[choice];
-  await clickVisible(
-    browser,
-    await section.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`)),
-  );
+  const action = await section.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`));
+  if (actionableBudgetMs !== undefined)
+    await browser.wait(
+      until.elementIsEnabled(action),
+      actionableBudgetMs,
+      `The selected ${label} action did not become enabled`,
+    );
+  await clickVisible(browser, action);
 }
 
 /** Settings panels stay mounted while hidden; locating their controls is insufficient. */
