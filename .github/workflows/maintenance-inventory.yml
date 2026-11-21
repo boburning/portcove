@@ -152,6 +152,20 @@ jobs:
           started=$EPOCHSECONDS
           cargo build --locked -p portcove-cli
           printf 'build-cli\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
+      - name: Verify a bounded window of accepted cover references
+        if: github.event_name == 'schedule'
+        timeout-minutes: 4
+        continue-on-error: true
+        run: |
+          scratch=$(mktemp -d)
+          trap 'rm -rf "$scratch"' EXIT
+          env -i PATH="$PATH" HOME="$scratch" TMPDIR="$scratch" \
+            GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_WORKFLOW_REF="$GITHUB_WORKFLOW_REF" \
+            GITHUB_EVENT_NAME="$GITHUB_EVENT_NAME" GITHUB_SHA="$GITHUB_SHA" \
+            GITHUB_REF="$GITHUB_REF" GITHUB_WORKFLOW_SHA="$GITHUB_WORKFLOW_SHA" \
+            GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            node scripts/maintenance-artwork-health.mts target/debug/portcove \
+            work/maintenance-report/cover-artwork-health.json
       - name: Read current allowance and exercise bounded status admission
         if: inputs.purpose == 'status'
         env:
@@ -188,8 +202,10 @@ jobs:
           sources=(--catalog-only)
           if [[ "$PORTCOVE_MAINTENANCE_PURPOSE" == schedule ]]; then
             sources=(--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN
-              --release-health --release-content --publication --delivery --upstream --hosted-intake --intake-receipt-revision "${INTAKE_RECEIPT_REVISION:-unavailable}"
-              --progress scripts/upstream-progress/sources-v1.json)
+              --release-health --release-content --publication --delivery --upstream --hosted-intake
+              --intake-receipt-revision "${INTAKE_RECEIPT_REVISION:-unavailable}"
+              --progress scripts/upstream-progress/sources-v1.json
+              --artwork-health work/maintenance-report/cover-artwork-health.json)
           else
             unset PORTCOVE_ROADMAP_GH_TOKEN
           fi

@@ -9,6 +9,7 @@ import { BackupHistory } from "./BackupHistory";
 
 const backup: BackupRecord = {
   id: "qualified-backup",
+  recovery_review: "legacy_install_and_data_v1",
   port_id: "ghostship",
   path: "library/backups/legacy",
   created_at: 1,
@@ -20,7 +21,7 @@ const tree = { directories: [], files: [], skipped_entries: [], total_bytes: 0 }
 const plan: GhostshipRecoveryPlan = {
   format_version: 1,
   library_root: "library",
-  backup,
+  backup: { ...backup, recovery_review: null },
   qualification_sha256: "b".repeat(64),
   legacy_install: installRecord({
     id: "legacy-2",
@@ -160,7 +161,7 @@ it("keeps discovery distinct from eligibility and disables review of stale backu
   await root.rerender(
     <BackupHistory
       {...props}
-      backups={[{ ...backup, port_id: "other" }]}
+      backups={[{ ...backup, recovery_review: null }]}
       readState={{ status: "current", hasInventory: true }}
     />,
   );

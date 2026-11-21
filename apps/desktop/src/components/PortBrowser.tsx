@@ -2126,7 +2126,7 @@ function BrowserCollectionTools({
         <CatalogFilters
           before={before}
           after={after}
-          advanced={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
+          readiness={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}
