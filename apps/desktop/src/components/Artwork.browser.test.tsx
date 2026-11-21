@@ -502,6 +502,10 @@ describe("local artwork controls", () => {
       expect(change).toHaveBeenCalledTimes(1);
       await render("sample", 7, "corrected-cover");
       expect(button("cover", "Choose local image").disabled).toBe(true);
+      expect(container.textContent).toContain("Updating artwork…");
+      expect(container.textContent).not.toContain(
+        "This artwork choice changed. Cancel and review the current choice.",
+      );
       state = artworkState("sample", "cover", state.choice.revision + 1, kind === "import");
       await act(async () => finish(state));
       await expect

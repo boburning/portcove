@@ -862,7 +862,7 @@ function ArtworkSlotControl({
               visibilityReview.action === "hide" ? "artwork.reviewHide" : "artwork.reviewAutomatic",
             )}
           </p>
-          {!draftIsCurrent(visibilityReview) && (
+          {!pending && !draftIsCurrent(visibilityReview) && (
             <p role="status" className="m-0 text-pc-warning-foreground">
               {t("artwork.reviewStale")}
             </p>
@@ -1043,7 +1043,7 @@ function ImageSelectionReview({
           {t("artwork.reviewPreviewChanged")}
         </p>
       )}
-      {stale && (
+      {!pending && stale && (
         <p role="status" className="m-0 text-pc-warning-foreground">
           {t("artwork.reviewStale")}
         </p>
