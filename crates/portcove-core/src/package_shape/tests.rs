@@ -109,6 +109,7 @@ fn shape_records_every_part_through_a_wrapper() {
     assert_eq!(shape.missing_persistent_parents.as_deref(), Some(&[][..]));
 }
 
+#[cfg(unix)]
 #[test]
 fn only_the_verified_empty_portable_directory_is_neutral_to_shape() {
     const PLATFORM: Platform = Platform::LinuxX86_64;
