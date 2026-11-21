@@ -74,6 +74,13 @@ available; it cannot restore a description that Core has cleared.
 Changing only this explanatory envelope does not invalidate a retained upstream
 release observation: the observer declaration hash excludes it.
 
+Reviewed forge qualification models the API dialect, API root, web host and
+exact asset hosts separately from the reviewed repository, release and artifact
+identity. The alternate-forge route is currently exercised by qualification
+fixtures. Naev's Codeberg listing and upstream-owned registration keep their
+existing scope. Production use requires a named definition reader and
+independent acquisition approval.
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing

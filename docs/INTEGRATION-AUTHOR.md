@@ -33,6 +33,13 @@ Check which operations and schemas both the client and the CLI support. If
 either lacks support or the client cannot interpret a required field, keep the
 affected operation unavailable.
 
+A forge URL in a listing identifies the upstream project. For an alternate
+forge, the qualification path uses the exact API dialect, API root, web host
+and asset hosts. It binds a reviewed repository ID, tag, release and asset
+identity, URL, byte count and SHA-256. Publisher metadata alone cannot supply
+the reviewed digest. Production admission remains subject to the definition
+reader and the independent managed acquisition policy.
+
 ## Choose a CLI and fixture library
 
 1. Choose the standalone CLI for the actual operating system and processor from

@@ -130,6 +130,8 @@ mod relative_file_set;
 mod release;
 mod release_notes;
 mod retained_build;
+#[cfg(any(test, feature = "qualification-fixtures"))]
+pub mod reviewed_forge;
 mod rom_patch;
 mod runtime;
 mod runtime_data_policy;
