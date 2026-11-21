@@ -1154,6 +1154,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     const requests: string[] = [];
     const runtimeRequests: string[] = [];
     const buildRequests: string[] = [];
+    const jobLogs: [number, number][] = [];
     const run = {
       id: 70,
       repository: { id: 7 },
@@ -1185,6 +1186,31 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       if (endpoint.includes("/actions/runs")) {
         buildRequests.push(endpoint);
         if (endpoint.includes("head_sha=")) return { total_count: 1, workflow_runs: [run] };
+        if (endpoint.includes("/attempts/1/jobs?"))
+          return {
+            total_count: 1,
+            jobs: [
+              {
+                id: 77,
+                run_id: 70,
+                run_attempt: 1,
+                head_sha: run.head_sha,
+                status: "completed",
+                conclusion: "success",
+                steps: [
+                  { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+                  {
+                    number: 12,
+                    name: "Archive game",
+                    status: "completed",
+                    conclusion: "success",
+                    started_at: "2026-10-26T12:03:00Z",
+                    completed_at: "2026-10-26T12:04:00Z",
+                  },
+                ],
+              },
+            ],
+          };
         if (!endpoint.includes("/artifacts?")) return run;
         return {
           total_count: 1,
@@ -1336,6 +1362,30 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
           },
         },
       };
+      h.options.readN64BuildStepLog = async (repository, job, step, account) => {
+        account.admitRequest();
+        jobLogs.push([job, step]);
+        const lines =
+          step === 2
+            ? [
+                "##[group]Run actions/checkout@v4",
+                "Syncing repository: " + repository,
+                "Submodule path 'lib/N64ModernRuntime': checked out '" + "a".repeat(40) + "'",
+                "Submodule path 'lib/N64ModernRuntime/thirdparty/xxHash': checked out '" +
+                  "d".repeat(40) +
+                  "'",
+                run.head_sha,
+              ]
+            : [
+                "##[group]Run actions/upload-artifact@v4",
+                "SHA256 digest of uploaded artifact zip is " + "a".repeat(64),
+                "Artifact Build.zip successfully finalized. Artifact ID 72",
+                "Artifact Build has been successfully uploaded! Final size is 1024 bytes. Artifact ID is 72",
+              ];
+        const bytes = Buffer.from(lines.map((line) => "2026-10-26T12:04:00Z " + line).join("\r\n"));
+        account.consumeResponseBytes(bytes.byteLength);
+        return bytes;
+      };
       h.advanceClock(48 * 3600_000);
       previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
       extraTagReads++;
@@ -1347,7 +1397,15 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         [72],
       );
       assert.equal(built.build_outputs?.search, null);
-      assert.equal(buildRequests.length, 3);
+      assert.equal(buildRequests.length, 4);
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+      ]);
+      assert.deepEqual(
+        built.build_jobs?.matches.map((match) => match.job_id),
+        [77],
+      );
       const projected = upstreamFacts(previous, h.input, h.options.now!()).facts.get(
         "port:stable-port",
       );
@@ -1365,8 +1423,10 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       const expanded = observation?.last_complete?.fact;
       assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
       assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
+      assert.deepEqual(expanded.build_jobs?.matches, built.build_jobs?.matches);
       assert.notEqual(expanded.build_outputs?.search, null);
-      assert.equal(buildRequests.length, 5);
+      assert.equal(buildRequests.length, 6);
+      assert.equal(jobLogs.length, 2);
     }
 
     h.advanceClock(48 * 3600_000);
@@ -1375,7 +1435,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(requests.length, 6 + extraTagReads);
-    assert.equal(buildRequests.length, family === "n64-recomp" ? 5 : 0);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 6 : 0);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();
