@@ -162,6 +162,12 @@ pub struct ProfileRevision {
     pub loader: Option<LoaderContractRef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub packages: Vec<ResolvedPackage>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::profile_package_files::read_companion_sets"
+    )]
+    pub recomp_companion_sets_v1: Option<Vec<crate::RecompCompanionSetV1>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub orderings: Vec<TypedOrdering>,
     /// Consequential native settings only; ordinary preferences stay mutable state.
@@ -753,6 +759,7 @@ impl PortcoveService {
             originals,
             loader,
             packages: base.map(|b| b.packages.clone()).unwrap_or_default(),
+            recomp_companion_sets_v1: None,
             orderings: base.map(|b| b.orderings.clone()).unwrap_or_default(),
             settings: base.map(|b| b.settings.clone()).unwrap_or_default(),
             save_group: uuid::Uuid::new_v4().to_string(),
@@ -1071,6 +1078,12 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
     {
         return Err(PortcoveError::verification(
             "profile revision has an invalid or oversized shape",
+        ));
+    }
+    if revision.recomp_companion_sets_v1.is_some() {
+        crate::profile_package_files::profile_package_files(revision)?;
+        return Err(PortcoveError::unsupported(
+            "Recomp companion profile revisions require complete managed custody",
         ));
     }
     text(&revision.save_group, "save group")?;

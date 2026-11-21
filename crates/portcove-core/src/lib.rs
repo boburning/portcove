@@ -111,6 +111,7 @@ mod profile_deploy;
 mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
+mod profile_package_files;
 mod provider_auto_update;
 mod provider_binding;
 mod provider_browse;
@@ -394,6 +395,9 @@ pub use profile_file_preservation::{
     ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
 };
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
+pub use profile_package_files::{
+    RecompCompanionMemberV1, RecompCompanionRole, RecompCompanionSetV1,
+};
 pub use provider_auto_update::{
     HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
 };
