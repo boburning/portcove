@@ -1157,10 +1157,12 @@ In Covers view each Discover card is one raised surface: the cover sits inside
 a padded, bordered card, hover and keyboard focus within the card highlight the card
 rather than lifting the cover, and the secondary "Why this port?" action aligns with
 the card's text edge. Library covers use the same card surface, padding and hover
-highlight, with the status and action footer at the bottom. Narrow windows use a
-smaller inset. Play stays beside its status at desktop widths. Longer actions can
-wrap in the footer and short Library windows keep the horizontal cover layout.
-Rows keeps its own geometry.
+highlight. Roomy Library cards align their status and action footers along a row.
+Short or narrow cards fit their own content so a neighboring game's alternatives
+cannot push Play below the viewport. Narrow windows use a smaller inset. Play
+stays beside its status at desktop widths. Longer actions can wrap in the footer.
+Short Library windows keep the horizontal cover layout. Rows keeps its own
+geometry.
 
 ### Game-data preparation review
 

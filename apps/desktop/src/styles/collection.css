@@ -1469,12 +1469,14 @@
     padding-inline: 0;
   }
 
-  .collection-covers:not(.discover-grid) [data-library-port-ids] > .collection-cover:only-child {
-    height: 100%;
-  }
+  @media (height > 50rem) and (width > 30rem) {
+    .collection-covers:not(.discover-grid) [data-library-port-ids] > .collection-cover:only-child {
+      height: 100%;
+    }
 
-  .collection-covers:not(.discover-grid) .collection-cover .collection-main {
-    flex: 1 1 auto;
+    .collection-covers:not(.discover-grid) .collection-cover .collection-main {
+      flex: 1 1 auto;
+    }
   }
 
   /* Play fits beside concise status at desktop widths. Longer or multiple
