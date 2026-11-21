@@ -651,7 +651,7 @@ fn indexed_projection_cannot_supply_reviewed_package_choices() {
 fn catalog_projection_refuses_embedded_only_patterns_in_sibling_ports() {
     let catalog = Catalog::embedded().unwrap();
     let document = json!({
-        "contract_schema": 1, "representation": "catalog_projection",
+        "contract_schema": 3, "representation": "catalog_projection",
         "catalog": catalog.authoritative_document()
     });
     let contract = serde_json::to_vec(&document).unwrap();
@@ -1351,6 +1351,8 @@ fn supported_new_id_needs_no_per_port_dispatch_and_does_not_mutate_embedded_cata
         .as_str()
         .unwrap()
         .to_owned();
+    document["catalog"]["ports"][0]["mod_loader"] =
+        json!(original.port(&old_id).unwrap().mod_loader);
     document["catalog"]["ports"][0]["id"] = json!("redistributable-definition-fixture");
     // The synthetic ID has no official Shipwright persistence authority.
     document["catalog"]["ports"][0]
@@ -1447,12 +1449,12 @@ fn unsupported_contracts_and_unknown_nested_semantics_fail_closed() {
     for field in ["contract_schema", "representation", "unexpected"] {
         let mut changed = document.clone();
         changed[field] = if field == "contract_schema" {
-            json!(2)
+            json!(99)
         } else {
             json!("future")
         };
         let bytes = serde_json::to_vec(&changed).unwrap();
-        assert!(inspect(&entry(&changed, &bytes, 0), &bytes).is_err());
+        assert!(inspect(&entry(&document, &bytes, 0), &bytes).is_err());
     }
     for path in [
         vec!["catalog"],
