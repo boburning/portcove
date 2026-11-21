@@ -4059,11 +4059,12 @@ fixed source path, current commit before and after reading, and exact Git blob.
 It adds a bounded reference with upstream edition labels and archive filenames
 to an already-admitted listing with the matching engine and game ID. The
 reference sends players to the canonical games page for downloads and notes.
-Existing preparation examples, identities and operation eligibility stay with
-their original authorities. A failed or drifting read retains compatible
-last-good guidance from the verified signed directory. A complete read that
-no longer lists a game's archives removes the observation. The publisher
-records the observed commit, blob and content digest.
+A complete read removes the example archive and extracted folder when the
+exact archive is gone, even when no space remains for new edition labels.
+A failed or drifting read retains compatible last-good guidance from the
+verified signed directory. The publisher records the observed commit,
+blob and content digest. Full catalog coverage uses the compact candidate
+path and its existing released-reader activation gate.
 
 ### Regenerate catalog projections
 

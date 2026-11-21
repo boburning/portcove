@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { parseDocument } from "yaml";
-import { scummvmGameKey } from "./catalog-scummvm-game-setup.mts";
+import {
+  scummvmEditionPrompt,
+  scummvmGameDataInstruction,
+  scummvmGameDataStepTitle,
+  scummvmGameKey,
+} from "./catalog-scummvm-game-setup.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
@@ -17,8 +22,7 @@ const archiveName = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.zip$/iu;
 const editionLabel = /^[\p{L}\p{N}][\p{L}\p{N}\p{P} ]{0,119}$/u;
 const sourceTitle = "Game data editions listed by ScummVM";
 const prefix = "On the ScummVM games page, the source lists ";
-const suffix =
-  ". Check the page for current downloads and notes. The setup example applies to its named archive.";
+const suffix = ". Check the page for current downloads and notes.";
 
 export interface ScummvmGameDataObservation {
   revision: string;
@@ -152,70 +156,110 @@ export async function observeScummvmGameData(
   return observation;
 }
 
-/** Upstream text can only supply a bounded reference on an existing checked guide. */
-export function withoutScummvmGameData(listing: Record<string, unknown>) {
-  const setup = listing.manual_setup;
-  if (
-    !scummvmGameKey(listing) ||
-    !isRecord(setup) ||
-    setup.help_url !== listing.setup_url ||
-    !Array.isArray(setup.references)
-  )
-    return listing;
-  const references = setup.references.filter(
-    (reference) => !isRecord(reference) || reference.title !== sourceTitle,
-  );
-  if (references.length === setup.references.length) return listing;
-  return { ...listing, manual_setup: { ...setup, references } };
-}
-
-export function projectScummvmGameData(
-  listing: Record<string, unknown>,
-  previous: Record<string, unknown> | undefined,
-  observation: ScummvmGameDataObservation | undefined,
-) {
+function guide(listing: Record<string, unknown>) {
   const key = scummvmGameKey(listing);
   const setup = listing.manual_setup;
   if (
     !key ||
     !isRecord(setup) ||
     setup.help_url !== listing.setup_url ||
-    !Array.isArray(setup.references) ||
-    setup.references.length !== 3 ||
     !Array.isArray(setup.steps) ||
     setup.steps.length !== 3 ||
+    !Array.isArray(setup.references) ||
+    !isRecord(setup.steps[1]) ||
+    setup.steps[1].title !== scummvmGameDataStepTitle ||
+    typeof setup.steps[1].instruction !== "string" ||
     !isRecord(setup.references[0]) ||
     setup.references[0].title !== "Find your launch target"
   )
     return;
+  const steps: unknown[] = setup.steps;
+  const references: unknown[] = setup.references;
+  const instruction = setup.steps[1].instruction;
+  const generic =
+    scummvmGameDataInstruction +
+    (instruction.startsWith(scummvmGameDataInstruction + scummvmEditionPrompt)
+      ? scummvmEditionPrompt
+      : "");
+  if (instruction !== generic && !instruction.startsWith(generic + " If the page lists ")) return;
+  const archive = /^ If the page lists ([A-Za-z0-9._-]+\.zip) and you choose it, select /u.exec(
+    instruction.slice(generic.length),
+  )?.[1];
+  const withoutExample = {
+    ...setup,
+    steps: [steps[0], { title: scummvmGameDataStepTitle, instruction: generic }, steps[2]],
+  };
+  return { key, setup, references, instruction, archive, withoutExample };
+}
+
+function retainedGuide(listing: Record<string, unknown>, previous: Record<string, unknown>) {
+  const authored = guide(listing);
+  const old = guide(previous);
+  if (!authored || !old || old.key !== authored.key || authored.references.length !== 3) return;
+  const reference = old.references.at(-1);
+  const observed =
+    old.references.length === 4 &&
+    isRecord(reference) &&
+    reference.title === sourceTitle &&
+    typeof reference.instruction === "string" &&
+    reference.instruction.startsWith(prefix) &&
+    reference.instruction.endsWith(suffix)
+      ? reference
+      : undefined;
+  const refs = observed ? old.references.slice(0, -1) : old.references;
+  const actual = { ...old.setup, references: refs };
+  if (
+    observationHash(actual) === observationHash(authored.setup) ||
+    observationHash(actual) === observationHash(authored.withoutExample)
+  )
+    return { setup: actual, observed };
+}
+
+/** Match retained release observations against their original listing declarations. */
+export function withoutScummvmGameData(
+  listing: Record<string, unknown>,
+  canonical: Record<string, unknown>,
+) {
+  return retainedGuide(canonical, listing)
+    ? { ...listing, manual_setup: canonical.manual_setup }
+    : listing;
+}
+
+/** Remove a withdrawn example before fitting any optional source text. */
+export function projectScummvmPreparation(
+  listing: Record<string, unknown>,
+  previous: Record<string, unknown> | undefined,
+  observation: ScummvmGameDataObservation | undefined,
+) {
+  const current = guide(listing);
+  if (!current?.archive) return;
+  if (observation) {
+    const editions = observation.editions.get(current.key) ?? [];
+    if (!editions.some((edition) => edition.endsWith(` (${current.archive})`)))
+      listing.manual_setup = current.withoutExample;
+  } else if (previous) {
+    const retained = retainedGuide(listing, previous);
+    if (retained) listing.manual_setup = retained.setup;
+  }
+}
+
+/** Attach source text to an admitted and already safe guide when space remains. */
+export function projectScummvmGameData(
+  listing: Record<string, unknown>,
+  canonical: Record<string, unknown>,
+  previous: Record<string, unknown> | undefined,
+  observation: ScummvmGameDataObservation | undefined,
+) {
+  const current = guide(listing);
+  if (!current || current.references.length !== 3) return;
   let reference: unknown;
   if (observation) {
-    const editions = observation.editions.get(key);
-    if (!editions?.length) return;
-    reference = { title: sourceTitle, instruction: prefix + editions.join(", ") + suffix };
+    const editions = observation.editions.get(current.key);
+    if (editions?.length)
+      reference = { title: sourceTitle, instruction: prefix + editions.join(", ") + suffix };
   } else if (previous) {
-    const old = previous.manual_setup;
-    const base = withoutScummvmGameData(previous).manual_setup;
-    if (
-      isRecord(old) &&
-      Array.isArray(old.references) &&
-      old.references.length === 4 &&
-      observationHash(base ?? null) === observationHash(setup)
-    ) {
-      const retained: unknown = old.references.at(-1);
-      if (
-        isRecord(retained) &&
-        retained.title === sourceTitle &&
-        typeof retained.instruction === "string" &&
-        retained.instruction.startsWith(prefix) &&
-        retained.instruction.endsWith(suffix)
-      )
-        reference = retained;
-    }
+    reference = retainedGuide(canonical, previous)?.observed;
   }
   if (reference)
-    listing.manual_setup = {
-      ...setup,
-      references: [...(setup.references as unknown[]), reference],
-    };
+    listing.manual_setup = { ...current.setup, references: [...current.references, reference] };
 }
