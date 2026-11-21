@@ -2878,6 +2878,49 @@ mod tests {
                 .code,
             crate::ErrorCode::Verification
         );
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("install");
+        fs::create_dir(&install).unwrap();
+        let executable = install.join("Zelda64Recompiled.exe");
+        fs::write(&executable, b"fixture").unwrap();
+        let mut port = catalog.port(PORT).unwrap().clone();
+        let runtime_filename = port.runtime_source_filename.clone().unwrap();
+        let legacy_bytes = fs::read(&derived).unwrap();
+        port.runtime_source_hashes.insert(
+            runtime_filename.clone(),
+            hex::encode(Sha256::digest(&legacy_bytes)),
+        );
+        let runtime_file = install.join(runtime_filename);
+        let prepare = |proof| {
+            crate::adapter::standard(port.adapter).prepare_launch_with_n64_input(
+                crate::LaunchSpecRequest {
+                    library: &library,
+                    port: &port,
+                    platform: crate::Platform::WindowsX86_64,
+                    install_root: &install,
+                    selected_executable: &executable,
+                    source: Some(&fixed.path),
+                    source_record: Some(&fixed),
+                    disc_progress: None,
+                },
+                proof,
+                &|| Ok(()),
+            )
+        };
+        assert_eq!(
+            prepare(None).unwrap_err().code,
+            crate::ErrorCode::Verification
+        );
+        prepare(Some(&proof)).unwrap();
+        proof
+            .require_materialized(&runtime_file, &|| Ok(()))
+            .unwrap();
+        fs::write(&runtime_file, legacy_bytes).unwrap();
+        prepare(Some(&proof)).unwrap();
+        proof
+            .require_materialized(&runtime_file, &|| Ok(()))
+            .unwrap();
+
         let other_asset = "b".repeat(64);
         for release in [
             (TAG, other_asset.as_str()),
