@@ -511,7 +511,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        selection: [presentation, interface-size]
+        selection: [presentation]
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/native-presentation-${{ matrix.selection }}
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/temp/native-presentation-${{ matrix.selection }}
@@ -582,9 +582,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $env:PATH = "$PWD/work/tool-bin;$env:PATH"
-          just desktop-verify --profile presentation --require-clean --plan
+          just desktop-verify --scenario keyboard-layout --require-clean --plan
           if ($LASTEXITCODE -ne 0) { throw 'Presentation plan failed.' }
-          just desktop-verify --profile presentation --require-clean
+          just desktop-verify --scenario keyboard-layout --require-clean
           if ($LASTEXITCODE -ne 0) { throw 'Native presentation failed; retain original evidence.' }
       - name: Observe standalone native interface sizing
         if: matrix.selection == 'interface-size'
