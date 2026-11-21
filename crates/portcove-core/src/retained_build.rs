@@ -734,9 +734,8 @@ impl PortcoveService {
                 "This build is still used by the selected setup. Switch setups before retiring it.",
             ));
         }
-        if let Ok(layout) = self.deploy_layout(port_id)
-            && layout.journal().try_exists()?
-        {
+        let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(port_id));
+        if layout.journal().try_exists()? {
             return Err(PortcoveError::conflict(
                 "Finish the interrupted setup switch before retiring a recovery build.",
             ));

@@ -182,6 +182,7 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("n64-recomp-portable", 8),
         ("n64-recomp-portable", 9),
         ("n64-recomp-portable", 10),
+        ("n64-recomp-portable", 11),
         ("psx-recomp-managed", 2),
         ("psx-recomp-managed", 3),
         ("psx-recomp-managed", 4),

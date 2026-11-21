@@ -73,6 +73,17 @@
     "automated_tested_platforms": ["windows-x86-64"],
     "manually_validated_platforms": ["windows-x86-64"],
     "adapter": "n64-recomp-portable",
+    "mod_loader": {
+      "contract": {
+        "id": "n64-recomp",
+        "version": "1"
+      },
+      "repository": "BanjoRecomp/BanjoRecomp",
+      "minimum_version": "1.0.2",
+      "settings_file": "mods.json",
+      "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+      "native_game": "bk"
+    },
     "release": {
       "repository": "BanjoRecomp/BanjoRecomp",
       "asset_hints": {

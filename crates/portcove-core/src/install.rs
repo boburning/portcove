@@ -552,6 +552,9 @@ impl InstallQualification {
             .unwrap()
             .clone();
         port.id = port_id.into();
+        // This synthetic installer port clears the loader's required persistent paths.
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.source_profile = None;
         port.presentation = None;
         port.source_environment = None;

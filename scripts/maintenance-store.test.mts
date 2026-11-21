@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -206,6 +206,75 @@ UPDATE portcove_maintenance.operations SET state = 'ambiguous', revision = 3 WHE
 function rejects(environment: NodeJS.ProcessEnv, sql: string, pattern: RegExp) {
   assert.throws(() => runSql(environment, sql), pattern);
 }
+
+void test(
+  "ordinary maintenance report and history page preserve the full restored timeline",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("history").owner;
+    const target = fixture.start("restored-history").owner;
+    migrate(source);
+    runSql(source, seed);
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.assessments
+        (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+      SELECT 'port:example-port', 'policy-1', lpad(to_hex(n),64,'0'), 'held',
+        lpad(to_hex(n),64,'0'), '{}'::jsonb, now(), 'run-1'
+      FROM generate_series(4, 101) AS n ORDER BY n;
+      INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
+      SELECT 'port:example-port', assessment_id, assessment_id
+      FROM portcove_maintenance.assessments WHERE assessment_id >= 4 ORDER BY assessment_id;`,
+    );
+    const snapshot = path.join(fixture.root, "history-backup");
+    await backup(source, snapshot);
+    restore(target, snapshot);
+    const output = path.join(fixture.root, "bounded-report");
+    const database = new URL(`postgresql://owner@localhost:${target.PGPORT}/postgres`);
+    database.searchParams.set("host", target.PGHOST!);
+    const cli = path.resolve("scripts/maintenance-inventory.mts");
+    const call = (...args: string[]) => {
+      const result = spawnSync(process.execPath, [cli, ...args], {
+        env: { ...target, PORTCOVE_MAINTENANCE_DATABASE_URL: database.href },
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout;
+    };
+    call("report", "--output", output);
+    type HistoryEntry = { sequence: number };
+    const report = JSON.parse(readFileSync(path.join(output, "inventory.json"), "utf8")) as {
+      subjects: {
+        subject_key: string;
+        earlier_history_available: boolean;
+        history: HistoryEntry[];
+      }[];
+    };
+    const [row] = report.subjects;
+    assert.ok(row);
+    assert.equal(row.subject_key, "port:example-port");
+    assert.equal(row.earlier_history_available, true);
+    assert.deepEqual(
+      row.history.map((entry) => entry.sequence),
+      Array.from({ length: 12 }, (_, i) => i + 90),
+    );
+    const history = ["history", "--subject", row.subject_key];
+    const page = JSON.parse(call(...history)) as HistoryEntry[];
+    assert.deepEqual(
+      page.map((entry) => entry.sequence),
+      Array.from({ length: 100 }, (_, i) => 101 - i),
+    );
+    const next = JSON.parse(
+      call(...history, "--before", String(page.at(-1)?.sequence)),
+    ) as HistoryEntry[];
+    assert.equal(next.length, 1);
+    assert.equal(next[0]?.sequence, 1);
+    assert.deepEqual(JSON.parse(call(...history, "--before", "1")), []);
+  },
+);
 
 void test(
   "maintenance store guards history and survives an independent PostgreSQL restore",
