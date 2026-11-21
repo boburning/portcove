@@ -62,6 +62,12 @@ mod installed_contract;
 mod installed_mutability;
 mod launch;
 mod launch_paths;
+mod reviewed_launch_contract;
+pub use launch_paths::LaunchPath;
+pub use reviewed_launch_contract::{
+    AssetRules, LaunchPathValue, LaunchValue, LaunchValues, PackageFormat, PrereleaseRule,
+    ReviewedLaunchContractV1,
+};
 #[cfg(windows)]
 mod legacy_cartridge_cleanup;
 mod library;

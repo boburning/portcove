@@ -33,11 +33,29 @@ Check which operations and schemas both the client and the CLI support. If
 either lacks support or the client cannot interpret a required field, keep the
 affected operation unavailable.
 
-Use the existing asset hints, per-platform archive declarations and launch
-fields on current readers. Keep asset pins and package layout evidence tied
-to the exact selection. Generic authored rules and launch paths require
-named-feature negotiation and an installed reader that preserves the
-creating contract. [Catalog declaration compatibility](CATALOG.md#package-and-launch-declaration-compatibility)
+Continue authoring the existing fields for current released readers. Prepare
+named package and launch declarations only as scoped schema-4 indexed proposals.
+Use the independent acquisition policy for the same exact repository and
+artifact decisions. Keep selected bytes and executable layout evidence with
+the proposal. [Catalog declaration compatibility](CATALOG.md#package-and-launch-declaration-compatibility)
+
+For migration, replay current selection and installed launch before replacing
+any prior field. Native GitHub hints can become case-insensitive include terms
+only where the ordered fallback still picks the same asset. Existing stream
+exclusions remain separate because a positive tag pattern has a different
+meaning. Replace an XZ platform declaration only after confirming the same
+format, decoder limits and link policy for every selected asset. Existing direct
+pins, curated records, explicit package choices and external-profile layouts
+keep their separate scope.
+
+The first native user-data candidate is Open Surge. The other user-data and all
+existing source-environment declarations use other adapters or materialization
+rules that need separate equivalence. CorsixTH's `USER=PLAYER` fallback affects
+Windows x64 and Linux x64. A compatible proposal can state those two environment
+values explicitly after an independently scoped grant and a same-launch replay.
+The legacy fallback remains available for historical installs. No authored
+production migration is included with this reader.
+
 
 ## Choose a CLI and fixture library
 

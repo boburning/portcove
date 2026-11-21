@@ -250,7 +250,33 @@ impl Catalog {
         Self::from_document(serde_json::from_str(value)?)
     }
 
-    pub(crate) fn from_document(mut document: CatalogDocument) -> Result<Self> {
+    pub(crate) fn from_document(document: CatalogDocument) -> Result<Self> {
+        Self::from_indexed_document(document, None, None)
+    }
+
+    pub(crate) fn from_indexed_document(
+        mut document: CatalogDocument,
+        selected: Option<&str>,
+        retained: Option<&Catalog>,
+    ) -> Result<Self> {
+        for port in document
+            .ports
+            .iter()
+            .filter(|port| port.reviewed_launch_contract_v1.is_some())
+        {
+            let already_scoped = retained.is_some_and(|baseline| {
+                baseline.definition_snapshot(&port.id).is_some()
+                    && baseline.port(&port.id).is_ok_and(|previous| {
+                        previous.reviewed_launch_contract_v1 == port.reviewed_launch_contract_v1
+                    })
+            });
+            if selected != Some(port.id.as_str()) && !already_scoped {
+                return Err(PortcoveError::unsupported(
+                    "named package and launch declarations require a scoped indexed entry",
+                ));
+            }
+            crate::reviewed_launch_contract::validate(port)?;
+        }
         match document.schema_version {
             1 => {
                 if document.source_catalog.is_some() {
@@ -345,6 +371,15 @@ impl Catalog {
 
     /// Export the requested catalog shape without discarding guide reference text.
     pub fn export_document(&self, schema_version: u32) -> Result<CatalogDocument> {
+        if self
+            .ports()
+            .iter()
+            .any(|port| port.reviewed_launch_contract_v1.is_some())
+        {
+            return Err(PortcoveError::unsupported(
+                "legacy catalog export cannot represent named package and launch declarations",
+            ));
+        }
         if !matches!(schema_version, 1..=3) {
             return Err(PortcoveError::unsupported(
                 "unsupported catalog export schema",
@@ -2218,7 +2253,7 @@ fn valid_direct_release_url(value: &str) -> bool {
     false
 }
 
-fn is_safe_environment_name(value: &str) -> bool {
+pub(crate) fn is_safe_environment_name(value: &str) -> bool {
     let mut characters = value.chars();
     characters
         .next()

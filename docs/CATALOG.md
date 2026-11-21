@@ -85,14 +85,24 @@ through the existing bounded extractors. Managed installation requires separate 
 its retained platform declaration. Launch resolution derives the installed
 source, per-game user data and cache paths from the trusted launch request.
 
-New declarative selection or launch behavior needs a definition reader that
-requires its named feature and retains the creating contract through reopen.
-Continue using the current authoring fields until that reader is qualified.
+The indexed-only `reviewed_launch_contract_v1` declares platform asset
+rules, archive formats and typed launch values. The entry declares
+`runtime.reviewed-package-and-launch-v1` in definition schema 4. A scoped
+catalog projection holds the selected subject, and installation retains the
+exact entry, projection and separately admitted acquisition grant. Legacy
+catalog import and export refuse the declaration.
 
-Indexed definition entries can carry a separate, bounded advisory object
-in entry schema 4. This metadata is outside the operational port and catalog
-projection. Use [named definition requirements](DEFINITION-DELIVERY.md#named-requirements-for-indexed-entries)
-when preparing an indexed publication for clients with schema-4 support.
+Asset `include` and `exclude` use literal case-insensitive filename terms.
+`tag_pattern` matches one exact tag or a literal prefix ending in `*`.
+The default and `markers` preserve GitHub's prerelease flag and recognized
+tag markers. `flag` uses the flag alone. `never` excludes both detected kinds
+of prerelease. Package declarations use `zip`, `tar.gz`, `tar.xz` or `7z`.
+The exact suffix and container magic must agree before bounded extraction.
+
+Launch values are literal strings or objects with a `path` of `user_data`,
+`source`, `install_root` or `cache`. Each path occupies one argument or one
+environment value. Source expansion needs the verified launch source.
+Existing path, executable and environment policies still apply.
 
 ## Descriptive compatibility advisories
 

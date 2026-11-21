@@ -257,6 +257,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         user_data_environment,
         launch_environment,
         launch_arguments,
+        reviewed_launch_contract_v1,
         runtime_subdirectory,
         runtime_subdirectory_by_platform,
         runtime_source_filename,
@@ -333,6 +334,9 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         "setup_marker": setup_marker,
         "setup_output_paths": setup_output_paths,
     });
+    if let Some(contract) = reviewed_launch_contract_v1 {
+        compatibility["reviewed_launch_contract_v1"] = serde_json::json!(contract);
+    }
     // Only a declared marker joins the identity, so existing retained contracts keep theirs.
     if let Some(marker) = portable_marker_file {
         compatibility["portable_marker_file"] = serde_json::json!(marker);

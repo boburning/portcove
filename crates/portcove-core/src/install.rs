@@ -74,6 +74,7 @@ struct AssetPreparation<'a> {
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
+    reviewed_package_format: Option<crate::PackageFormat>,
     tar_xz_allow_file_links: bool,
     unwrap_inner_archive: bool,
 }
@@ -118,6 +119,7 @@ pub struct InstallQualification {
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
+    reviewed_package_format: Option<crate::PackageFormat>,
     native_mac_bundle_tar_xz: bool,
     executable_hints: Vec<String>,
     runtime_subdirectory: Option<String>,
@@ -219,6 +221,17 @@ impl InstallQualification {
         if let Some(contract) = &self.retained_contract {
             let catalog = contract.catalog(contract.port_id())?;
             let port = catalog.port(contract.port_id())?;
+            if port.reviewed_launch_contract_v1.is_some() {
+                let resolution = request.qualification.acquisition.as_ref().filter(|resolved| resolved.scope.is_some())
+                .ok_or_else(|| PortcoveError::verification(
+                    "named package and launch declarations require independent acquisition authority",
+                ))?;
+                resolution.require_selection(
+                    port,
+                    request.qualification.platform,
+                    request.release.channel,
+                )?;
+            }
             if crate::managed_runtime_policy::requires_provider_resolution_on(port, self.platform) {
                 resolution.require_selection(port, self.platform, resolution.release.channel)?;
             }
@@ -311,6 +324,7 @@ impl InstallQualification {
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
+            reviewed_package_format: port.reviewed_package_format(platform),
             native_mac_bundle_tar_xz: crate::runtime::native_mac_bundle_tar_xz(port, platform),
             executable_hints,
             runtime_subdirectory: port.runtime_subdirectory_for(platform).map(str::to_owned),
@@ -1228,10 +1242,18 @@ impl Installer {
             .name
             .to_ascii_lowercase()
             .ends_with(".tar.xz");
+        let reviewed_format = port.reviewed_package_format(request.qualification.platform);
+        if reviewed_format != request.qualification.reviewed_package_format
+            || reviewed_format.is_some_and(|format| !format.matches(&request.release.asset.name))
+        {
+            return Err(PortcoveError::verification(
+                "reviewed archive format requires the matching retained and admitted acquisition",
+            ));
+        }
         if requires_tar_xz != request.qualification.requires_tar_xz
             || request.qualification.native_mac_bundle_tar_xz
                 != crate::runtime::native_mac_bundle_tar_xz(port, request.qualification.platform)
-            || is_tar_xz != requires_tar_xz
+            || (reviewed_format.is_none() && is_tar_xz != requires_tar_xz)
             || (requires_tar_xz && request.qualification.retained_contract.is_none())
         {
             return Err(PortcoveError::unsupported(
@@ -1475,6 +1497,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&request.release.asset))
                         .transpose()?,
                     requires_tar_xz: request.qualification.requires_tar_xz,
+                    reviewed_package_format: request.qualification.reviewed_package_format,
                     tar_xz_allow_file_links: !request.qualification.native_mac_bundle_tar_xz,
                     // Only macOS and Linux routes with a declared executable unwrap a
                     // package that publishes one inner archive; other payload shapes
@@ -1798,6 +1821,7 @@ impl Installer {
                         .map(|inputs| inputs.path(&runtime.asset))
                         .transpose()?,
                     requires_tar_xz: false,
+                    reviewed_package_format: None,
                     tar_xz_allow_file_links: true,
                     unwrap_inner_archive: false,
                 },
@@ -2207,6 +2231,7 @@ impl Installer {
             acquisition,
             acquired,
             requires_tar_xz,
+            reviewed_package_format,
             tar_xz_allow_file_links,
             unwrap_inner_archive,
         } = input;
@@ -2229,7 +2254,17 @@ impl Installer {
                 }
                 extraction_operation.checkpoint()
             };
-            let result = if requires_tar_xz {
+            let result = if let Some(format) = reviewed_package_format {
+                crate::archive::extract_reviewed_package(
+                    &extraction_path,
+                    &extraction_root,
+                    &asset_name,
+                    expected_size,
+                    format,
+                    false,
+                    &checkpoint,
+                )
+            } else if requires_tar_xz {
                 extract_tar_xz_with_checkpoint(
                     &extraction_path,
                     &extraction_root,

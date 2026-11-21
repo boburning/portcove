@@ -90,6 +90,10 @@ impl DefinitionEntryInspection {
         self.revision
     }
 
+    pub(crate) fn has_named_features(&self) -> bool {
+        self.required_features.is_some()
+    }
+
     /// Shape-checked data; existing catalog/contract validators still govern its use.
     pub fn port(&self) -> &PortDefinition {
         &self.port
@@ -232,6 +236,15 @@ impl DefinitionContentIndex {
             return Err(PortcoveError::verification(
                 "entry port identity or complete typed projection is invalid",
             ));
+        }
+        if port.reviewed_launch_contract_v1.is_some() {
+            if required_features.is_none() {
+                return Err(PortcoveError::unsupported(
+                    "reviewed package and launch declarations require definition schema 4",
+                ));
+            }
+            require_feature(required_features.as_ref(), Feature::ReviewedLaunchContract)?;
+            crate::reviewed_launch_contract::validate(&port)?;
         }
         if port.upstream_active_reviewed && document.definition_schema == 1 {
             return Err(PortcoveError::unsupported(

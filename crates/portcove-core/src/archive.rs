@@ -186,6 +186,47 @@ pub(crate) fn extract_download_archive_with_checkpoint(
     }
 }
 
+pub(crate) fn extract_reviewed_package(
+    source: &Path,
+    destination: &Path,
+    asset_name: &str,
+    expected_size: u64,
+    format: crate::PackageFormat,
+    allow_links: bool,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    if !format.matches(asset_name) {
+        return Err(PortcoveError::verification(
+            "archive name differs from its reviewed format",
+        ));
+    }
+    let compressed = validate_compressed_size(source, expected_size)?;
+    let mut magic = [0; 6];
+    File::open(source)?.read_exact(&mut magic)?;
+    if !format.matches_magic(&magic) {
+        return Err(PortcoveError::verification(
+            "archive magic differs from its reviewed format",
+        ));
+    }
+    match format {
+        crate::PackageFormat::Zip => extract_zip(source, destination, compressed, checkpoint),
+        crate::PackageFormat::TarGzip => {
+            extract_tar_gz(source, destination, compressed, checkpoint)
+        }
+        crate::PackageFormat::TarXz => extract_tar_xz_with_checkpoint(
+            source,
+            destination,
+            expected_size,
+            allow_links,
+            checkpoint,
+        ),
+        crate::PackageFormat::SevenZip => {
+            sevenz::extract(source, destination, compressed, checkpoint)
+        }
+    }
+}
+
 pub(crate) fn extract_tar_xz_with_checkpoint(
     source: &Path,
     destination: &Path,

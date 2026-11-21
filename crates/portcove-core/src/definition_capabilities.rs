@@ -39,6 +39,7 @@ macro_rules! definition_features {
 }
 
 definition_features! {
+    ReviewedLaunchContract => "runtime.reviewed-package-and-launch-v1", "port.reviewed_launch_contract_v1";
     ModLoader => "mods.native-loader-binding-v1", "port.mod_loader";
     ProviderBindings => "mods.provider-bindings-v1", "port.mod_provider_bindings";
     ExactReleaseExclusions => "release.exact-exclusions-v1", "port.release.exact_exclusions";

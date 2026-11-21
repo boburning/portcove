@@ -5378,6 +5378,216 @@ async fn managed_scope_withdrawal_invalidates_captured_proof_and_missing_admissi
 }
 
 #[tokio::test]
+async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
+    use crate::{ReleaseProvider, adapter::Adapter};
+    let platform = crate::Platform::WindowsX86_64;
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let mut port = metadata_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.platforms = vec![platform];
+    port.executable_hints = [(platform, vec!["fixture.exe".into()])].into();
+    document.ports.push(port.clone());
+    let baseline = Catalog::from_document(document.clone()).unwrap();
+    let wire = serde_json::json!({
+        "asset_rules":{"windows-x86-64":{"include":["portable"],"exclude":["debug"],"tag_pattern":"v2*","prerelease":"never"}},
+        "package_format":{"windows-x86-64":"tar.xz"},
+        "launch":{"windows-x86-64":{"arguments":["--data",{"path":"user_data"}],"environment":{"FIXTURE_DATA":{"path":"install_root"}}}}
+    });
+    port.reviewed_launch_contract_v1 = Some(serde_json::from_value(wire.clone()).unwrap());
+    *document.ports.last_mut().unwrap() = port;
+    assert!(Catalog::from_document(document.clone()).is_err());
+    let authored = Catalog::from_indexed_document(document, Some(ID), None).unwrap();
+    assert!(authored.export_document(3).is_err());
+    let indexed =
+        crate::test_fixture::IndexedCatalogFixture::with_projection_schema(&authored, ID, 3);
+
+    for (schema, features) in [(3, None), (4, Some(serde_json::json!([])))] {
+        let denied = indexed.with_entry(7, |entry| {
+            entry["definition_schema"] = schema.into();
+            if let Some(features) = features {
+                entry["required_features"] = features;
+            }
+        });
+        let index = crate::DefinitionContentIndex::parse(&denied.index).unwrap();
+        assert!(
+            index
+                .inspect_entry("official", ID, &denied.contents[0].1)
+                .is_err()
+        );
+    }
+    let bundle = indexed.with_entry(7, |entry| {
+        entry["definition_schema"] = 4.into();
+        entry["required_features"] = serde_json::json!(["runtime.reviewed-package-and-launch-v1"]);
+    });
+    let mut targets = vec![(INDEX_TARGET.to_owned(), bundle.index)];
+    targets.extend(bundle.contents);
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let grant = managed_policy_for(&targets, false);
+    targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&grant).unwrap(),
+    ));
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let policy_proof = acquire_policy(&fixture, &root, ID).await.unwrap();
+    let (_directory, library) = library();
+    policy::install_authority_for_test(&library, &root).unwrap();
+    assert!(
+        library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .unwrap()
+            .into_eligible()
+            .is_none()
+    );
+    library
+        .apply_definition_publisher_policy(&policy_proof, Some(&candidate))
+        .unwrap();
+    let eligible = library
+        .assess_definition_candidate(&candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
+    let catalog = crate::definition_candidate::selection::load_selected_definition_catalog(
+        &library.connection().unwrap(),
+        &baseline,
+        now_unix(),
+    )
+    .unwrap()
+    .unwrap()
+    .0;
+    let mut scope = policy::acquisition_scope(&library, &catalog, ID)
+        .unwrap()
+        .unwrap();
+
+    let mut builder = tar::Builder::new(Vec::new());
+    let payload = b"owned portable player fixture";
+    let mut header = tar::Header::new_gnu();
+    header.set_mode(0o755);
+    header.set_size(payload.len() as u64);
+    header.set_cksum();
+    builder
+        .append_data(&mut header, "fixture.exe", &payload[..])
+        .unwrap();
+    let archive = crate::archive::encode_xz_fixture(&builder.into_inner().unwrap());
+    let digest = hex::encode(Sha256::digest(&archive));
+    let server = AcquisitionHttp::new();
+    scope.fixture_origin = Some(server.origin.clone());
+    let portable = format!("{}/fixture.tar.xz", server.origin);
+    let asset = serde_json::json!({
+        "name":"unseen-windows-x64-portable.tar.xz", "browser_download_url":portable,
+        "size":archive.len(), "digest":format!("sha256:{digest}")
+    });
+    let mut debug = asset.clone();
+    debug["name"] = "unseen-windows-x64-portable-debug.tar.xz".into();
+    server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+    server.json(serde_json::json!([{
+        "id":10,"tag_name":"v2","draft":false,"prerelease":false,"published_at":null,
+        "assets":[debug,asset]
+    }]));
+    let provider = crate::GithubReleaseProvider::with_api_root(server.origin.clone()).unwrap();
+    let resolved = provider
+        .resolve_scoped(
+            catalog.port(ID).unwrap(),
+            ReleaseChannel::Stable,
+            platform,
+            Some(&scope),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        resolved.release.asset.name,
+        "unseen-windows-x64-portable.tar.xz"
+    );
+    let installer = crate::Installer::new(library.clone()).unwrap();
+    let operation = crate::OperationCoordinator::new("install", None);
+    let request = |qualification| crate::InstallRequest {
+        port_id: ID.into(),
+        release: resolved.release.clone(),
+        output_root: library.versions_dir().join(ID),
+        activate: true,
+        managed: None,
+        qualification,
+    };
+    let qualification = crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
+    assert!(
+        installer
+            .install(request(qualification.clone()), &operation, |_| {})
+            .await
+            .is_err()
+    );
+    assert_eq!(server.requests.lock().unwrap().len(), 2);
+    server.bytes(&archive);
+    let operation = crate::OperationCoordinator::new("install", None);
+    let installed = installer
+        .install(
+            request(
+                qualification
+                    .with_acquisition_resolution(resolved.clone())
+                    .unwrap(),
+            ),
+            &operation,
+            |_| {},
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        fs::read(installed.path.join("fixture.exe")).unwrap(),
+        payload
+    );
+    assert_eq!(installed.artifact.sha256, digest);
+    let retained = installer.retained_catalog(&installed).unwrap().unwrap();
+    assert_eq!(
+        serde_json::to_value(
+            retained
+                .port(ID)
+                .unwrap()
+                .reviewed_launch_contract_v1
+                .as_ref()
+        )
+        .unwrap(),
+        wire,
+    );
+    let spec = crate::adapter::standard(crate::AdapterKind::NativePortable)
+        .launch_spec_with_executable(
+            crate::adapter::LaunchSpecRequest {
+                library: &library,
+                port: retained.port(ID).unwrap(),
+                platform,
+                install_root: &installed.path,
+                selected_executable: &installed.path.join("fixture.exe"),
+                source: None,
+                source_record: None,
+                disc_progress: None,
+            },
+            &|| Ok(()),
+        )
+        .unwrap();
+    assert_eq!(
+        spec.arguments,
+        vec![
+            "--data".to_owned(),
+            library.user_dir(ID).to_str().unwrap().to_owned()
+        ]
+    );
+    assert_eq!(
+        spec.environment["FIXTURE_DATA"],
+        installed.path.to_str().unwrap()
+    );
+}
+
+#[tokio::test]
 async fn managed_installer_requires_resolver_proof_and_refuses_artifact_redirect_before_contact() {
     use crate::ReleaseProvider;
     let (_fixture, _key, _root, _directory, library, catalog, mut scope) = managed_fixture().await;
