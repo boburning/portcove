@@ -143,6 +143,33 @@ pub(super) fn compatibility_coordinates(
     })
 }
 
+pub(super) fn exact_source_contract<'a>(
+    sources: &'a SourceCatalog,
+    port_id: &str,
+    tag: &str,
+    sha256: &str,
+) -> Result<&'a crate::PortSourceContract> {
+    sources
+        .contracts
+        .iter()
+        .find(|contract| {
+            contract.port_id == port_id
+                && contract.role == PortSourceRole::Game
+                && contract.admission_mode == CatalogAdmissionMode::Enforced
+                && contract.release_policy == Some(SourceReleasePolicy::IntegrationContractV1)
+                && contract.applicability.iter().any(|binding| {
+                    binding.upstream_ref == tag
+                        && binding
+                            .artifact_sha256
+                            .as_deref()
+                            .is_some_and(|digest| digest.eq_ignore_ascii_case(sha256))
+                })
+        })
+        .ok_or_else(|| {
+            PortcoveError::unsupported("successor subject lacks exact source applicability")
+        })
+}
+
 pub(super) fn authenticated_subject(
     library: &Library,
     catalog: &Catalog,
@@ -197,22 +224,7 @@ pub(super) fn authenticated_subject(
     let sources = admitted.source_catalog().ok_or_else(|| {
         PortcoveError::unsupported("successor subject lacks a signed source catalog")
     })?;
-    let contract = sources
-        .contracts
-        .iter()
-        .find(|contract| {
-            contract.port_id == port_id
-                && contract.role == PortSourceRole::Game
-                && contract.admission_mode == CatalogAdmissionMode::Enforced
-                && contract.release_policy == Some(SourceReleasePolicy::IntegrationContractV1)
-                && contract
-                    .applicability
-                    .iter()
-                    .any(|binding| binding.applies_to_release(&pin.tag, &pin.sha256))
-        })
-        .ok_or_else(|| {
-            PortcoveError::unsupported("successor subject lacks exact source applicability")
-        })?;
+    let contract = exact_source_contract(sources, port_id, &pin.tag, &pin.sha256)?;
     let variants = sources.current_source_identities(contract)?;
     if variants.is_empty()
         || !port.channels.contains(&channel)

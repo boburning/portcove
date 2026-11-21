@@ -137,6 +137,41 @@ fn qualification(kind: SourceEvidenceKind, outcome: SourceEvidenceOutcome) -> So
 }
 
 #[test]
+fn successor_subject_requires_the_exact_applicability_artifact() {
+    let mut sources = fixture();
+    let sha256 = "a".repeat(64);
+    sources.contracts[0].release_policy = Some(SourceReleasePolicy::IntegrationContractV1);
+    for digest in [None, Some("b".repeat(64)), Some(sha256.to_uppercase())] {
+        let matches = digest
+            .as_deref()
+            .is_some_and(|value| value.eq_ignore_ascii_case(&sha256));
+        sources.contracts[0].applicability = vec![SourceContractApplicability {
+            upstream_ref: "fixture-v2".into(),
+            artifact_sha256: digest,
+        }];
+        assert_eq!(
+            crate::successor_support::exact_source_contract(
+                &sources,
+                "sample-port",
+                "fixture-v2",
+                &sha256
+            )
+            .is_ok(),
+            matches,
+        );
+    }
+    assert!(
+        crate::successor_support::exact_source_contract(
+            &sources,
+            "sample-port",
+            "fixture-v3",
+            &sha256,
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn successor_coordinates_compare_actual_definition_and_source_facts() {
     let embedded = crate::Catalog::embedded().unwrap();
     let mut port = embedded.ports()[0].clone();
