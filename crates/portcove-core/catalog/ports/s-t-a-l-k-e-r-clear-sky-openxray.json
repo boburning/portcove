@@ -26,9 +26,7 @@
     ],
     "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "OpenXRay.Release.Master.Gold.64-bit.7z"
-      ]
+      "windows-x86-64": ["OpenXRay.Release.Master.Gold.64-bit.7z"]
     },
     "recommended_download_channel": "beta",
     "manual_setup": {
@@ -98,15 +96,8 @@
   "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
