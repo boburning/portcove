@@ -439,6 +439,7 @@ jobs:
     secrets:
       PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
       PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
+      PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
 
   restore-proof:
     needs: collect

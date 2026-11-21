@@ -154,15 +154,17 @@ export async function hostedIntakeObservation(
     const queue = await read();
     const observation: HostedIntakeObservation = { failed: false, ...hostedIntakeFacts(queue) };
     if (!reconcile) return observation;
+    // Trusted retry tickets belong to individual requests in this complete
+    // queue read. An unrelated malformed receipt cannot park a valid audit.
+    observation.auditContinuations = queue.requests.flatMap((row) =>
+      "error" in row || row.withdrawn || row.superseded_by.length || !row.audit_retry
+        ? []
+        : [row.audit_retry],
+    );
     if (observation.gaps.length) return { ...observation, receipts: { status: "unavailable" } };
     try {
       const receipts = await reconcile(queue);
-      const auditContinuations = queue.requests.flatMap((row) =>
-        "error" in row || row.withdrawn || row.superseded_by.length || !row.audit_retry
-          ? []
-          : [row.audit_retry],
-      );
-      return { ...observation, auditContinuations, receipts: { status: "passed", ...receipts } };
+      return { ...observation, receipts: { status: "passed", ...receipts } };
     } catch {
       // Keep the original operation current so the next complete read can retry.
       // Unrelated sources and all positively observed native facts still commit.

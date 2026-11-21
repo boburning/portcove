@@ -195,10 +195,29 @@ void test("scheduled receipt recovery shares the native read and retains source 
   });
   assert.equal(failure.failed, false);
   assert.equal(failure.facts.size, 3);
-  assert.equal(failure.auditContinuations, undefined);
+  assert.deepEqual(failure.auditContinuations, [ticket]);
   assert.deepEqual(failure.receipts, { status: "failed" });
   assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
   let calls = 0;
+  const partial = await hostedIntakeObservation(
+    async () =>
+      read([
+        row(10, { audit_retry: ticket }),
+        {
+          request_comment: 20,
+          withdrawn: false,
+          superseded_by: [],
+          error: { code: "operation_failed", message: "Unrelated retained receipt is invalid" },
+        },
+      ]),
+    async () => {
+      calls++;
+      return { inspected: 0, completed: [] };
+    },
+  );
+  assert.deepEqual(partial.auditContinuations, [ticket]);
+  assert.deepEqual(partial.receipts, { status: "unavailable" });
+  assert.equal(calls, 0);
   const unavailable = await hostedIntakeObservation(
     async () => {
       throw new Error("read failed");
