@@ -1553,6 +1553,7 @@
             "packages the scan could not inspect are shown and open the release-content handoff",
             "a finding on a port with deferred targets is visible from the latest scan's gap",
             "published maintenance report reads retained pending-to-eligible history once per candidate",
+            "partial CDN windows leave prior good observations intact in the maintenance store",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
             "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
