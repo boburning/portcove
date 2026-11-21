@@ -61,10 +61,7 @@
     "original_game": {
       "format_version": 1,
       "id": "planescape-torment",
-      "evidence_urls": [
-        "https://gemrb.org/Install.html",
-        "https://github.com/gemrb/gemrb"
-      ],
+      "evidence_urls": ["https://gemrb.org/Install.html", "https://github.com/gemrb/gemrb"],
       "source_editions": []
     }
   },
@@ -83,15 +80,8 @@
   "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
-    "channels": [
-      "stable"
-    ],
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
