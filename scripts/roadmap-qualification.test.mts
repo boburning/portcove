@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  planPortStageMigration,
   planPortStageReconciliation,
   qualifiedPlatforms,
   validatePortStageSemantics,
@@ -488,4 +489,132 @@ void test("qualification field lookup rejects primitives and arrays with named f
   assert.equal(recordField({ kind: "hands_on" }, "kind"), "hands_on");
   for (const value of [null, undefined, 7, "hands_on", {}, Object.assign([], { kind: "hands_on" })])
     assert.equal(recordField(value, "kind"), undefined);
+});
+
+void test("migration preserves each manual and historical stage across active and archived items", () => {
+  const makeItem = (
+    number: number,
+    stage: string | null,
+    id: string | undefined,
+    archived = false,
+  ) => ({
+    id: "project-" + number,
+    isArchived: archived,
+    "Work type": "Port",
+    "Port stage": stage,
+    content: {
+      id: "issue-" + number,
+      type: "Issue",
+      number,
+      title: "[Port] " + number,
+      url: "https://github.com/boburning/portcove/issues/" + number,
+      updatedAt: "2026-11-21T00:00:00Z",
+      body: renderPortIssueBody({
+        title: "Port " + number,
+        upstream: "https://example.test/" + number,
+        ...(id ? { catalogId: id } : { portKey: "port-" + number }),
+      }),
+    },
+  });
+  const historical = [
+    "Source contract known",
+    "Release integrity qualified",
+    "Manual qualification",
+  ];
+  const manual = ["Watchlist", "Researching", "Blocked", "Rejected"];
+  const rows = [
+    ...manual.map((stage, index) => makeItem(index + 1, stage, undefined)),
+    ...historical.map((stage, index) =>
+      makeItem(index + 5, stage, index === 2 ? "automated" : undefined, index !== 0),
+    ),
+    makeItem(8, "Cataloged", "exact"),
+    makeItem(9, "Supported", "duplicate"),
+    makeItem(10, null, "cataloged"),
+    makeItem(11, "Supported", "unknown"),
+    makeItem(12, "Cataloged", "plain"),
+  ];
+  const catalog = {
+    ports: [
+      { id: "exact", platforms: ["windows", "linux"] },
+      { id: "automated", platforms: ["windows", "linux"], automated_tested_platforms: ["linux"] },
+      { id: "cataloged", platforms: ["linux"] },
+      { id: "duplicate", platforms: ["linux"] },
+      { id: "plain", platforms: ["linux"], support_tier: "stable" },
+      { id: "issue-free", platforms: ["linux"], support_tier: "stable" },
+    ],
+    source_catalog: {
+      qualification: [
+        { kind: "automated_lifecycle", outcome: "passed", scope: qualificationScope("exact") },
+        { kind: "hands_on", outcome: "passed", scope: qualificationScope("exact") },
+        { kind: "hands_on", outcome: "failed", scope: qualificationScope("issue-free", "linux") },
+      ],
+    },
+  };
+  const repositoryIssues = [
+    ...rows.map((row) => row.content),
+    makeItem(13, null, "duplicate").content,
+  ];
+  const report = planPortStageMigration(
+    catalog,
+    [...rows, { id: "no-port", isArchived: true }],
+    "boburning/portcove",
+    repositoryIssues,
+    new Set(["issue-free"]),
+  );
+  assert.deepEqual(report.counts, {
+    project_items: 13,
+    active_items: 10,
+    archived_items: 3,
+    port_stage_records: 12,
+    other_items: 1,
+    preserve_manual: 4,
+    review_historical: 3,
+    aligned: 1,
+    derived_drift: 1,
+    unresolved: 3,
+    issue_free_catalog_ports: 1,
+  });
+  assert.deepEqual(
+    report.rows.slice(0, 4).map((row) => row.current_stage),
+    manual,
+  );
+  assert.deepEqual(
+    report.rows.slice(4, 7).map((row) => row.current_stage),
+    historical,
+  );
+  const archived = fixtureElement(report.rows, 6);
+  assert.equal(archived.classification, "review_historical");
+  assert.equal(archived.archived, true);
+  assert.equal(archived.item_id, "project-7");
+  assert.equal(archived.issue_url, "https://github.com/boburning/portcove/issues/7");
+  assert.match(archived.observed_body_sha256, /^[a-f0-9]{64}$/u);
+  assert.deepEqual(archived.catalog_evidence, {
+    catalog_id: "automated",
+    stage: "Automated qualification",
+    automated_platforms: ["linux"],
+    supported_platforms: [],
+  });
+  assert.deepEqual(fixtureElement(report.rows, 7).catalog_evidence?.supported_platforms, [
+    "windows",
+  ]);
+  assert.equal(fixtureElement(report.rows, 8).unresolved_reason, "competing_catalog_claims");
+  assert.equal(
+    fixtureElement(report.rows, 9).unresolved_reason,
+    "unset_or_unrecognized_project_stage",
+  );
+  assert.equal(fixtureElement(report.rows, 10).unresolved_reason, "unrecognized_catalog_id");
+  assert.deepEqual(report.issue_free_catalog_ports, [
+    {
+      catalog_id: "issue-free",
+      stage: "Cataloged",
+      automated_platforms: [],
+      supported_platforms: [],
+    },
+  ]);
+  const doctor = validatePortStageSemantics(catalog, rows, "boburning/portcove", repositoryIssues);
+  assert.equal(doctor.derivedStageDrift.length, 1);
+  assert.match(
+    doctor.warnings.join("\n"),
+    /Derived Port-stage drift.*Project has Cataloged.*Supported/u,
+  );
 });

@@ -943,6 +943,33 @@ games or targets may share one upstream. Grouping and sorting are verified by re
 remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
 
+For the #4850 read-only migration inventory, run
+`node scripts/roadmap.mts doctor --stage-migration-dry-run --expected-head <sha> --json`.
+It uses complete, revision-checked Project inventory for active and archived
+items. The report retains current values with Project item IDs, issue links,
+and observed body digests, and reports missing or conflicting catalog links
+as unresolved. A failed or incomplete read establishes no migration counts.
+This mode reports migration coverage separately from global doctor health.
+
+The proposed reduced stage set keeps **Watchlist**, **Researching**,
+**Blocked**, and **Rejected** as deliberate planning values and derives
+**Cataloged**, **Automated qualification**, and **Supported** from existing catalog
+admission and platform qualification. The three historical values,
+**Source contract known**, **Release integrity qualified**, and **Manual
+qualification**, require individual review before any migration. Retain their
+source, artifact, and hands-on work evidence in the owning issue. The report
+shows each historical value beside its catalog projection when a unique link
+exists. Normal doctor reports differences between a stored derived stage and
+catalog evidence. The Project continues to own the recorded planning values.
+
+An issue-free prepared listing can record inspection, runtime observations or
+failures independently. The report includes a catalog projection for matching
+operational ports covered by the issue-free listing rule. A listing or dated
+runtime observation alone supplies no substitute for an automated or hands-on
+qualification pass. The report creates no memberships and applies no field
+changes. The Project owner must confirm the proposed value set before any live
+schema migration.
+
 Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mts snapshot`. Review and commit that immutable evidence document under
 `docs/releases/`. It records what the Project and catalog said at one commit;

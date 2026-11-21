@@ -1,5 +1,6 @@
 import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
+import { orderedJsonSha256 as observationHash } from "./json-values.mts";
 import { isRecord, recordField as qualificationField } from "./runtime-values.mts";
 import {
   diagnosticText,
@@ -162,6 +163,151 @@ function automatedPlatforms(
   return (port?.platforms ?? []).filter((platform) => automated.has(platform));
 }
 
+const manualStages = ["Watchlist", "Researching", "Blocked", "Rejected"] as const;
+const derivedStages = ["Cataloged", "Automated qualification", "Supported"] as const;
+const historicalStages = [
+  "Source contract known",
+  "Release integrity qualified",
+  "Manual qualification",
+] as const;
+type DerivedPortStage = (typeof derivedStages)[number];
+
+function catalogStage(port: QualificationPortObservation, records: readonly unknown[]) {
+  const automated = automatedPlatforms(port, records);
+  const qualified = qualifiedPlatforms(port, records);
+  const stage: DerivedPortStage = qualified.length
+    ? "Supported"
+    : automated.length
+      ? "Automated qualification"
+      : "Cataloged";
+  return {
+    catalog_id: port.id,
+    stage,
+    automated_platforms: automated,
+    supported_platforms: qualified,
+  };
+}
+
+/** Inspect the current planning value independently of the catalog's evidence-backed value. */
+export function inspectRoadmapPortStages(
+  catalog: QualificationCatalogObservation | null | undefined,
+  items: readonly RoadmapIssueItem[],
+  repository?: string,
+  repositoryIssues?: readonly RoadmapIssueItem[],
+) {
+  const records = catalog?.source_catalog?.qualification ?? [];
+  const ports = new Map(
+    (catalog?.ports ?? []).map((port) => [port.id, catalogStage(port, records)]),
+  );
+  const markerClaims = new Map<string, Set<string>>();
+  for (const issue of discoveredPortIssues(repositoryIssues ?? items)) {
+    const identity = issue.id ?? itemUrl(issue);
+    if (!identity) continue;
+    for (const id of portCatalogMarkers(itemBody(issue))) {
+      const claims = markerClaims.get(id) ?? new Set<string>();
+      claims.add(identity);
+      markerClaims.set(id, claims);
+    }
+  }
+  const permittedUrl = repository
+    ? "https://github.com/" + repository.toLowerCase() + "/issues/"
+    : null;
+  const rows = items.flatMap((item) => {
+    const body = itemBody(item);
+    const current = fieldValue(item, "Port stage");
+    const workType = fieldValue(item, "Work type");
+    if (
+      (current == null || current === "") &&
+      workType !== "Port" &&
+      !body.includes(portMarker) &&
+      !portTitlePrefix.test(itemTitle(item))
+    )
+      return [];
+    const claims = portCatalogMarkers(body);
+    const url = itemUrl(item) ?? null;
+    const canonical =
+      body.includes(portMarker) &&
+      (!permittedUrl || url?.toLowerCase() === permittedUrl + String(issueNumber(item)));
+    const port = claims.length === 1 ? ports.get(claims[0]!) : undefined;
+    const ambiguous = claims.some((id) => (markerClaims.get(id)?.size ?? 0) > 1);
+    const derived = canonical && port && !ambiguous ? port : null;
+    const stage = typeof current === "string" && current !== "" ? current : null;
+    const classification = manualStages.some((value) => stage === value)
+      ? "preserve_manual"
+      : historicalStages.some((value) => stage === value)
+        ? "review_historical"
+        : derivedStages.some((value) => stage === value) && derived
+          ? stage === derived.stage
+            ? "aligned"
+            : "derived_drift"
+          : "unresolved";
+    return [
+      {
+        item_id: item.id ?? null,
+        archived: typeof item.isArchived === "boolean" ? item.isArchived : null,
+        content_id: item.content?.id ?? null,
+        issue_url: url,
+        title: itemTitle(item),
+        observed_content_revision: item.content?.updatedAt ?? null,
+        observed_body_sha256: observationHash(body),
+        work_type: typeof workType === "string" ? workType : null,
+        current_stage: stage,
+        classification,
+        catalog_claims: claims,
+        catalog_evidence: derived,
+        unresolved_reason: !canonical
+          ? "canonical_issue_required"
+          : ambiguous
+            ? "competing_catalog_claims"
+            : claims.length !== 1
+              ? claims.length
+                ? "multiple_catalog_markers"
+                : "no_catalog_marker"
+              : !port
+                ? "unrecognized_catalog_id"
+                : classification === "unresolved"
+                  ? "unset_or_unrecognized_project_stage"
+                  : null,
+      } as const,
+    ];
+  });
+  return { rows, ports };
+}
+
+export function planPortStageMigration(
+  catalog: QualificationCatalogObservation,
+  items: readonly RoadmapIssueItem[],
+  repository: string,
+  repositoryIssues: readonly RoadmapIssueItem[],
+  issueFreeIds: ReadonlySet<string>,
+) {
+  const { rows, ports } = inspectRoadmapPortStages(catalog, items, repository, repositoryIssues);
+  const count = (classification: (typeof rows)[number]["classification"]) =>
+    rows.filter((row) => row.classification === classification).length;
+  return {
+    proposed_stage_set: { manual: manualStages, derived: derivedStages, retire: historicalStages },
+    counts: {
+      project_items: items.length,
+      active_items: items.filter((item) => item.isArchived === false).length,
+      archived_items: items.filter((item) => item.isArchived === true).length,
+      port_stage_records: rows.length,
+      other_items: items.length - rows.length,
+      preserve_manual: count("preserve_manual"),
+      review_historical: count("review_historical"),
+      aligned: count("aligned"),
+      derived_drift: count("derived_drift"),
+      unresolved: count("unresolved"),
+      issue_free_catalog_ports: issueFreeIds.size,
+    },
+    rows,
+    issue_free_catalog_ports: [...issueFreeIds].sort().map((id) => {
+      const evidence = ports.get(id);
+      if (!evidence) throw new Error("Issue-free diagnostic lacks matching catalog identity");
+      return evidence;
+    }),
+  };
+}
+
 function issueSection(body: unknown, heading: string) {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return (
@@ -267,10 +413,27 @@ function hasBlockedEvidence(body: unknown) {
 export function validatePortStageSemantics(
   catalog: QualificationCatalogObservation | null | undefined,
   items: readonly RoadmapIssueItem[] | null | undefined,
+  repository?: string,
+  repositoryIssues?: readonly RoadmapIssueItem[],
 ) {
   const errors = [];
   const warnings = [];
   const diagnostics = [];
+  const derivedStageDrift = inspectRoadmapPortStages(
+    catalog,
+    items ?? [],
+    repository,
+    repositoryIssues,
+  ).rows.filter((row) => row.classification === "derived_drift");
+  for (const row of derivedStageDrift)
+    warnings.push(
+      "Derived Port-stage drift at " +
+        (row.issue_url ?? row.title) +
+        ": Project has " +
+        row.current_stage +
+        "; catalog evidence derives " +
+        row.catalog_evidence?.stage,
+    );
   const portsById = new Map((catalog?.ports ?? []).map((port) => [port.id, port] as const));
   const qualificationRecords = catalog?.source_catalog?.qualification ?? [];
 
@@ -355,7 +518,7 @@ export function validatePortStageSemantics(
       );
     }
   }
-  return { errors, warnings, diagnostics };
+  return { errors, warnings, diagnostics, derivedStageDrift };
 }
 
 export function planPortStageReconciliation(
