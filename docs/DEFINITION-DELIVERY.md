@@ -1724,6 +1724,36 @@ Since 2026-11-15 the bundle below is published by
 [Catalog publication](RELEASING.md#current-release-process). The coordinator,
 review and journal steps described in the rest of this section are retired.
 
+### Released reader gate for operational publication
+
+Preparation compares the already inspected logical bundle with the published
+catalog to decide whether to start the read-only reader job. After the existing
+scoped jobs sign, that job assembles and verifies the complete repository.
+A first named entry, a schema-4 PS1 leaf or a stronger reader requirement needs
+the official immutable released CLI selected by the deployed Preview feed.
+New or readded legacy subjects must fit a requirement set already present in
+the prior catalog or pass the same reader check. A first legacy catalog can
+still bootstrap without a previous bundle.
+
+The reader job verifies the release asset and attestation, the latest feed and
+withdrawal list, and the previous authenticated bundle. The frozen CLI runs
+with an isolated environment and inspects both operational bundles without
+credentials. The descriptive listing carriers and their cover checkpoint keep
+their own validation and released-reader activation checks.
+
+The publisher assembles the signed repository once and classifies its exact
+requirements on every fast-forward Pages push attempt. A stronger requirement
+needs an isolated reader receipt bound to the signed index, timestamp,
+repository and prior, even when preparation skipped the reader job. The
+publisher checks the current Git and served Preview selections again whenever
+proof is required. Publishing an unchanged requirement set skips the extra reader
+job and its history restoration. Failed checks leave the previously published
+catalog in place.
+Existing historical renewal can recover expired metadata with the same or
+weaker requirements. A failed first activation may be replaced with that prior
+bundle for renewal through the ordinary workflow. Roll back a published change
+using a newer index and policy revision with the old compatible projection.
+
 ### Prepare one generated definition
 
 `node scripts/catalog-prepare-publication.mts project --catalog CATALOG --port ID

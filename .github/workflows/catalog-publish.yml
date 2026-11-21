@@ -53,6 +53,7 @@ jobs:
       prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
+      definition_reader_proof: ${{ steps.prepare.outputs.definition_reader_proof }}
       reader_activation: ${{ steps.observe.outputs.reader_activation }}
     env:
       GH_TOKEN: ${{ github.token }}
@@ -168,6 +169,9 @@ jobs:
           prior_commit=none
           if [ "$PRIOR" != none ]; then prior_commit=$(git -C site rev-parse HEAD); fi
           echo "prior_commit=$prior_commit" >> "$GITHUB_OUTPUT"
+          proof=$(node scripts/catalog-definition-reader-gate.mts hint "$RUNNER_TEMP/catalog-work")
+          [[ "$proof" = true || "$proof" = false ]]
+          echo "definition_reader_proof=$proof" >> "$GITHUB_OUTPUT"
           node scripts/catalog-publish.mts limit-signer-history --work "$RUNNER_TEMP/catalog-work"
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
@@ -220,8 +224,83 @@ jobs:
       role: timestamp
       commit: ${{ needs.prepare.outputs.commit }}
 
-  publish:
+  verify-definition-reader:
     needs: [prepare, sign-timestamp]
+    if: needs.prepare.outputs.definition_reader_proof == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      attestations: read
+    env:
+      PRIOR_DIGEST: ${{ needs.prepare.outputs.prior_digest }}
+      PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
+      PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
+      HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-work
+          path: ${{ runner.temp }}/catalog-work
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: catalog-role-*
+          path: ${{ runner.temp }}/catalog-work/roles
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-tools
+          path: ${{ runner.temp }}/catalog-tools
+      - name: Assemble the repository without keys
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/catalog-work"
+          if [ "$HISTORY_MODE" = segmented ]; then
+            [[ "$PRIOR_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Missing pinned catalog prior"; exit 1; }
+            git fetch --quiet --depth=1 origin "$PRIOR_COMMIT"
+            git worktree add --quiet --detach "$RUNNER_TEMP/catalog-prior-site" "$PRIOR_COMMIT"
+            node scripts/catalog-publish.mts restore-history --work "$work" \
+              --site "$RUNNER_TEMP/catalog-prior-site" --prior "$PRIOR_DIGEST" \
+              --prior-history "$PRIOR_HISTORY_DIGEST"
+            git worktree remove "$RUNNER_TEMP/catalog-prior-site"
+          fi
+          chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
+          node scripts/catalog-publish.mts assembly-config --work "$work"
+          "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json" > "$work/assembly-report.json"
+      - name: Verify the exact signed candidate with the selected released reader
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/catalog-definition-reader-gate.mts check "$RUNNER_TEMP/catalog-work" \
+            "$RUNNER_TEMP/catalog-tools/portcove-release-tools" "$RUNNER_TEMP/definition-reader-gate.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-definition-reader-gate
+          path: ${{ runner.temp }}/definition-reader-gate.json
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, sign-timestamp, verify-definition-reader]
+    if: >-
+      ${{ !cancelled() && needs.prepare.result == 'success' &&
+      needs.sign-timestamp.result == 'success' &&
+      (needs.verify-definition-reader.result == 'success' ||
+      (needs.verify-definition-reader.result == 'skipped' &&
+      needs.prepare.outputs.definition_reader_proof == 'false')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -255,6 +334,11 @@ jobs:
         with:
           name: catalog-tools
           path: ${{ runner.temp }}/catalog-tools
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.verify-definition-reader.result == 'success'
+        with:
+          name: catalog-definition-reader-gate
+          path: ${{ runner.temp }}/catalog-definition-reader-gate
       - name: Assemble the repository without keys
         run: |
           set -euo pipefail
@@ -294,6 +378,8 @@ jobs:
             if [[ -n "$CATALOG_READER_ACTIVATION" ]]; then
               node scripts/catalog-released-reader.mts site
             fi
+            node scripts/catalog-definition-reader-gate.mts recheck "$RUNNER_TEMP/catalog-work" \
+              "$RUNNER_TEMP/catalog-definition-reader-gate/definition-reader-gate.json" site
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
