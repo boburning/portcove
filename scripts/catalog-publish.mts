@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -185,19 +186,35 @@ function write(file: string, value: unknown) {
 }
 
 /** Sorted relative file list with digests, used to detect a concurrent catalog change. */
-export function treeDigest(directory: string): string {
-  const entries: string[] = [];
+export function treeInventory(directory: string) {
+  const files = new Map<string, { sha256: string; bytes: number }>();
   const walk = (dir: string) => {
-    if (!existsSync(dir)) return;
     for (const name of readdirSync(dir).sort()) {
       const full = path.join(dir, name);
-      if (statSync(full).isDirectory()) walk(full);
-      else
-        entries.push(`${path.relative(directory, full).split(path.sep).join("/")} ${sha256(full)}`);
+      const stat = lstatSync(full);
+      if (stat.isDirectory()) walk(full);
+      else if (stat.isFile())
+        files.set(path.relative(directory, full).split(path.sep).join("/"), {
+          sha256: sha256(full),
+          bytes: stat.size,
+        });
+      else throw new Error("catalog site inventory contains a nonregular file");
     }
   };
-  walk(directory);
+  if (existsSync(directory)) {
+    if (!lstatSync(directory).isDirectory()) throw new Error("catalog site is not a directory");
+    walk(directory);
+  }
+  return files;
+}
+
+export function inventoryDigest(files: ReturnType<typeof treeInventory>): string {
+  const entries = [...files].map(([name, file]) => `${name} ${file.sha256}`);
   return createHash("sha256").update(entries.join("\n")).digest("hex");
+}
+
+export function treeDigest(directory: string): string {
+  return inventoryDigest(treeInventory(directory));
 }
 
 /** Bundle files as `{target: sha256}`. */

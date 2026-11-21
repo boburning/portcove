@@ -138,6 +138,14 @@ immutable URLs. The verifier loads one bounded history file at a time and
 rechecks its digest before use.
 [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 
+Once the keyless release tool verifies and assembles the repository, the Pages
+job matches its exact file inventory against the guarded current Pages tree.
+It retains matching immutable files in place and stages only added repository
+files, the new timestamp and the browse update. A stale prior digest, a missing
+retained file, an immutable replacement or a changed assembled body stops the
+run before the Pages push. Signers and the keyless assembler still validate
+retained history under the existing TUF root and role keys.
+
 Each descriptive target remains limited to 8 MiB per directory revision.
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
