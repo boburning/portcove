@@ -120,7 +120,9 @@ export function BackgroundFramingEditor({
           );
         })}
       </div>
-      {stale && <p role="alert">The artwork changed. Cancel and preview the image again.</p>}
+      {!pending && stale && (
+        <p role="alert">The artwork changed. Cancel and preview the image again.</p>
+      )}
       {imageFailed && (
         <p role="alert">The preview could not be displayed. Cancel and choose the image again.</p>
       )}

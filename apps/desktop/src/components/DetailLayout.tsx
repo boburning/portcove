@@ -425,7 +425,12 @@ export function DetailLayout({
               <div className="detail-overview">
                 <div className="detail-overview-main min-w-0">
                   {panels.overview}
-                  <CatalogMediaGallery port={port} />
+                  <CatalogMediaGallery
+                    port={port}
+                    fallbackFocus={() =>
+                      root.current?.querySelector<HTMLElement>("[data-detail-back]")
+                    }
+                  />
                   {overviewActions?.(reveal)}
                   {overviewDetails}
                 </div>

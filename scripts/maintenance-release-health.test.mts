@@ -42,6 +42,23 @@ const report = (conditions: unknown[], stale: string[] = []) => ({
   known_conditions: conditions,
 });
 
+void test("unattributed and duplicate health conditions cannot clear a partial report", () => {
+  for (const conditions of [
+    [null],
+    [condition({ port_id: null })],
+    [condition({ port_id: "omitted" })],
+    [condition({ key: " " })],
+    [condition(), condition({ port_id: "beta" })],
+  ])
+    assert.throws(
+      () => releaseHealthFacts(report(conditions, ["gamma"])),
+      /ambiguous condition identity/u,
+    );
+  const partial = releaseHealthFacts(report([condition({ port_id: "gamma" })], ["gamma"]));
+  assert.equal(partial.facts.has("port:gamma"), false);
+  assert.equal(partial.gaps[0]?.subject_key, "port:gamma");
+});
+
 void test("release-health facts keep stable condition facts and report coverage gaps", () => {
   const first = releaseHealthFacts(report([condition()]));
   assert.equal(first.expected, 2);

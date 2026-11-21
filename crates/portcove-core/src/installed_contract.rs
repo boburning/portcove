@@ -98,7 +98,10 @@ fn retained_catalog_document(catalog: &Catalog, selected: &str) -> crate::Catalo
                 .source_catalog
                 .iter()
                 .flat_map(|sources| &sources.contracts)
-                .filter(|contract| contract.variant_list_recognition_only)
+                .filter(|contract| {
+                    contract.variant_list_recognition_only
+                        || !contract.n64_recomp_inputs_v1.is_empty()
+                })
                 .map(|contract| &contract.port_id),
         )
         .filter(|port_id| port_id.as_str() != selected)

@@ -254,6 +254,14 @@ jobs:
             rm -rf site/catalog && cp -R "$repository" site/catalog
             git -C site add -A catalog
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
+            # Bound the actual complete Pages tree, including the application and
+            # browse output. Keep margin below GitHub Pages' published 1 GB limit.
+            git -C site ls-tree -r -l HEAD | awk '
+              $2 == "blob" { bytes += $4; files++ }
+              END {
+                printf "Complete Pages tree: %d files, %.0f bytes\n", files, bytes
+                if (bytes > 900000000) exit 1
+              }'
             if git -C site push --quiet origin HEAD:refs/heads/gh-pages; then exit 0; fi
             git worktree remove --force site
             sleep $((attempt * 5))

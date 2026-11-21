@@ -2712,6 +2712,7 @@ export async function preparationScenarios({
             "Game files",
             "Saves & backups",
             "Versions & updates",
+            "Game settings",
             "Manage",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);

@@ -4350,7 +4350,92 @@ async fn curated_installer_boundary_fixture(
                     .unwrap_err();
                 assert_eq!(refused.code, crate::ErrorCode::Verification);
                 assert!(refused.message.contains("SHA-256"));
+                let evidence = std::path::PathBuf::from(&refused.details["quarantine_path"]);
+                let cache = library.downloads_dir().join("curated-v1");
+                assert_eq!(evidence.parent(), Some(cache.as_path()));
+                assert!(
+                    evidence
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with(".partial-")
+                );
+                assert_eq!(std::fs::read(&evidence).unwrap(), changed_bytes);
+                assert!(!cache.join(format!("{}.asset", record.sha256)).exists());
+                let worker = crate::curated_cache::CacheWorker::new(
+                    &scope,
+                    &resolved.release.asset,
+                    &crate::OperationCoordinator::new("verify", None),
+                );
+                let observed = hex::encode(Sha256::digest(&changed_bytes));
+                let duplicate = worker
+                    .quarantine_download(
+                        &evidence,
+                        &observed,
+                        PortcoveError::verification("same refused download"),
+                    )
+                    .await;
+                assert_eq!(
+                    std::path::Path::new(&duplicate.details["quarantine_path"]),
+                    evidence
+                );
+                assert!(!duplicate.details.contains_key("quarantine_error"));
+                let mut collision = observed.clone();
+                collision.replace_range(63.., if observed.ends_with('0') { "1" } else { "0" });
+                let different = worker
+                    .quarantine_download(
+                        &evidence,
+                        &collision,
+                        PortcoveError::verification("different refused download"),
+                    )
+                    .await;
+                assert_eq!(different.message, "different refused download");
+                assert!(different.details.contains_key("quarantine_error"));
+                assert!(!different.details.contains_key("quarantine_path"));
+
+                // The private source can change after the first complete hash.
+                // Refuse the original operation without keeping a different sample.
+                let missing = hex::encode(Sha256::digest(b"a different observed replacement"));
+                let stale_source = worker
+                    .quarantine_download(
+                        &evidence,
+                        &missing,
+                        PortcoveError::verification("original transfer refused"),
+                    )
+                    .await;
+                assert_eq!(stale_source.message, "original transfer refused");
+                assert!(stale_source.details.contains_key("quarantine_error"));
+                assert!(!stale_source.details.contains_key("quarantine_path"));
+                assert_eq!(std::fs::read_dir(&cache).unwrap().count(), 1);
+                assert!(
+                    !worker
+                        .restore(&library.root().join("rejected-must-stay-inactive"))
+                        .await
+                        .unwrap()
+                );
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+
+                // A corrected endpoint can supply the originally admitted bytes.
+                server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+                server.json(release.clone());
+                server.json(tag.clone());
+                server.bytes(&bytes);
+                let recovered = installer
+                    .install(
+                        request(resolved.clone(), "-original-returned"),
+                        &crate::OperationCoordinator::new("install", None),
+                        |_| {},
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(recovered.artifact.sha256, record.sha256);
+                assert_eq!(
+                    std::fs::read(cache.join(format!("{}.asset", record.sha256))).unwrap(),
+                    bytes
+                );
+                assert_eq!(std::fs::read(&evidence).unwrap(), changed_bytes);
                 assert!(server.responses.lock().unwrap().is_empty());
                 return;
             }

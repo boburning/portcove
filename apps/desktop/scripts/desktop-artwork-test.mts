@@ -496,11 +496,20 @@ export async function artworkScenario({
             ),
           );
         }
-        await browser.wait(async () => (await state(slot)).choice.asset_sha256 === digest, 10_000);
+        // Hosted Windows job 136791041646 committed the Cover but still had an
+        // earlier 16.35 s read and an in-flight thumbnail. Observe the exact
+        // commit and the editor's settled readback before checking focus.
+        await browser.wait(
+          async () => (await state(slot)).choice.asset_sha256 === digest,
+          60_000,
+          "Core must record the selected artwork digest for this role",
+        );
         const picker = await browser.findElement(control(slot, "Choose local image"));
-        // Core commits before the renderer finishes its preview and returns focus.
-        // Observe completion before scrolling to a different image surface.
-        await browser.wait(until.elementIsEnabled(picker), 10_000);
+        await browser.wait(
+          until.elementIsEnabled(picker),
+          60_000,
+          "The artwork editor must settle after the committed role is read back",
+        );
         await browser.wait(
           () =>
             executeBrowserScript(browser, (element) => document.activeElement === element, picker),

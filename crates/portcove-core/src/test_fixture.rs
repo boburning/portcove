@@ -432,8 +432,10 @@ impl<'a> IndexedCatalogFixture<'a> {
         {
             // The newest staged-source requirement, so it stays first.
             crate::adapter::SNES_COPIER_HEADER_CAPABILITY
-        } else if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        } else if let Some((_, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(port)
+        {
+            minimum
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; it is the newest
             // staged-source requirement, so it stays first.

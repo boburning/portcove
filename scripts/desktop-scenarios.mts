@@ -1125,6 +1125,10 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
+    // Hosted Windows job 136791041646 stopped after 81 s with the first of two
+    // roles still settling. Allow the two picker/confirmation sequences,
+    // bounded readback, reload and owned cleanup to run under one watchdog.
+    selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") ? 600_000 : 0,
     // Linux keyboard fixture readiness has two finite 90s phases; retain room
     // for real keyboard controls and owned cleanup without changing predicates.
     selection.selected_scenarios.includes("keyboard-layout") ? 360_000 : 0,

@@ -627,6 +627,12 @@ must declare a staged-source minimum version of 35. Earlier readers reject
 the capability. Holds that omit this field keep their existing behavior and
 capability requirements. The new field grants no additional acquisition authority.
 
+Managed PSX version 6 admits the same exact-artifact exclusion and reviewed
+fallback for GitHub release packages. Fresh and retained definitions containing
+these exclusions must declare a minimum of `psx-recomp-managed` version 6.
+Existing installations keep their executable, original disc and BIOS, settings
+and save data until the player chooses a compatible replacement.
+
 Staged-source version 36 admits SNES sources whose dump may carry a 512-byte
 copier header (the `snes-copier-header-optional` source representation and its
 `snes-headerless-content` digest scope) and the `snes-headerless` source
@@ -801,6 +807,14 @@ redistribution each require their applicable authority. A new release identity
 may enter normal protected acceptance. Different bytes under the same accepted
 identity require investigation and must stay held.
 
+If a completed curated transfer matches the admitted length but has a different
+SHA-256, Core refuses it before extraction. When cache capacity and authority
+allow, it verifies and keeps those replacement bytes under an inactive cache
+name. The refusal records both digests and the evidence path, or the reason the
+copy could not be retained. Repeated identical observations share the verified
+sample. A later ordinary attempt still requires the original accepted bytes.
+Incomplete transfers retain their existing bounded recovery rules.
+
 When a reusable local archive fails its independently accepted digest or size,
 Core refuses the operation and rechecks the cache object under its existing
 lock. It quarantines confirmed bad bytes under an inactive cache name. The
@@ -809,11 +823,11 @@ their storage accounting. A later normal request can fetch the same approved
 identity through its still-current policy and verify the result. This recovery
 preserves the older installed runtime and existing player data.
 
-The Core verifier, GitHub provider integration, accepted record and scoped
-transition handling are implemented. The #315 production canary, verified cache
-reuse, scoped refusals and recovery, and repeated eligible progression still
-need evidence through the protected route. Proposal-producing runners
-cannot approve their own authority changes or hold signing credentials.
+The protected route requires a production canary, verified cache reuse, scoped
+refusals and recovery, and repeated eligible progression. The
+[acquisition issue](https://github.com/boburning/portcove/issues/315) records the
+released Windows evidence and the remaining final 0.1.0 acceptance. Proposal
+runners cannot approve their own authority changes or hold signing credentials.
 Protected publisher automation may sign or publish only exact independently
 authorized inputs, with enforceable workflow separation and exact-input
 validation. Routine candidates within established authority do not need a
@@ -1463,10 +1477,11 @@ acquisition holds; adoption and preparation recovery apply local-use holds
 alongside their existing publisher and freshness guards. A refusal retains the
 payload and operation journal without activating or registering the target.
 
-These capability and fixture paths do not establish production acceptance.
-[#315](https://github.com/boburning/portcove/issues/315) still requires complete
-cache qualification, exact scoped holds, cancellation/recovery, exhaustive transition
-qualification and a lawful exact canary before its complete route is delivered.
+[#315](https://github.com/boburning/portcove/issues/315) tracks production
+acceptance for the lawful exact canary, cache qualification, scoped holds,
+interruption and recovery, and the applicable transitions. It identifies which
+operations have released-client receipts. Capability and fixture results retain
+their tested scope.
 
 ### Exact managed Launch assessment format
 
@@ -1740,6 +1755,44 @@ directory. Its receipt records the exact inputs and output digests with authorit
 `none`. The protected publisher still establishes the authenticated baseline,
 revision floors, signing and public delivery through the existing workflow.
 
+### Stage an observed N64 original-input amendment
+
+Use `catalog-prepare-publication.mts project --port ID --prior PRIOR_BUNDLE
+--original-input-checkpoint CHECKPOINT --observer-cli OBSERVER_CORE --validator CORE_CLI` with the complete
+configured observer checkpoint and the retained official managed bundle.
+The same inputs work with `prepare`, plus the existing
+`--reviewed REVIEW_DIRECTORY --output-parent LOCAL_DIRECTORY` options. Both
+commands derive the amendment from the current checkout's authored catalog,
+observer selection and reviewed package receipts. The source completion must
+cover the current scope and remain fresh under the configured observer policy.
+Supply the exact Core binary used by the observation. Preparation fingerprints it
+and reuses its normalized definition inspection over the current catalog and
+listing files to reproduce the collector's scope binding.
+The Core producer validates
+the resulting projection, and the existing prepare step inspects the complete
+prior and proposed bundles.
+
+The amendment requires an existing official schema-4 managed grant. Every
+effective package must match the retained curated repository, release, commit,
+platform, digest and reviewed runtime layout. Every retained platform needs
+curated coverage. Shared packages need evidence for every applicable platform.
+The candidate preserves the port,
+older input bindings, publisher grant, launch assessments, and the full
+existing capability range. The prior minimum must already require capability
+10 for an informational original or 11 for an enforced legacy contract.
+Preparation holds while the existing range admits an older reader. The existing protected publisher authenticates the
+prior publication and controls signing. New curated identities remain on the
+independent acquisition admission route.
+
+This preparation mode is opt-in and the scheduled publisher does not invoke it.
+The current managed index has one N64 definition, Chameleon Twist JP
+Recompiled, with an independently accepted Windows v0.1 archive and a
+capability-1 ceiling. Its authored catalog row is descriptive, so the configured
+observer supplies no operational original-file fact for that port. Harvest Moon
+64 Recompiled has checked input receipts
+for its managed selections, but has no entry in the official managed bundle.
+Neither supplies an eligible publication candidate for this mode.
+
 ### Historical coordinator
 
 The automatic catalog authoring boundary is the fixed inert source subtree
@@ -1914,6 +1967,15 @@ Earlier-format exports omit that inert envelope while preserving setup facts and
 acquisition restrictions. A format-12 publication needs compatible reader coverage;
 this implementation does not authorize a protected publication or change its keys.
 
+Listing format 13 carries typed IGDB backgrounds and screenshots. It has the
+same reader coverage requirement. Exports up to format 12 retain other artwork,
+setup facts and acquisition restrictions. The operational catalog schema and
+retained runtime contracts continue to carry their existing media.
+The observer's managed format-11 delivery keeps its existing reader window.
+When that older overlay cannot express a bundled typed scene, a newer reader
+keeps the scene only if the project and original-game scope still match and
+the combined media passes admission. A format-13 replacement can withdraw it.
+
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
 format 10 stops listing updates for every reader that understands at most format 9:
@@ -1979,6 +2041,24 @@ flag. Existing engine versions retain their original behavior. A definition
 that carries the flag declares the applicable capability floor. Older readers
 can then decline the definition before using the projection, while supported
 readers keep ordinary original-file admission and execution checks.
+
+### Exact N64 Recomp original input
+
+A game source contract can carry `n64_recomp_inputs_v1` for an upstream
+N64 Recomp runtime that uses the supported normalized ROM check. Each binding
+names the release ref, artifact SHA-256, native game ID and expected XXH3-64.
+The native game ID must name the definition's normalized runtime file. The
+contract cites upstream support evidence. Indexed projections carrying these
+bindings require N64 recomp portable version 10 for the selected definition.
+
+The matching release and artifact select the requirement during managed
+installation, activation, rollback and launch. Core checks the selected
+registration's storage and content identities and compares the upstream digest
+after N64 padding and byte-order normalization. Before launch, Core also checks
+that the runtime file matches the normalized original's SHA-256 and size. A
+bound release needs a checked original. A binding for a different release or
+artifact supplies no compatibility verdict. A literal value in upstream source
+needs evidence of the applicable runtime check before it can become a binding.
 
 ### Reviewed mod provider bindings
 

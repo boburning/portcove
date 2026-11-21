@@ -348,6 +348,39 @@ impl PortcoveService {
         Ok(registered)
     }
 
+    pub(super) fn require_retained_n64_release_input(
+        &self,
+        install: &crate::InstallRecord,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        // Publication recovery can be checking a verified payload whose path
+        // is not yet in the library. Older builds without retained policy do
+        // not inherit a new input restriction from the current catalog.
+        let Some(catalog) =
+            crate::Installer::new(self.library.clone())?.retained_catalog(install)?
+        else {
+            return Ok(());
+        };
+        let release = (install.version.as_str(), install.artifact.sha256.as_str());
+        let Some((profile_id, _)) =
+            crate::source_inspection::n64_release_input(&catalog, &install.port_id, release)
+        else {
+            return Ok(());
+        };
+        let source = match self.pinned_original(&install.port_id, profile_id, &install.id)? {
+            Some(binding) => Some(self.registered_profile_original(&binding)?),
+            None => self.library.source(profile_id)?,
+        };
+        crate::source_inspection::verify_n64_release_input(
+            &catalog,
+            &install.port_id,
+            source.as_ref(),
+            release,
+            checkpoint,
+        )
+        .map(|_| ())
+    }
+
     pub(super) fn verified_source_record_with_checkpoint(
         &self,
         catalog: &Catalog,

@@ -76,6 +76,7 @@
     },
     "decisions": []
   },
+  "openx_portable_v1": "1393268483",
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -99,18 +100,12 @@
       }
     },
     "release": {
-      "repository": "elyosh/OpenXW",
-      "asset_hints": {
-        "windows-x86-64": ["-windows-x86_64-release.zip"],
-        "linux-x86-64": ["-linux-x86_64-release.tar.xz"]
-      },
-      "linux_tar_xz": true
+      "repository": "elyosh/OpenXW"
     },
     "executable_hints": {
       "windows-x86-64": ["OpenXW.exe"],
       "linux-x86-64": ["OpenXW"]
     },
-    "persistent_paths": ["config.yaml"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],

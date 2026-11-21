@@ -459,6 +459,14 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+On November 21, two guarded WSL commands hit the 30-second checkout scan
+deadline before starting their payloads. One read-only scan of the #8115
+checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing
+probe supervisor with a 120-second budget. WSL full I/O pressure averaged
+88.34% over the preceding ten seconds. The local override allows 30 to 120
+seconds per scan and leaves the default at 30 seconds. Both scans still cover
+all Git-visible inputs and a mismatch still prevents execution.
+
 The macOS contributor frontend check in run `44772676894`, attempt 1, reached
 the final **Back to Library** click in the combined mod setup, version, backup,
 and settings-draft journey with about one second left in its 15-second test
@@ -489,6 +497,15 @@ ordinary click. Activity identity, accessible name and focus assertions, consent
 stale-review refusal, saved-data and backup assertions, retry policy, cleanup and
 application/IPC/safety deadlines remain unchanged. The original failures remain
 evidence; these calibrations alone do not establish successful native workflows.
+
+On November 21, hosted Windows artwork job 136791041646 recorded the exact
+Cover import at revision 1. The editor remained busy with thumbnail and artwork
+reads in flight, and an earlier read took 16.35 seconds. The native test now
+allows up to 60 seconds for the exact committed digest and for the editor to
+settle. Its 10-minute scenario watchdog includes both role confirmations,
+reload and owned cleanup. The test still requires the original digest, revision
+and focus assertions. The observed import and picker results remain partial
+evidence until the renderer and recovery checks pass.
 
 The November 18 hosted Windows review-continuation run at `6c01ccf6`
 (`44395050884/1`, job `135122626956`) positively recorded the owned native

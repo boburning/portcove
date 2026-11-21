@@ -78,6 +78,49 @@ function enrichedEntry(definition: ReturnType<typeof portDefinition>) {
   )[0]!;
 }
 
+it("uses projected IGDB scenes with legacy strict media and preserves an explicit clear", () => {
+  const admittedShot: CatalogMediaAsset = {
+    ...screenshot,
+    id: "admitted-igdb-shot",
+    igdb: {
+      game_id: 38,
+      record_id: 39,
+      kind: "screenshot",
+      image_id: "fixture",
+      game_slug: "reviewed-original",
+    },
+  };
+  const definition = {
+    ...portDefinition(),
+    id: listing.id,
+    project_url: listing.project_url,
+    presentation: {
+      installation_method: "portable-package" as const,
+      saves_and_settings: "portcove-managed" as const,
+      source_requirements: [],
+      original_game: original,
+      media: [screenshot],
+    },
+  };
+  const accepted = {
+    format_version: 13,
+    listings: [{ ...enrichedListing, media: [screenshot, admittedShot] }],
+  };
+  const accepts = (media: CatalogMediaAsset[]) =>
+    catalogEntries(
+      {
+        schema_version: 1,
+        ports: [{ ...definition, presentation: { ...definition.presentation, media } }],
+        source_profiles: [],
+      },
+      accepted,
+      [],
+      [],
+    )[0]?.presentation?.media;
+  expect(accepts([screenshot])).toEqual([screenshot, admittedShot]);
+  expect(accepts([])).toEqual([]);
+});
+
 describe("lightweight catalog entries", () => {
   it("keeps every identity searchable without manufacturing an integration", () => {
     const entries = catalogEntries(undefined, directory, [], []);
