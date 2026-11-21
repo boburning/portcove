@@ -123,6 +123,7 @@ mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
+mod recomp_companion_review;
 mod recomp_mod;
 mod recomp_mod_list;
 mod recomp_mod_settings;
@@ -298,7 +299,10 @@ pub use game_settings::{
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
-pub use github_mods::{GithubModAsset, GithubModCatalog, GithubModRelease, has_github_mod_source};
+pub use github_mods::{
+    GithubModAsset, GithubModCatalog, GithubModCompoundReview, GithubModRelease,
+    has_github_mod_source,
+};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     CollectionPreference, HostPreferenceStore, HostPreferences, HostToolPreference,
@@ -405,6 +409,7 @@ pub use recipe::{
     RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
     RecipeRuntime,
 };
+pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };

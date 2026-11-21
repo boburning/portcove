@@ -316,6 +316,16 @@ pub(crate) enum ProfileCommand {
         #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
         platform: Option<String>,
     },
+    /// Inspect a local intact ZIP against a reviewed GitHub release and asset.
+    GithubModReview {
+        port_id: String,
+        release_id: u64,
+        asset_id: u64,
+        archive: PathBuf,
+        /// Platform whose companion layout to inspect. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
     /// Browse a game's mods on its reviewed provider (GameBanana or Thunderstore); reads only.
     ProviderBrowse {
         /// Catalog port ID with a reviewed provider binding.
@@ -444,6 +454,7 @@ impl ProfileCommand {
             Self::RecipePlan { .. } => "profile.recipe-plan",
             Self::RecipeApply { .. } => "profile.recipe-apply",
             Self::GithubMods { .. } => "profile.github-mods",
+            Self::GithubModReview { .. } => "profile.github-mod-review",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
             Self::ProviderProject { .. } => "profile.provider-project",
             Self::ProviderUpdates { .. } => "profile.provider-updates",
@@ -466,6 +477,7 @@ impl ProfileCommand {
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
                 | Self::GithubMods { .. }
+                | Self::GithubModReview { .. }
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
                 | Self::ProviderUpdates { .. }
@@ -872,6 +884,14 @@ fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
         .map_err(|error| PortcoveError::usage(format!("invalid revision request: {error}")))
 }
 
+fn github_mod_platform(platform: Option<String>) -> Result<Platform> {
+    match platform {
+        Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
+            .map_err(|_| PortcoveError::usage("unsupported platform")),
+        None => Platform::current(),
+    }
+}
+
 fn github_mods_text(catalog: &portcove_core::GithubModCatalog) -> String {
     let mut lines = vec![format!("GitHub Releases · {}", clean(&catalog.repository))];
     if catalog.freshness == portcove_core::ProviderFreshness::Stale {
@@ -910,13 +930,44 @@ pub(crate) async fn execute(
     let name = command.name();
     match command {
         ProfileCommand::GithubMods { port_id, platform } => {
-            let platform = match platform {
-                Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
-                    .map_err(|_| PortcoveError::usage("unsupported platform"))?,
-                None => Platform::current()?,
-            };
+            let platform = github_mod_platform(platform)?;
             let catalog = service.github_mod_catalog(&port_id, platform).await?;
             render_read_success(mode, name, catalog, github_mods_text)
+        }
+        ProfileCommand::GithubModReview {
+            port_id,
+            release_id,
+            asset_id,
+            archive,
+            platform,
+        } => {
+            let result = service
+                .review_github_mod_archive(
+                    &port_id,
+                    github_mod_platform(platform)?,
+                    release_id,
+                    asset_id,
+                    &archive,
+                )
+                .await?;
+            render_read_success(mode, name, result, |report| {
+                let mut lines = vec![format!(
+                    "Inspected {} release {} asset {}",
+                    clean(&report.repository),
+                    report.release_id,
+                    report.asset_id
+                )];
+                lines.push(format!("ZIP SHA-256: {}", report.review.archive_sha256));
+                for file in &report.review.companions {
+                    lines.push(format!(
+                        "Host library {} · SHA-256 {}",
+                        clean(&file.file_name),
+                        file.sha256
+                    ));
+                }
+                lines.push("Use the game's own installer with the intact ZIP.".into());
+                lines.join("\n")
+            })
         }
         ProfileCommand::ProviderBrowse {
             port_id,

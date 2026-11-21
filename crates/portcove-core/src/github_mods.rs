@@ -1,5 +1,7 @@
 //! Reviewed GitHub mod sources. Browsing is read-only and does not grant native
 //! companion installation or profile activation.
+use std::path::Path;
+
 use reqwest::Url;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -7,14 +9,17 @@ use serde_json::Value;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
 use crate::{
-    Platform, PortDefinition, PortcoveError, PortcoveService, ProviderFreshness, Result,
-    mod_provider::sanitize_text, profile_loader::ModEngine, provider_http::ProviderHttp,
+    Platform, PortDefinition, PortcoveError, PortcoveService, ProviderFreshness,
+    RecompCompoundReview, Result,
+    mod_provider::sanitize_text,
+    profile_loader::ModEngine,
+    provider_http::ProviderHttp,
+    recomp_companion_review::{self, CompanionLayout, MAX_WRAPPER_BYTES},
 };
 
 const API: &str = "https://api.github.com";
 const MAX_RELEASES: usize = 30;
 const MAX_ASSETS: usize = 128;
-const MAX_ASSET_BYTES: u64 = 256 * 1024 * 1024;
 
 #[derive(Clone, Copy)]
 struct ReviewedSource {
@@ -23,7 +28,7 @@ struct ReviewedSource {
     repository: &'static str,
     repository_id: u64,
     asset_name: &'static str,
-    platforms: &'static [Platform],
+    companions: &'static [CompanionLayout],
 }
 
 const SOURCES: &[ReviewedSource] = &[ReviewedSource {
@@ -32,7 +37,18 @@ const SOURCES: &[ReviewedSource] = &[ReviewedSource {
     repository: "RecompRando/MMRecompRando",
     repository_id: 854379059,
     asset_name: "MMRecompRando.zip",
-    platforms: &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+    companions: &[
+        CompanionLayout {
+            platform: Platform::WindowsX86_64,
+            declared_library: "APCpp-Glue",
+            files: &["APCpp-Glue.dll", "python311.dll"],
+        },
+        CompanionLayout {
+            platform: Platform::LinuxX86_64,
+            declared_library: "APCpp-Glue",
+            files: &["APCpp-Glue.so", "libpython3.11.so.1.0"],
+        },
+    ],
 }];
 
 fn reviewed_source(port: &PortDefinition) -> Option<ReviewedSource> {
@@ -85,6 +101,16 @@ pub struct GithubModCatalog {
     pub freshness: ProviderFreshness,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct GithubModCompoundReview {
+    pub port_id: String,
+    pub repository: String,
+    pub repository_id: u64,
+    pub release_id: u64,
+    pub asset_id: u64,
+    pub review: RecompCompoundReview,
+}
+
 impl PortcoveService {
     pub async fn github_mod_catalog(
         &self,
@@ -131,12 +157,81 @@ impl PortcoveService {
             repository: binding.repository.into(),
             repository_id: binding.repository_id,
             source_url: format!("https://github.com/{}/releases", binding.repository),
-            native_import_offered: binding.platforms.contains(&platform)
+            native_import_offered: binding
+                .companions
+                .iter()
+                .any(|layout| layout.platform == platform)
                 && port.platforms.contains(&platform),
             releases,
             complete,
             observed_at: identity.observed_at.min(listing.observed_at),
             freshness,
+        })
+    }
+    /// Inspect an intact ZIP against current approved source identities. This
+    /// report is not an install plan and cannot be passed to apply.
+    pub async fn review_github_mod_archive(
+        &self,
+        port_id: &str,
+        platform: Platform,
+        release_id: u64,
+        asset_id: u64,
+        archive: &Path,
+    ) -> Result<GithubModCompoundReview> {
+        let port = self.catalog().port(port_id)?;
+        let source = reviewed_source(port).ok_or_else(|| {
+            PortcoveError::unsupported("this port has no reviewed GitHub mod source")
+        })?;
+        let layout = source
+            .companions
+            .iter()
+            .copied()
+            .find(|layout| layout.platform == platform && port.platforms.contains(&platform))
+            .ok_or_else(|| {
+                PortcoveError::unsupported(
+                    "this source has no reviewed companion layout for the platform",
+                )
+            })?;
+        let listing = self.github_mod_catalog(port_id, platform).await?;
+        if listing.freshness == ProviderFreshness::Stale {
+            return Err(PortcoveError::verification(
+                "refresh the GitHub source before reviewing the ZIP",
+            ));
+        }
+        let selected = listing
+            .releases
+            .iter()
+            .find(|release| release.release_id == release_id && release.asset.asset_id == asset_id)
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "the exact release and asset pair is outside the current reviewed inventory",
+                )
+            })?;
+        let digest = selected.asset.published_sha256.as_deref().ok_or_else(|| {
+            PortcoveError::verification("GitHub did not publish a SHA-256 for this local ZIP")
+        })?;
+        let archive = archive.to_path_buf();
+        let bytes = selected.asset.bytes;
+        let digest = digest.to_owned();
+        let review = tokio::task::spawn_blocking(move || {
+            recomp_companion_review::review(
+                &archive,
+                bytes,
+                &digest,
+                source.game,
+                layout,
+                source.companions,
+            )
+        })
+        .await
+        .map_err(|_| PortcoveError::state("Recomp wrapper review worker stopped"))??;
+        Ok(GithubModCompoundReview {
+            port_id: port_id.into(),
+            repository: source.repository.into(),
+            repository_id: source.repository_id,
+            release_id,
+            asset_id,
+            review,
         })
     }
 }
@@ -155,7 +250,7 @@ fn parse_asset(row: &Value, binding: ReviewedSource) -> Option<GithubModAsset> {
         .filter(|name| *name == binding.asset_name)?;
     let bytes = row["size"]
         .as_u64()
-        .filter(|bytes| (1..=MAX_ASSET_BYTES).contains(bytes))?;
+        .filter(|bytes| (1..=MAX_WRAPPER_BYTES).contains(bytes))?;
     if row["state"].as_str() != Some("uploaded") {
         return None;
     }
