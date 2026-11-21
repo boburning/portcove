@@ -18,7 +18,8 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { preparePayloadSigningEnvironment } from "./release-payload-signing.mts";
 import { isRecord } from "./runtime-values.mts";
-import { readCatalogSource } from "./catalog-authoring.mts";
+import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
+import { fileIdentity } from "./development-evidence.mts";
 import { validateObserverConfig } from "./upstream-observer.mts";
 import {
   managedN64OriginalProjection,
@@ -265,6 +266,7 @@ async function main(argv: string[]) {
         "validator",
         "output-parent",
         "original-input-checkpoint",
+        "observer-cli",
       ].map((name) => [name, { type: "string" as const }]),
     ),
   });
@@ -281,18 +283,29 @@ async function main(argv: string[]) {
   const fromObserver = typeof checkpointPath === "string";
   if (fromObserver && (values.catalog !== undefined || values["projection-template"] !== undefined))
     throw new Error("Choose canonical catalog preparation or the original-input checkpoint");
+  if (!fromObserver && values["observer-cli"] !== undefined)
+    throw new Error("--observer-cli requires an original-input checkpoint");
   const priorDirectory =
     command === "prepare" || fromObserver ? path.resolve(requireString("prior")) : undefined;
   const prior = priorDirectory
     ? await readCatalogPublicationBundle(priorDirectory, deadline)
     : undefined;
-  let authored: { draft: Buffer; reader: number; checkpointSha256: string } | undefined;
+  let authored:
+    | { draft: Buffer; reader: number; checkpointSha256: string; observerCoreSha256: string }
+    | undefined;
   let catalog: Buffer | undefined;
   let template: Buffer | undefined;
   if (fromObserver) {
-    const source = readCatalogSource(
-      fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
-    );
+    const observerCore = path.resolve(requireString("observer-cli"));
+    const catalogRoot = new URL("../crates/portcove-core/catalog/", import.meta.url);
+    const [catalogBytes, listingBytes] = await Promise.all([
+      readControllerToolFile(fileURLToPath(new URL("catalog.json", catalogRoot)), 16 * 1024 ** 2),
+      readControllerToolFile(fileURLToPath(new URL("listings.json", catalogRoot)), 8 * 1024 ** 2),
+    ]);
+    const catalogInput = document(catalogBytes);
+    const listingInput = document(listingBytes);
+    if (!Array.isArray(listingInput.listings))
+      throw new Error("Current observer listings are unavailable");
     const bytes = await readControllerToolFile(path.resolve(checkpointPath), 32 * 1024 ** 2);
     const checkpoint: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     const observerConfig = validateObserverConfig(
@@ -303,16 +316,40 @@ async function main(argv: string[]) {
         ),
       ),
     );
-    authored = {
-      ...managedN64OriginalProjection(
-        prior!,
-        id,
-        { ...source.catalog, listings: source.directory.listings },
-        checkpoint,
-        observerConfig.stale_after_hours,
-      ),
-      checkpointSha256: hash(bytes),
-    };
+    const scratch = await mkdtemp(path.join(tmpdir(), "portcove-observer-policy-"));
+    try {
+      const identity = () =>
+        fileIdentity(observerCore, {
+          signal: AbortSignal.timeout(
+            Math.max(1, Math.min(30_000, Math.floor(deadline - performance.now()))),
+          ),
+        });
+      const before = await identity();
+      const definitions = await inspectCatalogDefinitions(observerCore, scratch, catalogBytes, {
+        deadline,
+        now: () => performance.now(),
+      });
+      const after = await identity();
+      if (!isDeepStrictEqual(before, after))
+        throw new Error("Observer Core policy binary changed during preparation");
+      authored = {
+        ...managedN64OriginalProjection(
+          prior!,
+          id,
+          { ...catalogInput, listings: listingInput.listings as unknown[] },
+          checkpoint,
+          {
+            policyIdentity: before.sha256,
+            definitionHash: (portId) => definitions.get(portId) ?? "",
+            staleAfterHours: observerConfig.stale_after_hours,
+          },
+        ),
+        checkpointSha256: hash(bytes),
+        observerCoreSha256: before.sha256,
+      };
+    } finally {
+      await rm(scratch, { recursive: true, force: true });
+    }
   } else {
     catalog = await readControllerToolFile(
       path.resolve(requireString("catalog")),
@@ -401,6 +438,7 @@ async function main(argv: string[]) {
         ...(authored
           ? {
               original_input_checkpoint_sha256: authored.checkpointSha256,
+              observer_core_sha256: authored.observerCoreSha256,
               original_input_draft_sha256: hash(authored.draft),
               required_n64_reader: authored.reader,
             }

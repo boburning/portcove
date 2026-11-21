@@ -5,6 +5,7 @@ import test from "node:test";
 import { readCatalogSource } from "./catalog-authoring.mts";
 import {
   catalogObservationSources,
+  catalogObservationScopeBinding,
   newCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import observerConfig from "../release/upstream-observer.json" with { type: "json" };
@@ -175,7 +176,15 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
   entry.required_capabilities[0]!.minimum_version = 11;
   entry.required_capabilities[0]!.maximum_version = 12;
   replaceEntry(prior, false);
-  assert.throws(() => managedN64OriginalProjection(prior, id, catalog, null, 12), /checkpoint/iu);
+  const observerPolicy = {
+    policyIdentity: "b".repeat(64),
+    definitionHash: () => "c".repeat(64),
+    staleAfterHours: observerConfig.stale_after_hours,
+  };
+  assert.throws(
+    () => managedN64OriginalProjection(prior, id, catalog, null, observerPolicy),
+    /checkpoint/iu,
+  );
   const source = catalogObservationSources(catalog).sources.find((source) =>
     source.ports.some((port) => port.id === id && port.original_source_family === "n64-recomp"),
   )!;
@@ -203,10 +212,12 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
     mean_change_interval_ms: null,
     next_due_at: null,
     result_sha256: facts,
-    completed_scope_sha256: facts,
+    completed_scope_sha256: catalogObservationScopeBinding(source, observerPolicy),
     last_complete_facts_sha256: facts,
-    last_complete_policies: source.ports.map(({ id }) => ({
-      port_id: id,
+    last_complete_policies: source.ports.map((port) => ({
+      port_id: port.id,
+      catalog_definition_sha256:
+        port.kind === "listing" ? port.definition_sha256 : observerPolicy.definitionHash(),
       repository_id: config.repository_id,
       facts_sha256: facts,
     })),
@@ -219,13 +230,53 @@ void test("managed N64 publication stages observed exact bytes inside the prior 
     retired_configs: [],
   };
   assert.throws(
-    () => managedN64OriginalProjection(prior, id, catalog, checkpoint, 12, now),
+    () => managedN64OriginalProjection(prior, id, catalog, checkpoint, observerPolicy, now),
     /missing, stale or incomplete/iu,
   );
   checkpoint.sources[source.key]!.freshness_observed_at = new Date(now).toISOString();
   assert.throws(
-    () => managedN64OriginalProjection(prior, id, catalog, checkpoint, 12, now),
+    () => managedN64OriginalProjection(prior, id, catalog, checkpoint, observerPolicy, now),
     /does not supply one verified N64 amendment/iu,
+  );
+  const changedCatalog = {
+    ...catalog,
+    ports: catalog.ports.map((port) =>
+      port.id === id ? { ...port, summary: "changed authored port" } : port,
+    ),
+  };
+  assert.throws(
+    () => managedN64OriginalProjection(prior, id, changedCatalog, checkpoint, observerPolicy, now),
+    /missing, stale or incomplete/iu,
+  );
+  assert.throws(
+    () =>
+      managedN64OriginalProjection(
+        prior,
+        id,
+        catalog,
+        checkpoint,
+        {
+          ...observerPolicy,
+          policyIdentity: "e".repeat(64),
+        },
+        now,
+      ),
+    /missing, stale or incomplete/iu,
+  );
+  assert.throws(
+    () =>
+      managedN64OriginalProjection(
+        prior,
+        id,
+        catalog,
+        checkpoint,
+        {
+          ...observerPolicy,
+          definitionHash: () => "f".repeat(64),
+        },
+        now,
+      ),
+    /missing, stale or incomplete/iu,
   );
   assert.throws(
     () => projectVerifiedN64OriginalAmendment(prior, "harvest-moon-64-recomp", amendment),

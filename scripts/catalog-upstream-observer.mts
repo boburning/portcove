@@ -77,6 +77,49 @@ function listingOnly(source: ObservableSource) {
   return source.ports.every((port) => port.kind === "listing");
 }
 
+export interface CatalogObservationScopePolicy {
+  policyIdentity: string;
+  definitionHash: (portId: string) => string;
+  staleAfterHours: number;
+}
+
+/** Bind the collector's full source scope to its exact Core policy and normalized definitions. */
+export function catalogObservationScopeBinding(
+  source: ObservableSource,
+  policy: CatalogObservationScopePolicy,
+) {
+  const provider = source.provider ?? "github";
+  if (listingOnly(source)) {
+    return observationHash({
+      contract: "normalized-current-catalog-listing-policy-v1",
+      source: source.key,
+      provider,
+      ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+      scope: source.scope_sha256,
+      stale_after_hours: policy.staleAfterHours,
+    });
+  }
+  const definitions = source.ports.map(
+    (port) =>
+      [
+        port.id,
+        port.kind === "listing" ? port.definition_sha256 : policy.definitionHash(port.id),
+      ] as const,
+  );
+  if (
+    !/^[a-f0-9]{64}$/u.test(policy.policyIdentity) ||
+    definitions.some(([, hash]) => !/^[a-f0-9]{64}$/u.test(hash))
+  )
+    throw new Error("Exact Core policy and normalized observation definitions are required");
+  return observationHash({
+    contract: "normalized-current-catalog-core-policy-v1",
+    ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+    policy: policy.policyIdentity,
+    scope: source.scope_sha256,
+    definitions,
+  });
+}
+
 function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
   const clocks = new Map<string, string>();
   for (const policy of progress.last_complete_policies) {
@@ -627,27 +670,12 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
-  const scopeBinding = (source: ObservableSource) => {
-    const provider = source.provider ?? "github";
-    if (listingOnly(source)) {
-      // The declaration scope already binds the exact descriptive projector.
-      return observationHash({
-        contract: "normalized-current-catalog-listing-policy-v1",
-        source: source.key,
-        provider,
-        ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
-        scope: source.scope_sha256,
-        stale_after_hours: template.stale_after_hours,
-      });
-    }
-    return observationHash({
-      contract: "normalized-current-catalog-core-policy-v1",
-      ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
-      policy: policyIdentity,
-      scope: source.scope_sha256,
-      definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
+  const scopeBinding = (source: ObservableSource) =>
+    catalogObservationScopeBinding(source, {
+      policyIdentity,
+      definitionHash: options.definitionHash,
+      staleAfterHours: template.stale_after_hours,
     });
-  };
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
