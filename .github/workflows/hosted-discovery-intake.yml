@@ -90,8 +90,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Issue data never selects code. Explicit owner dispatch can qualify a reviewed branch.
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.repository.default_branch }}
+          # A scheduled recovery runs the same reviewed revision as its collector.
+          # Comment data never selects code.
+          ref: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.sha || github.event.repository.default_branch }}
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
