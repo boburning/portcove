@@ -390,6 +390,9 @@ Display game release streams as **Stable**, **Preview** and **Rolling**. Use the
   player leaves and returns to the same details in the current library workspace.
   Replacing the library or launch target retires the old draft. Returning to an
   editor requires a fresh review. Ignore late picker results from a retired context.
+- Keep a confirmed external registration result in the workspace after the player
+  leaves the editor. Offer **Open game** only after a current library read confirms
+  the same registration. An older launch action stays unavailable while that read is pending.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
 - Logs use monospace type, severity text plus icon and color, concise primary explanations, expandable technical details, and copy affordances.
 

@@ -27,7 +27,7 @@ export interface SelfServiceSetupProps {
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
-  onChanged: () => void;
+  onChanged: () => void | Promise<unknown>;
   render?: ((slots: { play: ReactNode; setup: ReactNode }) => ReactNode) | undefined;
 }
 

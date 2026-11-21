@@ -46,7 +46,10 @@ import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
-import { targetInvocationContext } from "./features/operations/invocation-state";
+import {
+  canOpenExternalRegistration,
+  targetInvocationContext,
+} from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
   useInstallPlanning,
@@ -981,9 +984,7 @@ function useWorkspace(props: WorkspaceProps) {
         status={model.status}
         generation={bootstrap.generation}
         perform={operations.perform}
-        onChanged={() => {
-          void data.refreshAfterMutation();
-        }}
+        onChanged={data.refreshAfterMutation}
         close={closePortDetails}
       />
     ) : model.port ? (
@@ -1007,9 +1008,7 @@ function useWorkspace(props: WorkspaceProps) {
                   status={model.status}
                   generation={bootstrap.generation}
                   perform={operations.perform}
-                  onChanged={() => {
-                    void data.refreshAfterMutation();
-                  }}
+                  onChanged={data.refreshAfterMutation}
                 />
               </div>
             )
@@ -1030,9 +1029,7 @@ function useWorkspace(props: WorkspaceProps) {
           activities={data.activities}
           libraryGeneration={bootstrap.generation}
           libraryRoot={bootstrap.library_root ?? undefined}
-          refreshAfterMutation={() => {
-            void data.refreshAfterMutation();
-          }}
+          refreshAfterMutation={data.refreshAfterMutation}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
           setupOriginalRequests={setupOriginalRequests}
@@ -1244,6 +1241,8 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       generation={model.bootstrap.generation}
       pending={model.operations.pendingOperations}
       unreadInstallPorts={model.operations.unreadInstallPorts}
+      unreadExternalPorts={model.operations.unreadExternalPorts}
+      perform={model.operations.perform}
     >
       <ArtworkProvider
         generation={model.bootstrap.generation}
@@ -1378,6 +1377,20 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           )
             return undefined;
           return () => model.openPortDetails(target.id, `install-result:${record.id}`);
+        }}
+        openExternalGame={(record) => {
+          const { target } = record.context;
+          if (
+            !canOpenExternalRegistration(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadExternalPorts,
+            )
+          )
+            return undefined;
+          return () => model.openPortDetails(target.id, "external-result:" + record.id);
         }}
         completedActivityAvailable={(id) =>
           model.data.activities.some(
@@ -2106,7 +2119,7 @@ function SelectedPortPanel({
   activities: ActivityRecord[];
   libraryGeneration: number;
   libraryRoot?: string | undefined;
-  refreshAfterMutation: () => void;
+  refreshAfterMutation: () => void | Promise<unknown>;
   checkAgain: () => Promise<unknown>;
   openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
   setupOriginalRequests: { current: LatestRequestGeneration };
@@ -2315,7 +2328,7 @@ function SelectedPortPanel({
       outputLocationChanged={installPlanning.invalidate}
       externalRuntimeChanged={() => {
         installPlanning.invalidate();
-        refreshAfterMutation();
+        return refreshAfterMutation();
       }}
       checkAgain={checkAgain}
       pickSource={pickSource}

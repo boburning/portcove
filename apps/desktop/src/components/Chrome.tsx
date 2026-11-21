@@ -508,6 +508,7 @@ export function StatusLayer({
   preparationRecovery,
   readyToPlay,
   openInstalledGame,
+  openExternalGame,
   completedActivityAvailable,
   onActivity = false,
 }: {
@@ -528,6 +529,7 @@ export function StatusLayer({
   /** Returns Play only when current readback reports the record's port launchable. */
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
   openInstalledGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openExternalGame?: (record: InvocationRecord) => (() => void) | undefined;
   completedActivityAvailable?: (id: string) => boolean;
 }) {
   const { t } = useAppTranslation("common");
@@ -540,6 +542,7 @@ export function StatusLayer({
         record.phase !== "settled" ||
         record.outcome !== "succeeded" ||
         record.installed ||
+        record.externalRegistration ||
         invocationFailure(record) !== undefined ||
         acknowledgedSuccess.current.has(record.id)
       )
@@ -572,6 +575,7 @@ export function StatusLayer({
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
                 !record.installed &&
+                !record.externalRegistration &&
                 // A successful launch needs no visible message; the game itself is the result.
                 (record.id !== latestSuccess ||
                   (record.context.operation === "launch" && record.outcome === "succeeded"))
@@ -604,6 +608,7 @@ export function StatusLayer({
                   latestSuccess={latestSuccess}
                   readyToPlay={readyToPlay}
                   openInstalledGame={openInstalledGame}
+                  openExternalGame={openExternalGame}
                   completedActivityAvailable={completedActivityAvailable}
                   dismissInvocation={dismissInvocation}
                   openActivity={openActivity}
@@ -2791,6 +2796,7 @@ function SettledInvocation({
   latestSuccess,
   readyToPlay,
   openInstalledGame,
+  openExternalGame,
   completedActivityAvailable,
   dismissInvocation,
   openActivity,
@@ -2800,24 +2806,29 @@ function SettledInvocation({
   latestSuccess: number | undefined;
   readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   openInstalledGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openExternalGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   completedActivityAvailable: ((id: string) => boolean) | undefined;
   dismissInvocation: ((id: number) => void) | undefined;
   openActivity: ((id?: string, section?: "history") => void) | undefined;
   onActivity: boolean;
 }) {
-  if (record.outcome === "succeeded" && record.installed) {
-    const openGame = openInstalledGame?.(record);
+  if (record.outcome === "succeeded" && (record.installed || record.externalRegistration)) {
+    const registration = record.externalRegistration;
+    const openGame = registration ? openExternalGame?.(record) : openInstalledGame?.(record);
+    const origin = (registration ? "external-result:" : "install-result:") + record.id;
     const activityId = record.context.activityId;
     return (
       <Notice intent="success" className="mb-0 items-center">
         <p data-slot="notice-body">
-          Installed {record.context.target.label} · {record.installed.version}
+          {registration
+            ? "Saved external launch details for " + record.context.target.label
+            : "Installed " + record.context.target.label + " · " + record.installed?.version}
         </p>
         <div data-slot="notice-actions">
           {openGame && (
             <Button
               data-focusable
-              data-detail-origin={`install-result:${record.id}`}
+              data-detail-origin={origin}
               variant="primary"
               size="sm"
               onClick={openGame}
