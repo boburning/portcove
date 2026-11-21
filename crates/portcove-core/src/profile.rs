@@ -167,6 +167,8 @@ pub struct ProfileRevision {
         skip_serializing_if = "Option::is_none",
         deserialize_with = "crate::profile_package_files::read_companion_sets"
     )]
+    /// Reserved on disk behind the custody gate. Publish its machine schema with the writer.
+    #[schemars(skip)]
     pub recomp_companion_sets_v1: Option<Vec<crate::RecompCompanionSetV1>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub orderings: Vec<TypedOrdering>,
@@ -751,6 +753,9 @@ impl PortcoveService {
         base: Option<&ProfileRevision>,
         loader: Option<LoaderContractRef>,
     ) -> Result<Profile> {
+        if let Some(base) = base {
+            crate::profile_package_files::require_managed_custody(base)?;
+        }
         let mut revision = ProfileRevision {
             profile_id: profile.id.clone(),
             revision: 1,
@@ -1080,12 +1085,7 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
             "profile revision has an invalid or oversized shape",
         ));
     }
-    if revision.recomp_companion_sets_v1.is_some() {
-        crate::profile_package_files::profile_package_files(revision)?;
-        return Err(PortcoveError::unsupported(
-            "Recomp companion profile revisions require complete managed custody",
-        ));
-    }
+    crate::profile_package_files::require_managed_custody(revision)?;
     text(&revision.save_group, "save group")?;
     let mut native_ids = BTreeSet::new();
     for package in &revision.packages {

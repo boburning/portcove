@@ -90,6 +90,17 @@ fn reviewed_library(name: &str, platform: Platform) -> bool {
     }
 }
 
+/// Keep generic file projection inert until companion consent and recovery can
+/// participate in all existing managed operations.
+pub(crate) fn require_managed_custody(revision: &ProfileRevision) -> Result<()> {
+    if revision.recomp_companion_sets_v1.is_some() {
+        return Err(PortcoveError::unsupported(
+            "Recomp companion profile revisions require complete managed custody",
+        ));
+    }
+    Ok(())
+}
+
 /// One file-set interpretation for native ownership and retained content. Typed
 /// sets keep logical NRM entries in the profile, then add their exact host files.
 pub(crate) fn profile_package_files(
