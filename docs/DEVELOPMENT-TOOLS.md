@@ -4061,6 +4061,9 @@ default. An unconfigured contributor keeps the existing two-slot defaults and
 ordinary Node contract route; this extension adds no setup requirement to it.
 Linux retains a local proxy lease for native identity, nested ownership and output
 checks; Windows retains external custody until Linux cleanup is proven.
+The Linux adapter checks the privacy of its temporary custody directory before
+requesting Windows capacity. If the temporary filesystem cannot enforce
+owner-only access, use a Linux-backed temporary directory and try again.
 
 The Linux hostBridge configuration identifies the Windows Node executable and
 entry script, Linux Node/probe paths, distribution/user and closureSha256. Stage
