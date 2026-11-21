@@ -20,6 +20,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { activityOutsideCatalog } from "./desktop-catalog-update-test.mts";
 import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
 
 export interface PreparationContext {
@@ -3022,7 +3023,9 @@ export async function preparationScenarios({
       0,
     );
     const before = await status(port.id);
-    const activityBefore = (await invoke("get_activities")).value;
+    const gameActivity = async () =>
+      activityOutsideCatalog(await read("activity", "get_activities"));
+    const activityBefore = await gameActivity();
     const trigger = await browser.findElement(button("Update now"));
     await clickVisible(browser, trigger);
     const dialog = By.css("[data-game-update-review]");
@@ -3089,7 +3092,7 @@ export async function preparationScenarios({
     });
     artifacts.push(screenshot);
     assert.deepEqual((await status(port.id)).active, before.active);
-    assert.deepEqual((await invoke("get_activities")).value, activityBefore);
+    assert.deepEqual(await gameActivity(), activityBefore);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(dialog)).length === 0,
