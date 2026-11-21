@@ -12,6 +12,7 @@ import {
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { projectOpenXPortable } from "./catalog-openx-portable.mts";
+import { scummvmSetupGuide } from "./catalog-scummvm-game-setup.mts";
 import { preparePort } from "./prepare-port.mts";
 import {
   assessUpstreamLineage,
@@ -343,10 +344,24 @@ void test("real retained decisions preserve Star Fox history and release authori
   // Resolve recipes that require the reviewed origin while it is still available.
   // This comparison checks the resulting catalog and directory without lineage.
   const legacy = authored.records.map((record) => {
-    const { upstream_lineage: _lineage, ...explicit } = projectOpenXPortable(
-      projectOpenMohaaPortable(record),
-    );
-    return explicit;
+    const projected = projectOpenXPortable(projectOpenMohaaPortable(record));
+    const guide = scummvmSetupGuide(projected);
+    const {
+      upstream_lineage: _lineage,
+      scummvm_game_setup_v1: _scummvmFacts,
+      ...explicit
+    } = projected;
+    return guide
+      ? {
+          ...explicit,
+          listing: {
+            ...explicit.listing,
+            manual_setup: guide,
+            implementation: explicit.listing.implementation,
+            compatibility: explicit.listing.compatibility,
+          },
+        }
+      : explicit;
   });
   const withoutMetadata = assembleCatalogRecords(shared, legacy);
   assert.deepEqual(withoutMetadata.catalog, authored.catalog);

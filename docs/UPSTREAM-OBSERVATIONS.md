@@ -1372,6 +1372,29 @@ Omitted discovery rows use the client’s embedded fallback. Existing scheduled 
 optional observations, while unrelated main commits do not become changed solely
 because the fixed source bundle omits this derived target.
 
+The publisher can prepare a compact carrier at
+`policy/official/catalog.listings.compact.json` after compatible clients ship.
+It uses one gzip stream in a versioned JSON envelope with the decoded size and
+SHA-256. The carrier has an eight-MiB limit and the decoded directory has a
+32-MiB limit. Compact delivery retains all applicable canonical listings,
+including implementation explanations and reviewed IGDB scenes when present.
+The existing policy role signs the exact carrier bytes. The last verified legacy
+directory remains signed for older clients and its bytes stay fixed. Later
+observations update only the compact target. Both carriers share a revision
+floor and must decode to the same bytes at equal revisions. The scheduled
+publisher keeps the existing representation until its first compact publication
+is explicitly enabled. First activation and later format upgrades require the
+reviewed released CLI and its exact SHA-256. The preparation command checks
+that reader's carrier and directory-format capabilities before making a bundle.
+The publisher records the verified reader version and digest. After activation,
+a reviewed exact legacy target in the existing publication bundle can add an
+explicit safety withdrawal. It must
+preserve the other signed legacy rows and advance above the current revision.
+The compact successor carries the same withdrawals and preserves its other
+rows and prior withdrawals.
+If prior metadata has expired, the publisher first renews the exact known
+targets through historical signature verification.
+
 The maintained snapshot codec has a finite 180-second validation harness ceiling.
 The previous 60-second budget failed during a real retained-checkpoint decode and
 re-encode. Provider request deadlines, artifact/record byte bounds, Brotli window

@@ -30,6 +30,7 @@ import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-window
 import { projectChocolateFamilyWindowsPersistence } from "./catalog-chocolate-family-windows-persistence.mts";
 import { projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
+import { scummvmSetupGuide } from "./catalog-scummvm-game-setup.mts";
 import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
@@ -174,7 +175,7 @@ const listingPresentationFields = [
   "media",
 ] as const;
 
-function typedIgdbScene(asset: unknown) {
+export function typedIgdbScene(asset: unknown) {
   return (
     isRecord(asset) &&
     (asset.role === "header" || asset.role === "screenshot") &&
@@ -601,7 +602,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   checkPlayerGuideCopy(
     listing.id,
     "listing.manual_setup",
-    listing.manual_setup,
+    scummvmSetupGuide(value) ?? listing.manual_setup,
     value.route_facts_v1 !== undefined,
   );
   publicUrl(listing.project_url, "project_url");
@@ -984,8 +985,13 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     .map(projectPackagePlayerFacts)
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
+      const setup = scummvmSetupGuide(record);
+      const baseline = structuredClone(record.listing);
+      const { implementation, compatibility, ...presentation } = baseline;
       return {
-        ...structuredClone(record.listing),
+        ...(setup
+          ? { ...presentation, manual_setup: setup, implementation, compatibility }
+          : baseline),
         ...(hints === undefined ? {} : { download_asset_hints: hints }),
         platforms: [
           ...(Array.isArray(record.integration?.platforms)

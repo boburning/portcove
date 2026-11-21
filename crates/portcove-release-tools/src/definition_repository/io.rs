@@ -71,11 +71,13 @@ pub(super) fn relative(value: &str) -> Result<()> {
     }
     Ok(())
 }
-pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
-    let normalized_output = if output.try_exists()? {
-        output.canonicalize()?
-    } else {
-        output
+fn normalize_output(output: &Path) -> Result<PathBuf> {
+    match output.symlink_metadata() {
+        Ok(_) => {
+            ancestry(output)?;
+            output.canonicalize().map_err(Into::into)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(output
             .parent()
             .ok_or_else(|| TufRepositoryError::Invalid("output parent absent".into()))?
             .canonicalize()?
@@ -83,30 +85,250 @@ pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
                 output
                     .file_name()
                     .ok_or_else(|| TufRepositoryError::Invalid("output name absent".into()))?,
-            )
-    };
+            )),
+        Err(error) => Err(error.into()),
+    }
+}
+
+pub(super) fn no_overlap(output: &Path, inputs: &[PathBuf]) -> Result<()> {
+    let normalized_output = normalize_output(output)?;
     let inputs = inputs
         .iter()
         .map(|p| p.canonicalize())
         .collect::<std::io::Result<Vec<_>>>()?;
-    if inputs.iter().any(|p| {
-        normalized_output == *p
-            || normalized_output.starts_with(p)
-            || p.starts_with(&normalized_output)
-    }) {
-        return invalid("catalog output overlaps original inputs");
+    for input in inputs {
+        if output_contains(&normalized_output, &input)
+            || output_contains(&input, &normalized_output)
+            || same_directory_ancestry(&normalized_output, &input)?
+        {
+            return invalid("catalog output overlaps original inputs");
+        }
     }
     let parent = output
         .parent()
         .ok_or_else(|| TufRepositoryError::Invalid("output has no parent".into()))?;
     ancestry(parent)
 }
-pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
-    if path.try_exists()? {
-        if read(path, ROLE_MAX)? == bytes {
-            return Ok(false);
+pub(super) fn no_output_overlap(first: &Path, second: &Path) -> Result<()> {
+    let first = normalize_output(first)?;
+    let second = normalize_output(second)?;
+    if output_contains(&first, &second)
+        || output_contains(&second, &first)
+        || same_directory_ancestry(&first, &second)?
+    {
+        return invalid("catalog assembly outputs overlap");
+    }
+    Ok(())
+}
+// Once the roots exist, compare actual Unix directory identities as well as names.
+// This covers volume-specific case folding, Unicode normalization and mount aliases.
+#[cfg(unix)]
+fn same_directory_ancestry(first: &Path, second: &Path) -> Result<bool> {
+    use std::os::unix::fs::MetadataExt as _;
+
+    fn identity(path: &Path) -> Result<Option<(u64, u64)>> {
+        match path.symlink_metadata() {
+            Ok(metadata) if metadata.is_dir() => Ok(Some((metadata.dev(), metadata.ino()))),
+            Ok(_) => Ok(None),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(error.into()),
         }
-        return invalid("catalog output already exists with different bytes; retain original");
+    }
+    for (path, other) in [(first, second), (second, first)] {
+        if let Some(expected) = identity(path)? {
+            for parent in other.ancestors() {
+                if identity(parent)? == Some(expected) {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
+}
+
+#[cfg(not(unix))]
+fn same_directory_ancestry(_: &Path, _: &Path) -> Result<bool> {
+    Ok(false)
+}
+
+#[cfg(not(windows))]
+fn output_contains(path: &Path, prefix: &Path) -> bool {
+    let mut components = path.components();
+    prefix.components().all(|expected| {
+        components.next().is_some_and(|actual| {
+            let actual = actual.as_os_str().as_encoded_bytes();
+            let expected = expected.as_os_str().as_encoded_bytes();
+            actual.eq_ignore_ascii_case(expected)
+        })
+    })
+}
+
+#[cfg(windows)]
+fn output_contains(path: &Path, prefix: &Path) -> bool {
+    use std::os::windows::ffi::OsStrExt as _;
+    use windows_sys::Win32::Globalization::{CSTR_EQUAL, CompareStringOrdinal};
+
+    let mut components = path.components();
+    prefix.components().all(|expected| {
+        components.next().is_some_and(|actual| {
+            let wide = |component: Component<'_>| {
+                let mut bytes: Vec<u16> = component.as_os_str().encode_wide().collect();
+                while matches!(bytes.last(), Some(32 | 46)) {
+                    bytes.pop();
+                }
+                bytes.push(0);
+                bytes
+            };
+            let actual = wide(actual);
+            let expected = wide(expected);
+            // SAFETY: Both component buffers have a trailing NUL.
+            (unsafe { CompareStringOrdinal(actual.as_ptr(), -1, expected.as_ptr(), -1, 1) })
+                == CSTR_EQUAL
+        })
+    })
+}
+
+/// A missing directory may be created. Existing links and wrong kinds are refused.
+pub(super) fn directory_exists(path: &Path) -> Result<bool> {
+    match path.symlink_metadata() {
+        Ok(metadata) => {
+            ancestry(path)?;
+            if !metadata.is_dir() {
+                return invalid("catalog output path is not a directory");
+            }
+            Ok(true)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// An empty directory created exclusively during assembly preflight.
+/// Keep the original handle alive so a reused path cannot impersonate it.
+pub(super) struct OutputReservation {
+    path: PathBuf,
+    handle: Option<fs::File>,
+}
+
+impl OutputReservation {
+    pub(super) fn create(path: &Path) -> Result<Self> {
+        ancestry(
+            path.parent().ok_or_else(|| {
+                TufRepositoryError::Invalid("catalog output parent absent".into())
+            })?,
+        )?;
+        #[cfg(not(unix))]
+        let builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::DirBuilderExt;
+            builder.mode(0o700);
+        }
+        builder.create(path)?;
+        Ok(Self {
+            path: path.to_path_buf(),
+            handle: open_reserved_directory(path).ok(),
+        })
+    }
+
+    pub(super) fn remove_all_owned(reservations: Vec<Self>) {
+        // Windows finishes removing a directory when its last handle closes.
+        // Drop each child reservation before attempting to remove its parent.
+        for reservation in reservations.into_iter().rev() {
+            reservation.remove_if_owned();
+        }
+    }
+
+    fn remove_if_owned(self) {
+        let held = self.handle.as_ref().and_then(directory_identity);
+        if held.is_some()
+            && open_reserved_directory(&self.path)
+                .ok()
+                .as_ref()
+                .and_then(directory_identity)
+                == held
+        {
+            let _ = fs::remove_dir(&self.path);
+        }
+    }
+}
+
+fn open_reserved_directory(path: &Path) -> Result<fs::File> {
+    if !directory_exists(path)? {
+        return invalid("catalog output reservation is missing");
+    }
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_READ_ATTRIBUTES,
+        };
+        options
+            .access_mode(FILE_READ_ATTRIBUTES)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT);
+    }
+    Ok(options.open(path)?)
+}
+
+#[cfg(unix)]
+fn directory_identity(file: &fs::File) -> Option<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt as _;
+    let metadata = file.metadata().ok()?;
+    metadata.is_dir().then(|| (metadata.dev(), metadata.ino()))
+}
+
+#[cfg(windows)]
+fn directory_identity(file: &fs::File) -> Option<(u64, [u8; 16])> {
+    use std::os::windows::{fs::MetadataExt as _, io::AsRawHandle as _};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_ATTRIBUTE_REPARSE_POINT, FILE_ID_INFO, FileIdInfo, GetFileInformationByHandleEx,
+    };
+
+    let metadata = file.metadata().ok()?;
+    if !metadata.is_dir() || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+        return None;
+    }
+    // SAFETY: the borrowed handle and initialized output storage are valid
+    // throughout this synchronous Win32 query.
+    let mut information: FILE_ID_INFO = unsafe { std::mem::zeroed() };
+    let success = unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle() as _,
+            FileIdInfo,
+            std::ptr::from_mut(&mut information).cast(),
+            std::mem::size_of::<FILE_ID_INFO>() as u32,
+        )
+    };
+    (success != 0 && information.FileId.Identifier != [0; 16]).then_some((
+        information.VolumeSerialNumber,
+        information.FileId.Identifier,
+    ))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn directory_identity(_: &fs::File) -> Option<(u64, u64)> {
+    None
+}
+
+/// Check immutable reuse without writing so a different output cannot be partially created.
+pub(super) fn output_file_exists(path: &Path, bytes: &[u8]) -> Result<bool> {
+    match path.symlink_metadata() {
+        Ok(_) if read(path, ROLE_MAX)? != bytes => {
+            invalid("catalog output already exists with different bytes; retain original")
+        }
+        Ok(_) => Ok(true),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.into()),
+    }
+}
+
+pub(super) fn write_new(path: &Path, bytes: &[u8]) -> Result<bool> {
+    if output_file_exists(path, bytes)? {
+        return Ok(false);
     }
     create_synced(path, bytes)?;
     if read(path, ROLE_MAX)? != bytes {
@@ -231,5 +453,40 @@ impl<T, F: Fn(&str, Vec<u8>) -> T> TreeWalk<T, F> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(all(test, any(unix, windows)))]
+mod reservation_tests {
+    use super::*;
+
+    #[test]
+    fn reservation_cleanup_removes_children_before_parents() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap().join("history");
+        let parent = OutputReservation::create(&root).unwrap();
+        let child = OutputReservation::create(&root.join("sha256")).unwrap();
+        OutputReservation::remove_all_owned(vec![parent, child]);
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn reservation_cleanup_keeps_a_replacement_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().canonicalize().unwrap();
+        let original = root.join("original");
+        let moved = root.join("moved");
+        let reservation = OutputReservation::create(&original).unwrap();
+        fs::rename(&original, &moved).unwrap();
+        fs::create_dir(&original).unwrap();
+
+        reservation.remove_if_owned();
+        assert!(original.is_dir());
+        assert!(moved.is_dir());
+
+        let fresh = root.join("fresh");
+        let fresh_reservation = OutputReservation::create(&fresh).unwrap();
+        fresh_reservation.remove_if_owned();
+        assert!(!fresh.exists());
     }
 }
