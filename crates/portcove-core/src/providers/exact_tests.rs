@@ -58,8 +58,16 @@ fn not_found() -> String {
     "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()
 }
 
-fn request_target(request: &str) -> &str {
-    request.split_ascii_whitespace().nth(1).unwrap()
+fn request_route(request: &str) -> &str {
+    request
+        .split_ascii_whitespace()
+        .nth(1)
+        .unwrap()
+        .split('?')
+        .next()
+        .unwrap()
+        .strip_prefix('/')
+        .expect("fixture expects an origin-form HTTP request")
 }
 
 fn host_root(request: &str) -> String {
@@ -109,25 +117,25 @@ async fn exact_history_github_respects_cache_channel_stream_and_artifact_identit
                     FILE
                 },
             );
-            match request_target(request).split('?').next().unwrap() {
-                "/repos/group/project" => response(json!({"id": 11, "archived": false})),
-                "/repos/group/project/releases" => response(json!([github_release(
+            match request_route(request) {
+                "repos/group/project" => response(json!({"id": 11, "archived": false})),
+                "repos/group/project/releases" => response(json!([github_release(
                     "v2.0.0",
                     90,
                     github_asset(&root, "v2.0.0", 95, &"b".repeat(64), FILE),
                     false,
                     false
                 )])),
-                "/repos/group/project/releases/tags/v1.0.0" if mode == 1 => not_found(),
-                "/repos/group/project/releases/tags/v1.0.0" => response(github_release(
+                "repos/group/project/releases/tags/v1.0.0" if mode == 1 => not_found(),
+                "repos/group/project/releases/tags/v1.0.0" => response(github_release(
                     "v1.0.0",
                     if mode == 2 { 44 } else { 22 },
                     old_asset,
                     mode == 4,
                     mode == 5,
                 )),
-                "/repos/group/project/releases/22/assets" => response(json!([old_asset])),
-                "/repos/group/project/git/ref/tags/v1.0.0" => response(json!({
+                "repos/group/project/releases/22/assets" => response(json!([old_asset])),
+                "repos/group/project/git/ref/tags/v1.0.0" => response(json!({
                     "ref": "refs/tags/v1.0.0",
                     "object": {"type": "commit", "sha": if mode == 8 { "f".repeat(40) } else { COMMIT.into() }}
                 })),
@@ -206,9 +214,7 @@ async fn exact_history_github_respects_cache_channel_stream_and_artifact_identit
     assert_eq!(
         requests
             .try_iter()
-            .filter(|request| {
-                request_target(request).split('?').next() == Some("/repos/group/project/releases")
-            })
+            .filter(|request| { request_route(request) == "repos/group/project/releases" })
             .count(),
         1,
         "ordinary resolution uses its own cache and refused exact choices never follow latest"
@@ -232,32 +238,34 @@ async fn exact_history_gitlab_revalidates_tag_links_and_registry_without_fallbac
     let (root, requests, server) = serve_routed_http(56, {
         let state = state.clone();
         move |request| {
-            const PROJECT: &str = "/api/v4/projects/group%2Fproject";
+            const PROJECT: &str = "api/v4/projects/group%2Fproject";
             let root = host_root(request);
             let mode = state.load(Ordering::SeqCst);
-            let path = request_target(request).split('?').next().unwrap();
+            let path = request_route(request);
             if let Some(suffix) = path.strip_prefix(PROJECT) {
-                return match suffix {
-                    "" => response(json!({"id":11,"path_with_namespace":REPOSITORY})),
-                    "/releases" => response(json!([{
+                return match suffix.strip_prefix('/') {
+                    None if suffix.is_empty() => {
+                        response(json!({"id":11,"path_with_namespace":REPOSITORY}))
+                    }
+                    Some("releases") => response(json!([{
                         "tag_name":"v2.0.0","upcoming_release":false,"released_at":"2025-01-01T00:00:00Z",
                         "assets":{"links":[gitlab_link(&root, 89, 90)]}
                     }])),
-                    "/releases/v1.0.0" if mode == 1 => not_found(),
-                    "/releases/v1.0.0" => response(json!({
+                    Some("releases/v1.0.0") if mode == 1 => not_found(),
+                    Some("releases/v1.0.0") => response(json!({
                         "tag_name":"v1.0.0","upcoming_release":mode == 5,
                         "released_at":if mode == 6 { "9999-01-01T00:00:00Z" } else { "2025-01-01T00:00:00Z" },
                         "assets":{"links":[]}
                     })),
-                    "/repository/tags/v1.0.0" => response(json!({
+                    Some("repository/tags/v1.0.0") => response(json!({
                         "name":"v1.0.0","commit":{"id":if mode == 2 { "f".repeat(40) } else { COMMIT.into() }}
                     })),
-                    "/releases/v1.0.0/assets/links" => response(json!([gitlab_link(
+                    Some("releases/v1.0.0/assets/links") => response(json!([gitlab_link(
                         &root,
                         if mode == 3 { 78 } else { 77 },
                         if mode == 4 { 80 } else { 79 }
                     )])),
-                    "/packages" => response(json!([
+                    Some("packages") => response(json!([
                         {"id":80,"name":"game","version":"1.0.0"},
                         {"id":81,"name":"game","version":"2.0.0"}
                     ])),
@@ -265,11 +273,11 @@ async fn exact_history_gitlab_revalidates_tag_links_and_registry_without_fallbac
                 };
             }
             match path {
-                "/api/v4/projects/11/packages/80/package_files" => response(json!([gitlab_file(
+                "api/v4/projects/11/packages/80/package_files" => response(json!([gitlab_file(
                     if mode == 4 { 80 } else { 79 },
                     if mode == 7 { 43 } else { 42 }
                 )])),
-                "/api/v4/projects/11/packages/81/package_files" => {
+                "api/v4/projects/11/packages/81/package_files" => {
                     response(json!([gitlab_file(90, 42)]))
                 }
                 _ => panic!("unexpected provider path {path}"),
@@ -338,8 +346,7 @@ async fn exact_history_gitlab_revalidates_tag_links_and_registry_without_fallbac
         requests
             .try_iter()
             .filter(|request| {
-                request_target(request).split('?').next()
-                    == Some("/api/v4/projects/group%2Fproject/releases")
+                request_route(request) == "api/v4/projects/group%2Fproject/releases"
             })
             .count(),
         1
