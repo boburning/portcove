@@ -2674,6 +2674,30 @@ as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
+### Browsing reviewed GitHub mod releases
+
+In Desktop, open the game's Mods view and choose **Browse mods on GitHub**.
+The link opens the reviewed Releases page. The view shows the native ZIP setup
+when the current platform has a reviewed companion layout.
+
+Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
+randomizer releases recommended by Zelda64Recomp. With `--json`, the response
+includes the repository, release and asset IDs and the published SHA-256 when
+GitHub provides one.
+
+For Windows x86-64 or Linux x86-64, download the intact ZIP from GitHub and use
+**Install Mods** in a separate Zelda64Recompiled copy before starting the game.
+That installer handles the extra native libraries in the ZIP. This route owns
+its own mod updates and files. Portcove's managed setups still require separate
+review and custody for those libraries. [Randomizer installation instructions](https://github.com/RecompRando/MMRecompRando#mod-installation)
+
+To inspect a ZIP, run
+`portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID [ZIP]`.
+Provide the path to an intact local ZIP, or let Portcove fetch the selected
+GitHub asset privately. The review compares the ZIP with the published SHA-256 and reports the exact
+mods and companion libraries for the selected platform. Use the intact ZIP in
+the upstream installer. The report cannot activate a Portcove setup.
+
 ### Installing from GameBanana and Thunderstore
 
 ```text

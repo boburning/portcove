@@ -33,6 +33,7 @@ use crate::{
     ResolvedPackage, Result, TypedOrdering, inspect_asset_archive,
     native_mod_list::{self, LoaderList, NativeList},
     profile,
+    profile_package_files::{profile_package_files, require_managed_custody},
 };
 
 pub(crate) const STORE: &str = ".portcove-profiles";
@@ -373,6 +374,7 @@ fn code_not_allowed(recomp: &crate::RecompModInspection) -> PortcoveError {
 /// switch or deployment changes anything, and again inside `deploy`. Packages
 /// whose bytes are neither stored nor live are left to the missing-bytes checks.
 pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
+    require_managed_custody(revision)?;
     let Some(game) = layout.recomp_game() else {
         return Ok(());
     };
@@ -568,11 +570,11 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
     }
     let mut expected: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
     for owner in owners {
-        for package in enabled(owner) {
-            expected
-                .entry(package.native_id.as_str())
-                .or_default()
-                .insert(package.sha256.as_str());
+        for file in profile_package_files(owner)?
+            .into_iter()
+            .filter(|file| file.enabled)
+        {
+            expected.entry(file.name).or_default().insert(file.sha256);
         }
     }
     for entry in fs::read_dir(&mods)? {
@@ -626,8 +628,11 @@ fn stage_copy(layout: &Layout, source: &Path, destination: &Path) -> Result<()> 
 fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision) -> Result<()> {
     require_distinct_native_names(layout, to)?;
     require_code_allowed(layout, to)?;
-    let wanted = enabled(to)
-        .map(|package| package.native_id.as_str())
+    let files = profile_package_files(to)?;
+    let wanted = files
+        .iter()
+        .filter(|file| file.enabled)
+        .map(|file| file.name)
         .collect::<BTreeSet<_>>();
     // Exact directory names distinguish a Windows case-only replacement from
     // a target that has already been materialized.
@@ -641,31 +646,33 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     // Verify every destination first so a missing or corrupt stored package fails
     // before any departing file is removed.
     let mut to_place = Vec::new();
-    for package in enabled(to) {
-        let live = live_package_path(layout, &package.native_id)?;
-        if names.contains(std::ffi::OsStr::new(&package.native_id))
+    for file in files.iter().filter(|file| file.enabled) {
+        let live = live_package_path(layout, file.name)?;
+        if names.contains(std::ffi::OsStr::new(file.name))
             && live.try_exists()?
-            && sha256_file(&live)? == package.sha256
+            && sha256_file(&live)? == file.sha256
         {
             continue;
         }
-        let stored = layout.package(&package.sha256, &package.native_id);
-        if !stored.try_exists()? || sha256_file(&stored)? != package.sha256 {
+        let stored = layout.package(file.sha256, file.name);
+        if !stored.try_exists()? || sha256_file(&stored)? != file.sha256 {
             return Err(PortcoveError::verification(
                 "stored package bytes are missing or no longer match their recorded digest; nothing was changed",
             )
-            .detail("package", &package.native_id));
+            .detail("package", file.name));
         }
         to_place.push((stored, live));
     }
     if let Some(from) = from {
-        for package in enabled(from) {
+        require_managed_custody(from)?;
+        for file in profile_package_files(from)?
+            .into_iter()
+            .filter(|file| file.enabled)
+        {
             // Same-name replacements are atomic in stage_copy. If an earlier
             // attempt already placed the target, leave those target bytes in place.
-            if !wanted.contains(package.native_id.as_str())
-                && names.contains(std::ffi::OsStr::new(&package.native_id))
-            {
-                let live = live_package_path(layout, &package.native_id)?;
+            if !wanted.contains(file.name) && names.contains(std::ffi::OsStr::new(file.name)) {
+                let live = live_package_path(layout, file.name)?;
                 if live.try_exists()? {
                     fs::remove_file(live)?;
                 }
@@ -980,8 +987,10 @@ fn require_exact_managed_packages(
     revision: &ProfileRevision,
     hold: impl Fn() -> PortcoveError,
 ) -> Result<()> {
-    let mut remaining = enabled(revision)
-        .map(|package| (package.native_id.as_str(), package))
+    let mut remaining = profile_package_files(revision)?
+        .into_iter()
+        .filter(|file| file.enabled)
+        .map(|file| (file.name, file))
         .collect::<std::collections::BTreeMap<_, _>>();
     let mods = root.join(MODS);
     crate::path::refuse_symlink_ancestors(&mods)?;
@@ -2514,8 +2523,7 @@ pub struct ModSetupPackageEdit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ModSetupsView {
     pub port_id: String,
-    /// False when the game has no reviewed mod package contract; nothing else is
-    /// offered then.
+    /// False when the game has no reviewed managed mod package contract.
     pub supported: bool,
     /// Package file types the game loads, such as `o2r`.
     pub package_types: Vec<String>,
@@ -2540,6 +2548,12 @@ pub struct ModSetupsView {
     /// Reviewed provider choices when the game offers more than one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
+    /// Reviewed upstream GitHub Releases page for browsing and native setup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_release_url: Option<String>,
+    /// This host has a reviewed native companion layout for the upstream ZIP.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub github_native_import_offered: bool,
     /// Count from the materialized revision, including disabled mods.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_package_count: Option<usize>,
@@ -2570,6 +2584,8 @@ impl PortcoveService {
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
         let port = self.catalog().port(port_id)?;
+        let (github_release_url, github_native_import_offered) =
+            crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(ModSetupsView {
                 port_id: port_id.into(),
@@ -2581,6 +2597,8 @@ impl PortcoveService {
                 held_updates: Vec::new(),
                 last_automatic_checks: Vec::new(),
                 provider: None,
+                github_release_url,
+                github_native_import_offered,
                 providers: Vec::new(),
                 applied_package_count: None,
                 current_install_id: None,
@@ -2606,6 +2624,8 @@ impl PortcoveService {
             })
             .transpose()?;
         Ok(ModSetupsView {
+            github_release_url,
+            github_native_import_offered,
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_binding::default_binding(port)

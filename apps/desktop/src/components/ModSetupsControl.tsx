@@ -26,6 +26,7 @@ import { Input } from "./ui/input";
 import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ChoiceSelect } from "./ChoiceSelect";
+import { ExternalLink } from "./ExternalLink";
 import {
   changeModEdit,
   draftSize,
@@ -315,8 +316,15 @@ function BoundModSetupsControl({
         </Button>
       </section>
     );
-  // Games without reviewed mod support show nothing, including while loading.
-  if (!view?.supported) return null;
+  const upstreamMods = view?.github_release_url && (
+    <aside className="grid gap-1">
+      <ExternalLink href={view.github_release_url}>{t("mods.github.browse")}</ExternalLink>
+      <p className="text-sm text-pc-muted-foreground">
+        {view.github_native_import_offered ? t("mods.github.setup") : t("mods.github.platform")}
+      </p>
+    </aside>
+  );
+  if (!view?.supported) return upstreamMods || null;
   // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.
   const locked = busy || working || !fresh || browserBusy || recipeBusy;
@@ -362,6 +370,7 @@ function BoundModSetupsControl({
         {t("mods.heading")}
       </h3>
       <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
+      {upstreamMods}
       <ModSetupFeedback
         error={failedCleanSetupKey ? undefined : error}
         fresh={fresh}

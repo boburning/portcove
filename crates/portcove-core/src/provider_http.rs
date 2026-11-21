@@ -22,6 +22,10 @@ use crate::{
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(60);
 const MAX_BACKOFF: Duration = Duration::from_secs(15 * 60);
 
+/// Shared request backoff for a provider across short-lived client instances.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ProviderBackoff(Arc<Mutex<Option<Instant>>>);
+
 #[derive(Clone)]
 pub(crate) struct ProviderHttp {
     client: reqwest::Client,
@@ -33,7 +37,7 @@ pub(crate) struct ProviderHttp {
     /// The provider's registrable site; downloads may redirect to its subdomains.
     site: &'static str,
     /// Provider-wide backoff after throttling or server errors.
-    blocked_until: Arc<Mutex<Option<Instant>>>,
+    blocked_until: ProviderBackoff,
 }
 
 impl ProviderHttp {
@@ -64,8 +68,13 @@ impl ProviderHttp {
             library,
             label,
             site,
-            blocked_until: Arc::new(Mutex::new(None)),
+            blocked_until: ProviderBackoff::default(),
         })
+    }
+
+    pub(crate) fn with_backoff(mut self, backoff: ProviderBackoff) -> Self {
+        self.blocked_until = backoff;
+        self
     }
 
     /// Streams one file to `destination`, following at most four redirects that stay
@@ -79,21 +88,55 @@ impl ProviderHttp {
         destination: &Path,
         max_bytes: u64,
     ) -> Result<(String, u64)> {
-        use futures_util::StreamExt;
-        use sha2::{Digest, Sha256};
-        use std::io::Write;
-        let start = reqwest::Url::parse(&file.download_url)
-            .map_err(|error| PortcoveError::state(error.to_string()))?;
         if file.download_url != canonical {
             return Err(PortcoveError::verification(
                 "the download location is not the provider's canonical file location",
             ));
         }
-        if file.size == 0 || file.size > max_bytes {
+        self.download_exact(canonical, file.size, destination, max_bytes, false)
+            .await
+    }
+
+    /// Start with the exact numeric asset in the approved public repository.
+    /// Only GitHub's release-asset origins may serve the redirected bytes.
+    pub(crate) async fn download_github_asset(
+        &self,
+        repository_id: u64,
+        asset_id: u64,
+        size: u64,
+        destination: &Path,
+        max_bytes: u64,
+    ) -> Result<(String, u64)> {
+        self.download_exact(
+            &format!(
+                "https://api.github.com/repositories/{repository_id}/releases/assets/{asset_id}"
+            ),
+            size,
+            destination,
+            max_bytes,
+            true,
+        )
+        .await
+    }
+
+    async fn download_exact(
+        &self,
+        canonical: &str,
+        size: u64,
+        destination: &Path,
+        max_bytes: u64,
+        github_numeric: bool,
+    ) -> Result<(String, u64)> {
+        use futures_util::StreamExt;
+        use sha2::{Digest, Sha256};
+        use std::io::Write;
+        let start = reqwest::Url::parse(canonical)
+            .map_err(|error| PortcoveError::state(error.to_string()))?;
+        if size == 0 || size > max_bytes {
             return Err(PortcoveError::verification(
                 "the provider's declared file size is outside the supported bound",
             )
-            .detail("size", file.size.to_string()));
+            .detail("size", size.to_string()));
         }
         let allowed = |url: &reqwest::Url| {
             let same_site = url.scheme() == start.scheme()
@@ -103,13 +146,33 @@ impl ProviderHttp {
                         || start.host_str() == Some(self.site)
                             && host.ends_with(&format!(".{}", self.site))
                 });
-            same_site && url.username().is_empty() && url.password().is_none()
+            let github_asset = github_numeric
+                && url.scheme() == "https"
+                && url.port().is_none()
+                && matches!(
+                    url.host_str(),
+                    Some(
+                        "release-assets.githubusercontent.com"
+                            | "objects.githubusercontent.com"
+                            | "github-releases.githubusercontent.com"
+                    )
+                );
+            let safe_host = if github_numeric {
+                github_asset
+            } else {
+                same_site
+            };
+            safe_host && url.username().is_empty() && url.password().is_none()
         };
         let mut url = start.clone();
-        for _ in 0..=4 {
-            let response = self
-                .download_client
-                .get(url.clone())
+        for hop in 0..=4 {
+            let mut request = self.download_client.get(url.clone());
+            if github_numeric && hop == 0 {
+                request = request
+                    .header(header::ACCEPT, "application/octet-stream")
+                    .header(header::CACHE_CONTROL, "no-cache");
+            }
+            let response = request
                 .send()
                 .await
                 .map_err(|error| PortcoveError::network(error.to_string()))?;
@@ -139,7 +202,7 @@ impl ProviderHttp {
             }
             if response
                 .content_length()
-                .is_some_and(|length| length != file.size)
+                .is_some_and(|length| length != size)
             {
                 return Err(PortcoveError::verification(
                     "the download size differs from what the provider declared",
@@ -149,7 +212,7 @@ impl ProviderHttp {
             let mut hasher = Sha256::new();
             let mut total = 0u64;
             let mut stream = response.bytes_stream();
-            let deadline = tokio::time::Instant::now() + download_deadline(file.size);
+            let deadline = tokio::time::Instant::now() + download_deadline(size);
             while let Some(chunk) = tokio::time::timeout_at(deadline, stream.next())
                 .await
                 .map_err(|_| {
@@ -159,7 +222,7 @@ impl ProviderHttp {
             {
                 let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
                 total += chunk.len() as u64;
-                if total > file.size {
+                if total > size {
                     let _ = std::fs::remove_file(destination);
                     return Err(PortcoveError::verification(
                         "the download is larger than the provider declared",
@@ -169,7 +232,7 @@ impl ProviderHttp {
                 output.write_all(&chunk)?;
             }
             output.sync_all()?;
-            if total != file.size {
+            if total != size {
                 let _ = std::fs::remove_file(destination);
                 return Err(PortcoveError::verification(
                     "the download is shorter than the provider declared",
@@ -181,7 +244,7 @@ impl ProviderHttp {
     }
 
     fn backoff_remaining(&self) -> Option<Duration> {
-        let mut guard = self.blocked_until.lock().ok()?;
+        let mut guard = self.blocked_until.0.lock().ok()?;
         match *guard {
             Some(until) if until > Instant::now() => Some(until - Instant::now()),
             Some(_) => {
@@ -199,7 +262,7 @@ impl ProviderHttp {
             .and_then(|value| value.parse::<u64>().ok())
             .map_or(DEFAULT_BACKOFF, Duration::from_secs)
             .min(MAX_BACKOFF);
-        if let Ok(mut guard) = self.blocked_until.lock() {
+        if let Ok(mut guard) = self.blocked_until.0.lock() {
             *guard = Some(Instant::now() + wait);
         }
     }
@@ -268,7 +331,14 @@ impl ProviderHttp {
                 freshness: ProviderFreshness::Revalidated,
             });
         }
-        if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {
+        let github_throttle = self.site == "github.com"
+            && status == StatusCode::FORBIDDEN
+            && (response.headers().contains_key(header::RETRY_AFTER)
+                || response
+                    .headers()
+                    .get("x-ratelimit-remaining")
+                    .is_some_and(|remaining| remaining == "0"));
+        if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() || github_throttle {
             self.start_backoff(response.headers());
             return stale(PortcoveError::network(format!(
                 "{} returned {status}",

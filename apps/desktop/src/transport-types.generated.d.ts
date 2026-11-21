@@ -5320,6 +5320,14 @@ export interface OutputModSetupsView {
    */
   current_install_id?: string | null;
   /**
+   * This host has a reviewed native companion layout for the upstream ZIP.
+   */
+  github_native_import_offered?: boolean;
+  /**
+   * Reviewed upstream GitHub Releases page for browsing and native setup.
+   */
+  github_release_url?: string | null;
+  /**
    * Unattended provider updates waiting for the player's review, for each
    * setup's current revision.
    */
@@ -5359,8 +5367,7 @@ export interface OutputModSetupsView {
    */
   providers?: string[];
   /**
-   * False when the game has no reviewed mod package contract; nothing else is
-   * offered then.
+   * False when the game has no reviewed managed mod package contract.
    */
   supported: boolean;
   [k: string]: unknown;
