@@ -751,6 +751,49 @@ void test("reporting reads only hash-bound receipts and refuses completion witho
     /doctor|object/u,
   );
 });
+void test("retained intake bodies keep their original hash after the issue template changes", async () => {
+  const f = await fixture();
+  const delivered = await f.bridge.process(f.request, f.all());
+  const receipt = f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!;
+  const original = delivered.plan[0]!;
+  assert.match(
+    original.body,
+    /Each offered operation names its platform, owner and applicable checks/u,
+  );
+  const historicalBody = hostedBody(candidate, f.request.id, "hosted-before-finite-v1");
+  const historical = {
+    ...original,
+    body: historicalBody,
+    body_sha256: observationHash(historicalBody),
+  };
+  assert.notEqual(historical.body_sha256, original.body_sha256);
+  const { candidate: _candidate, body: _body, ...compact } = historical;
+  const retained = {
+    ...delivered,
+    plan_encoding: "proposal-bound-v2",
+    plan: [{ ...compact, candidate_index: 0, port_key: candidate.port_key }],
+    plan_sha256: hostedPlanHash(delivered.request_sha256, [historical]),
+  };
+  const writeCount = f.writes;
+  const { plan_encoding: _encoding, ...full } = retained;
+  for (const row of [retained, { ...full, plan: [historical] }]) {
+    const complete = {
+      ...receipt,
+      body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(row)}\n\`\`\``,
+    };
+    assert.equal((await f.bridge.status(f.request, [f.request, complete])).status, "complete");
+  }
+  assert.equal(f.writes, writeCount);
+  const forged = { ...retained, plan: [{ ...retained.plan[0]!, body_sha256: "0".repeat(64) }] };
+  const invalid = {
+    ...receipt,
+    body: `<!-- portcove-hosted-intake-receipt:${f.request.id} -->\n\`\`\`json\n${JSON.stringify(forged)}\n\`\`\``,
+  };
+  await assert.rejects(
+    f.bridge.status(f.request, [f.request, invalid]),
+    /does not match the exact proposal/u,
+  );
+});
 void test("pre-plan diagnostics report blocked while stale diagnostics cannot describe an edited proposal", async () => {
   const f = await fixture();
   await f.bridge.diagnostic(f.request, new Error("Unknown game identity"), f.all());
@@ -2158,6 +2201,11 @@ async function verifyAuditRecovery(schema: 1 | 2) {
     },
   };
   const f = await fixture(candidates, schema, schema === 2 ? store : undefined);
+  await assert.rejects(
+    f.bridge.process(f.request, f.all(), { auditOnly: true }),
+    /full audit pending/u,
+  );
+  assert.equal(f.creations, 0);
   const inventory = f.bridge.inventory.bind(f.bridge);
   f.bridge.inventory = async (cache, full) => {
     if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
@@ -2213,14 +2261,21 @@ async function verifyAuditRecovery(schema: 1 | 2) {
       if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
       return await publish(...args);
     };
-    await assert.rejects(f.bridge.process(f.request, f.all()), /Worker interrupted/u);
+    await assert.rejects(
+      f.bridge.process(f.request, f.all(), { auditOnly: true }),
+      /Worker interrupted/u,
+    );
     f.bridge.persist = publish;
     f.bridge.inventory = async () => {
       throw new Error("Already verified audit must not repeat");
     };
   }
-  const completed = await f.bridge.process(f.request, f.all());
+  const completed = await f.bridge.process(f.request, f.all(), { auditOnly: schema === 2 });
   assert.equal(completed.status, "complete");
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { auditOnly: true })).status,
+    "complete",
+  );
   assert.equal(audits, 1);
   assert.equal(f.creations, candidates.length);
   assert.equal(f.writes, writes);

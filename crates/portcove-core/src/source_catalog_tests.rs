@@ -65,6 +65,8 @@ fn fixture() -> SourceCatalog {
             profile_id: "sample-game".into(),
             admission_mode: CatalogAdmissionMode::Enforced,
             supported_variant_ids: vec!["usa-1-0".into()],
+            variant_list_recognition_only: false,
+            n64_recomp_inputs_v1: Vec::new(),
             validator_contract_id: None,
             evidence_ids: vec!["upstream-source-table".into()],
             authority_ref: "v1.0.0".into(),
@@ -190,6 +192,18 @@ fn informational_and_enforced_contracts_require_honest_admission_inputs() {
     assert!(catalog.validate(["sample-port"]).is_err());
     catalog.contracts[0].evidence_gap = Some("Upstream accepts plausible files by format".into());
     catalog.validate(["sample-port"]).unwrap();
+
+    catalog.contracts[0].variant_list_recognition_only = true;
+    catalog.contracts[0].applicability.clear();
+    assert!(catalog.validate(["sample-port"]).is_err());
+    catalog.contracts[0].applicability = vec![SourceContractApplicability {
+        upstream_ref: "fixture-v1".into(),
+        artifact_sha256: Some("a".repeat(64)),
+    }];
+    catalog.validate(["sample-port"]).unwrap();
+    catalog.contracts[0].admission_mode = CatalogAdmissionMode::Enforced;
+    assert!(catalog.validate(["sample-port"]).is_err());
+    catalog.contracts[0].variant_list_recognition_only = false;
 
     catalog.contracts[0].admission_mode = CatalogAdmissionMode::Enforced;
     catalog.contracts[0].supported_variant_ids.clear();

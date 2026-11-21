@@ -26,6 +26,11 @@ export interface HostedIntakeObservation {
   expected: number | null;
   facts: ReadonlyMap<string, unknown>;
   gaps: HostedIntakeGap[];
+  receipts?: {
+    status: "unavailable" | "failed" | "passed";
+    inspected?: number;
+    completed?: unknown[];
+  };
 }
 
 /** One stored request fact, as the report reads it. */
@@ -141,13 +146,31 @@ export function hostedIntakeFacts(read: HostedStatusAll) {
  */
 export async function hostedIntakeObservation(
   read: () => Promise<HostedStatusAll>,
+  reconcile?: (snapshot: HostedStatusAll) => Promise<{ inspected: number; completed: unknown[] }>,
 ): Promise<HostedIntakeObservation> {
   try {
-    return { failed: false, ...hostedIntakeFacts(await read()) };
+    const queue = await read();
+    const observation: HostedIntakeObservation = { failed: false, ...hostedIntakeFacts(queue) };
+    if (!reconcile) return observation;
+    if (observation.gaps.length) return { ...observation, receipts: { status: "unavailable" } };
+    try {
+      return { ...observation, receipts: { status: "passed", ...(await reconcile(queue)) } };
+    } catch {
+      // Keep the original operation current so the next complete read can retry.
+      // Unrelated sources and all positively observed native facts still commit.
+      observation.gaps.push({
+        subject_key: failedSubject,
+        code: "receipt-reconciliation",
+        message:
+          "Original maintenance handoff receipts could not be verified and recorded. The next collection retries.",
+      });
+      return { ...observation, receipts: { status: "failed" } };
+    }
   } catch (error) {
     const changed = (error as { code?: unknown } | null)?.code === "inventory_changed";
     return {
       revision: changed ? "hosted-intake:inventory-changed" : "hosted-intake:unavailable",
+      ...(reconcile ? { receipts: { status: "unavailable" as const } } : {}),
       failed: true,
       expected: null,
       facts: new Map(),

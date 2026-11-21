@@ -2,7 +2,7 @@
   "assessment_schema": 1,
   "namespace": "official",
   "stable_id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
-  "revision": 1,
+  "revision": 4,
   "assessments": [],
-  "policy_sha256": "475e0cf5783e90c590e6faae3f5565f422fc5ec5fe6dec15802ee60f52afb4a9"
+  "policy_sha256": "40ea6e95b77120ecc40953d799f40b39057abf9fbea76182d0e41ff7a395c97e"
 }

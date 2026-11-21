@@ -87,7 +87,11 @@ import {
 } from "../view-model";
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
-import type { NativeSourceDragState } from "../native-source-drop";
+import type {
+  NativeSourceDragState,
+  NativeSourceGameDrop,
+  ExactNativeSourceDrop,
+} from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
 import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
@@ -196,6 +200,12 @@ function browserResultAvailability(
   };
 }
 
+export interface GameSourceDropReview {
+  pending?: NativeSourceGameDrop | undefined;
+  select: (drop: ExactNativeSourceDrop) => void;
+  dismiss: () => void;
+}
+
 function browserResultCountLabel({
   view,
   visiblePorts,
@@ -210,9 +220,9 @@ function browserResultCountLabel({
   declaredCandidates: CatalogEntry[] | undefined;
 }) {
   if (view === "catalog") {
-    // Each card is one game; port counts and grouping facts belong on the game page.
+    // Explicit game identities and unresolved project entries have different scopes.
     const groups = groupCatalog(catalogUniverse ?? declaredCandidates ?? ports, visiblePorts);
-    return `${groups.length} ${groups.length === 1 ? "game" : "games"}`;
+    return groupCountLabel(groups);
   }
   if (view === "library") {
     const groups = groupCatalog(catalogUniverse ?? ports, visiblePorts);
@@ -359,6 +369,7 @@ function usePortBrowser({
   clearFilters,
   loading,
   nativeSourceDrag = idleNativeSourceDrag,
+  gameSourceDropReview,
   collectionLayout = "covers",
   setCollectionLayout,
   collectionLayoutFailure,
@@ -403,6 +414,7 @@ function usePortBrowser({
   clearFilters?: (() => void) | undefined;
   loading: boolean;
   nativeSourceDrag?: NativeSourceDragState;
+  gameSourceDropReview?: GameSourceDropReview | undefined;
 }) {
   const [organizationViews, setOrganizationViews] = useState({ library: "all", catalog: "all" });
   const organizationKey = view === "catalog" ? "catalog" : "library";
@@ -470,6 +482,18 @@ function usePortBrowser({
   const favoriteMatches = scopedPorts.filter((port) => favoriteGroups?.has(gameGroupId(port)));
   const favoriteCount = favoriteGroups ? new Set(favoriteMatches.map(gameGroupId)).size : undefined;
   const visiblePorts = favorites?.only ? favoriteMatches : scopedPorts;
+  const pendingGameDrop = gameSourceDropReview?.pending;
+  const dismissGameDrop = gameSourceDropReview?.dismiss;
+  const dropInResults =
+    pendingGameDrop !== undefined &&
+    view === "catalog" &&
+    resultsReady &&
+    !loadingResults &&
+    !resultsUnavailable &&
+    visiblePorts.some((port) => gameGroupId(port) === pendingGameDrop.gameId);
+  useEffect(() => {
+    if (pendingGameDrop && !dropInResults) dismissGameDrop?.();
+  }, [dismissGameDrop, dropInResults, pendingGameDrop]);
   const { activeQuickView, quickViewCounts } = browserQuickViews({
     favorites,
     favoriteGroups,
@@ -547,6 +571,7 @@ function usePortBrowser({
     steamBatch,
     loading,
     nativeSourceDrag,
+    gameSourceDropReview: dropInResults ? gameSourceDropReview : undefined,
     collectionLayout,
     setCollectionLayout,
     collectionLayoutFailure,
@@ -794,6 +819,7 @@ function PortBrowserView({
         loading={model.loadingResults}
         unavailable={model.resultsUnavailable}
         nativeSourceDrag={model.nativeSourceDrag}
+        gameSourceDropReview={model.gameSourceDropReview}
         devicePlatform={model.queryContext?.devicePlatform}
       />
     </div>
@@ -892,6 +918,7 @@ function BrowserResults({
   loading,
   unavailable,
   nativeSourceDrag,
+  gameSourceDropReview,
   devicePlatform,
 }: {
   resultsReady: boolean;
@@ -917,6 +944,7 @@ function BrowserResults({
   loading: boolean;
   unavailable: boolean;
   nativeSourceDrag: NativeSourceDragState;
+  gameSourceDropReview?: GameSourceDropReview | undefined;
 }) {
   if (loading && ports.length === 0) return <LoadingState />;
   if (unavailable && ports.length === 0) return null;
@@ -948,6 +976,9 @@ function BrowserResults({
         favorites={favorites}
         restoreAfter={restoreAfter}
         nativeSourceDrag={nativeSourceDrag}
+        pendingGameDrop={gameSourceDropReview?.pending}
+        onGameDropSelect={gameSourceDropReview?.select}
+        onGameDropDismiss={gameSourceDropReview?.dismiss}
         devicePlatform={devicePlatform}
       />
     );
@@ -969,14 +1000,15 @@ function BrowserResults({
       organization={organization}
       onSelect={onSelect}
       renderFavorite={renderFavorite}
-      renderPort={(port, group) => (
+      renderPort={(port, presentationPort, group) => (
         <PortCard
           layout={layout}
-          favoriteControl={renderFavorite(port, group)}
+          favoriteControl={renderFavorite(presentationPort, group)}
           organization={organization}
           restoreAfter={restoreAfter}
           key={port.id}
           port={port}
+          presentationPort={presentationPort}
           status={statuses.get(port.id)}
           readiness={portReadiness(statuses.get(port.id))}
           onSelect={onSelect}
@@ -1188,6 +1220,7 @@ type CardState = {
 };
 
 type PortCardProps = {
+  presentationPort?: CatalogEntry | undefined;
   organization?: Organization | undefined;
   restoreAfter: (button: HTMLElement, action: () => Promise<boolean>) => Promise<void>;
   layout: CollectionLayout;
@@ -1206,6 +1239,7 @@ const idleNativeSourceDrag: NativeSourceDragState = { active: false, pathCount: 
 
 /** Memoized: a grid re-renders only cards whose port, status or shared inputs changed. */
 const PortCard = memo(function PortCard({
+  presentationPort,
   organization,
   restoreAfter,
   layout,
@@ -1254,6 +1288,7 @@ const PortCard = memo(function PortCard({
   return (
     <LibraryEntry
       {...{
+        presentationPort,
         port,
         status,
         state,
@@ -1276,6 +1311,7 @@ const PortCard = memo(function PortCard({
 
 function LibraryEntry({
   port,
+  presentationPort = port,
   status,
   state,
   layout,
@@ -1292,7 +1328,14 @@ function LibraryEntry({
   favoriteControl,
 }: Pick<
   PortCardProps,
-  "port" | "status" | "layout" | "onSelect" | "onLaunch" | "onTask" | "favoriteControl"
+  | "port"
+  | "presentationPort"
+  | "status"
+  | "layout"
+  | "onSelect"
+  | "onLaunch"
+  | "onTask"
+  | "favoriteControl"
 > & {
   state: CardState;
   detailOrigin: string;
@@ -1303,16 +1346,19 @@ function LibraryEntry({
   dropTarget: boolean;
   organizationMenu: ReactNode;
 }) {
-  const { element: artworkElement, visible } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(port.id, "cover", visible);
+  const { element: artworkElement, visible, priority } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(presentationPort.id, "cover", visible, priority);
   const artworkNotice = artworkDisplayNotice(artwork);
+  const title = gameTitle(presentationPort);
+  const project = gameProjectLabel(port);
+  const identityLabel = project ? `${title} · ${project}` : title;
   return (
     <article
       className={cn(
         `port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`,
         dropTarget && "outline-3 outline-offset-2 outline-pc-ring outline-solid",
       )}
-      aria-label={`${gameIdentityLabel(port)}. ${state.label}.`}
+      aria-label={`${identityLabel}. ${state.label}.`}
       aria-describedby={input ? setupDescriptionId : undefined}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
@@ -1324,7 +1370,7 @@ function LibraryEntry({
             controlFocus,
             "collection-identity cursor-pointer text-start hover:text-pc-interactive-foreground",
           )}
-          aria-label={`View details for ${gameIdentityLabel(port).replace(" · ", " ")}`}
+          aria-label={`View details for ${identityLabel.replace(" · ", " ")}`}
           aria-describedby={input ? setupDescriptionId : undefined}
           data-detail-game-id={port.id}
           data-detail-origin={detailOrigin}
@@ -1333,8 +1379,9 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
-            portId={port.id}
+            portId={presentationPort.id}
             visible={visible}
+            priority={priority}
             identityArtwork
             className="card-art collection-art"
           />
@@ -1344,13 +1391,13 @@ function LibraryEntry({
               aria-level={2}
               className="collection-title font-semibold wrap-anywhere"
             >
-              {gameTitle(port)}
+              {title}
             </span>{" "}
             <span
               className="collection-project block wrap-anywhere text-[var(--color-text-secondary)]"
-              title={gameProjectLabel(port)}
+              title={project}
             >
-              {gameProjectLabel(port)}
+              {project}
             </span>
           </span>
         </button>
@@ -1788,7 +1835,7 @@ function BrowserQuickViews({
     );
   };
   const views: { view: LibraryQuickView; label: string; description: string }[] = [
-    { view: "all", label: "All", description: "Every game in this library scope" },
+    { view: "all", label: "All", description: "Every port in this library scope" },
     ...(favorites
       ? [
           {
@@ -1801,12 +1848,12 @@ function BrowserQuickViews({
     {
       view: "attention",
       label: "Needs attention",
-      description: "Games that need setup, files or repair before they can play",
+      description: "Ports that need setup, files or repair before they can play",
     },
     {
       view: "updates",
       label: "Updates",
-      description: "Games with an update available or downloaded and ready to apply",
+      description: "Ports with an update available or downloaded and ready to apply",
     },
   ];
   const enabled = (view: LibraryQuickView) =>
@@ -1898,7 +1945,7 @@ function BrowserQuickViews({
               ? "Unavailable while an Observed updates filter is set. Clear that filter to use this view."
               : `${description}.`}
             {view !== "favorites" &&
-              ` ${typeof count === "number" ? `${count} ${count === 1 ? "game" : "games"}` : "Count unavailable"}`}
+              ` ${typeof count === "number" ? `${count} ${count === 1 ? "port" : "ports"}` : "Count unavailable"}`}
           </span>
         );
       })}
@@ -2017,7 +2064,7 @@ function collectionViewLabel(
 }
 
 function libraryResultCount(visible: number, total: number) {
-  return `${visible} of ${total} in your library`;
+  return `${visible} of ${total} ${total === 1 ? "port" : "ports"} in your library`;
 }
 
 function BrowserCollectionTools({
@@ -2408,7 +2455,7 @@ function BrowserLastPlayed({
 
 function browserResultCount(view: View, count: number) {
   return view === "library"
-    ? `${count} in your library`
+    ? `${count} ${count === 1 ? "port" : "ports"} in your library`
     : `${count} ${count === 1 ? "port" : "ports"}`;
 }
 

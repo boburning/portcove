@@ -55,6 +55,7 @@ import {
 import { validateDiscoveryIntakeBody, discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   renderPortIssueBody,
+  type PortIssueBodyTemplate,
   findPortIssueDuplicates,
   normalizedUpstream,
   normalizePortKey,
@@ -386,14 +387,17 @@ interface Receipt {
   continuation?: string | null;
   body_request_comment?: number;
 }
-export function hostedBody(c: Candidate, request: number) {
-  return renderPortIssueBody({
-    title: c.title,
-    upstream: c.upstream,
-    portKey: c.port_key,
-    currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
-    blocker: c.resume,
-  });
+export function hostedBody(c: Candidate, request: number, template?: PortIssueBodyTemplate) {
+  return renderPortIssueBody(
+    {
+      title: c.title,
+      upstream: c.upstream,
+      portKey: c.port_key,
+      currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
+      blocker: c.resume,
+    },
+    template,
+  );
 }
 export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
   return observationHash({
@@ -476,7 +480,11 @@ function readHostedReceipt(
         throw new Error("Retained repository location binding differs");
       candidate = { ...candidate, upstream: location.current };
     }
-    const body = hostedBody(candidate, bodyRequest);
+    const currentBody = hostedBody(candidate, bodyRequest);
+    const body =
+      binding.body_sha256 === observationHash(currentBody)
+        ? currentBody
+        : hostedBody(candidate, bodyRequest, "hosted-before-finite-v1");
     if (
       binding.body_sha256 !== observationHash(body) ||
       (binding.primary === null
@@ -1389,6 +1397,24 @@ export class HostedIntakeBridge {
       full_doctor_required: proposal.candidates.length > 10,
       ...(receipt?.audit_pending ? { audit_pending: true } : {}),
       doctor: receipt?.doctor ?? null,
+      ...(receipt?.status === "complete" && found[0]
+        ? {
+            executor_receipt: {
+              run: receipt.run,
+              attempt: receipt.attempt,
+              head: receipt.head,
+              request_sha256: receipt.request_sha256,
+              body_sha256: createHash("sha256").update(found[0].body).digest("hex"),
+              published_at: found[0].updated_at,
+              checkpoint_required:
+                proposal.schema_version === 2 || receipt.plan.some((entry) => entry.amendment),
+              original_slots: proposal.candidates.map(({ port_key, repository_id }) => ({
+                port_key,
+                repository_id,
+              })),
+            },
+          }
+        : {}),
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
       slots: candidateSlots(
@@ -1516,7 +1542,7 @@ export class HostedIntakeBridge {
     delete receipt.continuation;
     await persist();
   }
-  async process(request: Comment, all: Comment[], { resumeHolds = false } = {}) {
+  async process(request: Comment, all: Comment[], { resumeHolds = false, auditOnly = false } = {}) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
     await this.fresh(request);
@@ -1567,6 +1593,8 @@ export class HostedIntakeBridge {
         "Submit new candidates using schema version 2 with an explicit intake intent",
       );
     let receipt: Receipt | undefined;
+    if (auditOnly && proposal.candidates.length <= 10)
+      throw new Error("Audit mode requires a batch subject to full Roadmap audit");
     if (prior) {
       await this.fresh(prior);
       receipt = readHostedReceipt(
@@ -1579,11 +1607,17 @@ export class HostedIntakeBridge {
         this.client.config.repository,
       );
       if (receipt.status === "complete") {
-        if (receipt.plan_encoding === "proposal-bound-v2" || proposal.schema_version === 2)
+        if (
+          auditOnly ||
+          receipt.plan_encoding === "proposal-bound-v2" ||
+          proposal.schema_version === 2
+        )
           await this.status(request, all);
         return receipt;
       }
     }
+    if (auditOnly && !receipt?.audit_pending)
+      throw new Error("Audit mode requires a retained batch with its full audit pending");
     const hasAmendments = amendments.length > 0;
     const authorizedImport =
       proposal.schema_version === 1 &&
@@ -1682,6 +1716,17 @@ export class HostedIntakeBridge {
           "PostgreSQL checkpoint has no confirmed GitHub receipt marker; reconcile before retrying",
         );
       if (prior.body !== saved.receipt_body) {
+        if (auditOnly) {
+          if (!checkpointReceipt.audit_pending && checkpointReceipt.status !== "complete")
+            throw new Error("Stored checkpoint is outside the requested final audit");
+          if (checkpointReceipt.status === "complete")
+            await this.status(
+              request,
+              all.map((comment) =>
+                comment.id === prior?.id ? { ...comment, body: saved.receipt_body } : comment,
+              ),
+            );
+        }
         if (observationHash(prior.body) !== saved.previous_receipt_sha256)
           throw new Error("GitHub receipt is ahead of or differs from the PostgreSQL checkpoint");
         await this.fresh(request);
@@ -1752,6 +1797,7 @@ export class HostedIntakeBridge {
         return audit;
       }
     }
+    if (auditOnly) throw new Error("Audit-only recovery cannot enter candidate processing");
     const delivery = structuredClone(
       receipt?.delivery ??
         lineage?.receipt.delivery ??
@@ -2637,6 +2683,15 @@ async function main() {
     const available = comments.filter(
       (c) => c.user.login === config.owner && c.body.startsWith(hostedRequestMarker),
     );
+    const auditOnly = process.env.HOSTED_INTAKE_MODE === "audit";
+    if (
+      auditOnly &&
+      (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+        !Array.isArray(selected) ||
+        selected.length !== 1 ||
+        String(selected[0]) !== process.env.HOSTED_INTAKE_AUDIT_REQUEST)
+    )
+      throw new Error("Audit mode requires the exact owner-dispatched proposal ID");
     const requests =
       selected === null
         ? available
@@ -2655,7 +2710,8 @@ async function main() {
     for (const c of requests) {
       try {
         const receipt = await bridge.process(c, comments, {
-          resumeHolds: process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+          resumeHolds: !auditOnly && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+          auditOnly,
         });
         outcomes.push({
           request: c.id,
@@ -2668,7 +2724,7 @@ async function main() {
         let continuation = bridge.continuation(error);
         save(`failure-${c.id}`, sanitizeOperationError(error));
         try {
-          await bridge.diagnostic(c, error, comments);
+          if (!auditOnly) await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
           save(`publication-failure-${c.id}`, sanitizeOperationError(publication));
@@ -2696,8 +2752,34 @@ async function main() {
     save("roadmap-observations", client.observations);
   }
 }
+async function runWithCheckpointAdmission() {
+  if (
+    process.argv[2] === "status" ||
+    process.env.HOSTED_INTAKE_MODE === "probe" ||
+    !process.env.PORTCOVE_DISCOVERY_DATABASE_URL
+  )
+    return await main();
+  const { connectionFromEnvironment } = await import("./maintenance-store.mts");
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+    await import("./maintenance-resource-policy.mts");
+  const environment = connectionFromEnvironment("PORTCOVE_DISCOVERY_DATABASE_URL");
+  const run = process.env.GITHUB_RUN_ID;
+  const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
+  try {
+    await withMaintenanceAdmission(environment, "intake", main, {
+      request: run
+        ? `github:${run}:intake:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}:${pass}`
+        : undefined,
+      completed: () => process.exitCode !== 1,
+    });
+  } catch (error) {
+    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+    process.exitCode = 75;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  await main().catch((error) => {
+  await runWithCheckpointAdmission().catch((error) => {
     console.error(JSON.stringify(sanitizeOperationError(error)));
     process.exitCode = 1;
   });

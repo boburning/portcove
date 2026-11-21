@@ -526,6 +526,26 @@
       "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
     },
     {
+      "file": "scripts/catalog-game-review.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8919],
+        ["repository-tools-2", 3919]
+      ],
+      "ordinary_families": [
+        "catalog-generator-contract-tests",
+        "catalog-authoring-contract-tests",
+        "catalog-preparation-contract-tests"
+      ]
+    },
+    {
+      "file": "scripts/catalog-game-identity.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8921],
+        ["repository-tools-2", 3921]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-staged-check.test.mts",
       "memberships": [
         ["catalog-full-2", 9300],
@@ -1523,9 +1543,11 @@
           "cases": [
             "research progress retains precise history, quiet repeats, failures and project opt-outs",
             "declared records flow through Core assessment, the store and a static report",
+            "unsupported publication facts retain the last good facts and other source updates",
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
+            "release-health handoffs follow freshly assessed ports across fleet coverage gaps",
             "release content shows findings from partial runs and opens handoffs only after complete runs",
             "a reviewed accounting dismisses a finding: shown as accounted, no attention, its handoff cleared",
             "packages the scan could not inspect are shown and open the release-content handoff",
@@ -1609,7 +1631,11 @@
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
             "maintenance store guards history and survives an independent PostgreSQL restore",
-            "an interrupted maintenance migration leaves no partial schema and resumes cleanly"
+            "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+            "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
+            "shared admissions fence concurrent callers and retain crash charges",
+            "recovery reconstruction reuses history and restores current state and sequences",
+            "cutover admissions share their finite allowance across purposes"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }

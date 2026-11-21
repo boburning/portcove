@@ -20,7 +20,7 @@ use crate::Result;
 
 #[cfg(test)]
 #[path = "windows_runtime_tests.rs"]
-mod tests;
+pub(crate) mod tests;
 
 /// Programs read per assessment: the launch program and DLLs shipped beside it.
 const PROGRAM_LIMIT: usize = 64;
@@ -599,6 +599,7 @@ fn list_folder(folder: &Path) -> io::Result<Folder> {
 
 struct WindowsImage {
     architecture: Option<WindowsArchitecture>,
+    native_x64_exe: bool,
     /// Lowercase, deduplicated DLL names from the static import table.
     imports: BTreeSet<String>,
     /// False when an unusable import name was skipped.
@@ -608,6 +609,16 @@ struct WindowsImage {
 enum ProgramImage {
     NotWindows,
     Windows(WindowsImage),
+}
+
+pub(crate) fn is_x64_windows_program(path: &Path) -> bool {
+    matches!(
+        read_program(path),
+        Ok(ProgramImage::Windows(WindowsImage {
+            native_x64_exe: true,
+            ..
+        }))
+    )
 }
 
 fn malformed(reason: &str) -> io::Error {
@@ -711,7 +722,12 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
         return Err(malformed("PE header is out of range"));
     }
     let optional = reader.read(header_offset + 24, usize::from(optional_size))?;
-    let (count_offset, directory_offset) = match u16_at(&optional, 0)? {
+    let format = u16_at(&optional, 0)?;
+    let characteristics = u16_at(&coff, 18)?;
+    let native_x64_exe = architecture == Some(WindowsArchitecture::X64)
+        && format == 0x020b
+        && characteristics & (0x0002 | 0x2000) == 0x0002;
+    let (count_offset, directory_offset) = match format {
         0x010b => (92, 96),
         0x020b => (108, 112),
         _ => return Err(malformed("unknown optional header")),
@@ -721,6 +737,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
     if u32_at(&optional, count_offset)? < 2 {
         return Ok(ProgramImage::Windows(WindowsImage {
             architecture,
+            native_x64_exe,
             imports,
             complete: true,
         }));
@@ -729,6 +746,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
     if import_address == 0 {
         return Ok(ProgramImage::Windows(WindowsImage {
             architecture,
+            native_x64_exe,
             imports,
             complete: true,
         }));
@@ -803,6 +821,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
     }
     Ok(ProgramImage::Windows(WindowsImage {
         architecture,
+        native_x64_exe,
         imports,
         complete,
     }))

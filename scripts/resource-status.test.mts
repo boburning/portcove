@@ -206,3 +206,28 @@ void test("capacity observations retain their checked payload contract", async (
     await rm(root, { recursive: true, force: true });
   }
 });
+
+void test("storage preflight reports a full path and isolates a stalled path", async () => {
+  const { observeAuditStorage } = await import("./resource-status.mts");
+  const full = path.resolve("full");
+  const stalled = path.resolve("stalled");
+  const results = await observeAuditStorage(
+    [full, stalled, full],
+    async (_code, [directory], budget) => {
+      assert.equal(budget, 3000);
+      if (directory === stalled) throw new Error("timed out");
+      return { available_bytes: "0", free_inodes: null };
+    },
+  );
+  assert.deepEqual(
+    results.map((entry) => entry.observation),
+    ["full", "unavailable"],
+  );
+});
+
+void test("resource probe fails within its own deadline", async () => {
+  const { readResourceProbe } = await import("./resource-capacity.mts");
+  await assert.rejects(() => readResourceProbe("setInterval(() => {}, 1000)", [], 120), {
+    code: "ETIMEDOUT",
+  });
+});

@@ -502,6 +502,93 @@ describe("disposable artwork display cache", () => {
     await vi.waitFor(() => expect(cache.read(dropped, "cover").loading).toBe(false));
   });
 
+  it("loads a cached visible cover and prioritizes visible misses during download saturation", async () => {
+    vi.spyOn(desktopApi, "artwork").mockImplementation(async (port) => mappedArtwork(port));
+    const downloads = new Map<string, (thumbnail: DesktopArtworkThumbnail) => void>();
+    const thumbnails = vi
+      .spyOn(desktopApi, "artworkThumbnail")
+      .mockImplementation((port, _slot, _revision, _generation, cacheOnly) => {
+        if (cacheOnly) {
+          if (port === "cached") return Promise.resolve(mappedThumbnail());
+          return Promise.reject({
+            details: { artwork_download_required: "true", artwork_cache_epoch: "initial" },
+          });
+        }
+        return new Promise((resolve) => downloads.set(port, resolve));
+      });
+    const cache = new ArtworkCache(7);
+    for (let index = 0; index < maximumRemoteRequests; index++)
+      await cache.load(`slow-${index}`, "cover");
+
+    let cachedPriority = 0;
+    await cache.load(
+      "nearby",
+      "cover",
+      false,
+      () => true,
+      () => 0,
+    );
+    await cache.load(
+      "cached",
+      "cover",
+      false,
+      () => true,
+      () => cachedPriority,
+    );
+    expect(thumbnails).toHaveBeenCalledTimes(maximumRemoteRequests);
+    cachedPriority = 1;
+    cache.reprioritize();
+    await vi.waitFor(() => expect(cache.read("cached", "cover").image).toBeDefined());
+    expect(thumbnails).toHaveBeenCalledWith("cached", "cover", 0, 7, true);
+    await cache.load(
+      "selected",
+      "cover",
+      false,
+      () => true,
+      () => 2,
+    );
+
+    downloads.get("slow-0")!(mappedThumbnail());
+    await vi.waitFor(() => expect(downloads.has("selected")).toBe(true));
+    expect(downloads.has("nearby")).toBe(false);
+    expect(thumbnails).toHaveBeenCalledWith("selected", "cover", 0, 7, false, "initial");
+    for (const resolve of downloads.values()) resolve(mappedThumbnail());
+    await vi.waitFor(() => expect(downloads.has("nearby")).toBe(true));
+    downloads.get("nearby")!(mappedThumbnail());
+    await vi.waitFor(() => expect(cache.read("nearby", "cover").image).toBeDefined());
+  });
+
+  it("retries a visible transient failure without a remount", async () => {
+    vi.useFakeTimers();
+    const cache = new ArtworkCache(7);
+    try {
+      vi.spyOn(desktopApi, "artwork").mockResolvedValue(mappedArtwork("visible"));
+      const thumbnail = vi
+        .spyOn(desktopApi, "artworkThumbnail")
+        .mockRejectedValueOnce({
+          message: "temporary",
+          details: { artwork_retry_after: "30", artwork_cache_epoch: "initial" },
+        })
+        .mockResolvedValue(mappedThumbnail());
+      await cache.load(
+        "visible",
+        "cover",
+        false,
+        () => true,
+        () => 1,
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(cache.read("visible", "cover").error).toBe("temporary");
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(cache.read("visible", "cover").image).toBeDefined();
+      expect(thumbnail).toHaveBeenCalledTimes(2);
+      expect(thumbnail).toHaveBeenLastCalledWith("visible", "cover", 0, 7, false, "initial");
+    } finally {
+      cache.clearRetryTimers();
+      vi.useRealTimers();
+    }
+  });
+
   it("bounds remote queue retention with the same inactive preview limit", async () => {
     vi.spyOn(desktopApi, "artwork").mockImplementation(async (port) => mappedArtwork(port));
     const finish = new Map<string, (thumbnail: DesktopArtworkThumbnail) => void>();

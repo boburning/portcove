@@ -99,11 +99,11 @@ function Screenshot({
 }) {
   const portId = port.id;
   const { t } = useAppTranslation("browsing");
-  const { element, visible } = useArtworkVisibility();
-  const { display, retry } = useCatalogMedia(portId, media, visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display, retry } = useCatalogMedia(portId, media, visible, priority);
   return (
     <figure ref={element} className="m-0 min-w-0">
-      {display.error ? (
+      {!display.image && display.error ? (
         <div className="grid gap-2 rounded-pc-md border border-pc-border p-3 text-sm">
           <span>
             <Trans
@@ -206,8 +206,12 @@ export function CatalogMediaGallery({
 
 const defaultScreenshotSource = "available";
 
-function screenshotKey({ id, sha256 }: CatalogMediaAsset) {
-  return `${id}:${sha256}`;
+function screenshotKey({ id, sha256, subject }: CatalogMediaAsset) {
+  const scope =
+    subject.kind === "port"
+      ? [subject.kind, subject.port_id]
+      : [subject.kind, subject.game_id, subject.source_edition_id];
+  return JSON.stringify([scope, id, sha256]);
 }
 
 function ScreenshotGallery({
@@ -237,7 +241,7 @@ function ScreenshotGallery({
   const pickerId = useId();
   const index = shots.findIndex((asset) => screenshotKey(asset) === selected);
   const active = shots[index];
-  // A catalog refresh can withdraw a release or replace an image under the same ID.
+  // A catalog refresh can withdraw a release or change an image's admitted identity.
   if (!edition && source !== defaultScreenshotSource) setSource(defaultScreenshotSource);
   if (selected && !active) setSelected(undefined);
   const change = (delta: number) => {

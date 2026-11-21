@@ -60,6 +60,7 @@ import {
   type SubjectReassessment,
   type InventoryReport,
 } from "./maintenance-inventory.mts";
+import { reconcileIntakeHandoffReceipts } from "./maintenance-intake-receipts.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { issueReconsiderations, targetReconsiderations } from "./maintenance-reconsiderations.mts";
 import { targetsDigest } from "./release-content-scan.mts";
@@ -290,13 +291,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     steps: Step[];
   };
   const workflow = parse(source) as {
-    on: { schedule: { cron: string }[]; workflow_dispatch: unknown };
+    on: {
+      schedule: { cron: string }[];
+      workflow_dispatch: { inputs: { purpose: { default: string; options: string[] } } };
+    };
     permissions: unknown;
     concurrency: { "cancel-in-progress": boolean };
     jobs: Record<string, Job>;
   };
   assert.deepEqual(workflow.on.schedule, [{ cron: "47 4 * * *" }]);
-  assert.equal(workflow.on.workflow_dispatch, null, "dispatch takes no inputs");
+  assert.equal(workflow.on.workflow_dispatch.inputs.purpose.default, "status");
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.purpose.options, [
+    "status",
+    "collect-changed",
+    "report",
+    "recover",
+    "verify-recovery",
+    "recovery-full",
+  ]);
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
@@ -327,8 +339,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       )
       .map((step) => step.name);
   assert.deepEqual(using("PORTCOVE_ROADMAP_TOKEN"), [
-    "Require hosted configuration without exposing credentials",
-    "Collect every declared source in one transaction",
+    "Collect changed sources and periodically reassess all Core subjects",
   ]);
   assert.ok(using("PORTCOVE_DATABASE_URL").length > 1);
   // The secret is exposed to the store commands under their default variable name.
@@ -343,10 +354,11 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "the restore target is local",
   );
   const collection = collect!.steps.find(
-    (step) => step.name === "Collect every declared source in one transaction",
+    (step) => step.name === "Collect changed sources and periodically reassess all Core subjects",
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
   for (const flag of [
     "--all",
@@ -356,10 +368,30 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--delivery",
     "--upstream",
     "--hosted-intake",
+    "--reconcile-intake",
     "--targets",
+    "--reassess changed",
   ])
     assert.ok(collection.run!.includes(flag), flag);
+  const render = collect!.steps.find(
+    (step) => step.name === "Render the report and digest on local PostgreSQL",
+  )!;
+  assert.equal(render.env, undefined);
+  assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
+  const finalReceiptCheck = collect!.steps.at(-1)!;
+  assert.equal(finalReceiptCheck.name, "Check original intake receipt reconciliation");
+  assert.match(finalReceiptCheck.run!, /hosted_intake.receipts.status/u);
+  assert.ok(
+    collect!.steps
+      .slice(0, -1)
+      .some((step) => step.name === "Retain the backup for independent restore proof"),
+  );
+  assert.ok(
+    collect!.steps
+      .slice(0, -1)
+      .some((step) => step.name === "Retain the report, digest and evidence"),
+  );
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
@@ -463,6 +495,47 @@ void test("only Core-verified delivery records published definitions", () => {
       ),
     /Duplicate/u,
   );
+});
+
+void test("publication and delivery preserve long Core definition identities within storage bounds", () => {
+  const readBoth = (namespace: string, stable_id: string) => {
+    const definition = { namespace, stable_id, revision: 1, target: "sha256/x.json" };
+    const delivery = verifiedDelivery([definition]);
+    delivery.definitions[0]!.namespace = namespace;
+    return [
+      () =>
+        publicationFacts({
+          inspection: {
+            index_sha256: "f".repeat(64),
+            definitions: [{ ...definition, definition_target: definition.target }],
+          },
+        }),
+      () => deliveryFacts(delivery),
+    ];
+  };
+
+  const roe = "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine";
+  assert.equal(roe.length, 74);
+  const longest = "-".repeat(255);
+  for (const [namespace, stableId] of [
+    ["official", roe],
+    ["official", longest],
+    ["n".repeat(33), longest],
+  ] as const)
+    for (const read of readBoth(namespace, stableId)) {
+      const { facts } = read();
+      assert.deepEqual([...facts.keys()], [`definition:${namespace}/${stableId}`]);
+    }
+
+  for (const invalid of ["", "a".repeat(256), "a/b", "a:b", "A", "é", "x\n"])
+    for (const [namespace, stableId] of [
+      [invalid, roe],
+      ["official", invalid],
+    ] as const)
+      for (const read of readBoth(namespace, stableId))
+        assert.throws(read, /Unsupported definition identity/u);
+  for (const read of readBoth("n".repeat(34), longest))
+    assert.throws(read, /exceeds the maintenance key bound/u);
 });
 
 void test("publication entries compare main with the last verified publication by identity", () => {
@@ -638,6 +711,81 @@ void test("reads the producing CLI platform independently of the launcher's arch
     /did not identify a supported host platform/u,
   );
 });
+
+void test(
+  "unsupported publication facts retain the last good facts and other source updates",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("store");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const collectPublication = (id: string, publishedRevision: number) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        publication: () =>
+          Promise.resolve({
+            inspection: {
+              index_sha256: "f".repeat(64),
+              definitions: [
+                {
+                  namespace: "official",
+                  stable_id: id,
+                  revision: 1,
+                  definition_target: "sha256/a.json",
+                },
+              ],
+            },
+          }),
+        delivery: () =>
+          Promise.resolve(
+            verifiedDelivery([
+              { stable_id: "example", revision: publishedRevision, target: "sha256/a.json" },
+            ]),
+          ),
+        environment: store.owner,
+        runner: "fixture",
+      });
+
+    await collectPublication("example", 1);
+    await collectPublication("bad/id", 2);
+    const failed = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT json_build_object('coverage', coverage, 'gaps', gaps)
+           FROM portcove_maintenance.collection_runs WHERE source = 'definition-publication'
+           ORDER BY acquisition DESC LIMIT 1;`,
+      ),
+    ) as { coverage: string; gaps: { subject_key: string; code: string }[] };
+    assert.equal(failed.coverage, "failed");
+    assert.deepEqual(
+      failed.gaps.map(({ subject_key, code }) => [subject_key, code]),
+      [["source:definition-publication", "unavailable"]],
+    );
+    const inventory = buildReport(store.owner);
+    const definition = inventory.publication.definitions?.find(
+      (entry) => entry.definition === "definition:official/example",
+    );
+    assert.ok(definition);
+    assert.equal(definition.comparison, "published-differs-from-main");
+    assert.deepEqual(definition.facts, {
+      main: {
+        index_sha256: "f".repeat(64),
+        revision: 1,
+        definition_target: "sha256/a.json",
+        policy_target: null,
+        policy_revision: null,
+        launch_revision: null,
+      },
+    });
+    assert.deepEqual(definition.published, {
+      published: { revision: 2, target: "sha256/a.json", sha256: "d".repeat(64), length: 10 },
+    });
+  },
+);
 
 void test(
   "declared records flow through Core assessment, the store and a static report",
@@ -1401,6 +1549,70 @@ void test(
       ).trim(),
       "failed:source:definition-publication",
     );
+  },
+);
+
+void test(
+  "release-health handoffs follow freshly assessed ports across fleet coverage gaps",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("health-handoffs");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    writeFileSync(responses, JSON.stringify({ "2ship2harkinian": report("automatic") }));
+    const observe = (complete: string[], stale: string[], redirects: string[]) =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        environment: store.owner,
+        runner: "fixture",
+        releaseHealth: () =>
+          Promise.resolve({
+            revision: "upstream-health-run:fixture",
+            report: {
+              format_version: 1,
+              authority: "upstream-monitoring-only",
+              inventory: {
+                total_ports: complete.length + stale.length,
+                fresh_complete_port_ids: complete,
+                fresh_partial_port_ids: [],
+                stale_port_ids: stale,
+                unmonitored_port_ids: [],
+              },
+              known_conditions: redirects.map((port_id) => ({
+                key: port_id,
+                port_id,
+                provider: "github",
+                rule: "provider-redirect",
+                accounted_for: false,
+                classification: "unclassified-or-actionable",
+              })),
+            },
+          }),
+      });
+    const handoffs = () =>
+      runSql(
+        store.owner,
+        `SELECT c.subject_key || '=' || a.state || ':' || c.sequence
+         FROM portcove_maintenance.subject_current c
+         JOIN portcove_maintenance.assessments a USING (assessment_id)
+        WHERE starts_with(c.subject_key, 'handoff:release-health-relocation:')
+        ORDER BY c.subject_key`,
+      )
+        .trim()
+        .split("\n");
+    const prefix = "handoff:release-health-relocation:port:";
+    await observe(["alpha"], ["beta"], ["alpha"]);
+    assert.deepEqual(handoffs(), [prefix + "alpha=needs-attention:1"]);
+    await observe(["beta"], ["alpha"], ["beta"]);
+    await observe(["beta"], ["alpha"], []);
+    const expected = [prefix + "alpha=needs-attention:1", prefix + "beta=clear:2"];
+    assert.deepEqual(handoffs(), expected);
+    await observe([], ["alpha", "beta"], []);
+    await observe(["beta"], ["alpha"], []);
+    assert.deepEqual(handoffs(), expected);
   },
 );
 
@@ -2711,6 +2923,98 @@ void test(
       readOpenHandoffs(reader).map(({ subject_key }) => subject_key),
       [blockedKey, heldKey],
     );
+
+    const proof = {
+      run: "881",
+      attempt: "1",
+      head: "f".repeat(40),
+      request_sha256: "a".repeat(64),
+      body_sha256: "b".repeat(64),
+      published_at: new Date(Date.now() + 3000).toISOString(),
+      checkpoint_required: true,
+      original_slots: [{ port_key: "example-game", repository_id: 7 }],
+    };
+    const finish = (overrides = {}) =>
+      request(40, {
+        executor_receipt: proof,
+        slots: [
+          slot({
+            port_key: "amended-key",
+            delivery_status: "existing",
+            linked_issue: 123,
+            existing: true,
+          }),
+        ],
+        delivered: 0,
+        existing: 1,
+        ...overrides,
+      });
+    const reconcile = (row: HostedRequestStatus) =>
+      reconcileIntakeHandoffReceipts(executor, async () => ({ queue: queue(), requests: [row] }));
+    assert.deepEqual(
+      (await reconcile(finish())).completed,
+      [],
+      "missing required durable checkpoint",
+    );
+    const legacy = { ...proof, checkpoint_required: false };
+    assert.deepEqual(
+      (
+        await reconcile(
+          finish({ status: "complete_with_holds", held: 1, pending: 1, executor_receipt: legacy }),
+        )
+      ).completed,
+      [],
+    );
+    assert.deepEqual(
+      (await reconcile(finish({ withdrawn: true, executor_receipt: legacy }))).completed,
+      [],
+    );
+    assert.deepEqual(
+      (
+        await reconcile(
+          finish({
+            executor_receipt: {
+              ...legacy,
+              original_slots: [{ port_key: "other", repository_id: 8 }],
+            },
+          }),
+        )
+      ).completed,
+      [],
+    );
+    const receiptBody = "exact authenticated native bot receipt";
+    const receiptDigest = createHash("sha256").update(receiptBody).digest("hex");
+    runSql(
+      store.owner,
+      `INSERT INTO portcove_maintenance.discovery_intake_batches(request_comment,request_sha256,revision,receipt_body)
+      VALUES(40,'${proof.request_sha256}',1,'${receiptBody}');`,
+    );
+    assert.deepEqual(
+      (await reconcile(finish())).completed,
+      [],
+      "conflicting database and bot receipt",
+    );
+    const agreed = finish({ executor_receipt: { ...proof, body_sha256: receiptDigest } });
+    const result = await reconcile(agreed);
+    assert.deepEqual(result.completed, [
+      {
+        operation_id: plan("hosted-intake-holds", 40, 2),
+        receipt_reference: "https://github.com/boburning/portcove/issues/177#issuecomment-41",
+        receipt_sha256: receiptDigest,
+        run: "881",
+        attempt: "1",
+      },
+    ]);
+    assert.deepEqual(
+      (await reconcile(agreed)).completed,
+      [],
+      "no duplicate receipt after resumption",
+    );
+    assert.equal(
+      recordHandoffOperations(executor).planned,
+      0,
+      "same completed fence cannot open another plan",
+    );
   },
 );
 
@@ -3126,8 +3430,8 @@ void test(
     );
     assert.match(
       runs[0]!.revision,
-      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified$/u,
-      "bound to the assessing Core binary, with its unrecorded source visible",
+      /^cli-sha256:[0-9a-f]{64};source=unrecorded;producer-sha256=[0-9a-f]{16};binding=unverified;catalog=unverified$/u,
+      "records the assessing Core binary, the unrecorded source and the unverified catalog",
     );
     const inventory = buildReport(store.owner);
     const ship = (inventory.subjects as { port_key: string; target_routes: unknown }[]).find(
@@ -3857,6 +4161,72 @@ void test("managed observation coverage keeps stale or unverified membership out
     { port_key: "port:fixed", platform: "windows-x86-64", evidence: "fixed" },
     { port_key: "port:old", platform: "windows-x86-64", evidence: "gap", reason: "scope-changed" },
   ]);
+  // Older target fixtures omit one of the two operation rows. Absence is unknown.
+  assert.equal(coverage.catalog_operation_offers_by_platform, null);
+  const withDecisions = structuredClone(ports);
+  for (const input of withDecisions) {
+    for (const target of input.targets!.targets) {
+      for (const action of ["install", "register_external"]) {
+        if (target.routes.some((route) => route.action === action)) continue;
+        const offered = action === "register_external" && input.port_key === "port:covered";
+        target.routes.push({ action, offered, reason: offered ? null : "route_not_offered" });
+      }
+    }
+  }
+  const held = structuredClone(withDecisions[0]!.targets!.targets[0]!);
+  held.platform = "macos-aarch64";
+  for (const route of held.routes) {
+    route.offered = false;
+    route.reason = "route_not_offered";
+  }
+  withDecisions[0]!.targets!.targets.push(held);
+  withDecisions[0]!.targets!.declared_platforms.push(held.platform);
+  const operations = managedRouteObservationCoverage(
+    withDecisions,
+    [catalog, targets, upstream],
+    members,
+  );
+  assert.deepEqual(operations.catalog_operation_offers_by_platform, [
+    {
+      platform: "linux-x86-64",
+      managed_install_only: 0,
+      external_registration_only: 1,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 2,
+    },
+    {
+      platform: "macos-aarch64",
+      managed_install_only: 0,
+      external_registration_only: 0,
+      both_operations: 0,
+      neither_operation: 1,
+      distinct_offered_pairs: 0,
+    },
+    {
+      platform: "windows-x86-64",
+      managed_install_only: 2,
+      external_registration_only: 0,
+      both_operations: 1,
+      neither_operation: 0,
+      distinct_offered_pairs: 3,
+    },
+  ]);
+  for (const malformed of [undefined, "false"]) {
+    const corrupted = structuredClone(withDecisions);
+    Object.assign(corrupted[0]!.targets!.targets[0]!.routes[0]!, { offered: malformed });
+    assert.equal(
+      managedRouteObservationCoverage(corrupted, [catalog, targets, upstream], members)
+        .catalog_operation_offers_by_platform,
+      null,
+    );
+  }
+  withDecisions[0]!.targets!.declared_platforms.push("unobserved-platform");
+  assert.equal(
+    managedRouteObservationCoverage(withDecisions, [catalog, targets, upstream], members)
+      .catalog_operation_offers_by_platform,
+    null,
+  );
   const withoutChannel = managedRouteObservationCoverage(
     [
       port("covered", [["linux-x86-64"]], [{ platform: "linux-x86-64", state: "eligible" }]),
@@ -3915,6 +4285,7 @@ void test("managed observation coverage keeps stale or unverified membership out
     members,
   );
   assert.equal(oldProjection.offered_managed_platforms, null);
+  assert.equal(oldProjection.catalog_operation_offers_by_platform, null);
   assert.equal(oldProjection.operational_definitions_without_target_projection, 4);
   assert.equal(oldProjection.routes, null);
 });

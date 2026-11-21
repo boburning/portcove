@@ -64,11 +64,12 @@ export function readHostedOutcomes(raw: unknown): Outcome[] {
 export function runHostedIntakePasses(
   run: (pass: number, requests: number[] | null, remainingMs: number) => unknown,
   now = Date.now,
+  auditRequest?: number,
 ) {
   const retained = new Map<number, Outcome>();
   const stalls = new Map<number, number>();
   const deadline = now() + hostedIntakeDeadlineMs;
-  let requests: number[] | null = null;
+  let requests: number[] | null = auditRequest === undefined ? null : [auditRequest];
   let queuePending = false;
   let queueMovements = 0;
   let stopReason = "pass_limit";
@@ -79,6 +80,11 @@ export function runHostedIntakePasses(
       break;
     }
     const report = run(pass, requests, remainingMs);
+    if (isRecord(report) && report.queue_continuation === "maintenance_resource_deferred") {
+      queuePending = true;
+      stopReason = "maintenance_resource_deferred";
+      break;
+    }
     queuePending = isRecord(report) && report.queue_continuation !== undefined;
     if (isRecord(report) && queuePending) {
       if (
@@ -165,6 +171,8 @@ export function runHostedIntakeWorker(
   );
   // spawnSync joins the child before returning. Never restart after a timeout,
   // signal, missing report or unknown worker failure.
+  if (!child.error && !child.signal && child.status === 75)
+    return { queue_continuation: "maintenance_resource_deferred" };
   if (child.error || child.signal || ![0, 1].includes(child.status ?? -1))
     throw new Error("Intake worker did not terminate with a qualified outcome");
   if (!existsSync(summary)) {
@@ -187,12 +195,29 @@ export function hostedTriggerRequest(event: unknown): unknown {
     : id;
 }
 
+export function auditDispatchRequest(mode: string | undefined, id: string | undefined) {
+  if (mode !== "audit") {
+    if (id) throw new Error("An audit request requires audit mode");
+    return undefined;
+  }
+  if (!id || !/^[1-9]\d*$/u.test(id) || !Number.isSafeInteger(Number(id)))
+    throw new Error("Audit mode requires one positive proposal comment ID");
+  return Number(id);
+}
+
 function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
   mkdirSync(directory, { recursive: true });
-  const result = runHostedIntakePasses((pass, requests, remainingMs) =>
-    runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
+  const audit = auditDispatchRequest(
+    process.env.HOSTED_INTAKE_MODE,
+    process.env.HOSTED_INTAKE_AUDIT_REQUEST,
+  );
+  const result = runHostedIntakePasses(
+    (pass, requests, remainingMs) =>
+      runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
+    Date.now,
+    audit,
   );
   // A comment event reports its own proposal result. The ledger still retains
   // the outcomes of all other queue entries, including historical holds.
@@ -227,6 +252,12 @@ function main() {
       [
         "## Hosted discovery intake",
         "",
+        ...(result.stop_reason === "maintenance_resource_deferred"
+          ? [
+              "Maintenance checkpoint work is pending. The next existing intake event retries it when the provider budget allows.",
+              "",
+            ]
+          : []),
         "| Proposal comment | Result | Delivered | Existing | Held | Pending |",
         "| --- | --- | ---: | ---: | ---: | ---: |",
         ...rows,

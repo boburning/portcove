@@ -1,3 +1,4 @@
+import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
 import {
   acceptPackagePlayerObservation,
   checkPackagePlayerObservationContinuity,
@@ -28,8 +29,13 @@ import {
   projectAuthoredPort,
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import { compactPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
+import { compactOpenXPortable } from "./catalog-openx-portable.mts";
 import { compactN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import {
   compactRazeWindowsProfile,
@@ -219,6 +225,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
         "Reviewed TechnicallyComputers PSXRecomp persistence on Windows and both macOS architectures.",
       next: "Keep each kit selector, executable, source edition and qualification explicit. A different runtime root or writer uses explicit coordinates.",
     });
+  } else if (record.psx_managed_windows_v1 === "technically-computers-input-files") {
+    projections.push({
+      field: "psx_managed_windows_v1",
+      scope:
+        "Reviewed TechnicallyComputers persistent settings and input files for Bomberman Party Edition and Final Fantasy VII.",
+      next: "Keep the runtime root, mutable files, kit selectors and disc identities explicit. Keep Final Fantasy VII's raw disc set and launch arguments explicit.",
+    });
   } else if (record.psx_managed_windows_v1 === "split-mods-diagnostics") {
     projections.push({
       field: "psx_managed_windows_v1",
@@ -267,6 +280,13 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Keep each edition’s original-file instructions and qualification explicit. A different package, launcher, or data layout needs an explicit integration.",
     });
   }
+  if (record.openx_portable_v1) {
+    projections.push({
+      field: "openx_portable_v1",
+      scope: "Reviewed OpenXW and OpenXvT archive selectors and local config.yaml.",
+      next: "Keep exact package contents, executable names, original-data setup and external SDL profiles explicit. Use explicit fields for a different archive or data layout.",
+    });
+  }
   if (record.raze_windows_profile_v1) {
     projections.push({
       field: "raze_windows_profile_v1",
@@ -302,9 +322,21 @@ export function declarativePreparationFeedback(record: AuthoredPort) {
       next: "Keep each game edition, original-file instructions, executable and package selector explicit. A different writer layout needs explicit paths.",
     });
   }
+  const releaseAdvice = managedSetupReleaseAdvice(
+    projectAuthoredPort(record),
+    record.listing.release_url,
+  );
   return {
     status: projections.length > 0 ? "declared" : "undeclared",
     projections,
+    ...(releaseAdvice.length > 0
+      ? {
+          managed_setup_release_literals: {
+            steps: releaseAdvice,
+            next: managedSetupReleaseAdviceText,
+          },
+        }
+      : {}),
     next:
       projections.length > 0
         ? "Regenerate with generate-catalog.mts and review the concrete output. Use the Core proposal inspection for operational declarations."
@@ -1198,6 +1230,8 @@ export async function preparePort(options: PrepareOptions) {
     if (compactGen2 !== record) record = checkedAuthoredPort(compactGen2);
     const compactOpenMohaa = compactOpenMohaaPortable(record);
     if (compactOpenMohaa !== record) record = checkedAuthoredPort(compactOpenMohaa);
+    const compactOpenX = compactOpenXPortable(record);
+    if (compactOpenX !== record) record = checkedAuthoredPort(compactOpenX);
     const compactOpenGoal = compactOpenGoalSetup(record);
     if (compactOpenGoal !== record) record = checkedAuthoredPort(compactOpenGoal);
     const compactRsdkv4 = compactRsdkv4PortableData(record);
@@ -1229,6 +1263,7 @@ export async function preparePort(options: PrepareOptions) {
       port_id: id,
       route: record.integration ? "existing-integration" : route,
       lineage: assessUpstreamLineage(record),
+      original_game_grouping: originalGamePreparationFeedback(record, authored.records),
       ...(packageObservation === undefined ? {} : { package_observation: packageObservation }),
       ...(settingsQualification === undefined
         ? {}

@@ -264,6 +264,45 @@ impl Catalog {
                     PortcoveError::usage("catalog schema 2 is missing source_catalog")
                 })?;
                 source_catalog.validate(document.ports.iter().map(|port| port.id.as_str()))?;
+                for contract in source_catalog
+                    .contracts
+                    .iter()
+                    .filter(|contract| !contract.n64_recomp_inputs_v1.is_empty())
+                {
+                    let port = document
+                        .ports
+                        .iter()
+                        .find(|port| port.id == contract.port_id)
+                        .ok_or_else(|| {
+                            PortcoveError::usage("N64 release input references an unknown port")
+                        })?;
+                    if port.adapter != AdapterKind::N64RecompPortable
+                        || port.source_profile.as_deref() != Some(contract.profile_id.as_str())
+                        || !matches!(
+                            port.runtime_source_materialization,
+                            None | Some(RuntimeSourceMaterialization::N64BigEndian)
+                        )
+                        || port
+                            .runtime_source_filename
+                            .as_deref()
+                            .is_none_or(|filename| {
+                                !contract.n64_recomp_inputs_v1.iter().all(|input| {
+                                    std::path::Path::new(filename)
+                                        .file_name()
+                                        .is_some_and(|name| {
+                                            name == std::ffi::OsStr::new(&format!(
+                                                "{}.z64",
+                                                input.game_id
+                                            ))
+                                        })
+                                })
+                            })
+                    {
+                        return Err(PortcoveError::usage(
+                            "N64 release input must bind the selected runtime's normalized game file",
+                        ));
+                    }
+                }
                 let projection = source_catalog.compatibility_profiles()?;
                 if !document.source_profiles.is_empty()
                     && serde_json::to_value(&document.source_profiles)?
@@ -739,6 +778,7 @@ impl Catalog {
             validate_portable_marker_file(port)?;
             validate_accepted_uploaders(port)?;
             port.release.validate_github_streams(&port.platforms)?;
+            crate::ManagedPackageVariant::validate_explicit_choices(port)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,
@@ -907,10 +947,19 @@ impl Catalog {
                 if let Some(game) = &presentation.original_game {
                     game.validate()?;
                 }
+                let media = presentation.media.as_deref().unwrap_or_default();
+                if media
+                    .iter()
+                    .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                {
+                    return Err(PortcoveError::unsupported(
+                        "IGDB backgrounds and screenshots belong in listing format 13",
+                    ));
+                }
                 crate::catalog_media::validate_catalog_media(
                     &port.id,
                     presentation.original_game.as_ref(),
-                    presentation.media.as_deref().unwrap_or_default(),
+                    media,
                 )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),

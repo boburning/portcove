@@ -151,7 +151,7 @@ it("lets players browse reviewed releases without an applicable installed editio
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   await page.viewport(390, 844);
   try {
-    const view = (images: typeof media, id = port.id) => (
+    const view = (images: CatalogMediaAsset[], id = port.id) => (
       <ArtworkProvider generation={7} listings={directory(images)}>
         <button type="button" id="gallery-detail-back">
           Back to game details
@@ -200,6 +200,22 @@ it("lets players browse reviewed releases without an applicable installed editio
     await expect.element(picker).toHaveFocus();
     await expect.element(european).toBeEnabled();
 
+    await european.click();
+    await expect.element(europeanViewer).toBeVisible();
+    const rescoped = {
+      ...changed[1]!,
+      subject: { kind: "port" as const, port_id: port.id },
+    };
+    await galleryView.rerender(view([us, rescoped, foreign]));
+    await expect.element(europeanViewer).not.toBeInTheDocument();
+    await expect.element(picker).toHaveFocus();
+    await expect.element(picker).toHaveAccessibleName("Screenshot source Available screenshots");
+    await expect.element(european).toBeEnabled();
+
+    await galleryView.rerender(view(changed));
+    await picker.click();
+    await page.getByRole("option", { name: euTitle, exact: true }).click();
+    await expect.element(european).toBeEnabled();
     await european.click();
     await expect.element(europeanViewer).toBeVisible();
     await galleryView.rerender(view([us, foreign]));

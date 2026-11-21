@@ -765,19 +765,28 @@ export interface PublicationObservation {
   inspection: { index_sha256?: unknown; definitions?: unknown };
 }
 
-const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
+/** Mirrors Core's definition index identity components, which are bounded ASCII. */
+function validDefinitionIdentity(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 1 &&
+    value.length <= 255 &&
+    !/[^a-z0-9-]/u.test(value)
+  );
+}
 
 function definitionKey(definition: Record<string, unknown>, origin: string) {
   const namespace = definition.namespace;
   const id = definition.stable_id;
-  if (
-    typeof namespace !== "string" ||
-    typeof id !== "string" ||
-    !definitionIdentity.test(namespace) ||
-    !definitionIdentity.test(id)
-  )
+  if (!validDefinitionIdentity(namespace) || !validDefinitionIdentity(id))
     throw new MaintenanceStoreError(`Unsupported definition identity in the ${origin}`);
-  return `definition:${namespace}/${id}`;
+  const key = `definition:${namespace}/${id}`;
+  // The store's subject key bound includes the kind and component separator.
+  if (key.length > 300)
+    throw new MaintenanceStoreError(
+      `Definition identity exceeds the maintenance key bound in the ${origin}`,
+    );
+  return key;
 }
 
 /**
@@ -1735,43 +1744,54 @@ export function collectionSql(input: {
          WHERE run_id = ${literal(run)};`,
     );
   }
-  // Handoffs follow only a complete run of their source over the complete universe:
-  // a partial or failed run neither records nor clears attention. Core has no handoff.
+  // Release health explicitly partitions fresh-complete ports from coverage gaps.
+  // Other handoff sources require complete fleet coverage.
   if (input.mode === "all") {
-    const complete = new Map<HandoffSource, { run: string; conditions: HandoffCondition[] }>();
-    if (input.releaseHealth && !input.releaseHealth.gaps.length)
-      complete.set("release-health", {
+    const assessed = new Map<
+      HandoffSource,
+      {
+        run: string;
+        conditions: HandoffCondition[];
+        assessedSources?: string[];
+      }
+    >();
+    if (input.releaseHealth && !input.releaseHealth.failed && input.releaseHealth.facts.size)
+      assessed.set("release-health", {
         run: healthRun,
         conditions: releaseHealthHandoffs(input.releaseHealth.facts),
+        ...(input.releaseHealth.gaps.length
+          ? { assessedSources: [...input.releaseHealth.facts.keys()] }
+          : {}),
       });
     if (input.releaseContent && !input.releaseContent.gaps.length)
-      complete.set("release-content", {
+      assessed.set("release-content", {
         run: contentRun,
         conditions: releaseContentHandoffs(input.releaseContent.facts),
       });
     if (input.upstream && !input.upstream.failed && !input.upstream.gaps.length)
-      complete.set("upstream-observations", {
+      assessed.set("upstream-observations", {
         run: upstreamRun,
         conditions: upstreamHandoffs(input.upstream.facts),
       });
     if (input.hostedIntake && !input.hostedIntake.failed && !input.hostedIntake.gaps.length)
-      complete.set("hosted-intake", {
+      assessed.set("hosted-intake", {
         run: hostedRun,
         conditions: hostedIntakeHandoffs(input.hostedIntake.facts),
       });
     for (const entry of handoffRegistry) {
-      const source = complete.get(entry.source);
+      const source = assessed.get(entry.source);
       if (source)
         lines.push(
           ...handoffCollectionSql({
             kind: entry.kind,
             run: source.run,
+            ...(source.assessedSources ? { assessedSources: source.assessedSources } : {}),
             conditions: source.conditions.filter(({ kind }) => kind === entry.kind),
           }),
         );
     }
     // A kind no longer in the registry clears on any complete handoff source run.
-    const first = [...complete.values()][0];
+    const first = [...assessed.values()].find((source) => source.assessedSources === undefined);
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
     // Holds and deferrals follow only a complete read of their owning source.
     // Without the roadmap Project's identity no Status is attributable, so nothing changes.
@@ -1907,8 +1927,10 @@ export async function collect(options: {
   progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
+  reconcileIntake?: Parameters<typeof hostedIntakeObservation>[1];
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
+  bindCatalogDefinitions?: boolean;
 }) {
   const revision = git(["rev-parse", "HEAD"]).trim();
   const ids = options.all
@@ -1958,7 +1980,7 @@ export async function collect(options: {
     reviewedCatalogBytes !== null &&
     sha256(reviewedCatalogBytes) === producer?.embedded_catalog_sha256;
   const currentDefinitionHashes =
-    options.upstream && catalogBytesVerified
+    (options.upstream || options.bindCatalogDefinitions) && catalogBytesVerified
       ? await sourceOutcome(async () => {
           const root = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-definitions-"));
           try {
@@ -2069,17 +2091,17 @@ export async function collect(options: {
   if (options.hostedIntake && !options.all)
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
-    ? await hostedIntakeObservation(options.hostedIntake)
+    ? await hostedIntakeObservation(options.hostedIntake, options.reconcileIntake)
     : undefined;
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
-    ? await sourceOutcome(() =>
-        (typeof options.publication === "function" ? options.publication : readPublication)(
-          options.cli,
-          revision,
-        ),
-      )
+    ? await sourceOutcome(async () => {
+        const observation = await (
+          typeof options.publication === "function" ? options.publication : readPublication
+        )(options.cli, revision);
+        return publicationFacts(observation);
+      })
     : undefined;
   if (options.delivery && !options.all)
     throw new MaintenanceStoreError("Definition-delivery collection requires --all");
@@ -2171,7 +2193,7 @@ export async function collect(options: {
             publication: publicationRead.ok
               ? {
                   revision,
-                  ...publicationFacts(publicationRead.value),
+                  ...publicationRead.value,
                 }
               : {
                   revision: `${revision}+inspection:unavailable`,
@@ -2230,9 +2252,22 @@ export async function collect(options: {
   for (let attempt = 1; ; attempt++) {
     const baseline =
       mode === "all"
-        ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
+        ? new Map(
+            sources.map((source) => {
+              const prior =
+                attempt === 1 && decidedBaseline
+                  ? source === "catalog-records"
+                    ? decidedBaseline.catalog
+                    : source === coreSource
+                      ? decidedBaseline.core
+                      : undefined
+                  : undefined;
+              return [source, prior ?? latestMembers(options.environment, source)];
+            }),
+          )
         : undefined;
-    // Reuse was decided against these baselines; another run in between voids it.
+    // Reuse binds the considered baselines. The transaction confirms that the
+    // first attempt still has those exact runs, and retries verify them again.
     if (
       plan.reused.size &&
       (baseline?.get("catalog-records")?.run !== decidedBaseline?.catalog.run ||
@@ -2313,6 +2348,7 @@ export async function collect(options: {
             : hostedIntake.gaps.length
               ? "partial"
               : "complete",
+          ...(hostedIntake.receipts ? { receipts: hostedIntake.receipts } : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,
@@ -2326,6 +2362,8 @@ export async function collect(options: {
 }
 
 const corePrefix = "core-port-capabilities-";
+
+export const reportHistoryLimit = 12;
 
 const reportQuery = (
   from: string,
@@ -2522,11 +2560,15 @@ SELECT json_build_object(
           WHERE r.run_id = c.verified_run_id) AS verified_by,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
-           FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
+           FROM (SELECT sequence, state, recorded_at, returns_to_earlier_result
+               FROM portcove_maintenance.subject_transitions
+               WHERE subject_key = c.subject_key ORDER BY sequence DESC LIMIT ${reportHistoryLimit}) t) AS history,
+        c.sequence > ${reportHistoryLimit} AS earlier_history_available,
         (SELECT json_agg(json_build_object('source', o.source, 'run_id', o.run_id, 'input_revision', o.input_revision,
                  'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256,
                  'absent', o.payload = portcove_maintenance.absent_payload()) ORDER BY o.source)
-           FROM (SELECT DISTINCT ON (r.source) r.source, ob.*
+           FROM (SELECT DISTINCT ON (r.source) r.source, ob.run_id, ob.input_revision,
+                        ob.scope, ob.observed_at, ob.content_sha256, ob.payload
                    FROM portcove_maintenance.observations ob
                    JOIN portcove_maintenance.collection_runs r ON r.run_id = ob.run_id
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
@@ -2903,6 +2945,52 @@ type ManagedRouteEvidence = { port_key: string; platform: string } & (
   | { evidence: "gap"; reason: string }
 );
 
+/** Count distinct definition/platform pairs for which Core reported both operations. */
+function catalogOperationOffers(ports: readonly ManagedRouteCoverageInput[]) {
+  const platforms = new Map<
+    string,
+    {
+      managed_install_only: number;
+      external_registration_only: number;
+      both_operations: number;
+      neither_operation: number;
+    }
+  >();
+  for (const { targets } of ports) {
+    if (targets?.presence !== "operational") return null;
+    const seen = new Set<string>();
+    for (const target of targets.targets) {
+      if (seen.has(target.platform)) return null;
+      seen.add(target.platform);
+      const installs = target.routes.filter(({ action }) => action === "install");
+      const registrations = target.routes.filter(({ action }) => action === "register_external");
+      if (installs.length !== 1 || registrations.length !== 1) return null;
+      const managed = installs[0]!.offered;
+      const external = registrations[0]!.offered;
+      if (typeof managed !== "boolean" || typeof external !== "boolean") return null;
+      if (!managed && !external && !targets.declared_platforms.includes(target.platform)) continue;
+      const counts = platforms.get(target.platform) ?? {
+        managed_install_only: 0,
+        external_registration_only: 0,
+        both_operations: 0,
+        neither_operation: 0,
+      };
+      if (managed && external) counts.both_operations++;
+      else if (managed) counts.managed_install_only++;
+      else if (external) counts.external_registration_only++;
+      else counts.neither_operation++;
+      platforms.set(target.platform, counts);
+    }
+    if (targets.declared_platforms.some((platform) => !seen.has(platform))) return null;
+  }
+  return Array.from(platforms, ([platform, counts]) => ({
+    platform,
+    ...counts,
+    distinct_offered_pairs:
+      counts.managed_install_only + counts.external_registration_only + counts.both_operations,
+  })).sort((left, right) => left.platform.localeCompare(right.platform));
+}
+
 /** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
 export function managedRouteObservationCoverage(
   ports: readonly ManagedRouteCoverageInput[],
@@ -3061,6 +3149,7 @@ export function managedRouteObservationCoverage(
     target_scope_known: completeOffering,
     operational_definitions: ports.length,
     operational_definitions_without_target_projection: missingTargets,
+    catalog_operation_offers_by_platform: completeOffering ? catalogOperationOffers(ports) : null,
     offered_managed_platforms: completeOffering
       ? byPlatform.reduce((total, { offered }) => total + offered, 0)
       : null,
@@ -3764,11 +3853,28 @@ export function renderHtml(report: InventoryReport) {
     generated_at: report.generated_at,
     unassessed_gaps: report.unassessed_gaps ?? [],
     universe: (report.universe ?? []).map(
-      ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
+      ({
+        key,
+        kind,
+        name,
+        game,
+        target_key,
+        original_game_id,
+        grouping_gap,
+        grouping_disposition,
+        grouping_reason,
+        port_keys,
+        relations,
+        identity_gap,
+      }) => ({
         key,
         kind,
         label: [name, game].filter(Boolean).join(" — "),
         target_key,
+        original_game_id,
+        grouping_gap,
+        grouping_disposition,
+        grouping_reason,
         port_keys,
         relations: relations.map(({ type, key: related }) => `${type} ${related}`),
         identity_gap,
@@ -3838,7 +3944,7 @@ ${report.progress.map((p) => `<tr><th scope="row">${escapeHtml(p.repository)} ·
 <p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
 <label for="universe-search">Search games and implementations</label>
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
-<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
+<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Original game ID</th><th>Lineage target</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
 <p>Every full run re-reads Core for every port; an opt-in selective run (marked in Sources) reuses unchanged results under the same Core semantics without re-reading them, so their "Last verified" does not move. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
 <form id="filters" role="search" onsubmit="return false">
@@ -3901,10 +4007,10 @@ function renderUniverse(filter) {
   universe.replaceChildren();
   const entries = report.universe ?? [];
   for (const entry of entries) {
-    const text = [entry.key, entry.label, entry.target_key, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
+    const text = [entry.key, entry.label, entry.original_game_id, entry.target_key, entry.grouping_gap, entry.grouping_disposition, entry.grouping_reason, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = universe.insertRow();
-    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : [])].join("; ")])
+    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.original_game_id || "not reviewed", entry.target_key || "not recorded", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : []), ...(entry.grouping_gap ? ["grouping review: " + entry.grouping_gap] : []), ...(entry.grouping_disposition ? [entry.grouping_disposition + (entry.grouping_reason ? ": " + entry.grouping_reason : "")] : [])].join("; ")])
       row.insertCell().textContent = value;
   }
   if (!entries.length) universe.insertRow().insertCell().textContent = "No identities observed yet.";
@@ -4086,6 +4192,7 @@ commands:
                                        --reassess changed (with --all and --targets) reuses
                                        unchanged Core results under the same Core semantics
                                        after a full read within 7 days; full (default) reads all
+                                       --catalog-only reads only the pinned catalog and Core sources
                                        --progress FILE adds a reviewed format-1 progress-source
                                        manifest through bounded provider/project report reads;
                                        failures retain last-good research observations
@@ -4094,11 +4201,14 @@ commands:
                                        --intervention-evidence FILE --intervention-evidence-sha256 DIGEST
                                        optionally include operator-supplied intervention assertions in JSON
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
+  status                               read counts and last completed collection time
+  history --subject KEY [--before N]   read up to 100 retained transitions for one subject
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
                                        delivering executor's receipt (executor role)
   handoffs [--json]                    list open executor handoffs with their registry entry and
                                        open operation (read-only; dispatch is disabled)
+  handoffs --reconcile-intake          record original executor receipts for finished hosted-intake handoffs
   handoffs --record                    plan one operation per open handoff at its current fence and
                                        abandon planned operations whose handoff moved on (executor
                                        role, local store only; never dispatches)
@@ -4145,6 +4255,7 @@ export async function main(argv = process.argv.slice(2)) {
   );
   // Core CLI, Git and libpq children receive only the libpq translation, never the URL.
   delete process.env[databaseEnvironment];
+  delete process.env.PORTCOVE_NEON_METER_TOKEN;
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
@@ -4160,10 +4271,18 @@ export async function main(argv = process.argv.slice(2)) {
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
   const progressManifest = option(args, "--progress");
+  const historySubject = option(args, "--subject");
+  const historyBefore = option(args, "--before");
+  if ((historySubject || historyBefore) && command !== "history")
+    throw new MaintenanceStoreError("--subject and --before apply only to history");
   if (progressManifest !== undefined && command !== "collect")
     throw new MaintenanceStoreError("--progress applies only to collect");
-  const reassess = option(args, "--reassess");
-  if (reassess !== undefined && reassess !== "full" && reassess !== "changed")
+  const requestedReassessment = option(args, "--reassess");
+  const reassess =
+    requestedReassessment === "full" || requestedReassessment === "changed"
+      ? requestedReassessment
+      : undefined;
+  if (requestedReassessment !== undefined && reassess === undefined)
     throw new MaintenanceStoreError("--reassess must be full or changed");
   const issuesTokenEnvironment = option(args, "--issues-token-env");
   const allIndex = args.indexOf("--all");
@@ -4197,12 +4316,42 @@ export async function main(argv = process.argv.slice(2)) {
   };
   const json = flag("--json");
   const record = flag("--record");
+  const reconcileIntake = flag("--reconcile-intake");
+  const catalogOnly = flag("--catalog-only");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
+  if (
+    catalogOnly &&
+    (command !== "collect" ||
+      !all ||
+      !targets ||
+      reassess !== "changed" ||
+      issues ||
+      delivery ||
+      publication ||
+      releaseHealth ||
+      releaseContent ||
+      upstreamSource ||
+      hostedSource ||
+      progressManifest)
+  )
+    throw new MaintenanceStoreError(
+      "--catalog-only takes --all --targets --reassess changed without external sources",
+    );
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
+  if (
+    reconcileIntake &&
+    !(
+      (command === "handoffs" && !record && !json) ||
+      (command === "collect" && all && hostedSource)
+    )
+  )
+    throw new MaintenanceStoreError(
+      "--reconcile-intake requires handoffs or collect --all --hosted-intake",
+    );
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
@@ -4211,107 +4360,184 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--previous applies only to report");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
-  if (command === "collect") {
-    if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
-    const issueCredential =
-      issuesTokenEnvironment === undefined
-        ? undefined
-        : takeIssueCredential(issuesTokenEnvironment);
-    console.log(
-      JSON.stringify(
-        await collect({
-          cli: path.resolve(cli),
-          sample,
-          all,
-          concurrency: concurrency === undefined ? undefined : Number(concurrency),
-          issues: issues ? () => readIssueInventory(issueCredential) : undefined,
-          releaseHealth: releaseHealth ? readReleaseHealth : undefined,
-          releaseContent: releaseContent ? readReleaseContent : undefined,
-          upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
-          progress: progressManifest
-            ? validateProgressSources(
-                JSON.parse(
-                  new TextDecoder("utf-8", { fatal: true }).decode(
-                    await readBoundedPublicBuildInputFile(
-                      path.dirname(path.resolve(progressManifest)),
-                      path.basename(progressManifest),
-                      64 * 1024,
-                    ),
+  const operation =
+    command === "collect" || command === "report" || command === "digest" || command === "handoffs"
+      ? command
+      : "inspect";
+  let complete = true;
+  let request: string | undefined;
+  if (
+    catalogOnly &&
+    environment.GITHUB_SHA &&
+    environment.GITHUB_WORKFLOW === "Maintenance inventory"
+  ) {
+    const revision = git(["rev-parse", "HEAD"]).trim();
+    if (revision !== environment.GITHUB_SHA)
+      throw new MaintenanceStoreError(
+        "Hosted catalog-only request does not match its checked-out revision",
+      );
+    const started = Math.floor(Date.now() / 1000);
+    const window = Math.floor(started / 600) * 600;
+    const documents = ["catalog.json", "listings.json"].map((file): unknown =>
+      JSON.parse(git(["show", `${revision}:crates/portcove-core/catalog/${file}`])),
+    );
+    // If a dated fact became effective inside this window, use the exact event
+    // run identity so a prior completion can never obscure the change.
+    if (!clockWindowCrossed(documents, window, started))
+      request = `github:catalog-only:${revision}:${window}`;
+  }
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred, MaintenanceRequestCoalesced } =
+    await import("./maintenance-resource-policy.mts");
+  try {
+    return await withMaintenanceAdmission(environment, operation, run, {
+      executor: command === "handoffs" && reconcileIntake,
+      request,
+      completed: () => complete,
+    });
+  } catch (error) {
+    if (error instanceof MaintenanceRequestCoalesced) {
+      console.log(JSON.stringify({ outcome: "coalesced", request }));
+      return 0;
+    }
+    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+    console.error(`Maintenance deferred: ${error.message}`);
+    return 75;
+  }
+
+  async function run() {
+    if (command === "collect") {
+      if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
+      const issueCredential =
+        issuesTokenEnvironment === undefined
+          ? undefined
+          : takeIssueCredential(issuesTokenEnvironment);
+      const collected = await collect({
+        cli: path.resolve(cli),
+        sample,
+        all,
+        concurrency: concurrency === undefined ? undefined : Number(concurrency),
+        issues: issues ? () => readIssueInventory(issueCredential) : undefined,
+        releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+        releaseContent: releaseContent ? readReleaseContent : undefined,
+        upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
+        progress: progressManifest
+          ? validateProgressSources(
+              JSON.parse(
+                new TextDecoder("utf-8", { fatal: true }).decode(
+                  await readBoundedPublicBuildInputFile(
+                    path.dirname(path.resolve(progressManifest)),
+                    path.basename(progressManifest),
+                    64 * 1024,
                   ),
                 ),
-              )
-            : undefined,
-          hostedIntake: hostedSource ? readHostedIntake : undefined,
-          publication: publication || undefined,
-          delivery: delivery || undefined,
-          targets: targets || undefined,
-          reassess,
-          environment,
-        }),
-        null,
-        2,
-      ),
-    );
-  } else if (command === "report") {
-    if (!output) throw new MaintenanceStoreError("report requires --output DIR");
-    const interventionPath = interventionFile && path.resolve(interventionFile);
-    const evidence =
-      interventionPath && interventionSha256
-        ? readManagedInterventionEvidence(
-            await readBoundedPublicBuildInputFile(
-              path.dirname(interventionPath),
-              path.basename(interventionPath),
-              managedInterventionEvidenceLimit,
+              ),
+            )
+          : undefined,
+        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        reconcileIntake: reconcileIntake
+          ? async (queue) => {
+              const { reconcileIntakeHandoffReceipts } =
+                await import("./maintenance-intake-receipts.mts");
+              return reconcileIntakeHandoffReceipts(environment, async () => queue);
+            }
+          : undefined,
+        publication: publication || undefined,
+        delivery: delivery || undefined,
+        targets: targets || undefined,
+        reassess,
+        bindCatalogDefinitions: catalogOnly,
+        environment,
+      });
+      complete = collected.failed_sources.length === 0 && collected.core_gaps === 0;
+      console.log(JSON.stringify(collected, null, 2));
+    } else if (command === "report") {
+      if (!output) throw new MaintenanceStoreError("report requires --output DIR");
+      const interventionPath = interventionFile && path.resolve(interventionFile);
+      const evidence =
+        interventionPath && interventionSha256
+          ? readManagedInterventionEvidence(
+              await readBoundedPublicBuildInputFile(
+                path.dirname(interventionPath),
+                path.basename(interventionPath),
+                managedInterventionEvidenceLimit,
+              ),
+              interventionSha256,
+            )
+          : undefined;
+      const report = buildReport(environment, new Date(), evidence);
+      writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
+      console.log(
+        JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
+      );
+    } else if (command === "digest") {
+      if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
+      const digest = buildDigest(environment);
+      writeDigest(digest, path.resolve(output));
+      console.log(
+        JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
+      );
+    } else if (command === "acknowledge") {
+      if (!digestFile || !receipt)
+        throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
+      const digest = parseJson(
+        readFileSync(path.resolve(digestFile), "utf8"),
+        "digest",
+      ) as ReturnType<typeof buildDigest>;
+      if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
+        throw new MaintenanceStoreError("Unsupported digest file");
+      console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
+    } else if (command === "handoffs") {
+      if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
+      if (reconcileIntake) {
+        const { reconcileIntakeHandoffReceipts } =
+          await import("./maintenance-intake-receipts.mts");
+        console.log(JSON.stringify(await reconcileIntakeHandoffReceipts(environment), null, 2));
+      } else if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
+      else {
+        const handoffs = readOpenHandoffs(environment);
+        if (json)
+          console.log(
+            JSON.stringify(
+              {
+                format: "portcove-maintenance-handoffs",
+                format_version: 1,
+                dispatch: "disabled",
+                disabled: disabledCapabilities,
+                without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
+                handoffs,
+              },
+              null,
+              2,
             ),
-            interventionSha256,
-          )
-        : undefined;
-    const report = buildReport(environment, new Date(), evidence);
-    writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
-    console.log(
-      JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
-    );
-  } else if (command === "digest") {
-    if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
-    const digest = buildDigest(environment);
-    writeDigest(digest, path.resolve(output));
-    console.log(
-      JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
-    );
-  } else if (command === "acknowledge") {
-    if (!digestFile || !receipt)
-      throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
-    const digest = parseJson(
-      readFileSync(path.resolve(digestFile), "utf8"),
-      "digest",
-    ) as ReturnType<typeof buildDigest>;
-    if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
-      throw new MaintenanceStoreError("Unsupported digest file");
-    console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
-  } else if (command === "handoffs") {
-    if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
-    if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
-    else {
-      const handoffs = readOpenHandoffs(environment);
-      if (json)
-        console.log(
-          JSON.stringify(
-            {
-              format: "portcove-maintenance-handoffs",
-              format_version: 1,
-              dispatch: "disabled",
-              disabled: disabledCapabilities,
-              without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
-              handoffs,
-            },
-            null,
-            2,
-          ),
-        );
-      else process.stdout.write(renderHandoffs(handoffs));
-    }
-  } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
-  return 0;
+          );
+        else process.stdout.write(renderHandoffs(handoffs));
+      }
+    } else if (command === "status") {
+      process.stdout.write(
+        runSql(
+          environment,
+          `SELECT json_build_object(
+      'subjects', (SELECT count(*) FROM portcove_maintenance.subject_current),
+      'latest_collection', (SELECT max(completed_at) FROM portcove_maintenance.collection_runs),
+      'pending_notifications', (SELECT count(*) FROM portcove_maintenance.notifications WHERE status = 'pending'));`,
+        ),
+      );
+    } else if (command === "history") {
+      const before = historyBefore ?? "9223372036854775807";
+      if (!historySubject || historySubject.length > 512 || !/^[0-9]{1,19}$/u.test(before))
+        throw new MaintenanceStoreError("history requires --subject KEY and optionally --before N");
+      process.stdout.write(
+        runSql(
+          environment,
+          `SELECT coalesce(json_agg(t ORDER BY sequence DESC), '[]')
+      FROM (SELECT sequence, state, recorded_at, returns_to_earlier_result
+        FROM portcove_maintenance.subject_transitions WHERE subject_key = ${literal(historySubject)}
+        AND sequence < ${before} ORDER BY sequence DESC LIMIT 100) t;`,
+        ),
+      );
+    } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
+    return 0;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

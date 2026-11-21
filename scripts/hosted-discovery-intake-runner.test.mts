@@ -10,6 +10,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  auditDispatchRequest,
   hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
@@ -201,6 +202,24 @@ void test("real worker exit/report/probe paths fail closed after a crash or sign
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+void test("audit dispatch binds every worker pass to one exact proposal", () => {
+  assert.equal(auditDispatchRequest("process", ""), undefined);
+  for (const bad of ["", "0", "01", "1 2", "9007199254740992"])
+    assert.throws(() => auditDispatchRequest("audit", bad));
+  assert.throws(() => auditDispatchRequest("process", "17"));
+  const id = auditDispatchRequest("audit", "17");
+  const result = runHostedIntakePasses(
+    (pass, requests) => {
+      assert.deepEqual(requests, [17]);
+      return report(outcome(17, pass === 1 ? "inventory_changed" : null));
+    },
+    Date.now,
+    id,
+  );
+  assert.equal(result.status, "passed");
+  assert.throws(() => runHostedIntakePasses(() => report(outcome(18)), Date.now, id));
 });
 
 void test("complete with holds succeeds without an automatic continuation", () => {

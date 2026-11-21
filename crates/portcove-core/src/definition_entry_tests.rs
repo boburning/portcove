@@ -1520,6 +1520,49 @@ fn exact_exclusions_require_version_35_in_fresh_and_retained_readers() {
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
+#[test]
+fn managed_psx_exact_exclusions_require_version_six_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .port("alexbeav-vampire-hunter-d-recomp")
+        .unwrap()
+        .clone();
+    port.managed_acquisition_hold = catalog
+        .port("super-metroid-recomp")
+        .unwrap()
+        .managed_acquisition_hold
+        .clone();
+    let mut entry = entry_for_port(&port);
+    let requirement = &mut entry["required_capabilities"][0];
+    requirement["minimum_version"] = json!(5);
+    requirement["maximum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("psx-recomp-managed capability version 6")
+    );
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("psx-recomp-managed capability version 6")
+    );
+
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+}
+
 fn target(bytes: &[u8]) -> String {
     format!("sha256/{}.json", hex::encode(Sha256::digest(bytes)))
 }
@@ -1599,6 +1642,9 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(6);
     entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    entry["required_capabilities"][0]["maximum_version"] = json!(7);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.
@@ -1834,8 +1880,10 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        let version = if let Some((_, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(port)
+        {
+            minimum
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; keep it first.
             33
