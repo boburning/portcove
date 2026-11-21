@@ -363,6 +363,13 @@ retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
 observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
 first-beta baseline.
+In hosted Windows job 136791041548, install recovery transferred and installed
+the exact fixture once. Retrying the workspace read reached Ready to play, then
+the harness rejected the read-only CLI handoff context requested by game details.
+The retry assertion now accepts that exact read. It still requires a workspace
+snapshot and one installation command and transfer. The update-acquisition
+scenario never ran in that job.
+
 The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
