@@ -3,10 +3,13 @@ import { isDeepStrictEqual } from "node:util";
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import {
   catalogObservationSources,
+  catalogObservationScopeBinding,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import { n64PackagedInputLayout } from "./n64-original-binding-candidates.mts";
 import { isRecord } from "./runtime-values.mts";
+
+import type { CatalogObservationScopePolicy } from "./catalog-upstream-observer.mts";
 
 type Files = ReadonlyMap<string, Buffer>;
 type RecordValue = Record<string, unknown>;
@@ -82,7 +85,7 @@ function currentAmendment(
   checkpoint: unknown,
   catalog: unknown,
   portId: string,
-  staleAfterHours: number,
+  policy: CatalogObservationScopePolicy,
   now: number,
 ) {
   const state = validateCatalogObserverCheckpoint(checkpoint, now);
@@ -91,6 +94,8 @@ function currentAmendment(
   );
   const progress = source ? state.sources[source.key] : undefined;
   const freshness = progress?.freshness_observed_at;
+  const staleAfterHours = policy.staleAfterHours;
+  const currentScope = source ? catalogObservationScopeBinding(source, policy) : undefined;
   if (
     !source ||
     !progress ||
@@ -99,7 +104,7 @@ function currentAmendment(
     staleAfterHours <= 0 ||
     now - Date.parse(freshness) >= staleAfterHours * 3600000 ||
     progress.completed_at === null ||
-    progress.completed_scope_sha256 === null ||
+    progress.completed_scope_sha256 !== currentScope ||
     progress.last_complete_facts_sha256 === null ||
     progress.exception_key !== null ||
     (progress.selection_progress !== null &&
@@ -109,10 +114,15 @@ function currentAmendment(
     !progress.current_config ||
     progress.current_config.stale_after_hours !== staleAfterHours ||
     !isDeepStrictEqual(progress.current_config, progress.last_complete_config) ||
-    !isDeepStrictEqual(
-      progress.last_complete_policies.map(({ port_id }) => port_id),
-      source.ports.map(({ id }) => id),
-    )
+    progress.last_complete_policies.length !== source.ports.length ||
+    source.ports.some((port, index) => {
+      const retained = progress.last_complete_policies[index];
+      return (
+        retained?.port_id !== port.id ||
+        retained.catalog_definition_sha256 !==
+          (port.kind === "listing" ? port.definition_sha256 : policy.definitionHash(port.id))
+      );
+    })
   )
     throw new Error("Current observer source completion is missing, stale or incomplete");
 
@@ -137,13 +147,13 @@ export function managedN64OriginalProjection(
   portId: string,
   catalog: unknown,
   checkpoint: unknown,
-  staleAfterHours: number,
+  policy: CatalogObservationScopePolicy,
   now = Date.now(),
 ) {
   return projectVerifiedN64OriginalAmendment(
     prior,
     portId,
-    currentAmendment(checkpoint, catalog, portId, staleAfterHours, now),
+    currentAmendment(checkpoint, catalog, portId, policy, now),
   );
 }
 
