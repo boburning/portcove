@@ -135,14 +135,10 @@ export async function backupReviewScenario({
       assert.ok(protection.installations.some((item) => item.install_id === install.id));
       const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
       const expectedSummary = ["Latest backup information"];
-      if (protection.latest_completed_backup)
-        expectedSummary.push(protection.latest_completed_backup.id);
       if (!complete) expectedSummary.push("We couldn’t confirm");
-      const expectedDetails = [
-        protection.managed_data.path,
-        // Each installation by its role heading, so a missing one is not hidden by
-        // another installation or text that shares its version.
-        ...protection.installations.map(
+      // Each installation has an exact role/version heading.
+      const expectedHeadings = protection.installations
+        .map(
           (item) =>
             `${
               {
@@ -152,8 +148,8 @@ export async function backupReviewScenario({
                 external: "Installation you maintain",
               }[item.role]
             } · ${item.version}`,
-        ),
-      ];
+        )
+        .sort();
       await browser.wait(
         async () => {
           const [panel] = await browser.findElements(By.css(protectionSelector));
@@ -172,10 +168,22 @@ export async function backupReviewScenario({
           for (const disclosure of disclosures)
             await executeBrowserScript(browser, "arguments[0].click();", disclosure);
           const summaryText = await panel.getText();
-          const detailsText = await details.getText();
+          const savedFolders = await details.findElements(
+            By.xpath("./div/p[starts-with(normalize-space(.), 'Saved-data folder:')]/code"),
+          );
+          const headings = await Promise.all(
+            (await details.findElements(By.css("h3"))).map((element) => element.getText()),
+          );
+          const [latestId] = await panel.findElements(
+            By.xpath('.//details[summary[normalize-space(.)="Backup identifier"]]/code'),
+          );
           return (
             expectedSummary.every((value) => summaryText.includes(value)) &&
-            expectedDetails.every((value) => detailsText.includes(value))
+            (!protection.latest_completed_backup ||
+              (await latestId?.getText()) === protection.latest_completed_backup.id) &&
+            savedFolders.length === 1 &&
+            (await savedFolders[0]?.getText()) === protection.managed_data.path &&
+            JSON.stringify(headings.sort()) === JSON.stringify(expectedHeadings)
           );
         },
         15_000,
