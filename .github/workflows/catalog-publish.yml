@@ -45,6 +45,9 @@ jobs:
       publish: ${{ steps.decide.outputs.publish }}
       commit: ${{ steps.commit.outputs.commit }}
       prior_digest: ${{ steps.prepare.outputs.prior_digest }}
+      prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
+      prior_commit: ${{ steps.prepare.outputs.prior_commit }}
+      history_mode: ${{ steps.prepare.outputs.history_mode }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -104,8 +107,8 @@ jobs:
       - name: Require a compatible CI-green source
         if: steps.decide.outputs.publish == 'true'
         run: |
-          if [ ! -f scripts/catalog-pages-overlay.mts ]; then
-            echo "::error::Wait for a CI-green main commit that supports the catalog Pages overlay"
+          if [ ! -f scripts/catalog-pages-overlay.mts ] || ! node --input-type=module -e             'const plan = await import("./scripts/catalog-publish.mts"); if (typeof plan.limitSignerHistory !== "function") process.exit(1)'; then
+            echo "::error::Wait for a CI-green main commit that supports catalog Pages history and overlay"
             exit 1
           fi
       - uses: ./.github/actions/setup-rust
@@ -143,9 +146,13 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
-            --prior "$PRIOR" >> "$GITHUB_OUTPUT"
+            --prior "$PRIOR" --bootstrap-history >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
             "$RUNNER_TEMP/catalog-work/context.json"
+          prior_commit=none
+          if [ "$PRIOR" != none ]; then prior_commit=$(git -C site rev-parse HEAD); fi
+          echo "prior_commit=$prior_commit" >> "$GITHUB_OUTPUT"
+          node scripts/catalog-publish.mts limit-signer-history --work "$RUNNER_TEMP/catalog-work"
           cp "$RUNNER_TEMP/observation-bundle/report.json" "$RUNNER_TEMP/catalog-work/observation-projection.json"
           mkdir -p "$RUNNER_TEMP/catalog-tools"
           cp target/release/portcove-release-tools "$RUNNER_TEMP/catalog-tools/"
@@ -206,6 +213,9 @@ jobs:
     env:
       COMMIT: ${{ needs.prepare.outputs.commit }}
       PRIOR_DIGEST: ${{ needs.prepare.outputs.prior_digest }}
+      PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
+      PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
+      HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
     steps:
       # Credentials stay for the gh-pages push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -232,6 +242,15 @@ jobs:
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/catalog-work"
+          if [ "$HISTORY_MODE" = segmented ]; then
+            [[ "$PRIOR_COMMIT" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Missing pinned catalog prior"; exit 1; }
+            git fetch --quiet --depth=1 origin "$PRIOR_COMMIT"
+            git worktree add --quiet --detach "$RUNNER_TEMP/catalog-prior-site" "$PRIOR_COMMIT"
+            node scripts/catalog-publish.mts restore-history --work "$work" \
+              --site "$RUNNER_TEMP/catalog-prior-site" --prior "$PRIOR_DIGEST" \
+              --prior-history "$PRIOR_HISTORY_DIGEST"
+            git worktree remove "$RUNNER_TEMP/catalog-prior-site"
+          fi
           chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
           node scripts/catalog-publish.mts assembly-config --work "$work"
           "$RUNNER_TEMP/catalog-tools/portcove-release-tools" assemble-definition-repository "$work/assembly.json" > "$work/assembly-report.json"
@@ -257,6 +276,8 @@ jobs:
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
               --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json"
+            node scripts/catalog-publish.mts stage-history --site site \
+              --work "$RUNNER_TEMP/catalog-work" --prior-history "$PRIOR_HISTORY_DIGEST"
             git -C site commit --quiet -m "Publish the official catalog from $COMMIT"
             # Bound the actual complete Pages tree, including the application and
             # browse output. Keep margin below GitHub Pages' published 1 GB limit.
@@ -281,6 +302,7 @@ jobs:
           sample=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const rows=JSON.parse(readFileSync(process.argv[1],"utf8")); process.stdout.write((rows.find(row=>row.reviewed_game&&row.projects.length>1)??rows[0])?.url??"")' "$RUNNER_TEMP/catalog-work/repository/browse/search-index.json")
           sample_expected=empty
           if [ -n "$sample" ]; then sample_expected=$(sha256sum "$RUNNER_TEMP/catalog-work/repository/browse/$sample" | cut -d' ' -f1); fi
+          history_readback=$(node scripts/catalog-publish.mts history-readback --work "$RUNNER_TEMP/catalog-work")
           url="https://boburning.github.io/portcove/catalog/metadata/timestamp.json"
           deadline=$((SECONDS + 900))
           fetch_digest() {
@@ -299,7 +321,15 @@ jobs:
             inputs_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/inputs.json?run=$GITHUB_RUN_ID-$attempt" 8192)
             sample_actual=empty
             if [ -n "$sample" ]; then sample_actual=$(fetch_digest "https://boburning.github.io/portcove/catalog/browse/$sample?run=$GITHUB_RUN_ID-$attempt" 67108864); fi
-            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ]; then
+            history_verified=true
+            while read -r history_file history_sha history_max; do
+              if [ -z "$history_file" ]; then continue; fi
+              if [ "$(fetch_digest "https://boburning.github.io/portcove/$history_file?run=$GITHUB_RUN_ID-$attempt" "$history_max")" != "$history_sha" ]; then
+                history_verified=false
+                break
+              fi
+            done <<< "$history_readback"
+            if [ "$actual" = "$expected" ] && [ "$browse_actual" = "$browse_expected" ] && [ "$inputs_actual" = "$inputs_expected" ] && [ "$sample_actual" = "$sample_expected" ] && [ "$history_verified" = true ]; then
               echo "Pages serves the published timestamp and generated catalog pages."
               if node scripts/catalog-publication-receipt.mts --work "$RUNNER_TEMP/catalog-work" \
                 --output "$RUNNER_TEMP/catalog-publication-live-readback.json" \

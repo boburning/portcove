@@ -176,13 +176,20 @@ delegated authority and exact revision floors. Immutable segments carry old
 file identities outside the legacy TUF URL tree. There are no custom Snapshot
 or Timestamp fields, which earlier release tools would refuse.
 
-The normal publication workflow still uses full verification. A local
-keyless assembly can exercise a bounded checkpoint bootstrap with an explicitly
-selected authenticated predecessor. Do not publish that checkpoint until
-incremental signing, full keyless readback and continuity recovery are wired.
-The read-only verifier accepts a `history_store` path to verify the current
-signed pointer and check the exact active checkpoint and tip segment.
-An expected missing checkpoint, authority mismatch or changed object fails.
+The first checkpoint uses a fully verified predecessor. Once the current
+signed policy names a checkpoint, each signing job receives the active TUF
+roles and targets, a bounded active index and its tip segment. It verifies
+the TUF chain, authority, latest suffix and exact revision floors before using
+a role key. No file passed from the prepare job becomes signing authority.
+
+Keyless assembly restores the pinned Pages inputs, verifies the segment and
+parent chain against the actual historical SHA-256 inventory, and compares the
+independently signed role bodies with its own expected successor. Publication
+guards both the previous catalog and history trees and adds only addressed
+history objects. An expected missing checkpoint, unavailable segment, exceeded
+bound, stale Pages tree or changed body stops publication. Recover the exact
+addressed objects from the pinned last-good Git tree before retrying. A broken
+history pointer cannot trigger a new bootstrap.
 
 ## Capacity diagnostics and retained representations
 

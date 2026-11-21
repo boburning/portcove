@@ -27,6 +27,8 @@ import {
   sameTargets,
   signConfig,
   treeDigest,
+  limitSignerHistory,
+  stageHistoryObjects,
 } from "./catalog-publish.mts";
 import {
   describeCatalogPublication,
@@ -137,6 +139,92 @@ void test("Pages overlay refuses stale input, missing history, immutable replace
     /differs from receipt/u,
   );
   assert.equal(treeDigest(prior), baseline);
+});
+
+void test("signer inputs contain only live TUF files and two addressed history objects", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "catalog-thin-inputs-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const prior = path.join(work, "prior");
+  const history = path.join(work, "history");
+  const object = (body: string) => ({
+    bytes: Buffer.byteLength(body),
+    sha256: overlaySha256(body),
+  });
+  const tip = JSON.stringify({ files: [] });
+  const active = JSON.stringify({ tip: object(tip) });
+  const pointer = JSON.stringify({ active: object(active) });
+  const logical = "policy/official/catalog.history-checkpoint.json";
+  const pointerSha = overlaySha256(pointer);
+  overlayFile(work, "plan.json", JSON.stringify({ schema_version: 1, history: "segmented" }));
+  overlayFile(work, "root.json", JSON.stringify({ signed: { version: 1 } }));
+  overlayFile(
+    prior,
+    "metadata/timestamp.json",
+    JSON.stringify({
+      signed: { version: 2, meta: { "snapshot.json": { version: 2 } } },
+    }),
+  );
+  overlayFile(
+    prior,
+    "metadata/2.snapshot.json",
+    JSON.stringify({
+      signed: {
+        meta: {
+          "targets.json": { version: 1 },
+          "official-definitions.json": { version: 2 },
+          "official-policy.json": { version: 2 },
+        },
+      },
+    }),
+  );
+  overlayFile(prior, "metadata/1.root.json", "root");
+  overlayFile(prior, "metadata/1.targets.json", "targets");
+  overlayFile(
+    prior,
+    "metadata/2.official-definitions.json",
+    JSON.stringify({ signed: { targets: {} } }),
+  );
+  overlayFile(
+    prior,
+    "metadata/2.official-policy.json",
+    JSON.stringify({
+      signed: { targets: { [logical]: { hashes: { sha256: pointerSha } } } },
+    }),
+  );
+  overlayFile(prior, `targets/${pointerSha}.${logical}`, pointer);
+  overlayFile(prior, "metadata/1.snapshot.json", "earlier snapshot");
+  for (const bytes of [tip, active, "earlier history object"]) {
+    overlayFile(history, `sha256/${overlaySha256(bytes)}.json`, bytes);
+  }
+  limitSignerHistory(work);
+  assert.equal(existsSync(path.join(prior, "metadata/1.snapshot.json")), false);
+  assert.equal(readFileSync(path.join(prior, `targets/${pointerSha}.${logical}`), "utf8"), pointer);
+  assert.equal(
+    existsSync(path.join(history, `sha256/${overlaySha256("earlier history object")}.json`)),
+    false,
+  );
+  assert.equal(readFileSync(path.join(history, `sha256/${overlaySha256(tip)}.json`), "utf8"), tip);
+});
+
+void test("history staging is append-only and refuses stale publish custody", (t) => {
+  const work = mkdtempSync(path.join(os.tmpdir(), "catalog-history-stage-"));
+  t.after(() => rmSync(work, { recursive: true, force: true }));
+  const source = path.join(work, "next");
+  const destination = path.join(work, "prior");
+  const old = `sha256/${overlaySha256("earlier")}.json`;
+  const next = `sha256/${overlaySha256("successor")}.json`;
+  overlayFile(destination, old, "earlier");
+  overlayFile(source, next, "successor");
+  const guard = treeDigest(destination);
+  assert.deepEqual(stageHistoryObjects(source, destination, guard), [next]);
+  assert.equal(readFileSync(path.join(destination, old), "utf8"), "earlier");
+  assert.throws(() => stageHistoryObjects(source, destination, guard), /changed since/u);
+  assert.deepEqual(stageHistoryObjects(source, destination, treeDigest(destination)), []);
+  overlayFile(source, next, "different");
+  assert.throws(
+    () => stageHistoryObjects(source, destination, treeDigest(destination)),
+    /immutable bounds/u,
+  );
 });
 
 void test("public browsing stays inside whole-tree concurrency identity but outside signer prior repository", (t) => {
@@ -525,7 +613,7 @@ void test("the existing Pages readback emits the receipt only after matching liv
   const readback = steps[index]!.run!;
   assert.match(
     readback,
-    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
+    /\[ "\$actual" = "\$expected" \][^\n]+\[ "\$sample_actual" = "\$sample_expected" \] && \[ "\$history_verified" = true \]; then\s+echo [^\n]+\s+if node scripts\/catalog-publication-receipt\.mts/u,
   );
   assert.equal(readback.match(/receipt=true/gu)?.length, 1);
   assert.match(

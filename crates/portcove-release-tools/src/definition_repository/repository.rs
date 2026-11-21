@@ -237,7 +237,16 @@ pub(super) async fn inspect_prior(
     PublicHistory,
     Option<super::history_checkpoint::PreparedHistory>,
 )> {
-    let files = PublicHistory::read(path)?;
+    let expects_thin = context.thin_history && context.history_store.is_some();
+    let files = if expects_thin {
+        PublicHistory::read_bounded(
+            path,
+            super::history_checkpoint::THIN_MAX_FILES,
+            super::history_checkpoint::THIN_MAX_BYTES,
+        )?
+    } else {
+        PublicHistory::read(path)?
+    };
     validate_public_paths(&files)?;
     let logical = authenticate(
         &context.root_bytes,
@@ -246,6 +255,8 @@ pub(super) async fn inspect_prior(
     )
     .await?;
     let roles = current_roles(&files)?;
+    let pointer = logical.files.get(super::history_checkpoint::TARGET);
+    let thin = context.thin_history && pointer.is_some();
     let mut floors = HistoricalRevisionFloors::default();
     verify_history(context, &files, |role, targets| {
         floors.observe(&files, &logical, role, targets)
@@ -297,17 +308,15 @@ pub(super) async fn inspect_prior(
         }
     }
     floors.check(&context.targets)?;
-    if logical
-        .files
-        .contains_key(super::history_checkpoint::TARGET)
-    {
-        return invalid(
-            "catalog checkpointed history requires an incremental context; retain the prior generation",
-        );
-    }
-    let history = if context.bootstrap_history {
+    let history = if pointer.is_some() || context.bootstrap_history {
         let timestamp_bytes = at(&roles, "timestamp.json")?;
         let timestamp: Signed<TufTimestamp> = serde_json::from_slice(timestamp_bytes)?;
+        let policy: Signed<Targets> = serde_json::from_slice(at(&roles, "official-policy.json")?)?;
+        let active_files = current_immutable_inventory(context, &roles, &logical.files, &files)?;
+        let file_inventory = files.identities();
+        if thin && file_inventory.len() != active_files.len() + 1 {
+            return invalid("thin history must carry exactly the current authenticated repository");
+        }
         let input = super::history_checkpoint::BootstrapInput {
             timestamp_version: timestamp.signed.version.get(),
             timestamp_sha256: sha(timestamp_bytes),
@@ -336,21 +345,88 @@ pub(super) async fn inspect_prior(
                     },
                 )
                 .collect(),
-            files: files
-                .identities()
-                .into_iter()
+            files: file_inventory
+                .iter()
                 .filter(|file| file.target != "metadata/timestamp.json")
+                .cloned()
                 .collect(),
+            active_files,
         };
-        Some(super::history_checkpoint::bootstrap(
-            input,
-            context.versions[3].get(),
-            context.versions[1].get(),
-        )?)
+        let next_timestamp = context.versions[3].get();
+        let next_policy = context.versions[1].get();
+        let checkpoint = if let Some(pointer) = pointer {
+            let store = context.history_store.as_deref().ok_or_else(|| {
+                TufRepositoryError::Invalid("catalog checkpointed history requires its authenticated object store; retain the prior generation".into())
+            })?;
+            let verified = super::history_checkpoint::read_current(
+                pointer,
+                store,
+                &input.root_sha256,
+                &input.delegation_sha256,
+                input.timestamp_version,
+                policy.signed.version.get(),
+            )?;
+            if !thin {
+                verified.verify_archive(store, &file_inventory)?;
+            }
+            verified.check_new(&context.targets)?;
+            let readback = verified.readback(store);
+            let mut prepared = verified.advance(input, next_timestamp, next_policy)?;
+            prepared.readback = readback;
+            prepared
+        } else {
+            if context.history_store.is_some() {
+                return invalid(
+                    "catalog history store exists without an authenticated checkpoint pointer",
+                );
+            }
+            super::history_checkpoint::bootstrap(input, next_timestamp, next_policy)?
+        };
+        Some(checkpoint)
+    } else if context.history_store.is_some() {
+        return invalid("catalog history store exists without an authenticated checkpoint pointer");
     } else {
         None
     };
     Ok((files, history))
+}
+
+fn current_immutable_inventory(
+    context: &Context,
+    roles: &Files,
+    logical: &Files,
+    history: &PublicHistory,
+) -> Result<Vec<DefinitionFile>> {
+    let mut names = BTreeSet::from([format!(
+        "metadata/{}.root.json",
+        context.root.signed.version
+    )]);
+    for (name, body) in roles {
+        if name == "timestamp.json" {
+            continue;
+        }
+        let envelope: serde_json::Value = serde_json::from_slice(body)?;
+        let version = envelope["signed"]["version"].as_u64().ok_or_else(|| {
+            TufRepositoryError::Invalid("current catalog role version is missing".into())
+        })?;
+        names.insert(format!("metadata/{version}.{name}"));
+    }
+    for (name, bytes) in logical {
+        names.insert(public_target_path(name, bytes)?);
+    }
+    names
+        .into_iter()
+        .map(|name| {
+            let file = history.get(&name).ok_or_else(|| {
+                TufRepositoryError::Invalid(format!("current catalog file missing: {name}"))
+            })?;
+            Ok(DefinitionFile {
+                target: name,
+                bytes: file.bytes(),
+                sha256: file.digest().into(),
+            })
+        })
+        .collect()
 }
 
 fn public_identities(path: &Path) -> Result<Vec<DefinitionFile>> {
@@ -399,7 +475,9 @@ pub(super) fn check_proposed_target_capacity(
     let (count, bytes) = proposed_target_floor(prior, proposed)?;
     check_public_capacity(count, bytes)
 }
-fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json::Value>> {
+pub(super) fn indexed_entries(
+    bytes: &[u8],
+) -> Result<BTreeMap<(String, String), serde_json::Value>> {
     let index: serde_json::Value = serde_json::from_slice(bytes)?;
     let entries = index["definitions"].as_array().ok_or_else(|| {
         TufRepositoryError::Invalid("catalog historical index definitions absent".into())
@@ -425,6 +503,21 @@ fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json
     }
     Ok(map)
 }
+pub(super) fn historical_policy_revision(target: &str, value: &serde_json::Value) -> Result<u64> {
+    let field =
+        if target.ends_with(".launch.json") || target == "policy/official/catalog.listings.json" {
+            "revision"
+        } else {
+            "policy_revision"
+        };
+    value[field]
+        .as_u64()
+        .filter(|revision| *revision > 0)
+        .ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog historical policy/launch revision absent".into())
+        })
+}
+
 #[derive(Default)]
 struct HistoricalRevisionFloors {
     definitions: BTreeMap<(String, String), serde_json::Value>,
@@ -443,6 +536,9 @@ impl HistoricalRevisionFloors {
         let definition_role = role == "official-definitions.json";
         for (target, identity) in &targets.targets {
             if definition_role && target.raw() != "definitions/index.json" {
+                continue;
+            }
+            if target.raw() == super::history_checkpoint::TARGET {
                 continue;
             }
             if !definition_role && !target.raw().starts_with("policy/official/") {
@@ -495,18 +591,7 @@ impl HistoricalRevisionFloors {
                 }
             } else {
                 let policy: serde_json::Value = serde_json::from_slice(&body)?;
-                let field = if target.raw().ends_with(".launch.json")
-                    || target.raw() == "policy/official/catalog.listings.json"
-                {
-                    "revision"
-                } else {
-                    "policy_revision"
-                };
-                let revision = policy[field].as_u64().filter(|v| *v > 0).ok_or_else(|| {
-                    TufRepositoryError::Invalid(
-                        "catalog historical policy/launch revision absent".into(),
-                    )
-                })?;
+                let revision = historical_policy_revision(target.raw(), &policy)?;
                 if let Some((old_revision, old_bytes)) = self.policies.get(target.raw()) {
                     if revision == *old_revision && old_bytes != raw.digest() {
                         return invalid("catalog retained policy/launch history equivocates");
@@ -536,18 +621,7 @@ impl HistoricalRevisionFloors {
         for (name, (revision, bytes)) in &self.policies {
             if let Some(next) = new.get(name) {
                 let value: serde_json::Value = serde_json::from_slice(next)?;
-                let field = if name.ends_with(".launch.json")
-                    || name == "policy/official/catalog.listings.json"
-                {
-                    "revision"
-                } else {
-                    "policy_revision"
-                };
-                let next_revision = value[field].as_u64().ok_or_else(|| {
-                    TufRepositoryError::Invalid(
-                        "catalog current policy/launch revision absent".into(),
-                    )
-                })?;
+                let next_revision = historical_policy_revision(name, &value)?;
                 if next_revision < *revision || (next_revision == *revision && &sha(next) != bytes)
                 {
                     return invalid(

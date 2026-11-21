@@ -899,6 +899,62 @@ async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
             .unwrap()
             .changed
     );
+    let thin = fixture.root().join("history-thin");
+    let root = fixture.root();
+    let mut active = BTreeSet::from([
+        "metadata/timestamp.json".to_owned(),
+        "metadata/1.root.json".to_owned(),
+        format!("metadata/{}.snapshot.json", assembled.versions["snapshot"]),
+        format!("metadata/{}.targets.json", assembled.versions["targets"]),
+    ]);
+    for (role, label) in [
+        ("official-definitions", "definitions"),
+        ("official-policy", "policy"),
+    ] {
+        let path = format!("metadata/{}.{role}.json", assembled.versions[label]);
+        let role: Signed<Targets> =
+            io::parse(&root.join("history-next").join(&path), ROLE_MAX).unwrap();
+        active.insert(path);
+        for (name, info) in &role.signed.targets {
+            active.insert(format!(
+                "targets/{}.{}",
+                hex::encode(&info.hashes.sha256),
+                name.raw()
+            ));
+        }
+    }
+    for name in &active {
+        let destination = thin.join(name);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(root.join("history-next").join(name), destination).unwrap();
+    }
+    assert!(!thin.join("metadata/1.snapshot.json").exists());
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("history-thin");
+    context["bootstrap_history"] = json!(false);
+    context["history_store"] = json!("checkpoint-objects");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(3);
+    }
+    fixture.set_context(context.clone());
+    fixture.roles = fixture.root().join("history-roles-three");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    context["previous_repository"] = json!("history-next");
+    fixture.set_context(context);
+    let assembly = fixture.assembly("history-third");
+    let mut assembly_json: serde_json::Value =
+        serde_json::from_slice(&fs::read(&assembly).unwrap()).unwrap();
+    assembly_json["history_output"] = json!("checkpoint-third");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    let third = assemble_definition_repository(&assembly).await.unwrap();
+    assert!(
+        assembled
+            .files
+            .iter()
+            .filter(|file| file.target != "metadata/timestamp.json")
+            .all(|file| third.files.contains(file))
+    );
     let path = fs::read_dir(fixture.root().join("checkpoint-objects/sha256"))
         .unwrap()
         .next()

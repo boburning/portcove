@@ -9,6 +9,11 @@ const CHECKPOINT_MAX: u64 = 2 * 1024 * 1024;
 const SEGMENT_MAX: u64 = 1024 * 1024;
 const FLOOR_LIMIT: usize = 8_192;
 const SEGMENT_FILE_LIMIT: usize = 2_048;
+const ACTIVE_FILE_LIMIT: usize = 4_096;
+pub(super) const THIN_MAX_FILES: usize = ACTIVE_FILE_LIMIT + 1;
+pub(super) const THIN_MAX_BYTES: u64 = 64 * 1024 * 1024;
+const SEGMENT_CHAIN_LIMIT: usize = 4_096;
+const CHAIN_METADATA_MAX: u64 = 64 * 1024 * 1024;
 const PATH_LIMIT: usize = 256;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +59,9 @@ struct ActiveCheckpoint {
     /// Immutable previous active object, when already checkpointed.
     parent: Option<ObjectIdentity>,
     tip: ObjectIdentity,
+    /// Bound current metadata and target identities at the covered generation.
+    /// These establish an incremental suffix without retaining the full archive.
+    active_files: Vec<DefinitionFile>,
     /// The greatest observed revision and exact body for every tracked subject.
     definitions: Vec<DefinitionFloor>,
     policies: Vec<PolicyFloor>,
@@ -206,6 +214,7 @@ fn validate_segment(segment: &InventorySegment, active: &ActiveCheckpoint) -> Re
 pub(super) struct PreparedHistory {
     pub(super) pointer_bytes: Vec<u8>,
     pub(super) objects: Files,
+    pub(super) readback: Vec<(PathBuf, u64, String)>,
 }
 
 pub(super) struct BootstrapInput {
@@ -216,6 +225,7 @@ pub(super) struct BootstrapInput {
     pub(super) definitions: Vec<DefinitionFloor>,
     pub(super) policies: Vec<PolicyFloor>,
     pub(super) files: Vec<DefinitionFile>,
+    pub(super) active_files: Vec<DefinitionFile>,
 }
 
 fn append_object<T: Serialize>(
@@ -240,6 +250,16 @@ pub(super) fn bootstrap(
     next_timestamp: u64,
     next_policy: u64,
 ) -> Result<PreparedHistory> {
+    prepare(input, next_timestamp, next_policy, None, None)
+}
+
+fn prepare(
+    input: BootstrapInput,
+    next_timestamp: u64,
+    next_policy: u64,
+    parent: Option<ObjectIdentity>,
+    predecessor_tip: Option<ObjectIdentity>,
+) -> Result<PreparedHistory> {
     if input.timestamp_version.checked_add(1) != Some(next_timestamp) || next_policy == 0 {
         return invalid("catalog history checkpoint requires an exact successor generation");
     }
@@ -250,7 +270,8 @@ pub(super) fn bootstrap(
         covered_timestamp_sha256: input.timestamp_sha256,
         root_sha256: input.root_sha256,
         delegation_sha256: input.delegation_sha256,
-        parent: None,
+        parent,
+        active_files: input.active_files,
         tip: ObjectIdentity {
             bytes: 0,
             sha256: String::new(),
@@ -259,7 +280,8 @@ pub(super) fn bootstrap(
         policies: input.policies,
     };
     validate_floors(&active)?;
-    let mut previous = None;
+    validate_active_files(&active)?;
+    let mut previous = predecessor_tip;
     for files in input.files.chunks(SEGMENT_FILE_LIMIT) {
         let segment = InventorySegment {
             checkpoint_schema: 1,
@@ -270,6 +292,9 @@ pub(super) fn bootstrap(
         };
         validate_segment(&segment, &active)?;
         previous = Some(append_object(&mut objects, &segment, SEGMENT_MAX)?);
+    }
+    if input.files.is_empty() {
+        return invalid("catalog history requires an immutable generation suffix");
     }
     active.tip = previous.ok_or_else(|| {
         TufRepositoryError::Invalid(
@@ -285,6 +310,7 @@ pub(super) fn bootstrap(
     Ok(PreparedHistory {
         pointer_bytes: serde_json::to_vec(&pointer)?,
         objects,
+        readback: vec![],
     })
 }
 
@@ -297,7 +323,7 @@ pub(super) fn read_current(
     delegation_sha256: &str,
     timestamp_version: u64,
     policy_version: u64,
-) -> Result<()> {
+) -> Result<VerifiedHistory> {
     if pointer_bytes.len() > POINTER_MAX {
         return invalid("catalog history pointer exceeds its byte bound");
     }
@@ -322,8 +348,227 @@ pub(super) fn read_current(
         return invalid("catalog history checkpoint contradicts its authority or generation");
     }
     validate_floors(&active)?;
+    validate_active_files(&active)?;
     let tip = read_object(store, &active.tip, SEGMENT_MAX)?;
-    validate_segment(&tip, &active)
+    validate_segment(&tip, &active)?;
+    Ok(VerifiedHistory {
+        active,
+        identity: pointer.active,
+    })
+}
+
+fn validate_active_files(active: &ActiveCheckpoint) -> Result<()> {
+    if active.active_files.len() > ACTIVE_FILE_LIMIT {
+        return invalid("catalog history active file inventory exceeds its bound");
+    }
+    // An active inventory uses the exact same immutable key rules as a segment.
+    for chunk in active.active_files.chunks(SEGMENT_FILE_LIMIT) {
+        validate_segment(
+            &InventorySegment {
+                checkpoint_schema: 1,
+                through_timestamp_version: active.covered_timestamp_version,
+                through_timestamp_sha256: active.covered_timestamp_sha256.clone(),
+                previous: None,
+                files: chunk.to_vec(),
+            },
+            active,
+        )?;
+    }
+    if !active
+        .active_files
+        .windows(2)
+        .all(|pair| pair[0].target < pair[1].target)
+    {
+        return invalid("catalog history active file inventory is unordered");
+    }
+    Ok(())
+}
+
+pub(super) struct VerifiedHistory {
+    active: ActiveCheckpoint,
+    identity: ObjectIdentity,
+}
+
+impl VerifiedHistory {
+    pub(super) fn readback(&self, store: &Path) -> Vec<(PathBuf, u64, String)> {
+        [&self.identity, &self.active.tip]
+            .into_iter()
+            .map(|identity| {
+                (
+                    store
+                        .join("sha256")
+                        .join(format!("{}.json", identity.sha256)),
+                    identity.bytes,
+                    identity.sha256.clone(),
+                )
+            })
+            .collect()
+    }
+
+    /// Authenticate the archived object chain before keyless publication,
+    /// comparing every claimed historical identity with physical SHA-256.
+    pub(super) fn verify_archive(&self, store: &Path, actual: &[DefinitionFile]) -> Result<()> {
+        let actual: BTreeMap<_, _> = actual
+            .iter()
+            .map(|file| (file.target.as_str(), file))
+            .collect();
+        let mut next = Some(self.active.tip.clone());
+        let mut seen = BTreeSet::new();
+        let mut maximum_version = self.active.covered_timestamp_version;
+        let mut budget = CHAIN_METADATA_MAX;
+        while let Some(object) = next.take() {
+            if seen.len() >= SEGMENT_CHAIN_LIMIT
+                || !seen.insert(object.sha256.clone())
+                || object.bytes > budget
+            {
+                return invalid("catalog history segment chain exceeds its bound");
+            }
+            budget -= object.bytes;
+            let segment: InventorySegment = read_object(store, &object, SEGMENT_MAX)?;
+            if segment.through_timestamp_version == 0
+                || segment.through_timestamp_version > maximum_version
+                || maximum_version - segment.through_timestamp_version > 1
+                || !digest_valid(&segment.through_timestamp_sha256)
+            {
+                return invalid("catalog history segment continuity differs");
+            }
+            for file in &segment.files {
+                if actual.get(file.target.as_str()) != Some(&file) {
+                    return invalid(
+                        "catalog history segment names a missing or changed immutable file",
+                    );
+                }
+            }
+            maximum_version = segment.through_timestamp_version;
+            next = segment.previous;
+        }
+        let mut parent = self.active.parent.clone();
+        let mut version = self.active.covered_timestamp_version;
+        while let Some(object) = parent.take() {
+            if seen.len() >= SEGMENT_CHAIN_LIMIT
+                || !seen.insert(object.sha256.clone())
+                || object.bytes > budget
+            {
+                return invalid("catalog history checkpoint parent chain exceeds its bound");
+            }
+            budget -= object.bytes;
+            let previous: ActiveCheckpoint = read_object(store, &object, CHECKPOINT_MAX)?;
+            if previous.checkpoint_schema != 1
+                || previous.covered_timestamp_version.checked_add(1) != Some(version)
+                || previous.root_sha256 != self.active.root_sha256
+                || previous.delegation_sha256 != self.active.delegation_sha256
+                || !seen.contains(&previous.tip.sha256)
+            {
+                return invalid("catalog history checkpoint parent linkage differs");
+            }
+            version = previous.covered_timestamp_version;
+            parent = previous.parent;
+        }
+        Ok(())
+    }
+
+    pub(super) fn check_new(&self, new: &Files) -> Result<()> {
+        let index = new.get("definitions/index.json").ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog proposed definition index is absent".into())
+        })?;
+        let index = super::repository::indexed_entries(index)?;
+        for floor in &self.active.definitions {
+            if let Some(record) = index.get(&(floor.namespace.clone(), floor.stable_id.clone())) {
+                let revision = record["revision"].as_u64().unwrap();
+                let digest = sha(&io::canonical(&serde_json::to_vec(record)?)?);
+                if revision < floor.revision
+                    || (revision == floor.revision && digest != floor.entry_sha256)
+                {
+                    return invalid("catalog checkpointed definition rollback or equivocation");
+                }
+            }
+        }
+        for floor in &self.active.policies {
+            if let Some(bytes) = new.get(&floor.target) {
+                let value: serde_json::Value = serde_json::from_slice(bytes)?;
+                let revision =
+                    super::repository::historical_policy_revision(&floor.target, &value)?;
+                if revision < floor.revision
+                    || (revision == floor.revision && sha(bytes) != floor.target_sha256)
+                {
+                    return invalid("catalog checkpointed policy rollback or equivocation");
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn advance(
+        self,
+        mut current: BootstrapInput,
+        next_timestamp: u64,
+        next_policy: u64,
+    ) -> Result<PreparedHistory> {
+        if self.active.covered_timestamp_version.checked_add(1) != Some(current.timestamp_version)
+            || self.active.root_sha256 != current.root_sha256
+            || self.active.delegation_sha256 != current.delegation_sha256
+        {
+            return invalid("catalog history checkpoint successor is discontinuous");
+        }
+        let prior_files: BTreeMap<_, _> = self
+            .active
+            .active_files
+            .iter()
+            .map(|file| (file.target.as_str(), file))
+            .collect();
+        current.files.clear();
+        for file in &current.active_files {
+            match prior_files.get(file.target.as_str()) {
+                Some(expected) if *expected != file => {
+                    return invalid("catalog history active immutable identity changed");
+                }
+                Some(_) => {}
+                None => current.files.push(file.clone()),
+            }
+        }
+        let mut definitions: BTreeMap<_, _> = self
+            .active
+            .definitions
+            .into_iter()
+            .map(|floor| ((floor.namespace.clone(), floor.stable_id.clone()), floor))
+            .collect();
+        for floor in current.definitions {
+            let key = (floor.namespace.clone(), floor.stable_id.clone());
+            if definitions.get(&key).is_some_and(|prior| {
+                floor.revision < prior.revision
+                    || (floor.revision == prior.revision
+                        && floor.entry_sha256 != prior.entry_sha256)
+            }) {
+                return invalid("catalog history definition revision rollback or equivocation");
+            }
+            definitions.insert(key, floor);
+        }
+        current.definitions = definitions.into_values().collect();
+        let mut policies: BTreeMap<_, _> = self
+            .active
+            .policies
+            .into_iter()
+            .map(|floor| (floor.target.clone(), floor))
+            .collect();
+        for floor in current.policies {
+            if policies.get(&floor.target).is_some_and(|prior| {
+                floor.revision < prior.revision
+                    || (floor.revision == prior.revision
+                        && floor.target_sha256 != prior.target_sha256)
+            }) {
+                return invalid("catalog history policy revision rollback or equivocation");
+            }
+            policies.insert(floor.target.clone(), floor);
+        }
+        current.policies = policies.into_values().collect();
+        prepare(
+            current,
+            next_timestamp,
+            next_policy,
+            Some(self.identity),
+            Some(self.active.tip),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -347,6 +592,7 @@ mod tests {
                 entry_sha256: "d".repeat(64),
             }],
             policies: vec![],
+            active_files: vec![],
             files: vec![DefinitionFile {
                 target: "metadata/45.snapshot.json".into(),
                 bytes: 150,
