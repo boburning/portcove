@@ -90,7 +90,15 @@ impl PortabilityCatalogs {
                     .detail("install_id", &install.id));
                 }
             }
-            let retained = crate::install::portability_catalog_for_install(&absolute, &embedded)?;
+            let (retained, choice) =
+                crate::install::portable_install_contract(&absolute, &embedded)?;
+            if let Some(choice) = choice {
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_embedded_choice(
+                        install, &choice,
+                    )?,
+                );
+            }
             if let Some(identity) = retained
                 .as_ref()
                 .and_then(|catalog| catalog.definition_selection(&install.port_id))
@@ -318,8 +326,12 @@ impl PortcoveService {
                 .port(&install.port_id)?
                 .windows_runtime_path_policy
                 == Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+                || crate::runtime_path_policy::has_bundled_manifest_path_limit(
+                    &install.port_id,
+                    &install.artifact.sha256,
+                )
             {
-                crate::install::check_retained_runtime_paths(
+                crate::install::check_retained_launch_destination(
                     &observed,
                     &destination_root.join(relative),
                 )?;

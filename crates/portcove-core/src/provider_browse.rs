@@ -256,31 +256,31 @@ impl PortcoveService {
         port_id: &str,
         project_id: &str,
     ) -> Result<ProviderProjectView> {
-        let game_name = self.catalog().port(port_id)?.name.clone();
+        let port = self.catalog().port(port_id)?;
         let observed = client.project(project_id).await?;
         if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) {
             return Err(PortcoveError::verification(
                 "this project does not belong to the game this port is bound to",
             ));
         }
-        let eligible_file_ids = if observed.freshness == ProviderFreshness::Stale {
-            Vec::new()
-        } else {
-            observed
+        let layout = self.optional_deploy_layout(port_id)?;
+        let eligible_file_ids = match layout {
+            Some(layout) if observed.freshness != ProviderFreshness::Stale => observed
                 .value
                 .files
                 .iter()
                 .filter(|file| {
-                    crate::provider_install::accepts_provider_file(port_id, file)
+                    crate::provider_install::accepts_provider_file(&layout, file)
                         && crate::provider_install::validate_offer(client, &observed.value, file)
                             .is_ok()
                 })
                 .map(|file| file.file_id.clone())
-                .collect()
+                .collect(),
+            _ => Vec::new(),
         };
         Ok(ProviderProjectView {
             port_id: port_id.into(),
-            game_name,
+            game_name: port.name.clone(),
             project: observed.value,
             eligible_file_ids: Some(eligible_file_ids),
             observed_at: observed.observed_at,
