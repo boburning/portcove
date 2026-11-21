@@ -2674,6 +2674,19 @@ as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
+### Browsing reviewed GitHub mod releases
+
+Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
+randomizer releases recommended by Zelda64Recomp. With `--json`, the response
+includes the repository, release and asset IDs and the published SHA-256 when
+GitHub provides one.
+
+For Windows x86-64 or Linux x86-64, download the intact ZIP from GitHub and use
+**Install Mods** in a separate Zelda64Recompiled copy before starting the game.
+That installer handles the extra native libraries in the ZIP. This route owns
+its own mod updates and files. Portcove's managed setups still require separate
+review and custody for those libraries. [Randomizer installation instructions](https://github.com/RecompRando/MMRecompRando#mod-installation)
+
 ### Installing from GameBanana and Thunderstore
 
 ```text

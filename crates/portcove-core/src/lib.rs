@@ -102,6 +102,7 @@ pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
 mod gamebanana;
+mod github_mods;
 mod mod_package;
 mod mod_provider;
 mod native_mod_list;
@@ -297,6 +298,7 @@ pub use game_settings::{
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
+pub use github_mods::{GithubModAsset, GithubModCatalog, GithubModRelease, has_github_mod_source};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     CollectionPreference, HostPreferenceStore, HostPreferences, HostToolPreference,

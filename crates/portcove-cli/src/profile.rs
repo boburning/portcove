@@ -5,7 +5,7 @@ use std::{io::Read, path::PathBuf};
 
 use clap::{Subcommand, ValueEnum};
 use portcove_core::{
-    OriginalAvailability, PortcoveError, PortcoveService, Profile, ProfileInventory,
+    OriginalAvailability, Platform, PortcoveError, PortcoveService, Profile, ProfileInventory,
     ProfileProgressCopy, ProfileRecoveryPlan, ProfileRevision, ProfileRevisionRequest,
     ProfileUpdatePolicy, Result,
 };
@@ -309,6 +309,13 @@ pub(crate) enum ProfileCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Browse reviewed GitHub mod releases and their upstream import route.
+    GithubMods {
+        port_id: String,
+        /// Platform for the upstream import information. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
     /// Browse a game's mods on its reviewed provider (GameBanana or Thunderstore); reads only.
     ProviderBrowse {
         /// Catalog port ID with a reviewed provider binding.
@@ -436,6 +443,7 @@ impl ProfileCommand {
             Self::RecipeDiscard { .. } => "profile.recipe-discard",
             Self::RecipePlan { .. } => "profile.recipe-plan",
             Self::RecipeApply { .. } => "profile.recipe-apply",
+            Self::GithubMods { .. } => "profile.github-mods",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
             Self::ProviderProject { .. } => "profile.provider-project",
             Self::ProviderUpdates { .. } => "profile.provider-updates",
@@ -457,6 +465,7 @@ impl ProfileCommand {
                 | Self::RecipeExport { .. }
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
+                | Self::GithubMods { .. }
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
                 | Self::ProviderUpdates { .. }
@@ -863,6 +872,35 @@ fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
         .map_err(|error| PortcoveError::usage(format!("invalid revision request: {error}")))
 }
 
+fn github_mods_text(catalog: &portcove_core::GithubModCatalog) -> String {
+    let mut lines = vec![format!("GitHub Releases · {}", clean(&catalog.repository))];
+    if catalog.freshness == portcove_core::ProviderFreshness::Stale {
+        lines.push(format!(
+            "Showing cached releases from {}.",
+            utc_time(catalog.observed_at)
+        ));
+    }
+    if !catalog.complete {
+        lines.push("Some releases or assets could not be listed.".into());
+    }
+    for release in &catalog.releases {
+        lines.push(format!(
+            "{} · {} · View on GitHub: {}",
+            clean(&release.tag),
+            clean(&release.asset.name),
+            clean(&release.release_url)
+        ));
+    }
+    if catalog.native_import_offered {
+        lines.push("Download the intact ZIP from GitHub. Use Install Mods in a separate copy of the game before starting it.".into());
+    } else {
+        lines.push(
+            "This source does not list the required native libraries for this platform.".into(),
+        );
+    }
+    lines.join("\n")
+}
+
 pub(crate) async fn execute(
     command: ProfileCommand,
     service: &PortcoveService,
@@ -871,6 +909,15 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::GithubMods { port_id, platform } => {
+            let platform = match platform {
+                Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
+                    .map_err(|_| PortcoveError::usage("unsupported platform"))?,
+                None => Platform::current()?,
+            };
+            let catalog = service.github_mod_catalog(&port_id, platform).await?;
+            render_read_success(mode, name, catalog, github_mods_text)
+        }
         ProfileCommand::ProviderBrowse {
             port_id,
             page,
