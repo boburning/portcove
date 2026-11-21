@@ -161,7 +161,7 @@ jobs:
   linux_namespace_preflight:
     if: ${{ inputs.operation == 'linux-namespace-preflight' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -177,6 +177,30 @@ jobs:
       - name: Preflight the actual ordinary-account qualification namespace mechanism
         timeout-minutes: 3
         run: node scripts/run-rust-tests.mts --guard-command node scripts/desktop-linux-namespace-preflight.mts
+      - name: Verify exact recovery resumption after a real Linux ENOSPC
+        timeout-minutes: 45
+        run: |
+          set -euo pipefail
+          mkdir -p work/linux-namespace-preflight
+          log=work/linux-namespace-preflight/recovery-enospc-execution.log
+          node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-command \
+            unshare --user --map-root-user --mount --propagation private bash -eu -c '
+              test_mount=$(mktemp -d "$PORTCOVE_TEMP_DIR/recovery-enospc.XXXXXXXX")
+              cleanup() {
+                if mountpoint -q "$test_mount"; then
+                  umount "$test_mount"
+                fi
+                rmdir "$test_mount"
+              }
+              trap cleanup EXIT
+              mount -t tmpfs -o size=80m,mode=0700,nosuid,nodev,noexec tmpfs "$test_mount"
+              export PORTCOVE_RECOVERY_TEST_MOUNT="$test_mount"
+              cargo test --locked -p portcove-core --lib \
+                library_recovery_bundle::execution::tests::a_full_filesystem_leaves_the_exact_recovery_copy_resumable \
+                -- --ignored --exact
+            ' 2>&1 | tee "$log"
+          grep -Fx 'test library_recovery_bundle::execution::tests::a_full_filesystem_leaves_the_exact_recovery_copy_resumable ... ok' "$log"
+          grep -F 'test result: ok. 1 passed; 0 failed;' "$log"
       - name: Withdraw only the quiescent qualification profile
         if: ${{ always() && steps.namespace_profile.outcome == 'success' }}
         run: '"$PORTCOVE_NAMESPACE_ORIGINAL_NODE" scripts/desktop-linux-namespace-profile.mts --cleanup'
