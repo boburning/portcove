@@ -2363,6 +2363,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**

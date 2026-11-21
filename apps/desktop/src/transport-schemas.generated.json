@@ -5251,6 +5251,13 @@
         },
         "type": "array"
       },
+      "listing_delivery_carriers": {
+        "description": "Independently negotiated signed-directory transport representations.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
       "listing_formats": {
         "items": {
           "format": "uint32",

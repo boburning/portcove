@@ -123,10 +123,15 @@ opt-level = 0
 strip = "symbols"
 
 # Node 26's larger official executable leaves less room in the unchanged fixed
-# tool inventory. Optimize only our shared core in this non-shipping profile;
+# tool inventory. Optimize our shared core and CLI in this non-shipping profile;
 # keep dependency compilation and shipping/test profiles unchanged.
 [profile.controller-tools.package.portcove-core]
 opt-level = 1
+
+[profile.controller-tools.package.portcove-cli]
+opt-level = 1
+# The package profile otherwise resolves strip to the release default.
+strip = "symbols"
 
 # Preserve the GTK format fix until a compatible fixed RFD release is available.
 [patch.crates-io]
