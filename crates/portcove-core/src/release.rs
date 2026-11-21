@@ -299,6 +299,7 @@ struct ResolvedGithub {
     explicit_tag_commit: Option<String>,
     activity: Option<crate::UpstreamActivity>,
     fallback_reason: Option<String>,
+    live_scoped_github_selection: bool,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -883,6 +884,7 @@ impl GithubReleaseProvider {
             explicit_tag_commit: None,
             activity: None,
             fallback_reason: entry.fallback_reason.clone(),
+            live_scoped_github_selection: false,
         })
     }
 
@@ -1762,6 +1764,7 @@ impl GithubReleaseProvider {
         resolved.explicit_tag_commit = selected.explicit_tag_commit;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
+        resolved.live_scoped_github_selection = selected.live_scoped_github_selection;
         if let Some(variant) = selection.variant() {
             resolved.saved_variant = Some(variant.clone());
         }
@@ -2285,6 +2288,9 @@ impl GithubReleaseProvider {
             explicit_tag_commit,
             activity,
             fallback_reason,
+            live_scoped_github_selection: scope.is_some()
+                && curated.is_some()
+                && matches!(selection, GithubSelection::Ordinary),
         })
     }
 }
@@ -2340,6 +2346,7 @@ fn preserved_resolution(
         explicit_tag_commit: None,
         activity: None,
         fallback_reason: None,
+        live_scoped_github_selection: false,
     })
 }
 

@@ -262,14 +262,13 @@ pub(super) fn authenticated_subject(
     ))
 }
 
-pub(crate) fn prepare_authenticated(
+pub(crate) fn preflight(
     predecessor: (&Library, &Catalog),
     successor: (&Library, &Catalog),
     port_id: &str,
     platform: Platform,
     channel: ReleaseChannel,
-    resolved: &ScopedResolvedRelease,
-) -> Result<SuccessorEvidencePreparation> {
+) -> Result<(SuccessorEvidencePreparation, DefinitionAcquisitionScope)> {
     let (previous, _, old) = authenticated_subject(
         predecessor.0,
         predecessor.1,
@@ -286,36 +285,6 @@ pub(crate) fn prepare_authenticated(
         channel,
         CuratedArtifactOperation::Acquisition,
     )?;
-    let port = successor.1.port(port_id)?;
-    resolved.require_selection(port, platform, channel)?;
-    let selected = resolved.github_identity.as_ref().ok_or_else(|| {
-        PortcoveError::verification("successor selector lacks exact GitHub identity")
-    })?;
-    let pin = &port.release.curated[&platform];
-    if !resolved
-        .scope
-        .as_ref()
-        .is_some_and(|observed| observed.same_authorization(&scope))
-        || resolved.saved_variant.is_some()
-        || resolved.fallback_reason.is_some()
-        || selected.repository_id != current.repository_id
-        || !selected.repository.eq_ignore_ascii_case(&pin.repository)
-        || selected.release_id != current.release_id
-        || selected.asset_id != current.asset_id
-        || selected.tag != current.tag
-        || resolved.release.version != current.tag
-        || resolved.release.asset.name != pin.filename
-        || resolved.release.asset.size != pin.size
-        || !resolved
-            .release
-            .asset
-            .sha256
-            .eq_ignore_ascii_case(&current.artifact_sha256)
-    {
-        return Err(PortcoveError::verification(
-            "successor selection differs from independently admitted artifact",
-        ));
-    }
     if previous.trust_anchor_sha256 != current.trust_anchor_sha256
         || previous.definition.definition_revision >= current.definition.definition_revision
         || previous.repository_id != current.repository_id
@@ -343,25 +312,78 @@ pub(crate) fn prepare_authenticated(
         CuratedArtifactOperation::LocalUse,
     )?;
     let anchor_observations = reviewed_anchor_observations(&old, &new, &previous, &current)?;
-    let selected_at = Library::now();
+    let preflight_at = Library::now();
     if anchor_observations
         .iter()
-        .any(|observation| observation.observed_at >= selected_at)
+        .any(|observation| observation.observed_at >= preflight_at)
     {
         return Err(PortcoveError::verification(
-            "predecessor observations must predate the current successor selection",
+            "predecessor observations must predate successor review",
         ));
     }
-    Ok(SuccessorEvidencePreparation {
-        rule_version: RULE_VERSION,
-        selected_at,
-        predecessor: previous,
-        successor: current,
-        anchor_observations,
-    })
+    Ok((
+        SuccessorEvidencePreparation {
+            rule_version: RULE_VERSION,
+            selected_at: 0,
+            predecessor: previous,
+            successor: current,
+            anchor_observations,
+        },
+        scope,
+    ))
 }
 
-fn reviewed_anchor_observations(
+pub(crate) fn bind_live_selection(
+    mut preparation: SuccessorEvidencePreparation,
+    scope: &DefinitionAcquisitionScope,
+    port: &crate::PortDefinition,
+    resolved: &ScopedResolvedRelease,
+) -> Result<SuccessorEvidencePreparation> {
+    let current = &preparation.successor;
+    let platform = current.platform;
+    let channel = current.channel;
+    resolved.require_selection(port, platform, channel)?;
+    let selected = resolved.github_identity.as_ref().ok_or_else(|| {
+        PortcoveError::verification("successor selector lacks exact GitHub identity")
+    })?;
+    let pin = &port.release.curated[&platform];
+    if !resolved.live_scoped_github_selection
+        || !resolved
+            .scope
+            .as_ref()
+            .is_some_and(|observed| observed.same_authorization(scope))
+        || resolved.saved_variant.is_some()
+        || resolved.fallback_reason.is_some()
+        || selected.repository_id != current.repository_id
+        || !selected.repository.eq_ignore_ascii_case(&pin.repository)
+        || selected.release_id != current.release_id
+        || selected.asset_id != current.asset_id
+        || selected.tag != current.tag
+        || resolved.release.version != current.tag
+        || resolved.release.asset.name != pin.filename
+        || resolved.release.asset.size != pin.size
+        || !resolved
+            .release
+            .asset
+            .sha256
+            .eq_ignore_ascii_case(&current.artifact_sha256)
+    {
+        return Err(PortcoveError::verification(
+            "successor selection differs from independently admitted artifact",
+        ));
+    }
+    scope.require_current()?;
+    require_curated_artifact_operation(
+        &scope.library.connection()?,
+        current.repository_id,
+        pin,
+        CuratedArtifactOperation::Acquisition,
+    )?;
+    preparation.selected_at = Library::now();
+    Ok(preparation)
+}
+
+pub(super) fn reviewed_anchor_observations(
     predecessor: &Catalog,
     successor: &Catalog,
     previous: &SuccessorEvidenceSubject,
@@ -387,88 +409,77 @@ fn reviewed_anchor_observations(
             },
             check_version: None,
         };
-        let matches_anchor = |record: &SourceEvidence| {
+        let same_artifact = |record: &SourceEvidence, scope: &SourceEvidenceScope| {
             let mut comparable = record.scope.clone();
-            comparable.check_version = None;
-            comparable == prior_scope
+            comparable.check_version.clone_from(&scope.check_version);
+            comparable == *scope
         };
-        let reviewed = |record: &&SourceEvidence| {
-            record.outcome == SourceEvidenceOutcome::Passed
-                && record
-                    .scope
-                    .check_version
-                    .as_ref()
-                    .is_some_and(|version| !version.is_empty())
-                && !record.evidence_ids.is_empty()
-                && record.evidence_ids.iter().any(|id| {
-                    old.evidence.iter().any(|evidence| {
-                        &evidence.id == id
-                            && evidence.role == CatalogEvidenceRole::PortcoveQualification
-                            && old.reviewed_evidence_url(id).is_ok()
-                    })
+        let latest_prior = |kind| {
+            let candidates = || {
+                old.qualification
+                    .iter()
+                    .filter(|record| same_artifact(record, &prior_scope) && record.kind == kind)
+            };
+            candidates()
+                .max_by_key(|record| record.observed_at)
+                .filter(|latest| {
+                    latest.outcome == SourceEvidenceOutcome::Passed
+                        && latest
+                            .scope
+                            .check_version
+                            .as_ref()
+                            .is_some_and(|version| !version.is_empty())
+                        && !candidates()
+                            .chain(new.qualification.iter().filter(|record| {
+                                same_artifact(record, &prior_scope) && record.kind == kind
+                            }))
+                            .any(|record| {
+                                record.observed_at >= latest.observed_at && record != *latest
+                            })
+                        && latest.evidence_ids.iter().any(|id| {
+                            old.evidence.iter().any(|evidence| {
+                                &evidence.id == id
+                                    && evidence.role == CatalogEvidenceRole::PortcoveQualification
+                                    && old.reviewed_evidence_url(id).is_ok()
+                            })
+                        })
                 })
         };
-        let hands_on = old
-            .qualification
-            .iter()
-            .filter(|evidence| {
-                matches_anchor(evidence) && evidence.kind == SourceEvidenceKind::HandsOn
-            })
-            .filter(reviewed)
-            .max_by_key(|evidence| evidence.observed_at)
+        let hands_on = latest_prior(SourceEvidenceKind::HandsOn).ok_or_else(|| {
+            PortcoveError::verification("predecessor lacks a current exact reviewed hands-on pass")
+        })?;
+        let lifecycle = latest_prior(SourceEvidenceKind::AutomatedLifecycle)
+            .filter(|record| record.scope.check_version == hands_on.scope.check_version)
             .ok_or_else(|| {
-                PortcoveError::verification("predecessor lacks exact reviewed hands-on evidence")
+                PortcoveError::verification(
+                    "predecessor lacks a current exact reviewed lifecycle pass",
+                )
             })?;
         prior_scope
             .check_version
             .clone_from(&hands_on.scope.check_version);
-        let lifecycle = old
-            .qualification
-            .iter()
-            .filter(|evidence| {
-                evidence.applies_to(&prior_scope)
-                    && evidence.kind == SourceEvidenceKind::AutomatedLifecycle
-            })
-            .filter(reviewed)
-            .max_by_key(|evidence| evidence.observed_at)
-            .ok_or_else(|| {
-                PortcoveError::verification("predecessor lacks exact reviewed lifecycle evidence")
-            })?;
         let mut next_scope = prior_scope.clone();
         next_scope.artifact_sha256 = Some(current.artifact_sha256.clone());
         next_scope.upstream_ref = Some(current.tag.clone());
-        let failed = |record: &SourceEvidence,
-                      scope: &SourceEvidenceScope,
-                      required: &[SourceEvidenceKind]| {
-            record.applies_to(scope)
-                && record.outcome == SourceEvidenceOutcome::Failed
-                && (record.kind == SourceEvidenceKind::KnownFailure
-                    || required.contains(&record.kind))
-        };
         if old
             .qualification
             .iter()
             .chain(&new.qualification)
-            .any(|evidence| {
-                failed(
-                    evidence,
-                    &prior_scope,
-                    &[
-                        SourceEvidenceKind::HandsOn,
-                        SourceEvidenceKind::AutomatedLifecycle,
-                    ],
-                ) || failed(
-                    evidence,
-                    &next_scope,
-                    &[
-                        SourceEvidenceKind::StructuralCheck,
-                        SourceEvidenceKind::AutomatedLifecycle,
-                    ],
-                )
+            .any(|record| {
+                (record.kind == SourceEvidenceKind::KnownFailure
+                    && record.outcome == SourceEvidenceOutcome::Failed
+                    && (same_artifact(record, &prior_scope) || same_artifact(record, &next_scope)))
+                    || (matches!(
+                        record.kind,
+                        SourceEvidenceKind::StructuralCheck
+                            | SourceEvidenceKind::AutomatedLifecycle
+                    ) && same_artifact(record, &next_scope)
+                        && (record.scope.check_version != next_scope.check_version
+                            || record.outcome == SourceEvidenceOutcome::Failed))
             })
         {
             return Err(PortcoveError::verification(
-                "exact mandatory successor support evidence failed",
+                "exact successor evidence failed or changed check contract",
             ));
         }
         result.extend([hands_on.clone(), lifecycle.clone()]);

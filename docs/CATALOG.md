@@ -2928,15 +2928,19 @@ The draft evidence format supports offline review. Controlled test fixtures
 exercise comparisons. The signed catalog reader and protected signer refuse
 draft successor-support declarations. No current production row qualifies.
 
-Core can prepare offline review operands with
-`PortcoveService::prepare_successor_support_evidence`. It reads two separately
-admitted official definitions from replay-checked libraries and resolves the
-current package through the ordinary provider. It checks exact grant, package
+Use `portcove --library CURRENT --json catalog prepare-successor-evidence PORT
+--predecessor-library PREVIOUS` on two already initialized libraries. Core
+first checks the exact official definitions and replay-checked grants. It
+then uses bounded, credential-free GitHub API calls to resolve the live
+current package. A saved selection, cached metadata or preserved acquisition
+fallback cannot establish a current observation. Game archives stay on the
+provider. It checks exact grant, package
 and platform identity and derives a conservative setup, launch and
 player-data fingerprint from the typed operational rules and source graph.
 A changed operational field requires review. This first comparison covers a
 single invariant enforced game source contract with reviewed applicability,
-exact variant coverage and paired signed predecessor observations. The
+exact variant coverage and the latest paired signed predecessor observations
+under the same lifecycle check version. The
 predecessor's existing admission must still verify in its evidence library
 and its exact asset must still be permitted for local use by current history.
 

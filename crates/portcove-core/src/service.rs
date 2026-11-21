@@ -3068,23 +3068,33 @@ impl PortcoveService {
     ) -> Result<crate::SuccessorEvidencePreparation> {
         let platform = Platform::current()?;
         let port = self.catalog.port(port_id)?;
-        let status = self.status(port_id)?;
+        let status = self.library.status(port_id, default_channel(port))?;
         if status.external_runtime.is_some() {
             return Err(PortcoveError::unsupported(
                 "external runtime is outside managed successor review",
             ));
         }
-        let resolved = self
-            .resolve_release_for_status(port, status.channel, platform, &status)
-            .await?;
-        crate::successor_support::prepare_authenticated(
+        if Self::saved_package_variant(port, status.channel, platform, &status)?.is_some() {
+            return Err(PortcoveError::unsupported(
+                "saved package choices are outside ordinary successor review",
+            ));
+        }
+        let (preparation, scope) = crate::successor_support::preflight(
             (&predecessor.library, &predecessor.catalog),
             (&self.library, &self.catalog),
             port_id,
             platform,
             status.channel,
-            &resolved,
-        )
+        )?;
+        // A required scope bypasses GitHub's ordinary token and HTTP cache.
+        // Preflight requires both platform pins before the provider is called.
+        let resolved = self
+            .releases
+            .resolve_scoped(port, status.channel, platform, Some(&scope))
+            .await?;
+        Installer::new(self.library.clone())?
+            .require_github_resolution_identity(port_id, &resolved)?;
+        crate::successor_support::bind_live_selection(preparation, &scope, port, &resolved)
     }
 
     async fn resolve_release_for_status(

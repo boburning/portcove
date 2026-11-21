@@ -688,7 +688,16 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     )?;
     let library = startup::observe(
         startup::DiagnosticPhase::LibraryOpen,
-        portcove_core::Library::open(selection.root),
+        if matches!(
+            &cli.command,
+            Commands::Catalog {
+                command: CatalogCommand::PrepareSuccessorEvidence { .. },
+            }
+        ) {
+            portcove_core::Library::open_current_for_observation(&selection.root)
+        } else {
+            portcove_core::Library::open(selection.root)
+        },
     )?;
     if let Commands::Launch {
         command: LaunchCommand::Show { request_id },

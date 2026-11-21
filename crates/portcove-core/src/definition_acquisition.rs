@@ -301,6 +301,7 @@ pub struct ScopedResolvedRelease {
     /// read the repository. Never part of release authority.
     pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
     pub(crate) fallback_reason: Option<String>,
+    pub(crate) live_scoped_github_selection: bool,
 }
 
 impl ScopedResolvedRelease {
@@ -314,6 +315,7 @@ impl ScopedResolvedRelease {
             explicit_tag_commit: None,
             upstream_activity: None,
             fallback_reason: None,
+            live_scoped_github_selection: false,
         }
     }
 
@@ -332,6 +334,7 @@ impl ScopedResolvedRelease {
             explicit_tag_commit: None,
             upstream_activity: None,
             fallback_reason: None,
+            live_scoped_github_selection: false,
         })
     }
 
