@@ -699,6 +699,13 @@ void test("historical migration preserves exact evidence and recommends only evi
       body: pending,
     },
     { status: "Triage", state: "OPEN", reason: null, output: "preserve_historical_assignment" },
+    {
+      status: "Done",
+      state: "CLOSED",
+      reason: "COMPLETED",
+      output: "preserve_historical_assignment",
+      catalogId: "conflicted",
+    },
   ];
   const items = cases.map((entry, index) => {
     const number = index + 1;
@@ -729,10 +736,19 @@ void test("historical migration preserves exact evidence and recommends only evi
     };
   });
   const directory = {
-    listings: [{ id: "operational", issue_number: 3 }],
+    listings: [
+      { id: "possible-only", issue_number: 3 },
+      { id: "operational", issue_number: 5 },
+      { id: "different-operational", issue_number: 11 },
+    ],
   };
   const report = planPortStageMigration(
-    { ports: [{ id: "operational", platforms: ["windows"] }] },
+    {
+      ports: ["operational", "conflicted", "different-operational", "possible-only"].map((id) => ({
+        id,
+        platforms: ["windows"],
+      })),
+    },
     items,
     "boburning/portcove",
     items.map((item) => item.content),
@@ -742,7 +758,7 @@ void test("historical migration preserves exact evidence and recommends only evi
   assert.deepEqual(report.historical_assignment_counts, {
     review_replacement: 3,
     retire_completed: 1,
-    preserve_historical: 6,
+    preserve_historical: 7,
   });
   for (const [index, entry] of cases.entries()) {
     const row = fixtureElement(report.rows, index);
@@ -758,4 +774,9 @@ void test("historical migration preserves exact evidence and recommends only evi
     assert.equal(row.proposed_action?.kind, entry.output);
     assert.equal(row.proposed_action?.target_stage, entry.target ?? null);
   }
+  assert.deepEqual(fixtureElement(report.rows, 10).proposed_action, {
+    kind: "preserve_historical_assignment",
+    target_stage: null,
+    reason: "unresolved_operational_catalog_binding",
+  });
 });

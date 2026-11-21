@@ -291,7 +291,7 @@ type PortStageRow = ReturnType<typeof inspectRoadmapPortStages>["rows"][number];
 function historicalStageRecommendation(
   row: PortStageRow,
   item: RoadmapIssueItem,
-  possibleCatalogBinding: boolean,
+  competingCatalogBinding: boolean,
 ) {
   const status = fieldValue(item, "Status");
   const issue = item.content;
@@ -303,13 +303,14 @@ function historicalStageRecommendation(
   });
   if (row.work_type !== "Port" || !row.content_id || !row.issue_url)
     return hold("canonical_port_issue_required");
+  if (competingCatalogBinding) return hold("unresolved_operational_catalog_binding");
   if (row.catalog_evidence)
     return {
       kind: "review_project_assignment" as const,
       target_stage: row.catalog_evidence.stage,
       reason: "historical_stage_with_exact_catalog_binding",
     };
-  if (row.unresolved_reason !== "no_catalog_marker" || possibleCatalogBinding)
+  if (row.unresolved_reason !== "no_catalog_marker")
     return hold("unresolved_operational_catalog_binding");
   if (issue?.state === "CLOSED" && issue.stateReason === "COMPLETED" && status === "Done")
     return {
@@ -346,24 +347,25 @@ function historicalStageRecommendation(
   return hold("no_current_manual_stage_established");
 }
 
-function operationalListingIssues(
-  directory: unknown,
-  ports: ReadonlyMap<string, unknown>,
-): ReadonlySet<number> {
-  if (!isRecord(directory) || !Array.isArray(directory.listings)) return new Set();
+function operationalListingsByIssue(directory: unknown, ports: ReadonlyMap<string, unknown>) {
+  const byIssue = new Map<number, string[]>();
+  if (!isRecord(directory) || !Array.isArray(directory.listings)) return byIssue;
   const listings: readonly unknown[] = directory.listings;
-  return new Set(
-    listings.flatMap((listing) =>
-      isRecord(listing) &&
-      typeof listing.id === "string" &&
-      ports.has(listing.id) &&
-      typeof listing.issue_number === "number" &&
-      Number.isSafeInteger(listing.issue_number) &&
-      listing.issue_number > 0
-        ? [listing.issue_number]
-        : [],
-    ),
-  );
+  for (const listing of listings) {
+    if (
+      !isRecord(listing) ||
+      typeof listing.id !== "string" ||
+      !ports.has(listing.id) ||
+      typeof listing.issue_number !== "number" ||
+      !Number.isSafeInteger(listing.issue_number) ||
+      listing.issue_number < 1
+    )
+      continue;
+    const ids = byIssue.get(listing.issue_number) ?? [];
+    ids.push(listing.id);
+    byIssue.set(listing.issue_number, ids);
+  }
+  return byIssue;
 }
 
 export function planPortStageMigration(
@@ -376,7 +378,7 @@ export function planPortStageMigration(
 ) {
   const { rows, ports } = inspectRoadmapPortStages(catalog, items, repository, repositoryIssues);
   const itemsById = new Map(items.map((item) => [item.id, item]));
-  const listingIssues = operationalListingIssues(directory, ports);
+  const listingsByIssue = operationalListingsByIssue(directory, ports);
   const reportRows = rows.map((row) => {
     if (row.classification !== "review_historical") return row;
     const item = row.item_id ? itemsById.get(row.item_id) : undefined;
@@ -384,13 +386,16 @@ export function planPortStageMigration(
     const historicalBody = itemBody(item);
     const keyClaims = portKeyMarkers(historicalBody);
     const number = issueNumber(item);
-    const possibleCatalogBinding =
-      (number !== null && listingIssues.has(number)) ||
+    const observedBindingIds = [
+      ...(number === null ? [] : (listingsByIssue.get(number) ?? [])),
+      ...keyClaims.filter((key) => ports.has(key)),
+    ];
+    const competingCatalogBinding =
       keyClaims.length > 1 ||
-      keyClaims.some((key) => ports.has(key));
+      observedBindingIds.some((id) => id !== row.catalog_evidence?.catalog_id);
     return {
       ...row,
-      proposed_action: historicalStageRecommendation(row, item, possibleCatalogBinding),
+      proposed_action: historicalStageRecommendation(row, item, competingCatalogBinding),
       historical_preservation: {
         original_stage: row.current_stage,
         issue_body: historicalBody,
