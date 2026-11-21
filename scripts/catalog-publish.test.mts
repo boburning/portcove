@@ -10,6 +10,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { overlayCatalogPages } from "./catalog-pages-overlay.mts";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import {
@@ -31,6 +32,114 @@ import {
   describeCatalogPublication,
   verifyCatalogPublicationLive,
 } from "./catalog-publication-receipt.mts";
+
+const overlaySha256 = (bytes: string) => createHash("sha256").update(bytes).digest("hex");
+const overlayTimestamp = "metadata/timestamp.json";
+const priorMetadata = "metadata/1.official-definitions.json";
+const addedMetadata = "metadata/2.official-definitions.json";
+const priorTarget = `targets/${overlaySha256("historic")}.policy/official/catalog.listings.json`;
+
+function overlayFile(root: string, target: string, bytes: string) {
+  const destination = path.join(root, target);
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, bytes);
+}
+
+function overlayReport(entries: Record<string, string>) {
+  const timestamp = entries[overlayTimestamp];
+  assert.ok(timestamp);
+  const files = Object.entries(entries).map(([target, bytes]) => ({
+    target,
+    bytes: Buffer.byteLength(bytes),
+    sha256: overlaySha256(bytes),
+  }));
+  return {
+    schema_version: 1,
+    authority: "none",
+    files,
+    repository_sha256: overlaySha256(JSON.stringify(files)),
+    timestamp_sha256: overlaySha256(timestamp),
+  };
+}
+
+void test("Pages overlay reuses retained immutable files and writes only the generation delta", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "catalog-pages-overlay-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const prior = path.join(root, "prior");
+  const next = path.join(root, "repository");
+  overlayFile(prior, priorMetadata, "retained metadata");
+  overlayFile(prior, priorTarget, "historic");
+  overlayFile(prior, overlayTimestamp, "old");
+  overlayFile(prior, "browse/retired.html", "retired browse page");
+  overlayFile(next, addedMetadata, "new role");
+  overlayFile(next, overlayTimestamp, "successor");
+  overlayFile(next, "browse/index.html", "browse");
+  // Retained bodies need no second read from the assembled copy.
+  const result = await overlayCatalogPages(
+    prior,
+    treeDigest(prior),
+    next,
+    overlayReport({
+      [priorMetadata]: "retained metadata",
+      [priorTarget]: "historic",
+      [addedMetadata]: "new role",
+      [overlayTimestamp]: "successor",
+    }),
+  );
+  assert.deepEqual(result, {
+    changed: [addedMetadata, overlayTimestamp],
+    retainedBytes: 25,
+    writtenBytes: 17,
+  });
+  assert.equal(readFileSync(path.join(prior, priorTarget), "utf8"), "historic");
+  assert.equal(readFileSync(path.join(prior, overlayTimestamp), "utf8"), "successor");
+  assert.equal(readFileSync(path.join(prior, "browse/index.html"), "utf8"), "browse");
+  assert.equal(existsSync(path.join(prior, "browse/retired.html")), false);
+});
+
+void test("Pages overlay refuses stale input, missing history, immutable replacement and changed assembly", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "catalog-pages-overlay-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const prior = path.join(root, "prior");
+  const next = path.join(root, "repository");
+  overlayFile(prior, priorTarget, "historic");
+  overlayFile(prior, overlayTimestamp, "old");
+  overlayFile(next, overlayTimestamp, "corrupted");
+  overlayFile(next, "browse/index.html", "browse");
+  overlayFile(prior, priorMetadata, "retained metadata");
+  const baseline = treeDigest(prior);
+  const expected = overlayReport({
+    [priorMetadata]: "retained metadata",
+    [priorTarget]: "historic",
+    [overlayTimestamp]: "successor",
+  });
+  await assert.rejects(
+    overlayCatalogPages(prior, "0".repeat(64), next, expected),
+    /changed since/u,
+  );
+  await assert.rejects(
+    overlayCatalogPages(prior, baseline, next, overlayReport({ [overlayTimestamp]: "successor" })),
+    /omits retained file/u,
+  );
+  await assert.rejects(
+    overlayCatalogPages(
+      prior,
+      baseline,
+      next,
+      overlayReport({
+        [priorMetadata]: "replacement metadata",
+        [priorTarget]: "historic",
+        [overlayTimestamp]: "successor",
+      }),
+    ),
+    /replaces an immutable file/u,
+  );
+  await assert.rejects(
+    overlayCatalogPages(prior, baseline, next, expected),
+    /differs from receipt/u,
+  );
+  assert.equal(treeDigest(prior), baseline);
+});
 
 void test("public browsing stays inside whole-tree concurrency identity but outside signer prior repository", (t) => {
   const root = temp(t),
