@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { downloadPinnedPortcoveReleaseAsset } from "./portcove-release-download.mts";
 import { writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -101,4 +103,39 @@ void test("historical CLI decoding rejects unadmitted compressed bytes before de
     () => extractHistoricalLinuxCli(Buffer.from("not a gzip archive")),
     /byte count differs/u,
   );
+});
+
+void test("published release downloads require exact coordinates, delivery origin and pinned bytes", async (t) => {
+  const bytes = Buffer.from("pinned");
+  const pin = {
+    name: "tool.tar.gz",
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+  let destination = "https://release-assets.githubusercontent.com/object";
+  let body = bytes;
+  const requests: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+    requests.push(url);
+    assert.equal(options.redirect, "manual");
+    assert.equal(options.headers, undefined);
+    if (url === "https://github.com/boburning/portcove/releases/download/v1/tool.tar.gz") {
+      return Response.redirect(destination, 302);
+    }
+    return new Response(body);
+  });
+  assert.deepEqual(await downloadPinnedPortcoveReleaseAsset("v1", pin), bytes);
+  assert.equal(requests.length, 2);
+  await assert.rejects(
+    downloadPinnedPortcoveReleaseAsset("v1", { ...pin, name: "../other" }),
+    /coordinate/,
+  );
+  assert.equal(requests.length, 2);
+  body = Buffer.from("denied");
+  await assert.rejects(downloadPinnedPortcoveReleaseAsset("v1", pin), /digest differs/);
+  body = Buffer.from("oversize");
+  await assert.rejects(downloadPinnedPortcoveReleaseAsset("v1", pin), /byte bound/);
+  destination = "https://other.example/object";
+  await assert.rejects(downloadPinnedPortcoveReleaseAsset("v1", pin), /redirect refused/);
+  assert.ok(!requests.includes(destination));
 });
