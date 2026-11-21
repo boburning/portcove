@@ -51,7 +51,7 @@ rusqlite.workspace = true
 schemars.workspace = true
 same-file.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 sevenz-turbo.workspace = true
 sha1.workspace = true
 sha2.workspace = true

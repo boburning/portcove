@@ -987,13 +987,26 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     assert_eq!(first_legacy.0.as_bytes(), old.as_slice());
     let earlier_reader: policy::PolicyProvenance = serde_json::from_str(&first_legacy.1).unwrap();
     assert_eq!(Some(earlier_reader.target_sha256), prior.target_sha256);
-    let next = serde_json::to_vec(&feed(2)).unwrap();
+    // A compact reader may already have created the original 8 MiB table.
+    library
+        .connection()
+        .unwrap()
+        .execute_batch(
+            "CREATE TABLE compact_listing_delivery(
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            document_json TEXT NOT NULL CHECK(length(CAST(document_json AS BLOB))<=8388608),
+            provenance_json TEXT NOT NULL CHECK(length(CAST(provenance_json AS BLOB))<=16384));",
+        )
+        .unwrap();
+    let mut next = serde_json::to_vec(&feed(2)).unwrap();
+    next.resize(listing_delivery::MAX_BYTES + 1, b' ');
+    assert!(listing_delivery::ListingDeliveryDocument::parse(&next).is_err());
     let next_digest = hex::encode(Sha256::digest(&next));
 
     let mut signed_carriers = vec![(carrier(&old), true, 1)];
     let current = carrier(&next);
     let mut expired_bound = current.clone();
-    expired_bound["decoded_bytes"] = json!(listing_delivery::MAX_BYTES + 1);
+    expired_bound["decoded_bytes"] = json!(listing_delivery::MAX_COMPACT_DECODED_BYTES + 1);
     let mut equivocation = current.clone();
     equivocation["decoded_sha256"] = json!("0".repeat(64));
     let mut unsupported = current.clone();
@@ -1037,7 +1050,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
             )
             .await;
         let result = refresh(&library, &fixture, &root).await;
-        assert_eq!(result.is_ok(), accepted, "{compact:?}");
+        assert_eq!(result.is_ok(), accepted, "carrier {index}");
         let stored = library.listing_delivery_status().unwrap();
         assert_eq!(stored.revision, Some(revision));
         assert_eq!(stored.transport_target_sha256, transport_digest);

@@ -1,6 +1,9 @@
 //! Descriptive directory delivery under the existing independent catalog policy role.
 //! This target cannot create a managed definition, publisher grant or executable contract.
-use std::{collections::BTreeSet, io::Read as _};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Read as _,
+};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
@@ -19,6 +22,7 @@ use crate::{
 
 pub(crate) const TARGET: &str = "policy/official/catalog.listings.json";
 pub(crate) const MAX_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const MAX_COMPACT_DECODED_BYTES: usize = 32 * 1024 * 1024;
 pub(crate) const COMPACT_TARGET: &str = "policy/official/catalog.listings.compact.json";
 pub(crate) const COMPACT_CARRIER: &str = "gzip-base64-json-v1";
 
@@ -37,7 +41,9 @@ fn decode_compact_listing(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
         return Err(PortcoveError::verification(ERROR));
     }
     let carrier: CompactListingCarrier = serde_json::from_slice(bytes)?;
-    if carrier.carrier != COMPACT_CARRIER || !(1..=MAX_BYTES).contains(&carrier.decoded_bytes) {
+    if carrier.carrier != COMPACT_CARRIER
+        || !(1..=MAX_COMPACT_DECODED_BYTES).contains(&carrier.decoded_bytes)
+    {
         return Err(PortcoveError::verification(ERROR));
     }
     let compressed = STANDARD
@@ -46,10 +52,15 @@ fn decode_compact_listing(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
     let mut gzip = flate2::bufread::GzDecoder::new(compressed.as_slice());
     let mut output = Vec::with_capacity(carrier.decoded_bytes);
     gzip.by_ref()
-        .take(carrier.decoded_bytes as u64 + 1)
+        .take(carrier.decoded_bytes as u64)
         .read_to_end(&mut output)
         .map_err(|_| PortcoveError::verification(ERROR))?;
+    let mut extra = [0];
     if output.len() != carrier.decoded_bytes
+        || gzip
+            .read(&mut extra)
+            .map_err(|_| PortcoveError::verification(ERROR))?
+            != 0
         || !gzip.get_ref().is_empty()
         || super::digest(&output) != carrier.decoded_sha256
     {
@@ -67,9 +78,113 @@ pub(crate) struct ListingDeliveryDocument {
     pub directory: CatalogListingDocument,
 }
 
+const MAX_LISTING_ENTRIES: usize = 10_000;
+const MAX_COMPACT_RECORD_BYTES: usize = 1024 * 1024;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DecodedCompactDirectory {
+    listing_delivery_schema: u32,
+    revision: u64,
+    #[serde(deserialize_with = "bounded_entries")]
+    withdrawn_ids: Vec<String>,
+    directory: CompactListingRecords,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompactListingRecords {
+    format_version: u32,
+    #[serde(deserialize_with = "bounded_entries")]
+    listings: Vec<CompactListing>,
+}
+
+struct CompactListing(crate::PortListing);
+
+impl<'de> Deserialize<'de> for CompactListing {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        // Strict keys are checked one record at a time. Borrow the raw JSON
+        // and bound its size before building a JSON value for the duplicate check.
+        let raw = <&serde_json::value::RawValue>::deserialize(deserializer)?;
+        if raw.get().len() > MAX_COMPACT_RECORD_BYTES {
+            return Err(serde::de::Error::custom(
+                "compact listing record exceeds its byte bound",
+            ));
+        }
+        let value: crate::definition_entry::strict_json::UniqueValue =
+            serde_json::from_str(raw.get()).map_err(serde::de::Error::custom)?;
+        serde_json::from_value(value.0)
+            .map(Self)
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+fn bounded_entries<'de, D, T>(deserializer: D) -> std::result::Result<Vec<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct Entries<T>(std::marker::PhantomData<T>);
+
+    impl<'de, T: Deserialize<'de>> serde::de::Visitor<'de> for Entries<T> {
+        type Value = Vec<T>;
+
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "at most {MAX_LISTING_ENTRIES} listing directory entries")
+        }
+
+        fn visit_seq<A: serde::de::SeqAccess<'de>>(
+            self,
+            mut seq: A,
+        ) -> std::result::Result<Vec<T>, A::Error> {
+            let mut entries = Vec::new();
+            while entries.len() < MAX_LISTING_ENTRIES {
+                let Some(value) = seq.next_element()? else {
+                    return Ok(entries);
+                };
+                entries.push(value);
+            }
+            if seq.next_element::<serde::de::IgnoredAny>()?.is_some() {
+                return Err(serde::de::Error::custom(
+                    "compact listing directory exceeds its entry bound",
+                ));
+            }
+            Ok(entries)
+        }
+    }
+
+    deserializer.deserialize_seq(Entries(std::marker::PhantomData))
+}
+
 #[cfg(test)]
 mod projection_tests {
     use super::*;
+
+    #[test]
+    fn compact_parse_rejects_record_and_entry_overflow_and_duplicate_fields() {
+        let envelope = |listings: &str| {
+            format!(
+                r#"{{"listing_delivery_schema":1,"revision":1,"withdrawn_ids":[],"directory":{{"format_version":11,"listings":[{listings}]}}}}"#
+            )
+        };
+        let oversize = format!(r#"{{"id":"{}"}}"#, "a".repeat(MAX_COMPACT_RECORD_BYTES));
+        let oversized =
+            ListingDeliveryDocument::parse_compact(envelope(&oversize).as_bytes()).unwrap_err();
+        assert!(oversized.message.contains("record exceeds its byte bound"));
+        let valid = r#"{"id":"listing","name":"Listing","summary":"Description","project_url":"https://example.org"}"#;
+        let too_many = format!("{}{valid}", format!("{valid},").repeat(MAX_LISTING_ENTRIES));
+        let overflow =
+            ListingDeliveryDocument::parse_compact(envelope(&too_many).as_bytes()).unwrap_err();
+        assert!(
+            overflow
+                .message
+                .contains("directory exceeds its entry bound")
+        );
+        let duplicate = r#"{"id":"listing","id":"other","name":"Listing","summary":"Description","project_url":"https://example.org"}"#;
+        assert!(ListingDeliveryDocument::parse_compact(envelope(duplicate).as_bytes()).is_err());
+    }
 
     #[test]
     fn legacy_delivery_preserves_only_same_scope_implementation_descriptions() {
@@ -188,7 +303,33 @@ impl ListingDeliveryDocument {
         }
         let value: crate::definition_entry::strict_json::UniqueValue =
             serde_json::from_slice(bytes)?;
-        let document: Self = serde_json::from_value(value.0)?;
+        Self::validate_delivery(serde_json::from_value(value.0)?)
+    }
+
+    pub(crate) fn parse_compact(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() > MAX_COMPACT_DECODED_BYTES {
+            return Err(PortcoveError::verification(
+                "compact listing delivery exceeds its byte bound",
+            ));
+        }
+        let wire: DecodedCompactDirectory = serde_json::from_slice(bytes)?;
+        Self::validate_delivery(Self {
+            listing_delivery_schema: wire.listing_delivery_schema,
+            revision: wire.revision,
+            withdrawn_ids: wire.withdrawn_ids,
+            directory: CatalogListingDocument {
+                format_version: wire.directory.format_version,
+                listings: wire
+                    .directory
+                    .listings
+                    .into_iter()
+                    .map(|row| row.0)
+                    .collect(),
+            },
+        })
+    }
+
+    fn validate_delivery(document: Self) -> Result<Self> {
         if document.listing_delivery_schema != 1 {
             return Err(PortcoveError::unsupported(
                 "unsupported listing delivery schema",
@@ -196,13 +337,19 @@ impl ListingDeliveryDocument {
         }
         if document.revision == 0
             || document.revision > 9_007_199_254_740_991
-            || document.withdrawn_ids.len() > 10_000
+            || document.withdrawn_ids.len() > MAX_LISTING_ENTRIES
         {
             return Err(PortcoveError::verification(
                 "invalid listing delivery revision or count",
             ));
         }
         document.directory.validate()?;
+        let listing_ids: BTreeSet<_> = document
+            .directory
+            .listings
+            .iter()
+            .map(|listing| listing.id.as_str())
+            .collect();
         let mut ids = BTreeSet::new();
         for id in &document.withdrawn_ids {
             if id.is_empty()
@@ -211,11 +358,7 @@ impl ListingDeliveryDocument {
                     .bytes()
                     .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
                 || !ids.insert(id)
-                || document
-                    .directory
-                    .listings
-                    .iter()
-                    .any(|listing| &listing.id == id)
+                || listing_ids.contains(id.as_str())
             {
                 return Err(PortcoveError::verification(
                     "invalid or conflicting listing withdrawal",
@@ -227,35 +370,30 @@ impl ListingDeliveryDocument {
 
     fn project(&self, catalog: Catalog) -> Result<Catalog> {
         let mut directory = catalog.listing_document().clone();
-        // A withdrawal cannot hide a usable managed definition or mutate its retained state.
-        directory.listings.retain(|listing| {
-            !self.withdrawn_ids.contains(&listing.id) || catalog.port(&listing.id).is_ok()
-        });
+        let withdrawn: BTreeSet<_> = self.withdrawn_ids.iter().map(String::as_str).collect();
+        let mut listings: BTreeMap<_, _> = std::mem::take(&mut directory.listings)
+            .into_iter()
+            // A withdrawal cannot hide a usable managed definition or mutate its retained state.
+            .filter(|listing| {
+                !withdrawn.contains(listing.id.as_str()) || catalog.port(&listing.id).is_ok()
+            })
+            .map(|listing| (listing.id.clone(), listing))
+            .collect();
         for listing in &self.directory.listings {
-            match directory
-                .listings
-                .iter_mut()
-                .find(|current| current.id == listing.id)
+            let mut replacement = listing.clone();
+            // Older directories cannot express or withdraw format-12 explanations.
+            // Retain them only for the same project's exact game scope.
+            if self.directory.format_version < 12
+                && replacement.implementation.is_none()
+                && let Some(current) = listings.get(&listing.id)
+                && replacement.project_url == current.project_url
+                && replacement.original_game == current.original_game
             {
-                Some(current) => {
-                    let mut replacement = listing.clone();
-                    // Older directories cannot express or withdraw format-12
-                    // explanations. Retain only the same project's exact game
-                    // scope; all fields that delivery understands remain its own.
-                    if self.directory.format_version < 12
-                        && replacement.implementation.is_none()
-                        && replacement.project_url == current.project_url
-                        && replacement.original_game == current.original_game
-                    {
-                        replacement.implementation = current.implementation.clone();
-                    }
-                    *current = replacement;
-                }
-                None => directory.listings.push(listing.clone()),
+                replacement.implementation = current.implementation.clone();
             }
+            listings.insert(listing.id.clone(), replacement);
         }
-        // Stable ID ordering makes successive loads independent of publisher array order.
-        directory.listings.sort_by(|a, b| a.id.cmp(&b.id));
+        directory.listings = listings.into_values().collect();
         catalog.with_projected_listing_document(directory)
     }
 }
@@ -381,20 +519,25 @@ impl AuthenticatedListings {
         {
             return Ok(None);
         }
-        let select = if compact {
-            "SELECT document_json,provenance_json FROM compact_listing_delivery WHERE singleton=1"
+        let (table, maximum) = if compact {
+            ("compact_listing_delivery", MAX_COMPACT_DECODED_BYTES)
         } else {
-            "SELECT document_json,provenance_json FROM listing_delivery WHERE singleton=1"
+            ("listing_delivery", MAX_BYTES)
         };
-        let row: Option<(String, String)> = connection
-            .query_row(select, [], |row| Ok((row.get(0)?, row.get(1)?)))
+        let select = format!(
+            "SELECT CASE WHEN length(CAST(document_json AS BLOB))<=?1 THEN document_json END,
+                    CASE WHEN length(CAST(provenance_json AS BLOB))<=16384 THEN provenance_json END
+             FROM {table} WHERE singleton=1"
+        );
+        let row: Option<(Option<String>, Option<String>)> = connection
+            .query_row(&select, [maximum], |row| Ok((row.get(0)?, row.get(1)?)))
             .optional()?;
         row.map(|(document, provenance)| {
-            if provenance.len() > 16 * 1024 {
+            let (Some(document), Some(provenance)) = (document, provenance) else {
                 return Err(PortcoveError::state(
-                    "stored listing provenance exceeds its bound",
+                    "stored listing data exceeds its bound",
                 ));
-            }
+            };
             let proof: ListingAdmissionProof = serde_json::from_str(&provenance)?;
             if matches!(proof, ListingAdmissionProof::Compact(_)) != compact {
                 return Err(PortcoveError::state(
@@ -408,7 +551,11 @@ impl AuthenticatedListings {
                 ));
             }
             Ok(Self {
-                document: ListingDeliveryDocument::parse(document.as_bytes())?,
+                document: if compact {
+                    ListingDeliveryDocument::parse_compact(document.as_bytes())?
+                } else {
+                    ListingDeliveryDocument::parse(document.as_bytes())?
+                },
                 bytes: document.into_bytes(),
                 proof,
             })
@@ -551,10 +698,26 @@ impl Library {
             // This optional, descriptive store introduces no library schema
             // dependency. An older reader can still open and renew its separately
             // authenticated row. Both remain subject to the same replay floor.
+            if document.len() > MAX_BYTES {
+                let schema: Option<String> = transaction
+                    .query_row(
+                        "SELECT sql FROM sqlite_master WHERE type='table' AND name='compact_listing_delivery'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .optional()?;
+                // The replacement below records this candidate and advances the
+                // replay floor atomically. Failure restores the prior table.
+                if schema.as_ref().is_some_and(|sql| {
+                    sql.contains(&format!("length(CAST(document_json AS BLOB))<={MAX_BYTES}"))
+                }) {
+                    transaction.execute_batch("DROP TABLE compact_listing_delivery;")?;
+                }
+            }
             transaction.execute_batch(&format!(
                 "CREATE TABLE IF NOT EXISTS compact_listing_delivery(
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-                    document_json TEXT NOT NULL CHECK(length(CAST(document_json AS BLOB))<={MAX_BYTES}),
+                    document_json TEXT NOT NULL CHECK(length(CAST(document_json AS BLOB))<={MAX_COMPACT_DECODED_BYTES}),
                     provenance_json TEXT NOT NULL CHECK(length(CAST(provenance_json AS BLOB))<=16384));"
             ))?;
             "INSERT INTO compact_listing_delivery(singleton,document_json,provenance_json) VALUES(1,?1,?2)
@@ -662,7 +825,11 @@ async fn acquire_listings(repository: &Repository, root: &[u8]) -> Result<Authen
     } else {
         (bytes, ListingAdmissionProof::Legacy(provenance))
     };
-    let document = ListingDeliveryDocument::parse(&bytes)?;
+    let document = if compact {
+        ListingDeliveryDocument::parse_compact(&bytes)?
+    } else {
+        ListingDeliveryDocument::parse(&bytes)?
+    };
     Ok(AuthenticatedListings {
         bytes,
         document,
