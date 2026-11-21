@@ -23,6 +23,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clearCatalogFilters,
+  clickVisible,
   reviewControls,
   selectCatalogPort,
   selectPrimaryNavigation,
@@ -36,7 +37,7 @@ import {
   observeCompletionReturnFocus,
 } from "./desktop-completion-focus.mts";
 
-import type { Locator, WebDriver } from "selenium-webdriver";
+import type { Locator, WebDriver, WebElement } from "selenium-webdriver";
 import type { ReviewClickOptions, WebKitPointerObservation } from "./desktop-review-controls.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { nativeGameFileFolderPicker } from "./desktop-native-confirmation.mts";
@@ -102,6 +103,7 @@ interface CompletionObservations {
   plan?: InstallPlan;
   controller_review?: Record<string, unknown>;
   cancelled?: { activity: ActivityRecord; status: PortStatus };
+  cancelled_review_closed?: true;
   installed?: { activity: ActivityRecord; status: PortStatus };
   preparation_wait?: PreparationObservation & { requested_at: string };
   prepared?: { activity: PreparedActivity; status: PortStatus };
@@ -781,8 +783,9 @@ export async function selectedSetupCompletionScenario({
 
       const installDialog = By.css('[aria-labelledby="install-review-title"]');
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
-      const openInstall = async () => {
-        await click(button("Review installation"));
+      const openInstall = async (trigger?: WebElement) => {
+        if (trigger) await clickVisible(browser, trigger, clickOptions);
+        else await click(button("Review installation"));
         await browser.wait(until.elementLocated(installDialog), 15_000);
         await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
       };
@@ -1027,8 +1030,30 @@ export async function selectedSetupCompletionScenario({
       report.observations.cancelled = { activity: cancelled, status: cancelledStatus };
       await enlargedStage("cancelled-install");
 
-      await browser.wait(until.elementLocated(button("Review installation")), 15_000);
-      await openInstall();
+      await browser.wait(
+        async () => (await browser.findElements(installDialog)).length === 0,
+        60_000,
+        "The cancelled installation review must close before retry",
+      );
+      const exactReviewTrigger = By.xpath(
+        `//*[@data-detail-port-id=${JSON.stringify(port.id)}]//button[normalize-space(.)="Review installation"]`,
+      );
+      const retryTrigger = await browser.wait(
+        async () => {
+          const visible = [];
+          for (const candidate of await browser.findElements(exactReviewTrigger)) {
+            if ((await candidate.isDisplayed()) && (await candidate.isEnabled())) {
+              visible.push(candidate);
+            }
+          }
+          assert.ok(visible.length <= 1, "The selected game must have one enabled review trigger");
+          return visible[0] ?? false;
+        },
+        60_000,
+        "The selected game did not regain a visible installation review after cancellation",
+      );
+      report.observations.cancelled_review_closed = true;
+      await openInstall(required(retryTrigger || undefined));
       if (clickOptions.dispatch === "webkit-window-pointer") await click(install);
       else await browser.findElement(install).click();
       const installedActivity = required(
