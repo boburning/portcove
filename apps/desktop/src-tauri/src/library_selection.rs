@@ -34,9 +34,8 @@ pub(crate) async fn set_default_library(
 ) -> DesktopResult<BootstrapStatus> {
     let state = state.inner().clone();
     let worker_state = state.clone();
-    let status = blocking_worker(move || switch_library(&worker_state, Some(path))).await?;
-    observe_reopened_library(&app, &state)?;
-    Ok(status)
+    let outcome = blocking_worker(move || switch_library(&worker_state, Some(path))).await?;
+    finish_selection(outcome, || observe_reopened_library(&app, &state))
 }
 
 #[tauri::command]
@@ -46,9 +45,8 @@ pub(crate) async fn reset_default_library(
 ) -> DesktopResult<BootstrapStatus> {
     let state = state.inner().clone();
     let worker_state = state.clone();
-    let status = blocking_worker(move || switch_library(&worker_state, None)).await?;
-    observe_reopened_library(&app, &state)?;
-    Ok(status)
+    let outcome = blocking_worker(move || switch_library(&worker_state, None)).await?;
+    finish_selection(outcome, || observe_reopened_library(&app, &state))
 }
 
 fn observe_reopened_library(app: &tauri::AppHandle, state: &DesktopState) -> DesktopResult<()> {
@@ -63,10 +61,26 @@ fn observe_reopened_library(app: &tauri::AppHandle, state: &DesktopState) -> Des
     Ok(())
 }
 
+#[derive(Debug)]
+struct LibrarySelectionOutcome {
+    status: BootstrapStatus,
+    reopened: bool,
+}
+
+fn finish_selection(
+    outcome: LibrarySelectionOutcome,
+    observe: impl FnOnce() -> DesktopResult<()>,
+) -> DesktopResult<BootstrapStatus> {
+    if outcome.reopened {
+        observe()?;
+    }
+    Ok(outcome.status)
+}
+
 fn switch_library(
     state: &DesktopState,
     requested: Option<PathBuf>,
-) -> DesktopResult<BootstrapStatus> {
+) -> DesktopResult<LibrarySelectionOutcome> {
     let preferences = state.preferences.as_ref().map_err(Clone::clone)?.clone();
     let (target, source) = match requested {
         Some(root) => (
@@ -82,12 +96,16 @@ fn switch_library(
         root: target,
         source,
     };
-    if selection.source == LibrarySelectionSource::Saved {
-        // Refuse a damaged/future document before opening (and potentially
-        // initializing) a newly selected empty directory. Reset is the explicit
-        // recovery operation for those documents.
-        preferences.load().map_err(DesktopError::from)?;
-    }
+    // Refuse a damaged/future document before opening (and potentially
+    // initializing) a newly selected empty directory. Reset is the explicit
+    // recovery operation for those documents.
+    let saved_choice = match preferences.load() {
+        Ok(preferences) => Some(preferences.library_root),
+        Err(error) if selection.source == LibrarySelectionSource::Saved => {
+            return Err(DesktopError::from(error));
+        }
+        Err(_) => None,
+    };
 
     let previous = {
         let mut initialization = state.initialization.lock().map_err(|_| {
@@ -97,6 +115,20 @@ fn switch_library(
         if let Ok(current) = initialization.as_mut()
             && same_existing_library(current.library.root(), &selection.root)
         {
+            let already_saved = match (&selection.source, &saved_choice) {
+                (LibrarySelectionSource::Saved, Some(Some(root))) => {
+                    same_existing_library(root, &selection.root)
+                }
+                (LibrarySelectionSource::PlatformDefault, Some(None)) => true,
+                _ => false,
+            };
+            if current.selection.source == selection.source && already_saved {
+                drop(initialization);
+                return Ok(LibrarySelectionOutcome {
+                    status: bootstrap_status(state),
+                    reopened: false,
+                });
+            }
             persist_selection(&preferences, &selection)?;
             current.selection = selection;
             state
@@ -104,7 +136,10 @@ fn switch_library(
                 .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
             drop(initialization);
             crate::recent_play_shortcuts::refresh(state.clone());
-            return Ok(bootstrap_status(state));
+            return Ok(LibrarySelectionOutcome {
+                status: bootstrap_status(state),
+                reopened: false,
+            });
         }
         std::mem::replace(
             &mut *initialization,
@@ -150,7 +185,10 @@ fn switch_library(
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
     }
     crate::recent_play_shortcuts::refresh(state.clone());
-    Ok(bootstrap_status(state))
+    Ok(LibrarySelectionOutcome {
+        status: bootstrap_status(state),
+        reopened: true,
+    })
 }
 
 fn same_existing_library(current: &std::path::Path, target: &std::path::Path) -> bool {
@@ -261,7 +299,7 @@ mod tests {
         let canonical = Library::validate_selection_target(&current).unwrap();
         assert_ne!(held.library.root(), canonical);
         let before_identity = held.library.identity_record().unwrap();
-        let switched = switch_library(&state, Some(current)).unwrap();
+        let switched = switch_library(&state, Some(current)).unwrap().status;
         let after = crate::ready(&state).unwrap();
         assert_eq!(switched.generation, 2);
         assert_eq!(switched.selection.unwrap().root, canonical);
@@ -273,6 +311,42 @@ mod tests {
         assert!(std::sync::Arc::ptr_eq(&held.github, &after.github));
         assert!(std::sync::Arc::ptr_eq(&held.releases, &after.releases));
         assert_eq!(after.library.root(), held.library.root());
+    }
+
+    #[test]
+    fn selecting_the_saved_library_keeps_its_generation_and_preference_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let current = temporary.path().join("current");
+        let preferences_path = temporary.path().join("config/preferences.json");
+        let preferences = HostPreferenceStore::new(preferences_path.clone()).unwrap();
+        let state = desktop_state(preferences, current.clone());
+
+        // The first selection explicitly replaces the invocation override.
+        let saved = switch_library(&state, Some(current.clone())).unwrap();
+        let saved = finish_selection(saved, || panic!("active library was not reopened")).unwrap();
+        assert_eq!(saved.generation, 2);
+        let selection = saved.selection.unwrap();
+        assert_eq!(selection.source, LibrarySelectionSource::Saved);
+        let before = fs::read(&preferences_path).unwrap();
+        let mut with_whitespace = before;
+        with_whitespace.push(b'\n');
+        fs::write(&preferences_path, &with_whitespace).unwrap();
+        let held = crate::ready(&state).unwrap();
+
+        let alias = current.join(".");
+        assert_ne!(alias.as_os_str(), selection.root.as_os_str());
+        let reselected = switch_library(&state, Some(alias)).unwrap();
+        let reselected = finish_selection(reselected, || {
+            panic!("no-op must not start launch observers")
+        })
+        .unwrap();
+        assert_eq!(reselected.generation, saved.generation);
+        assert_eq!(reselected.selection, Some(selection));
+        assert_eq!(fs::read(&preferences_path).unwrap(), with_whitespace);
+        assert!(std::sync::Arc::ptr_eq(
+            &held.workspace_observer,
+            &crate::ready(&state).unwrap().workspace_observer
+        ));
     }
 
     #[test]
@@ -291,7 +365,7 @@ mod tests {
         assert!(!next.join("portcove.sqlite3").exists());
         drop(pending);
 
-        let switched = switch_library(&state, Some(next.clone())).unwrap();
+        let switched = switch_library(&state, Some(next.clone())).unwrap().status;
         assert_eq!(switched.generation, 2);
         assert_eq!(
             switched.selection.unwrap().root,
@@ -314,7 +388,7 @@ mod tests {
             drop(held);
         });
 
-        let switched = switch_library(&state, Some(next.clone())).unwrap();
+        let switched = switch_library(&state, Some(next.clone())).unwrap().status;
         reader.join().unwrap();
         assert_eq!(switched.generation, 2);
         assert_eq!(
