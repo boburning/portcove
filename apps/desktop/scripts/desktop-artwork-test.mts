@@ -433,11 +433,55 @@ export async function artworkScenario({
           60_000,
           "The artwork editor must settle after the committed role is read back",
         );
-        await browser.wait(
-          () =>
-            executeBrowserScript(browser, (element) => document.activeElement === element, picker),
-          5000,
-        );
+        try {
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                (element) => document.activeElement === element,
+                picker,
+              ),
+            5_000,
+            "Artwork focus did not return to the edited slot's picker after Apply",
+          );
+        } catch (error) {
+          try {
+            const focus = await executeBrowserScript(
+              browser,
+              (label) => {
+                const dialog = document.querySelector<HTMLDialogElement>(
+                  "dialog.artwork-sheet[open]",
+                );
+                const panel = dialog?.querySelector('section[aria-label="' + label + '"]');
+                const pickers = [...(panel?.querySelectorAll("button") ?? [])].filter(
+                  (button) => button.textContent?.trim() === "Choose local image",
+                );
+                const active = document.activeElement;
+                return {
+                  windowFocused: document.hasFocus(),
+                  activeTag: active?.tagName,
+                  activeRole: active?.getAttribute("role"),
+                  activeLabel:
+                    active instanceof HTMLButtonElement
+                      ? active.textContent?.trim().slice(0, 120)
+                      : undefined,
+                  activeInEditor: Boolean(active && dialog?.contains(active)),
+                  editorOpen: Boolean(dialog),
+                  pickerCount: pickers.length,
+                  pickerFocused: pickers.some((button) => button === active),
+                  pickerDisabled: pickers[0]?.disabled,
+                };
+              },
+              slotLabel(slot),
+            );
+            const evidence = path.join(output, "artwork-return-focus-" + slot + ".json");
+            await writeFile(evidence, JSON.stringify(focus, null, 2), { flag: "wx" });
+            artifacts.push(evidence);
+          } catch (diagnosticError) {
+            console.error("Artwork focus diagnostic unavailable", errorMessage(diagnosticError));
+          }
+          throw error;
+        }
       }
       await waitForArtworkImage(browser, ".wide-artwork img");
       const sheetScreenshot = path.join(output, "native-change-artwork-sheet.png");
