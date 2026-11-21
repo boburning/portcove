@@ -28,7 +28,10 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
-import { planN64OriginalBindings } from "./n64-original-binding-candidates.mts";
+import {
+  planN64OriginalBindings,
+  prepareN64OriginalContractAmendment,
+} from "./n64-original-binding-candidates.mts";
 
 import { thunderstoreRegistrySubject } from "./upstream-mod-provider-registry.mts";
 
@@ -440,6 +443,14 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               inputEvidence,
             )
           : undefined;
+      const contractAmendment =
+        bindingPlan && inputEvidence
+          ? prepareN64OriginalContractAmendment(
+              definitions.get(port.id),
+              rawCatalog.source_catalog,
+              inputEvidence,
+            )
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -460,6 +471,7 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
           ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
           ...(evidenceKey && inputEvidence ? { [evidenceKey]: inputEvidence } : {}),
           ...(bindingPlan ? { n64_original_binding_plan: bindingPlan } : {}),
+          ...(contractAmendment ? { n64_original_contract_amendment: contractAmendment } : {}),
         },
       ]);
     }
@@ -775,6 +787,9 @@ export interface UpstreamSourceFact {
   original_recognition?: OriginalSourceProgress;
   n64_game_entries?: OriginalSourceProgress;
   n64_original_binding_plan?: NonNullable<ReturnType<typeof planN64OriginalBindings>>;
+  n64_original_contract_amendment?: NonNullable<
+    ReturnType<typeof prepareN64OriginalContractAmendment>
+  >;
 }
 
 const storedSources = (payload: unknown) =>

@@ -271,8 +271,19 @@ definition, source contracts, and package selection evaluated by the observer.
 It uses the native game ID from the configured runtime filename, the reviewed
 hash-header bytes, and the linked executable's name against the port's platform
 hints. The proposal remains held until the packaged executable and its effective
-hash behavior are verified. An existing enforced original-file contract also
-requires a compatibility migration. Effective runtime qualification, native
+hash behavior are verified. A checked package receipt joins the selected platform and artifact digest
+to the observed source, runtime, hash dependency and exact build job. For a
+universal package, each selected architecture needs its own review. The
+maintenance projection then prepares a source-contract amendment and immutable
+upstream support evidence. It preserves existing bindings and the enforced
+legacy contract. The first enforced migration requires N64 reader capability
+11; informational exact bindings require capability 10.
+
+Run `node scripts/prepare-n64-original-inputs.mts CHECKPOINT PORT_ID` to
+replay a current observer checkpoint against the authored catalog and emit the
+replacement contract and evidence record. Apply them to the indicated shared
+catalog source through normal catalog review and generation. The output carries
+the previous contract digest and exact executable receipts for review. Native
 acceptance and signed definition delivery continue through their existing owners.
 
 These optional facts follow the existing request budget and checkpoint. The

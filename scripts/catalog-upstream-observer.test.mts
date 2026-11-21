@@ -1,7 +1,11 @@
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
 import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
-import { n64AuthoringScope, planN64OriginalBindings } from "./n64-original-binding-candidates.mts";
+import {
+  n64AuthoringScope,
+  planN64OriginalBindings,
+  prepareN64OriginalContractAmendment,
+} from "./n64-original-binding-candidates.mts";
 import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
 import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
@@ -1114,7 +1118,14 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     const authoringCatalog = {
       ...h.input,
       source_catalog: {
-        identities: [{ id: "example", kind: "file" }],
+        identities: [
+          {
+            id: "example",
+            kind: "file",
+            variants: [{ representations: [{ kind: "canonical-n64" }] }],
+          },
+        ],
+        evidence: [],
         contracts: [
           {
             id: "example-game",
@@ -1536,6 +1547,84 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         },
       });
       assert.equal(migratedPlan?.platforms[0]?.state, "awaiting-effective-build-proof");
+      const successorObservation = {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: { ...compiled, authoring_scope_sha256: migratedScope },
+        },
+      };
+      assert.equal(
+        readProjectedSource(authoringCatalog).n64_original_contract_amendment,
+        undefined,
+      );
+      const runtime =
+        compiled.runtime_source?.state === "observed" ? compiled.runtime_source.source : undefined;
+      const hash = runtime?.hash_source?.state === "observed" ? runtime.hash_source : undefined;
+      const job = compiled.build_jobs?.matches[0];
+      assert.ok(runtime && hash && job?.compile);
+      const receipt = {
+        repository_id: compiled.repository_id,
+        release_id: compiled.release_id,
+        source_commit: compiled.source_commit,
+        source_blob_sha1: compiled.source_blob_sha1,
+        runtime_revision: runtime.revision,
+        hash_revision: hash.revision,
+        game_id: "fixture.us",
+        rom_xxh3_64: "0123456789abcdef",
+        review_url: "https://example.com/package-review",
+        reviewed_at: "2026-10-26",
+        packages: [
+          {
+            platform: "linux-x86-64",
+            artifact_sha256: "a".repeat(64),
+            job_id: job.job_id,
+            compile_sha256: job.compile.log_sha256,
+            executable_sha256: "e".repeat(64),
+          },
+        ],
+      };
+      const amendment = prepareN64OriginalContractAmendment(
+        port,
+        migratedSources,
+        successorObservation,
+        [receipt],
+      );
+      assert.equal(amendment?.requires_reader, 11);
+      assert.equal(amendment?.contract_id, "example-game");
+      assert.equal(amendment?.upstream_support_evidence.role, "upstream_support");
+      assert.deepEqual(amendment?.n64_recomp_inputs_v1, [
+        ...migratedSources.contracts[0]!.n64_recomp_inputs_v1,
+        {
+          upstream_ref: "v1.0.0",
+          artifact_sha256: "a".repeat(64),
+          game_id: "fixture.us",
+          rom_xxh3_64: "0123456789abcdef",
+        },
+      ]);
+      const sharedPackage = {
+        ...successorObservation,
+        last_complete: {
+          ...successorObservation.last_complete,
+          fact: {
+            ...successorObservation.last_complete.fact,
+            artifacts: [
+              ...compiled.artifacts,
+              { platform: "windows-x86-64", sha256: "a".repeat(64) },
+            ],
+          },
+        },
+      };
+      assert.equal(
+        prepareN64OriginalContractAmendment(port, migratedSources, sharedPackage, [receipt]),
+        undefined,
+      );
+      assert.equal(
+        prepareN64OriginalContractAmendment(port, migratedSources, successorObservation, [
+          { ...receipt, rom_xxh3_64: "f".repeat(16) },
+        ]),
+        undefined,
+      );
 
       const changedDefinition = {
         ...authoringCatalog,

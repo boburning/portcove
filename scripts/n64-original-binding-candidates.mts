@@ -1,3 +1,4 @@
+import reviewedPackagedInputs from "./n64-reviewed-packaged-inputs.json" with { type: "json" };
 import { isRecord } from "./runtime-values.mts";
 import { orderedJsonSha256 } from "./json-values.mts";
 import type { OriginalSourceProgress } from "./upstream-original-recognition.mts";
@@ -136,8 +137,7 @@ export function planN64OriginalBindings(
     }
   }
 
-  const platforms: (ArtifactCandidate | { platform: string; state: "no-current-artifact" })[] =
-    [];
+  const platforms: (ArtifactCandidate | { platform: string; state: "no-current-artifact" })[] = [];
   for (const { platform, sha256 } of fact.artifacts) {
     const identity = { platform, artifact_sha256: sha256 };
     if (!game) {
@@ -191,5 +191,157 @@ export function planN64OriginalBindings(
     source_commit: fact.source_commit,
     source_blob_sha1: fact.source_blob_sha1,
     platforms,
+  } as const;
+}
+
+// A reviewed binary receipt ties the matching native entry and checked code
+// paths to the deployed image, including individual universal-package slices.
+type ReviewedPackagedInput = (typeof reviewedPackagedInputs.receipts)[number];
+
+export function prepareN64OriginalContractAmendment(
+  port: unknown,
+  sourceCatalog: unknown,
+  evidence: OriginalSourceProgress,
+  receipts: readonly ReviewedPackagedInput[] = reviewedPackagedInputs.receipts,
+) {
+  const plan = planN64OriginalBindings(port, sourceCatalog, evidence);
+  const complete = evidence.last_complete;
+  const fact = complete?.fact;
+  if (
+    !complete ||
+    !plan ||
+    fact?.parser !== "n64-recomp-game-entry-v1" ||
+    !isRecord(port) ||
+    !isRecord(sourceCatalog) ||
+    !Array.isArray(sourceCatalog.contracts) ||
+    !Array.isArray(sourceCatalog.identities) ||
+    !Array.isArray(sourceCatalog.evidence) ||
+    fact.runtime_source?.state !== "observed" ||
+    fact.runtime_source.source.hash_source?.state !== "observed"
+  )
+    return;
+
+  const contract = (sourceCatalog.contracts as unknown[]).find(
+    (entry) =>
+      isRecord(entry) &&
+      entry.port_id === port.id &&
+      entry.role === "game" &&
+      entry.profile_id === port.source_profile,
+  );
+  if (!isRecord(contract) || typeof contract.id !== "string") return;
+  if (contract.admission_mode === "enforced") {
+    const profile = (sourceCatalog.identities as unknown[]).find(
+      (entry) => isRecord(entry) && entry.id === contract.profile_id,
+    );
+    if (
+      !isRecord(profile) ||
+      !Array.isArray(profile.variants) ||
+      !(profile.variants as unknown[]).every(
+        (variant) =>
+          isRecord(variant) &&
+          Array.isArray(variant.representations) &&
+          (variant.representations as unknown[]).every(
+            (representation) => isRecord(representation) && representation.kind === "canonical-n64",
+          ),
+      )
+    )
+      return;
+  }
+
+  const runtime = fact.runtime_source.source;
+  const hashSource = runtime.hash_source;
+  if (hashSource?.state !== "observed") return;
+  const inputRows = plan.platforms.flatMap((row) => {
+    if (
+      !("proposed_input" in row) ||
+      !row.proposed_input ||
+      !["awaiting-effective-build-proof", "legacy-contract-migration-required"].includes(row.state)
+    )
+      return [];
+    const input = row.proposed_input;
+    const job = fact.build_jobs?.matches.find(
+      (match) =>
+        match.job_id === row.build_job_id && match.artifact_sha256 === input.artifact_sha256,
+    );
+    if (!job?.compile) return [];
+    const matches = receipts.flatMap((receipt) => {
+      if (
+        receipt.repository_id !== fact.repository_id ||
+        receipt.release_id !== fact.release_id ||
+        receipt.source_commit !== fact.source_commit ||
+        receipt.source_blob_sha1 !== fact.source_blob_sha1 ||
+        receipt.runtime_revision !== runtime.revision ||
+        receipt.hash_revision !== hashSource.revision ||
+        receipt.game_id !== input.game_id ||
+        receipt.rom_xxh3_64 !== input.rom_xxh3_64
+      )
+        return [];
+      return receipt.packages
+        .filter(
+          (entry) =>
+            entry.platform === row.platform &&
+            entry.artifact_sha256 === input.artifact_sha256 &&
+            entry.job_id === job.job_id &&
+            entry.compile_sha256 === job.compile?.log_sha256 &&
+            /^[a-f0-9]{64}$/u.test(entry.executable_sha256),
+        )
+        .map((entry) => ({
+          ...entry,
+          review_url: receipt.review_url,
+          reviewed_at: receipt.reviewed_at,
+        }));
+    });
+    return matches.length === 1 ? [{ input, proof: matches[0]! }] : [];
+  });
+
+  // Core keys a binding by release and artifact. For shared packages every
+  // selected architecture must have proof before the binding can apply.
+  const unprovedArtifacts = new Set(
+    fact.artifacts
+      .filter(({ platform }) => !inputRows.some(({ proof }) => proof.platform === platform))
+      .map(({ sha256 }) => sha256),
+  );
+  const admittedRows = inputRows.filter(
+    ({ input }) => !unprovedArtifacts.has(input.artifact_sha256),
+  );
+  const existing = contract.n64_recomp_inputs_v1 ?? [];
+  if (!Array.isArray(existing) || !admittedRows.length) return;
+  const bindings = new Map<string, unknown>();
+  for (const entry of existing as unknown[]) {
+    if (!isRecord(entry)) return;
+    bindings.set(orderedJsonSha256([entry.upstream_ref, entry.artifact_sha256]), entry);
+  }
+  const originalCount = bindings.size;
+  for (const { input } of admittedRows) {
+    const key = orderedJsonSha256([input.upstream_ref, input.artifact_sha256]);
+    const previous = bindings.get(key);
+    if (previous && orderedJsonSha256(previous) !== orderedJsonSha256(input)) return;
+    bindings.set(key, input);
+  }
+  if (bindings.size === originalCount || bindings.size > 64) return;
+  return {
+    format_version: 1,
+    authority: "authoring-input-only",
+    contract_id: contract.id,
+    authoring_scope_sha256: fact.authoring_scope_sha256,
+    requires_reader: contract.admission_mode === "enforced" ? 11 : 10,
+    packages: admittedRows.map(({ proof }) => proof),
+    upstream_support_evidence: {
+      id: "n64-input-" + fact.repository_id + "-" + fact.release_id + "-" + fact.source_commit,
+      role: "upstream_support",
+      authority: fact.repository,
+      authority_ref: fact.source_commit,
+      reviewed_at: admittedRows[0]!.proof.reviewed_at,
+      claim:
+        "Declares the native game ID and normalized original-file digest for the selected release.",
+      immutable_url:
+        "https://github.com/" +
+        fact.repository +
+        "/blob/" +
+        fact.source_commit +
+        "/" +
+        fact.source_path,
+    },
+    n64_recomp_inputs_v1: [...bindings.values()],
   } as const;
 }
