@@ -242,6 +242,22 @@ export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditCon
   return parsed as AuditContinuation[];
 }
 
+export function scheduledReceiptRequestKey(
+  phase: "before-audits" | "after-audits",
+  { GITHUB_RUN_ID: run, GITHUB_RUN_ATTEMPT: attempt, GITHUB_SHA: head }: NodeJS.ProcessEnv,
+) {
+  if (
+    !run ||
+    !/^[1-9]\d*$/u.test(run) ||
+    !attempt ||
+    !/^[1-9]\d*$/u.test(attempt) ||
+    !head ||
+    !/^[0-9a-f]{40}$/u.test(head)
+  )
+    throw new Error("Scheduled receipt admission requires the exact GitHub run attempt and source");
+  return `github:${run}:scheduled-intake:${phase}:${head}:${attempt}`;
+}
+
 /** Select tickets with the existing executor checkpoint and reconcile original receipts. */
 export async function scheduledIntakeReceipts(
   phase: "before-audits" | "after-audits",
@@ -255,18 +271,20 @@ export async function scheduledIntakeReceipts(
   const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
     await import("./maintenance-resource-policy.mts");
   try {
+    const token = base.REPOSITORY_TOKEN;
+    if (!token) throw new Error("Scheduled receipts require the repository token");
     const environment = connectionFromEnvironment("PORTCOVE_DISCOVERY_DATABASE_URL", base);
     const result = await withMaintenanceAdmission(
       environment,
       "handoffs",
       () =>
         hostedIntakeObservation(
-          () => readHostedIntake(environment),
+          () => readHostedIntake(environment, token),
           (queue) => reconcileIntakeHandoffReceipts(environment, async () => queue),
         ),
       {
         executor: true,
-        request: `github:${base.GITHUB_RUN_ID}:scheduled-intake:${phase}:${base.GITHUB_SHA}`,
+        request: scheduledReceiptRequestKey(phase, base),
         completed: (observation) => observation.receipts?.status === "passed",
       },
     );
@@ -331,11 +349,16 @@ async function main() {
     return;
   }
   const scheduled = scheduledAuditRequests(process.env);
-  const result = run(scheduled.length ? scheduled.map(({ request }) => request) : audit);
-  const after = scheduled.length
-    ? await scheduledIntakeReceipts("after-audits", process.env)
-    : undefined;
-  if (after) recordReceipts(after);
+  let result: ReturnType<typeof runHostedIntakePasses>;
+  let after: ScheduledReceiptPass | undefined;
+  try {
+    result = run(scheduled.length ? scheduled.map(({ request }) => request) : audit);
+  } finally {
+    if (scheduled.length) {
+      after = await scheduledIntakeReceipts("after-audits", process.env);
+      recordReceipts(after);
+    }
+  }
   // A comment event reports its own proposal result. The ledger still retains
   // the outcomes of all other queue entries, including historical holds.
   const event: unknown =

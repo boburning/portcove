@@ -332,7 +332,20 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
       new URL("../.github/workflows/hosted-discovery-intake.yml", import.meta.url),
       "utf8",
     ),
-  ) as { jobs: { intake: Job } };
+  ) as { jobs: { intake: Job; "receipt-check": Job } };
+  const receiptCaller = workflow.jobs["reconcile-intake-receipts"]!;
+  const receiptWorker = worker.jobs["receipt-check"];
+  assert.deepEqual(receiptCaller.permissions, { contents: "read", issues: "read" });
+  assert.deepEqual(receiptWorker.permissions, receiptCaller.permissions);
+  assert.equal(receiptCaller.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
+  assert.doesNotMatch(JSON.stringify(receiptWorker.steps), /secrets.PORTCOVE_ROADMAP_TOKEN/u);
+  assert.match(
+    JSON.stringify(receiptWorker.steps),
+    /"REPOSITORY_TOKEN":"\$\{\{ github.token \}\}"/u,
+  );
+  const jobConcurrency = (job: Job) =>
+    (job as Job & { concurrency: { group: string } }).concurrency.group;
+  assert.notEqual(jobConcurrency(receiptWorker), jobConcurrency(worker.jobs.intake));
   const checkout = worker.jobs.intake.steps.find((step) =>
     step.uses?.startsWith("actions/checkout@"),
   );

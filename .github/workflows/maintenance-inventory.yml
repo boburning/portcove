@@ -31,13 +31,11 @@ jobs:
     if: github.event_name == 'schedule' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-      issues: write
-      actions: read
+      issues: read
     uses: ./.github/workflows/hosted-discovery-intake.yml
     with:
       mode: scheduled-receipts
     secrets:
-      PORTCOVE_ROADMAP_TOKEN: ${{ secrets.PORTCOVE_ROADMAP_TOKEN }}
       PORTCOVE_DISCOVERY_DATABASE_URL: ${{ secrets.PORTCOVE_DISCOVERY_DATABASE_URL }}
       PORTCOVE_NEON_METER_TOKEN: ${{ secrets.PORTCOVE_NEON_METER_TOKEN }}
 

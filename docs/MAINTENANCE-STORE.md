@@ -1278,7 +1278,10 @@ use the direct database secret `PORTCOVE_DATABASE_URL`. Collection uses
 uses the existing intake worker's Project credential, separate database role and
 metered admission in the same run. Before collection can advance the handoff
 fences, the worker reads the intake queue and checkpoints and reconciles the
-original receipts under its executor role. Collection and backup continue even
+original receipts under its executor role. The receipt-only job uses the
+repository token for reads and has its own concurrency group, so it cannot
+displace an owner-authorized writer that is waiting for the intake slot. Each
+receipt pass reserves its own run attempt. Collection and backup continue even
 when this receipt pass fails. With no bound audit tickets the scheduler performs
 no audit. The scoped audit worker checks receipts again after its audit passes
 return. The collection report records the delegation and the executor jobs

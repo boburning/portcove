@@ -14,6 +14,7 @@ import {
   scheduledAuditRequests,
   scheduledIntakeReceipts,
   scheduledReceiptOutcome,
+  scheduledReceiptRequestKey,
   hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
@@ -55,6 +56,22 @@ void test("only the protected scheduled caller accepts exact nonduplicate audit 
     );
 });
 
+void test("scheduled receipt admission distinguishes reruns without changing the source or phase", () => {
+  const run = { GITHUB_RUN_ID: "44907060987", GITHUB_RUN_ATTEMPT: "1", GITHUB_SHA: "a".repeat(40) };
+  const first = scheduledReceiptRequestKey("before-audits", run);
+  assert.equal(first, `github:44907060987:scheduled-intake:before-audits:${run.GITHUB_SHA}:1`);
+  assert.equal(scheduledReceiptRequestKey("before-audits", run), first);
+  assert.equal(
+    scheduledReceiptRequestKey("before-audits", { ...run, GITHUB_RUN_ATTEMPT: "2" }),
+    first.replace(/:1$/u, ":2"),
+  );
+  assert.notEqual(scheduledReceiptRequestKey("after-audits", run), first);
+  assert.throws(
+    () => scheduledReceiptRequestKey("before-audits", { ...run, GITHUB_RUN_ATTEMPT: undefined }),
+    /exact GitHub run attempt/u,
+  );
+});
+
 void test("a scheduled receipt-only result can finish without enqueueing an audit", async () => {
   assert.deepEqual(
     scheduledReceiptOutcome({
@@ -76,6 +93,21 @@ void test("a scheduled receipt-only result can finish without enqueueing an audi
     scheduledIntakeReceipts("before-audits", { GITHUB_EVENT_NAME: "workflow_dispatch" }),
     /protected maintenance schedule/u,
   );
+});
+
+void test("scheduled receipt reads refuse to substitute a Project token for the repository token", async () => {
+  const result = await scheduledIntakeReceipts("after-audits", {
+    HOSTED_INTAKE_MODE: "resume-audits",
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    GH_TOKEN: "project-token",
+    PORTCOVE_DISCOVERY_DATABASE_URL: "invalid-unused-database-url",
+  });
+  assert.equal(result.receipts.status, "unavailable");
+  assert.deepEqual(result.tickets, []);
 });
 
 void test("an unrelated incomplete receipt leaves bound tickets available and withholds the collection fence", () => {

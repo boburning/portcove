@@ -253,6 +253,7 @@ export async function hostedIntakeObservation(
 /** The complete read-only status read, GET-only within the executor's request budget. */
 export async function readHostedIntake(
   checkpointEnvironment?: NodeJS.ProcessEnv,
+  repositoryToken?: string,
 ): Promise<HostedStatusAll> {
   const { hostedStatusAll, readOnlyHostedBridge } = await import("./hosted-discovery-intake.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
@@ -262,7 +263,11 @@ export async function readHostedIntake(
   );
   const deadline = performance.now() + 120_000;
   const bridge = await readOnlyHostedBridge(config, {
-    credential: localDeveloperCredential({ deadline, command: process.env.PORTCOVE_ROADMAP_GH }),
+    credential: localDeveloperCredential({
+      ...(repositoryToken ? { environment: { GH_TOKEN: repositoryToken } } : {}),
+      deadline,
+      command: process.env.PORTCOVE_ROADMAP_GH,
+    }),
     deadline,
   });
   const { postgresIntakeCheckpoints } = await import("./hosted-discovery-intake-checkpoint.mts");
