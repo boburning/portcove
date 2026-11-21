@@ -1004,7 +1004,10 @@ All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
 affects only that inspection and leaves the index and other inspections unchanged.
 Other catalog ports preserve the self-contained legacy graph; their presence does
-not admit additional indexed definitions. `DefinitionCatalogProjection` retains
+not admit additional indexed definitions. Package-only settings belong to the
+selected port. Older complete projections omit those settings from unrelated
+ports. At selection, the effective catalog keeps any package-only settings
+already admitted for those ports. `DefinitionCatalogProjection` retains
 the exact entry and contract bytes alongside the validated catalog. This is pure
 supplied-content interpretation, with no I/O, signing, publisher grant, selection
 or installation. Its validated catalog now carries the selected port's exact
@@ -1917,12 +1920,18 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The complete target is bounded to 8 MiB, each listing
+The legacy target is bounded to 8 MiB, each listing
 uses the existing descriptive validator, and both lists are bounded to 10,000
 identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
+
+The compact target uses the same delegation and an 8 MiB authenticated carrier.
+A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
+of decoded directory data. Compact parsing checks each record separately and
+accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including
 acquisition restrictions; package observations and metadata enrichment cannot
@@ -1978,10 +1987,15 @@ keeps the scene only if the project and original-game scope still match and
 the combined media passes admission. A format-13 replacement can withdraw it.
 
 Listing format 14 can bind an original edition to a reviewed Core source
-identity. A binding names the exact source profile, variant and representation.
+identity. A binding names the exact source game, variant and representation.
 It is descriptive and applies only to current data verified with exact identity.
 Exports through format 13 retain the original editions and omit these bindings.
 The strict operational catalog does not carry the bindings.
+Both signed carriers use the same directory field rules. An older overlay
+keeps bundled bindings only for the same project and original description.
+A format-14 replacement can remove those bindings. Carrier support and format
+support are advertised separately, so compact transport alone does not
+establish format-14 compatibility.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
