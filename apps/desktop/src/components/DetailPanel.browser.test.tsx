@@ -1263,3 +1263,49 @@ it("keeps a setup-needed game's file details inside a 400% interface-size column
   await expect.poll(() => column.querySelector(".requirements-body") !== null).toBe(true);
   expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
 });
+
+it("shows the opt-in community Mods tab before installation and alongside local setup controls", async () => {
+  const oldViewport = { width: innerWidth, height: innerHeight };
+  const props = installedSourceDetail("opengoal-jak1", "not_checked");
+  const url = "https://jakmods.dev/#installation";
+  const availability = vi.spyOn(desktopApi, "jakModsSetupUrl").mockResolvedValue(url);
+  const catalog = vi.spyOn(desktopApi, "jakModsCatalog");
+  const setups = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+    port_id: props.port.id,
+    supported: true,
+    current_install_id: props.status.active.id,
+    package_types: [],
+    later_mods_take_priority: false,
+    held_updates: [],
+    provider: null,
+    inventory: { port_id: props.port.id, profiles: [] },
+    live: null,
+  });
+  try {
+    await page.viewport(960, 800);
+    const view = await render(
+      <DetailPanel {...props} status={{ ...props.status, active: null }} libraryGeneration={101} />,
+    );
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    const tab = page.getByRole("tabpanel", { name: "Mods", exact: true });
+    await expect
+      .element(tab.getByRole("link", { name: "Set up JakMods in the OpenGOAL Launcher" }))
+      .toBeVisible();
+    expect(setups).not.toHaveBeenCalled();
+    expect(catalog).not.toHaveBeenCalled();
+    await view.rerender(<DetailPanel {...props} libraryGeneration={102} />);
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    await expect.element(tab.getByRole("button", { name: "Browse JakMods" })).toBeVisible();
+    await expect
+      .element(tab.getByText("This game has no setup yet.", { exact: false }))
+      .toBeVisible();
+    expect(availability).toHaveBeenCalledWith(props.port.id, 102);
+    expect(setups).toHaveBeenCalledWith(props.port.id, 102);
+    expect(catalog).not.toHaveBeenCalled();
+  } finally {
+    availability.mockRestore();
+    catalog.mockRestore();
+    setups.mockRestore();
+    await page.viewport(oldViewport.width, oldViewport.height);
+  }
+});

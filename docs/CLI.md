@@ -2699,6 +2699,42 @@ as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
+
 ### Installing from GameBanana and Thunderstore
 
 ```text

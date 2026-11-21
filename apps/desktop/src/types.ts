@@ -97,6 +97,7 @@ export type ModFilePreservationPlan = Generated.TransportOutputs["mod_file_prese
 export type ModFilePreservationResult = Generated.TransportOutputs["mod_file_preservation_result"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
 export type ModSetupDraftPreview = Generated.TransportOutputs["mod_setup_draft_preview"];
+export type JakModsCatalog = Generated.TransportOutputs["jakmods_catalog"];
 export type ProviderCatalog = Generated.TransportOutputs["provider_catalog"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
