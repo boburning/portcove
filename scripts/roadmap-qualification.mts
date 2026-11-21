@@ -181,6 +181,49 @@ export function requireAssignablePortStage(field: string, value: unknown) {
     throw new Error("Unsupported Port stage assignment");
 }
 
+export function isDerivedPortStageAssignment(field: string, value: unknown) {
+  return field === "Port stage" && derivedStages.some((stage) => stage === value);
+}
+
+export function requireDerivedPortStage(
+  item: RoadmapIssueItem,
+  stage: string,
+  catalog: QualificationCatalogObservation,
+  listings: readonly unknown[],
+) {
+  const body = itemBody(item);
+  const catalogs = portCatalogMarkers(body);
+  const upstreams = portUpstreamMarkers(body);
+  const catalogId = catalogs[0];
+  const upstream = upstreams[0];
+  const issue = issueNumber(item);
+  const claims = listings.filter((entry) => isRecord(entry) && entry.issue_number === issue);
+  const competingClaims = listings.some(
+    (entry) =>
+      isRecord(entry) &&
+      entry.id === catalogId &&
+      entry.issue_number != null &&
+      entry.issue_number !== issue,
+  );
+  if (
+    item.content?.__typename !== "Issue" ||
+    item.isArchived !== false ||
+    !issue ||
+    !body.includes(portMarker) ||
+    catalogs.length !== 1 ||
+    upstreams.length !== 1 ||
+    !catalogId ||
+    !upstream ||
+    competingClaims ||
+    claims.length !== 1 ||
+    qualificationField(claims[0], "id") !== catalogId ||
+    initialPortStage(catalog, catalogId, upstream) !== stage
+  )
+    throw new Error(
+      "Port stage assignment requires the exact catalog-derived stage for its canonical issue",
+    );
+}
+
 export function initialPortStage(
   catalog: QualificationCatalogObservation,
   catalogId: string,

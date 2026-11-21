@@ -1520,3 +1520,35 @@ void test("routine batch planning allows historical stages only as transition pr
     assert.equal(validateSetManySpec(config, spec(stage, "Researching")).assignments, 1);
   }
 });
+
+void test("direct and bulk writes refuse optional derived stages without exact catalog evidence", async () => {
+  const client = await sdkRoadmap(config, {
+    allowMutations: true,
+    rest: () => ({ type: "User", node_id: "OWNER" }),
+    graphql: (query) => {
+      assert.match(query, /projectV2/);
+      return projectData("PVT", config.project.number, [
+        {
+          id: "STAGE",
+          name: "Port stage",
+          __typename: "ProjectV2SingleSelectField",
+          options: [{ id: "SUPPORTED", name: "Supported" }],
+        },
+      ]);
+    },
+  });
+  client.directProjectItem = async () => ({
+    id: "ITEM",
+    isArchived: false,
+    content: { __typename: "Issue", id: "ISSUE", number: 17, body: "<!-- portcove-port -->" },
+  });
+  const changes = { "Port stage": "Supported" };
+  await assert.rejects(client.setFields("#17", changes), /exact catalog-derived stage/);
+  await assert.rejects(
+    client.planSetMany({
+      schema_version: 1,
+      updates: [{ target: "#17", fields: { "Port stage": { from: null, to: "Supported" } } }],
+    }),
+    /exact catalog-derived stage/,
+  );
+});

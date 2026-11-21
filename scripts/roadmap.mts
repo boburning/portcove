@@ -20,7 +20,9 @@ import {
   issueFreeCatalogIds,
   catalogQualificationSummary,
   initialPortStage,
+  isDerivedPortStageAssignment,
   requireAssignablePortStage,
+  requireDerivedPortStage,
 } from "./roadmap-qualification.mts";
 export {
   qualifiedPlatforms,
@@ -1343,6 +1345,12 @@ export function portFieldInitialization(
   const updates: Record<string, string> = {};
   for (const [field, value] of Object.entries(neutralPortFields)) {
     const current = fieldValue(item, field);
+    if (
+      field === "Port stage" &&
+      initialStage === "Watchlist" &&
+      fieldValue(item, "Status") === "Done"
+    )
+      continue;
     if (
       field === "Work type"
         ? current !== "Port"
@@ -3501,11 +3509,22 @@ export class RoadmapClient {
     };
   }
 
+  private validateDerivedStageAssignment(item: RoadmapIssueItem, field: string, value: string) {
+    if (!isDerivedPortStageAssignment(field, value)) return;
+    const catalog = qualificationCatalogObservation(JSON.parse(readFileSync(catalogPath, "utf8")));
+    const directory: unknown = JSON.parse(readFileSync(listingsPath, "utf8"));
+    if (!isRecord(directory) || !Array.isArray(directory.listings))
+      throw new Error("Catalog listings require a listing array");
+    requireDerivedPortStage(item, value, catalog, directory.listings);
+  }
+
   async setFields(reference: string, values: Readonly<Record<string, string>>) {
     const number = this.config.project.number;
     if (number < 1) throw new Error("project number is not recorded in .github/roadmap.json");
     const context = await this.completeProjectContext(number);
     const item = await this.directProjectItem(reference);
+    for (const [fieldName, value] of Object.entries(values))
+      this.validateDerivedStageAssignment(item, fieldName, value);
     const changes = Object.entries(values).map(([fieldName, to]) => ({
       target: reference,
       itemId: item.id,
@@ -3653,6 +3672,7 @@ export class RoadmapClient {
         if (itemFields.has(key))
           throw new Error(`duplicate set-many item field: ${update.target} ${fieldName}`);
         itemFields.add(key);
+        this.validateDerivedStageAssignment(item, fieldName, transition.to);
         const observed = fieldValue(item, fieldName) ?? null;
         const mutation = this.fieldMutationInput(context, item.id, fieldName, transition.to);
         const expected = transition.expected_identity;
@@ -3707,6 +3727,16 @@ export class RoadmapClient {
     plan: SetManyPlan<ProjectContext>,
     changes: readonly SetManyAssignment[] = plan.pending,
   ) {
+    for (const change of changes) {
+      if (!isDerivedPortStageAssignment(change.fieldName, change.to)) continue;
+      const current = await this.directProjectItem(change.itemId);
+      if (
+        (fieldValue(current, change.fieldName) ?? null) !== change.from ||
+        (change.target_identity && current.content?.id !== change.target_identity.content_id)
+      )
+        throw new Error("Port stage changed before the planned assignment");
+      this.validateDerivedStageAssignment(current, change.fieldName, change.to);
+    }
     const inputs = changes.map((change) =>
       this.fieldMutationInput(plan.context, change.itemId, change.fieldName, change.to),
     );
@@ -3832,6 +3862,8 @@ export class RoadmapClient {
   }) {
     validateGitHubBody(body);
     requireAssignablePortStage("Port stage", fields["Port stage"]);
+    if (isDerivedPortStageAssignment("Port stage", fields["Port stage"]))
+      throw new Error("A draft has no canonical issue for a catalog-derived Port stage");
     const { details } = await this.projectContext();
     if (!details.id) throw new Error("Project identity is unavailable");
     let result;
@@ -3913,7 +3945,11 @@ export class RoadmapClient {
     // Retain canonical identity before a separately fallible Project mutation.
     await onIssueCreated(issue);
     const item = await this.ensureIssueItem(issue.node_id);
-    await this.setItemFields(item.id, portFieldInitialization(null, initialStage));
+    const current = await this.directProjectItem(item.id);
+    if ((current.content?.id ?? current.content?.node_id) !== issue.node_id)
+      throw new Error("New Project item content changed before field initialization");
+    const updates = portFieldInitialization(current, initialStage);
+    if (Object.keys(updates).length) await this.setItemFields(item.id, updates);
     return { ...issue, itemId: item.id };
   }
 
@@ -4074,11 +4110,6 @@ export class RoadmapClient {
     });
     const bodyChanged = body !== issue.body;
     const existingItem = existingItems[0] ?? null;
-    const fieldUpdates = portFieldInitialization(
-      existingItem,
-      catalogId ? initialPortStage(catalog, catalogId, form.upstream) : undefined,
-    );
-
     if (inventory) invalidateRoadmapInventory(inventory);
     if (bodyChanged) {
       const current = await this.repositoryIssue(number);
@@ -4099,6 +4130,13 @@ export class RoadmapClient {
     }
     const item = existingItem ?? (await this.ensureIssueItem(issue.node_id));
     if (!item.id) throw new Error("normalized Project item identity is unavailable");
+    const current = await this.directProjectItem(item.id);
+    if ((current.content?.id ?? current.content?.node_id) !== issue.node_id)
+      throw new Error("Normalized Project item content changed before field initialization");
+    const fieldUpdates = portFieldInitialization(
+      current,
+      catalogId ? initialPortStage(catalog, catalogId, form.upstream) : undefined,
+    );
     if (Object.keys(fieldUpdates).length) await this.setItemFields(item.id, fieldUpdates);
     return {
       issue: issue.html_url,

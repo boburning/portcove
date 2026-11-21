@@ -945,7 +945,9 @@ planning values. **Cataloged**, **Automated qualification**, and **Supported**
 follow existing catalog admission and platform qualification. Intake fills an
 unset stage from a uniquely matched operational catalog definition with the
 same upstream. Unbound intake starts at Watchlist. Normalization preserves
-already assigned values.
+already assigned values and leaves a completed unbound assignment unset.
+Single and bulk edits to a catalog-derived stage require the canonical issue's
+exact current catalog projection.
 
 **Source contract known**, **Release integrity qualified**, and **Manual
 qualification** are historical options. Routine Roadmap tooling refuses new
