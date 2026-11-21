@@ -1,0 +1,99 @@
+[
+  {
+    "platform": "windows-x86-64",
+    "version": "1.0.14",
+    "name": "cmake-clang-v1-windows-x64.zip",
+    "url": "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v1.0.14/cmake-clang-v1-windows-x64.zip",
+    "size": 209497009,
+    "sha256": "28da9742385e7ff875b3d9311e8ed89dbdc84f27b6ecba2bc0d0acc11f6d2b4d",
+    "python_paths": [
+      "python/python.exe"
+    ],
+    "cmake": "bin/cmake.exe",
+    "ninja": "bin/ninja.exe"
+  },
+  {
+    "platform": "linux-x86-64",
+    "version": "1.0.14",
+    "name": "cmake-clang-v1-linux-x64.zip",
+    "url": "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v1.0.14/cmake-clang-v1-linux-x64.zip",
+    "size": 833435449,
+    "sha256": "597c8d343a3cf02ba6f6b2ae7cf6fe2fef125dde8feff62a144e8dd3da3d484e",
+    "python_paths": [
+      "python/bin/python3",
+      "python/bin/python"
+    ],
+    "cmake": "bin/cmake",
+    "ninja": "bin/ninja"
+  },
+  {
+    "platform": "macos-x86-64",
+    "version": "1.0.14",
+    "name": "cmake-clang-v1-macos-universal.zip",
+    "url": "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v1.0.14/cmake-clang-v1-macos-universal.zip",
+    "size": 95921806,
+    "sha256": "9db2a9b6ede4162cb19850ee1a08d01147f3ea8bc9b2eefb3ffbdf8b20d389d7",
+    "python_paths": [
+      "python/x86_64-apple-darwin/bin/python3"
+    ],
+    "cmake": "bin/cmake",
+    "ninja": "bin/ninja",
+    "pinned_executables": [
+      {
+        "path": "python/x86_64-apple-darwin/bin/python3",
+        "size": 18494104,
+        "sha256": "998814918a46569ca4b8ee3b2fc75eef9d2079eee292f426e0a3472db8f73a91"
+      },
+      {
+        "path": "bin/cmake",
+        "size": 23876688,
+        "sha256": "84d61153cfcb96949945f6b04a57ec7e052aedf9580107acd5a2d9957e162e53"
+      },
+      {
+        "path": "bin/ccache",
+        "size": 5122216,
+        "sha256": "1d8cc4e68ed61355bc9b29191e05fab2b764d98a41fed794e7d6a9d34b5c3735"
+      },
+      {
+        "path": "bin/ninja",
+        "size": 828128,
+        "sha256": "458cdf3a6cf289118da14cc897b5106d152c66545947329b016629d9df085815"
+      }
+    ]
+  },
+  {
+    "platform": "macos-aarch64",
+    "version": "1.0.14",
+    "name": "cmake-clang-v1-macos-universal.zip",
+    "url": "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v1.0.14/cmake-clang-v1-macos-universal.zip",
+    "size": 95921806,
+    "sha256": "9db2a9b6ede4162cb19850ee1a08d01147f3ea8bc9b2eefb3ffbdf8b20d389d7",
+    "python_paths": [
+      "python/aarch64-apple-darwin/bin/python3"
+    ],
+    "cmake": "bin/cmake",
+    "ninja": "bin/ninja",
+    "pinned_executables": [
+      {
+        "path": "python/aarch64-apple-darwin/bin/python3",
+        "size": 18073984,
+        "sha256": "71720f1fc66989ebd691e81c96111b47ae6ff3f1a478666084d1cacbf0fccbf2"
+      },
+      {
+        "path": "bin/cmake",
+        "size": 23876688,
+        "sha256": "84d61153cfcb96949945f6b04a57ec7e052aedf9580107acd5a2d9957e162e53"
+      },
+      {
+        "path": "bin/ccache",
+        "size": 5122216,
+        "sha256": "1d8cc4e68ed61355bc9b29191e05fab2b764d98a41fed794e7d6a9d34b5c3735"
+      },
+      {
+        "path": "bin/ninja",
+        "size": 828128,
+        "sha256": "458cdf3a6cf289118da14cc897b5106d152c66545947329b016629d9df085815"
+      }
+    ]
+  }
+]

@@ -1605,6 +1605,23 @@ materialization step and stays exact. An existing installation keeps the retaine
 contract it was installed under, so it accepts a headered dump only after it is next
 installed or updated.
 
+### Managed PS1 toolchain artifacts
+
+The bundled defaults live in `crates/portcove-core/catalog/tool-artifacts.json`.
+An admitted managed PS1 definition may propose one exact pack per
+declared platform through projection schema 4 and the
+`tools.psx-toolchain-v1` required feature. Each row fixes the publisher release,
+ZIP size and SHA-256, Python, CMake and Ninja layout, and the Mac executable
+member identities. Core refuses another repository, unexpected layout,
+duplicate platform, missing platform, or a mismatched archive digest.
+
+Acquisition, download resume, reopening and build require the exact bundled
+tool pack. A proposal that differs from the independently pinned artifact
+fails before acquisition or cache use, including after reopening. Legacy
+definitions and existing preparations keep their cache coordinates and receipt
+format. Player-selected chdman and DolphinTool paths use their existing trust
+checks.
+
 ## Default covers
 
 Ordinary single-record preparation uses [the authoring entry point](#adding-or-changing-a-port).

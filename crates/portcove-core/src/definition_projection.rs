@@ -14,15 +14,21 @@ struct ProjectionDocument {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "present_reviewed_forge"
+        deserialize_with = "present_field"
     )]
     reviewed_forge: Option<crate::reviewed_forge::ReviewedForgeSelection>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_field"
+    )]
+    tool_artifacts: Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>,
 }
 
-fn present_reviewed_forge<'de, D: serde::Deserializer<'de>>(
+fn present_field<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
-) -> std::result::Result<Option<crate::reviewed_forge::ReviewedForgeSelection>, D::Error> {
-    crate::reviewed_forge::ReviewedForgeSelection::deserialize(deserializer).map(Some)
+) -> std::result::Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
 }
 
 impl ProjectionDocument {
@@ -49,6 +55,26 @@ impl ProjectionDocument {
         {
             return Err(PortcoveError::verification(
                 "reviewed forge source requires its typed projected selector",
+            ));
+        }
+        if let Some(artifacts) = &self.tool_artifacts {
+            if self.contract_schema != 4
+                || self.reviewed_forge.is_some()
+                || catalog.ports().len() != 1
+                || catalog.ports()[0].adapter != crate::AdapterKind::PsxRecompManaged
+                || artifacts.len() != catalog.ports()[0].platforms.len()
+                || artifacts
+                    .iter()
+                    .any(|artifact| !catalog.ports()[0].platforms.contains(&artifact.platform))
+            {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require a schema-4 managed PS1 subject and its exact platform scope",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        } else if self.contract_schema == 4 {
+            return Err(PortcoveError::verification(
+                "schema-4 catalog projections require PS1 tool artifacts",
             ));
         }
         if catalog
@@ -88,7 +114,7 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     let bytes = crate::path::read_bounded_regular(path, limit)?;
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
     let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
-    if !matches!(document.contract_schema, 1 | 2 | 3)
+    if !matches!(document.contract_schema, 1 | 2 | 3 | 4)
         || document.representation != "catalog_projection"
     {
         return Err(PortcoveError::unsupported(
@@ -188,6 +214,14 @@ impl DefinitionSnapshot {
 
     pub(crate) fn catalog(&self) -> Result<Catalog> {
         Ok(self.projection()?.catalog)
+    }
+
+    pub(crate) fn selected_psx_tools(
+        &self,
+    ) -> Result<Option<Vec<crate::psx_tool_artifacts::ToolchainArtifact>>> {
+        self.validate_bounds()?;
+        let document: ProjectionDocument = serde_json::from_str(&self.contract_json)?;
+        Ok(document.tool_artifacts)
     }
 
     pub(crate) fn projection(&self) -> Result<DefinitionCatalogProjection> {
@@ -465,6 +499,18 @@ impl DefinitionContentIndex {
             .detail("port_id", &sibling.id));
         }
         document.validate_loader_schema(&catalog)?;
+        if let Some(artifacts) = &document.tool_artifacts {
+            if !entry.supports_feature(
+                crate::definition_capabilities::Feature::PsxToolchain,
+                "psx-recomp-managed",
+                1,
+            )? {
+                return Err(PortcoveError::verification(
+                    "PS1 tool artifacts require the named managed toolchain capability",
+                ));
+            }
+            crate::psx_tool_artifacts::validate_artifacts(artifacts)?;
+        }
         if let Some(sources) = catalog.source_catalog() {
             for contract in sources
                 .contracts
