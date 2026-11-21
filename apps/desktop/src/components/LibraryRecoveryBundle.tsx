@@ -235,8 +235,9 @@ function RecoveryBundleDialog({
   }>();
   const [recovery, setRecovery] = useState<RecoveryStep>();
   const error = failure?.error;
-  const interruptedCreationReview =
-    failure?.action === "planCreate" && recovery?.operation === "resumeCreation";
+  const planningCreation = failure?.action === "planCreate";
+  const interruptedCreationReview = planningCreation && recovery?.operation === "resumeCreation";
+  const publishedCreationReview = planningCreation && Boolean(createReceipt?.bundle_id);
 
   const run = async (
     status: string,
@@ -545,11 +546,13 @@ function RecoveryBundleDialog({
         <ActionReviewFailure
           error={error}
           summary={
-            interruptedCreationReview
-              ? "An interrupted copy is waiting for this bundle folder."
-              : undefined
+            publishedCreationReview
+              ? "A previous copy was published to this folder. Check the bundle to verify its contents."
+              : interruptedCreationReview
+                ? "An interrupted copy is waiting for this bundle folder."
+                : undefined
           }
-          showMutationSummary={failure?.action !== "planCreate"}
+          showMutationSummary={!planningCreation}
         />
         {createReceipt &&
           (createReceipt.bundle_id || error !== undefined) &&
