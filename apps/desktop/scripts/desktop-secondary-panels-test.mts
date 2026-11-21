@@ -397,7 +397,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
 
       await settings("library-storage");
       await click(By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'));
-      const exportMetadata = await findButton("Export library information");
+      let exportMetadata = await findButton("Export library information");
       assert.equal(
         (await readOwnedBootstrap()).generation,
         generation,
@@ -418,6 +418,17 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       assert.ok(isRecord(JSON.parse(await readFile(files.metadata, "utf8"))));
       artifacts.push(files.metadata);
       await capture("metadata-exported", exportMetadata);
+      await selectPrimaryNavigation(browser, "Library");
+      await settings("library-storage");
+      await text(files.metadata);
+      exportMetadata = await findButton("Export library information");
+      assert.equal(
+        (await probe.capture()).trace.filter(({ command }) => command === "export_library_metadata")
+          .length,
+        1,
+        "Reopening Settings must show the retained export without replaying it",
+      );
+      await capture("metadata-export-retained", exportMetadata);
       await clickVisible(browser, exportMetadata);
       await confirmNative(
         "Export library information",
