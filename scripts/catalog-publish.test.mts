@@ -1671,3 +1671,69 @@ void test("ScummVM game data observer binds official repository and byte-exact c
     /changed during/u,
   );
 });
+
+void test("the official reader follows the protected feed across releases and respects withdrawal", async () => {
+  const { selectedPreview } = await import("./catalog-released-reader.mts");
+  const feed = (version: string, tag: string, repository = "boburning/portcove") => ({
+    version,
+    platforms: {
+      "linux-x86_64": {
+        url: `https://github.com/${repository}/releases/download/${tag}/Portcove_${version}_amd64.AppImage`,
+      },
+    },
+  });
+  assert.deepEqual(selectedPreview(feed("0.1.0-preview.12", "nightly-0.1.0-preview.12"), []), {
+    version: "0.1.0-preview.12",
+    tag: "nightly-0.1.0-preview.12",
+  });
+  assert.deepEqual(selectedPreview(feed("0.1.0", "v0.1.0"), []), {
+    version: "0.1.0",
+    tag: "v0.1.0",
+  });
+  assert.throws(() => selectedPreview(feed("0.1.0", "v0.1.0"), ["0.1.0"]), /withdrawn/);
+  assert.throws(() => selectedPreview(feed("0.1.0", "v0.1.0", "fork/portcove"), []), /link/);
+  assert.throws(() => selectedPreview(feed("0.1.0", "v0.1.1"), []), /link/);
+  assert.throws(() => selectedPreview(feed("0.1.0", "nightly-0.1.0"), []), /link/);
+});
+
+void test("the verified release statement binds the exact tag object, release, archive and manifest", async () => {
+  const { requireCatalogReleaseAttestation } = await import("./catalog-released-reader.mts");
+  const tag = "nightly-0.1.0-preview.12";
+  const purl = `pkg:github/boburning/portcove@${tag}`;
+  const subject = [
+    { uri: purl, digest: { sha1: "tag-object" } },
+    { name: "cli.tar.gz", digest: { sha256: "archive" } },
+    { name: "SHA256SUMS", digest: { sha256: "manifest" } },
+  ];
+  const statement = {
+    predicateType: "https://in-toto.io/attestation/release/v0.2",
+    predicate: { tag, databaseId: "1", repository: "boburning/portcove", purl },
+    subject,
+  };
+  const verified = { verificationResult: { statement } };
+  const expected = {
+    tag,
+    tagObject: "tag-object",
+    releaseId: 1,
+    subjects: { "cli.tar.gz": "archive", SHA256SUMS: "manifest" },
+  };
+  requireCatalogReleaseAttestation(verified, expected);
+  assert.throws(
+    () => requireCatalogReleaseAttestation(verified, { ...expected, releaseId: 2 }),
+    /identity/,
+  );
+  assert.throws(
+    () => requireCatalogReleaseAttestation(verified, { ...expected, tagObject: "another" }),
+    /subject/,
+  );
+  assert.throws(
+    () =>
+      requireCatalogReleaseAttestation(verified, {
+        ...expected,
+        subjects: { SHA256SUMS: "another" },
+      }),
+    /subject/,
+  );
+  subject.push({ name: "cli.tar.gz", digest: { sha256: "archive" } });
+  assert.throws(() => requireCatalogReleaseAttestation(verified, expected), /subject/);
+});
