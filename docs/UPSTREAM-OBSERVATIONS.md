@@ -243,6 +243,17 @@ provenance linking the selected compiled asset to its source and dependencies.
 Unavailable runtime metadata can be retried without losing the checked game
 table.
 
+For a matched N64 runtime and pinned hash dependency, the observer can associate
+a selected published artifact digest with an Actions output at the same
+upstream repository and source commit. The observer requires a successful
+same-repository first attempt, the output's own run identity, and run readback
+before retaining a match. A bounded search resumes from the retained position.
+Packages without a match stay unknown. An exact match remains available after
+the Actions artifact expires, including when other selected packages change
+at the same repository and commit. This establishes a provider-reported build-to-release
+digest link. Effective checkout and dependency behavior, the job that produced
+the output, and native original-file acceptance need separate evidence.
+
 These optional facts follow the existing request budget and checkpoint. The
 maintenance projection keeps the last complete exact observation and records
 when current evidence is unavailable. A due refresh checks the release tag

@@ -44,6 +44,10 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
+import {
+  advanceUpstreamArtifactBuildObservation,
+  rebindUpstreamBuildObservation,
+} from "./upstream-github-build-output.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
@@ -1535,10 +1539,26 @@ export async function advanceCatalogObservations(
                     target.release_tag,
                   ]);
                   const fresh = freshByRelease.get(release);
-                  const fact = fresh
+                  let fact = fresh
                     ? { ...fresh, ...target }
                     : await observeOriginalSource(target, read, family);
                   if (!fresh) freshByRelease.set(release, fact);
+                  if (
+                    fact.parser === "n64-recomp-game-entry-v1" &&
+                    retained?.fact.parser === fact.parser &&
+                    retained.fact.source_commit === fact.source_commit
+                  ) {
+                    const runtime = retained.fact.runtime_source;
+                    const builds = rebindUpstreamBuildObservation(
+                      retained.fact.build_outputs,
+                      fact,
+                    );
+                    fact = {
+                      ...fact,
+                      ...(runtime ? { runtime_source: runtime } : {}),
+                      ...(builds ? { build_outputs: builds } : {}),
+                    };
+                  }
                   complete = { binding, observed_at: new Date(now()).toISOString(), fact };
                   recognitionState = "observed";
                 }
@@ -1610,6 +1630,37 @@ export async function advanceCatalogObservations(
                     },
                   },
                 };
+              }
+            }
+            if (
+              options.observeN64Runtime &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              complete.fact.runtime_source?.state === "observed" &&
+              complete.fact.runtime_source.source.matched_input_blocks &&
+              complete.fact.runtime_source.source.hash_source?.state === "observed" &&
+              (!complete.fact.build_outputs || complete.fact.build_outputs.search !== null)
+            ) {
+              const fact = complete.fact;
+              try {
+                const builds = await advanceUpstreamArtifactBuildObservation(
+                  fact,
+                  fact.build_outputs,
+                  read,
+                  new Date(now()).toISOString(),
+                );
+                complete = { ...complete, fact: { ...fact, build_outputs: builds } };
+              } catch (error) {
+                // Keep the source evidence and the build search's last checked cursor.
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  if (
+                    error.retryAt &&
+                    (!state.provider_retry_at ||
+                      Date.parse(error.retryAt) > Date.parse(state.provider_retry_at))
+                  )
+                    state.provider_retry_at = error.retryAt;
+                }
               }
             }
             policy[evidenceKey] = { state: recognitionState, last_complete: complete };

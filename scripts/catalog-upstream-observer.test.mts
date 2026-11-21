@@ -1106,6 +1106,8 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
     const baseProject = h.options.project;
     let unavailable: "budget" | "rate-limit" | null = null;
+    let additionalPlatform = false;
+    let outputExpired = false;
     h.options.project = async (portId, repositoryId, observation) => {
       const policy = await baseProject(portId, repositoryId, observation);
       if (
@@ -1127,6 +1129,19 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
               release: { version: release.tag_name, asset: { sha256: "a".repeat(64) } },
             },
           },
+          ...(additionalPlatform
+            ? [
+                {
+                  channel: "stable",
+                  platform: "windows-x86-64",
+                  channel_candidate: { id: 1, tag: release.tag_name },
+                  latest_eligible: {
+                    release_id: 1,
+                    release: { version: release.tag_name, asset: { sha256: "b".repeat(64) } },
+                  },
+                },
+              ]
+            : []),
         ],
       };
     };
@@ -1138,6 +1153,21 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     const sourcePath = family === "n64-recomp" ? n64GameTablePath : "docs/supportedHashes.json";
     const requests: string[] = [];
     const runtimeRequests: string[] = [];
+    const buildRequests: string[] = [];
+    const run = {
+      id: 70,
+      repository: { id: 7 },
+      head_repository: { id: 7 },
+      head_sha: "c".repeat(40),
+      event: "push",
+      status: "completed",
+      conclusion: "success",
+      run_attempt: 1,
+      workflow_id: 71,
+      path: ".github/workflows/release.yml",
+      run_started_at: "2026-10-26T12:00:00Z",
+      updated_at: "2026-10-26T12:05:00Z",
+    };
     h.options.observeN64Runtime = family === "n64-recomp";
     let gitlinkResponse: "deferred" | "incomplete" | "unsupported" = "deferred";
     let tagSha = "c".repeat(40);
@@ -1151,6 +1181,29 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         return gitlinkResponse === "incomplete"
           ? { path: n64RuntimeLinkPath, type: "submodule" }
           : { path: n64RuntimeLinkPath, type: "dir", sha: "4".repeat(40) };
+      }
+      if (endpoint.includes("/actions/runs")) {
+        buildRequests.push(endpoint);
+        if (endpoint.includes("head_sha=")) return { total_count: 1, workflow_runs: [run] };
+        if (!endpoint.includes("/artifacts?")) return run;
+        return {
+          total_count: 1,
+          artifacts: [
+            {
+              id: 72,
+              digest: "sha256:" + "a".repeat(64),
+              expired: outputExpired,
+              size_in_bytes: 1024,
+              created_at: "2026-10-26T12:04:00Z",
+              workflow_run: {
+                id: 70,
+                repository_id: 7,
+                head_repository_id: 7,
+                head_sha: run.head_sha,
+              },
+            },
+          ],
+        };
       }
       requests.push(endpoint);
       if (unavailable)
@@ -1236,12 +1289,93 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     }
     assert.equal(requests.length, 5 + extraTagReads);
 
+    let previous = refreshed.checkpoint;
+    if (family === "n64-recomp") {
+      // Feed the same retained runtime/header receipt shape the real observer reads.
+      // The unrelated synthetic game table above does not serve as runtime source.
+      const retainedPolicy = Object.values(previous.sources)
+        .find((source) => source.repository === "owner/shared")
+        ?.last_complete_policies.find((policy) => policy.port_id === "stable-port");
+      const sourceFact = observation?.last_complete?.fact;
+      assert.ok(
+        retainedPolicy &&
+          observation?.last_complete &&
+          sourceFact?.parser === "n64-recomp-game-entry-v1",
+      );
+      retainedPolicy[inputEvidenceKey(family)] = {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: {
+            ...sourceFact,
+            runtime_source: {
+              state: "observed",
+              source: {
+                repository: "N64Recomp/N64ModernRuntime",
+                repository_id: 802962241,
+                source_path: "librecomp/src/recomp.cpp",
+                revision: "a".repeat(40),
+                blob_sha1: "b".repeat(40),
+                source_sha256: "c".repeat(64),
+                input_blocks_sha256:
+                  "0c7cf4bad35b597ac6fd332cb9110907bf28ab182ab4e526bec3e641f0e21dbc",
+                matched_input_blocks: "n64modernruntime-padded-xxh3-call-sites-v1",
+                hash_source: {
+                  state: "observed",
+                  repository: "Cyan4973/xxHash",
+                  repository_id: 19330466,
+                  revision: "d".repeat(40),
+                  headers: ["xxh3.h", "xxhash.h"].map((source_path) => ({
+                    source_path,
+                    source_blob_sha1: "e".repeat(40),
+                    source_sha256: "f".repeat(64),
+                  })),
+                },
+              },
+            },
+          },
+        },
+      };
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      extraTagReads++;
+      observation = retained(previous);
+      const built = observation?.last_complete?.fact;
+      assert.ok(built?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(
+        built.build_outputs?.matches.map((match) => match.artifact_id),
+        [72],
+      );
+      assert.equal(built.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 3);
+      const projected = upstreamFacts(previous, h.input, h.options.now!()).facts.get(
+        "port:stable-port",
+      );
+      assert.ok(
+        isRecord(projected) && Array.isArray(projected.sources) && isRecord(projected.sources[0]),
+      );
+      assert.deepEqual(projected.sources[0][inputEvidenceKey(family)], observation);
+
+      additionalPlatform = true;
+      outputExpired = true;
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      extraTagReads += 4;
+      observation = retained(previous);
+      const expanded = observation?.last_complete?.fact;
+      assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
+      assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
+      assert.notEqual(expanded.build_outputs?.search, null);
+      assert.equal(buildRequests.length, 5);
+    }
+
     h.advanceClock(48 * 3600_000);
     tagSha = "d".repeat(40);
-    const moved = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+    const moved = await advanceCatalogObservations(h.input, previous, h.options);
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(requests.length, 6 + extraTagReads);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 5 : 0);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();
