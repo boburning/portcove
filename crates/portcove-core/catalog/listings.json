@@ -18303,11 +18303,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
           },
           {
             "title": "Add the game and manage your files",
@@ -18327,12 +18327,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "baldur-s-gate-ii",
@@ -18343,7 +18337,13 @@
           "https://www.beamdog.com/games/baldurs-gate-2-enhanced/"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "baldur-s-gate-original-gemrb",
@@ -18379,11 +18379,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
           },
           {
             "title": "Add the game and manage your files",
@@ -18403,12 +18403,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "baldur-s-gate",
@@ -18418,7 +18412,13 @@
           "https://github.com/gemrb/gemrb"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ballance-ballanced",
@@ -46687,11 +46687,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
           },
           {
             "title": "Add the game and manage your files",
@@ -46711,12 +46711,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "icewind-dale-ii",
@@ -46726,7 +46720,13 @@
           "https://github.com/gemrb/gemrb"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "icewind-dale-original-gemrb",
@@ -46762,11 +46762,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
           },
           {
             "title": "Add the game and manage your files",
@@ -46786,12 +46786,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "icewind-dale",
@@ -46801,7 +46795,13 @@
           "https://github.com/gemrb/gemrb"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ico-pc-nathanialf",
@@ -67781,11 +67781,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately. To register the standalone x86-64 AppImage, allow the downloaded file to run and select the AppImage itself in Portcove. Choose your private working folder. Enter -c and the absolute path to this game’s config on separate argument lines, then review and save the selection. If the official AppImage reports that it cannot mount, add --appimage-extract-and-run as the first separate argument. Keep -c and the config path on their own lines. Play starts the upstream player. For Flatpak, use the command above."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle. To register the Mac Source Ports bundle, copy the complete gemrb.app from the DMG and open it normally once. Select gemrb.app/Contents/MacOS/gemrb in Portcove. Choose your private working folder, then enter -c and the absolute path to this game’s config on separate argument lines. Review the selection and choose Play."
           },
           {
             "title": "Add the game and manage your files",
@@ -67805,12 +67805,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "planescape-torment",
@@ -67819,7 +67813,13 @@
           "https://github.com/gemrb/gemrb"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pod-gold-sp00nznet-recomp",
