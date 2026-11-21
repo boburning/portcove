@@ -369,7 +369,10 @@ export function bundleTargets(bundle: string): Record<string, string> {
 }
 
 /** Targets the published site currently serves through its delegated roles. */
-export function publishedTargets(site: string): Record<string, string> {
+export function publishedTargets(
+  site: string,
+  onTarget?: (role: string, target: string, metadata: Record<string, unknown>) => void,
+): Record<string, string> {
   const versions = priorVersions(site);
   if (!versions) return {};
   const files: Record<string, string> = {};
@@ -384,6 +387,7 @@ export function publishedTargets(site: string): Record<string, string> {
       const digest = isRecord(entry) && isRecord(entry.hashes) ? entry.hashes.sha256 : undefined;
       if (typeof digest !== "string") throw new Error(`prior catalog ${role} target is malformed`);
       files[name] = digest;
+      if (onTarget && isRecord(entry)) onTarget(role, name, entry);
     }
   }
   return files;

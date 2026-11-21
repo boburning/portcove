@@ -3,9 +3,12 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { isDeepStrictEqual } from "node:util";
+import { readApprovedCoverJournal } from "./catalog-cover-approval.mts";
+import { requireExactReleasedCoverInspection } from "./listing-observation-delivery.mts";
 import { publishedTargets } from "./catalog-publish.mts";
 import {
   acquireCatalogReleasedReader,
@@ -30,6 +33,12 @@ const separateTargets = new Set([
   compactListingDeliveryTarget,
   artworkCheckpointTarget,
 ]);
+const coverTargets = new Set([
+  listingDeliveryTarget,
+  compactListingDeliveryTarget,
+  artworkCheckpointTarget,
+]);
+const approvalCustom = "portcove_cover_approvals_v1";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const run = promisify(execFile);
 const maximum = 16 * 1024 * 1024;
@@ -138,14 +147,28 @@ function validTarget(target: string) {
   );
 }
 
-async function repositoryBundle(repository: string, report?: Record<string, unknown>) {
+async function repositoryBundle(
+  repository: string,
+  report?: Record<string, unknown>,
+  includeCover = false,
+) {
   const files = new Map<string, Buffer>();
-  const targets = publishedTargets(repository);
+  let approvals: unknown;
+  const targets = publishedTargets(repository, (role, target, metadata) => {
+    if (
+      role === "official-policy" &&
+      target === compactListingDeliveryTarget &&
+      isRecord(metadata.custom)
+    )
+      approvals = metadata.custom[approvalCustom];
+  });
+  if (report && !isDeepStrictEqual(report.cover_approvals, approvals))
+    throw new Error("Cover approval journal differs from exact signed policy");
   const reportFiles = report ? list(report.files).map(object) : [];
   const reportByName = new Map(reportFiles.map((entry) => [entry.target, entry]));
   for (const [target, sha] of Object.entries(targets)) {
-    if (separateTargets.has(target)) continue;
-    if (!digest.test(sha) || !validTarget(target))
+    if (separateTargets.has(target) && !(includeCover && coverTargets.has(target))) continue;
+    if (!digest.test(sha) || !(validTarget(target) || (includeCover && coverTargets.has(target))))
       throw new Error("Unexpected logical target in the signed reader bundle");
     const name = `targets/${sha}.${target}`;
     const bytes = await readControllerToolFile(path.join(repository, name), maximum);
@@ -159,7 +182,9 @@ async function repositoryBundle(repository: string, report?: Record<string, unkn
   }
   if (!files.has(indexPath) || (report && report.index_sha256 !== hash(files.get(indexPath)!)))
     throw new Error("Signed definition index differs from repository verification");
-  return files;
+  if (includeCover && [...coverTargets].some((target) => !files.has(target)))
+    throw new Error("Released cover proof requires the signed legacy, compact and cover targets");
+  return { files, approvals: readApprovedCoverJournal(approvals) };
 }
 
 async function writeBundle(directory: string, files: Files) {
@@ -206,7 +231,11 @@ export async function readerProofHint(work: string) {
       throw new Error("Preparation reader target differs from the inspected logical bundle");
     next.set(target, bytes);
   }
-  return strengthenedReaderSubjects(await priorBundle(work), next).length > 0;
+  const prior = await priorBundle(work);
+  return (
+    strengthenedReaderSubjects(prior?.files ?? null, next).length > 0 ||
+    existsSync(path.join(work, "cover-approvals.json"))
+  );
 }
 
 async function assembly(work: string) {
@@ -221,7 +250,8 @@ async function assembly(work: string) {
     )
   )
     throw new Error("Signed catalog assembly report is malformed");
-  const next = await repositoryBundle(path.join(work, "repository"), report);
+  const signed = await repositoryBundle(path.join(work, "repository"), report);
+  const next = signed.files;
   const intended = await inspectedTargets(work);
   if (
     intended.size !== next.size ||
@@ -231,7 +261,25 @@ async function assembly(work: string) {
     })
   )
     throw new Error("Signed reader bundle differs from the inspected logical bundle");
-  const prior = await priorBundle(work);
+  const priorRepository = await priorBundle(work);
+  const prior = priorRepository?.files ?? null;
+  const oldApprovals = priorRepository?.approvals ?? readApprovedCoverJournal(undefined);
+  const approvalChanged = !isDeepStrictEqual(signed.approvals, oldApprovals);
+  if (
+    approvalChanged &&
+    (signed.approvals.consumed_packets.length !== oldApprovals.consumed_packets.length + 1 ||
+      !oldApprovals.consumed_packets.every(
+        (packet, index) => signed.approvals.consumed_packets[index] === packet,
+      ))
+  )
+    throw new Error("Released reader gate found a rewritten or removed approval journal");
+  if (approvalChanged) {
+    const planned = readApprovedCoverJournal(
+      parse(await readControllerToolFile(path.join(work, "cover-approvals.json"), 256 * 1024)),
+    );
+    if (!isDeepStrictEqual(planned, signed.approvals))
+      throw new Error("Signed approval journal differs from the protected preparation");
+  }
   const priorIndex = prior ? hash(prior.get(indexPath)!) : null;
   const identity = {
     repository_sha256: report.repository_sha256,
@@ -244,13 +292,14 @@ async function assembly(work: string) {
         )
       : null,
     subjects: strengthenedReaderSubjects(prior, next),
+    ...(approvalChanged ? { cover_approval: signed.approvals.consumed_packets.at(-1)! } : {}),
   };
-  return { identity, prior, next };
+  return { identity, prior, next, report };
 }
 
 async function check(work: string, tool: string, output: string) {
-  const { identity, prior, next } = await assembly(work);
-  if (!identity.subjects.length)
+  const { identity, prior, next, report } = await assembly(work);
+  if (!identity.subjects.length && !identity.cover_approval)
     throw new Error("Prepared reader proof hint differs from exact signed requirements");
   if (!prior)
     throw new Error(
@@ -291,7 +340,7 @@ async function check(work: string, tool: string, output: string) {
   );
   if (
     verified.authority !== "none" ||
-    !isDeepStrictEqual(await repositoryBundle(paths.repository, verified), prior)
+    !isDeepStrictEqual((await repositoryBundle(paths.repository, verified)).files, prior)
   )
     throw new Error("Previous catalog is not the authenticated known-good bundle");
   await run(
@@ -328,14 +377,45 @@ async function check(work: string, tool: string, output: string) {
     object(result.data).product_version !== official.version
   )
     throw new Error("Frozen reader version differs from the selected official released reader");
-  for (const [label, files] of [
-    ["prior", prior],
-    ["candidate", next],
-  ] as const) {
+  const proofInputs = identity.cover_approval
+    ? ([
+        ["prior", (await repositoryBundle(paths.repository, verified, true)).files],
+        ["candidate", (await repositoryBundle(path.join(work, "repository"), report, true)).files],
+      ] as const)
+    : ([
+        ["prior", prior],
+        ["candidate", next],
+      ] as const);
+  for (const [label, files] of proofInputs) {
     const bundle = path.join(directory, label);
     await writeBundle(bundle, files);
     const { stdout, stderr } = await invoke(["catalog", "inspect-definition-publication", bundle]);
-    readCatalogCoreMachineEnvelope(stdout, stderr, files);
+    if (!identity.cover_approval) readCatalogCoreMachineEnvelope(stdout, stderr, files);
+    else {
+      if (stderr || Buffer.byteLength(stdout) > 4 * 1024 * 1024)
+        throw new Error("Released cover inspection response differs");
+      const envelope = parse(Buffer.from(stdout));
+      if (envelope.schema_version !== 100)
+        throw new Error("Released cover inspection response schema differs");
+      requireExactReleasedCoverInspection(
+        envelope,
+        files.get(artworkCheckpointTarget)!,
+        files.get(compactListingDeliveryTarget)!,
+      );
+      const observed = list(object(envelope.data).files).map(object);
+      if (
+        observed.length !== files.size ||
+        observed.some(
+          (row) =>
+            typeof row.target !== "string" ||
+            !files.has(row.target) ||
+            row.bytes !== files.get(row.target)?.length ||
+            row.sha256 !== hash(files.get(row.target)!),
+        ) ||
+        new Set(observed.map((row) => row.target)).size !== files.size
+      )
+        throw new Error("Released cover reader did not verify every exact signed bundle target");
+    }
   }
   if (hash(await readControllerToolFile(executable, 128 * 1024 * 1024)) !== official.sha256)
     throw new Error("Frozen reader changed during inspection");
@@ -348,7 +428,7 @@ async function check(work: string, tool: string, output: string) {
 
 export async function recheckReaderGate(work: string, receipt: string, site: string) {
   const { identity } = await assembly(work);
-  if (!identity.subjects.length) return;
+  if (!identity.subjects.length && !identity.cover_approval) return;
 
   const { reader, reader_sha256, ...operation } = parse(
     await readControllerToolFile(receipt, 1024 * 1024),

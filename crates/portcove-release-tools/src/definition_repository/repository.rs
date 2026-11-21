@@ -38,25 +38,13 @@ fn at<'a>(files: &'a Files, name: &str) -> Result<&'a Vec<u8>> {
         TufRepositoryError::Invalid(format!("catalog public repository file missing: {name}"))
     })
 }
-fn cover_approvals_from_policy(bytes: &[u8]) -> Result<Option<serde_json::Value>> {
-    let policy: Signed<Targets> = serde_json::from_slice(bytes)?;
-    let target = TargetName::new(portcove_listing_carrier::COMPACT_TARGET)?;
-    let value = policy
-        .signed
-        .targets
-        .get(&target)
-        .and_then(|target| target.custom.get(super::COVER_APPROVALS_CUSTOM));
+fn cover_approvals_from_policy(policy: &serde_json::Value) -> Result<Option<serde_json::Value>> {
+    let value = policy["signed"]["targets"][portcove_listing_carrier::COMPACT_TARGET]["custom"]
+        .get(super::COVER_APPROVALS_CUSTOM);
     if let Some(journal) = value {
         super::cover_approval_packets(journal)?;
     }
     Ok(value.cloned())
-}
-
-pub(super) fn authenticated_cover_approvals(
-    prior: &PublicHistory,
-) -> Result<Option<serde_json::Value>> {
-    let roles = current_roles(prior)?;
-    cover_approvals_from_policy(at(&roles, "official-policy.json")?)
 }
 
 fn current_roles(files: &PublicHistory) -> Result<Files> {
@@ -261,6 +249,7 @@ pub(super) async fn inspect_prior(
 ) -> Result<(
     PublicHistory,
     Option<super::history_checkpoint::PreparedHistory>,
+    Option<serde_json::Value>,
 )> {
     let expects_thin = context.thin_history && context.history_store.is_some();
     let files = if expects_thin {
@@ -282,6 +271,16 @@ pub(super) async fn inspect_prior(
     let roles = current_roles(&files)?;
     let pointer = logical.files.get(super::history_checkpoint::TARGET);
     let prior_cover = bundle::checked_cover_checkpoint(&logical.files)?;
+    if context.cover_approvals.is_some()
+        && (prior_cover.is_none()
+            || !logical
+                .files
+                .contains_key(portcove_listing_carrier::COMPACT_TARGET))
+    {
+        return invalid(
+            "catalog cover approval cannot activate compact delivery or cover checkpoint",
+        );
+    }
     let next_cover = bundle::checked_cover_checkpoint(&context.targets)?;
     if pointer.is_none() && (prior_cover.is_some() || next_cover.is_some()) {
         return invalid("cover observations require authenticated catalog history");
@@ -323,6 +322,7 @@ pub(super) async fn inspect_prior(
             "catalog offline Targets rollback/equivocation or unappointed delegation change",
         );
     }
+    let mut cover_approvals = None;
     for role in [
         DefinitionOnlineRole::Definitions,
         DefinitionOnlineRole::Policy,
@@ -331,6 +331,9 @@ pub(super) async fn inspect_prior(
     ] {
         let value: serde_json::Value =
             serde_json::from_slice(at(&roles, &format!("{}.json", role.name()))?)?;
+        if role.name() == "official-policy" {
+            cover_approvals = cover_approvals_from_policy(&value)?;
+        }
         let version = value["signed"]["version"]
             .as_u64()
             .ok_or_else(|| TufRepositoryError::Invalid("catalog prior version malformed".into()))?;
@@ -437,7 +440,7 @@ pub(super) async fn inspect_prior(
     } else {
         None
     };
-    Ok((files, history))
+    Ok((files, history, cover_approvals))
 }
 
 fn current_immutable_inventory(
@@ -913,6 +916,7 @@ fn repository_report(
     let actual_roles = current_roles(files)?;
     let mut versions = BTreeMap::new();
     let mut expires = BTreeMap::new();
+    let mut cover_approvals = None;
     for (label, name) in [
         ("targets", "targets.json"),
         ("definitions", "official-definitions.json"),
@@ -921,6 +925,9 @@ fn repository_report(
         ("timestamp", "timestamp.json"),
     ] {
         let signed: serde_json::Value = serde_json::from_slice(at(&actual_roles, name)?)?;
+        if label == "policy" {
+            cover_approvals = cover_approvals_from_policy(&signed)?;
+        }
         versions.insert(
             label.into(),
             signed["signed"]["version"]
@@ -951,7 +958,7 @@ fn repository_report(
         snapshot_sha256: sha(at(&actual_roles, "snapshot.json")?),
         versions,
         expires,
-        cover_approvals: cover_approvals_from_policy(at(&actual_roles, "official-policy.json")?)?,
+        cover_approvals,
         index_sha256: index_sha256.to_owned(),
         authority: "none",
     })

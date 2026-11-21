@@ -2634,4 +2634,55 @@ void test("publication classifies assembled operational requirements alongside s
   await assert.rejects(recheckReaderGate(work, receipt, "unused"), /reader identity is malformed/u);
   for (const [name, bytes] of stronger) put(work, `bundle/${name}`, bytes);
   assert.equal(await readerProofHint(work), true);
+
+  const packet = "a".repeat(64);
+  const a = {
+    image_id: "covera",
+    cover_id: 1,
+    image_sha256: "b".repeat(64),
+    game_id: 1,
+    game_slug: "title",
+    match_kind: "underlying-game",
+  };
+  const approved = {
+    format_version: 1,
+    approvals: [
+      {
+        id: "existing",
+        scope: "d".repeat(64),
+        authored: a,
+        candidate: { ...a, image_id: "coverb", cover_id: 2, image_sha256: "c".repeat(64) },
+        bytes: 250,
+        packet,
+        source: "1".repeat(40),
+        run: "1",
+      },
+    ],
+    consumed_packets: [packet],
+  };
+  function writeApprovals(root: string) {
+    const name = "metadata/4.official-policy.json";
+    const policy = JSON.parse(readFileSync(path.join(root, name), "utf8")) as {
+      signed: { targets: Record<string, Record<string, unknown>> };
+    };
+    policy.signed.targets[compactListingDeliveryTarget]!.custom = {
+      portcove_cover_approvals_v1: approved,
+    };
+    put(root, name, policy);
+  }
+  inspect(renewal);
+  for (const [name, bytes] of renewal) put(work, `bundle/${name}`, bytes);
+  const coverAssembly = writeRepository(repository, renewal);
+  writeApprovals(repository);
+  put(work, "assembly-report.json", { ...coverAssembly, cover_approvals: approved });
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /ENOENT/u);
+  put(work, "cover-approvals.json", approved);
+  assert.equal(await readerProofHint(work), true);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /different signed candidate/u);
+  writeApprovals(published);
+  rmSync(path.join(work, "cover-approvals.json"));
+  assert.equal(await readerProofHint(work), false);
+  await recheckReaderGate(work, receipt, "unused");
+  put(work, "assembly-report.json", coverAssembly);
+  await assert.rejects(recheckReaderGate(work, receipt, "unused"), /exact signed policy/u);
 });

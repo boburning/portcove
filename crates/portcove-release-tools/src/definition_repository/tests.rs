@@ -1504,3 +1504,62 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         );
     }
 }
+
+#[test]
+fn approved_cover_successor_binds_packet_history_and_exact_compact_artwork() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::write::GzEncoder;
+    use std::io::Write as _;
+    let fixture = |first: Option<&str>, last: &str, candidate: &serde_json::Value| {
+        let mut packets: Vec<_> = first.into_iter().map(str::to_owned).collect();
+        packets.push(last.into());
+        json!({
+            "format_version": 1,
+            "consumed_packets": packets,
+            "approvals": [{
+                "id": "example",
+                "scope": "a".repeat(64),
+                "authored": { "image_sha256": "b".repeat(64) },
+                "candidate": candidate,
+                "bytes": 25,
+                "packet": last,
+                "source": "c".repeat(40),
+                "run": "1"
+            }]
+        })
+    };
+    let compact = |artwork: &serde_json::Value| {
+        let directory = serde_json::to_vec(&json!({
+            "listing_delivery_schema": 1,
+            "revision": 5,
+            "withdrawn_ids": [],
+            "directory": { "format_version": 13, "listings": [{ "id": "example", "artwork": artwork }] }
+        }))
+        .unwrap();
+        let mut encoder = GzEncoder::new(Vec::new(), flate2::Compression::default());
+        encoder.write_all(&directory).unwrap();
+        serde_json::to_vec(&json!({
+            "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+            "decoded_bytes": directory.len(),
+            "decoded_sha256": sha(&directory),
+            "gzip_base64": STANDARD.encode(encoder.finish().unwrap())
+        }))
+        .unwrap()
+    };
+    let packet_b = "1".repeat(64);
+    let packet_c = "2".repeat(64);
+    let b = json!({"image_sha256": "3".repeat(64)});
+    let c = json!({"image_sha256": "4".repeat(64)});
+    let approved_b = fixture(None, &packet_b, &b);
+    let approved_c = fixture(Some(&packet_b), &packet_c, &c);
+    super::check_cover_approval_successor(None, &approved_b, &compact(&b)).unwrap();
+    super::check_cover_approval_successor(Some(&approved_b), &approved_c, &compact(&c)).unwrap();
+    assert!(
+        super::check_cover_approval_successor(Some(&approved_b), &approved_c, &compact(&b))
+            .is_err()
+    );
+    assert!(
+        super::check_cover_approval_successor(Some(&approved_b), &approved_b, &compact(&b))
+            .is_err()
+    );
+}

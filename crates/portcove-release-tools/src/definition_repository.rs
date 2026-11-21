@@ -327,9 +327,9 @@ async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
     }
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
-        let (prior, history) = repository::inspect_prior(&context, &previous).await?;
+        let (prior, history, prior_approvals) =
+            repository::inspect_prior(&context, &previous).await?;
         context.prior = prior;
-        let prior_approvals = repository::authenticated_cover_approvals(&context.prior)?;
         if let Some(next) = &context.cover_approvals {
             let compact = context
                 .targets
