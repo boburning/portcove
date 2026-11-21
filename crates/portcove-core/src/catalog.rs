@@ -4957,7 +4957,6 @@ mod tests {
             portcove_version: None,
             portcove_commit: None,
             method: "fixture".into(),
-            successor_support: None,
             evidence_ids: vec!["qualification-fixture".into()],
         });
         let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
@@ -8340,7 +8339,6 @@ mod tests {
             portcove_version: None,
             portcove_commit: None,
             method: "isolated structural fixture; no runtime execution".into(),
-            successor_support: None,
             evidence_ids: vec!["ghostship-applicability-fixture".into()],
         });
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();

@@ -1895,15 +1895,6 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
-        if let Some(claim) = &status.inherited_support {
-            output.push_str(&format!(
-                "\n{} {} · {} · Supported (inherited from {})",
-                port_name(catalog, &status.port_id),
-                clean(&claim.successor_version),
-                platform_name(claim.platform),
-                clean(&claim.inherited_from),
-            ));
-        }
         if let Some(carried) = &status.carried_files {
             output.push_str(&format!(
                 "\nFiles kept during the version switch for {}:\n{}",
@@ -4635,29 +4626,6 @@ mod tests {
             "staged": null
         }))
         .unwrap()
-    }
-
-    #[test]
-    fn inherited_support_discloses_the_exact_successor_and_anchor() {
-        let catalog = portcove_core::Catalog::embedded().unwrap();
-        let mut fixture = status_disclosure_fixture();
-        let baseline = status(&fixture, &catalog);
-        assert!(!baseline.contains("Supported (inherited from"));
-        assert!(
-            serde_json::to_value(&fixture)
-                .unwrap()
-                .get("inherited_support")
-                .is_none()
-        );
-        fixture.inherited_support = Some(portcove_core::InheritedSupport {
-            inherited_from: "v1.0".into(),
-            successor_version: "v1.1".into(),
-            platform: Platform::LinuxX86_64,
-        });
-        assert!(
-            status(&fixture, &catalog)
-                .contains("v1.1 · Linux (x64) · Supported (inherited from v1.0)")
-        );
     }
 
     #[test]

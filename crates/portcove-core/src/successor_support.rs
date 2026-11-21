@@ -1,14 +1,16 @@
-//! Read-only qualification claims for an exact, independently admitted successor.
+//! Draft qualification evidence for offline successor review.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Catalog, CatalogAdmissionMode, CatalogEvidenceRole, DefinitionAcquisitionScope, Library,
-    Platform, PortDefinition, PortSourceRole, PortStatus, PortcoveError, ReleaseChannel,
-    ReleaseSource, Result, SourceCatalog, SourceEvidence, SourceEvidenceKind,
-    SourceEvidenceOutcome, SourceEvidenceScope, SourceReleasePolicy, SourceVariantScope,
+    CatalogAdmissionMode, CatalogEvidenceRole, PortSourceRole, PortcoveError, ReleaseChannel,
+    Result, SourceCatalog, SourceEvidence, SourceEvidenceKind, SourceEvidenceOutcome,
+    SourceEvidenceScope, SourceReleasePolicy,
 };
+
+#[cfg(test)]
+use crate::{Platform, PortDefinition, SourceVariantScope};
 
 const RULE_VERSION: u32 = 1;
 
@@ -38,6 +40,7 @@ pub struct SuccessorSupportReview {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[cfg(test)]
 pub struct InheritedSupport {
     pub inherited_from: String,
     pub successor_version: String,
@@ -104,26 +107,36 @@ pub(crate) fn validate_review(
     Ok(())
 }
 
-fn passed(sources: &SourceCatalog, scope: &SourceEvidenceScope, kind: SourceEvidenceKind) -> bool {
+#[cfg(test)]
+fn passed_before(
+    sources: &SourceCatalog,
+    scope: &SourceEvidenceScope,
+    kind: SourceEvidenceKind,
+    successor_observed_at: i64,
+) -> bool {
     sources.qualification.iter().any(|record| {
         record.kind == kind
             && record.outcome == SourceEvidenceOutcome::Passed
             && record.applies_to(scope)
+            && record.observed_at < successor_observed_at
     })
 }
 
-fn failed(sources: &SourceCatalog, scope: &SourceEvidenceScope) -> bool {
+#[cfg(test)]
+fn failed(
+    sources: &SourceCatalog,
+    scope: &SourceEvidenceScope,
+    required: &[SourceEvidenceKind],
+) -> bool {
     sources.qualification.iter().any(|record| {
         record.outcome == SourceEvidenceOutcome::Failed
-            && record.scope.port_id == scope.port_id
-            && record.scope.platform == scope.platform
-            && record.scope.contract_id == scope.contract_id
-            && record.scope.artifact_sha256 == scope.artifact_sha256
-            && record.scope.upstream_ref == scope.upstream_ref
+            && record.applies_to(scope)
+            && (record.kind == SourceEvidenceKind::KnownFailure || required.contains(&record.kind))
     })
 }
 
 #[derive(Clone, Copy)]
+#[cfg(test)]
 pub(super) struct SelectedSuccessor<'a> {
     pub platform: Platform,
     pub channel: ReleaseChannel,
@@ -134,6 +147,7 @@ pub(super) struct SelectedSuccessor<'a> {
     pub definition_sha256: &'a str,
 }
 
+#[cfg(test)]
 pub(super) fn derive(
     sources: &SourceCatalog,
     port: &PortDefinition,
@@ -177,22 +191,43 @@ pub(super) fn derive(
             || review.asset_id != asset_id
             || review.definition_sha256 != definition_sha256
             || review.anchor_coordinates != review.successor_coordinates
-            || !passed(sources, &review.anchor, SourceEvidenceKind::HandsOn)
-            || !passed(
+            || !passed_before(
+                sources,
+                &review.anchor,
+                SourceEvidenceKind::HandsOn,
+                record.observed_at,
+            )
+            || !passed_before(
                 sources,
                 &review.anchor,
                 SourceEvidenceKind::AutomatedLifecycle,
+                record.observed_at,
             )
             || !sources.qualification.iter().any(|integrity| {
                 integrity.kind == SourceEvidenceKind::StructuralCheck
                     && integrity.outcome == SourceEvidenceOutcome::Passed
                     && integrity.applies_to(&record.scope)
+                    && integrity.observed_at <= record.observed_at
                     && integrity
                         .evidence_ids
                         .contains(&review.integrity_evidence_id)
             })
-            || failed(sources, &review.anchor)
-            || failed(sources, &record.scope)
+            || failed(
+                sources,
+                &review.anchor,
+                &[
+                    SourceEvidenceKind::HandsOn,
+                    SourceEvidenceKind::AutomatedLifecycle,
+                ],
+            )
+            || failed(
+                sources,
+                &record.scope,
+                &[
+                    SourceEvidenceKind::StructuralCheck,
+                    SourceEvidenceKind::AutomatedLifecycle,
+                ],
+            )
         {
             return None;
         }
@@ -207,64 +242,4 @@ pub(super) fn derive(
         successor_version: version.into(),
         platform,
     })
-}
-
-pub(crate) fn inherited_support(
-    library: &Library,
-    catalog: &Catalog,
-    port: &PortDefinition,
-    status: &PortStatus,
-) -> Option<InheritedSupport> {
-    let platform = Platform::current().ok()?;
-    let sources = catalog.source_catalog()?;
-    let identity = catalog.definition_selection(&port.id)?;
-    if identity.namespace != "official"
-        || port.release.provider != ReleaseSource::Github
-        || port.managed_acquisition_hold.is_some()
-        || !port.platforms.contains(&platform)
-        || status.external_runtime.is_some()
-    {
-        return None;
-    }
-    let check = &status.last_update_check.as_ref()?.check;
-    let pin = port.release.curated.get(&platform)?;
-    if check.port_id != port.id
-        || check.release.channel != status.channel
-        || check.channel != status.channel
-        || check.release.version != pin.tag
-        || check.release.asset.name != pin.filename
-        || check.release.asset.size != pin.size
-        || !check.release.asset.sha256.eq_ignore_ascii_case(&pin.sha256)
-    {
-        return None;
-    }
-    let definition = DefinitionAcquisitionScope::port_digest(port).ok()?;
-    let claim = derive(
-        sources,
-        port,
-        &SelectedSuccessor {
-            platform,
-            channel: status.channel,
-            version: &pin.tag,
-            sha256: &pin.sha256,
-            release_id: pin.release_id,
-            asset_id: pin.asset_id,
-            definition_sha256: &definition,
-        },
-    )?;
-
-    use crate::definition_repository::publisher_policy::{
-        CuratedArtifactOperation, acquisition_scope, require_curated_artifact_operation,
-    };
-    let scope = acquisition_scope(library, catalog, &port.id).ok()??;
-    scope.require_current().ok()?;
-    scope.require_port(port).ok()?;
-    require_curated_artifact_operation(
-        &library.connection().ok()?,
-        scope.repository_id,
-        pin,
-        CuratedArtifactOperation::Acquisition,
-    )
-    .ok()?;
-    Some(claim)
 }

@@ -64,6 +64,17 @@ fn content_path(value: &str) -> bool {
             .bytes()
             .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
 }
+fn contains_successor_support(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Object(object) => {
+            object.contains_key("successor_support")
+                || object.values().any(contains_successor_support)
+        }
+        serde_json::Value::Array(values) => values.iter().any(contains_successor_support),
+        _ => false,
+    }
+}
+
 pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let report: Inspection = serde_json::from_slice(manifest)?;
     if !matches!(
@@ -151,6 +162,12 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
             return invalid("indexed catalog leaf length differs");
         }
         expected(raw, &c.sha256)?;
+        let document: serde_json::Value = serde_json::from_slice(raw)?;
+        if contains_successor_support(&document) {
+            return invalid(
+                "successor support requires independently verified evidence and a released reader",
+            );
+        }
         content.insert(c.target.clone(), c);
     }
     let entries = index

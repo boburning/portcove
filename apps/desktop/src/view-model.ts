@@ -10,7 +10,6 @@ import type { CatalogEntry } from "./features/browsing/catalog-entry";
 import type {
   ActivityRecord,
   DesktopError,
-  InheritedSupport,
   OperationEvent,
   CatalogBrowsingSnapshot,
   PortDefinition,
@@ -274,10 +273,6 @@ export function platformLabel(value: string) {
     ? platformLabels[value as MachinePlatform]
     : undefined;
   return label ?? "Unknown platform";
-}
-
-export function inheritedSupportLabel(claim: InheritedSupport) {
-  return `Supported (inherited from ${claim.inherited_from}) · ${claim.successor_version} · ${platformLabel(claim.platform)}`;
 }
 
 export const installationMethodLabels: Record<

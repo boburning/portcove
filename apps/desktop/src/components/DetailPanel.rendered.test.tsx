@@ -66,34 +66,6 @@ it.each([false, true])(
   },
 );
 
-it("shows the exact inherited support claim and removes it when Core revokes it", () => {
-  const props = {
-    port,
-    sourcePath: "",
-    setSourcePath: vi.fn(),
-    actions,
-  };
-  const observed = portStatus();
-  const current = renderToStaticMarkup(
-    <DetailPanel
-      {...props}
-      status={{
-        ...observed,
-        inherited_support: {
-          inherited_from: "v1.0",
-          successor_version: "v1.1",
-          platform: "linux-x86-64",
-        },
-      }}
-    />,
-  );
-  expect(current).toContain("Supported (inherited from v1.0)");
-  expect(current).toContain("v1.1");
-  expect(renderToStaticMarkup(<DetailPanel {...props} status={observed} />)).not.toContain(
-    "Supported (inherited from",
-  );
-});
-
 const preparedPort: PortDefinition = {
   ...port,
   source_profile: null,

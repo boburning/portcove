@@ -3436,7 +3436,6 @@ impl Library {
                     readiness: None,
                     last_update_check: update_snapshots.get(port_id).cloned(),
                     definition_operations: Vec::new(),
-                    inherited_support: None,
                     port_actions: Vec::new(),
                 })
             })

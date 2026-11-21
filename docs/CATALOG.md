@@ -2916,31 +2916,25 @@ unassessed. The output keeps table coverage separate from historical evidence.
 
 ### Scoped successor support
 
-The owner approved the policy under #4849 for the same platform, with reviewed
-hands-on and lifecycle evidence for the predecessor. Core derives “Supported
-(inherited from vX)” for the exact currently observed successor. The label is
-a read-model fact shown in status, Desktop details, and exact implementation
-listings. It does not create an operation grant, migrate old evidence, or record
-a hands-on pass for the newer release.
+The owner approved same-platform successor support under #4849. A successor
+may show “Supported (inherited from vX)” when a reviewed predecessor has exact
+hands-on and lifecycle evidence and the successor independently passes
+admission, integrity and lifecycle checks. The setup, launch and player-data
+coordinates must match for every supported source variant. A current failure,
+withdrawal or coordinate drift revokes the derived label. Existing physical
+and human observations stay on the exact artifacts they describe.
 
-An official scoped managed GitHub definition needs the existing independent
-#315 admission for the exact selected successor. The current selector
-observation must match its tag, channel, and artifact name, size and digest.
-The reviewed successor lifecycle record also binds the admitted release and
-asset IDs, the current operational definition digest, and equal setup, launch
-and player-data fingerprints. Each supported source variant and
-representation for that platform needs the exact paired evidence under the
-same check contract and from the same predecessor. The successor needs its
-own structural integrity and automated lifecycle passes. Physical observations
-stay on the preceding artifact.
+The draft evidence format supports offline review. Controlled test fixtures
+exercise comparisons. The signed catalog reader and protected signer refuse
+draft successor-support declarations. No current production row qualifies.
 
-Core omits the label when the rule, definition, selected release, coordinates,
-or source scope changes, or when exact known failure, current package drift,
-expired admission, withdrawal or revocation makes the claim inapplicable.
-Preview tooling and historical crosswalk rows never become support by
-themselves. No current production row qualifies. First production use requires
-a released reader check and an authorized producer that can bind the existing
-protected publication process to complete, reviewed evidence.
+Production activation needs authenticated exact predecessor observations, a
+successor lifecycle and integrity receipt bound to the independently admitted
+release and asset, and a reviewed common method that derives both coordinate
+sets from those exact artifacts. A released reader must verify the new
+contract. A player label additionally needs a fresh successful scoped selector
+result. The latest local update snapshot is retained for history and cannot
+establish a current claim, particularly after another resolution fails.
 
 ### Qualification evidence preparation
 

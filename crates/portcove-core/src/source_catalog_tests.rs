@@ -152,6 +152,7 @@ fn successor_support_requires_its_exact_reviewed_sources_and_revokes_on_drift() 
     let mut original_lifecycle = anchor.clone();
     original_lifecycle.kind = AutomatedLifecycle;
     let mut successor = original_lifecycle.clone();
+    successor.observed_at += 1;
     successor.scope.upstream_ref = Some("v-next".into());
     successor.scope.artifact_sha256 = Some("4".repeat(64));
     let mut integrity = successor.clone();
