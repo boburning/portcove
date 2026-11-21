@@ -150,7 +150,6 @@ jobs:
             unset PORTCOVE_ROADMAP_GH_TOKEN
           fi
           node scripts/maintenance-inventory.mts collect --all --cli target/debug/portcove \
-<<<<<<< HEAD
             --targets --reassess changed "${sources[@]}" \
             > work/maintenance-evidence/collect.json || rc=$?
           if [[ "$rc" == 75 ]]; then
@@ -158,15 +157,9 @@ jobs:
           elif [[ "$rc" != 0 ]]; then
             exit "$rc"
           else
+            jq -cr '"audit_continuations=" + ((.hosted_intake.audit_continuations // []) | tojson)' work/maintenance-evidence/collect.json >> "$GITHUB_OUTPUT"
             echo completed=true >> "$GITHUB_OUTPUT"
           fi
-=======
-            --issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN \
-            --release-health --release-content --publication --delivery --upstream --hosted-intake --reconcile-intake \
-            --targets --progress scripts/upstream-progress/sources-v1.json \
-            > work/maintenance-evidence/collect.json
-          jq -c '"audit_continuations=" + ((.hosted_intake.audit_continuations // []) | tojson)' -r work/maintenance-evidence/collect.json >> "$GITHUB_OUTPUT"
->>>>>>> a6aa24719fa (Resume authorized final intake audits through the existing schedule)
           printf 'collect\t%s\t%s\n' "$started" "$EPOCHSECONDS" >> "$PORTCOVE_STEP_TIMES"
       - name: Plan executor handoffs without dispatching
         if: ${{ !cancelled() && github.event_name == 'schedule' && steps.collect.outputs.completed == 'true' }}
