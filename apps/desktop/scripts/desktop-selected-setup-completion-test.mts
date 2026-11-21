@@ -486,6 +486,9 @@ export async function selectedSetupCompletionScenario({
 
       async function connectSetupFolderWithNativePicker() {
         assert.ok(typeof chooseGameFileFolder === "function");
+        // Windows job 136689042471 observed a 5.3 s add worker while the
+        // previous 5 s Selenium wait was reading the outgoing root snapshot.
+        const rootSettlement = 30_000;
         assert.deepEqual(await read("get_game_file_roots"), []);
         const connection = By.css(connectFolderAction);
         await browser.wait(until.elementLocated(connection), 5_000);
@@ -517,7 +520,11 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-add",
           owned.directory,
         );
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 1,
+          rootSettlement,
+          "Core must report exactly 1 connected folder",
+        );
         const first = required((await read("get_game_file_roots"))[0]);
         assertOwnedSelectedSetupPath(first.path, owned.directory);
         const extra = path.join(output, "connected-folder-extra");
@@ -537,7 +544,11 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-second",
           extra,
         );
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 2, 5_000);
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 2,
+          rootSettlement,
+          "Core must report exactly 2 connected folders",
+        );
         const second = required(
           (await read("get_game_file_roots")).find((root) => root.id !== first.id),
         );
@@ -551,12 +562,17 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-relink",
           replacement,
         );
-        await browser.wait(async () => {
-          const roots = await read("get_game_file_roots");
-          return (
-            roots.length === 2 && roots.find((root) => root.id === second.id)?.path !== second.path
-          );
-        }, 5_000);
+        await browser.wait(
+          async () => {
+            const roots = await read("get_game_file_roots");
+            return (
+              roots.length === 2 &&
+              roots.find((root) => root.id === second.id)?.path !== second.path
+            );
+          },
+          rootSettlement,
+          "Core must report the relink of the second connected folder",
+        );
         const relinked = required(
           (await read("get_game_file_roots")).find((root) => root.id === second.id),
         );
@@ -571,7 +587,11 @@ export async function selectedSetupCompletionScenario({
         assert.equal((await read("get_game_file_roots")).length, 2);
         await click(rootAction("Remove"));
         await click(rootAction("Stop scanning this folder"));
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 1,
+          rootSettlement,
+          "Core must report exactly 1 connected folder",
+        );
         assert.deepEqual(await read("get_game_file_roots"), [first]);
         for (const directory of [extra, replacement])
           assert.equal(
@@ -782,7 +802,25 @@ export async function selectedSetupCompletionScenario({
       const installDialog = By.css('[aria-labelledby="install-review-title"]');
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
       const openInstall = async () => {
-        await click(button("Review installation"));
+        const reviewTrigger = button("Review installation");
+        // A terminal Core activity can precede renderer settlement. Wait for
+        // the previous review to close and the exact opener to become usable.
+        await browser.wait(
+          async () => {
+            if ((await browser.findElements(installDialog)).length !== 0) return false;
+            const triggers = await browser.findElements(reviewTrigger);
+            const trigger = triggers[0];
+            return (
+              triggers.length === 1 &&
+              trigger &&
+              (await trigger.isDisplayed()) &&
+              (await trigger.isEnabled())
+            );
+          },
+          45_000,
+          "The prior install review must close and restore the visible enabled opener",
+        );
+        await click(reviewTrigger);
         await browser.wait(until.elementLocated(installDialog), 15_000);
         await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
       };
@@ -1264,8 +1302,13 @@ export async function selectedSetupCompletionScenario({
       // BIOS can associate the incomplete port with the next setup selection.
       const biosOnly = path.join(owned.directory, "bios-only");
       const biosOnlyPath = path.join(biosOnly, "bios.pcbios");
+      const unrelatedBiosPath = path.join(biosOnly, "unrelated.pcbios");
+      const acceptedBios = await readFile(owned.biosBefore);
+      const unrelatedBios = Buffer.from(acceptedBios);
+      unrelatedBios.writeUInt8(unrelatedBios.readUInt8(0) ^ 0xff, 0);
       await mkdir(biosOnly);
-      await writeFile(biosOnlyPath, await readFile(owned.biosBefore), { flag: "wx" });
+      await writeFile(biosOnlyPath, acceptedBios, { flag: "wx" });
+      await writeFile(unrelatedBiosPath, unrelatedBios, { flag: "wx" });
       const rootsBefore = await read("get_game_file_roots");
       assert.equal(rootsBefore.length, 1);
       assertOwnedSelectedSetupPath(required(rootsBefore[0]).path, owned.directory);
@@ -1289,6 +1332,10 @@ export async function selectedSetupCompletionScenario({
               !beforeBiosScans.has(item.id),
           );
           if (!activity || observations?.freshness !== "inputs_match") return false;
+          assert.equal(required(observations.coverage).frontier_exhausted, true);
+          assert.equal(required(observations.coverage).can_resume, false);
+          assert.deepEqual(observations.report.limits_reached, []);
+          assert.equal(observations.report.files_hashed, 2);
           assert.deepEqual(
             observations.report.candidates.map((item) => item.profile_id),
             [owned.profiles[1]],
@@ -1308,7 +1355,7 @@ export async function selectedSetupCompletionScenario({
           );
         },
         15_000,
-        "The fresh real Core scan must contain only the BIOS candidate",
+        "The fresh real Core scan must admit only the exact BIOS despite the same-size unrelated file",
       );
       const beforeBiosRegistration = await read("get_statuses");
       const blocked = required(
@@ -1383,6 +1430,7 @@ export async function selectedSetupCompletionScenario({
         required(biosSources.find((item) => item.profile_id === owned.profiles[1])).path,
         biosOnlyPath,
       );
+      assert.deepEqual(await readFile(unrelatedBiosPath), unrelatedBios);
       assert.deepEqual(core(["source", "list"]), biosSources);
       await click(By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`));
       const statusesBeforeBiosPlan = await read("get_statuses");
