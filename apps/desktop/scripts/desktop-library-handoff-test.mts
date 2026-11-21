@@ -292,6 +292,11 @@ export async function libraryRecoveryBundleScenario({
     await field("Recovery bundle folder", corrupt);
     await controls.click(controls.button("Verify bundle"));
     await refuses("Review restore");
+    await waitText("Portcove couldn’t verify this bundle.");
+    assert.doesNotMatch(
+      await (await modal()).getText(),
+      /couldn't confirm whether anything changed/u,
+    );
     assert.equal(
       object(await invoke("inspect_library_recovery_bundle", { path: corrupt })).ok,
       false,
@@ -309,8 +314,35 @@ export async function libraryRecoveryBundleScenario({
     const occupiedIdentity = await fileIdentity(occupiedFile);
     await field("Restore destination", occupied);
     await controls.click(controls.button("Review restore"));
-    await waitText("import requires a new or empty library; existing data was retained");
+    const occupiedNotice =
+      "This folder contains existing data. Choose a new or empty folder to restore the library.";
+    await waitText(occupiedNotice);
     await refuses("Restore library");
+    const invalidDestination = await (
+      await modal()
+    ).findElement(By.css('input[aria-invalid="true"]'));
+    assert.equal(await invalidDestination.getAttribute("value"), occupied);
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (element) => document.activeElement === element,
+          invalidDestination,
+        ),
+      5_000,
+      "The refused destination must regain focus",
+    );
+    const noticeId = await invalidDestination.getAttribute("aria-describedby");
+    assert.ok(noticeId, "The refused destination must describe its error");
+    assert.equal(await (await modal()).findElement(By.id(noticeId)).getText(), occupiedNotice);
+    await capture("native-recovery-bundle-occupied-destination");
+    await clickVisible(
+      browser,
+      await (
+        await modal()
+      ).findElement(By.xpath('.//summary[normalize-space(.)="View technical details"]')),
+    );
+    await waitText("import requires a new or empty library; existing data was retained");
     assert.deepEqual(await fileIdentity(occupiedFile), occupiedIdentity);
     assert.equal((await identity(source)).id, initial.id);
 

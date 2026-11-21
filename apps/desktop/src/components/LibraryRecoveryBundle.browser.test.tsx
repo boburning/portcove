@@ -248,6 +248,133 @@ it("returns keyboard focus to the entry action when closing a review before copy
   expect(create).not.toHaveBeenCalled();
 });
 
+it.for([
+  {
+    cause: "changed payload",
+    key: "verification_failed",
+    summary: "Required verification did not pass.",
+    expected:
+      "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle.",
+  },
+  {
+    cause: "locked credential store",
+    key: "credential_store_locked",
+    summary: "Secure credential storage is locked. Unlock it, then try again.",
+    expected: "Secure credential storage is locked. Unlock it, then try again.",
+  },
+])("keeps read-only verification retryable after $cause", async ({ key, summary, expected }) => {
+  const verify = vi
+    .spyOn(desktopApi, "inspectLibraryRecoveryBundle")
+    .mockRejectedValueOnce({
+      code: "verification",
+      presentation: {
+        presentation_key: key,
+        summary,
+        tone: "error",
+        mutation_state: "unknown",
+        technical_message: "The bundle payload differs from its recorded identity.",
+        technical_context: {},
+        recovery_actions: [],
+      },
+    })
+    .mockResolvedValue(bundle);
+  const review = vi.spyOn(desktopApi, "planLibraryRecoveryRestore");
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Inspect or restore a bundle" }).click();
+  const dialog = page.getByRole("dialog", { name: "Inspect or restore a bundle" });
+  const folder = dialog.getByRole("textbox", { name: "Recovery bundle folder" });
+  const verifyButton = dialog.getByRole("button", { name: "Verify bundle" });
+  await folder.fill(destination);
+  await verifyButton.click();
+
+  const alert = dialog.getByRole("alert");
+  await expect.element(alert.getByText(expected, { exact: true })).toBeVisible();
+  await expect.element(alert.getByText(/confirm whether anything changed/)).not.toBeInTheDocument();
+  await expect.element(folder).toHaveValue(destination);
+  await expect.element(verifyButton).toBeEnabled();
+  await expect
+    .element(dialog.getByRole("button", { name: "Review restore" }))
+    .not.toBeInTheDocument();
+  await alert.getByText("View technical details").click();
+  await expect.element(alert.getByText(/payload differs from its recorded identity/)).toBeVisible();
+
+  await verifyButton.click();
+  await expect.element(dialog.getByText("Bundle verified", { exact: true })).toBeVisible();
+  await expect.element(alert).not.toBeInTheDocument();
+  expect(verify.mock.calls).toEqual([[destination], [destination]]);
+  expect(review).not.toHaveBeenCalled();
+});
+
+it("explains an occupied restore destination and keeps the verified bundle for a fresh review", async () => {
+  const occupied = "D:/occupied";
+  const message = "import requires a new or empty library; existing data was retained";
+  const summary =
+    "This folder contains existing data. Choose a new or empty folder to restore the library.";
+  const inspect = vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
+  const review = vi
+    .spyOn(desktopApi, "planLibraryRecoveryRestore")
+    .mockRejectedValueOnce({
+      code: "conflict",
+      details: { import_destination_state: "occupied" },
+      presentation: {
+        presentation_key: "conflict",
+        summary:
+          "The selection changed or another operation is using it. Review its current state.",
+        tone: "error",
+        mutation_state: "unknown",
+        technical_message: message,
+        technical_context: {},
+        recovery_actions: [],
+      },
+    })
+    .mockResolvedValue({
+      bundle,
+      destination_root: restoreDestination,
+      required_bytes: plan.required_bytes,
+      available_bytes: plan.available_bytes,
+      plan_sha256: "3".repeat(64),
+    });
+  const restore = vi.spyOn(desktopApi, "restoreLibraryRecoveryBundle");
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Inspect or restore a bundle" }).click();
+  const dialog = page.getByRole("dialog", { name: "Inspect or restore a bundle" });
+  await dialog.getByRole("textbox", { name: "Recovery bundle folder" }).fill(destination);
+  await dialog.getByRole("button", { name: "Verify bundle" }).click();
+  const field = dialog.getByRole("textbox", { name: "Restore destination" });
+  const check = dialog.getByRole("button", { name: "Review restore" });
+  await field.fill(occupied);
+  await check.click();
+  await expect.element(field).toHaveFocus();
+  await expect.element(field).toHaveValue(occupied);
+  await expect.element(field).toHaveAttribute("aria-invalid", "true");
+  await expect.element(field).toHaveAccessibleDescription(summary);
+  const alert = dialog.getByRole("alert");
+  await expect.element(alert.getByText(summary)).toBeVisible();
+  await expect.element(alert.getByText(/confirm whether anything changed/)).not.toBeInTheDocument();
+  await expect
+    .element(dialog.getByRole("button", { name: "Restore library" }))
+    .not.toBeInTheDocument();
+  await alert.getByText("View technical details").click();
+  await expect.element(alert.getByText(new RegExp(message))).toBeVisible();
+  expect(restore).not.toHaveBeenCalled();
+
+  await field.fill(restoreDestination);
+  await expect.element(field).not.toHaveAttribute("aria-invalid");
+  await expect.element(alert).not.toBeInTheDocument();
+  await check.click();
+  await expect.element(dialog.getByRole("region", { name: "Restore review" })).toBeVisible();
+  expect(review.mock.calls).toEqual([
+    [destination, occupied, 7],
+    [destination, restoreDestination, 7],
+  ]);
+  expect(inspect).toHaveBeenCalledExactlyOnceWith(destination);
+  expect(restore).not.toHaveBeenCalled();
+});
+
 async function openRestoreReview() {
   const verify = vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
   const restoreReview = {

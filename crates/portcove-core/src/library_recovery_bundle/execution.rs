@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     Library, LibraryImportPlan, LibraryImportResult, LibraryMetadata, LibraryTreePlan,
-    PortcoveError, PortcoveService, Result,
+    MutationState, PortcoveError, PortcoveService, Result,
     library_import::{PortabilityCatalogs, read_metadata, validate_metadata},
     library_transfer::plan_portable_content,
 };
@@ -172,7 +172,9 @@ impl PortcoveService {
 
     /// Verify a completed bundle without opening its database or changing preferences.
     pub fn inspect_library_recovery_bundle(path: &Path) -> Result<LibraryRecoveryBundle> {
-        inspect(path).map(|(summary, _)| summary)
+        inspect(path)
+            .map(|(summary, _)| summary)
+            .map_err(|error| error.with_mutation_state(MutationState::NoChanges))
     }
 
     /// Re-read a possibly committed create result for its exact reviewed destination and plan.
@@ -1371,7 +1373,8 @@ mod tests {
         );
 
         fs::write(destination.join("content/user/progress.bin"), b"corrupted").unwrap();
-        assert!(PortcoveService::inspect_library_recovery_bundle(&destination).is_err());
+        let error = PortcoveService::inspect_library_recovery_bundle(&destination).unwrap_err();
+        assert_eq!(error.failure.mutation_state, MutationState::NoChanges);
         assert!(PortcoveService::plan_library_recovery_restore(&destination, &restore).is_err());
     }
 

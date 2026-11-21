@@ -2899,8 +2899,12 @@ another attempt. When the authenticated
 intent matches a publication at that destination, **Verify published bundle**
 reads the exact receipt and checks its contents without replaying the copy.
 Select **Inspect or restore a bundle** to verify a finished copy and review a
-separate restore. A fresh review of the same bundle and restore folder
-rediscovers its authenticated transfer. Resume checks an interrupted copy,
+separate restore. If verifying the selected folder fails, Desktop keeps the
+folder available to retry and offers the verification details. An occupied
+restore folder keeps the verified bundle and returns focus to the destination
+field, with a request for a new or empty folder. Core still refuses the occupied
+destination and supplies the technical reason. A fresh review of the same
+bundle and restore folder rediscovers its authenticated transfer. Resume checks an interrupted copy,
 and a completed restore offers a read of its recorded result. After a restore completes, choose the restored folder through library
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
