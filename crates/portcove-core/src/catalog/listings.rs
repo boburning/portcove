@@ -1765,8 +1765,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include implementation descriptions, which need format 12.
-        assert_eq!(projected.listing_document().format_version, 12);
+        // Embedded listings include typed IGDB scene records.
+        assert_eq!(projected.listing_document().format_version, 13);
     }
 
     #[test]
@@ -1986,8 +1986,7 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Embedded listings include implementation descriptions, which need format 12.
-        assert_eq!(current.format_version, 12);
+        assert_eq!(current.format_version, 13);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();
