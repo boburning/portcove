@@ -6,10 +6,11 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import {
   describeCatalogPublication,
+  LateReadbackFailure,
   verifyCatalogPublicationLive,
   type HistoryReadback,
 } from "./catalog-publication-receipt.mts";
-import { isRecord } from "./runtime-values.mts";
+import { errorMessage, isRecord } from "./runtime-values.mts";
 
 const gitOid = /^[a-f0-9]{40}$/u;
 const digest = /^[a-f0-9]{64}$/u;
@@ -131,12 +132,73 @@ async function browseIdentities(read: ReadCatalog) {
   );
 }
 
+function signed(bytes: Buffer) {
+  const data: unknown = JSON.parse(bytes.toString("utf8"));
+  if (!isRecord(data) || !isRecord(data.signed))
+    throw new Error("Pinned Pages metadata envelope is malformed");
+  return data.signed;
+}
+
+function roleVersion(value: unknown) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+    throw new Error("Pinned Pages metadata role version is malformed");
+  return value;
+}
+
+async function metadataIdentities(site: string, source: string, read: ReadCatalog) {
+  const evidence: HistoryReadback[] = [];
+  const readVersionedRole = async (role: string, descriptor: unknown) => {
+    if (
+      !isRecord(descriptor) ||
+      !isRecord(descriptor.hashes) ||
+      typeof descriptor.hashes.sha256 !== "string" ||
+      !digest.test(descriptor.hashes.sha256) ||
+      typeof descriptor.length !== "number" ||
+      !Number.isSafeInteger(descriptor.length) ||
+      descriptor.length < 1 ||
+      descriptor.length > 8 * mib
+    )
+      throw new Error("Pinned Pages signed metadata descriptor is malformed");
+    const version = roleVersion(descriptor.version);
+    const path = `metadata/${version}.${role}.json`;
+    const body = await read(path, descriptor.length);
+    if (body.length !== descriptor.length || sha(body) !== descriptor.hashes.sha256)
+      throw new Error("Pinned Pages signed metadata binding differs");
+    const roleBody = signed(body);
+    if (roleVersion(roleBody.version) !== version)
+      throw new Error("Pinned Pages signed metadata role version differs");
+    evidence.push({ path, bytes: body.length, sha256: descriptor.hashes.sha256 });
+    return roleBody;
+  };
+
+  const timestamp = signed(await read("metadata/timestamp.json", mib));
+  const snapshot = await readVersionedRole(
+    "snapshot",
+    isRecord(timestamp.meta) ? timestamp.meta["snapshot.json"] : null,
+  );
+  for (const role of ["targets", "official-definitions", "official-policy"])
+    await readVersionedRole(role, isRecord(snapshot.meta) ? snapshot.meta[`${role}.json`] : null);
+
+  const sourceRoot = git(
+    site,
+    ["cat-file", "blob", `${source}:crates/portcove-core/catalog/official-definition-root.json`],
+    8 * mib,
+  )!;
+  const rootPath = `metadata/${roleVersion(signed(sourceRoot).version)}.root.json`;
+  const publishedRoot = await read(rootPath, sourceRoot.length);
+  if (!publishedRoot.equals(sourceRoot))
+    throw new Error("Pinned Pages root differs from its source");
+  evidence.push({ path: rootPath, bytes: sourceRoot.length, sha256: sha(sourceRoot) });
+  return evidence;
+}
+
 async function historyIdentities(
   site: string,
   pagesCommit: string,
   parent: string,
   readCatalog: ReadCatalog,
   pointer: { target: string; sha256: string },
+  description: Awaited<ReturnType<typeof describeCatalogPublication>>,
 ) {
   const additions = git(
     site,
@@ -186,12 +248,35 @@ async function historyIdentities(
     return bytes;
   };
   const parsed: unknown = JSON.parse(rawPointer.toString("utf8"));
-  if (!isRecord(parsed) || parsed.checkpoint_schema !== 1)
-    throw new Error("Pinned Pages history pointer has an unknown schema");
+  if (
+    !isRecord(parsed) ||
+    parsed.checkpoint_schema !== 1 ||
+    parsed.policy_revision !== description.published.versions?.policy
+  )
+    throw new Error("Pinned Pages history pointer does not bind the published policy revision");
+  const predecessor = description.prior;
+  if (
+    !predecessor.versions ||
+    !predecessor.timestamp_sha256 ||
+    predecessor.versions.timestamp + 1 !== description.published.versions?.timestamp
+  )
+    throw new Error("Pinned Pages checkpoint has no exact predecessor generation");
   const active: unknown = JSON.parse((await visit(parsed.active, 2 * mib)).toString("utf8"));
-  if (!isRecord(active) || active.checkpoint_schema !== 1)
-    throw new Error("Pinned Pages active history has an unknown schema");
-  await visit(active.tip, mib);
+  if (
+    !isRecord(active) ||
+    active.checkpoint_schema !== 1 ||
+    active.covered_timestamp_version !== predecessor.versions.timestamp ||
+    active.covered_timestamp_sha256 !== predecessor.timestamp_sha256
+  )
+    throw new Error("Pinned Pages active history does not bind the predecessor timestamp");
+  const tip: unknown = JSON.parse((await visit(active.tip, mib)).toString("utf8"));
+  if (
+    !isRecord(tip) ||
+    tip.checkpoint_schema !== 1 ||
+    tip.through_timestamp_version !== predecessor.versions.timestamp ||
+    tip.through_timestamp_sha256 !== predecessor.timestamp_sha256
+  )
+    throw new Error("Pinned Pages history tip does not bind the predecessor timestamp");
   for (const line of additions) {
     const object = /^A\tcatalog-history\/(sha256\/([a-f0-9]{64})\.json)$/u.exec(line);
     const relative = object?.[1];
@@ -207,24 +292,38 @@ async function historyIdentities(
   return [...evidence.values()];
 }
 
-export async function observePinnedCatalog(site: string, observer: Observer, fetcher = fetch) {
+export async function observePinnedCatalog(
+  site: string,
+  observer: Observer,
+  fetcher = fetch,
+  reportPin?: (pin: { pages_commit: string; source_commit: string; catalog_tree: string }) => void,
+) {
   if (!/^[1-9][0-9]{0,19}$/u.test(observer.run) || !/^[1-9][0-9]{0,9}$/u.test(observer.attempt))
     throw new Error("Catalog recovery requires a valid observing run and attempt");
   const tip = checkoutTip(site);
   const publication = identity(site, tip);
   if (!publication) return null;
   const { pagesCommit, parent, source, catalogTree, hasHistory } = publication;
+  reportPin?.({ pages_commit: pagesCommit, source_commit: source, catalog_tree: catalogTree });
   const priorTree = git(site, ["ls-tree", parent, "--", "catalog/metadata/timestamp.json"]);
   const next = pinnedCatalog(site, pagesCommit);
   const description = await describeCatalogPublication(
     priorTree?.length ? pinnedCatalog(site, parent) : null,
     next,
   );
+  const metadata = await metadataIdentities(site, source, next);
   const browse = await browseIdentities(next);
   if (hasHistory !== !!description.historyPointer)
     throw new Error("Pinned Pages catalog history store and policy pointer disagree");
   const history = description.historyPointer
-    ? await historyIdentities(site, pagesCommit, parent, next, description.historyPointer)
+    ? await historyIdentities(
+        site,
+        pagesCommit,
+        parent,
+        next,
+        description.historyPointer,
+        description,
+      )
     : [];
   const bytes = await verifyCatalogPublicationLive(
     description,
@@ -232,6 +331,7 @@ export async function observePinnedCatalog(site: string, observer: Observer, fet
     fetcher,
     browse,
     history,
+    { metadata },
   );
   return {
     schema_version: 1,
@@ -256,6 +356,7 @@ export async function observePinnedCatalog(site: string, observer: Observer, fet
       immutable_targets: description.targets,
       immutable_target_bytes: bytes,
       history_objects: history,
+      role_metadata: metadata,
       timestamp_rechecked: true,
     },
   };
@@ -263,20 +364,53 @@ export async function observePinnedCatalog(site: string, observer: Observer, fet
 
 async function main() {
   const {
-    values: { site, output },
+    values: { site, output, status },
   } = parseArgs({
-    options: { site: { type: "string" }, output: { type: "string" } },
+    options: { site: { type: "string" }, output: { type: "string" }, status: { type: "string" } },
   });
-  if (!site || !output) throw new Error("Supply a pinned Pages worktree and an output file");
-  const receipt = await observePinnedCatalog(site, {
+  if (!site || !output || !status)
+    throw new Error("Supply a pinned Pages worktree, receipt and status file");
+  const observer = {
     run: process.env.GITHUB_RUN_ID ?? "",
     attempt: process.env.GITHUB_RUN_ATTEMPT ?? "",
-  });
-  if (!receipt) return;
-  const body = JSON.stringify(receipt, null, 2) + "\n";
-  if (Buffer.byteLength(body) > mib)
-    throw new Error("Catalog recovery receipt exceeds its byte bound");
-  await writeFile(output, body, { flag: "wx", mode: 0o600 });
+  };
+  let observation: Record<string, unknown>;
+  let pinned: Record<string, unknown> = {};
+  try {
+    const receipt = await observePinnedCatalog(site, observer, fetch, (pin) => {
+      pinned = pin;
+    });
+    if (receipt) {
+      const body = JSON.stringify(receipt, null, 2) + "\n";
+      if (Buffer.byteLength(body) > mib)
+        throw new Error("Catalog recovery receipt exceeds its byte bound");
+      await writeFile(output, body, { flag: "wx", mode: 0o600 });
+    }
+    observation = {
+      outcome: receipt ? "complete" : "no-publication",
+      pages_commit: receipt?.pages_commit,
+    };
+  } catch (error) {
+    observation = {
+      outcome: error instanceof LateReadbackFailure ? error.outcome : "incomplete",
+      observed_timestamp_sha256:
+        error instanceof LateReadbackFailure ? error.observedTimestampSha256 : undefined,
+      detail: errorMessage(error).slice(0, 256),
+    };
+  }
+  await writeFile(
+    status,
+    JSON.stringify({
+      schema_version: 1,
+      kind: "catalog-publication-late-observation",
+      authority: "none",
+      observing_run: observer.run,
+      observing_attempt: observer.attempt,
+      ...pinned,
+      ...observation,
+    }) + "\n",
+    { flag: "wx", mode: 0o600 },
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))

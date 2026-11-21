@@ -31,6 +31,7 @@ import {
 } from "./catalog-publish.mts";
 import {
   describeCatalogPublication,
+  LateReadbackFailure,
   verifyCatalogPublicationLive,
 } from "./catalog-publication-receipt.mts";
 
@@ -232,11 +233,16 @@ void test("scheduled catalog readback observes the exact retained publication ac
     return git("rev-parse", "HEAD");
   };
   put(dir, "index.html", "application one");
+  const root = { signed: { version: 1 } };
+  put(dir, "crates/portcove-core/catalog/official-definition-root.json", root);
   const source = commit("Reviewed source");
   git("update-ref", "refs/remotes/origin/main", source);
   const catalog = path.join(dir, "catalog");
   const publisher = `Publish the official catalog from ${source}`;
-  const publish = (revision: number) => {
+  const publish = (revision: number, breakBinding?: "policy" | "active" | "tip") => {
+    const digest = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
+    const predecessor =
+      revision === 2 ? digest(readFileSync(path.join(catalog, "metadata/timestamp.json"))) : null;
     receiptSite(catalog, [{ id: "chameleon", revision }], revision, `listing-${revision}`);
     put(catalog, "metadata/timestamp.json", {
       signed: { version: revision, meta: { "snapshot.json": { version: 7 } } },
@@ -248,15 +254,24 @@ void test("scheduled catalog readback observes the exact retained publication ac
     ]);
     put(catalog, "browse/games/chameleon/index.html", `page-${revision}`);
     if (revision === 2) {
-      const digest = (bytes: string | Buffer) => createHash("sha256").update(bytes).digest("hex");
       const object = (data: unknown) => {
         const body = JSON.stringify(data);
         const sha256 = digest(body);
         put(dir, `catalog-history/sha256/${sha256}.json`, body);
         return { bytes: Buffer.byteLength(body), sha256 };
       };
-      const tip = object({ checkpoint_schema: 1, files: [] });
-      const active = object({ checkpoint_schema: 1, tip });
+      const tip = object({
+        checkpoint_schema: 1,
+        files: [],
+        through_timestamp_version: breakBinding === "tip" ? 2 : 1,
+        through_timestamp_sha256: predecessor,
+      });
+      const active = object({
+        checkpoint_schema: 1,
+        tip,
+        covered_timestamp_version: 1,
+        covered_timestamp_sha256: breakBinding === "active" ? "0".repeat(64) : predecessor,
+      });
       object({ checkpoint_schema: 1, files: ["additional sealed segment"] });
       const roles = "metadata/4.official-policy.json";
       const policy = fixtureRecord(JSON.parse(readFileSync(path.join(catalog, roles), "utf8")));
@@ -269,21 +284,48 @@ void test("scheduled catalog readback observes the exact retained publication ac
       };
       target("policy/official/catalog.history-checkpoint.json", {
         checkpoint_schema: 1,
-        policy_revision: 2,
+        policy_revision: breakBinding === "policy" ? 2 : 4,
         active,
       });
-      const decoded = Buffer.from(JSON.stringify({ revision: 2 }));
+      const decoded = Buffer.from(
+        JSON.stringify({ revision: 2, fixture_summary: "x".repeat(70_000) }),
+      );
       target("policy/official/catalog.listings.compact.json", {
         carrier: "gzip-base64-json-v1",
-        gzip_base64: gzipSync(decoded).toString("base64"),
+        gzip_base64: gzipSync(decoded, { level: 0 }).toString("base64"),
         decoded_bytes: decoded.length,
         decoded_sha256: digest(decoded),
       });
       put(catalog, roles, policy);
     }
+    const writeRole = (file: string, version: number, body: Record<string, unknown>) => {
+      const raw = JSON.stringify({ signed: { ...body, version } });
+      put(catalog, `metadata/${file}`, raw);
+      return { version, length: Buffer.byteLength(raw), hashes: { sha256: digest(raw) } };
+    };
+    const meta: Record<string, unknown> = {};
+    for (const [role, version] of [
+      ["targets", 1],
+      ["official-definitions", 5],
+      ["official-policy", 4],
+    ] as const) {
+      const file = `${version}.${role}.json`;
+      const body =
+        role === "targets"
+          ? {}
+          : fixtureRecord(
+              fixtureRecord(JSON.parse(readFileSync(path.join(catalog, "metadata", file), "utf8")))
+                .signed,
+            );
+      meta[`${role}.json`] = writeRole(file, version, body);
+    }
+    const snapshot = writeRole("7.snapshot.json", 7, { meta });
+    writeRole("timestamp.json", revision, { meta: { "snapshot.json": snapshot } });
+    put(catalog, "metadata/1.root.json", root);
     return commit(publisher);
   };
   const first = publish(1);
+  const firstTimestamp = readFileSync(path.join(catalog, "metadata/timestamp.json"));
   const latest = publish(2);
   put(dir, "index.html", "application two");
   const tip = commit("Publish application");
@@ -322,23 +364,68 @@ void test("scheduled catalog readback observes the exact retained publication ac
     ),
   );
   assert.equal(result?.readback.history_objects.length, 4);
+  assert.equal(result?.readback.role_metadata.length, 5);
+  assert.ok((result?.readback.immutable_target_bytes ?? 0) > 65_536);
   assert.deepEqual(
     result?.browse.map(({ path }) => path),
     ["browse/index.html", "browse/inputs.json", "browse/games/chameleon/index.html"],
   );
-  // A stale CDN deployment, missing browse generation, or supersession during
-  // the scan cannot produce a receipt for the selected immutable generation.
-  for (const stale of [
-    (_url: URL, suffix: string) => (suffix === "metadata/timestamp.json" ? "prior" : undefined),
-    (_url: URL, suffix: string) => (suffix === "browse/inputs.json" ? "{}" : undefined),
-    (_url: URL, suffix: string) =>
-      suffix.startsWith("catalog-history/") ? "different" : undefined,
-    (url: URL) => (url.search.endsWith("-end") ? "later" : undefined),
-  ])
+  await assert.rejects(
+    observePinnedCatalog(
+      dir,
+      observer,
+      localFetch((_url, suffix) =>
+        suffix === "metadata/timestamp.json" ? firstTimestamp : undefined,
+      ),
+    ),
+    (error) => error instanceof LateReadbackFailure && error.outcome === "awaiting-deployment",
+  );
+  await assert.rejects(
+    observePinnedCatalog(
+      dir,
+      observer,
+      localFetch((url) =>
+        url.search.endsWith("-end")
+          ? JSON.stringify({
+              signed: {
+                version: 3,
+                meta: {
+                  "snapshot.json": { version: 8, length: 1, hashes: { sha256: "a".repeat(64) } },
+                },
+              },
+            })
+          : undefined,
+      ),
+    ),
+    (error) =>
+      error instanceof LateReadbackFailure &&
+      error.outcome === "timestamp-changed-during-observation",
+  );
+  await assert.rejects(
+    observePinnedCatalog(
+      dir,
+      observer,
+      localFetch((_url, suffix) =>
+        suffix === "metadata/timestamp.json" ? "unknown timestamp" : undefined,
+      ),
+    ),
+    (error) => error instanceof LateReadbackFailure && error.outcome === "incomplete",
+  );
+  for (const unavailable of [
+    "browse/inputs.json",
+    "metadata/7.snapshot.json",
+    "metadata/4.official-policy.json",
+    "catalog-history/",
+  ]) {
     await assert.rejects(
-      observePinnedCatalog(dir, observer, localFetch(stale)),
+      observePinnedCatalog(
+        dir,
+        observer,
+        localFetch((_url, suffix) => (suffix.startsWith(unavailable) ? "different" : undefined)),
+      ),
       /readback bytes differ/u,
     );
+  }
 
   put(catalog, "browse/index.html", "modified by a non-catalog Pages commit");
   commit("Publish application again");
@@ -346,6 +433,15 @@ void test("scheduled catalog readback observes the exact retained publication ac
     observePinnedCatalog(dir, observer, localFetch()),
     /changed outside the timestamp publication/u,
   );
+  for (const [corruption, failure] of [
+    ["policy", /published policy revision/u],
+    ["active", /active history does not bind/u],
+    ["tip", /history tip does not bind/u],
+  ] as const) {
+    git("checkout", "--quiet", "--detach", first);
+    publish(2, corruption);
+    await assert.rejects(observePinnedCatalog(dir, observer, localFetch()), failure);
+  }
 });
 
 void test("a first publication starts every role at one; later runs advance every role", (t) => {
@@ -569,8 +665,9 @@ void test("late catalog readback stays in the existing read-only scheduled prepa
   assert.deepEqual(permissions, { contents: "read", actions: "read" });
   assert.equal(continuation.if, "github.event_name == 'schedule'");
   assert.match(continuation.run!, /catalog-publication-continuation\.mts --site site --output/u);
-  assert.equal(steps![index + 1]!.if, "steps.late-readback.outputs.receipt == 'true'");
-  assert.match(String(steps![index + 1]!.with!.name), /^catalog-publication-late-readback-/u);
+  assert.equal(steps![index + 1]!.if, "steps.late-readback.outputs.observation == 'true'");
+  assert.match(String(steps![index + 1]!.with!.name), /^catalog-publication-late-observation-/u);
+  assert.ok(index < steps!.findIndex(({ id }) => id === "commit"));
   assert.ok(index < steps!.findIndex(({ id }) => id === "decide"));
 });
 

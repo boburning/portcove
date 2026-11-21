@@ -62,17 +62,6 @@ jobs:
           package-manager-cache: false
       # The GitHub client loads @octokit/core from the locked dependencies.
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Select the newest CI-green main commit
-        id: commit
-        run: |
-          set -euo pipefail
-          # Every trigger publishes the newest CI-green first-parent commit, so a
-          # re-run of an older CI run cannot publish an older bundle.
-          commit=$(node scripts/catalog-publish.mts green-main | sed -n 's/^commit=//p')
-          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::no commit selected"; exit 1; }
-          git merge-base --is-ancestor "$commit" origin/main || { echo "::error::$commit is not on main"; exit 1; }
-          git checkout --quiet --detach "$commit"
-          echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Read the published catalog
         run: |
           set -euo pipefail
@@ -93,24 +82,35 @@ jobs:
         timeout-minutes: 2
         run: |
           set -euo pipefail
-          if [ ! -d site/catalog ] || [ ! -f scripts/catalog-publication-continuation.mts ]; then
+          if [ ! -d site/catalog ]; then
             exit 0
           fi
           receipt="$RUNNER_TEMP/catalog-publication-late-readback.json"
-          if node scripts/catalog-publication-continuation.mts --site site --output "$receipt"; then
-            if [ -f "$receipt" ]; then echo "receipt=true" >> "$GITHUB_OUTPUT"; fi
-          else
-            echo "::warning::The previous immutable catalog publication has no exact public readback in this observation."
-          fi
-      - name: Retain the previous catalog publication readback
-        if: steps.late-readback.outputs.receipt == 'true'
+          status="$RUNNER_TEMP/catalog-publication-late-observation.json"
+          node scripts/catalog-publication-continuation.mts --site site --output "$receipt" --status "$status"
+          if [ -f "$status" ]; then echo "observation=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Retain the previous catalog publication observation
+        if: steps.late-readback.outputs.observation == 'true'
         continue-on-error: true
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: catalog-publication-late-readback-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/catalog-publication-late-readback.json
+          name: catalog-publication-late-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/catalog-publication-late-observation.json
+            ${{ runner.temp }}/catalog-publication-late-readback.json
           retention-days: 7
           if-no-files-found: error
+      - name: Select the newest CI-green main commit
+        id: commit
+        run: |
+          set -euo pipefail
+          # Every trigger publishes the newest CI-green first-parent commit, so a
+          # re-run of an older CI run cannot publish an older bundle.
+          commit=$(node scripts/catalog-publish.mts green-main | sed -n 's/^commit=//p')
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::no commit selected"; exit 1; }
+          git merge-base --is-ancestor "$commit" origin/main || { echo "::error::$commit is not on main"; exit 1; }
+          git checkout --quiet --detach "$commit"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
       - name: Decide whether to publish
         id: decide
         run: |

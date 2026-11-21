@@ -269,12 +269,12 @@ export async function describeCatalogPublication(prior: CatalogSource | null, ne
   };
 }
 
-async function confirmLiveTarget(
+async function readLiveDigest(
   url: string,
-  expected: string,
   limit: number,
   signal: AbortSignal,
   fetcher: typeof fetch,
+  retainBody = false,
 ) {
   const response = await fetcher(url, { signal, redirect: "error" });
   if (!response.ok || !response.body) {
@@ -284,6 +284,7 @@ async function confirmLiveTarget(
   const reader = response.body.getReader();
   const hasher = createHash("sha256");
   let count = 0;
+  const chunks: Uint8Array[] = [];
   try {
     for (;;) {
       const { done, value } = (await reader.read()) as ReadableStreamReadResult<Uint8Array>;
@@ -291,12 +292,64 @@ async function confirmLiveTarget(
       count += value.byteLength;
       if (count > limit) throw new Error("public catalog readback exceeds receipt bound");
       hasher.update(value);
+      if (retainBody) chunks.push(value);
     }
   } finally {
     await reader.cancel();
   }
-  if (hasher.digest("hex") !== expected) throw new Error("public catalog readback bytes differ");
-  return count;
+  return {
+    sha256: hasher.digest("hex"),
+    bytes: count,
+    body: retainBody ? Buffer.concat(chunks, count) : undefined,
+  };
+}
+
+async function confirmLiveTarget(
+  url: string,
+  expected: string,
+  limit: number,
+  signal: AbortSignal,
+  fetcher: typeof fetch,
+) {
+  const result = await readLiveDigest(url, limit, signal, fetcher);
+  if (result.sha256 !== expected) throw new Error("public catalog readback bytes differ");
+  return result.bytes;
+}
+
+type LateOutcome = "awaiting-deployment" | "timestamp-changed-during-observation" | "incomplete";
+
+export class LateReadbackFailure extends Error {
+  readonly outcome: LateOutcome;
+  readonly observedTimestampSha256: string;
+
+  constructor(outcome: LateOutcome, observedTimestampSha256: string) {
+    super(`public catalog readback bytes differ (${outcome})`);
+    this.outcome = outcome;
+    this.observedTimestampSha256 = observedTimestampSha256;
+  }
+}
+
+function observedNewerTimestamp(body: Buffer | undefined, current: number | undefined) {
+  if (!body || current === undefined) return false;
+  try {
+    const envelope = object(body);
+    if (!isRecord(envelope.signed) || !isRecord(envelope.signed.meta)) return false;
+    const next = revision(envelope.signed.version);
+    const snapshot = envelope.signed.meta["snapshot.json"];
+    // This reports a higher version present in a public response. The
+    // response never supplies evidence that supersession was authenticated.
+    return (
+      next > current &&
+      isRecord(snapshot) &&
+      isRecord(snapshot.hashes) &&
+      typeof snapshot.hashes.sha256 === "string" &&
+      digest.test(snapshot.hashes.sha256) &&
+      revision(snapshot.version) > 0 &&
+      revision(snapshot.length) > 0
+    );
+  } catch {
+    return false;
+  }
 }
 
 export type BrowseReadback = { path: string; sha256: string };
@@ -308,13 +361,43 @@ export async function verifyCatalogPublicationLive(
   fetcher: typeof fetch = fetch,
   browse: readonly BrowseReadback[] = [],
   history: readonly HistoryReadback[] = [],
+  late?: { metadata: readonly HistoryReadback[] },
 ) {
   const signal = AbortSignal.timeout(45_000);
   const timestamp = description.published.timestamp_sha256;
   if (!timestamp) throw new Error("no published timestamp for receipt");
   const timestampUrl = `${pages}metadata/timestamp.json?receipt=${encodeURIComponent(nonce)}`;
   let remaining = maximumReadbackBytes;
-  await confirmLiveTarget(timestampUrl, timestamp, 1_048_576, signal, fetcher);
+  const readTimestamp = async (ending: boolean) => {
+    const result = await readLiveDigest(
+      ending ? `${timestampUrl}-end` : timestampUrl,
+      1_048_576,
+      signal,
+      fetcher,
+      ending && !!late,
+    );
+    if (result.sha256 === timestamp) return;
+    if (!late) throw new Error("public catalog readback bytes differ");
+    throw new LateReadbackFailure(
+      !ending && result.sha256 === description.prior.timestamp_sha256
+        ? "awaiting-deployment"
+        : ending && observedNewerTimestamp(result.body, description.published.versions?.timestamp)
+          ? "timestamp-changed-during-observation"
+          : "incomplete",
+      result.sha256,
+    );
+  };
+  await readTimestamp(false);
+  for (const entry of late?.metadata ?? []) {
+    const actual = await confirmLiveTarget(
+      `${pages}${entry.path}`,
+      entry.sha256,
+      entry.bytes,
+      signal,
+      fetcher,
+    );
+    if (actual !== entry.bytes) throw new Error("public catalog role metadata length differs");
+  }
   for (const target of description.targets) {
     remaining -= await confirmLiveTarget(
       pages + immutablePath(target),
@@ -340,7 +423,7 @@ export async function verifyCatalogPublicationLive(
     const bytes = await confirmLiveTarget(url.href, entry.sha256, entry.bytes, signal, fetcher);
     if (bytes !== entry.bytes) throw new Error("public catalog history length differs");
   }
-  await confirmLiveTarget(`${timestampUrl}-end`, timestamp, 1_048_576, signal, fetcher);
+  await readTimestamp(true);
   return maximumReadbackBytes - remaining;
 }
 
