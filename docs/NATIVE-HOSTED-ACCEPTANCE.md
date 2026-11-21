@@ -387,6 +387,14 @@ bytes and never claims to launch that game. Controlled read failures and injecte
 input observations retain their fixture labels. No private originals, real user
 profile, release signing or physical controller are required by this selection.
 
+Recovery bundle interruption waits for the restarted Library to display results
+for the exact active generation before entering Settings. In job
+[136765401809](https://github.com/boburning/portcove/actions/runs/44877522122/job/136765401809),
+the initial workspace snapshot overlapped the explicit Resume command and
+that command reported the library busy. The harness waits for the renderer
+result within 60 seconds. It still requires the actual Core checkpoint, positive
+host exit, exact retained bytes and publication identity.
+
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
