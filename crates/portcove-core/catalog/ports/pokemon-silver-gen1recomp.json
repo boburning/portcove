@@ -35,7 +35,7 @@
         },
         {
           "title": "Add the game and play",
-          "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+          "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=silver as its own argument."
         },
         {
           "title": "Keep your game data",
@@ -94,7 +94,7 @@
       "installation_method": "user-prepared-runtime",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle. Use your own canonical US English 2 MiB Pokémon Silver Game Boy Color ROM, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly. On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
+      "manual_preparation": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle. Use your own canonical US English 2 MiB Pokémon Silver Game Boy Color ROM, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly. On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=silver as its own argument. The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
     }
   },
   "external_registration_v1": true

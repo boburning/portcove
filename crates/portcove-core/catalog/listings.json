@@ -68072,7 +68072,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=blue as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -68156,7 +68156,7 @@
           },
           {
             "title": "Add the game and play",
-            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=crystal as its own argument."
           },
           {
             "title": "Keep your game data",
@@ -68307,7 +68307,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=emerald as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -68470,7 +68470,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=firered as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -68554,7 +68554,7 @@
           },
           {
             "title": "Add the game and play",
-            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=gold as its own argument."
           },
           {
             "title": "Keep your game data",
@@ -68708,7 +68708,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=leafgreen as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -69047,7 +69047,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=ruby as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -69203,7 +69203,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=sapphire as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -69359,7 +69359,7 @@
           },
           {
             "title": "Add the game and play",
-            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream."
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=silver as its own argument."
           },
           {
             "title": "Keep your game data",
@@ -69561,7 +69561,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=yellow as its own argument."
           },
           {
             "title": "Add the game and manage updates",
