@@ -1106,6 +1106,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       adapter: `${family}-portable`,
       source_profile: "example",
       runtime_source_filename: "user/fixture.us.z64",
+      platforms: ["linux-x86-64", "windows-x86-64"],
       executable_hints: { "linux-x86-64": ["FixtureRecompiled"] },
     });
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
@@ -1503,6 +1504,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
             rom_xxh3_64: "0123456789abcdef",
           },
         },
+        { platform: "windows-x86-64", state: "no-current-artifact" },
       ]);
       const changedDefinition = {
         ...authoringCatalog,
@@ -1541,6 +1543,13 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
       assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
       assert.deepEqual(expanded.build_jobs?.matches, compiled.build_jobs?.matches);
+      const expandedPlan = readProjectedSource(authoringCatalog).n64_original_binding_plan;
+      assert.ok(isRecord(expandedPlan) && Array.isArray(expandedPlan.platforms));
+      assert.deepEqual(expandedPlan.platforms[1], {
+        platform: "windows-x86-64",
+        artifact_sha256: "b".repeat(64),
+        state: "awaiting-build",
+      });
       assert.notEqual(expanded.build_outputs?.search, null);
       assert.equal(buildRequests.length, 7);
       assert.equal(jobLogs.length, 3);

@@ -16,7 +16,7 @@ interface BindingCandidate {
   rom_xxh3_64: string;
 }
 
-interface PlatformCandidate {
+interface ArtifactCandidate {
   platform: string;
   artifact_sha256: string;
   state:
@@ -96,7 +96,7 @@ export function planN64OriginalBindings(
         dependency.headers[index]?.source_sha256 === sha,
     );
 
-  let contractState: PlatformCandidate["state"] | undefined = "unsupported-source-contract";
+  let contractState: ArtifactCandidate["state"] | undefined = "unsupported-source-contract";
   if (
     isRecord(sourceCatalog) &&
     Array.isArray(sourceCatalog.contracts) &&
@@ -133,7 +133,8 @@ export function planN64OriginalBindings(
     }
   }
 
-  const platforms: PlatformCandidate[] = [];
+  const platforms: (ArtifactCandidate | { platform: string; state: "no-current-artifact" })[] =
+    [];
   for (const { platform, sha256 } of fact.artifacts) {
     const identity = { platform, artifact_sha256: sha256 };
     if (!game) {
@@ -170,6 +171,14 @@ export function planN64OriginalBindings(
       proposed_input: binding,
     });
   }
+  const selectedPlatforms = new Set(fact.artifacts.map(({ platform }) => platform));
+  if (Array.isArray(port.platforms)) {
+    for (const platform of new Set(port.platforms as unknown[])) {
+      if (typeof platform === "string" && !selectedPlatforms.has(platform))
+        platforms.push({ platform, state: "no-current-artifact" });
+    }
+  }
+  platforms.sort((left, right) => left.platform.localeCompare(right.platform));
   return {
     format_version: 1,
     port_id: port.id,
