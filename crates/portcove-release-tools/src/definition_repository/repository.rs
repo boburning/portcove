@@ -188,7 +188,7 @@ async fn authenticate(
             }
         }
     }
-    bundle::listing_targets(&logical)?;
+    bundle::listing_targets(&logical.files)?;
     Ok(logical)
 }
 fn validate_public_paths(files: &PublicHistory) -> Result<()> {
