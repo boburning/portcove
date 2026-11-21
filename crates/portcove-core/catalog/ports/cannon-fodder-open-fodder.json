@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cannon-fodder-open-fodder",
+    "artwork": {
+      "game_id": 5519,
+      "cover_id": 171195,
+      "image_id": "co3o3f",
+      "image_sha256": "2394e928556e1da5ad176cb85b929764b9ff10da02b4482cbd13a9d08ee1c5a4",
+      "game_slug": "cannon-fodder",
+      "match_kind": "underlying-game"
+    },
     "name": "Cannon Fodder (Open Fodder)",
     "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Cannon Fodder",
@@ -49,6 +57,16 @@
           "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "cannon-fodder",
+      "evidence_urls": [
+        "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/INSTALL.md",
+        "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
+        "https://github.com/OpenFodder/openfodder"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -63,6 +81,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -72,19 +91,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "OpenFodder/openfodder",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "OpenFodder/openfodder"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

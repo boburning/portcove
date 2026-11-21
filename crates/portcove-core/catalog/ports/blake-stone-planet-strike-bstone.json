@@ -57,6 +57,24 @@
           "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blake-stone-planet-strike",
+      "evidence_urls": [
+        "https://github.com/bibendovsky/bstone#readme",
+        "https://github.com/bibendovsky/bstone"
+      ],
+      "source_editions": [
+        {
+          "id": "blake-stone-planet-strike-pc",
+          "title": "Blake Stone: Planet Strike (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/blake-stone-planet-strike-bstone.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -105,9 +123,7 @@
       "linux-x86-64": ["bstone"],
       "macos-x86-64": ["bstone"]
     },
-    "windows_runtime_path_policy": "relative-file-max-path",
     "launch_arguments": ["--ps", "--data_dir", "originals", "--profile_dir", "profile"],
-    "persistent_paths": ["profile"],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [
@@ -173,7 +189,7 @@
         "destination": "originals/vswap.vsi",
         "materialization": "copy"
       }
-    ],
-    "windows_temp_directory": "profile"
-  }
+    ]
+  },
+  "native_managed_profile_v1": true
 }

@@ -223,7 +223,9 @@ fn candidate(root: &str, id: u64, size: u64) -> ProviderFileCandidate {
         download_url: format!("{root}/dl/{id}"),
         claimed_md5: None,
         archived: false,
+        status_unknown: None,
         claimed_scan: None,
+        thunderstore_dependencies: None,
     }
 }
 
@@ -344,4 +346,32 @@ async fn download_redirects_must_keep_the_providers_port() {
         .unwrap_err();
     server.join().unwrap();
     assert!(error.message.contains("redirected away"), "{error}");
+}
+
+#[test]
+fn gamebanana_flags_distinguish_absent_null_malformed_and_boolean() {
+    use crate::ProviderStatusUnknown::{Malformed, Null, Omitted};
+    for (raw, expected, flag) in [
+        (None, Some(Omitted), false),
+        (Some(Value::Null), Some(Null), false),
+        (Some(json!("false")), Some(Malformed), false),
+        (Some(json!(true)), None, true),
+        (Some(json!(false)), None, false),
+    ] {
+        let mut candidate = file(10);
+        let mut project: Value = serde_json::from_str(&project_json("1.0", Vec::new())).unwrap();
+        if let Some(raw) = raw {
+            candidate["_bIsArchived"] = raw.clone();
+            project["_bIsObsolete"] = raw;
+        } else {
+            candidate.as_object_mut().unwrap().remove("_bIsArchived");
+            project.as_object_mut().unwrap().remove("_bIsObsolete");
+        }
+        project["_aFiles"] = json!([candidate]);
+        let parsed = parse_project(&project, 42, WEB).unwrap();
+        assert_eq!(parsed.status_unknown, expected);
+        assert_eq!(parsed.obsolete, flag);
+        assert_eq!(parsed.files[0].status_unknown, expected);
+        assert_eq!(parsed.files[0].archived, flag);
+    }
 }

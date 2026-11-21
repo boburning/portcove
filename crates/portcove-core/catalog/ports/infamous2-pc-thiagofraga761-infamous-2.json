@@ -35,6 +35,21 @@
       "image_sha256": "5d78ae1550199b8334ee6e6702f26def187d3ea5f60e77cfd703b9ad24e06f11",
       "game_slug": "infamous-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-2",
+      "evidence_urls": ["https://github.com/ThiagoFraga761/infamous2-pc"],
+      "source_editions": [
+        {
+          "id": "infamous-2-playstation-3",
+          "title": "inFAMOUS 2 (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/ThiagoFraga761/infamous2-pc/blob/a612c4e477b25ccc6b5561d6f6a303b8669e0ec5/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

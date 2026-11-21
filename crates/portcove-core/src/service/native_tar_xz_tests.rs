@@ -279,6 +279,11 @@ async fn carried_files_follow_edits_back_and_forth_and_keep_both_when_both_chang
     *provider.0.lock().unwrap() = second_release;
     let second = update(&service).await.unwrap();
     second_server.join().unwrap();
+    let observed = service.status(PORT).unwrap().carried_files.unwrap();
+    assert_eq!(observed.from_install_id, first.id);
+    assert_eq!(observed.to_install_id, second.id);
+    assert_eq!(observed.outcome.counts.unwrap().carried, 2);
+    assert_eq!(observed.outcome.carried_bytes, Some(14));
     assert_eq!(
         fs::read(folder(&second).join("settings.ini")).unwrap(),
         b"one"
@@ -289,6 +294,11 @@ async fn carried_files_follow_edits_back_and_forth_and_keep_both_when_both_chang
     fs::write(folder(&second).join("notes.txt"), b"second notes").unwrap();
     fs::write(folder(&first).join("notes.txt"), b"first notes, edited").unwrap();
     assert_eq!(service.rollback(PORT).unwrap().id, first.id);
+    let observed = service.status(PORT).unwrap().carried_files.unwrap();
+    assert_eq!(observed.from_install_id, second.id);
+    assert_eq!(observed.to_install_id, first.id);
+    assert_eq!(observed.outcome.counts.as_ref().unwrap().kept_separately, 1);
+    assert_eq!(observed.outcome.counts.unwrap().carried, 1);
     // The edit came back: 1.0.0 held Portcove's recorded earlier copy.
     assert_eq!(
         fs::read(folder(&first).join("settings.ini")).unwrap(),

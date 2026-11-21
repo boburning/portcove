@@ -31,6 +31,25 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/OGmidway/mksm-recomp#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-shaolin-monks",
+      "evidence_urls": [
+        "https://github.com/OGmidway/mksm-recomp#readme",
+        "https://github.com/OGmidway/mksm-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-shaolin-monks-playstation-2",
+          "title": "Mortal Kombat: Shaolin Monks (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/OGmidway/mksm-recomp/blob/9c014184b54f8f4235db9327bf6a5d77566475c5/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Mortal Kombat: Shaolin Monks"
   }
 }

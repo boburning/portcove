@@ -1,0 +1,64 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "gnu-freedink",
+    "name": "Dink Smallwood / GNU FreeDink",
+    "original_game_title": "Dink Smallwood",
+    "summary": "Play the original Dink Smallwood adventure with the GNU FreeDink engine and its bundled game data.",
+    "project_url": "https://www.gnu.org/software/freedink/",
+    "artwork": {
+      "game_id": 11345,
+      "cover_id": 313144,
+      "image_id": "co6pmg",
+      "image_sha256": "30bd1cb7eb66a98a033cad0810830b1d7635afafd0583930ef100fd1f96a77f9",
+      "game_slug": "dink-smallwood",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 6536,
+    "listed_at": "2026-11-16",
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://www.gnu.org/software/freedink/",
+    "setup_url": "https://formulae.brew.sh/formula/freedink",
+    "download_block_reason": "Install and update FreeDink through your package manager.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install FreeDink",
+          "instruction": "On Debian or Ubuntu, install the freedink package and its dependencies, then open FreeDink from the launcher or run freedink. On Intel or Apple Silicon Mac, run brew install freedink and then freedink. Homebrew also packages FreeDink for Linux ARM64. These packages include or install the game data."
+        },
+        {
+          "title": "Start and save the adventure",
+          "instruction": "Choose Start from the title screen. Use the arrow keys to walk and Space to talk or examine. Talk to a Save Machine to keep your progress. Choose Continue from the title screen to load your saved game."
+        }
+      ],
+      "warnings": [
+        "Close FreeDink before backing up your saves. Keep save files from the active game or D-Mod directory and its matching subfolder under ~/.dink."
+      ],
+      "references": [
+        {
+          "title": "Find the base game saves",
+          "instruction": "Look for save files in the game data’s dink directory or in ~/.dink/dink. Ubuntu's base game data directory is /usr/share/games/dink/dink. For a Homebrew install, check share/dink/dink inside the folder reported by brew --prefix freedink before you upgrade or remove the package."
+        }
+      ],
+      "help_url": "https://www.gnu.org/software/freedink/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dink-smallwood",
+      "evidence_urls": [
+        "https://formulae.brew.sh/formula/freedink",
+        "https://www.gnu.org/software/freedink/"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "gnu-freedink",
+    "origin": {
+      "project_url": "https://www.gnu.org/software/freedink/"
+    },
+    "decisions": []
+  }
+}

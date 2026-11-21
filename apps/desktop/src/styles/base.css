@@ -79,12 +79,23 @@
   summary {
     cursor: pointer;
   }
-  /* One disclosure chevron for every native details element that does not draw its own. */
+  /* Padding and the first-line chevron share one value; multiline labels stay top-aligned. */
   summary:not(.list-none) {
+    --disclosure-padding: 0px;
     position: relative;
+    padding-block: var(--disclosure-padding);
     padding-inline-start: 1.1em;
     list-style: none;
     overflow-wrap: anywhere;
+  }
+  summary.disclosure-pad-1 {
+    --disclosure-padding: var(--space-1);
+  }
+  summary.disclosure-pad-2 {
+    --disclosure-padding: var(--space-2);
+  }
+  summary.disclosure-pad-3 {
+    --disclosure-padding: var(--space-3);
   }
   summary:not(.list-none)::-webkit-details-marker {
     display: none;
@@ -93,7 +104,7 @@
     content: "";
     position: absolute;
     inset-inline-start: 0.15em;
-    inset-block-start: calc(0.5lh - 0.3em);
+    inset-block-start: calc(var(--disclosure-padding) + 0.5lh - 0.3em);
     inline-size: 0.42em;
     block-size: 0.42em;
     border-inline-end: 1.5px solid currentColor;

@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::{
-    InstallRecord, Installer, PortcoveError, PortcoveService, Result,
+    ActivityStatus, InstallRecord, Installer, PortcoveError, PortcoveService, Result,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
     service::{RemovalOperation, RemovalPhase, RestorePhase, copy_tree},
 };
@@ -35,6 +35,7 @@ pub(crate) fn recover_published_install(
         .expect("checked publication")
         .clone();
     let payload = staging.join("payload");
+    let mut held = None;
     if operation.kind == LifecycleOperationKind::Adopt {
         crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
         crate::runtime_data_policy::refuse_sensitive_tree(&install.path)?;
@@ -97,7 +98,7 @@ pub(crate) fn recover_published_install(
                     ));
                 }
                 require_install_publication_authority(service, &operation, &staged)?;
-                crate::install::check_retained_runtime_paths(&staged, &install.path)?;
+                crate::install::check_retained_launch_destination(&staged, &install.path)?;
                 fs::create_dir_all(
                     install
                         .path
@@ -108,7 +109,7 @@ pub(crate) fn recover_published_install(
             }
             (false, true) => {
                 require_install_publication_authority(service, &operation, &install)?;
-                crate::install::check_retained_runtime_paths(&install, &install.path)?;
+                crate::install::check_retained_launch_destination(&install, &install.path)?;
             }
             (true, true) => {
                 return Err(PortcoveError::conflict(
@@ -129,7 +130,7 @@ pub(crate) fn recover_published_install(
         }
     }
     if operation.phase == LifecyclePhase::PayloadPublished {
-        crate::install::check_retained_runtime_paths(&install, &install.path)?;
+        crate::install::check_retained_launch_destination(&install, &install.path)?;
         if !Installer::new(service.library.clone())?
             .verify(&install)?
             .valid
@@ -163,15 +164,49 @@ pub(crate) fn recover_published_install(
                 ));
             }
         } else {
-            let current_active = service
+            let status = service
                 .library
-                .status(&operation.port_id, install.channel)?
-                .active;
-            let already_active = current_active
+                .status(&operation.port_id, install.channel)?;
+            let already_active = status
+                .active
                 .as_ref()
                 .is_some_and(|active| active.id == install.id);
+            if !operation.activate
+                && !install.staged
+                && operation.kind == LifecycleOperationKind::Install
+                && status
+                    .staged
+                    .as_ref()
+                    .is_some_and(|staged| staged.id != install.id)
+            {
+                return Err(PortcoveError::conflict(
+                    "A different version is staged. Keep both copies and review the game's staged version before retrying recovery.",
+                ));
+            }
+            if operation.activate
+                && !already_active
+                && let Err(error) = service.require_activation_gates(&install, None)
+            {
+                if !error.is_recorded_uploader_hold()
+                    || operation.kind != LifecycleOperationKind::Install
+                    || status
+                        .staged
+                        .as_ref()
+                        .is_some_and(|staged| staged.id != install.id)
+                {
+                    return Err(error);
+                }
+                crate::output_root::validate_published_install_path(
+                    &service.library,
+                    &operation,
+                    &install,
+                )?;
+                let error = error.detail("recovery_action", "check_for_updates");
+                record_recovery_hold(service, &operation.id, &error);
+                operation.defer_activation(store)?;
+                held = Some(error);
+            }
             if operation.activate && !already_active {
-                service.require_activation_gates(&install, None)?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -235,7 +270,18 @@ pub(crate) fn recover_published_install(
         }
         store.remove(&operation.id)?;
     }
-    Ok(())
+    held.map_or(Ok(()), Err)
+}
+
+fn record_recovery_hold(service: &PortcoveService, operation_id: &str, error: &PortcoveError) {
+    // A journal may predate its current activity row, or already have a terminal
+    // failure. The staged build independently reports the existing policy hold.
+    let _ = service.library.finish_activity_report(
+        operation_id,
+        ActivityStatus::Failed,
+        Some(&error.message),
+        Some(&error.report()),
+    );
 }
 
 fn require_install_publication_authority(
@@ -459,16 +505,34 @@ pub(crate) fn recover_restore(
             "restore preparation was interrupted before backup verification",
         ));
     }
-    let recovery_root = restore.recovery_root.clone();
+    crate::profile_file_preservation::require_idle(&service.library, &operation.port_id)?;
     let staged = restore.staged_data.clone();
     let user_root = restore.user_root.clone();
     let previous = restore.previous_data.clone();
+    let port_id = operation.port_id.clone();
+    let require_projection = |root: &std::path::Path| {
+        service
+            .require_restore_profile_projection(&port_id, root)
+            .map_err(|error| {
+                error.detail(
+                    "restore_next_step",
+                    "Keep the verified backup and previous data while this restore is held.",
+                )
+            })
+    };
     if restore.phase == RestorePhase::ReadyToPublish {
         if staged.exists() {
             service.require_restore_snapshot_authority(operation, &staged)?;
             service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+            require_projection(&staged)?;
+            if user_root.try_exists()? {
+                require_projection(&user_root)?;
+            } else if previous.try_exists()? {
+                require_projection(&previous)?;
+            }
         } else if user_root.exists() {
             service.require_restore_snapshot_authority(operation, &user_root)?;
+            require_projection(&user_root)?;
         }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
@@ -499,26 +563,32 @@ pub(crate) fn recover_restore(
     }
     if matches!(
         restore.phase,
-        RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
+        RestorePhase::Published | RestorePhase::Committed
     ) {
         service.require_restore_snapshot_authority(operation, &user_root)?;
+        require_projection(&user_root)?;
+        if restore.phase == RestorePhase::Published {
+            if previous.try_exists()? != restore.replaces_existing_data {
+                return Err(PortcoveError::conflict(
+                    "restore publication paths are ambiguous; keeping the backup for recovery",
+                ));
+            }
+            if restore.replaces_existing_data {
+                require_projection(&previous)?;
+            }
+        }
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
+        service.finish_restore_settings_deletion(
+            operation,
+            &previous,
+            &user_root,
+            restore.input_manifest.as_deref(),
+        )?;
         restore.advance(RestorePhase::Committed, operation, store)?;
     }
-    if matches!(
-        restore.phase,
-        RestorePhase::Committed | RestorePhase::CleanupPending
-    ) {
-        if previous.exists() {
-            fs::remove_dir_all(&previous)?;
-        }
-        if recovery_root.exists() {
-            fs::remove_dir_all(&recovery_root)?;
-        }
-        store.remove(&operation.id)?;
-    }
+    service.finish_restore_cleanup(store, operation)?;
     Ok(())
 }
 
@@ -651,6 +721,7 @@ impl ActivationOperation {
     ) -> Result<Self> {
         if operation.kind != LifecycleOperationKind::Activate
             || operation.activate
+            || operation.settings_activation.is_some()
             || operation.relocation.is_some()
             || operation.source_import.is_some()
             || operation.preparation.is_some()
@@ -755,7 +826,7 @@ impl ActivationCommit<'_> {
     }
 }
 
-fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
+pub(crate) fn same_activation_install(left: &InstallRecord, right: &InstallRecord) -> bool {
     // verified/staged are mutable read-model flags, not durable install identity.
     left.id == right.id
         && left.port_id == right.port_id
@@ -788,7 +859,18 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
-            service.require_activation_gates(&install, None)?;
+            crate::install::check_retained_launch_destination(&install, &install.path)?;
+            if let Err(error) = service.require_activation_gates(&install, None) {
+                if error.is_recorded_uploader_hold() {
+                    // The target is already staged. Drop only the unfinished
+                    // activation so a new Update can supply a fresh resolution.
+                    let error = error.detail("recovery_action", "check_for_updates");
+                    record_recovery_hold(service, &operation.id, &error);
+                    store.remove(&operation.id)?;
+                    return Err(error);
+                }
+                return Err(error);
+            }
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),

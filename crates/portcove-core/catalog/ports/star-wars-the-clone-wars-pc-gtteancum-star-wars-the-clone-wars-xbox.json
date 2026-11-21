@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "star-wars-the-clone-wars-pc-gtteancum-star-wars-the-clone-wars-xbox",
+    "artwork": {
+      "game_id": 3760,
+      "cover_id": 79113,
+      "image_id": "co1p1l",
+      "image_sha256": "dc22af9dde8156f9a4d6323963a4948f48daf98449d9be8418567c8f27e6fb80",
+      "game_slug": "star-wars-the-clone-wars",
+      "match_kind": "underlying-game"
+    },
     "name": "Star Wars: The Clone Wars (Xbox) — Star Wars: The Clone Wars — PC (GTTeancum)",
     "original_game_title": "Star Wars: The Clone Wars (Xbox)",
     "summary": "The project describes single-player as playable and refers to all 40 maps. Completion of the full game has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/GTTeancum/StarWars-CloneWars-PC"
     },
-    "issue_number": 3307
+    "issue_number": 3307,
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-the-clone-wars-xbox",
+      "evidence_urls": ["https://github.com/GTTeancum/StarWars-CloneWars-PC"],
+      "source_editions": [
+        {
+          "id": "star-wars-the-clone-wars-xbox-xbox",
+          "title": "Star Wars: The Clone Wars (Xbox) (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/StarWars-CloneWars-PC/blob/29c35840af184868ec798567063f5bd1a1a03ca8/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

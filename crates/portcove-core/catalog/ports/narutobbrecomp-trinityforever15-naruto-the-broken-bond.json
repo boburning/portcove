@@ -35,6 +35,21 @@
       "image_sha256": "6972453fdae5d42a13eb5888f31c4c666f580eb958e65f59a150584ef5f402f5",
       "game_slug": "naruto-the-broken-bond",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-the-broken-bond",
+      "evidence_urls": ["https://github.com/TrinityForever15/NarutoBBRecomp"],
+      "source_editions": [
+        {
+          "id": "naruto-the-broken-bond-xbox-360",
+          "title": "Naruto: The Broken Bond (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/narutobbrecomp-trinityforever15-naruto-the-broken-bond.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

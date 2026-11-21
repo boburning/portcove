@@ -3,7 +3,7 @@
   "listing": {
     "id": "kaikoclanworth1-wwe-svr2011-pc",
     "name": "WWE SmackDown vs. Raw 2011 (WWE SmackDown vs. Raw 2011 - PC Port)",
-    "summary": "A WWE SmackDown vs. Raw 2011 port with project-reported gameplay, settings and updates. The Windows ZIP includes the player and launcher; its installer imports your own Xbox 360 ISO and configures optional music and movies. The launcher manages updates. Steam Deck uses the Windows player through Proton, while the Android ARM64/Vulkan APK imports your own image. The README’s Galaxy Z Fold 7 test claim conflicts with an older untested-phone statement, so physical-device coverage remains uncertain. Developer ARM build notes are separate. Exact original revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not qualified the release packages or confirmed setup, gameplay or a full playthrough.",
+    "summary": "Import your own Xbox 360 ISO of WWE SmackDown vs. Raw 2011 with the Windows launcher. Steam Deck uses that player through Proton. A separate Android ARM64 app imports the same type of game image. The project’s Android hardware reports disagree.",
     "original_game_title": "WWE SmackDown vs. Raw 2011",
     "project_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc",
     "listed_at": "2026-10-25",
@@ -18,7 +18,46 @@
       "game_slug": "wwe-smackdown-vs-raw-2011",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2856
+    "issue_number": 2856,
+    "manual_setup": {
+      "help_url": "https://github.com/KaikoClanworth1/wwe-svr2011-pc",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Keep your own Xbox 360 ISO for the installer. The project does not identify an exact accepted disc hash or separate BIOS requirement."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Use the Windows player ZIP and its installer to import the game and choose optional music and movies. The Windows launcher handles updates. For Android ARM64, use the separate Vulkan APK and import your image there."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The README names a Galaxy Z Fold 7 test but also retains an older untested-phone statement. Portcove has not confirmed gameplay or qualified these packages."
+        },
+        {
+          "title": "Use the Android SmackDown vs. Raw package",
+          "instruction": "SvR2011-Android-v2.2.5.apk requires ARM64, Vulkan and about 7 GB free. Use Install to import your own Xbox 360 ISO, then use Play in the app. Reopen Settings there. Keep the game and its saves under games/WWE SmackDown vs. Raw 2011 on the phone. The app handles its own updates."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-vs-raw-2011",
+      "evidence_urls": ["https://github.com/KaikoClanworth1/wwe-svr2011-pc"],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-vs-raw-2011-xbox-360",
+          "title": "WWE SmackDown vs. Raw 2011 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/KaikoClanworth1/wwe-svr2011-pc/blob/bfc3e7a17d2bde3211b564901cc0eb0e832f8693/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

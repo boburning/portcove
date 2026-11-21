@@ -35,6 +35,21 @@
       "image_sha256": "a42b68e97c4a2ad0e50adaa9349c1ab75c6392d486e6eec6167a934eca9faf0f",
       "game_slug": "rock-band-blitz",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-band-blitz",
+      "evidence_urls": ["https://github.com/hedgey95/rock-band-blitz-recomp"],
+      "source_editions": [
+        {
+          "id": "rock-band-blitz-xbox-360",
+          "title": "Rock Band Blitz (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/hedgey95/rock-band-blitz-recomp/blob/49ad903af460cd5982b561648cc9a45aba49b211/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

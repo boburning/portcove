@@ -6,7 +6,7 @@
     "original_game_title": "Shadow Man",
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/polaco1782/v64recomp",
     "manual_setup": {
@@ -45,6 +45,21 @@
       "image_sha256": "2c5afd7f5e12334727d08e2199881cb9ef98cd1c0ea10b6a5863ad76b8b2bd9e",
       "game_slug": "shadow-man",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-man",
+      "evidence_urls": ["https://github.com/polaco1782/v64recomp"],
+      "source_editions": [
+        {
+          "id": "shadow-man-nintendo-64",
+          "title": "Shadow Man (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/v64recomp-shadowman-us-polaco1782-shadow-man.json"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

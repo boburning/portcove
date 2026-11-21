@@ -28,11 +28,11 @@
         },
         {
           "title": "Prepare the separate Preview player",
-          "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder\u2019s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
+          "instruction": "Open the linked v0.3.16 Preview release page and use its official Windows x64 ZIP in a new writable folder. Keep SuperMetroidSNESRecomp.exe, packaged config.ini, assets, framework pins, notices and all other companions together inside supermetroid-0.3.16-windows-x64. Use the packaged defaults without old configuration, states, mods, donor assets or developer/path overrides. Finish upstream setup deliberately. Register that folder’s SuperMetroidSNESRecomp.exe with the same containing folder as working directory and two literal argument lines: --rom then game.sfc. Do not select replay_diagnostic.py or a source/build helper as the player."
         },
         {
           "title": "Choose Play and manage updates through the project",
-          "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process\u2019s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
+          "instruction": "You and upstream own this external package and its data. Play is explicit; removing its Portcove registration preserves the external files. Managed Update, Backup, Rollback, migration and external deletion are unavailable for this copy. Settings changes can restart into a successor game window while the initial registered process exits. Do not rely on that initial process’s completion as proof that every game copy has stopped: close all windows/processes before copying or replacing runtime or data. Keep the shipped PolyForm Noncommercial and dependency notices; do not run Generate & rebuild, debug/replay helpers or extra mods as part of these instructions. A Portcove library containing any managed installation of this identity cannot also attach this external copy. Keep that managed installation and use the new upstream copy directly, or register only in a separate library with no managed installation, other registration or pending launch for this identity. Do not remove an older managed runtime or kept data just to enable registration."
         }
       ],
       "warnings": [
@@ -48,6 +48,24 @@
           "instruction": "Ordinary upstream data anchors beside the executable in this writable copy. Preserve the whole new folder, its original copy, configuration, SRAM, states, screenshots, mods manifests and logs/replay sidecars with all game copies closed. Do not copy old states, save folders or profiles into it, share data folders with the old runtime, or point --config at retained data. A separate Preview download or changed launch argument does not prove old/new state compatibility or migrate progress. Keep the creating runtime for every existing state."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-metroid",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMetroidRecomp/releases/tag/v0.3.16",
+        "https://github.com/mstan/SuperMetroidRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-metroid-super-nintendo",
+          "title": "Super Metroid (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -56,8 +74,8 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
     "managed_acquisition_hold": {
-      "reason": "Portcove skips Super Metroid Recompiled 0.4.6 because Quit to launcher can start a game process it can't follow. If you're already playing 0.4.6, use Exit, not Quit to launcher.",
-      "activation_reason": "Portcove can't activate this Super Metroid Recompiled 0.4.6 package because Quit to launcher can start a new window it can't follow.",
+      "reason": "Portcove skips Super Metroid Recompiled 0.4.6 and 0.4.7 because Quit to launcher can start a game process it can't follow. If you're already playing either version, use Exit to close the game.",
+      "activation_reason": "Portcove can't activate this Super Metroid Recompiled package because Quit to launcher can start a game process it can't follow.",
       "excluded_artifacts": [
         {
           "version": "v0.4.6",
@@ -74,6 +92,22 @@
         {
           "version": "v0.4.6",
           "sha256": "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
+        },
+        {
+          "version": "v0.4.7",
+          "sha256": "1c8891ad9700c87427794620eb0d4eaa5201aec3bf5e1b05828c33cf2f6beed0"
+        },
+        {
+          "version": "v0.4.7",
+          "sha256": "8858c75fc8aa062978cb5dc1a95f71628795a9192f7f3e12e5ddeea688d3e46d"
+        },
+        {
+          "version": "v0.4.7",
+          "sha256": "98de08608f702b63752ccfdc596c183e8c8b414e95eb0b5c13e941aef6914317"
+        },
+        {
+          "version": "v0.4.7",
+          "sha256": "e83cb8b742990495c88111b224d36ffc0507a57b399a34268854bbd2a34018be"
         }
       ],
       "reviewed_artifacts": [

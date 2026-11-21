@@ -4,6 +4,14 @@
     "id": "infamous-second-son-pc-edition-kam0n4ik-infamous-second-son",
     "name": "inFAMOUS Second Son — inFAMOUS-Second-Son-PC-Edition (kam0n4ik)",
     "original_game_title": "inFAMOUS Second Son",
+    "artwork": {
+      "game_id": 1941,
+      "cover_id": 71278,
+      "image_id": "co1izy",
+      "image_sha256": "61e1b28aa91bdb4f9871be95f4afba789f3bf0016cb810c78331775dafd99a6f",
+      "game_slug": "infamous-second-son",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports city gameplay, saves and 46–51 FPS on one PC. Frame-time measurements and experimental presets are separate results; a full playthrough and broader hardware compatibility remain unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kam0n4ik/inFAMOUS-Second-Son-PC-Edition",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/kam0n4ik/inFAMOUS-Second-Son-PC-Edition"
     },
-    "issue_number": 3435
+    "issue_number": 3435,
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-second-son",
+      "evidence_urls": ["https://github.com/kam0n4ik/inFAMOUS-Second-Son-PC-Edition"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

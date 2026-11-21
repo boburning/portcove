@@ -2,9 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
+    "artwork": {
+      "game_id": 4174,
+      "cover_id": 77926,
+      "image_id": "co1o4m",
+      "image_sha256": "5967440316a59e9279e539e64369ea71840f44e8c2f989751e0b215dfe1bfffa",
+      "game_slug": "ssx-3",
+      "match_kind": "underlying-game"
+    },
     "name": "SSX 3 (PlayStation 2) (SSX 3 native Rust port)",
     "summary": "A source-only SSX 3 PlayStation 2 port: Python setup translates your own USA SLUS-20772 ISO, checking its executable hash, then Cargo builds the player. There are no GitHub releases. The project reports races, events and campaign play on Apple Silicon macOS. Ubuntu 24.04 Linux x86-64 setup/build/tests pass, but gameplay is untested. Windows native tools are documented with exact CPU target unconfirmed. Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "SSX 3 (PlayStation 2)",
+    "original_game_title": "SSX 3",
     "project_url": "https://github.com/andersfischernielsen/ssx3-decomp",
     "platforms": [],
     "availability": "unknown",
@@ -37,6 +45,25 @@
       ],
       "warnings": [
         "Use the completed windowed ssx3.exe and its existing project root. Preserve both the ordinary saves/ root and any separately used standalone AppData/SSX3 root; private game-containing bundles must not be shared."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ssx-3",
+      "evidence_urls": [
+        "https://github.com/andersfischernielsen/ssx3-decomp/blob/5082230d8370dcf7ad62d35e2d8beef487530191/README.md",
+        "https://github.com/andersfischernielsen/ssx3-decomp"
+      ],
+      "source_editions": [
+        {
+          "id": "ssx-3-playstation-2",
+          "title": "SSX 3 (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/andersfischernielsen/ssx3-decomp/blob/5082230d8370dcf7ad62d35e2d8beef487530191/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/ssx-3-playstation-2-ssx-3-native-rust-port.json"
+          ]
+        }
       ]
     }
   },

@@ -52,13 +52,30 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["fear-effect-", "-windows-x64.zip"],
-      "linux-x86-64": ["fear-effect-", "-linux-x64.zip"],
       "macos-x86-64": ["fear-effect-", "-macos-x64.zip"],
       "macos-aarch64": ["fear-effect-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "fear-effect",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fear-effect-playstation",
+          "title": "Fear Effect (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/4f2beedd2d4d0192f941525a034d6b9fb78b47cd/game.toml"
+          ]
+        }
+      ]
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -79,50 +96,6 @@
       "windows-x86-64": ["Fear_Effect_Recompiled.exe"],
       "linux-x86-64": ["Fear_Effect_Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -140,11 +113,25 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own single-track CHDs for SLUS-00920, SLUS-01056, SLUS-01057 and SLUS-01058 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc’s data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game’s own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved."
+      "manual_preparation": "Provide your own single-track CHDs for SLUS-00920, SLUS-01056, SLUS-01057 and SLUS-01058 in disc order and retail SCPH-1001 BIOS. Portcove verifies each disc’s data track and builds a private player with its registered toolchain, retaining its declared saves, settings and installed mods. Choose the disc when you choose Play. To change discs, use the game’s own disc change if it offers one, or quit and choose Play with the next disc. Bundled mods belong to the runtime version. Windows and Linux package and source fit were statically inspected. Native build, disc switching, gameplay and save compatibility remain unobserved.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Fear Effect (USA) four-disc set (SLUS-00920, SLUS-01056, SLUS-01057, SLUS-01058), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks each disc’s data track and track count. Keep every disc intact.",
+          "Native build, disc switching, gameplay and save compatibility remain unobserved."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios",
     "runtime_source_filename": "runtime-discs",
     "launch_disc_choice": "psx-settings-selected",
     "runtime_source_materialization": "psx-raw-set"
-  }
+  },
+  "psx_managed_windows_v1": "split-mods"
 }

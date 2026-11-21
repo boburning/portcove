@@ -17,6 +17,16 @@
       "image_sha256": "d24815214c09cacb6947c63015545a19f94a54eda2762365f6c234ff2be167ed",
       "game_slug": "super-mario-sunshine",
       "match_kind": "underlying-game"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-sunshine",
+      "evidence_urls": [
+        "https://github.com/chasem-dev/sms-pc-port/blob/21d7b639a9041d4a656ea5e8b4bfe617ad4b8fba/README.md",
+        "https://github.com/chasem-dev/sms-pc-port"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Super Mario Sunshine"
   }
 }

@@ -27,8 +27,12 @@
           "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; every edition works. OpenCE extracts its maps into the maps folder beside the player. Keep the disc image outside the game folder, because the game offers any image it finds there. Halo PC or Custom Edition maps do not replace these Xbox maps."
         },
         {
-          "title": "Use a copy you manage yourself",
-          "instruction": "Extract halo-windows-release.zip, or halo-linux-release.zip on Linux, into its own folder and start halo.exe (halo on Linux) from it with no arguments. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. OpenCE asks before installing its own updates and can replace its program files when you accept."
+          "title": "Run a Windows copy you manage yourself",
+          "instruction": "Extract halo-windows-release.zip into its own folder and start halo.exe with no arguments. Use the release package for playing. Debug builds stop at failed assertions, and symbol archives contain debug information. OpenCE asks before installing its own updates and can replace its program files when you accept."
+        },
+        {
+          "title": "Run the external Linux player",
+          "instruction": "Extract halo-linux-release.zip and keep libSDL3.so.0 beside halo. Make halo executable if needed with chmod u+x halo and run ./halo from that folder. Use a Linux host that can run 32-bit x86 programs. It needs 32-bit glibc 2.29 or newer, OpenGL and display libraries, and PipeWire or PulseAudio client libraries. Choose your own Xbox ISO or XISO on first launch. The file picker needs a desktop portal or zenity. If neither is available, start with a copy of the image beside halo. OpenCE handles updates for this external copy."
         }
       ],
       "warnings": [
@@ -36,19 +40,43 @@
         "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
         "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove, using the version that last registered the link. Close any game started that way before updating or rolling back in Portcove, and start OpenCE from Portcove once after an update before using an invite."
       ],
-      "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
+      "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
       "references": [
         {
           "title": "Keep all actual data locations",
-          "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and its debug logs. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
+          "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and debug logs. The default profile, save and shader cache location is AppData/Roaming/halo on Windows and $XDG_DATA_HOME/halo-linux on Linux, usually ~/.local/share/halo-linux. If paths.saves or HALO_SAVE_ROOT overrides it, copy the configured location before an update."
+        },
+        {
+          "title": "Use the publisher’s Android release",
+          "instruction": "On a 64-bit ARM device with Android 9 or newer, extract app-release.apk from halo-android-release.zip and install it with Android’s package installer. Start OpenCE and choose your own Halo Xbox ISO or XISO with the system picker. Allow about 2 GB for the extracted maps. The app handles its own updates. Before uninstalling, copy your maps and the save/u profiles from Android/data/com.halo.decomp/files. That app folder also contains config.toml and mods."
         }
       ]
     },
     "download_asset_hints": {
-      "windows-x86-64": ["halo-windows-release.zip"],
       "linux-x86-64": ["halo-Linux-release.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "halo-combat-evolved",
+      "evidence_urls": [
+        "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
+        "https://github.com/OpenCommunityEdition/OpenCE",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/opencommunityedition-opence.json"
+      ],
+      "source_editions": [
+        {
+          "id": "halo-combat-evolved-xbox",
+          "title": "Halo: Combat Evolved (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/opencommunityedition-opence.json"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

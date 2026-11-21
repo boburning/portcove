@@ -4,6 +4,14 @@
     "id": "cod3pc-call-of-duty-3-native-windows-port-alekszverr-jpg-call-of-duty-3",
     "name": "Call of Duty 3 — cod3pc — Call of Duty 3 native Windows port (alekszverr-jpg)",
     "original_game_title": "Call of Duty 3",
+    "artwork": {
+      "game_id": 949,
+      "cover_id": 88878,
+      "image_id": "co1wku",
+      "image_sha256": "5be576add7615a9e917ec05ffc2af44211f8cdbff262d5c97fa20aee1544bfcc",
+      "game_slug": "call-of-duty-3",
+      "match_kind": "underlying-game"
+    },
     "summary": "Menus, Saint-Lo training and gameplay run; experimental. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/alekszverr-jpg/cod3pc",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/alekszverr-jpg/cod3pc"
     },
-    "issue_number": 3229
+    "issue_number": 3229,
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-3",
+      "evidence_urls": ["https://github.com/alekszverr-jpg/cod3pc"],
+      "source_editions": [
+        {
+          "id": "call-of-duty-3-xbox-360",
+          "title": "Call of Duty 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/alekszverr-jpg/cod3pc/blob/fb932a6d4d63fa8aea257a3708c930961ad9c321/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

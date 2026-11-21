@@ -16,8 +16,24 @@
       "game_slug": "wcw-vs-nwo-world-tour",
       "match_kind": "underlying-game"
     },
-    "issue_number": 90
+    "issue_number": 90,
+    "original_game": {
+      "format_version": 1,
+      "id": "wcw-vs-nwo-world-tour",
+      "evidence_urls": ["https://github.com/jessetbh/WCWvsNWOWorldTourRecomp"],
+      "source_editions": [
+        {
+          "id": "wcw-vs-nwo-world-tour-nintendo-64",
+          "title": "WCW vs. nWo: World Tour (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
+    }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -35,22 +51,6 @@
     "executable_hints": {
       "windows-x86-64": ["WCWRecompiled.exe"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "wcw.nwo.worldtour.us.z64"
-    ],
     "runtime_source_filename": "wcw.nwo.worldtour.us.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

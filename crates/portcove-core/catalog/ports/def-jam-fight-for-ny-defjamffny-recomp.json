@@ -8,7 +8,7 @@
     "project_url": "https://github.com/vyanhursky/DefJamFFNY-recomp",
     "issue_number": 2562,
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/vyanhursky/DefJamFFNY-recomp",
     "artwork": {
@@ -47,6 +47,24 @@
         {
           "title": "Back up every active data and recovery root before startup or maintenance",
           "instruction": "Preserve the complete chosen data folder: settings.ini, save/ (including UserData, TitleData, cache and partition images), extracted originals, mods, texture/HD caches and artwork. Also retain setup logs under %LOCALAPPDATA%/DefJamSetup/logs, install logs, and the active version source/logs; custom RECOMP_SETTINGS or RECOMP_SAVE_DIR paths remain separate roots when present. The pinned runtime copies missing disc UDATA metadata without overwriting it; its legacy save-name compatibility lookup does not rename or rewrite saves. Preserve any older game-side UserData/TitleData and unconfigured %LOCALAPPDATA%/xboxrecomp saves separately; no automatic migration or save compatibility is promised."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": [
+        "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/65038d047249c3456fe037cd91d07f8bce81653d/docs/setup-installer.md",
+        "https://github.com/vyanhursky/DefJamFFNY-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "def-jam-fight-for-ny-xbox",
+          "title": "Def Jam: Fight for NY (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/a5479de7c62c4cf2801a006b56a3b30398475b37/README.md"
+          ]
         }
       ]
     }

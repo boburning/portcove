@@ -44,11 +44,29 @@
     },
     "release_url": "https://github.com/vibecodekun/shantaerecomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["shantae-recomp-", "-windows-x64.zip"],
       "linux-x86-64": ["shantae-recomp-", "-linux-x86_64.tar.gz"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "shantae",
+      "evidence_urls": [
+        "https://github.com/vibecodekun/shantaerecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/vibecodekun-shantaerecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "shantae-game-boy-color",
+          "title": "Shantae (Game Boy Color)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/vibecodekun-shantaerecomp.json"
+          ]
+        }
+      ]
+    }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

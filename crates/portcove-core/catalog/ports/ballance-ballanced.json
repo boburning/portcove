@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ballance-ballanced",
+    "artwork": {
+      "game_id": 20895,
+      "cover_id": 458491,
+      "image_id": "co9trv",
+      "image_sha256": "a6b546db13d7aff7833f27ee87d2841b6c892fd04d2e1928366eecbeb206fac9",
+      "game_slug": "ballance",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/doyaGu/Ballanced",
     "name": "Ballance / Ballanced",
     "original_game_title": "Ballance",
@@ -37,6 +45,15 @@
       "warnings": [
         "The publisher also supplies Windows ARM64, Windows x86 and Linux ARM64 runtime archives through the release page. Choose your actual architecture. Use the reviewed runtime archive for this layout. Upstream setup and backups are player-managed."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ballance",
+      "evidence_urls": [
+        "https://github.com/doyaGu/Ballanced/blob/v0.2.0/README.md#for-players",
+        "https://github.com/doyaGu/Ballanced"
+      ],
+      "source_editions": []
     }
   }
 }

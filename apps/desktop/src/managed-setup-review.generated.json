@@ -1,4 +1,233 @@
 {
+  "shipwright": "Use a compatible Ocarina of Time game file you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
+  "2ship2harkinian": "Use a compatible Majora’s Mask game file you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
+  "lighthouse": "Select your own supported Banjo-Kazooie cartridge dump. Portcove checks the original and installs the managed Lighthouse package.",
+  "zelda64-recomp": "Use a compatible North American Majora’s Mask cartridge dump you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
+  "banjo-recomp": "Choose your own Banjo-Kazooie US 1.0 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+  "harvest-moon-64-recomp": "Choose your own Harvest Moon 64 US cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+  "donkey-kong-64-recompiled": {
+    "note": "Choose your own Donkey Kong 64 US 1.0 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified on Apple Silicon Mac for this package."
+      ]
+    }
+  },
+  "automobili-lamborghini-recompiled": "Select your own US Automobili Lamborghini cartridge dump. Portcove checks the original and installs the managed package for this computer.",
+  "aerogauge-recompiled": "Choose your own AeroGauge US cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+  "bomberman-fantasy-race-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "bomberman-party-edition-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "bomberman-world-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "final-fantasy-vii-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "klonoa-door-to-phantomile-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "legend-of-mana-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "marvel-vs-capcom-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "masters-of-teras-kasi-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "metal-slug-x-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "mortal-kombat-4-recompiled": {
+    "note": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+    "warnings": [
+      "Generation, runtime, lifecycle and gameplay are untested with these versions on every platform."
+    ],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "rampage-through-time-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "jedi-power-battles-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "street-fighter-alpha-3-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "twisted-metal-4-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "snowboard-kids-2-recomp": "Choose your own Snowboard Kids 2 US cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+  "perfect-dark": {
+    "note": "Select your own US Rev 1 Perfect Dark game file. Portcove checks the original and installs the managed player for this computer.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-x86-64": [
+        "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+      ],
+      "macos-aarch64": [
+        "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+      ]
+    }
+  },
+  "battleship": "Select your own Super Smash Bros. 64 USA 1.0 cartridge dump. Portcove checks the original and installs the managed BattleShip package.",
   "snap64-recomp": {
     "note": "Choose your own unmodified USA Pokémon Snap cartridge dump. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
     "warnings": [],
@@ -15,5 +244,159 @@
         "Upstream reports testing on GitHub-hosted Macs only. Portcove has no native Mac execution result for this app."
       ]
     }
-  }
+  },
+  "diddy-kong-racing-golden-balloon": "Choose your own Diddy Kong Racing US 1.1 or European 1.1 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+  "duke-nukem-zero-hour-recompiled": {
+    "note": "Choose your own Duke Nukem: Zero Hour USA cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete.",
+    "warnings": [],
+    "platform_warnings": {
+      "linux-x86-64": [
+        "Native Play and populated saves are still unverified for the managed Linux x64 package."
+      ],
+      "macos-x86-64": [
+        "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
+      ],
+      "macos-aarch64": [
+        "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
+      ]
+    }
+  },
+  "wave-race-64-recomp": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs its managed package. After installation, choose Play in Portcove, then Start Game in the launcher.",
+  "dkc3-recomp": "Use your own North American English/French DKC3 ROM. Portcove accepts .sfc or .smc files with or without a copier header.",
+  "alexbeav-ape-escape-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-alundra-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-armored-core-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-blood-omen-legacy-of-kain-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-digimon-world-2003-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-duke-nukem-land-of-the-babes-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-driver-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-duke-nukem-time-to-kill-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-fade-to-black-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-diablo-recomp": "Portcove checks your own single-track Diablo (Europe) CHD and retail SCPH-5552 BIOS, then builds the game on this computer.",
+  "alexbeav-ace-combat-3-electrosphere-recomp": "Choose the folder with your two original Japanese CHDs and your retail SCPH-5500 BIOS. Name the CHDs so Disc 1 sorts before Disc 2. Portcove checks both discs and builds the game on this computer.",
+  "alexbeav-dino-crisis-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-dino-crisis-2-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-alien-resurrection-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-brave-fencer-musashi-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "super-mario-world-recomp": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Choose a short installation path using basic Latin characters. Your original file can stay where it is.",
+  "the-force-engine-dark-forces": "Select your complete installed PC Dark Forces folder or add a ZIP of it. Portcove checks the game files and installs the managed Windows player.",
+  "resident-evil-gaiden-recomp": "Select your own Resident Evil Gaiden (USA) Game Boy Color original. Portcove checks the original and installs the managed Windows player.",
+  "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": "Choose your original single-track USA CHD and retail SCPH-1001 BIOS. Portcove checks these files and builds the game on this computer.",
+  "alariq-mc2": "The official Windows x64 ZIP includes the game data. Portcove installs the complete player from that package.",
+  "alexbeav-alone-in-the-dark-the-new-nightmare-recomp": "Use your own Alone in the Dark: The New Nightmare (Europe) two-disc set (SLES-02801, SLES-12801), each disc with its data track and its audio track, and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-apocalypse-recomp": "Use your own Apocalypse (Europe) disc (SLES-00460) with all 2 of its tracks and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-armored-core-master-of-arena-recomp": "Use your own Armored Core: Master of Arena (USA) two-disc set (SLUS-01030, SLUS-01081), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-armored-core-project-phantasma-recomp": "Use your own Armored Core - Project Phantasma (USA) disc (SLUS-00670) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-azure-dreams-recomp": "Use your own Azure Dreams (USA) disc (SLUS-00614) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-bloody-roar-ii-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-bushido-blade-2-recomp": "Use your own Bushido Blade 2 (USA) disc (SLUS-00663) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-colin-mcrae-rally-2-0-recomp": "Use your own USA Colin McRae Rally 2.0 disc, SLUS-01222, with all 2 tracks present. Portcove checks the files and builds the player.",
+  "alexbeav-colony-wars-recomp": "Use your own Colony Wars (USA) two-disc set (SLUS-00543, SLUS-00554), each disc with its data track and its audio track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-colony-wars-red-sun-recomp": "Use your own Colony Wars - Red Sun (USA) disc (SLUS-00866) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-crash-bandicoot-3-warped-recomp": "Use your own Crash Bandicoot 3: Warped (USA) disc (SCUS-94244) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-destruction-derby-2-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-destruction-derby-raw-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-die-hard-trilogy-recomp": "Use your own USA, Rev 1 Die Hard Trilogy disc, SLUS-00119, with all 21 tracks present. Portcove checks the files and builds the player.",
+  "alexbeav-digimon-world-2-recomp": "Use your own Digimon World 2 (USA) disc (SLUS-01193) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-dragon-ball-z-ultimate-battle-22-recomp": "Use your own Dragon Ball Z - Ultimate Battle 22 (Europe) disc (SLES-03736) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-fear-effect-2-retro-helix-recomp": "Use your own Fear Effect 2: Retro Helix (USA) (Rev 1) four-disc set (SLUS-01266, SLUS-01275, SLUS-01276, SLUS-01277), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-fear-effect-recomp": "Use your own Fear Effect (USA) four-disc set (SLUS-00920, SLUS-01056, SLUS-01057, SLUS-01058), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-fighting-force-recomp": "Use your own Fighting Force (USA) (Rev 2) disc (SLUS-00433) with all 27 of its tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-final-fantasy-ix-recomp": "Use your own Final Fantasy IX (USA, Canada) (Rev 1) four-disc set (SLUS-01251, SLUS-01295, SLUS-01296, SLUS-01297), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-final-fantasy-viii-recomp": "Use your own Final Fantasy VIII (USA) four-disc set (SLUS-00892, SLUS-00908, SLUS-00909, SLUS-00910), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-future-cop-lapd-recomp": "Use your own Future Cop - L.A.P.D. (Europe) (En,Fr) disc (SLES-01449) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-g-police-recomp": "Use your own G-Police (USA) two-disc set (SLUS-00544, SLUS-00556), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-g-police-weapons-of-justice-recomp": "Use your own G-Police - Weapons of Justice (USA) disc (SLUS-00798) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-galerians-recomp": "Use your own Galerians (Europe) three-disc set (SLES-02328, SLES-12328, SLES-22328), each disc with its single data track, and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-ghost-in-the-shell-recomp": "Use your own Ghost in the Shell (Europe) disc (SCES-01050) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-in-cold-blood-recomp": "Use your own In Cold Blood (USA) two-disc set (SLUS-01294, SLUS-01314), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-incredible-crisis-recomp": "Use your own Incredible Crisis (USA) disc (SLUS-01225) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-jackie-chan-stuntmaster-recomp": "Use your own Jackie Chan Stuntmaster (USA) disc (SLUS-00684) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-jade-cocoon-recomp": "Use your own Jade Cocoon - Story of the Tamamayu (USA) disc (SLUS-00854) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-kartia-recomp": "Use your own Kartia - The Word of Fate (USA) disc (SLUS-00631) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-kings-field-recomp": "Use your own Japan King's Field disc, SLPS-00017, with its single data track intact. Portcove checks the files and builds the player.",
+  "alexbeav-koudelka-recomp": "Use your own Koudelka (Europe) four-disc set (SLES-02897, SLES-12897, SLES-22897, SLES-32897), each disc with its single data track, and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-kula-world-recomp": "Use your own Europe Kula World disc, SCES-01000, with its single data track intact. Portcove checks the files and builds the player.",
+  "alexbeav-legacy-of-kain-soul-reaver-recomp": "Use your own European Legacy of Kain: Soul Reaver disc (SLES-01301) with its single data track intact. Select the complete CHD and your own retail SCPH-5552 BIOS in Portcove. Portcove checks the files and builds the player.",
+  "alexbeav-martian-gothic-recomp": "Use your own Martian Gothic: Unification (Europe) disc (SLES-01350) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-mdk-recomp": "Use your own European MDK disc (SLES-00599) with all 30 tracks present. Select the complete CHD and your own retail SCPH-5552 BIOS in Portcove. Portcove checks the files and builds the player.",
+  "alexbeav-medievil-ii-recomp-setup-kit": "Use your own MediEvil II (USA) disc (SCUS-94564) with both of its tracks and your own retail SCPH-1001 BIOS. This setup kit doesn’t include OpenBIOS. Portcove checks the files and builds the player.",
+  "alexbeav-mega-man-legends-2-recomp": "Use your own Mega Man Legends 2 (Europe) disc (SLES-03556) with all 2 tracks and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-mega-man-legends-recomp": "Use your own Europe Mega Man Legends disc, SLES-01485, with all 2 tracks present. Portcove checks the files and builds the player.",
+  "alexbeav-men-in-black-the-game-recomp": "Use your own Europe Men in Black: The Game disc, SLES-01047, with its single data track intact. Portcove checks the files and builds the player.",
+  "alexbeav-metal-gear-solid-recomp": "Use your own Metal Gear Solid (USA) (Rev 1) two-disc set (SLUS-00594, SLUS-00776), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-metal-slug-x-recomp": "Use your own Metal Slug X (USA) disc (SLUS-01212) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-misadventures-of-tron-bonne-recomp": "Use your own Misadventures of Tron Bonne, The (Europe) disc (SLES-02795) with all 2 tracks and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-monster-rancher-2-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-monster-rancher-recomp": "Use your own Monster Rancher (USA) disc (SLUS-00568) with all 2 of its tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-mortal-kombat-trilogy-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-nightmare-creatures-ii-recomp": "Use your own Nightmare Creatures II (USA) disc (SLUS-01112) with all 2 tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-nightmare-creatures-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-oddworld-abe-s-oddysee-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-parasite-eve-recomp": "Use your own Parasite Eve (USA) two-disc set (SLUS-00662, SLUS-00668), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-quake-ii-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-r-type-delta-recomp": "Use your own R-Type Delta (USA) disc (SLUS-00877) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-rival-schools-evolution-recomp": "Use your own Rival Schools - United by Fate (USA) (Disc 2) (Evolution Disc) disc (SLUS-00771) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-rival-schools-recomp": "Use your own Rival Schools - United by Fate (USA) (Disc 1) (Arcade Disc) disc (SLUS-00681) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-rollcage-stage-ii-recomp": "Use your own Rollcage Stage II (USA) disc (SLUS-00867) with all 13 tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-silent-bomber-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-spider-man-2-enter-electro-recomp": "Use your own Spider-Man 2 - Enter - Electro (USA) (Rev 1) disc (SLUS-01378) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-spider-man-recomp": "Use your own Spider-Man (USA) disc (SLUS-00875) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-spyro-the-dragon-recomp": "Use your own European or Australian Spyro the Dragon disc (SCES-01438) with its single data track intact. Select the complete CHD and your own retail SCPH-5552 BIOS in Portcove. Portcove checks the files and builds the player.",
+  "alexbeav-star-wars-episode-i-the-phantom-menace-recomp": "Use your own Star Wars Episode I: The Phantom Menace (Europe) disc (SLES-02034) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-suikoden-ii-recomp": "Use your own Suikoden II (USA) disc (SLUS-00958) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-suikoden-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-syphon-filter-3-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tail-concerto-recomp": "Use your own Tail Concerto (USA) disc (SLUS-00660) with all 2 tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-team-buddies-recomp": "Use your own Team Buddies (Europe) (En,Es,It) disc (SCES-02986) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tenchu-stealth-assassins-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-the-fifth-element-recomp": "Use your own The Fifth Element (Europe) disc (SCES-01285) with all 10 of its tracks and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-the-lost-world-jurassic-park-special-edition-recomp": "Use your own USA The Lost World: Jurassic Park Special Edition disc, SLUS-00515, with all 3 tracks present. Portcove checks the files and builds the player.",
+  "alexbeav-the-mummy-recomp": "Use your own USA The Mummy disc, SLUS-01187, with its single data track intact. Portcove checks the files and builds the player.",
+  "alexbeav-threads-of-fate-recomp": "Use your own Threads of Fate (USA, Canada) disc (SLUS-01019) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tokyo-highway-battle-recomp": "Use your own Tokyo Highway Battle (USA) disc (SLUS-00229) with all 8 of its tracks and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tony-hawk-s-pro-skater-2-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tony-hawk-s-pro-skater-3-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tony-hawk-s-pro-skater-4-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-tony-hawk-s-pro-skater-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-valkyrie-profile-recomp": "Use your own Valkyrie Profile (USA) two-disc set (SLUS-01156, SLUS-01179), each disc with its single data track, and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-vampire-hunter-d-recomp": "Use your own USA Vampire Hunter D disc, SLUS-01138, with its single data track intact. Portcove checks the files and builds the player.",
+  "alexbeav-vib-ribbon-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-vigilante-8-recomp": "Use your own Europe Vigilante 8 disc, SLES-01212, with all 13 tracks present. Portcove checks the files and builds the player.",
+  "alexbeav-wild-arms-recomp": "Use your own Wild Arms (USA) disc (SCUS-94608) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+  "alexbeav-wipeout-xl-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "body-harvest-recompiled": "Use Load ROM to select your own North American Body Harvest cartridge dump. The player verifies and remembers a private copy in its profile, alongside settings and saves. Back up that profile separately before changing versions.",
+  "diablo-devilutionx": "Choose a folder or ZIP containing the matching DIABDAT.MPQ from your own original Diablo.",
+  "diablo-hellfire-devilutionx": "Choose a folder or ZIP containing your own matching DIABDAT.MPQ, hellfire.mpq, hfmonk.mpq, hfmusic.mpq and hfvoice.mpq.",
+  "djultra64-blocksphere": "Portcove installs the managed Blocksphere package. On first Play, choose your own Tetrisphere US NTPE revision 0 cartridge dump or ZIP in the game.",
+  "doom-3-classic-dhewm3": "Choose the folder containing base from your own classic Doom 3 installation patched to 1.3.1. Portcove checks and prepares the nine original PK4 files, then you can select Play. BFG Edition is a different product. Keep your original installation separately. On Windows, keep the managed library path short and use plain ASCII. On Linux, keep the packaged modules and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Keep backups of the external save and settings folders. Use a separately prepared copy for custom paths or native mods.",
+  "doom-3-resurrection-of-evil-classic-dhewm3": "Choose the folder containing base and d3xp from your own classic Doom 3 and Resurrection of Evil installation patched to 1.3.1. Portcove checks and prepares the base and expansion PK4 files, then you can select Play. BFG Edition is a different product. Keep your original installation separately. On Windows, keep the managed library path short and use plain ASCII. On Linux, keep the packaged modules and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Keep backups of the external save and settings folders. Use a separately prepared copy for custom paths or native mods.",
+  "dune-ii-dune-dynasty": "Follow upstream’s FILELIST.TXT. On Windows, place the original files in Dune Dynasty/data under your Windows roaming app-data folder, normally %APPDATA%. On Linux, place them in dunedynasty/data under your XDG data location, normally ~/.local/share. Settings and saves use the XDG config location, normally ~/.config/dunedynasty. Keep originals and dunedynasty.cfg outside the managed game folder.",
+  "elasota-aerofoil": "Choose Play to open the packaged houses. Aerofoil creates its player profile in your Windows Documents location. Use the separate upstream tools and a prepared copy if you want to import and manage other content outside this route.",
+  "heroes-of-might-and-magic-ii-fheroes2": "Copy your own supported Heroes II ANIM, DATA, MAPS and MUSIC directories when present. Use HOME/.fheroes2 on Windows or Intel Mac, or APPDATA/fheroes2 on Windows when HOME is unset. On Linux, use XDG_DATA_HOME/fheroes2 or ~/.local/share/fheroes2. Use absolute personal profile locations outside the managed game folder and the same account and environment for setup and Play.",
+  "kirby-letsgo-oracles-decomp": "Portcove installs the Windows Oracles player. After installation, choose Play and use Add ROM to select your own supported Oracle of Ages or Oracle of Seasons cartridge dump.",
+  "monster-hunter-portable-3rd-hd-yakumo": "On first Play, choose the uncompressed PSP UMD ISO from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) and let Yakumo prepare the game. If Yakumo copies the image, the copy is kept and backed up with the managed data. If you use the image where it is, keep it at a stable location outside the managed runtime and back it up yourself.",
+  "n64hub-rayman-2-recomp-n64-usa": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions.",
+  "n64hub-super-smash-bros-n64-usa-recomp": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions.",
+  "nhl-94-genesis-ninety-four": "On first Play, select your own supported 1 MiB NHL ’94 Genesis US/Europe ROM in the upstream picker. Keep it at a stable location outside the managed runtime.",
+  "quake-ironwail": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server.",
+  "quake-vkquake": {
+    "note": "After installation, copy the id1 folder with pak0.pak and pak1.pak from your original Quake installation into the managed player’s working folder before choosing Play. Keep your original copy.",
+    "warnings": [
+      "Use a Vulkan-capable GPU and driver.",
+      "Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories.",
+      "Save compatibility across vkQuake versions is still unverified."
+    ],
+    "platform_warnings": {
+      "linux-x86-64": [
+        "For vkQuake 1.37.0, the publisher requires glibc 2.35 or later and FUSE to run the AppImage. Check these before installing. Keep the AppImage intact and use lowercase id1 and PAK filenames."
+      ]
+    }
+  },
+  "rustmania-racing-ray-m-w-muppet-racemania": "Choose Play. If no readable disc is configured, enter the full path to your own supported disc image in the game window. Keep the disc files outside the Portcove runtime. Choose a path without # so the game can remember it in its profile.",
+  "snprecomp-wootbeer-sin-and-punishment": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM (see Check the required game files). The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions.",
+  "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger": "Choose Load ROM in the SpaceRanger title screen. The player verifies and stores a private copy in spaceranger-config. Keep your independent original and use Start Game in the same player.",
+  "troyedwardsjr-z2rs": "Choose Play to start the direct z2rs player. Drag your own supported USA NES ROM onto the game window. The player reads it in place and remembers its path. Keep the ROM outside the managed runtime. Use upstream setup for the separate launcher and Android.",
+  "vcmi-vcmi": "Use a separate official VCMI Launcher to import your own Heroes III game data into the default Windows profile. Close the launcher before choosing Play in Portcove.",
+  "xena-warrior-princess-xena-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
 }

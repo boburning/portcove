@@ -1,0 +1,151 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "mini-golf-ipod-ipod-clickwheel-recomps",
+    "name": "Mini Golf (iPod Click Wheel Recomp)",
+    "summary": "Play the iPod edition of Mini Golf using files from your own copy.",
+    "original_game_title": "Mini Golf (iPod)",
+    "project_url": "https://github.com/DogParty/iPodClickWheelRecomps",
+    "issue_number": 7300,
+    "listed_at": "2026-11-18",
+    "availability": "packages",
+    "release_url": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+    "setup_url": "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "windows-x86-64": ["minigolf-1.0.1-windows-x64.zip"],
+      "linux-x86-64": ["minigolf-1.0.1-linux-x86_64.zip"],
+      "macos-x86-64": ["minigolf-1.0.1-macos.zip"],
+      "macos-aarch64": ["minigolf-1.0.1-macos.zip"]
+    },
+    "compatibility": {
+      "format_version": 2,
+      "records": [
+        {
+          "id": "ipod-entry-windows-x86-64",
+          "feature": "launch",
+          "platform": "windows-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "e52d24f09ef6fa6dc22e82b0d3b426484c40afeeccb47d3f20d9c61a3af0baa3",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "ipod-entry-linux-x86-64",
+          "feature": "launch",
+          "platform": "linux-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "9bf4e973bedaf5c819b45ea0e9e1f4251b587e2ab7c396f4a20e68892f155eb2",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "ipod-entry-macos-x86-64",
+          "feature": "launch",
+          "platform": "macos-x86-64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "2328da4094d04e7cb8b316796e9b03d600272b478136c748383a5907d24f728f",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        },
+        {
+          "id": "ipod-entry-macos-aarch64",
+          "feature": "launch",
+          "platform": "macos-aarch64",
+          "route": "upstream-setup",
+          "release": "v1.0.1",
+          "artifact_sha256": "2328da4094d04e7cb8b316796e9b03d600272b478136c748383a5907d24f728f",
+          "explanation": "The program asks for the game folder on its first start. After it validates and copies your files, later starts can reuse the files in the same user profile.",
+          "provenance": "https://github.com/DogParty/iPodClickWheelRecomps/releases/tag/v1.0.1",
+          "observed_at": 1795038265,
+          "evidence": "upstream-reported",
+          "launch_behavior": {
+            "first_launch": "asks-for-game-files",
+            "repeat_launch": "starts-game-directly"
+          }
+        }
+      ]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the package for your system",
+          "instruction": "Keep the complete Windows ZIP contents together. On Linux, make the extracted file executable and use glibc 2.38 or newer with SDL3 and zlib. On macOS 11 or later, extract the app. See the publisher’s packaged guide for the first open of the unsigned app."
+        },
+        {
+          "title": "Provide your own game files once",
+          "instruction": "Start the program and choose your decrypted 88888 folder or a ZIP of that folder. The program checks the files before copying them into your user data folder."
+        },
+        {
+          "title": "Play again and change settings",
+          "instruction": "Start the same game under the same user profile. On Windows and macOS, use the game’s settings window. The Linux package has no settings window or background music."
+        }
+      ],
+      "help_url": "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md",
+      "references": [
+        {
+          "title": "Find saves and settings on Windows",
+          "instruction": "Keep the game’s data under %APPDATA%\\iPod Mini Golf."
+        },
+        {
+          "title": "Find saves and settings on Linux",
+          "instruction": "Keep the game’s data under $XDG_DATA_HOME/ipod-mini-golf, or ~/.local/share/ipod-mini-golf."
+        },
+        {
+          "title": "Find saves and settings on macOS",
+          "instruction": "Keep the game’s data under ~/Library/Application Support/iPod Mini Golf."
+        },
+        {
+          "title": "Update the program",
+          "instruction": "Get new versions from the upstream release page. Preserve your user data folder before replacing the program files."
+        },
+        {
+          "title": "Set up Mini Golf on Android",
+          "instruction": "Download minigolf-1.0.1-android.zip from the upstream release. Install minigolf.apk on an ARM64 device with a gamepad and place your 88888 folder in /sdcard/Android/data/org.ipodrecomp.minigolf/files/88888 before opening the game. Saves and settings live in the app’s files folder. Back it up before removing an installed APK."
+        }
+      ],
+      "warnings": []
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mini-golf-ipod",
+      "evidence_urls": [
+        "https://github.com/DogParty/iPodClickWheelRecomps/blob/8a7afced6b30ff9dd3ef71aeebf620f34ced5317/Mini%20Golf/README.md"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "mini-golf-ipod-ipod-clickwheel-recomps",
+    "origin": {
+      "project_url": "https://github.com/DogParty/iPodClickWheelRecomps",
+      "repository": {
+        "host": "github.com",
+        "id": "1355442112"
+      }
+    },
+    "decisions": []
+  }
+}

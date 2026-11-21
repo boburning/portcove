@@ -51,8 +51,23 @@
     },
     "original_game_title": "Pokémon LeafGreen",
     "recommended_download_channel": "stable",
-    "download_asset_hints": {
-      "windows-x86-64": ["LeafGreenRecomp-windows-x64-", ".zip"]
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-leafgreen",
+      "evidence_urls": [
+        "https://github.com/mstan/FireRedLeafGreenRecomp/releases",
+        "https://github.com/mstan/FireRedLeafGreenRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-leafgreen-game-boy-advance",
+          "title": "Pokémon LeafGreen (Game Boy Advance)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/FireRedLeafGreenRecomp/blob/03ab83043b0695987c943cdf8f0eccb95b4f9dab/README.md"
+          ]
+        }
+      ]
     }
   },
   "gba_staged_archive_v1": {
@@ -82,5 +97,6 @@
     "executable_hints": {
       "windows-x86-64": ["LeafGreenRecomp.exe"]
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

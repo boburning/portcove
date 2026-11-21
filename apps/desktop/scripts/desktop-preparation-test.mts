@@ -137,6 +137,9 @@ import {
   liveInterruptedPreparationScenario,
   closedPreparationScenario,
   minimizedPreparationScenario,
+  observeLibraryReloadReadiness,
+  joinOwnedPreparationAfterFailure,
+  type OwnedPreparationSettlement,
 } from "./desktop-preparation-recovery-test.mts";
 import {
   revealDetailSection,
@@ -154,6 +157,7 @@ import {
   setupReviewButton,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
+import { secondaryPanelsScenario } from "./desktop-secondary-panels-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mts";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mts";
@@ -165,6 +169,10 @@ import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mts";
 // reload on "Opening your Portcove library" past 15 s. The wait returns as soon
 // as primary navigation renders.
 const reloadBootstrapBudgetMs = 60_000;
+// Native run 17 still had a fresh workspace read pending after the former 15s
+// cancellation-row wait; its preceding read took 23.926s. Launch settlement also
+// includes game exit and save collection, as the existing first Play wait does.
+const nativeSettlementBudgetMs = 60_000;
 
 export function assertPreparationReviewSummary(text: string) {
   const normalized = text.replace(/\s+/gu, " ").trim();
@@ -176,11 +184,14 @@ export function assertPreparationReviewSummary(text: string) {
     "Needs",
     "At least",
     "free, plus what the game creates",
-    "Your original game files aren't changed.",
     "Your original files and current installation remain unchanged until the verified result becomes active.",
     "The previous version stays available for rollback.",
+    "Keep Portcove open. Continue browsing and revisit progress in Activity.",
     "Cancellation or interruption may leave working files in Activity.",
     "Starting again keeps earlier unfinished work.",
+    "If setup opens another window",
+    "Finish setup in that window, then close it without starting the game.",
+    "Portcove will check the files. If the checks pass, it will switch to the new version.",
   ])
     assert.ok(normalized.includes(expected), `preparation review omitted ${expected}`);
 }
@@ -1025,7 +1036,101 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} ${installed.length === 1 ? "port" : "ports"} in your library`,
+  );
+}
+
+export interface LibraryFooterKeyboardPoint {
+  originFocused: boolean;
+  withinCard: boolean;
+  footerFocused: boolean;
+  tabStops: number;
+}
+
+/** Follow the actual Tab order; never rescue a skipped action with focus() or scrolling. */
+export async function reachLibraryFooterAction(
+  observe: () => Promise<LibraryFooterKeyboardPoint>,
+  pressTab: () => Promise<void>,
+) {
+  const origin = await observe();
+  assert.ok(origin.originFocused && origin.withinCard, "Start at the owned Library More action");
+  assert.ok(Number.isSafeInteger(origin.tabStops) && origin.tabStops > 0);
+  for (let step = 0; step < origin.tabStops; step++) {
+    await pressTab();
+    const point = await observe();
+    assert.ok(point.withinCard, "Tab left the owned Library card before its primary action");
+    if (point.footerFocused) return { ...point, tabPresses: step + 1 };
+  }
+  throw new Error("The owned Library primary action was not reached through its Tab order");
+}
+
+export function libraryFooterKeyboardPoint(originSelector: string) {
+  const origin = document.querySelector(originSelector);
+  if (!(origin instanceof HTMLButtonElement)) throw new Error("Library More action disappeared");
+  const card = origin.closest(".collection-entry");
+  if (!card) throw new Error("Library action has no owning card");
+  const footer = card.querySelector<HTMLButtonElement>(
+    '.library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])',
+  );
+  if (!footer) throw new Error("The owned Library card has no enabled primary action");
+  const rectangle = footer.getBoundingClientRect();
+  const workspace = document.querySelector('main[data-focus-region="workspace"]');
+  const clip = workspace?.getBoundingClientRect();
+  const style = getComputedStyle(footer);
+  const outlineWidth = Number.parseFloat(style.outlineWidth || "0");
+  const ring =
+    style.outlineStyle === "none" || !Number.isFinite(outlineWidth) || outlineWidth <= 0
+      ? 0
+      : outlineWidth + Math.max(0, Number.parseFloat(style.outlineOffset || "0"));
+  return {
+    originFocused: document.activeElement === origin,
+    withinCard: card.contains(document.activeElement),
+    footerFocused: document.activeElement === footer,
+    tabStops: [
+      ...card.querySelectorAll<HTMLElement>(
+        "button,a[href],input,select,textarea,summary,[tabindex]",
+      ),
+    ].filter(
+      (element) =>
+        element.tabIndex >= 0 &&
+        !element.matches(':disabled,[aria-disabled="true"]') &&
+        element.getClientRects().length > 0,
+    ).length,
+    name: footer.getAttribute("aria-label") || footer.textContent?.trim(),
+    documentFocused: document.hasFocus(),
+    zoom: localStorage.getItem("portcove.appearance.interface-size"),
+    rectangle: {
+      top: rectangle.top,
+      bottom: rectangle.bottom,
+      left: rectangle.left,
+      right: rectangle.right,
+    },
+    ring,
+    fullyVisible:
+      rectangle.top - ring >= Math.max(0, clip?.top ?? 0) - 1 &&
+      rectangle.bottom + ring <= Math.min(innerHeight, clip?.bottom ?? innerHeight) + 1 &&
+      rectangle.left - ring >= Math.max(0, clip?.left ?? 0) - 1 &&
+      rectangle.right + ring <= Math.min(innerWidth, clip?.right ?? innerWidth) + 1,
+  };
+}
+
+export function libraryFooterCaptureReady(point: {
+  footerFocused: boolean;
+  documentFocused: boolean;
+  fullyVisible: boolean;
+  zoom: string | null;
+  ring: number;
+}) {
+  return (
+    point.footerFocused &&
+    point.documentFocused &&
+    point.fullyVisible &&
+    point.zoom === "200" &&
+    Number.isFinite(point.ring) &&
+    point.ring > 0
+  );
 }
 
 /** Observe one owned Library action and retain its exact visual evidence. */
@@ -1090,6 +1195,45 @@ export async function captureLibraryAction(
       ),
   });
   artifacts.push(capture.image.path, capture.receipt);
+  const reached = await reachLibraryFooterAction(
+    () => executeBrowserScript(browser, libraryFooterKeyboardPoint, selector),
+    () => browser.actions().sendKeys(Key.TAB).perform(),
+  );
+  await browser.wait(
+    async () => {
+      const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
+      return libraryFooterCaptureReady(point);
+    },
+    5_000,
+    "The Tab-reached Library primary action and its focus ring must fit at200%",
+  );
+  const footerSelector = `.collection-entry:has(${selector}) .library-entry-footer .library-card-action:not(:disabled):not([aria-disabled="true"])`;
+  const footerCapture = await captureSettledVisual({
+    browser,
+    output,
+    name: `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-200-footer`,
+    scenario: "native-library-layout",
+    target: footerSelector,
+    observeTarget: () =>
+      executeBrowserScript(browser, observeVisibleTarget, footerSelector, "visual" as const),
+    readiness: async () => {
+      const point = await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector);
+      return {
+        ready: libraryFooterCaptureReady(point),
+        point,
+        tabPresses: reached.tabPresses,
+        feedbackFixture: "Owned DOM-only artwork feedback; imported artwork remains available",
+        interaction: "Actual Tab from More; no forced focus or scrolling",
+      };
+    },
+  });
+  artifacts.push(footerCapture.image.path, footerCapture.receipt);
+  for (let step = 0; step < reached.tabPresses; step++)
+    await browser.actions().keyDown(Key.SHIFT).sendKeys(Key.TAB).keyUp(Key.SHIFT).perform();
+  assert.ok(
+    (await executeBrowserScript(browser, libraryFooterKeyboardPoint, selector)).originFocused,
+    "Reverse Tab must return to the original Library More action",
+  );
 }
 
 export async function settleDirectPreparationRecovery(browser: WebDriver) {
@@ -1279,6 +1423,13 @@ export async function preparationScenarios({
       ),
     );
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
+    // Run 44628065087 retained the loading panel through the former card lookup;
+    // successful snapshot reads took 15–26 seconds. Shell readiness is not Library readiness.
+    await browser.wait(
+      () => executeBrowserScript(browser, observeLibraryReloadReadiness),
+      reloadBootstrapBudgetMs,
+      "The reloaded Library must finish its initial snapshot and render game cards",
+    );
     await browser.wait(until.elementLocated(card), 15_000);
     await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation) {
@@ -1424,42 +1575,22 @@ export async function preparationScenarios({
       install.id,
       "review must not prepare",
     );
-    // Recovery guidance is disclosed on request; open it so the observed text
-    // covers every reviewed safety statement, then close it again.
-    const recoveryGuidance = await browser.findElement(
-      By.xpath('//summary[normalize-space(.)="Setup and recovery details"]'),
-    );
-    await recoveryGuidance.click();
-    const preparationText = await browser.findElement(preparationDialog).getText();
-    assertPreparationReviewSummary(preparationText);
-    await recoveryGuidance.click();
-    const windowGuidance = await browser.findElement(
-      By.xpath('//summary[normalize-space(.)="If setup opens another window"]'),
-    );
-    await windowGuidance.click();
-    // The disclosure renders its panel after the click; wait for the guidance itself.
-    await browser.wait(
-      async () =>
-        (await browser.findElement(preparationDialog).getText()).includes(
-          "close it without starting the game",
-        ),
-      5_000,
-      "Setup-window guidance did not appear after opening its disclosure",
-    );
-    await windowGuidance.click();
+    // The consequences must be visible as part of the decision to start setup.
+    const preparationReview = await browser.findElement(preparationDialog);
+    assertPreparationReviewSummary(await preparationReview.getText());
     const preparationLayout = await executeBrowserScript(browser, () => {
-      const plan = document.querySelector(
-        '[aria-labelledby="preparation-review-title"] .preparation-plan',
+      const consequences = document.querySelector(
+        '[aria-labelledby="preparation-review-title"] section[aria-label="During setup"]',
       );
-      const paragraph = plan?.querySelector("p");
+      const paragraph = consequences?.querySelector("p");
       return {
-        planWidth: plan?.getBoundingClientRect().width ?? 0,
+        consequencesWidth: consequences?.getBoundingClientRect().width ?? 0,
         paragraphWidth: paragraph?.getBoundingClientRect().width ?? 0,
       };
     });
     assert.ok(
-      preparationLayout.planWidth > 300 &&
-        preparationLayout.paragraphWidth > preparationLayout.planWidth * 0.8,
+      preparationLayout.consequencesWidth > 300 &&
+        preparationLayout.paragraphWidth > preparationLayout.consequencesWidth * 0.8,
       `preparation review text is cramped: ${JSON.stringify(preparationLayout)}`,
     );
     await assertPrimaryReviewAction(
@@ -1533,8 +1664,13 @@ export async function preparationScenarios({
         );
       };
       await visibleAction(confirm);
-      await browser.actions().sendKeys(Key.TAB).perform();
       const cancel = await browser.findElement(button("Cancel review"));
+      // The inline guidance leaves both actions reachable in the dialog's tab cycle.
+      for (const control of [cancel, confirm]) {
+        await browser.actions().sendKeys(Key.TAB).perform();
+        await visibleAction(control);
+      }
+      await browser.actions().keyDown(Key.SHIFT).sendKeys(Key.TAB).keyUp(Key.SHIFT).perform();
       await visibleAction(cancel);
       const enlarged = path.join(output, "preparation-native-400-observation.json");
       await writeFile(
@@ -1554,6 +1690,12 @@ export async function preparationScenarios({
         { flag: "wx" },
       );
       artifacts.push(enlarged);
+      const enlargedImage = path.join(output, "preparation-native-400.png");
+      await writeFile(enlargedImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(enlargedImage);
       // Exercise the real dismissal at enlargement; focus and geometry alone
       // do not establish that the action can actually be used.
       await cancel.click();
@@ -1566,6 +1708,18 @@ export async function preparationScenarios({
         install.id,
         "Enlarged dismissal must not prepare",
       );
+    } catch (error) {
+      try {
+        const failureImage = path.join(output, "preparation-native-400-failure.png");
+        await writeFile(failureImage, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(failureImage);
+      } catch (captureError) {
+        console.error("Could not capture the enlarged preparation failure", captureError);
+      }
+      throw error;
     } finally {
       await shortcut("0");
       await browser.wait(
@@ -1679,7 +1833,7 @@ export async function preparationScenarios({
     // most of 15 s (job 132417354795 timed out at 24.5 s on "Working: launch").
     await browser.wait(
       async () => (await status(port.id)).successful_launches > 0,
-      60_000,
+      nativeSettlementBudgetMs,
       "Try launch did not record a successful launch",
     );
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
@@ -1706,11 +1860,6 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const filterPanel = await openCatalogFilters(browser);
-    const advanced = await filterPanel.findElement(
-      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-    );
-    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-      await clickVisible(browser, advanced);
     const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
     await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
@@ -1722,7 +1871,7 @@ export async function preparationScenarios({
     const compactReadiness = wideReadiness ? undefined : await openReadinessOptions(libraryFilters);
     for (const label of [
       `All (${installedCount})`,
-      `Ready (${installedCount})`,
+      `Ready to play (${installedCount})`,
       "Needs attention (0)",
     ]) {
       const filter = compactReadiness
@@ -1972,6 +2121,16 @@ export async function preparationScenarios({
       5000,
       "Returning from overflow details must focus the originating card menu",
     );
+  });
+  await secondaryPanelsScenario({
+    browser,
+    scenario,
+    library,
+    output,
+    artifacts,
+    invoke: invokeRaw,
+    portId: "opengoal-jak1",
+    confirmNative,
   });
   await scenario("native-library-layout", async () => {
     const first = await seed("opengoal-jak1", "success");
@@ -2548,6 +2707,7 @@ export async function preparationScenarios({
             "Game files",
             "Saves & backups",
             "Versions & updates",
+            "Game settings",
             "Manage",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
@@ -2650,11 +2810,6 @@ export async function preparationScenarios({
         port.name,
       );
       const filters = await openCatalogFilters(browser);
-      const advanced = await filters.findElement(
-        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-      );
-      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-        await clickVisible(browser, advanced);
       const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );
@@ -2662,19 +2817,19 @@ export async function preparationScenarios({
       await clickVisible(browser, readiness);
       const ready = await browser.wait(
         until.elementLocated(
-          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready (")]'),
+          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready to play (")]'),
         ),
         5_000,
       );
       await browser.wait(
-        async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
+        async () => /^Ready to play \([1-9][0-9]*\)$/u.test(await ready.getText()),
         15_000,
         "Library readiness counts did not settle",
       );
       await clickVisible(browser, ready);
       const selectedReadiness = await readiness.findElement(By.css('[data-slot="select-value"]'));
       await browser.wait(
-        async () => /^Ready \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
+        async () => /^Ready to play \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
         5_000,
         "Library Ready choice did not commit",
       );
@@ -2738,7 +2893,8 @@ export async function preparationScenarios({
       artifacts.push(afterClickPath);
       await browser.wait(
         async () => (await status(port.id)).successful_launches > before.successful_launches,
-        15_000,
+        nativeSettlementBudgetMs,
+        "Game return did not record a completed successful launch",
       );
       await browser.wait(
         () =>
@@ -2754,13 +2910,13 @@ export async function preparationScenarios({
             gameIdentityLabel(port),
             before.successful_launches,
           ),
-        15_000,
-        "Library did not render the completed launch after the game exited",
+        nativeSettlementBudgetMs,
+        "Library Continue card did not reflect the completed launch after game exit",
       );
       await browser.wait(
         async () =>
           (await play.isEnabled()) && (await play.getAttribute("aria-disabled")) !== "true",
-        15_000,
+        nativeSettlementBudgetMs,
         "Launch origin remained excluded after game return and workspace readback",
       );
       const settled = await executeBrowserScript(browser, launchContinuityPoint, play);
@@ -3499,6 +3655,7 @@ export async function preparationScenarios({
       artifacts.push(report);
     }
   });
+  const preparationSession: { unjoined?: { error: unknown } } = {};
   const livePreparationCancellation = async (probeListener?: "late" | "reject") => {
     // "hold" keeps setup running past the reload and listener probes that precede
     // the cancellation; with "wait" (30 s) hosted setup finished first.
@@ -3524,6 +3681,12 @@ export async function preparationScenarios({
         after_sha256?: string;
       }[];
       failure?: { message: string; observed_at: string };
+      failure_cleanup?: {
+        attempted_start: boolean;
+        owned?: OwnedPreparationSettlement;
+        ownership_issue?: string;
+        error?: string;
+      };
       listener_lifetime?: Awaited<ReturnType<typeof listenerLifetimeScenario>>;
       overlap?: { cli_refusal: unknown; unrelated_verification?: ActivityRecord };
     } = { port_id: port.id, phases: [], inputs: [] };
@@ -3544,7 +3707,9 @@ export async function preparationScenarios({
       const checkedBootstrap = transportValue("desktop_bootstrap_status", bootstrap.value);
       assert.equal(checkedBootstrap.ready, true);
       observation.bootstrap = checkedBootstrap;
-      const activityRecords = await activities();
+      const activityFeed = await read("activity", "get_activities");
+      assert.equal(activityFeed.active_and_actionable_complete, true);
+      const activityRecords = activityFeed.records;
       observation.activities = activityRecords;
       const currentStatus = await status(port.id);
       observation.status = currentStatus;
@@ -3555,12 +3720,17 @@ export async function preparationScenarios({
         status: currentStatus,
       };
     };
-    let originalFailure;
-    let evidenceFailure;
+    let originalFailure: { error: unknown } | undefined;
+    let evidenceFailure: { error: unknown } | undefined;
+    let activity: ActivityRecord | undefined;
+    let ownershipIssue: string | undefined;
+    let startRequested = false;
+    let originalInstallPath: string | undefined;
     try {
       const before = await observe("before-start");
       const baselineIds = preparationIds(before.activities);
       const activePath = required(before.status.active).path;
+      originalInstallPath = activePath;
       for (const [index, input] of [
         path.join(output, `${port.id}.chd`),
         path.join(activePath, required(required(port.executable_hints[host])[0])),
@@ -3582,16 +3752,32 @@ export async function preparationScenarios({
       }
       await browser.findElement(setupReviewButton()).click();
       await browser.wait(until.elementLocated(setupConfirmButton()), 15_000);
-      await browser.findElement(setupConfirmButton()).click();
-      let activity: ActivityRecord | undefined;
+      const confirmation = await browser.findElement(setupConfirmButton());
+      startRequested = true;
+      await confirmation.click();
       await browser.wait(
         async () => {
-          activity = (await activities()).find(
+          const feed = await read("activity", "get_activities");
+          if (!feed.active_and_actionable_complete) {
+            ownershipIssue =
+              "A complete activity feed is required to identify the owned preparation";
+            throw new Error(ownershipIssue);
+          }
+          const candidates = feed.records.filter(
             (item) =>
               item.operation === "prepare" &&
+              item.target_kind === "port" &&
               item.target_id === port.id &&
+              !baselineIds.includes(item.id) &&
               item.status === "running",
           );
+          const candidate = candidates[0];
+          if (candidates.length > 1 || (activity && candidate && activity.id !== candidate.id)) {
+            ownershipIssue =
+              "One explicit setup action must retain one unambiguous owned preparation";
+            throw new Error(ownershipIssue);
+          }
+          activity ??= candidate;
           return (
             activity &&
             (await stat(
@@ -3774,7 +3960,7 @@ export async function preparationScenarios({
         until.elementLocated(
           By.css(`.activity-row.cancelled[data-activity-id="${required(activity).id}"]`),
         ),
-        15_000,
+        nativeSettlementBudgetMs,
         "Cancelled preparation must remain discoverable after navigating away",
       );
       const cancelledText = await cancelledRow.getText();
@@ -3798,7 +3984,7 @@ export async function preparationScenarios({
       await selectPrimaryNavigation(browser, "Activity");
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-        15_000,
+        nativeSettlementBudgetMs,
         "Cancelled preparation must remain discoverable after navigating away and returning",
       );
       await browser.navigate().refresh();
@@ -3813,7 +3999,8 @@ export async function preparationScenarios({
       await selectPrimaryNavigation(browser, "Activity");
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-        15_000,
+        nativeSettlementBudgetMs,
+        "Cancelled preparation details must remain discoverable after reload",
       );
       const row = await browser.findElement(By.css(".activity-row.cancelled"));
       assert.match(await row.getText(), /An earlier attempt left unfinished work/);
@@ -3850,7 +4037,7 @@ export async function preparationScenarios({
         15_000,
         "The retained preparation log must render after expansion",
       );
-      assert.match(await row.getText(), /Preparing game files/);
+      assert.match(await row.getText(), /Game file preparation/);
       assert.match(await row.getText(), /owned conversion began/);
       assert.doesNotMatch(
         await row.getText(),
@@ -3876,13 +4063,57 @@ export async function preparationScenarios({
       });
       artifacts.push(screenshot);
     } catch (error) {
-      originalFailure = error;
+      originalFailure = { error };
       observations.failure = {
         message: errorMessage(error),
         observed_at: new Date().toISOString(),
       };
       throw error;
     } finally {
+      if (originalFailure !== undefined && startRequested) {
+        const cleanup: NonNullable<typeof observations.failure_cleanup> = {
+          attempted_start: true,
+          ...(ownershipIssue === undefined ? {} : { ownership_issue: ownershipIssue }),
+        };
+        observations.failure_cleanup = cleanup;
+        try {
+          if (ownershipIssue !== undefined) assert.fail(ownershipIssue);
+          assert.ok(
+            activity,
+            "The attempted preparation has no captured owned operation ID; stop the run",
+          );
+          const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
+          assert.equal(bootstrap.ready, true);
+          assert.ok(typeof bootstrap.library_root === "string");
+          assert.equal(path.resolve(bootstrap.library_root), path.resolve(library));
+          const operationId = activity.id;
+          const owned: OwnedPreparationSettlement = { operation_id: operationId, port_id: port.id };
+          cleanup.owned = owned;
+          await joinOwnedPreparationAfterFailure(owned, required(originalInstallPath), {
+            read: async () => {
+              const feed = await read("activity", "get_activities");
+              assert.equal(feed.active_and_actionable_complete, true);
+              return feed.records.find((item) => item.id === operationId);
+            },
+            cancel: () => read("cancellation_state", "cancel_operation", { operationId }),
+            previewQuiescence: () =>
+              read("desktop_preparation_cleanup_preview", "preview_preparation_cleanup", {
+                operationId,
+                generation: bootstrap.generation,
+              }),
+            wait: (probe, timeout, message) => browser.wait(probe, timeout, message),
+          });
+        } catch (error) {
+          cleanup.error = errorMessage(error);
+          preparationSession.unjoined = {
+            error: new AggregateError(
+              [originalFailure.error, error],
+              "The failed preparation could not be joined safely; remaining scenarios must not run",
+              { cause: originalFailure.error },
+            ),
+          };
+        }
+      }
       const capture = path.join(output, "live-preparation-reload-observations.json");
       try {
         await writeFile(capture, JSON.stringify(observations, null, 2), { flag: "wx" });
@@ -3890,16 +4121,31 @@ export async function preparationScenarios({
       } catch (error) {
         console.error("Live preparation evidence write failed:", error);
         console.error(JSON.stringify(observations));
-        if (!originalFailure) evidenceFailure = error;
+        if (originalFailure === undefined) evidenceFailure = { error };
+        if (preparationSession.unjoined)
+          preparationSession.unjoined = {
+            error: new AggregateError(
+              [preparationSession.unjoined.error, error],
+              "Unjoined preparation evidence could not be written",
+              { cause: originalFailure?.error },
+            ),
+          };
       }
     }
-    if (evidenceFailure) rethrowFailure(evidenceFailure);
+    if (evidenceFailure) rethrowFailure(evidenceFailure.error);
+  };
+  const requirePreparationJoined = () => {
+    const unjoined = preparationSession.unjoined;
+    if (unjoined) rethrowFailure(unjoined.error);
   };
   await scenario("native-preparation-cancellation", () => livePreparationCancellation());
+  requirePreparationJoined();
   await scenario("native-late-listener-disposal", () => livePreparationCancellation("late"));
+  requirePreparationJoined();
   await scenario("native-rejected-listener-registration", () =>
     livePreparationCancellation("reject"),
   );
+  requirePreparationJoined();
   browser = await interruptedPreparationScenario({
     browser,
     invoke,
@@ -4274,7 +4520,10 @@ export async function preparationScenarios({
       );
     };
     const more = () => By.xpath(`//button[@data-detail-origin="library:card-more:${port.id}"]`);
-    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${gameIdentityLabel(port)}"]`);
+    const authoredGame = port.presentation?.original_game?.id;
+    const favoriteId = authoredGame ? `game-${authoredGame}` : `port-${port.id}`;
+    const favoriteName = authoredGame ? gameTitle(port) : gameIdentityLabel(port);
+    const favorite = () => By.xpath(`//button[@aria-label="Favorite ${favoriteName}"]`);
     const closeMembershipMenu = async (allowRemovedTrigger = false) => {
       const menu = By.xpath(
         `//*[@role="menu" and @aria-label="More actions for ${gameIdentityLabel(port)}"]`,
@@ -4303,6 +4552,7 @@ export async function preparationScenarios({
       const initial = await organization();
       const initialFavorites = await favorites();
       assert.equal(initialFavorites.includes(port.id), false, "Owned fixture starts unfavorited");
+      assert.equal(initial.saved_game_ids.includes(favoriteId), false);
       assert.ok(!Object.values(initial.collections).some((entry) => entry.name === collectionName));
       await manageCollections();
       await browser
@@ -4333,12 +4583,16 @@ export async function preparationScenarios({
       );
       await closeMembershipMenu();
       await click(favorite());
-      await browser.wait(async () => (await favorites()).includes(port.id), 15_000);
+      await browser.wait(
+        async () => (await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
       await click(By.css(`button[aria-label="Collection: ${collectionName}"]`));
       await browser.wait(until.elementLocated(By.css(`[data-detail-game-id="${port.id}"]`)), 5_000);
       await capture("membership-favorite-saved");
       const persisted = await organization();
       const savedFavorites = await favorites();
+      assert.deepEqual(savedFavorites, initialFavorites);
       browser = await restartApplication("native-organization-persisted");
       await browser.manage().window().setRect({ width: 1280, height: 900 });
       await libraryView();
@@ -4368,7 +4622,10 @@ export async function preparationScenarios({
       await browser.wait(async () => !(await organization()).collections[collectionId], 15_000);
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await click(favorite());
-      await browser.wait(async () => !(await favorites()).includes(port.id), 15_000);
+      await browser.wait(
+        async () => !(await organization()).saved_game_ids.includes(favoriteId),
+        15_000,
+      );
       const final = await organization();
       assert.deepEqual(final.collections, initial.collections);
       assert.deepEqual(await favorites(), initialFavorites);

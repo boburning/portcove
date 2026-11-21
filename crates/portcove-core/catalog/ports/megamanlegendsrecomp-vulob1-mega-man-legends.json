@@ -6,7 +6,7 @@
     "original_game_title": "Mega Man Legends",
     "summary": "Experimental project. The project describes native enhancements and a terrain-edge white-line defect. An HD pack is not included, and a complete campaign has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/VuloB1/MegaManLegendsRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/VuloB1/MegaManLegendsRecomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "97e5c9d299d1547a95db9079571c26e2655b4695985fdca68631b411c9b17d47",
       "game_slug": "mega-man-legends",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-legends",
+      "evidence_urls": ["https://github.com/VuloB1/MegaManLegendsRecomp"],
+      "source_editions": [
+        {
+          "id": "mega-man-legends-playstation",
+          "title": "Mega Man Legends (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/VuloB1/MegaManLegendsRecomp/blob/49a6897571aefb5aa6a8164d3116315da75c5a4b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

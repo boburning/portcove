@@ -4,6 +4,14 @@
     "id": "pc-theneedforspeed-vs-sr-dev-the-need-for-speed-3do",
     "name": "The Need for Speed (3DO) — pc-theneedforspeed (vs-sr-dev)",
     "original_game_title": "The Need for Speed (3DO)",
+    "artwork": {
+      "game_id": 90,
+      "cover_id": 78439,
+      "image_id": "co1oiv",
+      "image_sha256": "d1ffd7b6c2c35850bd78abe5e7d1fc8966fbad75617d96d1bfbb64ce27dc025e",
+      "game_slug": "the-need-for-speed",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental project. The project reports its first actual race and play in the game window. Coverage of all cars and tracks, and completion of endurance play, have not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-theneedforspeed",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/vs-sr-dev/pc-theneedforspeed"
     },
-    "issue_number": 3595
+    "issue_number": 3595,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-need-for-speed-3do",
+      "evidence_urls": ["https://github.com/vs-sr-dev/pc-theneedforspeed"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

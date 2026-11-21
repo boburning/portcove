@@ -1,5 +1,6 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "rustmania-racing-ray-m-w-muppet-racemania",
     "name": "Muppet RaceMania — RustMania Racing (Ray-m-w)",
@@ -34,6 +35,21 @@
       "image_sha256": "ca8e2b9d66473b86d282d634f4e78fc0c30ded2504db2cc41d90055a1e0d4d6e",
       "game_slug": "muppet-racemania",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "muppet-racemania",
+      "evidence_urls": ["https://github.com/Ray-m-w/RustMania-Racing"],
+      "source_editions": [
+        {
+          "id": "muppet-racemania-playstation",
+          "title": "Muppet RaceMania (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Ray-m-w/RustMania-Racing/blob/8bfaf5438e44fe4037821d2baca9f51513097e99/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -78,12 +94,6 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed"
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["rustmania-racing.exe"]
-      }
     }
   },
   "route_facts_v1": {

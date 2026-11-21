@@ -1,7 +1,8 @@
 import type { TFunction } from "i18next";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { focusAndReveal, navigationScope } from "../focus";
 import { useAppTranslation } from "../localization";
 import { errorText, formatBytes } from "../view-model";
 import type { InstallBatchRecord, InstallBatchReview, PortDefinition } from "../types";
@@ -64,25 +65,57 @@ export function InstallBatchPanel({
   generation,
   ports,
   portIds,
+  reviewOrigin,
+  onCancelReview,
+  onChanged,
   onDone,
 }: {
   generation: number;
   ports: PortDefinition[];
   /** Games to review now, or undefined to only offer continuing an unfinished batch. */
   portIds: string[] | undefined;
-  onDone: () => void;
+  reviewOrigin?: HTMLElement | undefined;
+  onCancelReview?: ((panel: HTMLElement | null) => void) | undefined;
+  /** The workspace owner rereads Core and publishes refresh failure independently. */
+  onChanged?: (() => Promise<unknown>) | undefined;
+  onDone: (panel: HTMLElement | null) => void;
 }) {
   // The parent remounts this panel for each new selection, so a selection
   // starts in review without resetting state from an effect.
   const [phase, setPhase] = useState<Phase>(
     portIds?.length ? { kind: "reviewing" } : { kind: "idle" },
   );
+  const panel = useRef<HTMLElement>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const entered = useRef(false);
+  useLayoutEffect(() => {
+    if (entered.current) return;
+    entered.current = true;
+    const target = reviewHeading.current;
+    if (
+      !portIds?.length ||
+      !target?.isConnected ||
+      target.closest("[inert], [hidden], [aria-hidden=true]") ||
+      !target.getClientRects().length ||
+      getComputedStyle(target).visibility === "hidden" ||
+      !navigationScope().contains(target) ||
+      (document.activeElement !== document.body && document.activeElement !== reviewOrigin)
+    )
+      return;
+    // Entry belongs to this explicit selection, never to later plan completion.
+    focusAndReveal(target, { centerBeforeFocus: true });
+  }, [portIds, reviewOrigin]);
   const { t } = useAppTranslation("installation");
   const [unfinished, setUnfinished] = useState<InstallBatchRecord>();
   const [error, setError] = useState<string>();
-  const owner = useRef(generation);
-  useEffect(() => {
+  const [confirming, setConfirming] = useState(false);
+  const activeConfirmation = useRef<number | undefined>(undefined);
+  const owner = useRef<number | undefined>(generation);
+  useLayoutEffect(() => {
     owner.current = generation;
+    return () => {
+      owner.current = undefined;
+    };
   }, [generation]);
   const accepts = (expected: number) => owner.current === expected;
   const name = (id: string) => ports.find((port) => port.id === id)?.name ?? id;
@@ -112,6 +145,15 @@ export function InstallBatchPanel({
       });
   }, [portIds, generation]);
 
+  const refreshChanged = async (expected: number) => {
+    if (!accepts(expected)) return;
+    try {
+      await onChanged?.();
+    } catch {
+      // Refresh feedback belongs to the workspace; preserve the batch's result/error.
+    }
+  };
+
   const run = async (batchId: string, total: number) => {
     const expected = generation;
     setError(undefined);
@@ -122,16 +164,22 @@ export function InstallBatchPanel({
       // Games another Portcove window is still installing keep the batch unfinished.
       setUnfinished(stillRunning(record) ? record : undefined);
       setPhase({ kind: "finished", record });
+      void refreshChanged(expected);
     } catch (value) {
       if (!accepts(expected)) return;
       setError(errorText(value));
       const record = await desktopApi.installBatch(batchId, expected).catch(() => null);
-      if (accepts(expected)) setPhase(record ? { kind: "finished", record } : { kind: "idle" });
+      if (!accepts(expected)) return;
+      setPhase(record ? { kind: "finished", record } : { kind: "idle" });
+      void refreshChanged(expected);
     }
   };
 
   const confirm = async (review: InstallBatchReview) => {
     const expected = generation;
+    if (activeConfirmation.current === expected) return;
+    activeConfirmation.current = expected;
+    setConfirming(true);
     const ready = review.items.filter((item) => item.plan && !item.hold);
     const waiting = review.items.filter((item) => !ready.includes(item));
     setError(undefined);
@@ -142,8 +190,10 @@ export function InstallBatchPanel({
           waiting.map((item) => ({ port_id: item.port_id, origin: "game_file_discovery" })),
           expected,
         );
+      if (!accepts(expected)) return;
       if (!ready.length) {
-        if (accepts(expected)) onDone();
+        void refreshChanged(expected);
+        onDone(panel.current);
         return;
       }
       const batch = await desktopApi.startInstallBatch(
@@ -153,9 +203,17 @@ export function InstallBatchPanel({
         })),
         expected,
       );
-      if (accepts(expected)) await run(batch.id, batch.items.length);
+      if (accepts(expected)) void run(batch.id, batch.items.length);
     } catch (value) {
-      if (accepts(expected)) setError(errorText(value));
+      if (!accepts(expected)) return;
+      setError(errorText(value));
+      // A waiting game may already be saved, or a failed start may need readback.
+      void refreshChanged(expected);
+    } finally {
+      if (activeConfirmation.current === expected) {
+        activeConfirmation.current = undefined;
+        if (accepts(expected)) setConfirming(false);
+      }
     }
   };
 
@@ -168,11 +226,18 @@ export function InstallBatchPanel({
     }
   };
 
+  if (phase.kind === "idle" && !error && !unfinished) return null;
+
   return (
-    <section aria-label={t("batch.label")} className="col-span-full">
+    <section ref={panel} aria-label={t("batch.label")} className="install-batch col-span-full">
+      {portIds?.length && (
+        <h3 ref={reviewHeading} tabIndex={-1}>
+          {t("batch.label")}
+        </h3>
+      )}
       {error && <p role="alert">{error}</p>}
       {phase.kind === "idle" && unfinished && (
-        <div>
+        <div className="grid justify-items-start gap-3">
           <p>{t("batch.unfinished", { count: unfinished.items.length })}</p>
           <Button data-focusable onClick={() => void run(unfinished.id, unfinished.items.length)}>
             {t("batch.continue")}
@@ -184,12 +249,13 @@ export function InstallBatchPanel({
         <ReviewList
           review={phase.review}
           name={name}
+          confirming={confirming}
           onConfirm={(review) => void confirm(review)}
-          onCancel={onDone}
+          onCancel={() => (onCancelReview ?? onDone)(panel.current)}
         />
       )}
       {phase.kind === "running" && (
-        <div>
+        <div className="grid justify-items-start gap-3">
           <p role="status">{t("batch.running", { count: phase.total })}</p>
           <Button data-focusable variant="outline" onClick={() => void cancel(phase.batchId)}>
             {t("batch.stop")}
@@ -197,10 +263,10 @@ export function InstallBatchPanel({
         </div>
       )}
       {phase.kind === "finished" && (
-        <div>
+        <div className="grid gap-3">
           <h3>{stillRunning(phase.record) ? t("batch.inProgress") : t("batch.results")}</h3>
           {stillRunning(phase.record) && <p role="status">{t("batch.stillRunning")}</p>}
-          <ul>
+          <ul className="install-batch-list">
             {phase.record.items.map((item) => (
               <li key={item.port_id}>
                 <Trans
@@ -215,7 +281,17 @@ export function InstallBatchPanel({
               </li>
             ))}
           </ul>
-          <Button data-focusable onClick={onDone}>
+          <Button
+            data-focusable
+            className="justify-self-start"
+            onClick={() => {
+              if (!portIds?.length) {
+                setError(undefined);
+                setPhase({ kind: "idle" });
+              }
+              onDone(panel.current);
+            }}
+          >
             {t("batch.done")}
           </Button>
         </div>
@@ -227,11 +303,13 @@ export function InstallBatchPanel({
 function ReviewList({
   review,
   name,
+  confirming,
   onConfirm,
   onCancel,
 }: {
   review: InstallBatchReview;
   name: (id: string) => string;
+  confirming: boolean;
   onConfirm: (review: InstallBatchReview) => void;
   onCancel: () => void;
 }) {
@@ -239,11 +317,11 @@ function ReviewList({
   const ready = review.items.filter((item) => item.plan && !item.hold);
   const waiting = review.items.length - ready.length;
   return (
-    <div>
+    <div className="grid gap-3">
       <h3>{t("batch.reviewHeading")}</h3>
       <p>{t("batch.reviewSummary", { ready: ready.length, waiting })}</p>
       <BatchCapacity capacity={review.capacity} name={name} />
-      <ul>
+      <ul className="install-batch-list">
         {review.items.map((item) => (
           <li key={item.port_id}>
             {item.plan && !item.hold ? (
@@ -271,14 +349,22 @@ function ReviewList({
           </li>
         ))}
       </ul>
-      <Button data-focusable onClick={() => onConfirm(review)}>
-        {ready.length
-          ? t("batch.confirmInstall", { total: review.items.length, ready: ready.length })
-          : t("batch.confirmAdd", { total: review.items.length })}
-      </Button>
-      <Button data-focusable variant="outline" onClick={onCancel}>
-        {t("batch.cancel")}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button data-focusable variant="outline" disabled={confirming} onClick={onCancel}>
+          {t("batch.cancel")}
+        </Button>
+        <Button
+          data-focusable
+          variant="primary"
+          aria-busy={confirming}
+          focusableWhenDisabled={confirming}
+          onClick={() => onConfirm(review)}
+        >
+          {ready.length
+            ? t("batch.confirmInstall", { total: review.items.length, ready: ready.length })
+            : t("batch.confirmAdd", { total: review.items.length })}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -294,7 +380,7 @@ function BatchCapacity({
   const { t } = useAppTranslation("installation");
   if (!capacity) return null;
   return (
-    <div>
+    <div className="grid gap-2 text-pc-muted-foreground">
       {capacity.download_bytes > 0 && (
         <p>{t("batch.downloads", { size: formatBytes(capacity.download_bytes) })}</p>
       )}

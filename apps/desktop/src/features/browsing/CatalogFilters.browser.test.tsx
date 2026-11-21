@@ -4,6 +4,8 @@ import {
   openFilterField as openField,
 } from "../../../test/filter-fields";
 import { controlledAct as act } from "../../../test/controlled-react-act";
+import { expectDisclosureAlignment } from "../../../test/disclosure-alignment";
+import { captureParityState } from "../../../test/parity-capture";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -154,16 +156,58 @@ afterEach(async () => {
   delete document.documentElement.dataset.theme;
 });
 
-it("keeps three primary Library groups and reveals restored advanced selections without losing their chips", async () => {
+for (const view of ["catalog", "library"] as const) {
+  it.each(["dark", "light"] as const)(
+    `aligns the actual ${view} filter disclosures in %s without changing their controls`,
+    async (theme) => {
+      const oldTheme = document.documentElement.dataset.theme;
+      const oldViewport = { width: innerWidth, height: innerHeight };
+      await page.viewport(430, 780);
+      document.documentElement.dataset.theme = theme;
+      try {
+        await root.rerender(<Fixture view={view} />);
+        await click("Filters (0)");
+        const panel = document.querySelector<HTMLElement>(".catalog-filter-panel")!;
+        const summaries = [...panel.querySelectorAll<HTMLElement>("summary")];
+        expect(summaries).toHaveLength(2);
+        await document.fonts.ready;
+        for (const [index, summary] of summaries.entries()) {
+          expectDisclosureAlignment(summary);
+          summary.focus();
+          await userEvent.keyboard("{Enter}");
+          expect(summary.closest("details")!.open).toBe(true);
+          expectDisclosureAlignment(summary);
+          await userEvent.keyboard("{Enter}");
+          expect(summary.closest("details")!.open).toBe(false);
+          expect(document.activeElement).toBe(summary);
+          const bounds = summary.getBoundingClientRect();
+          expect(bounds.top).toBeGreaterThanOrEqual(0);
+          expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+          await captureParityState(
+            `${view}-filter-${index === 0 ? "explanation" : "advanced"}-disclosure-aligned`,
+          );
+        }
+        expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth + 1);
+        expect(current).toBe("all");
+      } finally {
+        if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = oldTheme;
+        await page.viewport(oldViewport.width, oldViewport.height);
+      }
+    },
+  );
+}
+
+it("keeps routine Library groups visible and reveals restored advanced selections without losing their chips", async () => {
   await root.rerender(<Fixture view="library" initial={{ version: 1, portOptions: ["single"] }} />);
   await click("Filters (1)");
   const panel = document.querySelector<HTMLElement>(".catalog-filter-panel")!;
   const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
   expect(
     [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
-  ).toEqual(["Runs on", "Original system", "Update channels"]);
+  ).toEqual(["Game files", "Installation attention", "Observed updates"]);
   const advanced = [...panel.querySelectorAll("details")].find(
-    (details) => details.querySelector("summary")?.textContent === "Advanced filters",
+    (details) => details.querySelector("summary")?.textContent === "More filters",
   )!;
   expect(advanced.open).toBe(true);
   expect(advanced.querySelector('[aria-label="Port options: Single port"]')).not.toBeNull();
@@ -183,7 +227,7 @@ it.each([
   document.documentElement.dataset.theme = theme;
   await render();
   await click("Filters (0)");
-  await page.getByText("Advanced filters", { exact: true }).click();
+  await page.getByText("More filters", { exact: true }).click();
   const panel = page.getByRole("region", { name: "Filter options", exact: true });
   const fields = [
     ...panel.element().querySelectorAll<HTMLButtonElement>(".compact-filter-field button"),
@@ -212,15 +256,39 @@ it.each([
   await expect.element(panel).not.toBeInTheDocument();
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
 });
-it("starts with ordinary filters and exposes technical groups on request", async () => {
+it("leads with routine Discover choices and exposes technical choices on request", async () => {
   await render();
   await click("Filters (0)");
-  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).toBeVisible();
+  const panel = document.querySelector<HTMLElement>(".catalog-filter-panel")!;
+  const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
   expect(
-    page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open,
-  ).toBe(false);
-  await page.getByText("Advanced filters", { exact: true }).click();
+    [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
+  ).toEqual(["Device eligibility", "Library membership", "Game files", "Port options"]);
+  const more = page.getByText("More filters", { exact: true });
+  expect(more.element().closest("details")?.open).toBe(false);
+  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).not.toBeInTheDocument();
+  await more.click();
   await expect.element(page.getByRole("button", { name: /^Setup methods:/ })).toBeVisible();
+  await click("Windows (2)");
+  await userEvent.keyboard("{Escape}");
+  await more.click();
+  expect(more.element().closest("details")?.open).toBe(false);
+  await expect
+    .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
+    .toBeVisible();
+});
+it("combines this device with named platforms in the same facet", async () => {
+  await render();
+  await act(async () => setContext(retainedContext(new Map())));
+  await click("Filters (0)");
+  await click("Available for this device (2)");
+  expect((await control("Linux (2)")).getAttribute("aria-checked")).toBe("false");
+  await click("Linux (2)");
+  expect(current).toMatchObject({ platforms: ["this-device", "linux-x86-64"] });
+  expect((await control("Available for this device (2)")).getAttribute("aria-checked")).toBe(
+    "true",
+  );
+  expect((await control("Linux (2)")).getAttribute("aria-checked")).toBe("true");
 });
 it("uses one inline panel and returns focus from Escape and Done without clearing search", async () => {
   await render();
@@ -232,8 +300,10 @@ it("uses one inline panel and returns focus from Escape and Done without clearin
   await expect
     .element(page.getByRole("heading", { name: "Discover filters", exact: true }))
     .toHaveFocus();
-  await expect.element(page.getByRole("button", { name: /^Original system:/ })).toBeVisible();
-  await expect.element(page.getByRole("button", { name: /^Runs on:/ })).toBeVisible();
+  await expect.element(page.getByRole("button", { name: /^Device eligibility:/ })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: /^Original system:/ }))
+    .not.toBeInTheDocument();
   await click("Windows (1)");
   await closeFilterPanel();
   await expect
@@ -258,9 +328,9 @@ it("keeps advanced choices open and focus visible after clearing their last sele
   await openField("Setup methods");
   const choice = page.getByRole("checkbox", { name: "Download and install (3)", exact: true });
   await choice.click();
-  expect(
-    page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open,
-  ).toBe(true);
+  expect(page.getByText("More filters", { exact: true }).element().closest("details")?.open).toBe(
+    true,
+  );
   await expect.element(choice).toHaveFocus();
   await expect.element(choice).toBeVisible();
 });
@@ -358,7 +428,6 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
   );
   expect((await control("Linux (unavailable)")).getAttribute("aria-checked")).toBe("true");
   await userEvent.keyboard("{Escape}");
-  await page.getByText("Advanced filters", { exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: /^Installation attention:/ }))
     .toBeVisible();
@@ -634,7 +703,7 @@ it("labels filters, groups and chips in the current language", async () => {
     const primary = panel.querySelector(":scope > .catalog-filter-groups")!;
     expect(
       [...primary.querySelectorAll(".compact-filter-field > span")].map((node) => node.textContent),
-    ).toEqual(["يعمل على", "النظام الأصلي", "قنوات التحديث"]);
+    ).toEqual(["ملفات اللعبة", "انتباه التثبيت", "التحديثات الملاحظة"]);
     await act(async () => button("تم").click());
     expect(document.body.textContent).toContain("خيارات المنفذ: منفذ واحد");
     expect(document.body.textContent).not.toContain("Port options");

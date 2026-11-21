@@ -575,3 +575,313 @@ async fn a_hold_is_not_shown_after_the_setup_stops_allowing_unattended_updates()
         .unwrap();
     assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
 }
+
+#[tokio::test]
+async fn revoking_automatic_policy_after_planning_does_not_apply_the_update() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    let before = w.revision();
+    let next = wrapper(&[("hd-link.o2r", "objects/link.bin", b"v2")]);
+    let (root, _requests, server) = serve_http_bytes(vec![
+        project("2.0", &[(10, 1), (11, next.len())]),
+        redirect(),
+        file(&next),
+        project("2.0", &[(10, 1), (11, next.len())]),
+        redirect(),
+        file(&next),
+    ]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, PORT, &w.profile, PROJECT, 11)
+        .await
+        .unwrap();
+    let provider = ProviderClient::gamebanana(&client, PORT).unwrap();
+    let automatic = w
+        .service
+        .plan_provider_install_in_mode(
+            &provider,
+            PORT,
+            &w.profile,
+            &PROJECT.to_string(),
+            "11",
+            ProviderInstallMode::Automatic,
+        )
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert_eq!(automatic, plan);
+    let authorization = w.service.authorize_provider_install(&plan).unwrap();
+    w.service
+        .set_profile_update_policy(PORT, &w.profile, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+
+    let error = w
+        .service
+        .apply_automatic_provider_install(&automatic, &authorization.token)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(w.revision(), before);
+
+    w.service
+        .discard_provider_install_in_mode(&automatic, ProviderInstallMode::Automatic)
+        .unwrap();
+    // Automatic staging cleanup leaves an identical, independently reviewed plan intact.
+    let reviewed = w.service.authorize_provider_install(&plan).unwrap();
+    let after = w
+        .service
+        .apply_provider_install(&plan, &reviewed.token)
+        .unwrap();
+    assert_eq!(after.revision, before.revision + 1);
+}
+
+#[tokio::test]
+async fn current_check_survives_reopening_and_stays_distinct_from_an_unavailable_check() {
+    let w = world();
+    let payload = wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]);
+    w.install_first(&payload).await;
+    w.allow_automatic();
+    assert!(
+        w.pass_without_download(&[(10, payload.len())])
+            .await
+            .is_empty()
+    );
+
+    let library = crate::Library::open(w.service.library().root()).unwrap();
+    let mut reopened = PortcoveService::new_read_only(library).unwrap();
+    reopened.replace_catalog_for_test(w.service.catalog().clone());
+    let checks = reopened.mod_setups(PORT).unwrap().last_automatic_checks;
+    assert_eq!(checks.len(), 1);
+    assert_eq!(checks[0].profile_id, w.profile);
+    assert_eq!(checks[0].native_ids, ["hd-link.o2r"]);
+    assert!(
+        checks[0].result.is_none(),
+        "a current provider response was recorded"
+    );
+    assert!(checks[0].checked_at > 0);
+
+    let (root, _, server) = serve_http_bytes(vec![
+        b"HTTP/1.1 503 Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+    ]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    w.service
+        .run_eligible_provider_updates_with(&client, PORT)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let checks = reopened.mod_setups(PORT).unwrap().last_automatic_checks;
+    assert_eq!(checks.len(), 1);
+    assert!(matches!(
+        checks[0].result,
+        Some(ProviderAutoUpdateOutcome::Unavailable { .. })
+    ));
+}
+
+#[tokio::test]
+async fn changed_file_facts_reconsider_a_hold_at_the_same_provider_file_id() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    let held_payload = wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v2"),
+        ("extra.o2r", "objects/extra.bin", b"extra mod"),
+    ]);
+    let held = w.pass_with_update(&held_payload).await;
+    assert!(matches!(
+        held[0].outcome,
+        ProviderAutoUpdateOutcome::Held { .. }
+    ));
+    let cached = w
+        .pass_without_download(&[(10, 1), (11, held_payload.len())])
+        .await;
+    assert_eq!(cached, held);
+
+    // The provider corrected the downloadable file without changing its ID or
+    // display label. Its new size triggers inspection and the ordinary review.
+    let corrected = wrapper(&[("hd-link.o2r", "objects/link.bin", b"corrected v2")]);
+    assert_ne!(corrected.len(), held_payload.len());
+    let updated = w.pass_with_update(&corrected).await;
+    assert!(matches!(
+        updated[0].outcome,
+        ProviderAutoUpdateOutcome::Applied { ref file_id, .. } if file_id == "11"
+    ));
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+}
+
+#[test]
+fn scopes_with_shared_provider_coordinates_keep_distinct_updates_and_holds() {
+    let w = world();
+    let mut inventory = w.service.mod_setups(PORT).unwrap().inventory.unwrap();
+    let view = &mut inventory.profiles[0];
+    view.profile.intent.update_policy = ProfileUpdatePolicy::AutomaticEligible;
+    let binding = |community: &str| crate::ModProviderBinding::Thunderstore {
+        community: community.to_owned(),
+    };
+    let make_observation =
+        |native_id: &str, community: &str, state: ProviderUpdateState| ProviderUpdateObservation {
+            native_id: native_id.into(),
+            provider: crate::ProviderPackageRef {
+                binding: Some(binding(community)),
+                provider: "thunderstore".into(),
+                project: "Owner-Shared".into(),
+                file: Some("1.0.0".into()),
+                version: Some("1.0.0".into()),
+            },
+            state,
+            installed_version: Some("1.0.0".into()),
+            observed_version: None,
+            version_changed: false,
+            newer_files: Vec::new(),
+            freshness: None,
+            reason: None,
+        };
+    let withdrawn = make_observation(
+        "old.nrm",
+        "original-community",
+        ProviderUpdateState::Unavailable,
+    );
+    let admitted = make_observation(
+        "new.nrm",
+        "reviewed-community",
+        ProviderUpdateState::NewerFiles,
+    );
+    view.revision.packages = [&withdrawn, &admitted]
+        .into_iter()
+        .map(|observation| crate::ResolvedPackage {
+            native_id: observation.native_id.clone(),
+            native_version: None,
+            provider: Some(observation.provider.clone()),
+            sha256: "a".repeat(64),
+            size: 1,
+            enabled: true,
+            requires: Vec::new(),
+            provider_requires: Vec::new(),
+        })
+        .collect();
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("zelda64-recomp")
+        .unwrap()
+        .clone();
+    port.mod_provider_bindings = Some(vec![binding("reviewed-community")]);
+    let candidate = ProviderFileCandidate {
+        file_id: "2.0.0".into(),
+        file_name: "Owner-Shared-2.0.0.zip".into(),
+        size: 1024,
+        added_at: 12,
+        download_url: "https://thunderstore.io/package/download/Owner/Shared/2.0.0/".into(),
+        claimed_md5: None,
+        archived: false,
+        status_unknown: None,
+        claimed_scan: None,
+        thunderstore_dependencies: None,
+    };
+    let tmp = tempfile::tempdir().unwrap();
+    let layout = Layout::for_user(tmp.path());
+    for observations in [
+        [withdrawn.clone(), admitted.clone()],
+        [admitted.clone(), withdrawn.clone()],
+    ] {
+        let groups = installed_files(&port.id, &view.revision, &observations);
+        assert_eq!(groups.len(), 2);
+        for group in &groups {
+            assert_eq!(group.packages.len(), 1);
+            assert_eq!(group.packages[0].native_id, group.observation.native_id);
+            remember_hold(
+                &layout,
+                hold_key(&view.profile.id, view.revision.revision, group, &candidate),
+                "review this scope",
+            );
+        }
+        assert_eq!(read_holds(&layout).len(), 2);
+        let active = groups
+            .iter()
+            .find(|group| group.observation.state == ProviderUpdateState::NewerFiles)
+            .unwrap();
+        settle_holds(&layout, &view.profile.id, active, None);
+        assert_eq!(read_holds(&layout).len(), 1);
+        remember_hold(
+            &layout,
+            hold_key(&view.profile.id, view.revision.revision, active, &candidate),
+            "review this scope",
+        );
+    }
+    let held = held_updates(&layout, &inventory, &port);
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].native_ids, ["new.nrm"]);
+}
+
+#[test]
+fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() {
+    let candidate = ProviderFileCandidate {
+        file_id: "2.0.0".into(),
+        file_name: "Owner-Root-2.0.0.zip".into(),
+        size: 1024,
+        added_at: 12,
+        download_url: "https://thunderstore.io/package/download/Owner/Root/2.0.0/".into(),
+        claimed_md5: None,
+        archived: false,
+        status_unknown: None,
+        claimed_scan: None,
+        thunderstore_dependencies: Some(vec![crate::ThunderstoreDependency {
+            namespace: "Tools".into(),
+            package: "Shared".into(),
+            version: "1.0.0".into(),
+        }]),
+    };
+    let observation = ProviderUpdateObservation {
+        native_id: "root.nrm".into(),
+        provider: crate::ProviderPackageRef {
+            binding: None,
+            provider: "thunderstore".into(),
+            project: "Owner-Root".into(),
+            file: Some("1.0.0".into()),
+            version: Some("1.0.0".into()),
+        },
+        state: ProviderUpdateState::NewerFiles,
+        installed_version: Some("1.0.0".into()),
+        observed_version: Some("2.0.0".into()),
+        version_changed: true,
+        newer_files: vec![candidate.clone()],
+        freshness: None,
+        reason: None,
+    };
+    let installed = InstalledFile {
+        project: "Owner-Root".into(),
+        file: "1.0.0".into(),
+        binding: None,
+        packages: Vec::new(),
+        observation: &observation,
+    };
+    let key = |file: &ProviderFileCandidate| hold_key("profile", 1, &installed, file);
+    let tmp = tempfile::tempdir().unwrap();
+    let layout = Layout::for_user(tmp.path());
+    remember_hold(&layout, key(&candidate), "review the new graph");
+
+    let mut offered = candidate.clone();
+    assert!(read_holds(&layout).contains_key(&key(&offered)));
+    let binding = recomp_review_binding("setup revision one", &candidate).unwrap();
+    assert_eq!(
+        recomp_review_binding("setup revision one", &offered).unwrap(),
+        binding
+    );
+    assert_ne!(
+        recomp_review_binding("setup revision two", &offered).unwrap(),
+        binding
+    );
+    offered.thunderstore_dependencies.as_mut().unwrap()[0].version = "1.0.1".into();
+    assert!(!read_holds(&layout).contains_key(&key(&offered)));
+    assert_ne!(
+        recomp_review_binding("setup revision one", &offered).unwrap(),
+        binding
+    );
+    offered.thunderstore_dependencies = Some(Vec::new());
+    assert!(!read_holds(&layout).contains_key(&key(&offered)));
+
+    let without_requirements = key(&offered);
+    offered.thunderstore_dependencies = None;
+    assert_eq!(key(&offered), without_requirements);
+}

@@ -25,7 +25,7 @@ import type {
 } from "../src/transport-types.generated.d.ts";
 
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
-import { executeBrowserScript } from "./browser-script.mts";
+import { addGamesRouteXPath, executeBrowserScript } from "./browser-script.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import { requestRealRuntimeClose } from "./desktop-real-runtime-test.mts";
 import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mts";
@@ -255,7 +255,7 @@ export async function registeredSourceReuseScenario(context: Context) {
       await selectPrimaryNavigation(browser, "Library");
       await click(button("Add games"));
       // Add games sends game choice to Discover; the exact port's details own its file check.
-      await click(By.css('button[aria-label="Browse games"]'));
+      await click(By.xpath(addGamesRouteXPath("Browse games")));
       const search = await browser.wait(until.elementLocated(By.id("port-search")), 15000);
       await search.sendKeys(fixture.ports[0]!.name);
       await clearCatalogFilters(browser);

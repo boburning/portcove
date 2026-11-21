@@ -1,6 +1,7 @@
 {
   "format_version": 1,
   "order": 93,
+  "psx_managed_windows_v1": "split-mods-no-crash-log",
   "listing": {
     "id": "alexbeav-dino-crisis-2-recomp",
     "name": "Dino Crisis 2 / Alexbeav PSXRecomp",
@@ -47,6 +48,24 @@
           "instruction": "For the upstream Mac route, keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "dino-crisis-2-playstation",
+          "title": "Dino Crisis 2 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/38514024f3a7cea54ff05ae3afdad0929920cb5a/game.toml"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -69,49 +88,6 @@
       "windows-x86-64": ["Dino_Crisis_2_Recompiled.exe"],
       "linux-x86-64": ["Dino_Crisis_2_Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "settings.toml.bad",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures",
-      "overlay_captures.json",
-      "overlay_captures.json.d",
-      "overlay_captures.addendum.jsonl"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      },
-      {
-        "prefix": "overlay_captures.json.",
-        "suffix": ".tmp"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -129,7 +105,17 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested."
+      "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, audio, saves, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

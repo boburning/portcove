@@ -81,7 +81,7 @@ describe("desktop components", () => {
         <Sidebar
           view="library"
           setView={vi.fn()}
-          installedCount={2}
+          libraryCount={2}
           updateCount={1}
           activities={[]}
         />,
@@ -132,17 +132,28 @@ describe("desktop components", () => {
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
     expect(html).toContain("/brand/icons/portcove-mascot-transparent.png");
-    expect(html).toMatch(/<h2[^>]*aria-label="About Portcove"[^>]*>Portcove<\/h2>/u);
+    expect(html).toMatch(/<h2[^>]*id="settings-about-heading"[^>]*>About Portcove<\/h2>/u);
     expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
     expect(html).toContain("Licensed under MIT or Apache-2.0.");
     expect(html).toContain("Open project repository");
     expect(html).toContain("Open diagnostics");
     // Players look for help under About; reporting starts there, not in Advanced.
-    const about = html.slice(html.indexOf('aria-label="About Portcove"'));
-    expect(about).toContain("<h3>Report a problem or send feedback</h3>");
+    const about = html.slice(html.indexOf('id="settings-about-heading"'));
+    expect(about).toContain("<h3>Feedback</h3>");
     expect(about).toMatch(/<button[^>]*>Report a problem or send feedback<\/button>/u);
     expect(html.match(/>Report a problem or send feedback<\/button>/gu)).toHaveLength(1);
   });
+
+  it.each([0, 1, 2])(
+    "names the %i Library entries as ports independently of game grouping",
+    (count) => {
+      const html = renderToStaticMarkup(
+        <PageHeader view="library" query="" setQuery={vi.fn()} libraryCount={count} />,
+      );
+      expect(html).toContain(`${count} ${count === 1 ? "port" : "ports"} in your library`);
+      expect(html).not.toContain(`${count} games`);
+    },
+  );
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
     const library = renderToStaticMarkup(<PageHeader view="library" query="" setQuery={vi.fn()} />);
@@ -203,7 +214,7 @@ describe("desktop components", () => {
       <Sidebar
         view="library"
         setView={vi.fn()}
-        installedCount={1}
+        libraryCount={1}
         updateCount={0}
         activities={[
           { ...base, id: "succeeded", status: "succeeded", started_at: 3, finished_at: 4 },
@@ -269,7 +280,7 @@ describe("desktop components", () => {
       "Check Saves &amp; backups on each game’s page for its save locations and backup options.",
     );
     expect(html).toContain(
-      "Metadata records installed versions, saved file locations and settings",
+      "The export records installed versions, saved file locations and settings",
     );
     expect(html).toMatch(
       /<button[^>]*data-variant="outline"[^>]*>Export library information<\/button>/u,
@@ -615,7 +626,8 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Not signed in. Signing in increases the limit for release checks.");
+    expect(html).toContain("Not signed in");
+    expect(html).toContain("Signing in increases the limit for release checks.");
     expect(html).toContain("GitHub request limit unavailable");
     expect(html).toContain("Continue without signing in or use a personal access token");
     expect(html).toMatch(

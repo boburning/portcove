@@ -3,10 +3,19 @@
 
 use super::*;
 use crate::{
-    GameSettingChange, GameSettingReview, GameSettingView, GameSettingsFile, GameSettingsFileView,
-    GameSettingsView,
+    GameSettingChange, GameSettingReview, GameSettingView, GameSettingsChangeSetReview,
+    GameSettingsEdit, GameSettingsFile, GameSettingsFileView, GameSettingsView,
 };
+#[cfg(windows)]
+use crate::{GameSettingsSetupIdentity, operation::game_settings::SettingsJournalReview};
 
+#[cfg(windows)]
+mod activation;
+#[cfg(windows)]
+mod activation_deletion;
+#[cfg(windows)]
+mod activation_recovery;
+mod restore_deletion;
 #[cfg(all(test, windows))]
 mod tests;
 #[cfg(windows)]
@@ -21,10 +30,27 @@ struct SettingsContext {
     direct: bool,
 }
 
+#[derive(Clone, Copy)]
+enum SettingsInstallScope {
+    Active,
+    #[cfg(windows)]
+    Materialized,
+    #[cfg(windows)]
+    RecoverMaterialized,
+}
+
 impl PortcoveService {
     // Caller holds ordinary port ownership, or the exact settings recovery
     // owner lock. This never reacquires a public operation's lock recursively.
     fn settings_context_already_locked(&self, port_id: &str) -> Result<SettingsContext> {
+        self.settings_context_for_install_already_locked(port_id, SettingsInstallScope::Active)
+    }
+
+    fn settings_context_for_install_already_locked(
+        &self,
+        port_id: &str,
+        scope: SettingsInstallScope,
+    ) -> Result<SettingsContext> {
         let platform = Platform::current()?;
         if platform != Platform::WindowsX86_64 {
             return Err(PortcoveError::unsupported(
@@ -35,13 +61,19 @@ impl PortcoveService {
         self.require_completed_backup_deletion(port_id)?;
         // Settings only need the active record. Full status also inspects the
         // rollback target and sources while this port's lock is held.
-        let install = self
-            .library
-            .status(port_id, ReleaseChannel::Stable)?
-            .active
-            .ok_or_else(|| {
-                PortcoveError::not_found("no active managed installation offers settings")
-            })?;
+        let active = self.library.status(port_id, ReleaseChannel::Stable)?.active;
+        let install = match scope {
+            SettingsInstallScope::Active => active,
+            #[cfg(windows)]
+            SettingsInstallScope::Materialized => self.profile_pinned_install(port_id, active)?,
+            #[cfg(windows)]
+            SettingsInstallScope::RecoverMaterialized => {
+                self.settings_recovery_install(port_id, active)?
+            }
+        }
+        .ok_or_else(|| {
+            PortcoveError::not_found("no active managed installation offers settings")
+        })?;
         self.managed_install_root(port_id, &install.path)?;
         let installer = Installer::new(self.library.clone())?;
         // Do not use installed_catalog's historical current-catalog fallback.
@@ -54,12 +86,13 @@ impl PortcoveService {
                 "this retained installation does not offer optional settings",
             )
         })?;
-        descriptor.validate(&port.persistent_paths)?;
-        if !descriptor.releases.iter().any(|release| {
-            release.platform == platform
-                && release.version == install.version
-                && release.archive_sha256 == install.artifact.sha256
-        }) {
+        descriptor.validate_port(&port)?;
+        if descriptor.package_only() {
+            return Err(PortcoveError::unsupported(
+                "this installed release has no individually editable settings",
+            ));
+        }
+        if !descriptor.covers_archive(platform, &install.version, &install.artifact.sha256) {
             return Err(PortcoveError::unsupported(
                 "this installed release/artifact has no verified settings contract",
             ));
@@ -178,14 +211,15 @@ impl PortcoveService {
         context: &SettingsContext,
         file: &GameSettingsFile,
     ) -> Result<(String, Vec<Option<serde_json::Value>>)> {
-        let canonical = self.library.user_dir(&context.port.id).join(&file.path);
-        let bytes = crate::external_runtime::read_single_link_metadata(&canonical, file.maximum_bytes)
-            .map_err(|_| PortcoveError::conflict("configuration is not readable yet; complete a normal game launch and synchronization before editing"))?;
+        let canonical = self.library.user_dir(&context.port.id);
+        let bytes = crate::game_settings::observe_player_settings_copy(&canonical, file)
+            .ok()
+            .flatten()
+            .ok_or_else(|| PortcoveError::conflict("configuration is not readable yet; complete a normal game launch and synchronization before editing"))?;
         if !context.direct {
-            let runtime = context.runtime_root.join(&file.path);
             let runtime_bytes =
-                crate::external_runtime::read_single_link_metadata(&runtime, file.maximum_bytes)?;
-            if bytes != runtime_bytes {
+                crate::game_settings::observe_player_settings_copy(&context.runtime_root, file)?;
+            if runtime_bytes.as_deref() != Some(bytes.as_slice()) {
                 return Err(PortcoveError::conflict(
                     "runtime and canonical configuration differ; preserve both and complete normal synchronization before editing",
                 ));
@@ -206,9 +240,11 @@ impl PortcoveService {
         let context = self.settings_context_already_locked(port_id)?;
         #[cfg(windows)]
         {
-            Ok(self
-                .prepare_settings_change(&context, file_id, setting_id, change)?
-                .review)
+            let prepared = self.prepare_settings_change(&context, file_id, setting_id, change)?;
+            let SettingsJournalReview::Single(review) = prepared.review else {
+                unreachable!()
+            };
+            Ok(review)
         }
         #[cfg(not(windows))]
         {
@@ -217,6 +253,50 @@ impl PortcoveService {
                 "game settings review requires Windows",
             ))
         }
+    }
+
+    /// Review a set of edits to one logical configuration file.
+    pub fn review_game_settings_change_set(
+        &self,
+        port_id: &str,
+        file_id: &str,
+        edits: &[GameSettingsEdit],
+    ) -> Result<GameSettingsChangeSetReview> {
+        #[cfg(windows)]
+        {
+            let _ownership = self
+                .library
+                .try_lock_port(port_id, "review-game-settings-change-set")?;
+            let context = self.settings_context_for_install_already_locked(
+                port_id,
+                SettingsInstallScope::Materialized,
+            )?;
+            let prepared = self.prepare_settings_change_set(&context, file_id, edits)?;
+            let SettingsJournalReview::ChangeSet(review) = prepared.review else {
+                unreachable!()
+            };
+            Ok(review)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (port_id, file_id, edits);
+            Err(PortcoveError::unsupported(
+                "game settings review requires Windows",
+            ))
+        }
+    }
+
+    #[cfg(not(windows))]
+    pub fn apply_game_settings_change_set(
+        &self,
+        _port_id: &str,
+        _file_id: &str,
+        _edits: &[GameSettingsEdit],
+        _review_sha256: &str,
+    ) -> Result<GameSettingsView> {
+        Err(PortcoveError::unsupported(
+            "game settings changes require Windows x86-64",
+        ))
     }
 
     #[cfg(not(windows))]
@@ -256,13 +336,22 @@ struct ReviewObjects<'a> {
 fn review_binding(
     context: &SettingsContext,
     file: &GameSettingsFile,
-    review: &GameSettingReview,
+    review: &SettingsJournalReview,
     proposed_sha256: &str,
     objects: ReviewObjects<'_>,
 ) -> Result<String> {
     let mut unsigned = review.clone();
-    unsigned.review_sha256.clear();
-    let binding = serde_json::json!({ "format_version": 1, "install": context.install,
+    let format_version = match &mut unsigned {
+        SettingsJournalReview::Single(review) => {
+            review.review_sha256.clear();
+            1
+        }
+        SettingsJournalReview::ChangeSet(review) => {
+            review.review_sha256.clear();
+            2
+        }
+    };
+    let binding = serde_json::json!({ "format_version": format_version, "install": context.install,
         "definition_sha256": context.definition_sha256, "file": file,
         "review": unsigned, "proposed_sha256": proposed_sha256, "objects": objects });
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(&binding)?)))
@@ -270,10 +359,44 @@ fn review_binding(
 
 #[cfg(windows)]
 struct PreparedSettingsChange {
-    review: GameSettingReview,
+    review: SettingsJournalReview,
     bytes: Vec<u8>,
     canonical: crate::game_settings::windows::HeldFile,
     runtime: Option<crate::game_settings::windows::HeldFile>,
+}
+
+#[cfg(windows)]
+struct HeldSettingsCopies {
+    canonical: crate::game_settings::windows::HeldFile,
+    runtime: Option<crate::game_settings::windows::HeldFile>,
+    before: Vec<u8>,
+}
+
+#[cfg(windows)]
+impl HeldSettingsCopies {
+    fn open(canonical: &Path, runtime: Option<&Path>, maximum_bytes: u64) -> Result<Self> {
+        use crate::game_settings::windows::HeldFile;
+        let mut canonical = HeldFile::open(canonical)?;
+        canonical.require_editable_security()?;
+        let before = canonical.bytes(maximum_bytes)?;
+        let runtime = runtime
+            .map(|path| {
+                let mut runtime = HeldFile::open(path)?;
+                runtime.require_editable_security()?;
+                if runtime.bytes(maximum_bytes)? != before {
+                    return Err(PortcoveError::conflict(
+                        "runtime and canonical configuration differ; synchronize and review again",
+                    ));
+                }
+                Ok(runtime)
+            })
+            .transpose()?;
+        Ok(Self {
+            canonical,
+            runtime,
+            before,
+        })
+    }
 }
 
 #[cfg(windows)]
@@ -285,7 +408,7 @@ impl PortcoveService {
         setting_id: &str,
         change: GameSettingChange,
     ) -> Result<PreparedSettingsChange> {
-        use crate::game_settings::{document, windows::HeldFile};
+        use crate::game_settings::document;
         let file = context
             .port
             .game_settings
@@ -305,22 +428,16 @@ impl PortcoveService {
                 PortcoveError::usage("setting is absent from the retained descriptor")
             })?;
         let setting = &file.settings[index];
-        let mut canonical =
-            HeldFile::open(&self.library.user_dir(&context.port.id).join(&file.path))?;
-        canonical.require_editable_security()?;
-        let before = canonical.bytes(file.maximum_bytes)?;
-        let runtime = if context.direct {
-            None
-        } else {
-            let mut runtime = HeldFile::open(&context.runtime_root.join(&file.path))?;
-            runtime.require_editable_security()?;
-            if runtime.bytes(file.maximum_bytes)? != before {
-                return Err(PortcoveError::conflict(
-                    "runtime and canonical configuration differ; synchronize and review again",
-                ));
-            }
-            Some(runtime)
-        };
+        let runtime = (!context.direct).then(|| context.runtime_root.join(&file.path));
+        let HeldSettingsCopies {
+            canonical,
+            runtime,
+            before,
+        } = HeldSettingsCopies::open(
+            &self.library.user_dir(&context.port.id).join(&file.path),
+            runtime.as_deref(),
+            file.maximum_bytes,
+        )?;
         let previous_value = document::read(file, &before)?.remove(index);
         let proposed = match &change {
             GameSettingChange::Set { value } => value.clone(),
@@ -331,7 +448,7 @@ impl PortcoveService {
             .remove(index)
             .expect("edited declared value");
         let configuration_sha256 = hex::encode(Sha256::digest(&before));
-        let mut review = GameSettingReview {
+        let mut review = SettingsJournalReview::Single(GameSettingReview {
             port_id: context.port.id.clone(),
             install_id: context.install.id.clone(),
             file_id: file_id.into(),
@@ -343,8 +460,8 @@ impl PortcoveService {
             proposed_value,
             configuration_sha256,
             review_sha256: String::new(),
-        };
-        review.review_sha256 = review_binding(
+        });
+        let binding = review_binding(
             context,
             file,
             &review,
@@ -356,6 +473,121 @@ impl PortcoveService {
                     .map(|held| (held.identity.as_str(), held.parent_identity.as_str())),
             },
         )?;
+        if let SettingsJournalReview::Single(review) = &mut review {
+            review.review_sha256 = binding;
+        }
+        Ok(PreparedSettingsChange {
+            review,
+            bytes,
+            canonical,
+            runtime,
+        })
+    }
+
+    // A pending journal may have a checked stage or preimage beside the runtime
+    // file. Bind its selected build by authenticated install identity here.
+    // The settings context checks critical files, and recovery checks custody
+    // of both configuration copies and all of its journal-owned siblings.
+    fn settings_recovery_install(
+        &self,
+        port_id: &str,
+        active: Option<InstallRecord>,
+    ) -> Result<Option<InstallRecord>> {
+        let Some(setup) = self.settings_setup_identity(port_id)? else {
+            return Ok(active);
+        };
+        let connection = self.library.connection()?;
+        if crate::profile::profile_by_id(&connection, port_id, &setup.id)?.is_default {
+            return Ok(active);
+        }
+        let pin = crate::profile::revision_by_number(&connection, &setup.id, setup.revision)?.build;
+        let install = Library::install_by_id(&connection, Some(&pin.install_id))?
+            .filter(|install| install.port_id == port_id && !install.staged)
+            .ok_or_else(|| {
+                PortcoveError::conflict(
+                    "the selected settings installation is no longer registered",
+                )
+            })?;
+        self.managed_install_root(port_id, &install.path)?;
+        if crate::install::retained_build_identity_for_install(&install)? != pin {
+            return Err(PortcoveError::conflict(
+                "the selected settings build changed before recovery",
+            ));
+        }
+        self.require_activation_gates(&install, None)?;
+        Ok(Some(install))
+    }
+
+    fn settings_setup_identity(&self, port_id: &str) -> Result<Option<GameSettingsSetupIdentity>> {
+        self.require_materialized_profile_recovery(port_id)?;
+        crate::profile_file_preservation::require_idle(&self.library, port_id)?;
+        let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(port_id));
+        if layout.journal().try_exists()? {
+            return Err(PortcoveError::conflict(
+                "finish the interrupted setup switch before reviewing settings",
+            ));
+        }
+        Ok(
+            crate::profile::selection(&self.library.connection()?, port_id)?
+                .map(|(id, revision)| GameSettingsSetupIdentity { id, revision }),
+        )
+    }
+
+    fn prepare_settings_change_set(
+        &self,
+        context: &SettingsContext,
+        file_id: &str,
+        edits: &[GameSettingsEdit],
+    ) -> Result<PreparedSettingsChange> {
+        let file = context
+            .port
+            .game_settings
+            .as_ref()
+            .expect("checked descriptor")
+            .files
+            .iter()
+            .find(|file| file.id == file_id)
+            .ok_or_else(|| {
+                PortcoveError::usage("configuration file is absent from the retained descriptor")
+            })?;
+        let setup = self.settings_setup_identity(&context.port.id)?;
+        let runtime_path = (!context.direct).then(|| context.runtime_root.join(&file.path));
+        let HeldSettingsCopies {
+            canonical,
+            runtime,
+            before,
+        } = HeldSettingsCopies::open(
+            &self.library.user_dir(&context.port.id).join(&file.path),
+            runtime_path.as_deref(),
+            file.maximum_bytes,
+        )?;
+        let (bytes, edits) = crate::game_settings::document::edit_set(file, &before, edits)?;
+        let mut review = SettingsJournalReview::ChangeSet(GameSettingsChangeSetReview {
+            library_id: self.library.identity()?,
+            port_id: context.port.id.clone(),
+            install_id: context.install.id.clone(),
+            file_id: file_id.into(),
+            path: file.path.clone(),
+            configuration_sha256: hex::encode(Sha256::digest(&before)),
+            setup,
+            edits,
+            review_sha256: String::new(),
+        });
+        let binding = review_binding(
+            context,
+            file,
+            &review,
+            &hex::encode(Sha256::digest(&bytes)),
+            ReviewObjects {
+                canonical: (&canonical.identity, &canonical.parent_identity),
+                runtime: runtime
+                    .as_ref()
+                    .map(|held| (held.identity.as_str(), held.parent_identity.as_str())),
+            },
+        )?;
+        if let SettingsJournalReview::ChangeSet(review) = &mut review {
+            review.review_sha256 = binding;
+        }
         Ok(PreparedSettingsChange {
             review,
             bytes,

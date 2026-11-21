@@ -181,8 +181,8 @@ pub struct StandingSetupFailure {
     pub reason: String,
 }
 
-/// What one standing-setup pass did for each game it considered.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+/// What one standing pass did for the games and mods it considered.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StandingSetupResult {
     /// Another process is already running a pass; this one did nothing.
     pub already_running: bool,
@@ -192,6 +192,9 @@ pub struct StandingSetupResult {
     pub batches: Vec<InstallBatchRecord>,
     /// Games that could not start; the others were not affected.
     pub failures: Vec<StandingSetupFailure>,
+    /// The game setup queue could not be read. Mod updates still ran.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_setup_unavailable: Option<String>,
     /// Matched files in folders with automatic setup that wait for a person
     /// or a requirement.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -240,6 +243,34 @@ fn decode(port_id: &str, json: &str) -> Result<PortIntent> {
     Ok(record)
 }
 
+type IntentAssessmentRow = (String, String);
+
+struct IntentAssessmentPass {
+    rows: Vec<IntentAssessmentRow>,
+    total: usize,
+    revision: i64,
+}
+
+#[derive(Clone, Copy)]
+enum IntentAssessmentPurpose {
+    Readiness,
+    StandingSetup,
+}
+
+impl IntentAssessmentPurpose {
+    fn key(self) -> &'static str {
+        match self {
+            Self::Readiness => "readiness",
+            Self::StandingSetup => "standing_setup",
+        }
+    }
+}
+
+const ASSESSABLE_INTENTS: &str =
+    "CASE WHEN typeof(record_json) = 'text' AND json_valid(record_json)
+    THEN json_extract(record_json, '$.mode') IN ('notify', 'set_up_when_ready')
+    ELSE 0 END";
+
 impl Library {
     /// Whether this game has a lifecycle operation (an install, update or
     /// data change) that hasn't finished or recovered yet. Such a game is left
@@ -276,6 +307,79 @@ impl Library {
                 }
             })
             .collect())
+    }
+
+    fn intent_assessment_pass(
+        &self,
+        purpose: IntentAssessmentPurpose,
+    ) -> Result<IntentAssessmentPass> {
+        let mut connection = self.connection()?;
+        let snapshot = connection.transaction()?;
+        let (cursor, revision): (String, i64) = snapshot
+            .query_row(
+                "SELECT port_id, revision FROM port_intent_assessment_cursor WHERE purpose=?1",
+                [purpose.key()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?
+            .unwrap_or_default();
+        let (total, invalid_storage): (usize, usize) = snapshot.query_row(
+            &format!(
+                "SELECT COUNT(*) FILTER (WHERE {ASSESSABLE_INTENTS}),
+                        COUNT(*) FILTER (WHERE typeof(port_id) <> 'text'
+                                               OR typeof(record_json) <> 'text')
+                 FROM port_intents"
+            ),
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        if invalid_storage != 0 {
+            return Err(PortcoveError::verification(
+                "The remembered game queue contains a record stored in an unsupported format.",
+            ));
+        }
+        let start = if total > MAX_PORT_INTENT_ASSESSMENTS {
+            cursor.as_str()
+        } else {
+            ""
+        };
+        let mut rows = Vec::with_capacity(total.min(MAX_PORT_INTENT_ASSESSMENTS));
+        for range in ["port_id > ?1", "port_id <= ?1"] {
+            let remaining = MAX_PORT_INTENT_ASSESSMENTS - rows.len();
+            if remaining == 0 {
+                break;
+            }
+            let mut statement = snapshot.prepare(&format!(
+                "SELECT port_id, record_json FROM port_intents
+                 WHERE {range} AND {ASSESSABLE_INTENTS} ORDER BY port_id LIMIT ?2"
+            ))?;
+            let selected = statement.query_map(params![start, remaining], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })?;
+            rows.extend(selected.collect::<rusqlite::Result<Vec<_>>>()?);
+        }
+        snapshot.commit()?;
+        Ok(IntentAssessmentPass {
+            rows,
+            total,
+            revision,
+        })
+    }
+
+    fn advance_intent_assessment(
+        &self,
+        purpose: IntentAssessmentPurpose,
+        revision: i64,
+        last_port: &str,
+    ) -> Result<()> {
+        self.connection()?.execute(
+            "INSERT INTO port_intent_assessment_cursor (port_id, revision, purpose)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT (purpose) DO UPDATE SET port_id=excluded.port_id, revision=excluded.revision
+             WHERE port_intent_assessment_cursor.revision=?4",
+            params![last_port, revision.wrapping_add(1), purpose.key(), revision],
+        )?;
+        Ok(())
     }
 
     /// Whether ready notices are shown. On unless the player turned them off.
@@ -520,33 +624,45 @@ impl PortcoveService {
         None
     }
 
-    /// Reassesses every remembered notify or set-up-when-ready choice with the
-    /// ordinary first-install planner, so changed files, catalog contracts and
-    /// prerequisites are reflected without reselecting anything. Reads only.
+    /// Reassesses a bounded pass of remembered choices. Large sets persist
+    /// their scheduling order; assessment does not change the saved choice.
     pub async fn assess_port_intents(&self) -> Result<PortIntentAssessments> {
-        let intents = self
-            .library
-            .port_intents()?
-            .into_iter()
-            .filter(|intent| {
-                matches!(
-                    intent.mode,
-                    PortIntentMode::Notify | PortIntentMode::SetUpWhenReady
-                )
-            })
-            .collect::<Vec<_>>();
-        let not_assessed = intents.len().saturating_sub(MAX_PORT_INTENT_ASSESSMENTS);
+        self.assess_port_intents_for(IntentAssessmentPurpose::Readiness)
+            .await
+    }
+
+    async fn assess_port_intents_for(
+        &self,
+        purpose: IntentAssessmentPurpose,
+    ) -> Result<PortIntentAssessments> {
+        let IntentAssessmentPass {
+            rows,
+            total,
+            revision,
+        } = self.library.intent_assessment_pass(purpose)?;
         let ready_notices_enabled = self.library.ready_notices_enabled()?;
-        let mut assessments = Vec::new();
-        for intent in intents.into_iter().take(MAX_PORT_INTENT_ASSESSMENTS) {
+        let mut assessments = Vec::with_capacity(rows.len());
+        for (port_id, record_json) in &rows {
+            let intent = match decode(port_id, record_json) {
+                Ok(intent) => intent,
+                Err(error) => {
+                    tracing::warn!(port_id = %port_id, error = %error.message, "skipping unreadable game intent");
+                    continue;
+                }
+            };
             let mut assessment = self.assess_port_intent(&intent).await;
-            // Only a notice is withheld. Readiness, the choice and any
-            // set-up-when-ready game stay exactly as they were.
             if !ready_notices_enabled && assessment.mode == PortIntentMode::Notify {
                 assessment.newly_ready = false;
             }
             assessments.push(assessment);
         }
+        if total > MAX_PORT_INTENT_ASSESSMENTS
+            && let Some((last_port, _)) = rows.last()
+        {
+            self.library
+                .advance_intent_assessment(purpose, revision, last_port)?;
+        }
+        let not_assessed = total.saturating_sub(rows.len());
         Ok(PortIntentAssessments {
             assessments,
             not_assessed: u32::try_from(not_assessed).unwrap_or(u32::MAX),
@@ -726,18 +842,55 @@ impl PortcoveService {
             Err(error) if error.code == crate::ErrorCode::Conflict => {
                 return Ok(StandingSetupResult {
                     already_running: true,
-                    assessments: Vec::new(),
-                    not_assessed: 0,
-                    batches: Vec::new(),
-                    failures: Vec::new(),
-                    root_waiting: Vec::new(),
-                    mod_updates: Vec::new(),
+                    ..Default::default()
                 });
             }
             Err(error) => return Err(error),
         };
+        let mut result = self
+            .run_standing_game_setup(&mut emit)
+            .await
+            .unwrap_or_else(|error| {
+                tracing::warn!(error = %error.message, "game setup queue is unavailable");
+                StandingSetupResult {
+                    game_setup_unavailable: Some(error.message),
+                    ..Default::default()
+                }
+            });
+        for port_id in self
+            .catalog()
+            .ports()
+            .iter()
+            .filter(|port| {
+                crate::provider_binding::configured_bindings(port).is_some()
+                    || crate::provider_binding::default_binding(port).is_some()
+            })
+            .map(|port| port.id.as_str())
+        {
+            match self.run_eligible_provider_updates(port_id).await {
+                Ok(updates) => result.mod_updates.extend(updates),
+                Err(error) => result.mod_updates.push(crate::ProviderAutoUpdate {
+                    port_id: port_id.into(),
+                    profile_id: String::new(),
+                    profile_name: String::new(),
+                    native_ids: Vec::new(),
+                    outcome: crate::ProviderAutoUpdateOutcome::Unavailable {
+                        reason: error.message,
+                    },
+                }),
+            }
+        }
+        Ok(result)
+    }
+
+    async fn run_standing_game_setup(
+        &self,
+        emit: &mut impl FnMut(OperationEvent),
+    ) -> Result<StandingSetupResult> {
         self.recover_interrupted_setups();
-        let assessed = self.assess_port_intents().await?;
+        let assessed = self
+            .assess_port_intents_for(IntentAssessmentPurpose::StandingSetup)
+            .await?;
         let busy = self
             .unfinished_install_batches()?
             .into_iter()
@@ -762,7 +915,7 @@ impl PortcoveService {
                 continue;
             }
             match self
-                .standing_setup_one(&assessment.port_id, plan_sha256, &mut emit)
+                .standing_setup_one(&assessment.port_id, plan_sha256, emit)
                 .await
             {
                 Ok(Some(record)) => batches.push(record),
@@ -782,7 +935,7 @@ impl PortcoveService {
         }
         // A folder pass error leaves the per-game results intact.
         let root_waiting = match self
-            .run_root_setup(&busy, &mut handled, &mut batches, &mut failures, &mut emit)
+            .run_root_setup(&busy, &mut handled, &mut batches, &mut failures, emit)
             .await
         {
             Ok(waiting) => waiting,
@@ -791,29 +944,13 @@ impl PortcoveService {
                 Vec::new()
             }
         };
-        let mut mod_updates = Vec::new();
-        for port_id in crate::provider_install::provider_ports() {
-            match self.run_eligible_provider_updates(port_id).await {
-                Ok(updates) => mod_updates.extend(updates),
-                Err(error) => mod_updates.push(crate::ProviderAutoUpdate {
-                    port_id: port_id.into(),
-                    profile_id: String::new(),
-                    profile_name: String::new(),
-                    native_ids: Vec::new(),
-                    outcome: crate::ProviderAutoUpdateOutcome::Unavailable {
-                        reason: error.message,
-                    },
-                }),
-            }
-        }
         Ok(StandingSetupResult {
-            already_running: false,
             assessments: assessed.assessments,
             not_assessed: assessed.not_assessed,
             batches,
             failures,
             root_waiting,
-            mod_updates,
+            ..Default::default()
         })
     }
 
@@ -899,7 +1036,15 @@ impl PortcoveService {
         plan_sha256: &str,
         emit: &mut impl FnMut(OperationEvent),
     ) -> Result<Option<InstallBatchRecord>> {
-        // Consent can be withdrawn while earlier games run.
+        // The earlier assessment may have preceded another game's install.
+        // A source that went offline in the meantime must not spend an attempt.
+        let Ok(plan) = self.plan_game_install(port_id).await else {
+            return Ok(None);
+        };
+        if plan.plan_sha256 != plan_sha256 || self.install_plan_hold(&plan).is_some() {
+            return Ok(None);
+        }
+        // Consent can be withdrawn while earlier games run or while replanning.
         let still_wanted = self.library.port_intent(port_id)?.is_some_and(|intent| {
             intent.mode == PortIntentMode::SetUpWhenReady
                 && intent.explicitly_uninstalled_at.is_none()
@@ -915,7 +1060,10 @@ impl PortcoveService {
             }],
             LibraryMembershipOrigin::Manual,
         )?;
-        let record = self.run_install_batch(&batch.id, &mut *emit).await?;
+        // Keep the batch's large async state out of the enclosing standing
+        // future. Nested fresh installs exhausted Windows debug worker stacks;
+        // the batch still runs serially under the same locks and cancellation.
+        let record = Box::pin(self.run_install_batch(&batch.id, &mut *emit)).await?;
         for item in &record.items {
             match item.state {
                 InstallBatchItemState::Ready => {
@@ -972,6 +1120,324 @@ mod tests {
         (temporary, service_with_release(library, "v1"))
     }
 
+    const STACK_PORT: &str = "standing-worker-fixture";
+
+    struct StackRelease(crate::ResolvedRelease);
+
+    #[async_trait::async_trait]
+    impl crate::ReleaseProvider for StackRelease {
+        async fn resolve(
+            &self,
+            _: &crate::PortDefinition,
+            channel: crate::ReleaseChannel,
+            platform: crate::Platform,
+        ) -> Result<crate::ResolvedRelease> {
+            assert_eq!(channel, crate::ReleaseChannel::Stable);
+            assert_eq!(platform, crate::Platform::current().unwrap());
+            Ok(self.0.clone())
+        }
+    }
+
+    struct StackInstallFixture {
+        temporary: tempfile::TempDir,
+        service: PortcoveService,
+        server: crate::test_http::HttpServer,
+        requests: std::sync::mpsc::Receiver<String>,
+        executable: String,
+        program: Vec<u8>,
+    }
+
+    fn fresh_stack_service() -> StackInstallFixture {
+        use std::io::Write;
+        let temporary = tempfile::tempdir().unwrap();
+        let platform = crate::Platform::current().unwrap();
+        let platform_key = serde_json::to_value(platform)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let executable = if cfg!(windows) { "game.exe" } else { "game" }.to_owned();
+        let program = if cfg!(windows) {
+            let mut bytes = vec![0_u8; 128];
+            bytes[..2].copy_from_slice(b"MZ");
+            bytes
+        } else {
+            b"#!/bin/sh\n# Owned inert standing-setup fixture; never executed.\n".to_vec()
+        };
+        let mut random = 0x5374_616e_u32;
+        let padding = (0..3 * 1024 * 1024)
+            .map(|_| {
+                random ^= random << 13;
+                random ^= random >> 17;
+                random ^= random << 5;
+                random as u8
+            })
+            .collect::<Vec<_>>();
+        let mut archive = tar::Builder::new(Vec::new());
+        for (name, bytes, mode) in [
+            (executable.as_str(), program.as_slice(), 0o755),
+            ("owned-download-padding.bin", padding.as_slice(), 0o644),
+        ] {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(bytes.len() as u64);
+            header.set_mode(mode);
+            header.set_cksum();
+            archive.append_data(&mut header, name, bytes).unwrap();
+        }
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(&archive.into_inner().unwrap()).unwrap();
+        let payload = gzip.finish().unwrap();
+        let digest = crate::signed_catalog::digest(&payload);
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            payload.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&payload);
+        let (origin, requests, server) = crate::test_http::serve_http_bytes(vec![response]);
+        let release = crate::ResolvedRelease {
+            version: "1.0.0-stack-fixture".into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "standing-worker-runtime.tar.gz".into(),
+                url: format!("{origin}/runtime.tar.gz"),
+                size: payload.len() as u64,
+                sha256: digest,
+            },
+            uploader_continuity: None,
+        };
+        let original = b"Portcove owned inert standing source\n";
+        let source = temporary.path().join("original.pcgame");
+        std::fs::write(&source, original).unwrap();
+        let catalog = crate::Catalog::from_json(&serde_json::json!({
+            "schema_version": 1,
+            "source_profiles": [{
+                "id": "standing-worker-original", "label": "Owned inert original",
+                "kind": "file", "accepted_extensions": ["pcgame"],
+                "accepted_sha256": [crate::signed_catalog::digest(original)]
+            }],
+            "ports": [{
+                "id": STACK_PORT, "name": "Standing worker fixture",
+                "summary": "Owned inert fresh-download stack fixture; never launched.",
+                "project_url": "https://example.invalid/standing-worker-fixture",
+                "support_tier": "beta", "channels": ["stable"], "platforms": [platform],
+                "adapter": "libultraship-portable", "source_profile": "standing-worker-original",
+                "release": {"repository": "example/standing-worker-fixture", "asset_hints": {(platform_key.clone()): ["runtime"]}},
+                "executable_hints": {(platform_key): [executable.clone()]},
+                "persistent_paths": ["saves", "settings.ini"]
+            }]
+        }).to_string()).unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service =
+            PortcoveService::with_provider(library, std::sync::Arc::new(StackRelease(release)))
+                .unwrap();
+        service.replace_catalog_for_test(catalog);
+        service
+            .register_source("standing-worker-original", &source)
+            .unwrap();
+        StackInstallFixture {
+            temporary,
+            service,
+            server,
+            requests,
+            executable,
+            program,
+        }
+    }
+
+    #[test]
+    fn standing_setup_installs_on_default_worker_stack() {
+        const CHILD: &str = "PORTCOVE_STANDING_STACK_CHILD";
+        if std::env::var(CHILD).as_deref() != Ok("1") {
+            let temporary = tempfile::tempdir().unwrap();
+            let log_path = temporary.path().join("standing-worker.log");
+            let log = std::fs::File::create(&log_path).unwrap();
+            let mut child = crate::ChildProcessPolicy::native_command(
+                crate::ChildProcessClass::HostTool,
+                &std::env::current_exe().unwrap(),
+            )
+            .unwrap()
+            .args([
+                "--exact",
+                "service::port_intent::tests::standing_setup_installs_on_default_worker_stack",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .env_remove("PORTCOVE_GITHUB_TOKEN")
+            .env_remove("GH_TOKEN")
+            .env_remove("GITHUB_TOKEN")
+            .stdin(std::process::Stdio::null())
+            .stdout(log.try_clone().unwrap())
+            .stderr(log)
+            .spawn()
+            .unwrap();
+            let started = std::time::Instant::now();
+            let observation = loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => break Ok(()),
+                    Ok(None) => {}
+                    Err(error) => break Err(format!("could not observe standing worker: {error}")),
+                }
+                if started.elapsed() >= std::time::Duration::from_secs(60) {
+                    break Err("standing worker exceeded 60 seconds".to_owned());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            };
+            if observation.is_err() {
+                let _ = child.kill();
+            }
+            // Join the exact child before consuming its log or cleaning the fixture.
+            let status = child.wait().unwrap();
+            let stdout = std::fs::read_to_string(&log_path).unwrap();
+            assert!(observation.is_ok(), "{observation:?}\n{stdout}");
+            assert!(
+                status.success(),
+                "standing worker status={status:?}\n{stdout}"
+            );
+            assert!(stdout.contains("running 1 test"), "{stdout}");
+            assert!(
+                stdout.contains("PORTCOVE_STANDING_WORKER_COMPLETED"),
+                "{stdout}"
+            );
+            return;
+        }
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
+        let StackInstallFixture {
+            temporary: _temporary,
+            service,
+            server,
+            requests,
+            executable,
+            program,
+        } = fresh_stack_service();
+        let plan = runtime
+            .block_on(service.plan_game_install(STACK_PORT))
+            .unwrap();
+        assert_eq!(plan.plan.action, crate::InstallPlanAction::Download);
+        assert!(plan.selected_install.is_none());
+        assert!(service.status(STACK_PORT).unwrap().active.is_none());
+        service
+            .set_port_intent(STACK_PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let handle = runtime.handle().clone();
+        std::thread::Builder::new()
+            .name("standing-install-stack-regression".into())
+            .stack_size(2 * 1024 * 1024)
+            .spawn(move || {
+                handle.block_on(async move {
+                    let result = service.run_standing_setup(|_| {}).await.unwrap();
+                    assert_eq!(result.batches.len(), 1);
+                    assert_eq!(
+                        result.batches[0].items[0].state,
+                        InstallBatchItemState::Ready
+                    );
+                    let installed = service.status(STACK_PORT).unwrap().active.unwrap();
+                    assert_eq!(
+                        std::fs::read(installed.path.join(&executable)).unwrap(),
+                        program
+                    );
+                    assert!(service.verify(STACK_PORT).unwrap().valid);
+                    let request = requests
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
+                    assert!(request.starts_with("GET /runtime.tar.gz "), "{request}");
+                    assert!(
+                        service
+                            .run_standing_setup(|_| {})
+                            .await
+                            .unwrap()
+                            .batches
+                            .is_empty()
+                    );
+                    assert_eq!(
+                        service.status(STACK_PORT).unwrap().active.unwrap().id,
+                        installed.id
+                    );
+                    assert!(requests.try_recv().is_err());
+                });
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        server.join().unwrap();
+        println!("PORTCOVE_STANDING_WORKER_COMPLETED");
+    }
+
+    #[tokio::test]
+    async fn unreadable_game_setup_queue_does_not_abort_the_standing_pass() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute("DROP TABLE port_intents", [])
+            .unwrap();
+
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(!result.already_running);
+        assert!(result.game_setup_unavailable.is_some());
+        assert!(result.batches.is_empty());
+    }
+
+    #[test]
+    fn intent_scan_distinguishes_invalid_storage_from_malformed_text() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let connection = library.connection().unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO port_intents VALUES ('good', 1, '{\"mode\":\"notify\"}');
+                 INSERT INTO port_intents VALUES ('broken', 1, X'00');",
+            )
+            .unwrap();
+
+        for purpose in [
+            IntentAssessmentPurpose::Readiness,
+            IntentAssessmentPurpose::StandingSetup,
+        ] {
+            assert!(matches!(
+                library.intent_assessment_pass(purpose),
+                Err(error) if error.code == crate::ErrorCode::Verification
+            ));
+        }
+
+        connection
+            .execute(
+                "UPDATE port_intents SET record_json='{' WHERE port_id='broken'",
+                [],
+            )
+            .unwrap();
+        let pass = library
+            .intent_assessment_pass(IntentAssessmentPurpose::StandingSetup)
+            .unwrap();
+        assert_eq!(pass.total, 1);
+        assert_eq!(pass.rows[0].0, "good");
+
+        for key in [
+            rusqlite::types::Value::Blob(vec![b'g']),
+            rusqlite::types::Value::Null,
+        ] {
+            connection
+                .execute("INSERT INTO port_intents VALUES (?1, 1, '{')", [key])
+                .unwrap();
+            assert!(matches!(
+                library.intent_assessment_pass(IntentAssessmentPurpose::StandingSetup),
+                Err(error) if error.code == crate::ErrorCode::Verification
+            ));
+            connection
+                .execute(
+                    "DELETE FROM port_intents WHERE typeof(port_id) <> 'text'",
+                    [],
+                )
+                .unwrap();
+        }
+    }
+
     #[tokio::test]
     async fn discover_only_is_the_default_and_stores_nothing() {
         let (_temporary, service) = ready_service().await;
@@ -983,6 +1449,94 @@ mod tests {
             .set_port_intent(PORT, PortIntentMode::DiscoverOnly)
             .unwrap();
         assert!(service.port_intents().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn assessment_reaches_the_513th_choice_after_restart_and_preserves_edits() {
+        let (temporary, service) = ready_service().await;
+        for index in 0..MAX_PORT_INTENT_ASSESSMENTS {
+            let id = format!("fixture-{index:03}");
+            service
+                .library
+                .update_port_intent_with(&id, false, |record, now| {
+                    *record = Some(PortIntent::new(&id, PortIntentMode::Notify, now));
+                })
+                .unwrap();
+        }
+        service
+            .set_port_intent(PORT, PortIntentMode::Notify)
+            .unwrap();
+        let first = service.assess_port_intents().await.unwrap();
+        assert_eq!(first.assessments.len(), 512);
+        assert_eq!(first.not_assessed, 1);
+        assert!(first.assessments.iter().all(|row| row.port_id != PORT));
+        service
+            .library
+            .update_port_intent_with("fixture-000", false, |record, _| {
+                record.as_mut().unwrap().mode = PortIntentMode::Ignored;
+            })
+            .unwrap();
+        service
+            .library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE port_intents SET updated_at='bad time' WHERE port_id='fixture-001'",
+                [],
+            )
+            .unwrap();
+        service
+            .library
+            .update_port_intent_with("zz-fixture", false, |record, now| {
+                *record = Some(PortIntent::new("zz-fixture", PortIntentMode::Notify, now));
+            })
+            .unwrap();
+
+        let edited = service
+            .port_intents()
+            .unwrap()
+            .into_iter()
+            .find(|intent| intent.port_id == "fixture-000")
+            .unwrap();
+        assert_eq!(edited.mode, PortIntentMode::Ignored);
+
+        drop(service);
+        let service = service_with_release(
+            Library::open(temporary.path().join("library")).unwrap(),
+            "v1",
+        );
+        let second = service.assess_port_intents().await.unwrap();
+        let reached = &second.assessments[0];
+        assert_eq!(reached.port_id, PORT);
+        assert!(matches!(reached.readiness, PortReadiness::Ready { .. }));
+        assert!(
+            second
+                .assessments
+                .iter()
+                .all(|intent| intent.port_id != "fixture-000")
+        );
+    }
+
+    #[tokio::test]
+    async fn standing_setup_and_readiness_each_visit_both_halves() {
+        let (_temporary, service) = ready_service().await;
+        for index in 0..1024 {
+            let id = format!("fixture-{index:04}");
+            service
+                .library
+                .update_port_intent_with(&id, false, |record, now| {
+                    *record = Some(PortIntent::new(&id, PortIntentMode::Notify, now));
+                })
+                .unwrap();
+        }
+        for expected in ["fixture-0000", "fixture-0512", "fixture-0000"] {
+            let standing = service.run_standing_setup(|_| {}).await.unwrap();
+            let readiness = service.assess_port_intents().await.unwrap();
+            assert_eq!(standing.assessments[0].port_id, expected);
+            assert_eq!(readiness.assessments[0].port_id, expected);
+            assert_eq!(standing.not_assessed, 512);
+            assert_eq!(readiness.not_assessed, 512);
+        }
     }
 
     #[tokio::test]
@@ -1290,6 +1844,54 @@ mod tests {
             service.status(PORT).unwrap().active.unwrap().id,
             installed.id
         );
+    }
+
+    #[tokio::test]
+    async fn a_disconnected_registered_original_waits_without_spending_attempts() {
+        let (temporary, configured, original) = crate::source_reuse::tests::fixture("ntsc-u-1-0");
+        let mut service = service_with_release(configured.library().clone(), "v1");
+        service.replace_catalog_for_test(configured.catalog().clone());
+        let choice = service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+
+        let connected = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Ready { plan_sha256, .. } = &connected.assessments[0].readiness else {
+            panic!("expected ready: {connected:?}");
+        };
+        let offline = temporary.path().join("disconnected.z64");
+        std::fs::rename(&original, &offline).unwrap();
+
+        // The source can disappear after this game's initial assessment,
+        // while earlier games in the same pass are being installed.
+        assert!(
+            service
+                .standing_setup_one(PORT, plan_sha256, &mut |_| {})
+                .await
+                .unwrap()
+                .is_none()
+        );
+        for _ in 0..MAX_STANDING_SETUP_ATTEMPTS {
+            let pass = service.run_standing_setup(|_| {}).await.unwrap();
+            let PortReadiness::Waiting { reason } = &pass.assessments[0].readiness else {
+                panic!("expected waiting: {pass:?}");
+            };
+            assert!(reason.contains("available"), "{reason}");
+            assert!(pass.batches.is_empty());
+        }
+        let saved = service.library().port_intent(PORT).unwrap().unwrap();
+        assert_eq!(saved.sources, choice.sources);
+        assert_eq!(saved.mode, PortIntentMode::SetUpWhenReady);
+        assert_eq!(saved.failed_attempts, 0);
+        assert!(service.status(PORT).unwrap().active.is_none());
+
+        std::fs::rename(&offline, &original).unwrap();
+        let returned = service.assess_port_intents().await.unwrap();
+        assert!(matches!(
+            &returned.assessments[0].readiness,
+            PortReadiness::Ready { plan_sha256: returned_digest, .. }
+                if returned_digest == plan_sha256
+        ));
     }
 
     fn registered_copy(service: &PortcoveService, byte: char) -> crate::SourceRecord {

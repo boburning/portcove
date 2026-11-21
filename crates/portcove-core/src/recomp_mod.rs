@@ -109,15 +109,27 @@ fn bounded_text(value: &str) -> bool {
 /// Upstream `Version::from_string`: three `u16` parts; the last may carry a `+` or
 /// `-` label.
 fn version(value: &str) -> bool {
-    let parts = value.splitn(3, '.').collect::<Vec<_>>();
-    let number = |part: &str| {
-        !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) && part.parse::<u16>().is_ok()
-    };
-    if value.len() > 64 || value.chars().any(char::is_control) || parts.len() != 3 {
-        return false;
+    version_parts(value).is_some()
+}
+
+/// The reviewed runtime orders only major, minor and patch. It retains the
+/// suffix for display and compares versions independently of that suffix.
+pub(crate) fn version_parts(value: &str) -> Option<[u16; 3]> {
+    if value.len() > 64 || value.chars().any(char::is_control) {
+        return None;
     }
-    let patch_end = parts[2].find(['+', '-']).unwrap_or(parts[2].len());
-    number(parts[0]) && number(parts[1]) && number(&parts[2][..patch_end])
+    let mut parts = value.splitn(3, '.');
+    let number = |part: &str| {
+        if part.is_empty() || !part.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        part.parse::<u16>().ok()
+    };
+    let major = number(parts.next()?)?;
+    let minor = number(parts.next()?)?;
+    let patch = parts.next()?;
+    let patch_end = patch.find(['+', '-']).unwrap_or(patch.len());
+    Some([major, minor, number(&patch[..patch_end])?])
 }
 
 fn text(manifest: &Value, field: &str, required: bool) -> Result<Option<String>> {
@@ -161,6 +173,14 @@ fn dependencies(manifest: &Value, field: &str) -> Result<Vec<RecompDependency>> 
 
 /// Inspects one `.nrm` for `game_id` without extracting or executing it.
 pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspection> {
+    let (inspection, _) = inspect_with_manifest(path, game_id)?;
+    Ok(inspection)
+}
+
+pub(crate) fn inspect_with_manifest(
+    path: &Path,
+    game_id: &str,
+) -> Result<(RecompModInspection, Value)> {
     // Shared bounded checks: plain name, regular file, digest, safe entry paths,
     // no links or encryption, bounded declared size.
     let archive_view = inspect_asset_archive(path)?;
@@ -222,7 +242,21 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
         _ => return Err(invalid("`authors` must be a list")),
     };
     // Optional text fields the runtime type-checks.
-    text(&manifest, "description", false)?;
+    if let Some(description) = manifest.get("description") {
+        let valid = description.as_str().is_some_and(|value| {
+            value.len() <= MAX_LONG_TEXT
+                && value.split_inclusive('\n').all(|line| {
+                    let text = line
+                        .strip_suffix("\r\n")
+                        .or_else(|| line.strip_suffix('\n'))
+                        .unwrap_or(line);
+                    bounded_text(text)
+                })
+        });
+        if !valid {
+            return Err(invalid("`description` must be text"));
+        }
+    }
     text(&manifest, "short_description", false)?;
     let mut native_libraries = BTreeMap::new();
     if let Some(value) = manifest.get("native_libraries") {
@@ -306,7 +340,7 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
     if !archive_view.executable_entries.is_empty() {
         holds.push(RecompModHold::HostExecutableFiles);
     }
-    Ok(RecompModInspection {
+    let inspection = RecompModInspection {
         file_name: archive_view.file_name,
         sha256: archive_view.sha256,
         size: archive_view.size,
@@ -323,7 +357,8 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
         has_settings,
         execution,
         holds,
-    })
+    };
+    Ok((inspection, manifest))
 }
 
 #[cfg(test)]
@@ -494,6 +529,48 @@ mod grammar_tests {
     }
 
     const BASE: &str = r#""game_id":"mm","id":"x","display_name":"X","version":"1.0.0","authors":[],"minimum_recomp_version":"1.0.0""#;
+
+    #[test]
+    fn only_the_root_description_accepts_multiline_text() {
+        let directory = tempfile::tempdir().unwrap();
+        let base: Value = serde_json::from_str(&format!("{{{BASE}}}")).unwrap();
+        for (field, value, accepted) in [
+            ("description", "First line\nSecond line".to_owned(), true),
+            ("description", "First line\r\nSecond line".to_owned(), true),
+            ("description", "Before\rAfter".to_owned(), false),
+            ("description", "Before\u{1b}After".to_owned(), false),
+            ("description", "Before\0After".to_owned(), false),
+            ("description", "\n".repeat(MAX_LONG_TEXT), true),
+            ("description", "\n".repeat(MAX_LONG_TEXT + 1), false),
+            ("display_name", "First line\nSecond line".to_owned(), false),
+            (
+                "short_description",
+                "First line\nSecond line".to_owned(),
+                false,
+            ),
+            ("game_id", "mm\n".to_owned(), false),
+        ] {
+            let mut manifest = base.clone();
+            manifest[field] = Value::String(value);
+            let path = write(
+                directory.path(),
+                "description.nrm",
+                &serde_json::to_vec(&manifest).unwrap(),
+            );
+            let inspection = inspect_recomp_mod(&path, "mm");
+            if accepted {
+                assert!(inspection.unwrap().holds.is_empty());
+            } else {
+                assert!(
+                    inspection
+                        .unwrap_err()
+                        .message
+                        .contains(&format!("`{field}` must be text")),
+                    "{field}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn manifests_the_runtime_accepts_are_accepted_and_ones_it_refuses_are_refused() {

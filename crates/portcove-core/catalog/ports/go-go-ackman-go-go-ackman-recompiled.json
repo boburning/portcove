@@ -5,8 +5,16 @@
     "name": "Go Go Ackman (Go Go Ackman Recompiled)",
     "summary": "Use an already permitted Go Go Ackman v1.0 Windows player with your own exact Japanese ROM. The project combines compiled game code with an interpreter; full-game compatibility is unconfirmed. Fresh downloads remain conditional on permission for embedded translation content. Portcove has not confirmed setup or gameplay. Linux Flatpak is a separate upstream package.",
     "original_game_title": "Go Go Ackman",
+    "artwork": {
+      "game_id": 15926,
+      "cover_id": 119792,
+      "image_id": "co2kfk",
+      "image_sha256": "b34daab0504ef5ffb26d3a72871596c0ea0544c8861b0530ccf451fc23b6289d",
+      "game_slug": "go-go-ackman",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/catmidori/gogoackman1recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/catmidori/gogoackman1recomp",
     "issue_number": 2881,
@@ -49,7 +57,25 @@
         }
       ]
     },
-    "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question."
+    "download_block_reason": "New downloads are waiting for applicable selected-package permission covering any included source-bound embedded English translation payload and translation metadata. The project/framework grant does not grant external translation/audio rights; source consumer evidence is not a certificate of the unacquired asset contents. Reconsider an exact attributable applicable component/package grant or reviewed asset-clean route. Already permitted private base-game copies remain a separate use question.",
+    "original_game": {
+      "format_version": 1,
+      "id": "go-go-ackman",
+      "evidence_urls": [
+        "https://github.com/catmidori/gogoackman1recomp",
+        "https://github.com/catmidori/gogoackman1recomp/blob/9f12ba1e59185e6fbe70eb7822338c7709f0c86a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "go-go-ackman-super-nintendo",
+          "title": "Go Go Ackman (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/catmidori/gogoackman1recomp/blob/db9f16b5ae51719f0ec81f3f4bae63a5ef84348c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wolfenstein-3d-reflectionhle",
+    "artwork": {
+      "game_id": 262516,
+      "cover_id": 325157,
+      "image_id": "co6yw5",
+      "image_sha256": "c6997e9d87f5abc5fa7603d6e6b2597e5d7913354c1705eb075c16851cc56c5a",
+      "game_slug": "wolfenstein-3d--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Wolfenstein 3D (ReflectionHLE)",
     "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "Wolfenstein 3D",
@@ -44,8 +52,23 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["reflectionhle-win64-", ".zip"]
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-3d",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
+        "https://github.com/ReflectionHLE/ReflectionHLE"
+      ],
+      "source_editions": [
+        {
+          "id": "wolfenstein-3d-pc",
+          "title": "Wolfenstein 3D (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -60,6 +83,7 @@
     },
     "decisions": []
   },
+  "reflectionhle_portable_paths_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -87,118 +111,6 @@
       "macos-aarch64": ["reflectionhle.app/Contents/MacOS/reflectionhle"]
     },
     "launch_arguments": ["-datadir", ".", "-cfgdir", "."],
-    "persistent_paths": [
-      "bh071592",
-      "bh071592.txt",
-      "bm1v10r",
-      "bm1v10r.txt",
-      "bm1v10s",
-      "bm1v10s.txt",
-      "bm1v11f",
-      "bm1v11f.txt",
-      "bm1v11gm",
-      "bm1v11gm.txt",
-      "bm1v11r",
-      "bm1v11r.txt",
-      "bm1v11s",
-      "bm1v11s.txt",
-      "bm2v10r",
-      "bm2v10r.txt",
-      "bm2v11f",
-      "bm2v11f.txt",
-      "bm2v11r",
-      "bm2v11r.txt",
-      "bm3v10r",
-      "bm3v10r.txt",
-      "bm3v11f",
-      "bm3v11f.txt",
-      "bm3v11r",
-      "bm3v11r.txt",
-      "cat3d100",
-      "cat3d100.txt",
-      "cat3d122",
-      "cat3d122.txt",
-      "catabyss113",
-      "catabyss113.txt",
-      "catabyss124",
-      "catabyss124.txt",
-      "catapoc101",
-      "catapoc101.txt",
-      "catarm102",
-      "catarm102.txt",
-      "gamecontrollerdb.txt",
-      "kdreams2015",
-      "kdreams2015.txt",
-      "kdreamsc100",
-      "kdreamsc100.txt",
-      "kdreamsc105",
-      "kdreamsc105.txt",
-      "kdreamse100",
-      "kdreamse100.txt",
-      "kdreamse113",
-      "kdreamse113.txt",
-      "kdreamse120",
-      "kdreamse120.txt",
-      "kdreamse193",
-      "kdreamse193.txt",
-      "n3dwt10",
-      "n3dwt10.txt",
-      "reflection-bmenace.cfg",
-      "reflection-cat3d.cfg",
-      "reflection-kdreams.cfg",
-      "reflection-wolf3d.cfg",
-      "reflectionhle.cfg",
-      "sd2ac14",
-      "sd2ac14.txt",
-      "sd2fg10",
-      "sd2fg10.txt",
-      "sd2fg14",
-      "sd2fg14.txt",
-      "sd3ac14",
-      "sd3ac14.txt",
-      "sd3fg10",
-      "sd3fg10.txt",
-      "sd3fg14",
-      "sd3fg14.txt",
-      "sdmfg10",
-      "sdmfg10.txt",
-      "sodac14",
-      "sodac14.txt",
-      "sodfg10",
-      "sodfg10.txt",
-      "sodfg14",
-      "sodfg14.txt",
-      "wj6im14",
-      "wj6im14.txt",
-      "wl1ap10",
-      "wl1ap10.txt",
-      "wl1ap11",
-      "wl1ap11.txt",
-      "wl1ap12",
-      "wl1ap12.txt",
-      "wl1ap14",
-      "wl1ap14.txt",
-      "wl3ap12",
-      "wl3ap12.txt",
-      "wl3ap14",
-      "wl3ap14.txt",
-      "wl6ac14",
-      "wl6ac14.txt",
-      "wl6ap11",
-      "wl6ap11.txt",
-      "wl6ap12",
-      "wl6ap12.txt",
-      "wl6ap14",
-      "wl6ap14.txt",
-      "wl6gt14a",
-      "wl6gt14a.txt",
-      "wl6gt14b",
-      "wl6gt14b.txt",
-      "wl6id14",
-      "wl6id14.txt",
-      "wl920312",
-      "wl920312.txt"
-    ],
     "presentation": {
       "installation_method": "portable-package",
       "source_requirements": [],
@@ -224,5 +136,6 @@
         "executables": ["reflectionhle.app/contents/macos/reflectionhle"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

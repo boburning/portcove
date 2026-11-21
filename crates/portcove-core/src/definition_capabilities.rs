@@ -10,6 +10,23 @@ const REQUIREMENT_FORMAT: u32 = 1;
 const MAX_REQUIREMENT_BYTES: u64 = 64 * 1024;
 const MAX_REQUIREMENTS: usize = 64;
 
+const LIBULTRASHIP_ORIGINAL_RECOGNITION: u32 = 7;
+const N64_RECOMP_ORIGINAL_RECOGNITION: u32 = 9;
+pub(crate) const N64_RECOMP_RELEASE_INPUT_CAPABILITY: u32 = 10;
+pub(crate) const N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY: u32 = 11;
+
+pub(crate) fn original_recognition_capability(adapter: AdapterKind) -> Option<(&'static str, u32)> {
+    match adapter {
+        AdapterKind::LibultrashipPortable => {
+            Some(("libultraship-portable", LIBULTRASHIP_ORIGINAL_RECOGNITION))
+        }
+        AdapterKind::N64RecompPortable => {
+            Some(("n64-recomp-portable", N64_RECOMP_ORIGINAL_RECOGNITION))
+        }
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EngineTemplateCapability {
@@ -129,6 +146,10 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::PsxRecompManaged,
             contract_version: crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::PsxRecompManaged,
+            contract_version: crate::managed_runtime_policy::EXACT_EXCLUSION_PSX_CAPABILITY,
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
@@ -251,6 +272,10 @@ impl EngineTemplateCapability {
             contract_version: crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::managed_chocolate::CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -333,6 +358,48 @@ impl EngineTemplateCapability {
         supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::LINUX_PROGRAM_FORMAT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::endless_sky::NATIVE_CAPABILITY,
+        });
+        supported.extend(AdapterKind::ALL.into_iter().filter_map(|template| {
+            crate::package_shape::enforcement_capability(template).map(|contract_version| Self {
+                template,
+                contract_version,
+            })
+        }));
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::LibultrashipPortable,
+            contract_version: LIBULTRASHIP_ORIGINAL_RECOGNITION,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: N64_RECOMP_ORIGINAL_RECOGNITION,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: N64_RECOMP_RELEASE_INPUT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY,
         });
         supported
     }
@@ -842,6 +909,35 @@ mod tests {
     }
 
     #[test]
+    fn optional_original_recognition_keeps_old_loader_readers_and_requires_its_own_version() {
+        for adapter in [
+            AdapterKind::LibultrashipPortable,
+            AdapterKind::N64RecompPortable,
+        ] {
+            let (template, version) = original_recognition_capability(adapter).unwrap();
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| entry.template != adapter || entry.contract_version < version)
+                .collect();
+            assert!(
+                !check_with_inventory(&request(template, version, version), &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, version, version))
+                    .unwrap()
+                    .compatible
+            );
+            assert!(
+                check_definition_capabilities(&request(template, version - 1, version - 1))
+                    .unwrap()
+                    .compatible
+            );
+        }
+    }
+
+    #[test]
     fn pinned_native_archives_exclude_v1_v2_inventory_without_retiring_it() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -946,6 +1042,41 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_provider_bindings_require_a_version_newer_than_package_shape() {
+        for (template, adapter, binding_version) in [
+            (
+                "libultraship-portable",
+                AdapterKind::LibultrashipPortable,
+                crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY,
+            ),
+            (
+                "n64-recomp-portable",
+                AdapterKind::N64RecompPortable,
+                crate::provider_binding::N64_RECOMP_BINDING_CAPABILITY,
+            ),
+        ] {
+            let shape_version = crate::package_shape::enforcement_capability(adapter).unwrap();
+            assert!(binding_version > shape_version);
+            let previous: Vec<_> = EngineTemplateCapability::current()
+                .into_iter()
+                .filter(|entry| {
+                    entry.template != adapter || entry.contract_version <= shape_version
+                })
+                .collect();
+            let shape = request(template, shape_version, shape_version);
+            let binding = request(template, binding_version, binding_version);
+            assert!(check_with_inventory(&shape, &previous).unwrap().compatible);
+            assert!(
+                !check_with_inventory(&binding, &previous)
+                    .unwrap()
+                    .compatible
+            );
+            assert!(check_definition_capabilities(&shape).unwrap().compatible);
+            assert!(check_definition_capabilities(&binding).unwrap().compatible);
+        }
+    }
+
+    #[test]
     fn psx_preservation_v2_is_advertised_without_retiring_historical_v1() {
         for (minimum, maximum, compatible, selected) in [
             (1, 1, true, 1),
@@ -955,7 +1086,9 @@ mod tests {
             (1, 3, true, 3),
             (4, 4, true, 4),
             (3, 4, true, 4),
-            (5, 5, false, 4),
+            (5, 5, true, 5),
+            (6, 6, true, 6),
+            (7, 7, false, 6),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
@@ -1109,10 +1242,38 @@ mod tests {
         assert_eq!(staged.checks[0].installed_version, Some(3));
         let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(6));
+        assert_eq!(
+            n64.checks[0].installed_version,
+            Some(N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY)
+        );
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 37, 37)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 39, 39)).unwrap();
         assert!(!future.compatible);
+    }
+
+    #[test]
+    fn chocolate_profile_v38_is_refused_by_the_previous_staged_inventory() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 38
+            })
+            .collect();
+        assert!(
+            !check_with_inventory(&request("staged-source-portable", 38, 38), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 37, 37), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 38, 38))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]
@@ -1359,18 +1520,21 @@ mod tests {
     fn shared_preferences_require_v8_and_refuse_v7_readers() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
-            .filter(|entry| entry.contract_version <= 7)
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 7
+            })
             .collect();
+        // N64's provider binding at version 8 cannot satisfy a staged-source requirement.
+        assert!(
+            check_with_inventory(&request("n64-recomp-portable", 8, 8), &previous)
+                .unwrap()
+                .compatible
+        );
         let required = request("staged-source-portable", 8, 8);
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
         assert_eq!(old.checks[0].installed_version, Some(5));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
-        assert!(
-            !check_definition_capabilities(&request("n64-recomp-portable", 8, 8))
-                .unwrap()
-                .compatible
-        );
         assert!(
             check_retained_definition_capabilities(&request("staged-source-portable", 7, 7))
                 .unwrap()
@@ -1479,7 +1643,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(3));
+        assert_eq!(report.checks[1].installed_version, Some(4));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "u4-sms-recompiled-alexdia25-ultima-iv-quest-of-the-avatar-master-system",
+    "artwork": {
+      "game_id": 400033,
+      "cover_id": 559883,
+      "image_id": "coc00b",
+      "image_sha256": "113f1248a88c6cbc30988a03f4da5db4289eaade31d17990ad34a611c564402c",
+      "game_slug": "ultima-iv",
+      "match_kind": "underlying-game"
+    },
     "name": "Ultima IV: Quest of the Avatar (Master System) — u4-sms-recompiled (alexdia25)",
     "original_game_title": "Ultima IV: Quest of the Avatar (Master System)",
     "summary": "The project describes native map, combat, shop, dungeon, audio and save systems with reference comparisons. Full-game completion has not been independently verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/alexdia25/u4-sms-recompiled"
     },
-    "issue_number": 3554
+    "issue_number": 3554,
+    "original_game": {
+      "format_version": 1,
+      "id": "ultima-iv-quest-of-the-avatar-master-system",
+      "evidence_urls": ["https://github.com/alexdia25/u4-sms-recompiled"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

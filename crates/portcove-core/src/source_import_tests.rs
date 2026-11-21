@@ -2732,3 +2732,47 @@ fn originals_inside_a_store_install_can_be_copied_or_used_but_never_moved() {
         b"synthetic format-only disc source"
     );
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn large_raw_ps2_iso_guard_applies_only_to_use_current_location() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let service = PortcoveService::new(Library::open(root.join("library")).unwrap()).unwrap();
+    let iso = root.join("disc.iso");
+    let size = SourceDiscoveryLimits::default().max_file_bytes + 1;
+    let file = fs::File::create(&iso).unwrap();
+    file.set_len(size).unwrap();
+
+    let guard = reviewed_source_guard(
+        &service,
+        "opengoal-jak2-disc",
+        &iso,
+        SourceImportMode::UseCurrentLocation,
+    )
+    .unwrap();
+    assert_eq!(guard.bytes, size);
+    for mode in [SourceImportMode::Copy, SourceImportMode::Move] {
+        assert!(reviewed_source_guard(&service, "opengoal-jak2-disc", &iso, mode).is_err());
+    }
+    assert!(
+        reviewed_source_guard(
+            &service,
+            "banjo-kazooie",
+            &iso,
+            SourceImportMode::UseCurrentLocation
+        )
+        .is_err()
+    );
+    file.set_len(crate::adapter::MAX_RUNTIME_SOURCE_BYTES + 1)
+        .unwrap();
+    assert!(
+        reviewed_source_guard(
+            &service,
+            "opengoal-jak2-disc",
+            &iso,
+            SourceImportMode::UseCurrentLocation
+        )
+        .is_err()
+    );
+}

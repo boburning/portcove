@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "little-big-adventure-2-lba2-classic-community",
+    "name": "Little Big Adventure 2 / LBA2 Classic Community",
+    "summary": "Play the classic Little Big Adventure 2 with the LBA2 Classic Community engine.",
+    "original_game_title": "Little Big Adventure 2",
+    "project_url": "https://github.com/LBALab/lba2-classic-community",
+    "artwork": {
+      "game_id": 79653,
+      "cover_id": 220733,
+      "image_id": "co4qbh",
+      "image_sha256": "b9d5eb87eedc964c0f98271718d28928abe02ff6c3f1a263171f04f85095c933",
+      "game_slug": "twinsens-little-big-adventure-2-classic",
+      "match_kind": "underlying-game"
+    },
+    "issue_number": 5431,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data",
+    "release_url": "https://github.com/LBALab/lba2-classic-community/releases/tag/v0.13.2",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your classic game data",
+          "instruction": "Use the original PC retail files or the classic installation from GOG or Steam. When the engine asks, choose the folder containing LBA2.HQR and keep the other game files and media directories together. In a store installation, look for the classic data under Common or CommonClassic. For an owned disc image, follow the publisher’s game-data guide."
+        },
+        {
+          "title": "Open the package for your desktop",
+          "instruction": "On Windows x64, extract the ZIP and run lba2cc.exe. On Linux x86-64 or ARM64, choose the matching AppImage, make it executable and open it with FUSE available. The matching TAR.GZ avoids FUSE and needs glibc 2.38 or later. On Intel or Apple Silicon Mac with macOS 11 or later, open the universal DMG, copy the app to Applications and follow its first-run instructions."
+        }
+      ],
+      "warnings": [
+        "These stable packages need the classic retail data. The 1997 demo has different game files and needs its own engine build."
+      ],
+      "references": [
+        {
+          "title": "Set up the Android release",
+          "instruction": "Use the publisher’s arm64-v8a or armeabi-v7a APK on Android 7 or later and follow its Android guide to place your original data. The shared lba2cc folder requires Android’s All Files Access on Android 11 or later. Check the active save folder in the startup log. With shared storage, back up lba2cc/user/LBA2. App-owned fallback folders can be erased on uninstall, so verify a separate copy of your saves before uninstalling."
+        },
+        {
+          "title": "Keep your saves when changing packages",
+          "instruction": "With the game closed, copy Twinsen/LBA2 under %APPDATA% on Windows, $XDG_DATA_HOME or ~/.local/share on Linux, or ~/Library/Application Support on Mac. If you chose --user-dir or LBA2_USER_DIR, copy that directory with its profiles. If you added portable.txt, copy User/LBA2 beside the engine. Keep originals and profiles separate from replacement package files."
+        }
+      ],
+      "help_url": "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-big-adventure-2",
+      "evidence_urls": [
+        "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data",
+        "https://github.com/LBALab/lba2-classic-community"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "little-big-adventure-2-lba2-classic-community",
+    "origin": {
+      "project_url": "https://github.com/LBALab/lba2-classic-community",
+      "repository": {
+        "host": "github.com",
+        "id": "421054355"
+      }
+    },
+    "decisions": []
+  }
+}

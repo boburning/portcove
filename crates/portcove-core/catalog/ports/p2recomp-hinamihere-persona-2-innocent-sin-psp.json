@@ -35,6 +35,21 @@
       "image_sha256": "14d34a2a9b2a17e1b6d31c0e83043479f3a189103c45f97bba9cb68c1cc50e90",
       "game_slug": "persona-2-innocent-sin",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-2-innocent-sin-psp",
+      "evidence_urls": ["https://github.com/hinamihere/p2recomp"],
+      "source_editions": [
+        {
+          "id": "persona-2-innocent-sin-psp-playstation-portable",
+          "title": "Persona 2: Innocent Sin (PSP) (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/hinamihere/p2recomp/blob/f225dc4abe2a929e521704cb4f1ca7cb462a28d3/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

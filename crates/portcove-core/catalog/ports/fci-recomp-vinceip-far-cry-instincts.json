@@ -6,7 +6,7 @@
     "original_game_title": "Far Cry Instincts",
     "summary": "Upstream describes story and map-editor support in v0.2.1. A complete playthrough is unconfirmed. Rare single-player crashes and Windows DPI blur remain; Xbox Live and System Link are unavailable. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/VinceIP/fci-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/VinceIP/fci-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "f6880b2db98bcf982cbd62de46713920e782a1e15e3cde8d0791f797d73effa4",
       "game_slug": "far-cry-instincts",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "far-cry-instincts",
+      "evidence_urls": ["https://github.com/VinceIP/fci-recomp"],
+      "source_editions": [
+        {
+          "id": "far-cry-instincts-xbox",
+          "title": "Far Cry Instincts (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/VinceIP/fci-recomp/blob/8fc4b7374fd2e72be96c0f45cb9dc0db7dc7ae88/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

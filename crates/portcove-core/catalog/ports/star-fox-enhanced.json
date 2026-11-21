@@ -39,6 +39,24 @@
           "instruction": "Keep the Windows or Linux data beside the player, including starfox-ex.srm, states/ and your settings. Back up those files before applying an update in the game. On Mac, keep the app’s StarFoxEnhanced application data when replacing the bundle. On Android, use the normal package upgrade for the same app and retain its app data."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox",
+      "evidence_urls": [
+        "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md",
+        "https://github.com/kandowontu2/starfox-enhanced"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-super-nintendo",
+          "title": "Star Fox (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

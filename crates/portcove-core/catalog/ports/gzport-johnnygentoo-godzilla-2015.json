@@ -4,6 +4,14 @@
     "id": "gzport-johnnygentoo-godzilla-2015",
     "name": "GODZILLA (2015) — gzport (johnnygentoo)",
     "original_game_title": "GODZILLA (2015)",
+    "artwork": {
+      "game_id": 8731,
+      "cover_id": 134606,
+      "image_id": "co2vv2",
+      "image_sha256": "34f87fb136addc2e2d908f87acd4dc45f41cc910df1939ef0a480c3cd49abead",
+      "game_slug": "godzilla-the-game--1",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports the full solo story, other modes and three-PC LAN play on Linux at 60 FPS. A higher-frame-rate patch is not written, and upscalers are experimental. Portcove has not confirmed completion, network play or performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/johnnygentoo/gzport",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/johnnygentoo/gzport"
     },
-    "issue_number": 3450
+    "issue_number": 3450,
+    "original_game": {
+      "format_version": 1,
+      "id": "godzilla-2015",
+      "evidence_urls": ["https://github.com/johnnygentoo/gzport"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

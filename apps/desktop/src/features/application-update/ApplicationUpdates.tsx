@@ -113,12 +113,12 @@ export function ApplicationUpdateSettings({
           {t("status.title")}
         </h3>
         <p className={mutedCopyClass} role="status">
-          {statusCopy(t, status, busy === "check")}
+          {statusCopy(t, status, busy === "check", busy === "install")}
         </p>
         {status?.available && (
           <AvailableUpdate
             available={status.available}
-            installing={busy === "install" || status.installing}
+            showProgress={busy === "install"}
             progress={update.progress}
             disabled={locked}
             install={() => void update.install(generation)}
@@ -185,7 +185,9 @@ function statusCopy(
   t: TFunction<"applicationUpdate">,
   status: ApplicationUpdateStatus | undefined,
   checking: boolean,
+  installing: boolean,
 ) {
+  if (installing || status?.installing) return t("status.updating");
   if (checking || status?.checking) return t("status.checking");
   if (status?.available) return t("status.available", { version: status.available.version });
   if (status?.last_checked_unix_seconds)
@@ -197,13 +199,13 @@ function statusCopy(
 
 function AvailableUpdate({
   available,
-  installing,
+  showProgress,
   progress,
   disabled,
   install,
 }: {
   available: NonNullable<ApplicationUpdateStatus["available"]>;
-  installing: boolean;
+  showProgress: boolean;
   progress: ApplicationUpdateProgress | undefined;
   disabled: boolean;
   install: () => void;
@@ -237,7 +239,7 @@ function AvailableUpdate({
         <Button data-focusable variant="primary" size="sm" disabled={disabled} onClick={install}>
           {t("available.install")}
         </Button>
-        {installing && (
+        {showProgress && (
           <p className="m-0 text-sm" role="status" aria-live="polite">
             {progressCopy(t, progress)}
           </p>

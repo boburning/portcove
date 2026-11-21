@@ -21,9 +21,9 @@
     "manualCopy": "Retained log for manual copy",
     "none": "No retained diagnostic capture is available. Older activity details may be available in a redacted support report in Settings.",
     "phase": {
-      "extract": "Preparing game files",
+      "extract": "Game file preparation",
       "other": "Preparation log",
-      "setup": "Running game setup"
+      "setup": "Game setup"
     },
     "reading": "Reading the retained log…",
     "readingWithPrevious": "Reading the retained log… Showing the last loaded capture while the current log is checked.",
@@ -63,6 +63,16 @@
         "inspect": "Files left by unfinished setup"
       }
     },
+    "consequence": {
+      "backup": "This check found a problem with a backup. Review saves and backups before relying on it.",
+      "malformed": "Portcove could not read this operation record. There is no supported recovery action here. Keep the files and contact support.",
+      "missing": "Portcove cannot use this registered copy at its recorded location. Review the installation to decide how to recover it.",
+      "orphaned": "Portcove found a folder in managed storage without a matching registration. Review library storage before moving any files.",
+      "retained": "Setup left a record or working files behind. Review what remains before deciding whether to clean up.",
+      "unfinished": "Portcove found an unfinished operation. Review its state before changing the game or library.",
+      "unknown": "Portcove could not recognize this recovery record. There is no supported recovery action here.",
+      "unreviewable": "Portcove cannot identify the setup to review. Keep the files and contact support."
+    },
     "details": {
       "cleanupLabel": "Cleanup changes and preserved data",
       "clearScope": "No setup working files were found. Cleanup clears the recorded setup path if it exists and its stale recovery journal.",
@@ -93,13 +103,14 @@
     "failedRetained": "Recovery information could not be refreshed: <error /> The last completed check remains visible.",
     "heading": "Unfinished work and recovery",
     "incomplete": "Journal or related assessments are incomplete. Retained state requires review; no repair was attempted.",
-    "intro": "Expand an item for its recorded location and guidance. Review links do not change files.",
+    "intro": "Review the next step for each item. Open Record details for its recorded location and diagnostic information.",
     "item": {
       "location": "Recorded location",
       "nextStep": "Suggested next step",
       "noGuidance": "No recovery guidance was recorded.",
       "noLocation": "No location was recorded.",
       "observation": "Diagnostic observation",
+      "recordDetails": "Record details",
       "reference": "Operation reference",
       "reviewFiles": "Review unfinished setup files",
       "summary": "<game /> · {{label}}"

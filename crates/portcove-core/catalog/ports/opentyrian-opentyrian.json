@@ -49,6 +49,24 @@
     "download_asset_hints": {
       "macos-x86-64": ["-macos-universal.zip"],
       "macos-aarch64": ["-macos-universal.zip"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tyrian",
+      "evidence_urls": [
+        "https://github.com/opentyrian/opentyrian/blob/v2.1.20260913/README.md",
+        "https://github.com/opentyrian/opentyrian"
+      ],
+      "source_editions": [
+        {
+          "id": "tyrian-pc",
+          "title": "Tyrian (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/opentyrian/opentyrian/blob/26e40a2012903812f16aae5dd6af2be50b96b5cb/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

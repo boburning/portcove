@@ -19,7 +19,7 @@
             "crates/portcove-core/src/source_catalog.rs",
             "crates/portcove-core/src/source_catalog_tests.rs"
           ],
-          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/) | test(/^installed_contract::tests::catalog_growth_stays_within_the_legacy_compatibility_margin$/)"
+          "filter": "test(/^catalog::tests::/) | test(/^catalog_update::tests::/) | test(/^source_catalog::tests::/) | test(/^definition_projection::tests::/) | test(/^definition_policy_tests::/) | test(/^artwork_tests::/) | test(/^installed_contract::tests::catalog_growth_stays_within_supported_capacity$/)"
         },
         {
           "id": "route-enrollment-fixtures",
@@ -312,6 +312,14 @@
       "platforms": ["linux", "darwin", "win32"],
       "category": "explicit-acceptance",
       "requires_qualification_fixtures": true
+    },
+    {
+      "source": "crates/portcove-core/src/jakmods_tests.rs",
+      "test": "real_before_and_served_feed_addition_appears_only_for_jak1",
+      "reason": "requires the two retained upstream JakMods feed snapshots for the explicit replay in docs/CLI.md",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
     },
     {
       "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",

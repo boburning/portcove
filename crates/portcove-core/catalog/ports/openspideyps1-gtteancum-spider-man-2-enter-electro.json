@@ -35,6 +35,21 @@
       "image_sha256": "9208130624a36235f99803a0ca5d871821e1b5622e9abbf8793a402469375382",
       "game_slug": "spider-man-2-enter-electro",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-2-enter-electro",
+      "evidence_urls": ["https://github.com/GTTeancum/SpideyPS1recomp"],
+      "source_editions": [
+        {
+          "id": "spider-man-2-enter-electro-playstation",
+          "title": "Spider-Man 2: Enter Electro (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/SpideyPS1recomp/blob/6d7a0c38b1856bd35636485181643d3baecb4e49/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "iss2000-djultra64-international-superstar-soccer-2000",
+    "artwork": {
+      "game_id": 3515,
+      "cover_id": 196658,
+      "image_id": "co47qq",
+      "image_sha256": "bec62a26eda767c23915504667465e361cffb7057942016ee6f1d8e6cf442da6",
+      "game_slug": "international-superstar-soccer-2000",
+      "match_kind": "underlying-game"
+    },
     "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
     "original_game_title": "International Superstar Soccer 2000",
     "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",
@@ -40,10 +48,24 @@
     "listed_at": "2026-10-25",
     "release_url": "https://github.com/djultra64/ISS2000/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["ISS2000-Windows-", ".zip"],
-      "linux-x86-64": ["ISS2000-Linux-", ".zip"]
+      "windows-x86-64": ["ISS2000-Windows-", ".zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "international-superstar-soccer-2000",
+      "evidence_urls": ["https://github.com/djultra64/ISS2000"],
+      "source_editions": [
+        {
+          "id": "international-superstar-soccer-2000-nintendo-64",
+          "title": "International Superstar Soccer 2000 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -57,6 +79,7 @@
     },
     "decisions": []
   },
+  "listing_inherit_asset_hints": ["linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable", "beta"],

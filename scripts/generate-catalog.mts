@@ -1,3 +1,7 @@
+import {
+  requireOriginalGameDecision,
+  checkOriginalGameConsistency,
+} from "./catalog-game-review.mts";
 import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
@@ -9,7 +13,6 @@ import {
   reviewCompatibilityFixture,
   serializeCurrentCatalog,
   readCatalogSource,
-  projectAuthoredPort,
   catalogSourceNames,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
@@ -30,7 +33,12 @@ import type { ImageValidator } from "./inspect-igdb-artwork.mts";
 import {
   prepareCoverArtworkInOperations,
   prepareGameMediaInOperations,
+  sceneCoverage,
 } from "./artwork-operations.mts";
+import {
+  managedSetupReleaseAdvice,
+  managedSetupReleaseAdviceText,
+} from "./catalog-setup-release-advice.mts";
 import { isRecord } from "./runtime-values.mts";
 
 interface Difference {
@@ -374,21 +382,40 @@ function compatibilityFixtureReview(catalog: CurrentCatalog) {
   );
 }
 const authored = readCatalogSource(catalogRoot);
+// Repository completeness is an authoring/review gate, never a legacy runtime requirement.
+if (process.argv.includes("--check")) {
+  for (const record of authored.records) requireOriginalGameDecision(record, authored.records);
+  checkOriginalGameConsistency(authored.records, true);
+}
 const current = authored.catalog;
 // Listing-only entries can already own reviewed covers before gaining an
 // integration. Supply those accepted facts only to artwork preparation; Core's
 // accepted operational baseline and compatibility checks remain unchanged.
+const regionalCovers = new Map(
+  authored.records.flatMap(({ listing, igdb_regional_cover }) =>
+    igdb_regional_cover ? [[listing.id, igdb_regional_cover] as const] : [],
+  ),
+);
 const acceptedArtwork = {
   ...current,
   ports: [
-    ...current.ports,
+    ...current.ports.map((port) => {
+      const selection = regionalCovers.get(port.id);
+      return selection ? { ...port, igdb_regional_cover: selection } : port;
+    }),
     ...authored.records
       .filter(({ integration }) => !integration)
-      .map(({ listing }) => ({
+      .map(({ listing, igdb_regional_cover }) => ({
         id: listing.id,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
         name: listing.name,
         project_url: listing.project_url,
-        presentation: { artwork: listing.artwork },
+        presentation: {
+          artwork: listing.artwork,
+          collection_covers: listing.collection_covers,
+          original_game: listing.original_game,
+          media: listing.media,
+        },
       })),
   ],
 };
@@ -469,10 +496,12 @@ async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
     option(fullProposal ? "--prepare-proposal" : "--prepare-artwork", true),
-    fullProposal ? 4 * 1024 * 1024 : 8 * 1024 * 1024,
+    fullProposal ? 16 * 1024 * 1024 : 8 * 1024 * 1024,
   );
   const input = captured.document;
   validateCurrentCatalog(input);
+  if (input.ports.some((port) => Object.hasOwn(port, "igdb_regional_cover")))
+    throw new Error("IGDB regional cover selections belong in authored port records.");
   const identitiesFile = option("--identities");
   const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
   const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];
@@ -583,7 +612,13 @@ async function prepareArtworkProposal(fullProposal = false) {
     gone_image_ids: result.gone_image_ids,
     provider_metrics: inspector.providerMetrics,
     ...(gameMedia
-      ? { game_media: { records: gameMedia.records, gone_image_ids: gameMedia.gone_image_ids } }
+      ? {
+          game_media: {
+            records: gameMedia.records,
+            gone_image_ids: gameMedia.gone_image_ids,
+            coverage: sceneCoverage(acceptedArtwork, gameMedia, selectedPortIds),
+          },
+        }
       : {}),
     scope: gameMedia
       ? "Maintainer cover and remote game-media proposal; no admission, signature, publication, image-payload redistribution, runtime or user-choice mutation."
@@ -661,23 +696,44 @@ if (preparing) {
     throw new Error(
       `Review independent compatibility fixture before generation: ${JSON.stringify(compatibility.collections)}`,
     );
+  const releaseUrls = new Map(
+    authored.records.map(({ listing }) => [listing.id, listing.release_url]),
+  );
+  for (const port of current.ports) {
+    for (const finding of managedSetupReleaseAdvice(port, releaseUrls.get(port.id))) {
+      const { step, kind, literal } = finding;
+      process.stderr.write(
+        `Catalog authoring advice for ${port.id}, setup step ${step}: ${kind} ${JSON.stringify(literal)}. ${managedSetupReleaseAdviceText}\n`,
+      );
+    }
+  }
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   const managedSetupReview = Object.fromEntries(
     authored.records.flatMap((record) => {
-      const { listing, managed_setup_platform_warnings } = record;
-      if (!managed_setup_platform_warnings) return [];
-      const guide = projectAuthoredPort(record)?.presentation?.manual_setup;
-      if (!isRecord(guide) || !Array.isArray(guide.steps) || !isRecord(guide.steps[0]))
-        throw new Error(`${listing.id} has no projected managed setup step.`);
+      const { integration, listing, route_facts_v1, managed_setup_platform_warnings } = record;
+      const presentation = integration?.presentation;
+      const guide =
+        isRecord(presentation) && isRecord(presentation.manual_setup)
+          ? presentation.manual_setup
+          : undefined;
+      const managedNative = route_facts_v1?.managed_native;
+      if (!guide && !managedNative) return [];
+      const step: unknown = Array.isArray(guide?.steps)
+        ? guide.steps[0]
+        : managedNative?.preparation;
+      if (!isRecord(step) || typeof step.instruction !== "string")
+        throw new Error(`${listing.id} has no authored managed setup step.`);
       return [
         [
           listing.id,
-          {
-            note: guide.steps[0].instruction,
-            warnings: guide.warnings,
-            platform_warnings: managed_setup_platform_warnings,
-          },
+          managed_setup_platform_warnings
+            ? {
+                note: step.instruction,
+                warnings: guide?.warnings ?? [],
+                platform_warnings: managed_setup_platform_warnings,
+              }
+            : step.instruction,
         ],
       ];
     }),

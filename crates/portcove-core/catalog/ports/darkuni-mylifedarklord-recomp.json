@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-mylifedarklord-recomp",
+    "artwork": {
+      "game_id": 41856,
+      "cover_id": 198218,
+      "image_id": "co48y2",
+      "image_sha256": "b672dc27272bfa474e920c658ae44da34c836d707a85cfcdbd5e549a78e3cbed",
+      "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
     "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
@@ -35,10 +43,25 @@
       "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
     },
     "release_url": "https://github.com/darkuni/mylifedarklord-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["MyLifeAsADarklord-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md",
+        "https://github.com/darkuni/mylifedarklord-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord-wii",
+          "title": "Final Fantasy Crystal Chronicles: My Life as a Darklord (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -67,5 +90,6 @@
         "executables": ["mylifedarklord.exe", "record-audio.bat"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

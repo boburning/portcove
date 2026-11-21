@@ -43,8 +43,29 @@
         "The inspected tagged source starts unauthenticated loopback debug control. Transfer Pak and GB Tower can write separately configured cartridge saves; preserve the actual paths and creating runtimes. No actual game or Transfer Pak execution has been qualified."
       ],
       "help_url": "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-stadium",
+      "evidence_urls": [
+        "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+        "https://github.com/mstan/PokemonStadiumRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-stadium-ss-anne-pokemonstadiumrecomp.json"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-stadium-nintendo-64",
+          "title": "Pokémon Stadium (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/mstan/PokemonStadiumRecomp/releases/tag/v0.4.7-beta",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/pokemon-stadium-ss-anne-pokemonstadiumrecomp.json"
+          ]
+        }
+      ]
     }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -54,19 +75,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "mstan/PokemonStadiumRecomp",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "mstan/PokemonStadiumRecomp"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

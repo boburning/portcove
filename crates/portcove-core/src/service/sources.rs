@@ -7,11 +7,13 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ActivityOperation, ActivityTargetKind, Catalog, Library, PortcoveError, Result, SourceHealth,
-    SourceRecord, SourceRemovalPreview, SourceVerification,
+    ActivityOperation, ActivityTargetKind, Catalog, ErrorCode, Library, PortcoveError, Result,
+    SourceHealth, SourceRecord, SourceRemovalPreview, SourceVerification,
 };
 
 use super::PortcoveService;
+
+const MAX_SAVED_N64_ORIGINALS: i64 = 16;
 
 impl PortcoveService {
     pub fn register_source(&self, profile_id: &str, path: &Path) -> Result<SourceRecord> {
@@ -331,6 +333,8 @@ impl PortcoveService {
     pub(super) fn verified_original_for_setup(
         &self,
         port: &crate::PortDefinition,
+        release: Option<(&str, &str)>,
+        checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<SourceRecord> {
         let profile_id = port
             .source_profile
@@ -342,10 +346,204 @@ impl PortcoveService {
         let assessment = crate::source_inspection::verify_registered_assessment_with_checkpoint(
             &self.catalog,
             &registered,
-            &|| Ok(()),
+            checkpoint,
         )?;
-        self.require_original_setup_compatibility(port, &assessment.classification)?;
+        self.require_original_for_release(
+            port,
+            &registered,
+            &assessment.classification,
+            release,
+            checkpoint,
+        )?;
         Ok(registered)
+    }
+
+    pub(super) fn require_original_for_release(
+        &self,
+        port: &crate::PortDefinition,
+        source: &SourceRecord,
+        classification: &crate::SourceClassification,
+        release: Option<(&str, &str)>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        if let Some(release) = release
+            && crate::source_inspection::verify_n64_release_input(
+                &self.catalog,
+                &port.id,
+                Some(source),
+                release,
+                checkpoint,
+            )?
+            .is_some()
+            && self
+                .catalog
+                .n64_legacy_migrations(&source.profile_id)
+                .next()
+                .is_some()
+        {
+            return Ok(());
+        }
+        self.require_original_setup_compatibility(port, classification)
+    }
+
+    pub(super) fn require_retained_n64_release_input(
+        &self,
+        install: &crate::InstallRecord,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<()> {
+        // Publication recovery can be checking a verified payload whose path
+        // is not yet in the library. Older builds without retained policy do
+        // not inherit a new input restriction from the current catalog.
+        let Some(catalog) =
+            crate::Installer::new(self.library.clone())?.retained_catalog(install)?
+        else {
+            return Ok(());
+        };
+        let release = (install.version.as_str(), install.artifact.sha256.as_str());
+        let Some((profile_id, _)) =
+            crate::source_inspection::n64_release_input(&catalog, &install.port_id, release)
+        else {
+            return Ok(());
+        };
+        let source = match self.pinned_original(&install.port_id, profile_id, &install.id)? {
+            Some(binding) => Some(self.registered_profile_original(&binding)?),
+            None if catalog.n64_legacy_migrations(profile_id).next().is_some() => {
+                self.resolve_saved_n64_original(
+                    &catalog,
+                    &install.port_id,
+                    profile_id,
+                    release,
+                    checkpoint,
+                )?;
+                return Ok(());
+            }
+            None => self.library.source(profile_id)?,
+        };
+        crate::source_inspection::verify_n64_release_input(
+            &catalog,
+            &install.port_id,
+            source.as_ref(),
+            release,
+            checkpoint,
+        )
+        .map(|_| ())
+    }
+
+    pub(super) fn resolve_saved_n64_original(
+        &self,
+        catalog: &Catalog,
+        port_id: &str,
+        profile_id: &str,
+        release: (&str, &str),
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<SourceRecord> {
+        let mut budget = crate::source_inspection::n64_input_hash_budget(checkpoint);
+        let mut verify = |source: &SourceRecord| {
+            checkpoint()?;
+            crate::source_inspection::verify_saved_n64_original(
+                catalog,
+                port_id,
+                source,
+                release,
+                &mut budget,
+            )
+        };
+        let is_candidate_failure = |error: &PortcoveError| {
+            matches!(
+                error.code,
+                ErrorCode::NotFound
+                    | ErrorCode::State
+                    | ErrorCode::SourceInvalid
+                    | ErrorCode::Verification
+            )
+        };
+        let current = self.library.source(profile_id)?;
+        let current_error = match &current {
+            Some(source) => match verify(source) {
+                Ok(()) => return Ok(source.clone()),
+                Err(error) if is_candidate_failure(&error) => error,
+                Err(error) => return Err(error),
+            },
+            None => {
+                PortcoveError::not_found(format!("source profile {profile_id} is not registered"))
+                    .detail("profile_id", profile_id)
+            }
+        };
+        let candidates = crate::source_instances::list_limited(
+            &self.library.connection()?,
+            profile_id,
+            MAX_SAVED_N64_ORIGINALS + 1,
+        )?;
+        if candidates.len() > MAX_SAVED_N64_ORIGINALS as usize {
+            return Err(current_error);
+        }
+        let mut matching = None;
+        for (_, candidate) in candidates {
+            if current.as_ref().is_some_and(|current| {
+                current.sha256 == candidate.sha256
+                    && current.storage_sha256 == candidate.storage_sha256
+                    && current.path == candidate.path
+            }) {
+                continue;
+            }
+            match verify(&candidate) {
+                Ok(()) if matching.is_some() => return Err(PortcoveError::conflict(
+                    "Several saved originals match this release. Choose the original you want to use.",
+                ).detail("profile_id", profile_id)),
+                Ok(()) => matching = Some(candidate),
+                Err(error) if is_candidate_failure(&error) => {}
+                Err(error) => return Err(error),
+            }
+        }
+        matching.ok_or(current_error)
+    }
+
+    pub(super) fn uses_migrated_n64_original(
+        &self,
+        catalog: &Catalog,
+        port: &crate::PortDefinition,
+    ) -> bool {
+        port.adapter == crate::AdapterKind::N64RecompPortable
+            && port.source_profile.as_deref().is_some_and(|profile| {
+                catalog.n64_legacy_migrations(profile).next().is_some()
+                    || self.catalog.n64_legacy_migrations(profile).next().is_some()
+            })
+    }
+
+    pub(super) fn has_saved_n64_original_to_recheck(
+        &self,
+        port: &crate::PortDefinition,
+        install_id: Option<&str>,
+        healthy_default: Option<&SourceRecord>,
+    ) -> Result<bool> {
+        let Some(profile) = port.source_profile.as_deref() else {
+            return Ok(false);
+        };
+        let available = |source: &SourceRecord| {
+            std::fs::metadata(&source.path).is_ok_and(|metadata| {
+                metadata.is_file()
+                    && metadata.len() == source.storage_size
+                    && std::fs::File::open(&source.path).is_ok()
+            })
+        };
+        if let Some(install_id) = install_id
+            && let Some(binding) = self.pinned_original(&port.id, profile, install_id)?
+        {
+            return Ok(available(&self.registered_profile_original(&binding)?));
+        }
+        let candidates = crate::source_instances::list_limited(
+            &self.library.connection()?,
+            profile,
+            MAX_SAVED_N64_ORIGINALS + 1,
+        )?;
+        Ok(candidates.len() <= MAX_SAVED_N64_ORIGINALS as usize
+            && candidates.iter().any(|(_, candidate)| {
+                healthy_default.is_none_or(|current| {
+                    current.sha256 != candidate.sha256
+                        || current.storage_sha256 != candidate.storage_sha256
+                        || current.path != candidate.path
+                }) && available(candidate)
+            }))
     }
 
     pub(super) fn verified_source_record_with_checkpoint(
@@ -398,6 +596,150 @@ impl PortcoveService {
         )?;
         checkpoint()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        CatalogEvidenceRole, N64RecompOriginalInput, OperationCoordinator, SourceRepresentationKind,
+    };
+
+    #[test]
+    fn migrated_n64_setup_uses_the_release_input_and_preserves_the_legacy_original() {
+        const PORT: &str = "harvest-moon-64-recomp";
+        const PROFILE: &str = "harvest-moon-64";
+        let directory = tempfile::tempdir().unwrap();
+        let older_path = directory.path().join("older.z64");
+        let newer_path = directory.path().join("newer.z64");
+        let older_bytes = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 0];
+        let newer_bytes = [0x80, 0x37, 0x12, 0x40, 0xa1, 0xb2, 0xc3, 0];
+        std::fs::write(&older_path, older_bytes).unwrap();
+        std::fs::write(&newer_path, newer_bytes).unwrap();
+
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let sources = document.source_catalog.as_mut().unwrap();
+        let profile = sources
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == PROFILE)
+            .unwrap();
+        let SourceRepresentationKind::CanonicalN64 { identities } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("fixture requires a canonical legacy original");
+        };
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(older_bytes)));
+        let retained = Catalog::from_document(document.clone()).unwrap();
+        let sources = document.source_catalog.as_mut().unwrap();
+        let evidence = sources
+            .evidence
+            .iter()
+            .find(|item| item.role == CatalogEvidenceRole::UpstreamSupport)
+            .unwrap()
+            .id
+            .clone();
+        let contract = sources
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.port_id == PORT)
+            .unwrap();
+        let artifact = "a".repeat(64);
+        let other_artifact = "b".repeat(64);
+        contract.evidence_ids.push(evidence);
+        contract.n64_recomp_inputs_v1.push(N64RecompOriginalInput {
+            upstream_ref: "current".into(),
+            artifact_sha256: artifact.clone(),
+            game_id: "harvest_moon_64".into(),
+            rom_xxh3_64: "922d8d44f9f2e9a9".into(),
+        });
+        let migrated = Catalog::from_document(document).unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(directory.path().join("library")).unwrap()).unwrap();
+        service.replace_catalog_for_test(retained.clone());
+        let older = service.register_source(PROFILE, &older_path).unwrap();
+        assert!(service.inspect_source_record(PROFILE, &newer_path).is_err());
+
+        service.replace_catalog_for_test(migrated.clone());
+        let port = service.catalog().port(PORT).unwrap();
+        assert!(
+            !service
+                .has_saved_n64_original_to_recheck(port, None, Some(&older))
+                .unwrap()
+        );
+        let operation = OperationCoordinator::new("n64-release-migration", None);
+        let _guard = service.library().try_lock_port(PORT, "install").unwrap();
+        for release in [
+            ("current", other_artifact.as_str()),
+            ("older", artifact.as_str()),
+        ] {
+            assert_eq!(
+                service
+                    .validate_and_remember_source(port, Some(&newer_path), release, &operation)
+                    .unwrap_err()
+                    .code,
+                ErrorCode::SourceInvalid,
+            );
+            assert_eq!(
+                service.library().source(PROFILE).unwrap().unwrap().sha256,
+                older.sha256
+            );
+        }
+        let newer = service
+            .validate_and_remember_source(
+                port,
+                Some(&newer_path),
+                ("current", &artifact),
+                &operation,
+            )
+            .unwrap()
+            .unwrap();
+        assert_ne!(newer.sha256, older.sha256);
+        assert!(
+            service
+                .has_saved_n64_original_to_recheck(port, None, Some(&newer))
+                .unwrap()
+        );
+
+        assert_eq!(
+            service.library().source(PROFILE).unwrap().unwrap().sha256,
+            newer.sha256
+        );
+        assert_eq!(
+            service
+                .verified_original_for_setup(port, Some(("older", &other_artifact)), &|| Ok(()),)
+                .unwrap_err()
+                .code,
+            ErrorCode::SourceInvalid,
+        );
+        for catalog in [&retained, &migrated] {
+            let restored = service
+                .resolve_saved_n64_original(
+                    catalog,
+                    PORT,
+                    PROFILE,
+                    ("older", &other_artifact),
+                    &|| Ok(()),
+                )
+                .unwrap();
+            assert_eq!(restored.sha256, older.sha256);
+        }
+        assert_eq!(
+            service
+                .resolve_saved_n64_original(
+                    &migrated,
+                    PORT,
+                    PROFILE,
+                    ("current", &artifact),
+                    &|| Ok(())
+                )
+                .unwrap()
+                .sha256,
+            newer.sha256,
+        );
+        assert_eq!(std::fs::read(&older_path).unwrap(), older_bytes);
+        assert_eq!(std::fs::read(&newer_path).unwrap(), newer_bytes);
     }
 }
 

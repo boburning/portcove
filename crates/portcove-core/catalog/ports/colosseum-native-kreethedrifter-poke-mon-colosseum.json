@@ -35,6 +35,21 @@
       "image_sha256": "15e97bcf0eac5b4a2de6b923244a116e9f4be25288be2692e54d31a635a4b76b",
       "game_slug": "pokemon-colosseum",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-colosseum",
+      "evidence_urls": ["https://github.com/KreeTheDrifter/colosseum-native"],
+      "source_editions": [
+        {
+          "id": "pokemon-colosseum-nintendo-gamecube",
+          "title": "Pokémon Colosseum (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/KreeTheDrifter/colosseum-native/blob/4d05fa1551374e6f01299023daf3a52f05385ae1/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

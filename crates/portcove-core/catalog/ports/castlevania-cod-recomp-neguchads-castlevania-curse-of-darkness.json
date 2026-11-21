@@ -6,7 +6,7 @@
     "original_game_title": "Castlevania: Curse of Darkness",
     "summary": "This experimental project reports menus and game hooks. Full-campaign testing and fixes for texture bands, translation and the save-room arrow remain unfinished. Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "04f23e02ba2a436b358660cd8af60e8c4cb5a4fcb2a272425e90f8764e71ad26",
       "game_slug": "castlevania-curse-of-darkness",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-curse-of-darkness",
+      "evidence_urls": ["https://github.com/Neguchads/Castlevania-COD-Recomp"],
+      "source_editions": [
+        {
+          "id": "castlevania-curse-of-darkness-xbox",
+          "title": "Castlevania: Curse of Darkness (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Neguchads/Castlevania-COD-Recomp/blob/026d4cf0ad4a9990a364da57c9bb3ff21aa4d1cb/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

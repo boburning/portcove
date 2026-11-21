@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "espn-nfl-2k5-remade",
+    "artwork": {
+      "game_id": 7881,
+      "cover_id": 136747,
+      "image_id": "co2xij",
+      "image_sha256": "c9d6a9b5fc2a419d2a65fb52d386656c74d00d73ba8b4fd81473a9efa31782b8",
+      "game_slug": "espn-nfl-2k5",
+      "match_kind": "underlying-game"
+    },
     "name": "ESPN NFL 2K5 Native PC",
     "summary": "Play ESPN NFL 2K5 on Windows using upstream setup and your own original Xbox game.",
     "project_url": "https://github.com/BeyondTomrrow/2K5Remade",
@@ -37,6 +45,28 @@
           "instruction": "Preserve saves, mods and Music in your installation folder. Settings, caches and logs default to %LOCALAPPDATA%\\NFL2K5-PC. If you deliberately use portable.txt beside NFL2K5.exe, keep the settings in that writable installation folder too. Back up your files before changing the installation."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "espn-nfl-2k5",
+      "evidence_urls": [
+        "https://github.com/BeyondTomrrow/2K5Remade/blob/991cd02a30cfe451bcb678ff00128af6f3c4f9ce/README.md#install-and-play",
+        "https://github.com/BeyondTomrrow/2K5Remade/releases/tag/v0.6.1-hotfix",
+        "https://github.com/BeyondTomrrow/2K5Remade",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/espn-nfl-2k5-remade.json"
+      ],
+      "source_editions": [
+        {
+          "id": "espn-nfl-2k5-xbox",
+          "title": "ESPN NFL 2K5 (Xbox)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/BeyondTomrrow/2K5Remade/releases/tag/v0.6.1-hotfix",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/espn-nfl-2k5-remade.json"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "ESPN NFL 2K5"
   }
 }

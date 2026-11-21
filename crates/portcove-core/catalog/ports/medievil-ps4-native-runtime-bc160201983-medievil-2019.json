@@ -4,6 +4,14 @@
     "id": "medievil-ps4-native-runtime-bc160201983-medievil-2019",
     "name": "MediEvil (2019) — MediEvil PS4 native runtime (bc160201983)",
     "original_game_title": "MediEvil (2019)",
+    "artwork": {
+      "game_id": 76960,
+      "cover_id": 84940,
+      "image_id": "co1tjg",
+      "image_sha256": "3f2195b7cb45c5f5ef2a1f796f987cd9ae64c6f5fd2113d8ddac1c26b100d4e5",
+      "game_slug": "medievil--1",
+      "match_kind": "underlying-game"
+    },
     "summary": "The author provides captures from Windows 11 with an RTX 5080. Broad gameplay coverage has not been independently checked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/bc160201983/medievil_2019_pc_port",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/bc160201983/medievil_2019_pc_port"
     },
-    "issue_number": 3333
+    "issue_number": 3333,
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil-2019",
+      "evidence_urls": ["https://github.com/bc160201983/medievil_2019_pc_port"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -40,5 +54,10 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "separate",
+    "reason": "The exact source contract targets the 2019 PS4 remake, distinct from the original PlayStation MediEvil.",
+    "evidence_urls": ["https://github.com/bc160201983/medievil_2019_pc_port"]
   }
 }

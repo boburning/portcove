@@ -6,6 +6,14 @@
     "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
     "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
     "project_url": "https://github.com/djultra64/ClayFighter64",
+    "artwork": {
+      "game_id": 44043,
+      "cover_id": 154660,
+      "image_id": "co3bc4",
+      "image_sha256": "e3c0d3634333972c31180c20cde17074d57a66503f6e329dd156f4eaa4817475",
+      "game_slug": "clayfighter-63-1-slash-3",
+      "match_kind": "underlying-game"
+    },
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/djultra64/ClayFighter64",
@@ -64,5 +72,13 @@
       }
     },
     "decisions": []
+  },
+  "original_game_review": {
+    "disposition": "multi-game",
+    "reason": "The retained guide explicitly combines ClayFighter 63⅓ gameplay with Sculptor's Cut donor characters and requires both originals. It does not recreate all of Sculptor's Cut; preserve this fusion identity separately from either source title.",
+    "evidence_urls": [
+      "https://github.com/djultra64/ClayFighter64",
+      "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+    ]
   }
 }

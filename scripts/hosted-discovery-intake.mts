@@ -1,4 +1,21 @@
 import { createHash } from "node:crypto";
+import {
+  hostedAmendmentMarker,
+  parseHostedAmendment,
+  readHostedAmendment,
+  type AmendmentReference,
+  type HostedAmendment,
+} from "./hosted-discovery-amendment.mts";
+import {
+  resolveDiscoveryRepository,
+  relocationMetadataReader,
+  DiscoveryLocationUnavailable,
+} from "./upstream-relocation-candidates.mts";
+import { isDeepStrictEqual } from "node:util";
+import {
+  postgresIntakeCheckpoints,
+  type HostedIntakeCheckpointStore,
+} from "./hosted-discovery-intake-checkpoint.mts";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,15 +55,23 @@ import {
 import { validateDiscoveryIntakeBody, discoveryInventoryCost } from "./daily-discovery-session.mts";
 import {
   renderPortIssueBody,
+  type PortIssueBodyTemplate,
   findPortIssueDuplicates,
   normalizedUpstream,
   normalizePortKey,
+  portCatalogMarkers,
+  portKeyMarkers,
+  portUpstreamMarkers,
+  portRepositoryIds,
   fieldValue,
 } from "./roadmap-issue.mts";
 import { observationHash } from "./upstream-observer.mts";
 import { validateGitHubBody } from "./github-body-text.mts";
 import { isRecord } from "./runtime-values.mts";
-import { hostedIntakeMaxPasses } from "./hosted-discovery-intake-runner.mts";
+import {
+  hostedIntakeMaxPasses,
+  scheduledAuditRequests,
+} from "./hosted-discovery-intake-runner.mts";
 import type { RoadmapInventory, RoadmapInventoryClient } from "./roadmap-inventory.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 
@@ -76,7 +101,10 @@ const positive = (v: unknown) => {
     throw new Error("Expected a positive provider identity");
   return v;
 };
+type IntakeIntent = { kind: "create" } | { kind: "observe-existing"; issue: number };
+
 interface Candidate {
+  intent?: IntakeIntent;
   title: string;
   upstream: string;
   repository_id: number;
@@ -86,7 +114,7 @@ interface Candidate {
   resume: string;
 }
 interface Proposal {
-  schema_version: 1;
+  schema_version: 1 | 2;
   kind: "proposal";
   investigator: string;
   candidates: Candidate[];
@@ -104,7 +132,8 @@ export function parseHostedRequest(body: unknown): Proposal {
   const match = /^<!-- portcove-hosted-intake:v1 -->\s*```json\n([\s\S]+)\n```\s*$/u.exec(body);
   if (!match) throw new Error("Expected exactly one structured hosted intake request");
   const v = object(JSON.parse(match[1]!));
-  if (v.schema_version !== 1) throw new Error("Unsupported hosted intake schema");
+  if (v.schema_version !== 1 && v.schema_version !== 2)
+    throw new Error("Unsupported hosted intake schema");
   exact(v, [
     "schema_version",
     "kind",
@@ -134,7 +163,26 @@ export function parseHostedRequest(body: unknown): Proposal {
   const identities = new Set<string>();
   for (const raw of v.candidates) {
     const c = object(raw);
-    exact(c, ["title", "upstream", "repository_id", "game", "port_key", "evidence", "resume"]);
+    exact(c, [
+      "title",
+      "upstream",
+      "repository_id",
+      "game",
+      "port_key",
+      "evidence",
+      "resume",
+      ...(v.schema_version === 2 ? ["intent"] : []),
+    ]);
+    if (v.schema_version === 2) {
+      const intent = object(c.intent);
+      if (intent.kind === "observe-existing") {
+        exact(intent, ["kind", "issue"]);
+        positive(intent.issue);
+      } else {
+        exact(intent, ["kind"]);
+        if (intent.kind !== "create") throw new Error("Unknown candidate intake intent");
+      }
+    }
     line(c.title);
     line(c.game);
     positive(c.repository_id);
@@ -195,6 +243,8 @@ export function assertHostedEvent(
   } else if (eventName !== "workflow_dispatch") throw new Error("Unsupported hosted intake event");
 }
 interface Planned {
+  amendment?: AmendmentReference;
+  location?: { declared: string; current: string; repository_id: number };
   candidate: Candidate;
   body: string;
   body_sha256: string;
@@ -276,11 +326,34 @@ type PlanSlot =
     });
 const holdResume =
   "Use owner process dispatch when the exact repository ID and primary evidence are accessible.";
+const identityHoldResume =
+  "Resolve the explicit issue, implementation key and upstream identity before owner process dispatch.";
+
+class CandidateIdentityConflict extends Error {}
+
+const researchHoldResumes = {
+  "owner-research":
+    "Resume through a new owner amendment after the candidate's research condition is satisfied.",
+  "repository-location":
+    "Resume after the declared location and immutable repository ID verify; preserve any unfinished write.",
+  "evidence-changed":
+    "Submit an owner candidate amendment bound to this slot's exact prior body and evidence hashes.",
+} as const;
+type ResearchHold = keyof typeof researchHoldResumes;
+class CandidateResearchHold extends Error {
+  readonly reason: ResearchHold;
+  constructor(reason: ResearchHold, message: string) {
+    super(message);
+    this.reason = reason;
+  }
+}
+
 interface CandidateHold {
+  reason?: ResearchHold;
   port_key: string;
   repository_id: number;
   upstream: string;
-  http_status: 404;
+  http_status: 404 | null;
   observed_at: string;
   resume: string;
 }
@@ -312,18 +385,88 @@ interface Receipt {
   plan_origin: { head: string; run: string; attempt: string };
   observed_at?: string;
   doctor?: unknown;
+  audit_pending?: true;
+  audit_origin?: string;
   error?: unknown;
   continuation?: string | null;
   body_request_comment?: number;
 }
-export function hostedBody(c: Candidate, request: number) {
-  return renderPortIssueBody({
-    title: c.title,
-    upstream: c.upstream,
-    portKey: c.port_key,
-    currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
-    blocker: c.resume,
-  });
+const auditOriginPattern = /^[1-9]\d*\/[1-9]\d*@[0-9a-f]{40}$/u;
+function auditBinding(receipt: Receipt, comment: number) {
+  return receipt.audit_origin && auditOriginPattern.test(receipt.audit_origin)
+    ? observationHash([
+        receipt.request_comment,
+        receipt.request_sha256,
+        receipt.plan_sha256,
+        comment,
+        receipt.audit_origin,
+      ])
+    : undefined;
+}
+function auditMayResume(receipt: Receipt) {
+  return (
+    receipt.audit_pending === true &&
+    (receipt.status === "applying" ||
+      (receipt.status === "incomplete" &&
+        (receipt.continuation === "inventory_changed" ||
+          receipt.continuation === "budget_exhausted")))
+  );
+}
+
+type IntakeCheckpoint = NonNullable<ReturnType<HostedIntakeCheckpointStore["load"]>>;
+
+/** Binds an unpublished audit authorization to its exact live predecessor. */
+function unpublishedAuditBinding(
+  saved: IntakeCheckpoint,
+  current: Comment,
+  receipt: Receipt,
+  checkpoint: Receipt,
+) {
+  if (
+    saved.previous_receipt_sha256 !== observationHash(current.body) ||
+    saved.request_sha256 !== receipt.request_sha256 ||
+    !isDeepStrictEqual(saved.candidates, checkpointSlots(checkpoint)) ||
+    !auditMayResume(checkpoint) ||
+    checkpoint.status !== "applying" ||
+    checkpoint.request_sha256 !== receipt.request_sha256 ||
+    checkpoint.plan_sha256 !== receipt.plan_sha256 ||
+    !isDeepStrictEqual(checkpoint.delivery, receipt.delivery)
+  )
+    return undefined;
+  return auditBinding(checkpoint, current.id);
+}
+
+export function verifyOwnerAuditRun(row: unknown, request: number, origin: string) {
+  if (
+    !isRecord(row) ||
+    !isRecord(row.actor) ||
+    row.actor.login !== "boburning" ||
+    !isRecord(row.repository) ||
+    row.repository.id !== hostedRepositoryId ||
+    (row.event !== "workflow_dispatch" && row.event !== "issue_comment") ||
+    row.head_branch !== "main" ||
+    row.status !== "completed" ||
+    row.path !== ".github/workflows/hosted-discovery-intake.yml" ||
+    !new RegExp(
+      `^Hosted intake ${row.event === "issue_comment" ? "" : "audit "}${positive(request)} / [1-9]\\d*$`,
+      "u",
+    ).test(String(row.display_title)) ||
+    `${String(row.id)}/${String(row.run_attempt)}@${String(row.head_sha)}` !== origin
+  )
+    throw new Error("The original Actions run does not authorize this request and receipt");
+}
+
+export function hostedBody(c: Candidate, request: number, template?: PortIssueBodyTemplate) {
+  return renderPortIssueBody(
+    {
+      title: c.title,
+      upstream: c.upstream,
+      portKey: c.port_key,
+      currentEvidence: `GitHub repository ID: ${c.repository_id}\nUnderlying game: **${c.game}**\n\n${c.evidence}\n\n<!-- portcove-discovery-intake:hosted-${request}-${c.port_key} -->`,
+      blocker: c.resume,
+    },
+    template,
+  );
 }
 export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
   return observationHash({
@@ -334,11 +477,33 @@ export function hostedPlanHash(requestHash: string, plan: PlanSlot[]) {
     })),
   });
 }
+function applyHostedAmendment(candidate: Candidate, amendment: HostedAmendment): Candidate {
+  const { canonical_owner, ...replacement } = amendment.replacement;
+  if (canonical_owner) {
+    if (candidate.intent)
+      throw new Error(
+        "Canonical owner binding requires a legacy candidate without explicit intent",
+      );
+    return {
+      ...candidate,
+      ...replacement,
+      port_key: canonical_owner.port_key,
+      intent: { kind: "observe-existing", issue: canonical_owner.issue },
+    };
+  }
+  if (replacement.game !== undefined && candidate.intent?.kind !== "observe-existing")
+    throw new Error("Game label correction requires an explicit existing-owner observation");
+  return { ...candidate, ...replacement };
+}
+
 function readHostedReceipt(
   comment: Comment,
   request: Comment,
   proposal: Proposal,
   bodyRequest: number,
+  all: readonly Comment[] = [],
+  owner = "boburning",
+  repository = "boburning/portcove",
 ): Receipt {
   const match = /```json\n([\s\S]+)\n```\s*$/u.exec(comment.body);
   if (!match) throw new Error("Malformed retained hosted receipt");
@@ -359,9 +524,36 @@ function readHostedReceipt(
   )
     throw new Error("Unknown retained plan encoding");
   stored.plan = stored.plan.map((raw, index) => {
-    const binding = object(raw),
-      candidate = proposal.candidates[index]!,
-      body = hostedBody(candidate, bodyRequest);
+    const binding = object(raw);
+    let candidate = proposal.candidates[index]!;
+    if (binding.amendment !== undefined) {
+      const ref = object(binding.amendment);
+      exact(ref, ["comment", "sha256"]);
+      const rows = all.filter((c) => c.id === ref.comment);
+      if (rows.length !== 1 || observationHash(rows[0]!.body) !== ref.sha256)
+        throw new Error("Candidate amendment reference differs");
+      const amendment = readHostedAmendment(rows[0]!, owner, repository, request);
+      if (amendment.candidate_index !== index || amendment.port_key !== candidate.port_key)
+        throw new Error("Candidate amendment identity differs");
+      candidate = applyHostedAmendment(candidate, amendment);
+    }
+    if (binding.location !== undefined) {
+      const location = object(binding.location);
+      exact(location, ["declared", "current", "repository_id"]);
+      if (
+        location.declared !== candidate.upstream ||
+        location.repository_id !== candidate.repository_id ||
+        typeof location.current !== "string" ||
+        !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(location.current)
+      )
+        throw new Error("Retained repository location binding differs");
+      candidate = { ...candidate, upstream: location.current };
+    }
+    const currentBody = hostedBody(candidate, bodyRequest);
+    const body =
+      binding.body_sha256 === observationHash(currentBody)
+        ? currentBody
+        : hostedBody(candidate, bodyRequest, "hosted-before-finite-v1");
     if (
       binding.body_sha256 !== observationHash(body) ||
       (binding.primary === null
@@ -379,9 +571,27 @@ function readHostedReceipt(
       body_sha256: binding.body_sha256,
       evidence_sha256: binding.evidence_sha256,
       primary: binding.primary,
+      ...(binding.location === undefined ? {} : { location: binding.location }),
+      ...(binding.amendment === undefined ? {} : { amendment: binding.amendment }),
     };
   });
   const receipt = stored as unknown as Receipt;
+  if (
+    "audit_pending" in receipt &&
+    (receipt.audit_pending !== true ||
+      receipt.delivery.length <= 10 ||
+      receipt.delivery.some((d) => missingDeliveryProof(d)) ||
+      receipt.doctor !== undefined ||
+      !["applying", "incomplete"].includes(receipt.status))
+  )
+    throw new Error("Retained required full doctor checkpoint lacks complete scoped delivery");
+  if (
+    receipt.audit_origin !== undefined &&
+    (typeof receipt.audit_origin !== "string" ||
+      !auditOriginPattern.test(receipt.audit_origin) ||
+      (!receipt.audit_pending && receipt.status !== "complete"))
+  )
+    throw new Error("Invalid retained owner audit origin");
   const ids = new Set<number>();
   for (const [index, d] of receipt.delivery.entries()) {
     if (
@@ -409,8 +619,11 @@ function readHostedReceipt(
         h.port_key !== c.port_key ||
         h.repository_id !== c.repository_id ||
         h.upstream !== c.upstream ||
-        h.http_status !== 404 ||
-        h.resume !== holdResume ||
+        !(
+          (h.http_status === 404 && h.resume === holdResume) ||
+          (h.http_status === null && c.intent && h.resume === identityHoldResume) ||
+          (h.http_status === null && h.reason && h.resume === researchHoldResumes[h.reason])
+        ) ||
         typeof h.observed_at !== "string" ||
         !Number.isFinite(Date.parse(h.observed_at))
       )
@@ -418,6 +631,14 @@ function readHostedReceipt(
     } else if (slot.primary === null || "hold" in d) {
       throw new Error("Unbound primary requires a candidate hold");
     }
+    const intent = slot.candidate.intent;
+    if (
+      intent?.kind === "observe-existing" &&
+      (d.created_issue || (d.canonical_issue !== undefined && d.canonical_issue !== intent.issue))
+    )
+      throw new Error("Retained observation differs from its explicit canonical target");
+    if (intent?.kind === "create" && (d.canonical_issue || d.existing || d.created_comment))
+      throw new Error("Retained creation cannot contain an existing-owner observation");
     if (d.canonical_issue !== undefined) positive(d.canonical_issue);
     if (d.created_comment !== undefined) positive(d.created_comment);
     if (d.status === "existing") {
@@ -425,6 +646,7 @@ function readHostedReceipt(
       positive(d.created_comment);
       if (!d.existing || d.created_issue || !/^[a-f0-9]{64}$/u.test(d.observation_sha256 ?? ""))
         throw new Error("Retained existing-owner observation is incomplete");
+      if (slot.candidate.intent?.kind === "observe-existing") receiptProjectItemId(d.item_id);
     }
     if (d.created_issue !== undefined) {
       positive(d.created_issue);
@@ -454,7 +676,7 @@ function isDelivered(d: Delivery) {
   return d.status === "delivered" || d.status === "existing";
 }
 function missingDeliveryProof(d: Delivery) {
-  if (!isDelivered(d) || !isRecord(d.doctor)) return true;
+  if (!d || !isDelivered(d) || !isRecord(d.doctor)) return true;
   const doctor = d.doctor;
   const issue = d.created_issue ?? d.canonical_issue;
   if (
@@ -493,7 +715,7 @@ export interface HostedCandidateSlot {
   delivery_status: string | null;
   linked_issue: number | null;
   existing: boolean;
-  hold: { http_status: number; resume: string } | null;
+  hold: { http_status: number | null; resume: string } | null;
 }
 function candidateSlots(proposal: Proposal, delivery: readonly Delivery[]): HostedCandidateSlot[] {
   return proposal.candidates.map((candidate, index) => {
@@ -544,6 +766,21 @@ function encodeReceipt(r: Receipt) {
     })),
   };
   return `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+}
+
+function checkpointSlots(receipt: Receipt) {
+  return receipt.plan.map(
+    ({ candidate, body_sha256, evidence_sha256, primary, location, amendment }, index) => ({
+      ...(location ? { location } : {}),
+      ...(amendment ? { amendment } : {}),
+      ...(candidate.intent ? { intent: candidate.intent } : {}),
+      port_key: candidate.port_key,
+      body_sha256,
+      evidence_sha256,
+      primary,
+      delivery: receipt.delivery[index],
+    }),
+  );
 }
 
 function receiptBody(r: Receipt) {
@@ -613,14 +850,14 @@ function assertReceiptCapacity(receipt: Receipt) {
     throw new Error("Logical batch cannot retain complete delivery receipts");
 }
 
-function candidateHold(candidate: Candidate): CandidateHold {
+function candidateHold(candidate: Candidate, identityConflict = false): CandidateHold {
   return {
     port_key: candidate.port_key,
     repository_id: candidate.repository_id,
     upstream: candidate.upstream,
-    http_status: 404,
+    http_status: identityConflict ? null : 404,
     observed_at: new Date().toISOString(),
-    resume: holdResume,
+    resume: identityConflict ? identityHoldResume : holdResume,
   };
 }
 export type HostedRoadmapOperations = RoadmapInventoryClient &
@@ -657,6 +894,7 @@ export class HostedIntakeBridge {
   }
   planningIssues = new Set<number>();
   inventoryRecollections = 0;
+  auditRoadmap: typeof runDoctor = runDoctor;
   /** #177 identity and revision bracketing the last complete, unchanged comment read. */
   queue: { node_id: string; comments: number; updated_at: string } | undefined;
   /** The read-only status route's queue-derived request budget, when it applies. */
@@ -668,6 +906,11 @@ export class HostedIntakeBridge {
   readonly save: (name: string, value: unknown) => void;
   readonly admitRecollection: (cache?: RoadmapInventory) => void | Promise<void>;
   readonly admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void>;
+  readonly durable: {
+    checkpoints?: () => HostedIntakeCheckpointStore;
+    requireIntent?: boolean;
+    resolveRepository?: (repository: string, id: number) => Promise<string>;
+  };
   constructor(
     client: HostedRoadmapOperations,
     github: { project: Octokit; repository: Octokit },
@@ -678,6 +921,7 @@ export class HostedIntakeBridge {
       throw new Error("Inventory recollection admission is not configured");
     },
     admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void> = () => {},
+    durable: HostedIntakeBridge["durable"] = {},
   ) {
     this.client = client;
     this.github = github;
@@ -686,6 +930,7 @@ export class HostedIntakeBridge {
     this.save = save;
     this.admitRecollection = admitRecollection;
     this.admitWarmInventory = admitWarmInventory;
+    this.durable = durable;
   }
   get prefix() {
     return `repos/${this.client.config.repository}/issues`;
@@ -769,10 +1014,10 @@ export class HostedIntakeBridge {
       throw new Error("Hosted request or receipt preimage changed; stop and reread");
     return got;
   }
-  async persist(receipt: Receipt, prior?: Comment) {
-    receipt.observed_at = new Date().toISOString();
+  async persist(receipt: Receipt, prior?: Comment, checkpointBody?: string) {
+    if (checkpointBody === undefined) receipt.observed_at = new Date().toISOString();
     this.save(`receipt-${receipt.request_comment}`, receipt);
-    const body = receiptBody(receipt);
+    const body = checkpointBody ?? receiptBody(receipt);
     if (prior) await this.fresh(prior);
     return await this.mutation(async () => {
       const got = object(
@@ -848,13 +1093,28 @@ export class HostedIntakeBridge {
       throw new Error("Diagnostic publication readback is unconfirmed");
   }
   async primary(c: Candidate, request: number): Promise<Planned> {
-    const primary = await this.research(new URL(c.upstream).pathname.slice(1));
+    const declared = c.upstream;
+    const name = new URL(declared).pathname.slice(1);
+    let resolved = name;
+    try {
+      resolved = (await this.durable.resolveRepository?.(name, c.repository_id)) ?? name;
+    } catch (error) {
+      if (!(error instanceof DiscoveryLocationUnavailable)) throw error;
+      throw new CandidateResearchHold("repository-location", error.message);
+    }
+    const current = `https://github.com/${resolved}`;
+    if (normalizedUpstream(current) !== normalizedUpstream(declared))
+      c = { ...c, upstream: current };
+    const primary = await this.research(resolved);
     if (
       primary.metadata.id !== c.repository_id ||
       normalizedUpstream(`https://github.com/${String(primary.metadata.full_name)}`) !==
         normalizedUpstream(c.upstream)
     )
-      throw new Error("Primary immutable repository identity changed");
+      throw new CandidateResearchHold(
+        "repository-location",
+        "Primary immutable repository identity changed",
+      );
     const identity = {
       repository_id: c.repository_id,
       readme_commit: primary.readme.commit,
@@ -876,6 +1136,11 @@ export class HostedIntakeBridge {
       body_sha256: observationHash(body),
       evidence_sha256: observationHash(identity),
       primary: identity,
+      ...(c.upstream === declared
+        ? {}
+        : {
+            location: { declared, current: c.upstream, repository_id: c.repository_id },
+          }),
     };
   }
   async inventory(cache?: RoadmapInventory, full = false) {
@@ -934,17 +1199,56 @@ export class HostedIntakeBridge {
       records,
       [],
     );
+    if (c.intent?.kind === "observe-existing") {
+      const target = c.intent.issue;
+      const matching = others.filter((issue) =>
+        [...portCatalogMarkers(issue.body), ...portKeyMarkers(issue.body)].includes(c.port_key),
+      );
+      const expected = matching[0];
+      const authored = records.find((record) => record.listing.id === c.port_key);
+      const knownIds = expected?.body ? portRepositoryIds(expected.body) : [];
+      const exactAuthoredOwner =
+        authored?.listing.issue_number === target &&
+        normalizedUpstream(authored.listing.project_url) === normalizedUpstream(c.upstream);
+      if (
+        identity.disposition !== "Existing canonical owner" ||
+        identity.issues.length !== 1 ||
+        identity.issues[0] !== target ||
+        !identity.game_scope_known ||
+        (!identity.repository_identity_known && !exactAuthoredOwner) ||
+        knownIds.some((id) => id !== c.repository_id) ||
+        matching.length !== 1 ||
+        !expected ||
+        expected.number !== target ||
+        !expected.body?.includes("<!-- portcove-port -->") ||
+        portUpstreamMarkers(expected.body).length !== 1 ||
+        normalizedUpstream(portUpstreamMarkers(expected.body)[0]) !== normalizedUpstream(c.upstream)
+      )
+        throw new CandidateIdentityConflict(
+          "Explicit observation target does not own the implementation key and repository",
+        );
+      return target;
+    }
     const owner =
       identity.disposition === "Existing canonical owner" &&
       identity.game_scope_known &&
       identity.repository_identity_known
         ? identity.issues[0]
         : undefined;
+    if (c.intent?.kind === "create" && identity.disposition !== "New canonical intake")
+      throw new CandidateIdentityConflict(
+        `Explicit create conflicts with canonical identity: ${identity.reason}`,
+      );
     if (identity.disposition !== "New canonical intake" && !owner)
       throw new Error(
         `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}`,
       );
-    assertHostedCatalogIdentity(c, records, owner ?? exclude);
+    try {
+      assertHostedCatalogIdentity(c, records, owner ?? exclude);
+    } catch (error) {
+      if (!c.intent) throw error;
+      throw new CandidateIdentityConflict(error instanceof Error ? error.message : String(error));
+    }
     const duplicates = findPortIssueDuplicates(others, {
       title: c.title,
       upstream: c.upstream,
@@ -952,8 +1256,11 @@ export class HostedIntakeBridge {
       repositoryIdentity: { id: c.repository_id, game: c.game },
       catalogRecords: records,
     });
-    if (duplicates.some((row) => row.issue.number !== owner))
-      throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);
+    if (duplicates.some((row) => row.issue.number !== owner)) {
+      const message = `Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`;
+      if (c.intent) throw new CandidateIdentityConflict(message);
+      throw new Error(message);
+    }
     return owner;
   }
   async observeExisting(
@@ -979,6 +1286,26 @@ export class HostedIntakeBridge {
         throw new Error("Existing canonical owner changed; preserve owner work");
     };
     await freshOwner();
+    const existingItem =
+      p.candidate.intent?.kind === "observe-existing"
+        ? (await this.client.executionIssue(owner)).item
+        : undefined;
+    if (existingItem) {
+      const memberships = [...inventory.items, ...inventory.archivedItems].filter(
+        (item) => item.content?.id === expected?.id,
+      );
+      if (
+        existingItem.content.id !== expected?.id ||
+        fieldValue(existingItem, "Work type") !== "Port" ||
+        memberships.length !== 1 ||
+        memberships[0]?.id !== existingItem.id ||
+        memberships[0]?.isArchived !== false
+      )
+        throw new CandidateIdentityConflict(
+          "Explicit observation Project identity does not match the canonical port issue",
+        );
+      receiptProjectItemId(existingItem.id);
+    }
     this.planningIssues.add(owner);
     const observation = { candidate: p.candidate, primary: p.primary };
     const marker = `<!-- portcove-hosted-observation:${observationHash(observation)} -->`;
@@ -1033,6 +1360,12 @@ export class HostedIntakeBridge {
     )
       throw new Error("Existing-owner observation readback differs");
     await freshOwner();
+    if (existingItem) {
+      const live = (await this.client.executionIssue(owner)).item;
+      if (live.id !== existingItem.id || live.content.id !== existingItem.content.id)
+        throw new Error("Existing-owner Project identity changed during observation");
+      d.item_id = receiptProjectItemId(live.id);
+    }
     d.canonical_issue = owner;
     d.created_comment = observed.id;
     d.observation_sha256 = observationHash(body);
@@ -1043,7 +1376,11 @@ export class HostedIntakeBridge {
     d.status = "existing";
     await persist();
   }
-  async status(request: Comment, all: Comment[]) {
+  async status(
+    request: Comment,
+    all: Comment[],
+    auditCheckpoints?: Pick<HostedIntakeCheckpointStore, "load">,
+  ) {
     trustedHostedComment(request, this.client.config.owner);
     const proposal = parseHostedRequest(request.body);
     const found = all.filter(
@@ -1052,7 +1389,15 @@ export class HostedIntakeBridge {
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
     const lineage = await this.reconciliation(request, proposal, all);
     const receipt = found[0]
-      ? readHostedReceipt(found[0], request, proposal, lineage?.bodyRequest ?? request.id)
+      ? readHostedReceipt(
+          found[0],
+          request,
+          proposal,
+          lineage?.bodyRequest ?? request.id,
+          all,
+          this.client.config.owner,
+          this.client.config.repository,
+        )
       : undefined;
     const deliveries = receipt?.delivery ?? [];
     const counts = deliveryCounts(deliveries, proposal.candidates.length);
@@ -1098,6 +1443,45 @@ export class HostedIntakeBridge {
           throw new Error("Complete logical batch lacks its required full doctor");
       }
     }
+    let retryBinding =
+      receipt && found[0] && auditMayResume(receipt)
+        ? auditBinding(receipt, found[0].id)
+        : undefined;
+    const current = found[0];
+    if (
+      auditCheckpoints &&
+      current &&
+      receipt &&
+      receipt.status !== "complete" &&
+      receipt.delivery.length > 10 &&
+      receipt.delivery.every((d) => !missingDeliveryProof(d))
+    ) {
+      const saved = auditCheckpoints.load(request.id);
+      if (saved && saved.receipt_body !== current.body) {
+        const liveBinding = retryBinding;
+        retryBinding = undefined;
+        const checkpoint = readHostedReceipt(
+          { ...request, body: saved.receipt_body },
+          request,
+          proposal,
+          lineage?.bodyRequest ?? request.id,
+          all,
+          this.client.config.owner,
+          this.client.config.repository,
+        );
+        retryBinding = unpublishedAuditBinding(saved, current, receipt, checkpoint);
+        if (
+          !retryBinding &&
+          liveBinding &&
+          saved.previous_receipt_sha256 === observationHash(current.body) &&
+          saved.request_sha256 === receipt.request_sha256 &&
+          isDeepStrictEqual(saved.candidates, checkpointSlots(checkpoint)) &&
+          (checkpoint.status === "complete" || auditMayResume(checkpoint)) &&
+          auditBinding(checkpoint, current.id) === liveBinding
+        )
+          retryBinding = liveBinding;
+      }
+    }
     const error = receipt?.error ?? diagnostic?.error;
     const failure = isRecord(error) ? error : undefined;
     const legacyRecoverable =
@@ -1130,10 +1514,33 @@ export class HostedIntakeBridge {
       candidates: proposal.candidates.length,
       ...counts,
       full_doctor_required: proposal.candidates.length > 10,
+      ...(receipt?.audit_pending ? { audit_pending: true } : {}),
+      ...(retryBinding ? { audit_retry: { request: request.id, binding: retryBinding } } : {}),
       doctor: receipt?.doctor ?? null,
+      ...(receipt?.status === "complete" && found[0]
+        ? {
+            executor_receipt: {
+              run: receipt.run,
+              attempt: receipt.attempt,
+              head: receipt.head,
+              request_sha256: receipt.request_sha256,
+              body_sha256: createHash("sha256").update(found[0].body).digest("hex"),
+              published_at: found[0].updated_at,
+              checkpoint_required:
+                proposal.schema_version === 2 || receipt.plan.some((entry) => entry.amendment),
+              original_slots: proposal.candidates.map(({ port_key, repository_id }) => ({
+                port_key,
+                repository_id,
+              })),
+            },
+          }
+        : {}),
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
-      slots: candidateSlots(proposal, deliveries),
+      slots: candidateSlots(
+        receipt ? { ...proposal, candidates: receipt.plan.map((p) => p.candidate) } : proposal,
+        deliveries,
+      ),
     };
   }
   async reconciliation(request: Comment, proposal: Proposal, all: Comment[]) {
@@ -1182,7 +1589,15 @@ export class HostedIntakeBridge {
       raw.body_request_comment === undefined ? source.id : positive(raw.body_request_comment);
     if (bodyRequest > source.id || (old.reconcile === undefined && bodyRequest !== source.id))
       throw new Error("Reconciliation root marker identity differs");
-    const receipt = readHostedReceipt(comment, original, old, bodyRequest);
+    const receipt = readHostedReceipt(
+      comment,
+      original,
+      old,
+      bodyRequest,
+      all,
+      this.client.config.owner,
+      this.client.config.repository,
+    );
     if (
       receipt.plan_sha256 !== ref.plan_sha256 ||
       receipt.status === "complete" ||
@@ -1191,7 +1606,85 @@ export class HostedIntakeBridge {
       throw new Error("Reconciliation requires the exact incomplete partially created receipt");
     return { source, comment, receipt, bodyRequest };
   }
-  async process(request: Comment, all: Comment[], { resumeHolds = false } = {}) {
+  private async finishAudit(
+    receipt: Receipt,
+    persist: () => Promise<void>,
+    cache?: RoadmapInventory,
+  ) {
+    const inventory = await this.inventory(cache, true);
+    const global = await this.auditRoadmap(this.client.config, this.client, {
+      quiet: true,
+      inventory,
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "";
+      const missing = new Set(
+        [
+          ...message.matchAll(/^- Catalog port lacks a canonical Project issue: ([a-z0-9-]+)$/gmu),
+        ].map((match) => match[1]),
+      );
+      if (missing.size) {
+        const records = readCatalogSource(
+          fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+        ).records;
+        const repairs = records
+          .filter((record) => missing.has(record.listing.id))
+          .map(({ listing }) => {
+            const owners = inventory.issues.filter(
+              (issue) =>
+                portKeyMarkers(issue.body).includes(listing.id) &&
+                portUpstreamMarkers(issue.body).length === 1 &&
+                normalizedUpstream(portUpstreamMarkers(issue.body)[0]) ===
+                  normalizedUpstream(listing.project_url),
+            );
+            const owner = owners.length === 1 ? owners[0]?.number : undefined;
+            return {
+              catalog_id: listing.id,
+              issue: owner ?? listing.issue_number ?? null,
+              remedy: owner
+                ? `node scripts/roadmap.mts normalize-port --issue ${owner}`
+                : "Reconcile the exact catalog identity with its existing owner",
+            };
+          });
+        this.save(`audit-repairs-${receipt.request_comment}`, repairs);
+      }
+      throw error;
+    });
+    receipt.doctor = {
+      status: "passed",
+      coverage: "complete",
+      global_health: "passed",
+      receipt_sha256: observationHash(global),
+    };
+    this.save(`global-doctor-${receipt.request_comment}`, receipt.doctor);
+    receipt.status = "complete";
+    delete receipt.audit_pending;
+    delete receipt.error;
+    delete receipt.continuation;
+    await persist();
+  }
+  async process(
+    request: Comment,
+    all: Comment[],
+    {
+      resumeHolds = false,
+      auditOnly = false,
+      origin,
+      scheduledBinding,
+      verifyOrigin,
+    }: {
+      resumeHolds?: boolean;
+      auditOnly?: boolean;
+      origin?: string;
+      scheduledBinding?: string;
+      verifyOrigin?: (request: number, origin: string) => Promise<void>;
+    } = {},
+  ) {
+    if (
+      (origin !== undefined &&
+        (!auditOriginPattern.test(origin) || scheduledBinding !== undefined)) ||
+      (scheduledBinding !== undefined && !auditOnly)
+    )
+      throw new Error("Invalid audit authorization");
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
     await this.fresh(request);
@@ -1208,20 +1701,334 @@ export class HostedIntakeBridge {
       (c) => c.user.login === "github-actions[bot]" && c.body.startsWith(receiptMarker(request.id)),
     );
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
+    const parsedAmendments = all.flatMap((comment) => {
+      if (
+        comment.user.login !== this.client.config.owner ||
+        !comment.body.startsWith(hostedAmendmentMarker)
+      )
+        return [];
+      try {
+        return [{ comment, value: parseHostedAmendment(comment.body) }];
+      } catch {
+        // Invalid comments grant no authority. The triggering event still reports
+        // its parsing failure, while independent proposals can drain normally.
+        return [];
+      }
+    });
+    const amendments = parsedAmendments
+      .filter(({ value }) => value.request_comment === request.id)
+      .map(({ comment }) => ({
+        comment,
+        value: readHostedAmendment(
+          comment,
+          this.client.config.owner,
+          this.client.config.repository,
+          request,
+        ),
+      }));
+    const freshAmendments = async () => {
+      for (const { comment } of amendments) await this.fresh(comment);
+    };
+    const assertCurrentAuditRequest = (comments: Comment[], expected?: Comment) => {
+      const originals = comments.filter((comment) => comment.id === request.id);
+      if (
+        originals.length !== 1 ||
+        originals[0]?.user.login !== this.client.config.owner ||
+        originals[0].body !== request.body ||
+        !originals[0].body.startsWith(hostedRequestMarker)
+      )
+        throw new Error("The scheduled audit request is unavailable or has changed");
+      if (expected) {
+        const receipts = comments.filter(
+          (comment) =>
+            comment.user.login === "github-actions[bot]" &&
+            comment.body.startsWith(receiptMarker(request.id)),
+        );
+        if (
+          receipts.length !== 1 ||
+          receipts[0]?.id !== expected.id ||
+          receipts[0].body !== expected.body
+        )
+          throw new Error("The scheduled audit receipt identity or preimage changed");
+      }
+      for (const comment of comments) {
+        const selection = hostedRequestSelection(comment, this.client.config.owner);
+        if (
+          selection &&
+          !selection.withdrawn &&
+          reconciles(selection.request.body) &&
+          parseHostedRequest(selection.request.body).reconcile?.request_comment === request.id
+        )
+          throw new Error("A newer owner request reconciles this audit");
+      }
+    };
     let prior = found[0];
+    if (proposal.schema_version === 1 && this.durable.requireIntent && !prior && !lineage)
+      throw new Error(
+        "Submit new candidates using schema version 2 with an explicit intake intent",
+      );
     let receipt: Receipt | undefined;
+    if (auditOnly && proposal.candidates.length <= 10)
+      throw new Error("Audit mode requires a batch subject to full Roadmap audit");
     if (prior) {
       await this.fresh(prior);
-      receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
-      if (receipt.status === "complete") {
-        if (receipt.plan_encoding === "proposal-bound-v2") await this.status(request, all);
-        return receipt;
+      receipt = readHostedReceipt(
+        prior,
+        request,
+        proposal,
+        bodyRequest,
+        all,
+        this.client.config.owner,
+        this.client.config.repository,
+      );
+      if (scheduledBinding !== undefined && receipt.status === "complete") {
+        if (auditBinding(receipt, prior.id) !== scheduledBinding)
+          throw new Error("The current native receipt does not authorize this scheduled audit");
+        if (!verifyOrigin || !receipt.audit_origin)
+          throw new Error("Missing native audit origin verification");
+        await verifyOrigin(request.id, receipt.audit_origin);
+        assertCurrentAuditRequest(all);
       }
-      if (receipt.status === "complete_with_holds" && !resumeHolds) {
-        await this.status(request, all);
+      if (receipt.status === "complete") {
+        if (
+          auditOnly ||
+          receipt.plan_encoding === "proposal-bound-v2" ||
+          proposal.schema_version === 2
+        )
+          await this.status(request, all);
         return receipt;
       }
     }
+    const hasAmendments = amendments.length > 0;
+    const authorizedImport =
+      proposal.schema_version === 1 &&
+      prior &&
+      receipt &&
+      amendments.some(
+        ({ value }) =>
+          value.receipt_comment === prior!.id &&
+          value.receipt_sha256 === observationHash(prior!.body),
+      );
+    const checkpointStore =
+      proposal.schema_version === 2 || hasAmendments ? this.durable.checkpoints?.() : undefined;
+    if (
+      (scheduledBinding || origin) &&
+      (proposal.schema_version === 2 || hasAmendments) &&
+      !checkpointStore
+    )
+      throw new Error("The owner-authorized audit requires its durable checkpoint");
+    const saved = checkpointStore?.load(request.id);
+    let revision = saved?.revision ?? 0;
+    let checkpointFailure: { error: unknown } | undefined;
+    const requestHash = observationHash(request.body);
+    const checkpointAndPublish = async (next: Receipt, previous?: Comment) => {
+      if (scheduledBinding) assertCurrentAuditRequest(await this.comments(), previous);
+      if (!checkpointStore) {
+        await freshAmendments();
+        return await this.persist(next, previous);
+      }
+      if (checkpointFailure) throw checkpointFailure.error;
+      try {
+        await this.fresh(request);
+        await freshAmendments();
+        if (previous) await this.fresh(previous);
+        next.observed_at = new Date().toISOString();
+        const body = receiptBody(next);
+        revision = checkpointStore.save(
+          request.id,
+          requestHash,
+          revision,
+          body,
+          previous ? { hash: observationHash(previous.body), body: previous.body } : null,
+          checkpointSlots(next),
+        );
+        return await this.persist(next, previous, body);
+      } catch (error) {
+        checkpointFailure = { error };
+        throw error;
+      }
+    };
+    if (auditOnly && !saved && !receipt?.audit_pending)
+      throw new Error("Audit mode requires a retained batch with its full audit pending");
+    if (checkpointStore && !saved && prior) {
+      if (scheduledBinding !== undefined || !authorizedImport || !receipt)
+        throw new Error(
+          "GitHub intake receipt has no PostgreSQL checkpoint; reconcile the restored store",
+        );
+      // The owner amendment authorizes importing this exact historical bot state.
+      // Validate every amended slot before the first checkpoint or mutation.
+      const importReceipt = prior;
+      for (const { value } of amendments.filter(
+        ({ value }) =>
+          value.receipt_comment === importReceipt.id &&
+          value.receipt_sha256 === observationHash(importReceipt.body),
+      )) {
+        const slot = receipt.plan[value.candidate_index],
+          d = receipt.delivery[value.candidate_index];
+        if (
+          !slot ||
+          !d ||
+          !canHold(d) ||
+          slot.candidate.port_key !== value.port_key ||
+          slot.body_sha256 !== value.previous_body_sha256 ||
+          slot.evidence_sha256 !== value.previous_evidence_sha256
+        )
+          throw new Error("Historical amendment cannot revise a completed or uncertain candidate");
+      }
+      await freshAmendments();
+      revision = checkpointStore.save(
+        request.id,
+        requestHash,
+        0,
+        prior.body,
+        null,
+        checkpointSlots(receipt),
+      );
+    }
+    let recovery: { receipt: Receipt; body: string } | undefined;
+    if (saved) {
+      const projected = { ...request, body: saved.receipt_body };
+      const checkpointReceipt = readHostedReceipt(
+        projected,
+        request,
+        proposal,
+        bodyRequest,
+        all,
+        this.client.config.owner,
+        this.client.config.repository,
+      );
+      if (
+        saved.request_sha256 !== requestHash ||
+        !isDeepStrictEqual(saved.candidates, checkpointSlots(checkpointReceipt))
+      )
+        throw new Error("PostgreSQL intake checkpoint or candidate coverage differs");
+      if (!prior)
+        throw new Error(
+          "PostgreSQL checkpoint has no confirmed GitHub receipt marker; reconcile before retrying",
+        );
+      if (prior.body !== saved.receipt_body) {
+        if (observationHash(prior.body) !== saved.previous_receipt_sha256)
+          throw new Error("GitHub receipt is ahead of or differs from the PostgreSQL checkpoint");
+        recovery = { receipt: checkpointReceipt, body: saved.receipt_body };
+      }
+    }
+    if (scheduledBinding !== undefined) {
+      let authorized: Receipt | undefined;
+      if (receipt && prior) {
+        if (
+          saved &&
+          recovery &&
+          unpublishedAuditBinding(saved, prior, receipt, recovery.receipt) === scheduledBinding
+        ) {
+          authorized = recovery.receipt;
+        } else if (
+          auditMayResume(receipt) &&
+          auditBinding(receipt, prior.id) === scheduledBinding
+        ) {
+          authorized = receipt;
+        }
+      }
+      if (!authorized)
+        throw new Error("The current native receipt does not authorize this scheduled audit");
+      if (!verifyOrigin || !authorized.audit_origin)
+        throw new Error("Missing native audit origin verification");
+      await verifyOrigin(request.id, authorized.audit_origin);
+      assertCurrentAuditRequest(all);
+    }
+    if (auditOnly && !receipt?.audit_pending && !recovery?.receipt.audit_pending)
+      throw new Error("Audit mode requires a retained batch with its full audit pending");
+    if (prior && recovery) {
+      const { receipt: checkpointReceipt, body } = recovery;
+      if (auditOnly) {
+        if (
+          scheduledBinding &&
+          (auditBinding(checkpointReceipt, prior.id) !== scheduledBinding ||
+            (checkpointReceipt.status !== "complete" && !auditMayResume(checkpointReceipt)))
+        )
+          throw new Error("Stored checkpoint changed the authorized scheduled audit");
+        if (!checkpointReceipt.audit_pending && checkpointReceipt.status !== "complete")
+          throw new Error("Stored checkpoint is outside the requested final audit");
+        if (checkpointReceipt.status === "complete")
+          await this.status(
+            request,
+            all.map((comment) => (comment.id === prior?.id ? { ...comment, body } : comment)),
+          );
+      }
+      await this.fresh(request);
+      await freshAmendments();
+      await freshLineage();
+      if (scheduledBinding) assertCurrentAuditRequest(await this.comments(), prior);
+      prior = await this.persist(checkpointReceipt, prior, body);
+      receipt = checkpointReceipt;
+      if (receipt.status === "complete") {
+        await this.status(
+          request,
+          all.map((comment) => (comment.id === prior?.id ? prior : comment)),
+        );
+        return receipt;
+      }
+    }
+    if (receipt) {
+      if (
+        receipt.status === "complete_with_holds" &&
+        !resumeHolds &&
+        !authorizedImport &&
+        !amendments.some(
+          ({ value }) =>
+            value.receipt_comment === prior?.id &&
+            value.receipt_sha256 === observationHash(prior.body),
+        )
+      ) {
+        await this.status(request, all);
+        return receipt;
+      }
+      if (
+        receipt.audit_pending ||
+        ((proposal.schema_version === 2 || (!lineage && receipt.delivery.length > 10)) &&
+          receipt.delivery.every((d) => !missingDeliveryProof(d)))
+      ) {
+        const audit = receipt;
+        const persist = async () => {
+          await this.fresh(request);
+          await freshLineage();
+          prior = await checkpointAndPublish(audit, prior);
+        };
+        await freshLineage();
+        audit.head = this.head;
+        audit.run = process.env.GITHUB_RUN_ID ?? "local";
+        audit.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
+        try {
+          if (audit.delivery.length > 10) {
+            if (
+              !audit.audit_pending ||
+              (origin && (!audit.audit_origin || (auditOnly && origin !== audit.audit_origin)))
+            ) {
+              if (origin) audit.audit_origin = origin;
+              delete audit.error;
+              delete audit.continuation;
+              audit.audit_pending = true;
+              audit.status = "applying";
+              await persist();
+            }
+            await this.finishAudit(audit, persist);
+          } else {
+            audit.status = "complete";
+            delete audit.error;
+            delete audit.continuation;
+            await persist();
+          }
+        } catch (error) {
+          if (checkpointFailure || audit.status === "complete") throw error;
+          audit.status = "incomplete";
+          audit.error = receiptDiagnostic(error);
+          audit.continuation = this.continuation(error);
+          await persist();
+          throw error;
+        }
+        return audit;
+      }
+    }
+    if (auditOnly) throw new Error("Audit-only recovery cannot enter candidate processing");
     const delivery = structuredClone(
       receipt?.delivery ??
         lineage?.receipt.delivery ??
@@ -1229,36 +2036,86 @@ export class HostedIntakeBridge {
     );
     const historical = new Set<number>();
     const plan: PlanSlot[] = [];
-    for (const [index, candidate] of proposal.candidates.entries()) {
+    for (const [index, original] of proposal.candidates.entries()) {
       const d = delivery[index]!;
       const previous = receipt?.plan[index];
-      if (
-        previous &&
-        ((d.hold && !resumeHolds) ||
-          (!lineage && receipt?.plan_encoding === "proposal-bound-v2" && isDelivered(d)))
-      ) {
+      let candidate = original;
+      let amendment = previous?.amendment;
+      let amended = false;
+      let ownerHold = false;
+      const selected = amendments.filter(
+        ({ comment, value }) =>
+          comment.id !== previous?.amendment?.comment &&
+          value.candidate_index === index &&
+          value.receipt_comment === prior?.id &&
+          value.receipt_sha256 === observationHash(prior.body),
+      );
+      if (selected.length > 1)
+        throw new Error("Multiple owner amendments compete for one candidate");
+      if (selected.length) {
+        const { comment, value } = selected[0]!;
+        if (
+          !previous ||
+          !canHold(d) ||
+          value.port_key !== original.port_key ||
+          value.previous_body_sha256 !== previous.body_sha256 ||
+          value.previous_evidence_sha256 !== previous.evidence_sha256
+        )
+          throw new Error("Candidate amendment cannot revise a completed or uncertain write");
+        amendment = { comment: comment.id, sha256: observationHash(comment.body) };
+        amended = true;
+      }
+      if (amendment) {
+        const comment = all.find((c) => c.id === amendment.comment);
+        if (!comment || observationHash(comment.body) !== amendment.sha256)
+          throw new Error("Candidate amendment preimage differs");
+        const value = readHostedAmendment(
+          comment,
+          this.client.config.owner,
+          this.client.config.repository,
+          request,
+        );
+        candidate = applyHostedAmendment(original, value);
+        ownerHold = value.hold === true;
+      }
+      if (previous && ((d.hold && !resumeHolds && !amended) || (!lineage && isDelivered(d)))) {
         if (isDelivered(d)) {
           if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
-          historical.add(index);
+          if (
+            proposal.schema_version === 2 ||
+            receipt?.plan_encoding === "proposal-bound-v2" ||
+            hasAmendments
+          )
+            historical.add(index);
         }
         plan.push(previous);
         continue;
       }
       try {
-        const fresh = await this.primary(candidate, bodyRequest);
-        if (previous?.primary && previous.evidence_sha256 !== fresh.evidence_sha256)
-          throw new Error(
-            "Primary evidence changed since preparation; a fresh proposal is required",
+        if (ownerHold)
+          throw new CandidateResearchHold(
+            "owner-research",
+            "Owner retained this candidate for research",
           );
-        plan.push(fresh);
+        const fresh = await this.primary(candidate, bodyRequest);
+        if (previous && !canHold(d) && previous.body_sha256 !== fresh.body_sha256)
+          throw new Error(
+            "An unfinished write retains its original body and location; reconcile its marker",
+          );
+        if (previous?.primary && previous.evidence_sha256 !== fresh.evidence_sha256 && !amended) {
+          throw new CandidateResearchHold(
+            "evidence-changed",
+            "Primary evidence changed; amend this unfinished candidate",
+          );
+        }
+        plan.push({ ...fresh, ...(amendment ? { amendment } : {}) });
         delete d.hold;
       } catch (error) {
-        if (
-          lineage ||
-          !(error instanceof DiscoveryRepositoryUnavailable) ||
-          error.repository !== new URL(candidate.upstream).pathname.slice(1)
-        )
-          throw error;
+        const researchHold = error instanceof CandidateResearchHold;
+        const inaccessible =
+          error instanceof DiscoveryRepositoryUnavailable &&
+          error.repository === new URL(candidate.upstream).pathname.slice(1);
+        if (lineage || (!researchHold && !inaccessible)) throw error;
         if (previous?.primary && isDelivered(d)) {
           if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
           historical.add(index);
@@ -1266,16 +2123,25 @@ export class HostedIntakeBridge {
           continue;
         }
         if (!canHold(d)) throw error;
-        d.hold = candidateHold(candidate);
-        const body = hostedBody(candidate, bodyRequest);
-        validateDiscoveryIntakeBody(body, candidate.upstream, candidate.port_key);
+        const heldCandidate = amended ? candidate : (previous?.candidate ?? candidate);
+        d.hold = researchHold
+          ? {
+              ...candidateHold(heldCandidate),
+              http_status: null,
+              reason: error.reason,
+              resume: researchHoldResumes[error.reason],
+            }
+          : candidateHold(heldCandidate);
+        const body = hostedBody(heldCandidate, bodyRequest);
+        validateDiscoveryIntakeBody(body, heldCandidate.upstream, heldCandidate.port_key);
         plan.push(
-          previous ?? {
-            candidate,
+          (!amended && previous) || {
+            candidate: heldCandidate,
             body,
             body_sha256: observationHash(body),
             primary: null,
             evidence_sha256: null,
+            ...(amendment ? { amendment } : {}),
           },
         );
       }
@@ -1305,13 +2171,20 @@ export class HostedIntakeBridge {
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
-        const owner = this.duplicates(
-          inventory,
-          p,
-          lineage?.receipt.delivery[index]?.created_issue ??
-            (recovered[0] ? Number(recovered[0].number) : undefined),
-        );
-        if (owner) owners.set(index, owner);
+        try {
+          const owner = this.duplicates(
+            inventory,
+            p,
+            lineage?.receipt.delivery[index]?.created_issue ??
+              (recovered[0] ? Number(recovered[0].number) : undefined),
+          );
+          if (owner) owners.set(index, owner);
+        } catch (error) {
+          if (!(error instanceof CandidateIdentityConflict) || !canHold(delivery[index]!))
+            throw error;
+          delivery[index]!.hold = candidateHold(p.candidate, true);
+          this.save(`hold-${request.id}-${p.candidate.port_key}`, sanitizeOperationError(error));
+        }
       }
       await freshLineage();
       receipt = {
@@ -1323,7 +2196,7 @@ export class HostedIntakeBridge {
         plan,
         delivery: delivery.map((d, index) => {
           const owner = owners.get(index);
-          return owner === undefined || lineage
+          return owner === undefined || lineage || plan[index]!.candidate.intent
             ? d
             : { ...d, canonical_issue: owner, existing: true };
         }),
@@ -1340,19 +2213,20 @@ export class HostedIntakeBridge {
         },
       };
       assertReceiptCapacity(receipt);
-      prior = await this.persist(receipt);
+      prior = await checkpointAndPublish(receipt);
     }
     receipt.plan = plan;
     receipt.plan_sha256 = hostedPlanHash(receipt.request_sha256, plan);
     if (delivery.some((d) => d.hold)) receipt.plan_encoding = "proposal-bound-v2";
     if (found.length) receipt.delivery = delivery;
+    assertReceiptCapacity(receipt);
     await freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
     receipt.status = "applying";
     const persist = async () => {
-      prior = await this.persist(receipt, prior);
+      prior = await checkpointAndPublish(receipt, prior);
     };
     await persist();
     try {
@@ -1382,6 +2256,18 @@ export class HostedIntakeBridge {
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
+        if (p.candidate.intent?.kind === "observe-existing") {
+          const originalKey = proposal.candidates[index]!.port_key;
+          const originalMarker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${originalKey} -->`;
+          if (
+            recovered.length ||
+            (originalKey !== p.candidate.port_key &&
+              inventory.issues.some((issue) => issue.body?.includes(originalMarker)))
+          )
+            throw new Error(
+              "Explicit observation has a retained creation marker; reconcile it first",
+            );
+        }
         if (d.created_issue && recovered[0]?.number !== d.created_issue)
           throw new Error("Created issue identity is unavailable");
         if (!d.created_issue && recovered.length) {
@@ -1393,10 +2279,28 @@ export class HostedIntakeBridge {
         }
         if (!d.created_issue && !d.canonical_issue && d.status === "create-attempted")
           throw new Error("Ambiguous issue POST without a confirmed marker; do not recapture");
-        const owner = this.duplicates(inventory, p, d.created_issue);
+        const holdConflict = async (error: unknown) => {
+          if (!(error instanceof CandidateIdentityConflict) || !canHold(d)) throw error;
+          d.hold = candidateHold(p.candidate, true);
+          receipt.plan_encoding = "proposal-bound-v2";
+          this.save(`hold-${request.id}-${p.candidate.port_key}`, sanitizeOperationError(error));
+          await persist();
+        };
+        let owner: number | undefined;
+        try {
+          owner = this.duplicates(inventory, p, d.created_issue);
+        } catch (error) {
+          await holdConflict(error);
+          continue;
+        }
         if (owner) {
           if (d.status === "preflight") d.status = "prepared";
-          await this.observeExisting(request, p, d, owner, inventory, persist);
+          try {
+            await this.observeExisting(request, p, d, owner, inventory, persist);
+          } catch (error) {
+            await holdConflict(error);
+            continue;
+          }
           invalidated = true;
           continue;
         }
@@ -1452,7 +2356,13 @@ export class HostedIntakeBridge {
           invalidated = false;
           await this.fresh(request);
           await freshLineage();
-          const lateOwner = this.duplicates(inventory, p);
+          let lateOwner: number | undefined;
+          try {
+            lateOwner = this.duplicates(inventory, p);
+          } catch (error) {
+            await holdConflict(error);
+            continue;
+          }
           if (lateOwner) {
             d.status = "prepared";
             d.canonical_issue = lateOwner;
@@ -1509,24 +2419,28 @@ export class HostedIntakeBridge {
       }
       const held = receipt.delivery.some((d) => d.hold);
       if (!held && plan.length > 10) {
-        inventory = await this.inventory(inventory, true);
-        const global = await runDoctor(this.client.config, this.client, {
-          quiet: true,
+        if (receipt.delivery.some((d) => missingDeliveryProof(d)))
+          throw new Error("Full audit requires every scoped delivery proof");
+        receipt.audit_pending = true;
+        if (origin) receipt.audit_origin = origin;
+        await persist();
+        await this.finishAudit(
+          receipt,
+          async () => {
+            await this.fresh(request);
+            await freshLineage();
+            await persist();
+          },
           inventory,
-        });
-        receipt.doctor = {
-          status: "passed",
-          coverage: "complete",
-          global_health: "passed",
-          receipt_sha256: observationHash(global),
-        };
-        this.save(`global-doctor-${request.id}`, receipt.doctor);
+        );
+        return receipt;
       }
       receipt.status = held ? "complete_with_holds" : "complete";
       delete receipt.error;
       delete receipt.continuation;
       await persist();
     } catch (error) {
+      if (checkpointFailure || receipt.status === "complete") throw error;
       receipt.status = "incomplete";
       receipt.error = receiptDiagnostic(error);
       receipt.continuation = this.continuation(error);
@@ -1614,6 +2528,7 @@ export interface HostedStatusAll {
  */
 export async function hostedStatusAll(
   bridge: Pick<HostedIntakeBridge, "comments" | "status" | "queue" | "client" | "statusBudget">,
+  auditCheckpoints?: Pick<HostedIntakeCheckpointStore, "load">,
 ): Promise<HostedStatusAll> {
   const all = await bridge.comments();
   const queue = bridge.queue;
@@ -1629,7 +2544,7 @@ export async function hostedStatusAll(
   const rows: HostedRequestStatus[] = [];
   for (const { comment, withdrawn, request } of selected) {
     try {
-      const status = await bridge.status(request, all);
+      const status = await bridge.status(request, all, withdrawn ? undefined : auditCheckpoints);
       rows.push({ ...status, withdrawn, superseded_by: [] });
     } catch (error) {
       if (error instanceof GitHubApiError) throw error;
@@ -1808,6 +2723,19 @@ export async function connectHostedGitHub(
   });
   return { client, project, repository };
 }
+export function selectHostedRequests(
+  available: Comment[],
+  selected: number[] | null,
+  scheduled: boolean,
+) {
+  if (selected === null) return available.map((request) => ({ id: request.id, request }));
+  return selected.map((id) => {
+    const request = available.find((comment) => comment.id === id);
+    if (!request && !scheduled) throw new Error("Continuation request is no longer available");
+    return { id, request };
+  });
+}
+
 async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const config = validateConfig(
@@ -1876,7 +2804,9 @@ async function main() {
     writeFileSync(path.join(directory, `${name}.json`), JSON.stringify(value, null, 2));
   };
   const event: unknown = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? "", "utf8"));
-  assertHostedEvent(event, process.env.GITHUB_EVENT_NAME ?? "", config.repository, config.owner);
+  const scheduled = scheduledAuditRequests(process.env);
+  if (!scheduled.length)
+    assertHostedEvent(event, process.env.GITHUB_EVENT_NAME ?? "", config.repository, config.owner);
   if (!process.env.GH_TOKEN || !process.env.REPOSITORY_TOKEN)
     throw new Error("Dedicated Project and repository credentials are required");
   const budget = new DiscoveryBudget("hosted", (usage) => save("budget", usage));
@@ -1884,6 +2814,32 @@ async function main() {
     project: process.env.GH_TOKEN,
     repository: process.env.REPOSITORY_TOKEN,
   });
+  const verifyOrigin = async (request: number, origin: string) => {
+    if (!auditOriginPattern.test(origin)) throw new Error("Invalid audit origin");
+    const [run, attempt] = origin.split("@")[0]!.split("/");
+    const pathname = `/repos/${config.repository}/actions/runs/${run}/attempts/${attempt}`;
+    const sdk = await createGitHubClient({
+      ...discoveryGitHubScope(budget, process.env.REPOSITORY_TOKEN ?? ""),
+      maxBytes: 128 * 1024,
+      allowRequest: (method, url) => method === "GET" && url.pathname === pathname,
+    });
+    verifyOwnerAuditRun(
+      (await sdk.request({ method: "GET", url: pathname })).data,
+      request,
+      origin,
+    );
+  };
+  const locationSdk = await createGitHubClient({
+    ...discoveryGitHubScope(budget, process.env.GH_TOKEN),
+    observeRedirects: true,
+    maxBytes: 16384,
+    allowRequest: (method, url) =>
+      method === "GET" &&
+      (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
+        /^\/repositories\/[1-9]\d*$/u.test(url.pathname) ||
+        url.pathname === "/rate_limit"),
+  });
+  const locationRead = relocationMetadataReader(locationSdk);
   const http = createDiscoveryTransport(budget, process.env.GH_TOKEN);
   const head = runCheckedGit(["rev-parse", "HEAD"], { cwd: root }).trim();
   const admitInventory = async (cache?: RoadmapInventory) => {
@@ -1900,6 +2856,11 @@ async function main() {
     save,
     admitInventory,
     admitInventory,
+    {
+      checkpoints: postgresIntakeCheckpoints,
+      requireIntent: Boolean(process.env.PORTCOVE_DISCOVERY_DATABASE_URL),
+      resolveRepository: (name, id) => resolveDiscoveryRepository(name, id, locationRead),
+    },
   );
   const settleAdmission = async () => {
     const failures = await budget.drain();
@@ -1985,14 +2946,31 @@ async function main() {
     const available = comments.filter(
       (c) => c.user.login === config.owner && c.body.startsWith(hostedRequestMarker),
     );
-    const requests =
-      selected === null
-        ? available
-        : (selected as number[]).map((id) => {
-            const request = available.find((c) => c.id === id);
-            if (!request) throw new Error("Continuation request is no longer available");
-            return request;
-          });
+    const explicitAudit = process.env.HOSTED_INTAKE_MODE === "audit";
+    const originalProposal =
+      process.env.GITHUB_EVENT_NAME === "issue_comment"
+        ? trustedHostedComment(object(event).comment, config.owner)
+        : undefined;
+    const auditOnly = explicitAudit || scheduled.length > 0;
+    if (
+      scheduled.length &&
+      (!Array.isArray(selected) ||
+        selected.some((id) => !scheduled.some(({ request }) => request === id)))
+    )
+      throw new Error("Scheduled intake requires its bound audit requests");
+    if (
+      explicitAudit &&
+      (process.env.GITHUB_EVENT_NAME !== "workflow_dispatch" ||
+        !Array.isArray(selected) ||
+        selected.length !== 1 ||
+        String(selected[0]) !== process.env.HOSTED_INTAKE_AUDIT_REQUEST)
+    )
+      throw new Error("Audit mode requires the exact owner-dispatched proposal ID");
+    const requests = selectHostedRequests(
+      available,
+      selected as number[] | null,
+      scheduled.length > 0,
+    );
     const outcomes: {
       counts?: ReturnType<typeof deliveryCounts>;
       request: number;
@@ -2000,10 +2978,23 @@ async function main() {
       continuation: string | null;
       progress: string | null;
     }[] = [];
-    for (const c of requests) {
+    for (const { id, request: c } of requests) {
       try {
+        if (!c) throw new Error("Continuation request is no longer available");
         const receipt = await bridge.process(c, comments, {
-          resumeHolds: process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+          resumeHolds: !auditOnly && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+          auditOnly,
+          ...((explicitAudit ||
+            (originalProposal?.id === c.id && originalProposal.body === c.body)) &&
+          process.env.GITHUB_REF === "refs/heads/main"
+            ? { origin: `${process.env.GITHUB_RUN_ID}/${process.env.GITHUB_RUN_ATTEMPT}@${head}` }
+            : {}),
+          ...(scheduled.length
+            ? {
+                scheduledBinding: scheduled.find(({ request }) => request === c.id)!.binding,
+                verifyOrigin,
+              }
+            : {}),
         });
         outcomes.push({
           request: c.id,
@@ -2014,18 +3005,18 @@ async function main() {
         });
       } catch (error) {
         let continuation = bridge.continuation(error);
-        save(`failure-${c.id}`, sanitizeOperationError(error));
+        save(`failure-${id}`, sanitizeOperationError(error));
         try {
-          await bridge.diagnostic(c, error, comments);
+          if (c && !auditOnly) await bridge.diagnostic(c, error, comments);
         } catch (publication) {
           continuation = null;
-          save(`publication-failure-${c.id}`, sanitizeOperationError(publication));
+          save(`publication-failure-${id}`, sanitizeOperationError(publication));
         }
         outcomes.push({
-          request: c.id,
+          request: id,
           status: "incomplete",
           continuation,
-          progress: progress.get(c.id) ?? null,
+          progress: progress.get(id) ?? null,
         });
       }
     }
@@ -2044,8 +3035,34 @@ async function main() {
     save("roadmap-observations", client.observations);
   }
 }
+async function runWithCheckpointAdmission() {
+  if (
+    process.argv[2] === "status" ||
+    process.env.HOSTED_INTAKE_MODE === "probe" ||
+    !process.env.PORTCOVE_DISCOVERY_DATABASE_URL
+  )
+    return await main();
+  const { connectionFromEnvironment } = await import("./maintenance-store.mts");
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+    await import("./maintenance-resource-policy.mts");
+  const environment = connectionFromEnvironment("PORTCOVE_DISCOVERY_DATABASE_URL");
+  const run = process.env.GITHUB_RUN_ID;
+  const pass = process.env.HOSTED_INTAKE_PASS ?? "1";
+  try {
+    await withMaintenanceAdmission(environment, "intake", main, {
+      request: run
+        ? `github:${run}:intake:${process.env.GITHUB_RUN_ATTEMPT ?? "1"}:${pass}`
+        : undefined,
+      completed: () => process.exitCode !== 1,
+    });
+  } catch (error) {
+    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+    process.exitCode = 75;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  await main().catch((error) => {
+  await runWithCheckpointAdmission().catch((error) => {
     console.error(JSON.stringify(sanitizeOperationError(error)));
     process.exitCode = 1;
   });

@@ -16,7 +16,22 @@
       "game_slug": "yu-gi-oh-forbidden-memories",
       "match_kind": "underlying-game"
     },
-    "issue_number": 141
+    "issue_number": 141,
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": ["https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp"],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-forbidden-memories-playstation",
+          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/102c393121949695855e57db135319cc0c963d33/docs/qualification/yu-gi-oh-forbidden-memories-recompiled-windows-2026-09-15.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

@@ -35,6 +35,21 @@
       "image_sha256": "bf764a88226000563188ac2c645c6a9933d99956cbd325644a7f49d6e8e43034",
       "game_slug": "crazy-taxi",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crazy-taxi",
+      "evidence_urls": ["https://github.com/sp00nznet/crazytaxi-ps3"],
+      "source_editions": [
+        {
+          "id": "crazy-taxi-playstation-3",
+          "title": "Crazy Taxi (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/crazytaxi-ps3/blob/94c5a3d6351f1d355cf24a9b08283856a67f0b22/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

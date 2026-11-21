@@ -11,6 +11,7 @@
     "button": "Copiar texto",
     "copied": "Se copió el texto. Pégalo en una nueva incidencia de GitHub o envíalo al equipo de Portcove de otra forma.",
     "failed": "No se pudo copiar el texto automáticamente. Selecciónalo y cópialo abajo.",
+    "manualCopy": "Texto para copiar manualmente",
     "openFailed": "No se pudo abrir el formulario. Tu texto sigue aquí; inténtalo de nuevo o cópialo."
   },
   "feedback": {

@@ -22,6 +22,39 @@ const observe = (name = contract.cases[0], skipped = false, nesting = 0) => ({
   type: "test:pass",
   data: { name, entryFile: path.resolve(file), nesting, skip: skipped, details: { type: "test" } },
 });
+void test("private-X11 budget case retains its declared Linux execution route on every host", () => {
+  const entry = "scripts/desktop-linux-native-session.test.mts";
+  const name =
+    "private-X11 waits contain the selected harness deadline and retain finite cleanup margins";
+  const registry = parseNodeTestSuites(
+    readFileSync(new URL("./node-test-suites.json", import.meta.url), "utf8"),
+  );
+  assert.ok(registry.platformSkips);
+  for (const platform of ["linux", "darwin", "win32"] as const) {
+    const inventory = createNodePlatformSkipInventory(
+      [entry],
+      ["--test-name-pattern", `^${name}$`],
+      registry.platformSkips,
+      { platform },
+    );
+    inventory.capture({
+      type: "test:pass",
+      data: {
+        name,
+        entryFile: path.resolve(entry),
+        nesting: 0,
+        skip: platform !== "linux",
+        details: { type: "test" },
+      },
+    });
+    const result = inventory.finish();
+    assert.deepEqual(result.errors, []);
+    const selected = result.contracts.find((route) => route.name === name);
+    assert.equal(selected?.observations, 1);
+    assert.equal(selected?.selected, true);
+    assert.equal(selected?.platform, "linux");
+  }
+});
 void test(
   "declared top-level filter selection agrees with actual Node execution",
   { timeout: 30_000 },

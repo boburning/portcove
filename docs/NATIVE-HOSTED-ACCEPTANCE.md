@@ -76,7 +76,10 @@ scenario or command.
 Each isolated job checks the interactive session before provisioning, installs
 the source-pinned native prerequisites, uses a fresh application target and runs
 the maintained harness with clean source. The host-publication source also runs
-its four qualification checkpoint unit tests before native execution.
+its four qualification checkpoint unit tests before native execution. Within the existing
+checkpoint discovery window, the harness waits for its wall clock to reach the recorded Core
+entry time. It checks the marker identity and requires more than 30 seconds of the pause to
+remain before proceeding with the owned process interruption.
 
 These are feasibility observations until actual native receipts and positive
 process closure are independently reviewed. The 90-minute job allocation changes
@@ -171,6 +174,23 @@ unreadable logs never establish native acceptance. Failure or an exceeded retent
 bound remains visible and incomplete. The proven reader route is not a promise that
 all future large logs will fit: complete real evidence recovery is an execution gate.
 
+### Linux prerequisite calibration
+
+The permanent `linux-preparation-continuity` route keeps its Ubuntu 22.04 host,
+two existing native selections and 10-minute observation step. Its prerequisite
+step now requests the maintained archive-mirror preference and a 1,200-second APT
+install allowance inside a 30-minute step. The job grows from 60 to 75 minutes,
+retaining its previous 45-minute allowance outside prerequisites. No Windows
+selection or product deadline changes.
+
+The calibration follows temporary qualification run `44395415654/1` on Ubuntu
+24.04: its package index passed, but downloads exhausted the 600-second install
+budget (exit 124) before any application build or native journey. That failed
+attempt is not evidence of the permanent route running. The maintained mirror
+preference selectively rewrites supported Azure entries, without guaranteeing an
+EC2 mirror replacement. Timeout statuses 124/137 still refuse mirror retry on
+possibly interrupted package state; intentional recovery uses a fresh runner.
+
 ## Normal-app presentation and interface sizing
 
 The fixed manual `presentation` operation in `native-design-compatibility.yml`
@@ -241,6 +261,32 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+
+The owned Windows preparation harness waits for initial Library content within
+its existing 60-second reload envelope before locating the exact game action.
+Discover setup uses a player-visible search before selecting the exact port ID,
+so an offscreen virtualized card is not mistaken for missing content. Copy consent
+and workspace readback have named 60-second settlement waits; these are harness
+budgets, not product deadlines or proof that a copy succeeded.
+
+The install readback probe allows the independent scheduled catalog refresh while
+still requiring one install command and one fixture download. Steam batch review
+checks the singular one-game label before root/profile selection and the plural
+zero/two-game flow. Preliminary setup checks its scoped live selection count and
+exact fixture checkbox, independently of the changing catalog size. Artwork
+reload keeps its request observers, verifies the real workspace still contains
+the exact owned definition and discovery listing, then
+searches by name before selecting its exact ID. It does not disable catalog
+updates or replace catalog authority.
+
+If the held preparation case fails, it requests cancellation only for its captured
+new operation in the owned library. Request acknowledgment is followed by the exact
+authoritative terminal and, for retained failed or cancelled work, Core's read-only
+preparation cleanup preview, which requires proven process quiescence. The harness
+discards no private state. Unknown operation identity or an unjoined worker stops
+the remaining run through the existing driver teardown. A joined failure remains
+failed; cleanup and preservation observations do not replace its original assertion.
+
 The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the
 application correctly refuses to start there. With owner approval (#4879: runtime
@@ -329,6 +375,11 @@ holding the current saves. The fixture save does not change between the update a
 the rollback, so the snapshot's bytes alone do not distinguish it from the update
 snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
 
+The first update acquisition starts from the existing activation review. The
+harness compares the real archive-only review digest, checks the displayed
+archive and source, and expects the held transfer after a single action from
+that review. Later acquisitions retain the standalone download-review route.
+
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated
@@ -343,6 +394,22 @@ coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
+
+## Reviewed screenshot display
+
+Run the opt-in Windows case with
+`just desktop-verify --scenario native-reviewed-screenshot-display --require-clean`.
+The source must embed reviewed typed IGDB screenshots. The run disables automatic
+catalog refresh in its isolated preferences, verifies embedded catalog delivery and
+compares the effective screenshot inventory with the tracked listing source. The
+normal app opens each exact port through Discover, chooses its original release
+when applicable,
+and compares the decoded gallery image with Core's cache-only read of the exact
+admitted asset. The run retains the viewer screenshots and a report of media IDs,
+digests, scope and decoded geometry. It checks Escape returns focus to the same
+port's gallery. It requires live image access on a cold cache and does not use a
+provider key. A bundled directory result leaves signed delivery and released
+client acceptance open.
 
 ## Hosted installed application update
 

@@ -1,10 +1,11 @@
 # Development tools
 
-Start with [Frontend workflow](#frontend-workflow) for pinned tools and focused
-checks, [Warm single-session workflow](#warm-single-session-workflow) for pickup,
-and [Shared local resources](#shared-local-resources) before heavyweight work.
-[Quality](QUALITY.md#required-hosted-baseline) owns required validation and review;
-the detailed recipes and retained observations below do not add merge gates.
+Use the [Frontend workflow](#frontend-workflow) to install the pinned tools
+and run focused checks. When you pick up work, use the
+[Warm single-session workflow](#warm-single-session-workflow). Before you run
+large jobs, read [Shared local resources](#shared-local-resources).
+[Quality](QUALITY.md#required-hosted-baseline) lists the tests and reviews
+required to merge.
 
 ## Dependency patches
 
@@ -205,15 +206,148 @@ Use `node scripts/report-summary.mts watch FILE` for its bounded final summary.
 Consume the watch result or retained snapshots; retrieve the identified failed
 job when needed.
 
-For agent delivery sessions, use that watcher rather than repeated snapshot reads.
-Retain raw reports, then use `report-summary` or project the identity, changed
-state and next required action before printing. A collector timeout is an
-observation failure: inspect the bound run before deciding whether execution
-needs repeating. The personal `github-pull-request-delivery` skill provides
-bounded MCP reads and checkpoint helpers when those surfaces are used.
-When a tool returns a running session, consume it with a bounded wait of at most
-60 seconds before the next commentary update. Reuse its final report; do not
-start another watcher or repeatedly fetch unchanged state.
+For agent delivery, hand off the wait to the local worker when available. End
+the turn once the worker acknowledges the saved watch. For a foreground run,
+consume the final report or retained evidence. A collector timeout calls for
+inspection of the bound run before deciding whether execution needs repeating.
+
+### Local Codex PR handoff
+
+Run the watcher on the Linux runner under the account that owns the Codex daemon
+and the authenticated GitHub CLI. A systemd user service keeps the worker alive
+after logout and recovers its SQLite journal at boot. Use a stable, reviewed
+Portcove tools checkout for the service. Install the checkout's pinned Node and
+dependencies, `just`, `gh`, and a Codex build whose `queue --help` includes
+`--resume`. The worker uses Python 3.11+ and its `websockets` package for local
+daemon readback. Run these once on that host, with those tools on PATH.
+
+```sh
+cd /absolute/path/to/portcove-tools
+gh auth status
+codex app-server daemon start
+codex app-server daemon version
+codex queue --help
+python3 -m venv work/pr-wake-venv
+work/pr-wake-venv/bin/pip install websockets==16.0
+install -d -m 700 "$HOME/.local/state/portcove/pr-wake" "$HOME/.config/systemd/user"
+tools_checkout=$(pwd -P)
+codex_cli=$(command -v codex)
+cat > "$HOME/.config/systemd/user/portcove-codex-start.service" <<EOF
+[Unit]
+Description=Start the existing local Codex daemon
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment="PATH=$PATH"
+ExecStart="$codex_cli" app-server daemon start
+EOF
+cat > "$HOME/.config/systemd/user/portcove-pr-wake.service" <<EOF
+[Unit]
+Description=Portcove local pull request watcher
+Wants=portcove-codex-start.service
+After=portcove-codex-start.service
+
+[Service]
+Environment="PATH=$PATH"
+Environment="PORTCOVE_PR_WAKE_STATE=%h/.local/state/portcove/pr-wake"
+ExecStart="$tools_checkout/work/pr-wake-venv/bin/python" "$tools_checkout/scripts/pr_wake.py" serve
+UMask=0077
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target
+EOF
+loginctl enable-linger "$(id -un)"
+systemctl --user daemon-reload
+systemctl --user enable --now portcove-pr-wake.service
+systemctl --user status portcove-pr-wake.service
+```
+
+Use the same `CODEX_HOME` and GitHub CLI configuration in the service and owning
+session. If either uses a custom location, set it explicitly in the service
+environment for each relevant unit. The units use the existing logged-in
+accounts. If the runner already starts its Codex daemon at boot, point
+`Wants` and `After` at that service instead of installing the oneshot unit.
+The watcher can restart independently of the shared daemon. Confirm that
+the shell PATH written into the units contains persistent tool directories.
+
+Start the owning Codex thread on that local daemon in the PR worktree, with
+write access to the journal directory. For the Codex CLI with workspace-write
+sandboxing, run `codex --add-dir "$HOME/.local/state/portcove/pr-wake"` in
+that worktree. Supply the actual run and attempt. A queued workflow may have
+a run and attempt before any job starts. Supply a finite UTC observation
+deadline at handoff, and retain it across restarts. The journal records GitHub's
+run creation and first observed attempt-job start separately. The timeout
+configured on GitHub still governs job execution.
+
+```sh
+export PORTCOVE_PR_WAKE_STATE="$HOME/.local/state/portcove/pr-wake"
+tools_checkout=/absolute/path/to/portcove-tools
+python3 "$tools_checkout/scripts/pr_wake.py" handoff --pr NUMBER --head SHA --run RUN --attempt ATTEMPT --deadline UTC
+```
+
+The command reads the thread UUID injected by Codex and checks the local
+worktree HEAD. The service reads that exact thread and its queue and turn history,
+verifies its worktree, and commits the acceptance timestamp to the journal.
+Wait for the receipt with `accepted` before ending the model turn. An
+unacknowledged handoff can be retried with the same binding. After the required
+review of a new head, the same owner can hand off its new binding while the
+repair turn is active. The worker reconciles the previous event before
+accepting the replacement.
+
+The worker runs `just pr-watch --sample --json` locally. Ordinary polling
+starts no Codex turns. The worker also listens
+for PR events when supported by the account and `gh`. Each attachment and
+reconnection triggers a fresh read because GitHub does not replay missed events.
+A check-suite event triggers the full required-check evaluation. The three-minute
+poll also catches conversation comments that address the PR author from a
+repository owner, member, or collaborator, and submitted review feedback on the
+bound head. Duplicate hints coalesce before evaluation. The GitHub CLI's
+preview subscriptions expire automatically.
+
+Each actionable event is written to disk before the worker invokes
+`codex queue --thread UUID --resume --message EVENT`. The worker reads the
+target thread's persisted user message and turn ID as pickup evidence. After
+an outage it checks the target's queue and history and resumes an existing
+queued message if it finds one. The message asks the owner to claim the event
+once and re-read the live PR before proceeding. A completed, claimed turn
+settles the event. The worker retries once after a failed or interrupted turn,
+or after a turn ends without claiming the event. The recovery turn reads prior
+work and current PR state before repeating any action. If `status` reports a
+`delivery_error`, open the saved UUID, inspect its last turn and current PR,
+and resolve the retained action in that thread. `receipt EVENT` shows both
+turn IDs. Raw check evidence stays local.
+To read its bounded summary, redirect the event's `report EVENT` output to
+a file, then run `node scripts/report-summary.mts watch FILE`.
+
+Use these commands under the same account to inspect or recover delivery.
+
+```sh
+python3 "$tools_checkout/scripts/pr_wake.py" status NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" receipt EVENT
+python3 "$tools_checkout/scripts/pr_wake.py" pause NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" resume NUMBER
+python3 "$tools_checkout/scripts/pr_wake.py" cancel NUMBER
+codex app-server daemon start
+systemctl --user restart portcove-pr-wake.service
+journalctl --user -u portcove-pr-wake.service -n 50
+```
+
+Pausing stops new sends and removes an outstanding queued copy when reachable.
+Use `resume` to re-enable the watch. Cancellation, merge, and closure retire
+the watch after queued copies are reconciled. The event journal retains delivery
+receipts. A pause or cancellation after a turn has started prevents new claims.
+Use the thread's normal interrupt control to stop work already claimed.
+
+Use a disposable local Codex thread to validate host activation. Register a
+disposable PR with pending checks, end the turn and close the Codex window.
+After an actionable condition, use `status NUMBER` to get the event ID and
+`receipt EVENT` to verify the picked-up turn and registered UUID against the
+daemon's thread history. The
+fixture command `python3 scripts/pr_wake_test.py` covers controlled-clock
+polling and recovery independently of host activation.
 
 ### Connector delivery observations
 
@@ -423,6 +557,13 @@ explicit relative runtime extensions, type-only imports and no emit. Browser
 application/configuration projects retain bundler resolution; native harnesses
 also check the DOM callbacks that Selenium serializes. Node-only tooling does
 not receive browser globals. All projects inherit the strict shared policy.
+
+API library declarations are separate from emitted syntax targets. The renderer
+adds `ES2023.Array` for copying array methods available within its existing
+`chrome111`/`safari16.4` targets. Native harnesses add `ES2024.Promise` for
+`Promise.withResolvers` in pinned Node code. Their serialized browser callbacks
+must still use APIs supported by the WebView targets; the shared type-checking
+project does not establish browser API compatibility.
 
 Native harnesses use `apps/desktop/scripts/transport-values.mts` when consuming
 complete domain payloads. It validates against the existing Rust-exported output
@@ -1667,6 +1808,28 @@ controls. Ordinary opening helpers stay neutral so initial-destination behavior
 remains testable. Native scripts, browser renders, injected text enlargement and
 native-host observations are distinct evidence scopes.
 
+Native review click failures record the interaction stage and bounded original
+error type, name and message before control geometry. Field limits include JSON
+escapes and UTF-8 bytes so the original failure fits the existing log record.
+An empty WebDriver message still has an error class. If collecting the control
+context also fails, the diagnostic records that failure separately and preserves
+the original cause.
+These observations do not change visibility, enabled-state or pointer checks,
+click dispatch, or the existing evidence limits.
+
+The Linux selected setup journey explicitly converts CSS target coordinates into
+WebKitGTK window coordinates at its measured 400% page zoom. The retained native
+run rejected Element Click, and an unscaled viewport action opened Navigation
+instead of Game files. DOM visibility, enabled-state and hit tests remain in CSS
+pixels. Only this journey multiplies the final native point by page zoom, moves
+the actual pointer, checks the target's native hover and CSS hit before pressing,
+and sends one press/release without a fallback. Its report keeps both coordinate
+spaces, scale and delivered-target result. Navigation, filters, review actions
+and the restarted session use the same explicit policy. Default consumers and
+Windows retain their previous dispatch. Settings heading, focus, dialog and native
+picker checks still establish each transition; neither a successful command nor
+these fixture checks establish Native acceptance by themselves.
+
 Open `scenarios.html?mode=interactive&journey=collection` for a 12-entry mixed
 collection or `journey=collection-large` for 60 entries. This mounts the actual
 App with disposable in-memory transport; game/file actions are simulated and
@@ -1798,7 +1961,7 @@ loop. This section is the single place for concrete model recommendations.
 
 ### Current recommendations
 
-Recommendations as of 2026-11-14. They are starting assignments by
+Recommendations as of 2026-11-19. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
 providers. The two visual-helper choices in particular are separate starting
 points, each to be evaluated on its own evidence. The implementation owner is
@@ -1807,24 +1970,27 @@ these instructions do not change it.
 
 | Responsibility                                 | Codex                   | Claude                      |
 | ---------------------------------------------- | ----------------------- | --------------------------- |
-| Delegated implementation (only when asked)     | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Independent reviewer                           | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
-| Critical reviewer (listed critical areas only) | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Specialist (named difficult problem)           | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Delegated implementation (only when asked)     | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Independent reviewer                           | `gpt-6.2-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Critical reviewer (listed critical areas only) | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
+| Specialist (named difficult problem)           | `gpt-6.2-astra`, high   | `claude-fable-5-2`, high    |
 | Research scout (bounded extraction)            | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
 | Visual helper (optional)                       | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
 
-Escalate an independent review to `claude-opus-5-5` or `gpt-6.1-sol` at high
+Escalate an independent review to `claude-opus-5-5` or `gpt-6.2-sol` at high
 effort only when a first review leaves a substantive unresolved question that a
 stronger pass is likely to settle. The critical reviewer and specialist rows are
 for the narrow cases QUALITY and AGENTS name, not for routine PRs.
 
-Documented availability, checked 2026-11-13: all eight models appear on
-the official [OpenAI models](https://developers.openai.com/api/docs/models) and
-[Claude models](https://platform.claude.com/docs/en/about-claude/models/overview)
-pages, none is on a listed retirement, and every listed model documents both
-`medium` and `high` effort. Observed access is narrower: the local Codex CLI
-0.164.0 model list cached 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
+The [OpenAI model catalog](https://developers.openai.com/api/docs/models)
+lists GPT-6.2 Sol and GPT-6.2 Astra with both `medium` and `high` reasoning.
+The local Codex model cache included both model IDs when checked on 2026-11-19.
+The other model recommendations were checked against the official OpenAI and
+[Claude model catalogs](https://platform.claude.com/docs/en/about-claude/models/overview)
+on 2026-11-13.
+
+The local Codex CLI
+0.164.0 model list cached on 2026-10-25 offered `gpt-6.1-sol`, `gpt-6-astra` and
 `gpt-6-luna` but not `gpt-6.1-terra`; Claude Code 2.1.323 accepted and ran a
 delegated research scout requested as `haiku` at `medium` effort, without
 separately reporting the served model. When the client does not
@@ -2079,6 +2245,13 @@ that private virtual display; WSLg, physical display/controller and other Linux
 routes remain separate. Missing or unsupported prerequisites are reported; no
 provisioning or fallback qualification is implied.
 
+An ordinary Linux appearance restart retains its captured driver until the
+existing stop action and that exact child's exit have completed. A failed join
+keeps the reference for owned cleanup and refuses the replacement launch. The
+private namespace still owns final descendant closure; a driver exit alone does
+not establish whole-tree quiescence. Selected Linux sessions keep their existing
+namespace stop/join authority and its retirement budget.
+
 For ordinary Linux shipping boundaries, select only
 `native-linux-packaged-webview-boundary` and pass `--package-evidence ABSOLUTE_JSON`.
 The maintained private-X11 route also requires an installed Google Chrome at
@@ -2181,11 +2354,35 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`keyboard-layout` reads back the native window and WebView viewport after its
+narrow-size request. A native minimum-width clamp keeps the desktop navigation
+journey active; it does not establish compact drawer coverage. The retained
+`keyboard-layout-navigation.json` records the actual dimensions and explicitly
+marks compact navigation unexercised outside its breakpoint. Where the actual
+viewport is compact, drawer visibility and both navigation landmarks remain
+required. Browser compact-navigation coverage and `native-interface-size` cover
+their own responsive and enlargement contracts separately.
+Native fixture text replacement uses explicit WebDriver select-all actions and
+modifier release before separate Backspace and plain-text commands. This keeps
+real keyboard editing coverage on WebKitGTK drivers that retain the modifier
+across a NULL within one Element Send Keys command; it does not set DOM values.
+
 `native-interface-size` selects presets through the actual Appearance control.
 Before sending its selection keys, it waits for the popup to own focus and
 checks the highlighted option before committing. A mounted listbox alone does
 not establish keyboard readiness. Failures retain viewport/preference observations
 and a screenshot before reset/resize cleanup; the original assertion still fails.
+
+`native-secondary-panel-presentation` uses a fresh Windows fixture library and
+an owned prepared installation. It inspects DAT editing, metadata export,
+ready notices, mod original-file choice, recipe/provider reviews, retirement,
+file preservation and portable-save feedback in both themes. The retained
+observation identifies supplied replies and controlled refusals. DAT and the
+successful metadata export use actual isolated Core operations. Ordinary
+owned preferences and background setup requests retain their existing paths.
+Its fixed projections remain in the renderer cache until the disposable session
+closes, so this selector runs alone. Existing owned-session cleanup and exact
+input receipts apply.
 
 `native-library-layout` uses two owned inert installations to check both Library
 views and themes through ordinary window sizes and native interface sizing. At
@@ -2208,6 +2405,42 @@ unchanged. It is not
 large-collection, gameplay, OS DPI, physical
 controller or assistive-technology acceptance.
 
+`native-collection-artwork-presentation` is a standalone Windows opt-in with a
+ten-minute harness budget and the existing identity-bound native review cleanup.
+It uses the normal app and a fresh source-free library. The actual accepted
+catalog supplies the two-member `andreyvelsk-com-mobilerpgpack-phone` and four-member
+`crownpark-xbox360-native-ports-collection` listings, member credits and digests.
+Public thumbnail IPC is bound to the actual library generation and artwork choice
+revision; retained PNG identities are compared with displayed images. Discover,
+detail and credits use settled, contained captures in both themes at the supported
+960×640 outer window. A four-member compact representative uses that same window
+at 200% through the production Ctrl+0/Ctrl++ native WebView sizing route. Records
+bind the actual outer size, saved percentage, device pixel ratio and effective
+viewport; the compact viewport must be half its measured 100% baseline, within
+two CSS pixels. Full credits are captured at 100%; the compact capture frames
+their opener while still checking every source link and credit. Back must restore
+the exact Discover opener focus. Theme/interface-size preference changes use
+existing controls in the isolated profile and are restored. Catalog and artwork
+choices remain unchanged; no original files, runtime installation, catalog
+replacement or provider credentials are used. Restoration completes before the
+final report is serialized, including any restoration failure.
+Public failures retain concrete member failures and any partial/fallback evidence
+and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
+separate evidence; this listing-only native case does not qualify those installed
+surfaces, gameplay or publication. It is absent from routine profiles.
+
+The collection case collects bounded diagnostic observations before checking its
+unchanged-catalog invariant and retains them in a sidecar during finalization.
+It records document and indexed entry hashes, the
+existing catalog and listing delivery status, and early command/request IDs from
+the private host logs. Object-key-normalized hashes are diagnostic transport
+identities, not Core definition or trust identities; array order remains meaningful.
+The sidecar is limited to 2 MiB within the unchanged 12 MiB evidence codec. Host
+logging is best effort: missing, changing, malformed or excessive logs are recorded
+as incomplete, never as proof that a command did not run. These observations do not
+reset the initial catalog digest or weaken source, status, artwork-choice or cleanup
+assertions.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
@@ -2217,6 +2450,50 @@ input, and cancels without registration, acquisition or original-file changes.
 The receipt binds the actual executables, source, screenshots and positive
 owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
+
+`just desktop-verify --scenario native-reviewed-discovery-setup-batch --require-clean`
+selects one standalone Windows journey. The CLI first seeds an isolated saved
+folder and two inert source registrations. Desktop scans the folder and lets the
+operator select two compatible integrations. The scenario cancels one batch
+review before selecting both games again and confirming their installation.
+Both portable-package fixtures share the admitted game source. The other source
+registration remains an unchanged custody control; this case does not execute
+the separate PS1 preparation fixture.
+It checks the installed files and retained installation identities after an
+application restart. Original files, source registrations and saved folders stay
+intact. Launch history stays empty. Reports include screenshots and positive
+owned-process closure. This fixture does not establish native picker, real-game,
+gameplay or physical-storage acceptance.
+
+`just desktop-verify --scenario native-standing-setup-source-return --require-clean`
+selects one standalone Windows journey. The CLI seeds an isolated saved folder
+and inert originals before their owned directory becomes unavailable. Desktop
+saves one Set up when ready choice. An observer records the actual automatic
+pass without changing its request or response. The pass must name the missing
+saved folder and leave attempts, batches and downloads unchanged.
+After positive process exit, the restart owner restores the same directory.
+Normal startup then installs only the selected integration. The scenario checks
+the files, consent and retained identities after another restart. No game starts.
+This fixture does not establish SMB reconnect, physical storage, real-game or
+gameplay acceptance. A failed run retains the unavailable original directory
+rather than restoring it while the consented app is still live.
+
+`just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
+selects one standalone Windows or Linux review journey outside routine profiles.
+The private-X11 wrapper derives both waits from the selected harness budget:
+this case retains its ten-minute deadline, an eleven-minute harness wait, and
+an eleven-minute-thirty-second launcher wait for failure capture and positive joins.
+An isolated CLI saves one root and registers 21 distinct inert originals, with
+25 identical copies of each original. Desktop continues the bounded scan to
+525 retained matches, exceeding the 512-match Core preview, then selects all
+20 independent eligible games before loading
+the remaining result page, and leaves one game's two implementations unselected.
+Keyboard activation opens the exact twenty-game review and cancels it. No batch,
+download, installation or launch may occur; original files and registrations stay
+unchanged. The native receipt includes the scan identity, selected plans, counts,
+screenshots and ordinary harness process cleanup. It does not establish native
+picker, retail, gameplay or physical-storage acceptance. Execution of a reviewed
+batch is qualified separately.
 
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
 selects the standalone owned-input journey on Windows: bounded two-port
@@ -2246,6 +2523,8 @@ checks the warning, fresh Core setup review, neutral cancellation and return
 with selection preserved. No validator, preparation, acquisition, gameplay,
 physical-storage or Linux execution is claimed. The existing preliminary
 review-only scenario remains separately selectable.
+
+### Select a native scenario and profile
 
 With no selector, `desktop-verify` uses the `smoke` profile. Exact `--scenario`
 flags are repeatable and mutually exclusive with `--profile`; selection is normalized
@@ -2296,7 +2575,9 @@ routine profiles. It retains malformed preferences and player-data before copies
 checks the actual startup diagnostics and absence of the normal workspace, and
 proves owned host-tree exit before externally repairing only the fixture's saved
 choice. Two independent restarts check the usable workspace, saved selection,
-library identity and player data. The failed-startup screen keeps its main landmark and announces the failure in
+library identity and player data. A six-minute harness watchdog covers the
+initial refusal, both restarts, and owned-process cleanup. The failed-startup
+screen keeps its main landmark and announces the failure in
 the error paragraph, with native accessibility evidence retained.
 Technical labels retain their exact spelling while wrapping within their column;
 the scenario checks actual label/value separation and requires no unresolved
@@ -2349,6 +2630,8 @@ preparation and actual-device evidence gaps belong to #51/#217 for the Public be
 follow-up, Required before 1.0; they consume the shared engine baseline without
 becoming #993 initial-beta closure conditions. Do not stop fixture development or
 turn missing evidence into a pass.
+
+### Choose a verification profile
 
 The curated profiles are:
 
@@ -2474,6 +2757,8 @@ can signal only a separately captured, verified game process tree. This journey
 does not establish human gameplay, an installed package, Linux qualification or
 catalog support admission. Keep any earlier failed receipts and their limits.
 
+### Capture a game-first scenario
+
 Game-first visual captures scroll to one complete identified target, then let the
 shared settled-capture owner wait for fresh, stable geometry before taking its
 single candidate image. Every observation still requires complete visibility;
@@ -2589,8 +2874,10 @@ an owned setup child reaches its live checkpoint, the identified harness tree
 is forcibly terminated without first deleting the WebDriver session, and a new
 native host performs recovery. The run checks source, original executable,
 active-install and save preservation, retained staging, recovered activity and
-cleanup refusal when durable process quiescence is unknown. It does not rewrite
-the recovery journal. The existing `native-interrupted-preparation-recovery`
+cleanup refusal when durable process quiescence is unknown. It then reviews and
+confirms a fresh preparation through Desktop, checks a distinct operation reaches
+ready, and verifies the interrupted activity and checkpoint remain intact along
+with the original source and save. It does not rewrite the recovery journal. The existing `native-interrupted-preparation-recovery`
 remains a separate synthetic durable-state and reviewed-cleanup test. Neither
 scenario proves OS shutdown, another operation family, installed packages or
 another platform.
@@ -2760,6 +3047,8 @@ native scenarios always execute in a fresh evidence directory. The run metadata
 records whether frontend bytes were rebuilt or reused, while source revision and
 `--require-clean` evidence remain independent and unchanged.
 
+### Coordinate focus and session ownership
+
 Every native run can take focus and send input. The shared lock serializes
 Portcove qualification runners across worktrees, but it cannot prevent unrelated
 user input. Announce the foreground run and establish an uncontended window.
@@ -2776,6 +3065,19 @@ Focused and small-profile runs retain the three-minute whole-harness watchdog,
 except where `desktopHarnessDeadlineMs` records a measured allowance: library move
 (300 s), interrupted preparation recovery (420 s) and the Steam entry/batch
 journeys (600 s).
+The November 17 combined ordinary owned-workflow run at `eb33f3b` reached backup
+restore before its 20-minute watchdog stopped the driver. Combinations executing
+more than eight scenarios, including the preparation prerequisite, now allow
+40 minutes. The established eight-case owned-ready group keeps 20 minutes;
+standalone allowances, product deadlines and zero automatic retries stay unchanged.
+The same run's workspace read took 23.926 seconds while cancellation became
+durable. Post-navigation cancellation and game-return settlement now use the
+existing 60-second native refresh/launch allowance with distinct failure labels.
+Held-assessment refresh also uses its existing 60-second readiness allowance;
+strict injection/restoration failures are recorded without replacing the primary
+wait error. The original timeout and downstream connection failures remain failed
+evidence; only a fresh exact-source run can establish completion.
+
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
 libraries and saved preferences. Real folder selection and review first commit a
 recognizable SQLite library with a future schema; refusal retains the Core-owned
@@ -2834,9 +3136,13 @@ Default-cover display/cache observations can use repeated `--cover-port-id ID`
 arguments for at most 16 unique accepted mapped ports. Omission retains the full
 mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
 cache observations must include `dkr-r` for the existing missing-cache negative
-control. Selected ports receive detail observations as well as card observations.
-The report records the requested/observed IDs, selection scope and available
-mapped denominator. A focused result is not whole-catalog evidence. This option
+control. The control withholds the accepted original displayed by the DKR-R
+Discover card. Selected ports receive detail observations as well as card
+observations. When a whole-game card displays another port's cover, the report
+records that cover's port and mapping separately from the selected implementation.
+A card without a primary mapping leaves the card sample empty and checks the
+selected implementation in Detail. The report records the request, scope, and
+available mapped denominator. A focused result is not whole-catalog evidence. This option
 requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
 it does not change image acceptance, cache policy or the frozen cohort's fallback
 credit.
@@ -2934,6 +3240,8 @@ retry plus refresh recovery, not upstream availability, game compatibility,
 gameplay or human acceptance.
 Core/component tests and human acceptance remain separate. An incomplete report is
 not full desktop qualification.
+
+### Restart and recover a Windows test session
 
 Windows restart checks capture the exact driver-owned application and child
 process identities before closing the session. Before reusing its WebView profile,
@@ -3285,6 +3593,38 @@ CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
 native development-app display and cache behavior, not installed-package updates,
 production content publication, physical devices or human comprehension.
 
+Windows runs retain the native command trace and debug diagnostics. For an
+artwork comparison, keep the source, executable, catalog cohort, viewport and
+network condition with each observation. Count effective catalog resolutions,
+original disk lookups and verification, derivative hits and conversions,
+worker admission and base64 output bytes. Use the cached-restart control to
+distinguish retained derivatives from same-process reuse. The cover report's
+per-card timings are Selenium observations after a search request.
+
+For a focused comparison, repeat `--cover-port-id` for up to 16 accepted
+cover mappings, including `dkr-r` for the offline control. Focused cache
+runs use the same window size and theme for the cold pass, the same-session
+Discover revisit, and the offline restart. The report records the initial
+visible primary-cover IDs from the actual artwork frames and checks them against
+the admitted listing catalog, including representative directory entries. It records
+browser-frame timings from the Discover button click to the first ready image
+and the full measured cohort. Collection and companion artwork are outside this
+timing cohort. An incomplete cohort
+has a null completion time and lists the ready IDs. Individual timing rows
+are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
+matching catalog, viewport, visible IDs, and cache and network conditions.
+
+On the same Windows Server 2022 runner, WebView2 158.0.4370.33 development builds
+at 1280×800 and 1× pixel ratio showed one visible DKR-R cover in 1,410 ms on the
+empty-cache baseline `adc3e990c5cd` and 956 ms on candidate `191faff3c8e4`.
+Revisits took 94 ms and 101 ms. After an offline restart with a populated
+cache, one visible Banjo-Recomp cover took 5,574 ms and 489 ms. The candidate's
+restarted process logged nine derivative hits, zero downloads and zero image
+conversions. The baseline logged seven conversions. These are single timing
+observations per condition. The candidate passed the four-title cover and
+Detail scenario. The baseline saved its timing rows before the later
+withheld-original traffic control timed out. [Windows evidence](https://github.com/boburning/portcove/actions/runs/44772705180)
+
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mts --app <retained-installed-executable> --output
@@ -3328,6 +3668,16 @@ of retained installed bytes after the isolated installer route, not current
 installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
+
+The Windows normal-package case also reads the actual workspace catalog and
+catalog status, checks the reviewed original-game relationships, and retains
+`normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
+digest, definition/listing provenance, independent relationship fixture, package
+and executable to the executing source revision. The fixture and oracle have
+immutable input custody. Existing packages use their own matching source and
+fixture; the verifier refuses a different candidate revision. A relationship
+failure fails the scenario and retains the readback. This read-only observation
+grants no source compatibility, installation permission or gameplay acceptance.
 
 For the distinct current-installed Windows case, use the fixed existing launcher:
 `just desktop-test --current-installed --installer <absolute-nsis> --package-evidence
@@ -3604,6 +3954,15 @@ separate from execution, and times out admission with exit 75. Cancellation is
 130/143. Neither means a completed test. Execution budgets begin after admission;
 outer callers must allow the bounded queue as well as setup and execution.
 
+Each local source-bound checkout scan has a 30-second default budget. Under
+measured filesystem pressure, a local caller can set
+`PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
+120 for one command. The override applies separately to the before-admission
+and after-admission scans. Allow both scans and the existing queue wait in
+the outer command budget. A timeout stops the scan and the payload does not
+start. The existing source identity comparison and reservation limits still
+apply.
+
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely
 represent independent supervised descendants or remote-engine work. Coordinate a
@@ -3711,6 +4070,9 @@ default. An unconfigured contributor keeps the existing two-slot defaults and
 ordinary Node contract route; this extension adds no setup requirement to it.
 Linux retains a local proxy lease for native identity, nested ownership and output
 checks; Windows retains external custody until Linux cleanup is proven.
+The Linux adapter checks the privacy of its temporary custody directory before
+requesting Windows capacity. If the temporary filesystem cannot enforce
+owner-only access, use a Linux-backed temporary directory and try again.
 
 The Linux hostBridge configuration identifies the Windows Node executable and
 entry script, Linux Node/probe paths, distribution/user and closureSha256. Stage
@@ -3724,8 +4086,17 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. Windows process-identity inspection retains a finite 15-second harness
-budget under host I/O load; host release allows 65 seconds for its bounded
+custody. While admission is pending, input EOF or error aborts acquisition while
+preserving buffered protocol bytes. A lease that resolves despite cancellation
+retains external custody; connection loss never authorizes its release.
+The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the
+message parser so stream lengths retain byte units.
+Windows process-identity inspection retains a finite 15-second harness
+budget under host I/O load. Native Windows first checks existence with signal0,
+which sends no signal: only ESRCH returns absent without CIM. A possibly live
+process, permissions error or uncertain result still requires the exact CIM
+creation identity. This does not prove descendant or external-work cleanup;
+their existing custody checks remain required. Host release allows 65 seconds for its bounded
 remote cleanup probe and identity checks. Timeouts retain custody. The host adapter's --recover action consumes the original reference and
 invocation before using existing external-capacity recovery. Prelaunch recovery
 requires an explicit completion marker. If registration is missing after launch,

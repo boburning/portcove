@@ -21,7 +21,6 @@
     },
     "release_url": "https://github.com/TeamGDB/Yakumo/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["yakumo-", "windows-x86_64-portable.zip"],
       "linux-x86-64": ["yakumo-", "-linux-x86_64.tar.gz"],
       "macos-aarch64": ["yakumo-", "-macos-arm64.dmg"]
     },
@@ -49,6 +48,21 @@
           "instruction": "Keep settings.ini, prepared EBOOT.ELF, copied disc.iso or its external in-place original, ms0/PSP/SAVEDATA (including ULJM05800, ULJM05800QST and ULJM05800DAT), mods, texture packs, pipeline caches/keys, logs, controller mappings, translations/fonts, save-backups, temporary files and all custom roots. A source-build game directory may retain its own ms0 and older saves; do not migrate it automatically. The Flatpak keeps data in ~/.var/app/io.github.teamgdb.Yakumo/data/Yakumo/MHP3rd and can export saves to Downloads. The Linux tarball uses $XDG_DATA_HOME/Yakumo/MHP3rd or ~/.local/share/Yakumo/MHP3rd by default. The Mac app uses ~/Library/Application Support/Yakumo/MHP3rd. Keep your actual profile and any ISO used in place before replacing the app. Yakumo checks NPJB-40001 and encrypted EBOOT.BIN SHA-256 79e25f3512d56e0f7bf5c48351d7d0d255269675ffc8811ac5599322bb66945e, then verifies prepared EBOOT.ELF SHA-256 55c0598436c0753b04331f8e95d406f832d9217806e3a896fed0e88b33637d8c. The check covers those files and the disc ID."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-portable-3rd-hd-ver",
+      "evidence_urls": ["https://github.com/TeamGDB/Yakumo"],
+      "source_editions": [
+        {
+          "id": "monster-hunter-portable-3rd-hd-ver-playstation-3",
+          "title": "Monster Hunter Portable 3rd HD Ver. (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+          ]
+        }
+      ]
     }
   },
   "route_facts_v1": {
@@ -72,6 +86,7 @@
       ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],

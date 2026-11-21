@@ -55,10 +55,16 @@
         }
       ]
     },
-    "download_asset_hints": {
-      "windows-x86-64": ["crispy-heretic-", "-win64.zip"]
-    },
-    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"]
+    "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic",
+      "evidence_urls": [
+        "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
+        "https://github.com/fabiangreffrath/crispy-doom"
+      ],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -72,6 +78,7 @@
     },
     "decisions": []
   },
+  "crispy_doom_windows_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -104,88 +111,12 @@
     "executable_hints": {
       "windows-x86-64": ["crispy-heretic-setup.exe"]
     },
-    "persistent_paths": [
-      "default.cfg",
-      "crispy-doom.cfg",
-      "heretic.cfg",
-      "crispy-heretic.cfg",
-      "hexen.cfg",
-      "crispy-hexen.cfg",
-      "strife.cfg",
-      "crispy-strife.cfg",
-      "saves",
-      "levelstat.txt",
-      "hexndata",
-      "demos",
-      "chocolat.rsp",
-      "tmp.cfg",
-      "extratmp.cfg",
-      "doom",
-      "doom.mid",
-      "timidity.cfg",
-      "temp.dsg",
-      "recovery.dsg",
-      "strfsav0.ssg",
-      "strfsav1.ssg",
-      "strfsav2.ssg",
-      "strfsav3.ssg",
-      "strfsav4.ssg",
-      "strfsav5.ssg",
-      "strfsav6.ssg",
-      "originals",
-      "temp"
-    ],
-    "persistent_file_patterns": [
-      {
-        "prefix": "DOOM",
-        "suffix": ".png"
-      },
-      {
-        "prefix": "DOOM",
-        "suffix": ".pcx"
-      },
-      {
-        "prefix": "HTIC",
-        "suffix": ".png"
-      },
-      {
-        "prefix": "HTIC",
-        "suffix": ".pcx"
-      },
-      {
-        "prefix": "HEXEN",
-        "suffix": ".png"
-      },
-      {
-        "prefix": "HEXEN",
-        "suffix": ".pcx"
-      },
-      {
-        "prefix": "STRIFE",
-        "suffix": ".png"
-      },
-      {
-        "prefix": "STRIFE",
-        "suffix": ".pcx"
-      },
-      {
-        "prefix": "demo",
-        "suffix": ".lmp"
-      },
-      {
-        "prefix": "doomsav",
-        "suffix": ".dsg"
-      },
-      {
-        "prefix": "hticsav",
-        "suffix": ".hsg"
-      }
-    ],
     "windows_runtime_path_policy": "relative-file-max-path",
     "launch_arguments": ["-game", "heretic", "-savedir", "saves", "-noautoload"],
     "launch_environment": {
       "DOOMWADDIR": "originals"
     },
     "windows_temp_directory": "temp"
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

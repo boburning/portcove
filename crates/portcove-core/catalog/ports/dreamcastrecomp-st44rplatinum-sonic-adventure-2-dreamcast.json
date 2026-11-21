@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "dreamcastrecomp-st44rplatinum-sonic-adventure-2-dreamcast",
+    "artwork": {
+      "game_id": 7858,
+      "cover_id": 547825,
+      "image_id": "cobqpd",
+      "image_sha256": "63d17724bbc4f8e5d8515f2cd41f24516fbd5448fe735e90cebd81039ddb7d07",
+      "game_slug": "sonic-adventure-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Sonic Adventure 2 (Dreamcast) — dreamcastRecomp (st44rplatinum)",
     "original_game_title": "Sonic Adventure 2 (Dreamcast)",
     "summary": "Experimental Sonic Adventure 2 Dreamcast source project. Upstream reports title and file-selection screens with sound; the first stage and GPU renderer are planned. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/st44rplatinum/dreamcastRecomp"
     },
-    "issue_number": 3597
+    "issue_number": 3597,
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-adventure-2-dreamcast",
+      "evidence_urls": ["https://github.com/st44rplatinum/dreamcastRecomp"],
+      "source_editions": [
+        {
+          "id": "sonic-adventure-2-dreamcast-dreamcast",
+          "title": "Sonic Adventure 2 (Dreamcast) (Sega Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/st44rplatinum/dreamcastRecomp/blob/4275bb3d0effc2552e0222bb4f25e480f55abc55/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

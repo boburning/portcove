@@ -2,9 +2,17 @@
   "format_version": 1,
   "listing": {
     "id": "ratchet-clank-2002-ps2-rac-rs",
+    "artwork": {
+      "game_id": 1289,
+      "cover_id": 79006,
+      "image_id": "co1oym",
+      "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
+      "game_slug": "ratchet-clank",
+      "match_kind": "underlying-game"
+    },
     "name": "Ratchet & Clank (2002, PS2) (RAC-RS)",
     "summary": "Attach an independently permitted, prepared rac-rs Windows game after upstream builds it from your supported Ratchet & Clank disc. Direct no-argument launch reads the generated play configuration; preserve the whole source/prepared installation, player data and update recovery.",
-    "original_game_title": "Ratchet & Clank (2002, PS2)",
+    "original_game_title": "Ratchet & Clank",
     "project_url": "https://github.com/AsobiCodes/rac-rs",
     "platforms": [],
     "availability": "unknown",
@@ -38,6 +46,15 @@
       "warnings": [
         "This release is a setup/source kit. Attach only the already generated native game with its complete installation and play.cfg; upstream retains compilation/update ownership."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-and-clank",
+      "evidence_urls": [
+        "https://github.com/AsobiCodes/rac-rs/blob/5b1415469460192f9236e9ad7b075e37223d764a/README.md",
+        "https://github.com/AsobiCodes/rac-rs"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

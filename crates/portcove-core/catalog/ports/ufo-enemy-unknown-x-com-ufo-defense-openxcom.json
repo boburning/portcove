@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+    "artwork": {
+      "game_id": 24,
+      "cover_id": 547861,
+      "image_id": "cobqqd",
+      "image_sha256": "00ce468d682d7356d9b31166de01348e6175e342f39451ac4df729f9441e79fb",
+      "game_slug": "x-com-ufo-defense",
+      "match_kind": "underlying-game"
+    },
     "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
     "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
@@ -53,7 +61,13 @@
       ]
     },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
-    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml"
+    "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
+    "original_game": {
+      "format_version": 1,
+      "id": "ufo-enemy-unknown-x-com-ufo-defense",
+      "evidence_urls": ["https://openxcom.org/", "https://github.com/OpenXcom/OpenXcom"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -67,6 +81,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -76,19 +91,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "OpenXcom/OpenXcom",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "OpenXcom/OpenXcom"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

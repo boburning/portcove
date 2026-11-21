@@ -5,31 +5,17 @@ import { GitHubApiError, sanitizeOperationError } from "./github-operation.mts";
 
 const repository = "boburning/portcove";
 const root = `https://api.github.com/repos/${repository}/actions`;
-const activeStatuses = ["queued", "in_progress", "waiting"] as const;
+const activeStatuses = ["requested", "queued", "pending", "in_progress", "waiting"] as const;
 
 interface RunRef {
   id: number;
-  pullRequests: number[];
-  headBranch: string | undefined;
-  headRepository: string | undefined;
+  pullRequests: (number | undefined)[];
 }
 
-/** The pull request a run belongs to; runs GitHub left without `pull_requests` match by head branch and repository. */
-export interface PullRequestIdentity {
-  number: number;
-  headRef?: string | undefined;
-  headRepository?: string | undefined;
-}
-
-function belongs(run: RunRef, pull: PullRequestIdentity) {
-  if (run.pullRequests.includes(pull.number)) return true;
-  return (
-    run.pullRequests.length === 0 &&
-    pull.headRef !== undefined &&
-    pull.headRepository !== undefined &&
-    run.headBranch === pull.headRef &&
-    run.headRepository === pull.headRepository
-  );
+function belongs(run: RunRef, pullRequest: number) {
+  // A head branch can supply multiple PRs. GitHub must identify one PR before
+  // we cancel or rerun anything.
+  return run.pullRequests.length === 1 && run.pullRequests[0] === pullRequest;
 }
 
 function runRefs(value: unknown): RunRef[] {
@@ -38,23 +24,20 @@ function runRefs(value: unknown): RunRef[] {
   return runs.map((run: unknown) => {
     if (!isRecord(run) || typeof run.id !== "number" || !Number.isSafeInteger(run.id))
       throw new Error("Workflow run omitted its integer identity");
-    const pulls = Array.isArray(run.pull_requests) ? run.pull_requests : [];
-    const repository = isRecord(run.head_repository) ? run.head_repository.full_name : undefined;
+    const pulls: readonly unknown[] = Array.isArray(run.pull_requests) ? run.pull_requests : [];
     return {
       id: run.id,
-      pullRequests: pulls.flatMap((pull: unknown) =>
-        isRecord(pull) && typeof pull.number === "number" ? [pull.number] : [],
+      pullRequests: pulls.map((pull) =>
+        isRecord(pull) && typeof pull.number === "number" ? pull.number : undefined,
       ),
-      headBranch: typeof run.head_branch === "string" ? run.head_branch : undefined,
-      headRepository: typeof repository === "string" ? repository : undefined,
     };
   });
 }
 
 /** Run IDs only increase, so runs older than this head's own run are never newer work. */
-export function ownRunId(listing: unknown, pull: PullRequestIdentity): number | undefined {
+export function ownRunId(listing: unknown, pullRequest: number): number | undefined {
   const ids = runRefs(listing)
-    .filter((run) => belongs(run, pull))
+    .filter((run) => belongs(run, pullRequest))
     .map((run) => run.id);
   return ids.length ? Math.max(...ids) : undefined;
 }
@@ -62,11 +45,12 @@ export function ownRunId(listing: unknown, pull: PullRequestIdentity): number | 
 export function supersededRunIds(
   listings: readonly unknown[],
   own: number,
-  pull: PullRequestIdentity,
+  pullRequest: number,
 ): number[] {
   const ids = new Set<number>();
   for (const listing of listings)
-    for (const run of runRefs(listing)) if (run.id < own && belongs(run, pull)) ids.add(run.id);
+    for (const run of runRefs(listing))
+      if (run.id < own && belongs(run, pullRequest)) ids.add(run.id);
   return [...ids].sort((left, right) => left - right);
 }
 
@@ -145,15 +129,44 @@ export function readyForReviewAction(
     : "none";
 }
 
+export function supersedeTiming(action: string | undefined) {
+  const ready = action === "ready_for_review";
+  return {
+    clientMs: (ready ? 25 : 4) * 60_000,
+    // A cancelled run can wait for its always() gates to obtain runners. Keep
+    // the longer ready-transition wait within the unchanged 64-request budget.
+    pollMs: ready ? 60_000 : 10_000,
+  };
+}
+
+interface WaitClock {
+  now(): number;
+  sleep(milliseconds: number): Promise<void>;
+}
+
+export async function waitForCancelledRun(
+  observe: () => Promise<unknown>,
+  options: { run: number; deadline: number; pollMs: number },
+  clock: WaitClock = {
+    now: () => performance.now(),
+    sleep: (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+  },
+) {
+  for (;;) {
+    const run = await observe();
+    if (isRecord(run) && run.status === "completed") return;
+    if (clock.now() + options.pollMs > options.deadline)
+      throw new Error(
+        `Run ${options.run} did not finish cancelling; re-run all jobs to run the partitions`,
+      );
+    await clock.sleep(options.pollMs);
+  }
+}
+
 async function main() {
   const token = process.env.GH_TOKEN ?? "";
   const pullRequest = Number(process.env.PR_NUMBER);
   const headSha = process.env.HEAD_SHA ?? "";
-  const pull: PullRequestIdentity = {
-    number: pullRequest,
-    headRef: process.env.HEAD_REF || undefined,
-    headRepository: process.env.HEAD_REPO || undefined,
-  };
   if (
     !token ||
     !Number.isSafeInteger(pullRequest) ||
@@ -162,7 +175,8 @@ async function main() {
   )
     throw new Error("Missing or malformed pull request identity");
   let requests = 0;
-  const clientDeadline = performance.now() + 4 * 60_000;
+  const timing = supersedeTiming(process.env.EVENT_ACTION);
+  const clientDeadline = performance.now() + timing.clientMs;
   // Leave room for the cancel/re-run requests after any wait.
   const waitUntil = clientDeadline - 20_000;
   const sdk = await createGitHubClient({
@@ -181,18 +195,20 @@ async function main() {
       return { consumeBytes() {}, settle() {} };
     },
   });
+  const headRef = process.env.HEAD_REF;
+  const branch = headRef ? `&branch=${encodeURIComponent(headRef)}` : "";
   const list = async (query: string) =>
     (
       await sdk.request({
         method: "GET",
-        url: `${root}/workflows/ci.yml/runs?event=pull_request&${query}&per_page=100`,
+        url: `${root}/workflows/ci.yml/runs?event=pull_request${branch}&${query}&per_page=100`,
         request: { portcove: { replay: "safe-read", attempts: 0 } },
       })
     ).data as unknown;
   let own: number | undefined;
   for (let attempt = 0; attempt < 6 && own === undefined; attempt += 1) {
     if (attempt) await new Promise((resolve) => setTimeout(resolve, 5000));
-    own = ownRunId(await list(`head_sha=${headSha}`), pull);
+    own = ownRunId(await list(`head_sha=${headSha}`), pullRequest);
   }
   if (own === undefined) {
     console.log(`No CI run for ${headSha} yet; nothing to supersede`);
@@ -216,9 +232,9 @@ async function main() {
         await get(`${root}/runs/${own}/jobs?filter=latest&per_page=100`),
       );
       if (action !== "wait") break;
-      if (performance.now() + 10_000 > waitUntil)
+      if (performance.now() + timing.pollMs > waitUntil)
         throw new Error(`Run ${own} did not classify in time; re-run all jobs if it deferred`);
-      await new Promise((resolve) => setTimeout(resolve, 10000));
+      await new Promise((resolve) => setTimeout(resolve, timing.pollMs));
     }
     if (action === "none") {
       console.log(`Run ${own} is not deferred (or ran its partitions); leaving it to finish`);
@@ -232,15 +248,11 @@ async function main() {
         request: { portcove: { replay: "once", attempts: 0 } },
       });
       // Cancelled runs still start their always() gate jobs, so allow the remaining budget.
-      for (;;) {
-        const run = await get(`${root}/runs/${own}`);
-        if (isRecord(run) && run.status === "completed") break;
-        if (performance.now() + 10_000 > waitUntil)
-          throw new Error(
-            `Run ${own} did not finish cancelling; re-run all jobs to run the partitions`,
-          );
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-      }
+      await waitForCancelledRun(() => get(`${root}/runs/${own}`), {
+        run: own,
+        deadline: waitUntil,
+        pollMs: timing.pollMs,
+      });
     }
     console.log(`Re-running run ${own} to execute its deferred Windows partitions`);
     await sdk.request({
@@ -250,9 +262,8 @@ async function main() {
     });
     return;
   }
-  const listings: unknown[] = [];
-  for (const status of activeStatuses) listings.push(await list(`status=${status}`));
-  for (const run of supersededRunIds(listings, own, pull)) {
+  const listings = await Promise.all(activeStatuses.map((status) => list(`status=${status}`)));
+  for (const run of supersededRunIds(listings, own, pullRequest)) {
     console.log(`Cancelling superseded run ${run}`);
     try {
       await sdk.request({

@@ -42,6 +42,7 @@ pub struct DefinitionEntryInspection {
     bytes: Vec<u8>,
     namespace: String,
     revision: u64,
+    schema_version: u32,
     port: PortDefinition,
     capabilities: DefinitionCapabilityReport,
     source_contracts: Vec<String>,
@@ -58,6 +59,10 @@ impl DefinitionEntryInspection {
 
     pub fn namespace(&self) -> &str {
         &self.namespace
+    }
+
+    pub(crate) fn schema_version(&self) -> u32 {
+        self.schema_version
     }
 
     pub fn revision(&self) -> u64 {
@@ -136,6 +141,11 @@ impl DefinitionContentIndex {
         bytes: &[u8],
         retained: bool,
     ) -> Result<DefinitionEntryInspection> {
+        if bytes.len() > crate::definition_index::MAX_ENTRY_BYTES {
+            return Err(PortcoveError::verification(
+                "definition entry exceeds its byte bound",
+            ));
+        }
         let indexed = self
             .definitions()
             .iter()
@@ -144,7 +154,7 @@ impl DefinitionContentIndex {
         self.verify_content(indexed.target(), bytes)?;
         let value: strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let document: EntryDocument = serde_json::from_value(value.0)?;
-        if document.definition_schema != 1 {
+        if !matches!(document.definition_schema, 1 | 2 | 3) {
             return Err(PortcoveError::unsupported(
                 "unsupported definition entry schema",
             ));
@@ -163,22 +173,47 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
+        if port.upstream_active_reviewed && document.definition_schema < 2 {
+            return Err(PortcoveError::unsupported(
+                "a reviewed active project requires indexed definition schema 2",
+            ));
+        }
+        crate::profile_loader::validate(&port)?;
+        if port.mod_loader.is_some() && document.definition_schema != 3 {
+            return Err(PortcoveError::verification(
+                "native mod loader bindings require indexed definition schema 3",
+            ));
+        }
+        if let Some(settings) = &port.game_settings {
+            settings.validate_port(&port)?;
+        }
+        crate::provider_binding::validate(&port)?;
+        port.release.validate_github_streams(&port.platforms)?;
+        if port.mod_provider_bindings.is_some() {
+            let (template, minimum) = crate::provider_binding::capability(&port)
+                .expect("binding validation requires a supported adapter");
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "mod provider bindings require {template} capability version {minimum}"
+                )));
+            }
+        }
         require_indexed_persistence(&port)?;
         if !retained && !port.release.managed_build.is_empty() {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
         crate::managed_runtime_policy::validate_exact_exclusions(&port)?;
-        if crate::managed_runtime_policy::has_exact_exclusions(&port)
+        if let Some((template, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(&port)
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable"
-                    && requirement.minimum_version
-                        >= crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+                requirement.template == template && requirement.minimum_version >= minimum
             })
         {
             return Err(PortcoveError::verification(format!(
-                "exact release exclusions require staged-source capability version {}",
-                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+                "exact release exclusions require {template} capability version {minimum}"
             )));
         }
         if (!retained && !port.reviewed_package_layouts.is_empty())
@@ -287,6 +322,18 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(format!(
                 "Windows tracked handoff requires native capability version {handoff_capability}"
+            )));
+        }
+        if port.linux_packaged_library.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(format!(
+                "packaged Linux libraries require native capability version {}",
+                crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY
             )));
         }
         if port.release.grant_declared_executable {
@@ -405,14 +452,19 @@ impl DefinitionContentIndex {
                 "versioned mod packages require staged-source capability version 24",
             ));
         }
-        if crate::preparation::source::native(&port)
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 6
-            })
-        {
-            return Err(PortcoveError::verification(
-                "verified native runtime originals require capability version 6",
-            ));
+        if crate::preparation::source::native(&port) {
+            let minimum = if crate::preparation::source::native_relative(&port) {
+                crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY
+            } else {
+                6
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "verified native runtime originals require capability version {minimum}"
+                )));
+            }
         }
         if port.windows_temp_directory.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
@@ -542,6 +594,16 @@ impl DefinitionContentIndex {
         {
             return Err(PortcoveError::verification(
                 "version-local credentials require staged-source capability version 15",
+            ));
+        }
+        if crate::managed_chocolate::applies(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= crate::managed_chocolate::CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "Chocolate profile preparation requires staged-source capability version 38",
             ));
         }
         if port.managed_initialization.is_some()
@@ -701,6 +763,7 @@ impl DefinitionContentIndex {
             bytes: bytes.to_vec(),
             namespace: document.namespace,
             revision: document.revision,
+            schema_version: document.definition_schema,
             port,
             capabilities,
             source_contracts: document.source_contracts,

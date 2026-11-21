@@ -7,7 +7,12 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useArtworkVisibility, useGameHeroArtwork } from "../artwork";
+import {
+  useArtworkVisibility,
+  useGameHeroArtwork,
+  useCollectionCovers,
+  useCoverCollection,
+} from "../artwork";
 import {
   inspectHeroLogo,
   isHeroKeyArtSuitable,
@@ -15,7 +20,7 @@ import {
 } from "../hero-image-suitability";
 import { gameTitle } from "../port-identity";
 import type { HeroMediaPort } from "../hero-media";
-import { ArtworkSource } from "./Artwork";
+import { ArtworkSource, ArtworkFrame } from "./Artwork";
 import { MediaCredit } from "./CatalogMedia";
 import { cn } from "cn";
 import { useAppTranslation } from "../localization";
@@ -28,6 +33,7 @@ export function GameHero({
   label,
   children,
   successfulLaunches,
+  compact = false,
 }: {
   port: HeroMediaPort;
   variant: "detail" | "continue";
@@ -35,10 +41,15 @@ export function GameHero({
   label?: string | undefined;
   children: ReactNode;
   successfulLaunches?: number | undefined;
+  compact?: boolean;
 }) {
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
-  const { foreground, cover, background } = useGameHeroArtwork(port, visible);
+  const artworkVisible = visible && !compact;
+  const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible);
+  const collection = useCollectionCovers(port.id, cover, artworkVisible);
+  const collectionElement = useRef<HTMLDivElement>(null);
+  const showCollection = collection.length > 0 && !foreground.display.image;
   const [surface, setSurface] = useState<HeroLogoSurface & { image: string }>();
   const imageElement = useRef<HTMLImageElement>(null);
   const media = foreground.display.image ? foreground.display : cover;
@@ -79,21 +90,27 @@ export function GameHero({
   );
   useEffect(() => {
     const image = imageElement.current;
-    if ((kind !== "logo" && kind !== "key_art") || !image || typeof ResizeObserver === "undefined")
+    if (
+      compact ||
+      (kind !== "logo" && kind !== "key_art") ||
+      !image ||
+      typeof ResizeObserver === "undefined"
+    )
       return;
     const observer = new ResizeObserver(() => {
       if (image.complete && image.naturalWidth) inspect(image);
     });
     observer.observe(image);
     return () => observer.disconnect();
-  }, [identity, kind, inspect]);
+  }, [compact, identity, kind, inspect]);
 
   return (
     <section
       ref={element}
       className={cn("game-hero", `game-hero-${variant}`, className)}
-      data-hero-identity={kind}
-      data-hero-layout={layout}
+      data-hero-compact={compact || undefined}
+      data-hero-identity={compact ? "text" : kind}
+      data-hero-layout={compact ? undefined : layout}
       data-successful-launches={successfulLaunches}
       aria-label={
         label ??
@@ -103,7 +120,7 @@ export function GameHero({
       }
       data-focus-group
     >
-      {background.display.image && (
+      {!compact && background.display.image && (
         <div className="game-hero-background" aria-hidden="true">
           <img
             src={background.display.image}
@@ -117,49 +134,64 @@ export function GameHero({
         </div>
       )}
       <div className="game-hero-body">
-        {(image || foreground.display.loading || cover.loading) && (
+        {!compact && (image || showCollection || foreground.display.loading || cover.loading) && (
           <div
             className="game-hero-foreground"
             data-artwork-source={kind === "cover" ? cover.state?.resolved_source.kind : undefined}
             aria-hidden="true"
             data-loading={!image || undefined}
           >
-            {image && (
-              <img
-                key={identity}
-                ref={imageElement}
-                className="game-hero-image"
-                src={image}
-                alt=""
-                width={foreground.display.image ? foreground.candidate?.width : undefined}
-                height={foreground.display.image ? foreground.candidate?.height : undefined}
-                decoding="async"
-                style={
-                  surface?.image === identity && surface.plate
-                    ? ({ "--hero-image-backplate": surface.backing } as CSSProperties)
-                    : undefined
-                }
-                data-plate={(surface?.image === identity && surface.plate) || undefined}
-                data-logo-tone={surface?.image === identity ? surface.tone : undefined}
-                onLoad={(event) => inspect(event.currentTarget)}
-                onError={(event) => {
-                  event.currentTarget.style.visibility = "hidden";
-                  if (foreground.display.image) {
-                    foreground.display.onImageError?.();
-                    foreground.reject();
-                  } else cover.onImageError?.();
-                }}
+            {showCollection ? (
+              <ArtworkFrame
+                element={collectionElement}
+                display={cover}
+                portId={port.id}
+                visible={visible}
+                identityArtwork
+                className="game-hero-collection"
               />
+            ) : (
+              image && (
+                <img
+                  key={identity}
+                  ref={imageElement}
+                  className="game-hero-image"
+                  src={image}
+                  alt=""
+                  width={foreground.display.image ? foreground.candidate?.width : undefined}
+                  height={foreground.display.image ? foreground.candidate?.height : undefined}
+                  decoding="async"
+                  style={
+                    surface?.image === identity && surface.plate
+                      ? ({ "--hero-image-backplate": surface.backing } as CSSProperties)
+                      : undefined
+                  }
+                  data-plate={(surface?.image === identity && surface.plate) || undefined}
+                  data-logo-tone={surface?.image === identity ? surface.tone : undefined}
+                  onLoad={(event) => inspect(event.currentTarget)}
+                  onError={(event) => {
+                    event.currentTarget.style.visibility = "hidden";
+                    if (foreground.display.image) {
+                      foreground.display.onImageError?.();
+                      foreground.reject();
+                    } else cover.onImageError?.();
+                  }}
+                />
+              )
             )}
           </div>
         )}
         <div className="game-hero-content">{children}</div>
       </div>
-      <HeroCredits
-        port={port}
-        artwork={{ foreground, cover, background }}
-        coverVisible={kind === "cover" && Boolean(image)}
-      />
+      {!compact && (
+        <HeroCredits
+          port={port}
+          artwork={{ foreground, cover, background }}
+          coverVisible={kind === "cover" && Boolean(image)}
+          collectionActive={showCollection}
+          collectionLoaded={collection.some((member) => member.image)}
+        />
+      )}
     </section>
   );
 }
@@ -168,10 +200,14 @@ function HeroCredits({
   port,
   artwork,
   coverVisible,
+  collectionActive,
+  collectionLoaded,
 }: {
   port: HeroMediaPort;
   artwork: Pick<ReturnType<typeof useGameHeroArtwork>, "foreground" | "cover" | "background">;
   coverVisible: boolean;
+  collectionActive: boolean;
+  collectionLoaded: boolean;
 }) {
   const { t } = useAppTranslation("browsing");
   const slot = useRef<HTMLDivElement>(null);
@@ -186,13 +222,22 @@ function HeroCredits({
     }
   });
   const { foreground, cover, background } = artwork;
+  const collection = useCoverCollection(port.id);
+  const collectionVisible =
+    collectionActive &&
+    Boolean(collection?.length && cover.state && !cover.state.choice.asset_sha256 && !cover.stale);
   const foregroundMedia = foreground.display.image ? foreground.candidate : undefined;
   const coverState = coverVisible ? cover.state : undefined;
   const backgroundState =
     background.display.image && !background.catalogMedia && background.display.image !== cover.image
       ? background.display.state
       : undefined;
-  const visible = foregroundMedia || background.catalogMedia || coverState || backgroundState;
+  const visible =
+    foregroundMedia ||
+    background.catalogMedia ||
+    coverState ||
+    backgroundState ||
+    collectionVisible;
   return (
     <div
       ref={slot}
@@ -211,6 +256,13 @@ function HeroCredits({
           {background.catalogMedia && <MediaCredit media={background.catalogMedia} port={port} />}
           {coverState && (
             <ArtworkSource state={coverState} renderedSource={coverState.resolved_source.kind} />
+          )}
+          {collectionVisible && (
+            <ArtworkSource
+              state={cover.state}
+              renderedSource={collectionLoaded ? "igdb_cover_collection" : "generated_fallback"}
+              collectionCovers={collection}
+            />
           )}
           {backgroundState && (
             <ArtworkSource

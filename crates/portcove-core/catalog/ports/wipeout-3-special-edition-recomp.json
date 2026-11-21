@@ -32,6 +32,24 @@
       "image_sha256": "5deb79fb098b28d69a1cb67a0bd21aa5d26597d735a2006d7b824aa609fd820e",
       "game_slug": "wipeout-3-special-edition",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-3-special-edition",
+      "evidence_urls": [
+        "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md",
+        "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-3-special-edition-playstation",
+          "title": "WipEout 3 Special Edition (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+          ]
+        }
+      ]
     }
   }
 }

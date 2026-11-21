@@ -5,6 +5,14 @@
     "name": "Turok: Rage Wars (PaxDino)",
     "summary": "Attach an independently permitted, prepared PaxDino Windows player for Turok: Rage Wars using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual trwrecomp configuration/save root and component notices.",
     "original_game_title": "Turok: Rage Wars",
+    "artwork": {
+      "game_id": 1327,
+      "cover_id": 139638,
+      "image_id": "co2zqu",
+      "image_sha256": "633cd4ca98756654863e8985a529a45bcb48a60fe64f44384804f61de03d1580",
+      "game_slug": "turok-rage-wars",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/wootbeer/PaxDino",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -41,6 +49,24 @@
       ],
       "warnings": [
         "Use the exact supported Turok: Rage Wars ROM and retain its actual data root; this guide does not qualify other titles, save compatibility or native gameplay."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-rage-wars",
+      "evidence_urls": [
+        "https://github.com/wootbeer/PaxDino/blob/edfac2ea7bd941ce5df8e04afe930d92711a392b/README.md",
+        "https://github.com/wootbeer/PaxDino"
+      ],
+      "source_editions": [
+        {
+          "id": "turok-rage-wars-nintendo-64",
+          "title": "Turok: Rage Wars (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/PaxDino/blob/c48ab21d82231be9bc79d8e87ad2f4a260d1d0ff/README.md"
+          ]
+        }
       ]
     }
   },

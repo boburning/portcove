@@ -6,7 +6,7 @@
     "original_game_title": "Toy Story Racer",
     "summary": "Experimental project. The project describes a native racer preview with a native track renderer, widescreen and game-specific scene fixes. Portcove has not confirmed a full playthrough or every track and rendering enhancement. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/IraFunesto/ToyStoryRacerRecomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "12d46756ab4ea09e2438ce05b976cb6c2551dbef0b0f2c896fbeaa9d789964de",
       "game_slug": "toy-story-racer",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "toy-story-racer",
+      "evidence_urls": ["https://github.com/IraFunesto/ToyStoryRacerRecomp"],
+      "source_editions": [
+        {
+          "id": "toy-story-racer-playstation",
+          "title": "Toy Story Racer (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/IraFunesto/ToyStoryRacerRecomp/blob/ef4da9a9b8680236b460f3c802b3d715b5cc4ccf/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

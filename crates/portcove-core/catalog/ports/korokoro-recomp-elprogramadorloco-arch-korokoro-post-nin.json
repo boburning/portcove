@@ -6,7 +6,7 @@
     "original_game_title": "KoroKoro Post nin",
     "summary": "Upstream compares startup, menus, audio and stage 1 with DuckStation. Stages 2–10, memory-card saving and the ending remain unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/elprogramadorloco-arch/korokoro-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "e431cdb6322bec340473695a3d72c240f8097e2d6c1252858ac15878846f0aa6",
       "game_slug": "korokoro-post-nin",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "korokoro-post-nin",
+      "evidence_urls": ["https://github.com/elprogramadorloco-arch/korokoro-recomp"],
+      "source_editions": [
+        {
+          "id": "korokoro-post-nin-playstation",
+          "title": "KoroKoro Post nin (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/elprogramadorloco-arch/korokoro-recomp/blob/5dbb54a9df06d3a68a304e28b4e6ec5fed807fb6/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

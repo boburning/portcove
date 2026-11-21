@@ -6,7 +6,7 @@
     "summary": "Attach an independently permitted prepared Dora64-3 Windows player for your own Japanese revision0 ROM, keeping local saves, settings and upstream maintenance together.",
     "original_game_title": "Doraemon 3: Nobita no Machi SOS!",
     "project_url": "https://github.com/citrongames/Dora64-3",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/citrongames/Dora64-3",
     "artwork": {
@@ -48,6 +48,24 @@
         {
           "title": "Preserve local saves and every settings file",
           "instruction": "The Windows source registers the executable directory as its configuration root and names the game dora3.n64.jp with EEPROM16k storage. Preserve the complete saves/ tree, including any dora3.n64.jp.bin and temporary/backup variants, port_pc_settings.json, port_input_settings.json, legacy port-settings.json, other runtime config/mod metadata, assets, originals and existing logs/diagnostics. Upstream imports legacy settings only when new destinations are missing and leaves the legacy file. Keep all actual custom/external roots too; this Windows entry offers no new custom-root launch argument through this guide."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-3-nobita-no-machi-sos",
+      "evidence_urls": [
+        "https://github.com/citrongames/Dora64-3",
+        "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/docs/user-guide.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doraemon-3-nobita-no-machi-sos-nintendo-64",
+          "title": "Doraemon 3: Nobita no Machi SOS! (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/README.md"
+          ]
         }
       ]
     }

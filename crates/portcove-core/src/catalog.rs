@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, HashSet},
     path::{Component, Path},
     sync::Arc,
 };
@@ -10,6 +10,34 @@ use crate::{
 };
 
 pub(crate) mod listings;
+
+pub(crate) fn validate_cover_collection(
+    covers: Option<&[crate::IgdbArtwork]>,
+    has_individual_cover: bool,
+) -> Result<()> {
+    if let Some(covers) = covers {
+        if has_individual_cover || !(1..=4).contains(&covers.len()) {
+            return Err(PortcoveError::usage(
+                "a cover collection needs one to four members and no individual cover",
+            ));
+        }
+        let mut games = HashSet::new();
+        let mut records = HashSet::new();
+        let mut images = HashSet::new();
+        let mut digests = HashSet::new();
+        if covers.iter().any(|cover| {
+            !games.insert(cover.game_id)
+                || !records.insert(cover.cover_id)
+                || !images.insert(&cover.image_id)
+                || !digests.insert(&cover.image_sha256)
+        }) {
+            return Err(PortcoveError::usage(
+                "cover collection members must be distinct",
+            ));
+        }
+    }
+    Ok(())
+}
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
 pub(crate) static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
@@ -52,13 +80,19 @@ pub struct CatalogProposalPortInspection {
 }
 
 #[derive(Debug, Clone)]
+struct RetainedDefinition {
+    snapshot: Arc<crate::definition_projection::DefinitionSnapshot>,
+    revision: u64,
+    selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Catalog {
     document: Arc<CatalogDocument>,
     listings: Arc<crate::CatalogListingDocument>,
     /// A retained execution-intent envelope, never an operational definition.
     user_selected_listing: bool,
-    definition_snapshot: Option<(Arc<crate::definition_projection::DefinitionSnapshot>, u64)>,
-    definition_selection: Option<Arc<crate::DefinitionSelectionIdentity>>,
+    retained_definitions: Arc<BTreeMap<String, RetainedDefinition>>,
 }
 
 /// Share the observation contract without changing legacy proposal receipt hashes.
@@ -230,6 +264,66 @@ impl Catalog {
                     PortcoveError::usage("catalog schema 2 is missing source_catalog")
                 })?;
                 source_catalog.validate(document.ports.iter().map(|port| port.id.as_str()))?;
+                for contract in source_catalog
+                    .contracts
+                    .iter()
+                    .filter(|contract| !contract.n64_recomp_inputs_v1.is_empty())
+                {
+                    let port = document
+                        .ports
+                        .iter()
+                        .find(|port| port.id == contract.port_id)
+                        .ok_or_else(|| {
+                            PortcoveError::usage("N64 release input references an unknown port")
+                        })?;
+                    if port.adapter != AdapterKind::N64RecompPortable
+                        || port.source_profile.as_deref() != Some(contract.profile_id.as_str())
+                        || !matches!(
+                            port.runtime_source_materialization,
+                            None | Some(RuntimeSourceMaterialization::N64BigEndian)
+                        )
+                        || port
+                            .runtime_source_filename
+                            .as_deref()
+                            .is_none_or(|filename| {
+                                !contract.n64_recomp_inputs_v1.iter().all(|input| {
+                                    std::path::Path::new(filename)
+                                        .file_name()
+                                        .is_some_and(|name| {
+                                            name == std::ffi::OsStr::new(&format!(
+                                                "{}.z64",
+                                                input.game_id
+                                            ))
+                                        })
+                                })
+                            })
+                    {
+                        return Err(PortcoveError::usage(
+                            "N64 release input must bind the selected runtime's normalized game file",
+                        ));
+                    }
+                    if contract.migrates_n64_legacy_admission()
+                        && document.ports.iter().any(|dependent| {
+                            dependent.bios_source_profile.as_deref() == Some(&contract.profile_id)
+                                || (dependent.source_profile.as_deref()
+                                    == Some(&contract.profile_id)
+                                    && (dependent.adapter != AdapterKind::N64RecompPortable
+                                        || !source_catalog.contracts.iter().any(|legacy| {
+                                            legacy.port_id == dependent.id
+                                                && legacy.profile_id == contract.profile_id
+                                                && legacy.role == crate::PortSourceRole::Game
+                                                && legacy.admission_mode
+                                                    == crate::CatalogAdmissionMode::Enforced
+                                                && !legacy.supported_variant_ids.is_empty()
+                                                && legacy.validator_contract_id.is_none()
+                                        })))
+                        })
+                    {
+                        return Err(PortcoveError::usage(
+                            "every consumer of a migrated N64 original must keep an enforced legacy game contract",
+                        ));
+                    }
+                }
                 let projection = source_catalog.compatibility_profiles()?;
                 if !document.source_profiles.is_empty()
                     && serde_json::to_value(&document.source_profiles)?
@@ -260,8 +354,7 @@ impl Catalog {
             listings: Arc::new(listings),
             user_selected_listing: false,
             document: Arc::new(document),
-            definition_snapshot: None,
-            definition_selection: None,
+            retained_definitions: Arc::default(),
         };
         catalog.validate()?;
         Ok(catalog)
@@ -303,7 +396,14 @@ impl Catalog {
         snapshot: Arc<crate::definition_projection::DefinitionSnapshot>,
         validated_revision: u64,
     ) {
-        self.definition_snapshot = Some((snapshot, validated_revision));
+        Arc::make_mut(&mut self.retained_definitions).insert(
+            snapshot.port_id().into(),
+            RetainedDefinition {
+                snapshot,
+                revision: validated_revision,
+                selection: None,
+            },
+        );
     }
 
     /// Preserve compiled flags in the effective catalog while leaving the
@@ -343,34 +443,78 @@ impl Catalog {
         Ok(())
     }
 
+    pub(crate) fn retain_unrelated_upstream_reviews(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.upstream_active_reviewed = original.upstream_active_reviewed;
+            }
+        }
+    }
+
+    /// Legacy full projections carry graph rows for unrelated ports without
+    /// their loader bindings. Keep the bindings already present in the baseline.
+    pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_loader.clone_from(&original.mod_loader);
+            }
+        }
+    }
+
+    /// A sibling projection cannot appoint or remove package-only settings.
+    pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+                && original
+                    .game_settings
+                    .as_ref()
+                    .is_some_and(crate::GameSettingsContract::package_only)
+            {
+                port.game_settings.clone_from(&original.game_settings);
+            }
+        }
+    }
+
+    pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
+        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+            return;
+        };
+        // The floor fences both bundled and legacy scopes. Only the currently
+        // admitted definition for this exact subject may appoint a scope again.
+        let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
+            && self.definition_selection(port_id).is_some();
+        if !has_admitted_scope {
+            Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
+        }
+    }
+
     pub(crate) fn definition_snapshot(
         &self,
         port_id: &str,
     ) -> Option<&crate::definition_projection::DefinitionSnapshot> {
-        self.definition_snapshot
-            .as_ref()
-            .map(|(snapshot, _)| snapshot.as_ref())
-            .filter(|snapshot| snapshot.port_id() == port_id)
+        self.retained_definitions
+            .get(port_id)
+            .map(|value| value.snapshot.as_ref())
     }
 
     pub(crate) fn retain_definition_selection(
         &mut self,
         selection: Arc<crate::DefinitionSelectionIdentity>,
     ) -> Result<()> {
-        let (snapshot, revision) = self
-            .definition_snapshot
-            .as_ref()
-            .filter(|(snapshot, _)| snapshot.port_id() == selection.stable_id)
+        let retained = Arc::make_mut(&mut self.retained_definitions)
+            .get_mut(&selection.stable_id)
             .ok_or_else(|| {
                 PortcoveError::state(
                     "definition admission provenance has no matching exact snapshot",
                 )
             })?;
-        // The private snapshot/revision pair was established by the complete
-        // projection interpreter. Recheck the supplied identity against that
-        // exact immutable interpretation without interpreting the catalog again.
-        selection.validate_projected_snapshot(snapshot, *revision)?;
-        self.definition_selection = Some(selection);
+        selection.validate_projected_snapshot(&retained.snapshot, retained.revision)?;
+        retained.selection = Some(selection);
         Ok(())
     }
 
@@ -378,9 +522,23 @@ impl Catalog {
         &self,
         port_id: &str,
     ) -> Option<&crate::DefinitionSelectionIdentity> {
-        self.definition_selection
-            .as_deref()
-            .filter(|selection| selection.stable_id == port_id)
+        self.retained_definitions.get(port_id)?.selection.as_deref()
+    }
+
+    pub(crate) fn retain_independent_definition_selection(
+        &mut self,
+        selected: &Self,
+        port_id: &str,
+    ) -> Result<()> {
+        let retained = selected.retained_definitions.get(port_id).ok_or_else(|| {
+            PortcoveError::state("verified subject projection lost its exact selection")
+        })?;
+        Arc::make_mut(&mut self.retained_definitions).insert(port_id.into(), retained.clone());
+        Ok(())
+    }
+
+    pub(crate) fn retain_cached_definition_selections(&mut self, effective: &Self) {
+        self.retained_definitions = Arc::clone(&effective.retained_definitions);
     }
 
     pub(crate) fn authoritative_document(&self) -> CatalogDocument {
@@ -397,6 +555,18 @@ impl Catalog {
 
     pub fn source_catalog(&self) -> Option<&crate::SourceCatalog> {
         self.document.source_catalog.as_ref()
+    }
+
+    pub(crate) fn n64_legacy_migrations<'a>(
+        &'a self,
+        profile_id: &'a str,
+    ) -> impl Iterator<Item = &'a crate::PortSourceContract> {
+        self.source_catalog()
+            .into_iter()
+            .flat_map(|catalog| &catalog.contracts)
+            .filter(move |contract| {
+                contract.profile_id == profile_id && contract.migrates_n64_legacy_admission()
+            })
     }
 
     pub fn reviewed_source_evidence_url(&self, evidence_id: &str) -> Result<&str> {
@@ -659,11 +829,24 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            if port.upstream_active_reviewed
+                && port.upstream_status != crate::UpstreamStatus::Active
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a reviewed active project with an incompatible upstream status",
+                    port.id
+                )));
+            }
+            crate::profile_loader::validate(port)?;
+            crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
+            crate::runtime::validate_linux_packaged_library(port)?;
             validate_portable_marker_file(port)?;
             validate_accepted_uploaders(port)?;
+            port.release.validate_github_streams(&port.platforms)?;
+            crate::ManagedPackageVariant::validate_explicit_choices(port)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,
@@ -681,13 +864,7 @@ impl Catalog {
                 )));
             }
             if let Some(settings) = &port.game_settings {
-                settings.validate(&port.persistent_paths)?;
-                if !port.platforms.contains(&crate::Platform::WindowsX86_64) {
-                    return Err(PortcoveError::usage(
-                        "settings contract requires a declared Windows x86-64 integration",
-                    )
-                    .detail("port_id", &port.id));
-                }
+                settings.validate_port(port)?;
             }
             let native_archive_release = port.release.provider == ReleaseSource::Github
                 || (port.release.provider == ReleaseSource::DirectManifest
@@ -711,7 +888,6 @@ impl Catalog {
                     || !port.setup_executable_hints.is_empty()
                     || !port.setup_arguments.is_empty()
                     || port.source_environment.is_some()
-                    || port.user_data_environment.is_some()
                     || port.managed_shared_preferences.is_some()
                     || port.managed_initialization.is_some())
             {
@@ -832,11 +1008,29 @@ impl Catalog {
             if let Some(presentation) = &port.presentation {
                 if let Some(game) = &presentation.original_game {
                     game.validate()?;
+                    if game
+                        .source_editions
+                        .iter()
+                        .any(|edition| !edition.verified_sources.is_empty())
+                    {
+                        return Err(PortcoveError::unsupported(
+                            "verified source edition bindings belong in listing format 14",
+                        ));
+                    }
+                }
+                let media = presentation.media.as_deref().unwrap_or_default();
+                if media
+                    .iter()
+                    .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+                {
+                    return Err(PortcoveError::unsupported(
+                        "IGDB backgrounds and screenshots belong in listing format 13",
+                    ));
                 }
                 crate::catalog_media::validate_catalog_media(
                     &port.id,
                     presentation.original_game.as_ref(),
-                    presentation.media.as_deref().unwrap_or_default(),
+                    media,
                 )?;
                 for (name, value) in [
                     ("original game title", &presentation.original_game_title),
@@ -891,10 +1085,36 @@ impl Catalog {
                         )));
                     }
                 }
-                if let Some(artwork) = &presentation.artwork
-                    && (artwork.game_id == 0
+                if presentation
+                    .companion_cover
+                    .as_ref()
+                    .is_some_and(|companion| {
+                        presentation.artwork.as_ref().is_some_and(|primary| {
+                            primary.game_id == companion.game_id
+                                || primary.image_sha256 == companion.image_sha256
+                                || primary.image_id == companion.image_id
+                        })
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} needs distinct primary and companion covers",
+                        port.id
+                    )));
+                }
+                validate_cover_collection(
+                    presentation.collection_covers.as_deref(),
+                    presentation.artwork.is_some() || presentation.companion_cover.is_some(),
+                )?;
+                for artwork in presentation
+                    .artwork
+                    .iter()
+                    .chain(&presentation.companion_cover)
+                    .chain(presentation.collection_covers.iter().flatten())
+                {
+                    if artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
+                        || artwork.image_id.len() > 128
                         || artwork.image_sha256.len() != 64
                         || !artwork
                             .image_sha256
@@ -905,14 +1125,16 @@ impl Catalog {
                             .bytes()
                             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
                         || artwork.game_slug.is_empty()
+                        || artwork.game_slug.len() > 512
                         || !artwork.game_slug.bytes().all(|byte| {
                             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                        }))
-                {
-                    return Err(PortcoveError::usage(format!(
-                        "{} has an invalid IGDB artwork mapping",
-                        port.id
-                    )));
+                        })
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid IGDB artwork mapping",
+                            port.id
+                        )));
+                    }
                 }
                 let expected_requirements = [
                     (
@@ -1804,7 +2026,8 @@ impl Catalog {
                     }
                 }
                 None if !port.runtime_source_hashes.is_empty()
-                    && port.managed_initialization.is_none() =>
+                    && port.managed_initialization.is_none()
+                    && !crate::preparation::source::native_relative(port) =>
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
@@ -1882,7 +2105,8 @@ impl Catalog {
                         && matches_member;
                     let valid = valid
                         && (!relative_set
-                            || (port.managed_initialization.is_some()
+                            || ((port.managed_initialization.is_some()
+                                || crate::preparation::source::native_relative(port))
                                 && target.source_filenames.len() == 1
                                 && target.materialization == RuntimeSourceMaterialization::Copy
                                 && crate::archive::validate_relative_path(
@@ -3273,7 +3497,10 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
+                matches!(
+                    id,
+                    "dkc3-recomp" | "sonic-3-and-knuckles-recomp" | "super-mario-world-recomp"
+                ),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -3410,11 +3637,18 @@ mod tests {
                         "v0.15.9",
                         "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
                     ),
-                ],
+                    (
+                        "v0.15.10",
+                        "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+                    ),
+                ]
+                .as_slice(),
                 [
                     "super-mario-world-recomp-0-12-0-source-contract",
                     "super-mario-world-recomp-0-15-9-source-contract",
-                ],
+                    "super-mario-world-recomp-0-15-10-source-contract",
+                ]
+                .as_slice(),
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -3428,11 +3662,13 @@ mod tests {
                         "v0.6.6",
                         "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
                     ),
-                ],
+                ]
+                .as_slice(),
                 [
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
-                ],
+                ]
+                .as_slice(),
             ),
         ] {
             let port = catalog.port(id).unwrap();
@@ -3486,15 +3722,20 @@ mod tests {
                 ),
             ]
         );
-        // The v0.4.6 artifacts are excluded because relaunch can create an
-        // untracked successor process.
+        // Each affected release has four exact artifacts excluded because
+        // relaunch can create an untracked successor process.
         let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
-        assert_eq!(hold.excluded_artifacts.len(), 4);
-        assert!(
-            hold.excluded_artifacts
-                .iter()
-                .all(|artifact| artifact.version == "v0.4.6")
-        );
+        assert_eq!(hold.excluded_artifacts.len(), 8);
+        for version in ["v0.4.6", "v0.4.7"] {
+            assert_eq!(
+                hold.excluded_artifacts
+                    .iter()
+                    .filter(|artifact| artifact.version == version)
+                    .count(),
+                4,
+                "{version}"
+            );
+        }
         // The Windows packages plus each release's published Linux and Mac
         // siblings, all matching their release SHA256SUMS.
         assert_eq!(
@@ -3537,7 +3778,8 @@ mod tests {
                 ),
             ]
         );
-        assert!(hold.reason.contains("Exit, not Quit to launcher"));
+        assert!(hold.reason.contains("Quit to launcher"));
+        assert!(hold.reason.contains("use Exit"));
         assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
             artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
         }));
@@ -4605,6 +4847,10 @@ mod tests {
                 .unwrap();
             assert!(legacy.game_settings.is_none());
             port.game_settings = None;
+            // Frozen schema-1 rows predate both explicit loader declarations.
+            assert!(legacy.mod_loader.is_none() && legacy.mod_provider_bindings.is_none());
+            port.mod_loader = None;
+            port.mod_provider_bindings = None;
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;
@@ -5339,6 +5585,8 @@ mod tests {
             .iter_mut()
             .find(|port| port["id"] == "zelda64-recomp")
             .unwrap();
+        // Keep this missing-hint case focused on the generic executable contract.
+        port.as_object_mut().unwrap().remove("mod_loader");
         port["executable_hints"]
             .as_object_mut()
             .unwrap()
@@ -6446,6 +6694,43 @@ mod tests {
             error.message.contains("optional game source"),
             "{}",
             error.message
+        );
+    }
+
+    #[test]
+    fn preserves_the_legacy_upstream_default_without_claiming_review() {
+        use crate::UpstreamStatus;
+
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog
+            .ports()
+            .iter()
+            .find(|port| port.declared_upstream_status().is_none())
+            .unwrap();
+        let mut explicit = serde_json::to_value(port).unwrap();
+        assert_eq!(explicit["upstream_status"], "active");
+        assert!(explicit.get("upstream_active_reviewed").is_none());
+
+        let mut omitted = explicit.clone();
+        omitted.as_object_mut().unwrap().remove("upstream_status");
+        let legacy = serde_json::from_value::<PortDefinition>(explicit.clone()).unwrap();
+        let unknown = serde_json::from_value::<PortDefinition>(omitted).unwrap();
+        assert_eq!(legacy.declared_upstream_status(), None);
+        assert_eq!(unknown.declared_upstream_status(), None);
+        assert_eq!(serde_json::to_value(unknown).unwrap(), explicit);
+
+        explicit["upstream_active_reviewed"] = true.into();
+        let reviewed = serde_json::from_value::<PortDefinition>(explicit).unwrap();
+        assert_eq!(
+            reviewed.declared_upstream_status(),
+            Some(UpstreamStatus::Active)
+        );
+        crate::signed_catalog::validate_installed_port_contract(&reviewed, &legacy).unwrap();
+
+        let retired = catalog.port("paper-mario-recut").unwrap();
+        assert_eq!(
+            retired.declared_upstream_status(),
+            Some(UpstreamStatus::Retired)
         );
     }
 
@@ -9863,3 +10148,50 @@ mod tests {
 #[cfg(test)]
 #[path = "catalog_native_pin_tests.rs"]
 mod native_pin_tests;
+#[test]
+fn dhewm3_originals_apply_only_to_the_reviewed_player_packages() {
+    let catalog = Catalog::embedded().unwrap();
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    for id in [
+        "doom-3-classic-dhewm3",
+        "doom-3-resurrection-of-evil-classic-dhewm3",
+    ] {
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == id)
+            .unwrap();
+        assert!(contract.release_policy.is_none());
+        assert_eq!(contract.applicability.len(), 2);
+        let case = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["port_id"] == id)
+            .unwrap();
+        let tag = case["release"]["tag_name"].as_str().unwrap();
+        let mut reviewed = 0;
+        for asset in case["release"]["assets"].as_array().unwrap() {
+            let name = asset["name"].as_str().unwrap();
+            let Some(sha256) = asset["digest"]
+                .as_str()
+                .and_then(|value| value.strip_prefix("sha256:"))
+            else {
+                continue;
+            };
+            let expected = matches!(
+                name,
+                "dhewm3-1.5.5_Linux_amd64.tar.gz" | "dhewm3-1.5.5_win32.zip"
+            );
+            reviewed += usize::from(expected);
+            assert_eq!(contract.applies_to_release(tag, sha256), expected, "{name}");
+            assert!(!contract.applies_to_release("1.5.6", sha256));
+        }
+        assert_eq!(reviewed, 2);
+    }
+}

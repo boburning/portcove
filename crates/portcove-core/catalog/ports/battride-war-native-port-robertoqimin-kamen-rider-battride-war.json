@@ -41,6 +41,12 @@
       "image_sha256": "ff1b0d0001d8964b38b00369d3ab379d4e09d5b64b033c7662835d5eccf9435d",
       "game_slug": "kamen-rider-battride-war",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "kamen-rider-battride-war",
+      "evidence_urls": ["https://github.com/robertoqimin/battride-war-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

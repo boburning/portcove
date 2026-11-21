@@ -3,7 +3,7 @@
   "listing": {
     "id": "recarbon-retronative-need-for-speed-carbon-xbox-360",
     "name": "Need for Speed: Carbon (Xbox 360) — ReCarbon (retronative)",
-    "original_game_title": "Need for Speed: Carbon (Xbox 360)",
+    "original_game_title": "Need for Speed: Carbon",
     "summary": "Experimental project. Upstream early development, playable in parts, unreleased. Fifteen-minute free roam and one completed AI career race with restart progress reported; repeated route, keyboard controls, physics/frame-pacing and picture/audio acceptance remain pending. Physical controller unverified; unexplained stalls. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/retronative/recarbon",
     "platforms": ["macos-aarch64"],
@@ -35,6 +35,21 @@
       "image_sha256": "2819bcf9df96d507f27cdf3b3806b041198c79e882a4528254695b7f7ca55e6e",
       "game_slug": "need-for-speed-carbon",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-carbon",
+      "evidence_urls": ["https://github.com/retronative/recarbon"],
+      "source_editions": [
+        {
+          "id": "need-for-speed-carbon-xbox-360",
+          "title": "Need for Speed: Carbon (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/retronative/recarbon/blob/8a31b6248db36059bb203ab150513fcf04d2f071/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

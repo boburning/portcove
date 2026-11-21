@@ -1,6 +1,6 @@
 import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, expect, it } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
@@ -11,9 +11,12 @@ import { THEME_STORAGE_KEY } from "../theme";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 let spacing: HTMLStyleElement | undefined;
+let appHost: HTMLDivElement | undefined;
 beforeEach(() => localStorage.clear());
 afterEach(async () => {
   await cleanup();
+  appHost?.remove();
+  appHost = undefined;
   transport?.dispose();
   transport = undefined;
   document.documentElement.removeAttribute("data-theme");
@@ -23,7 +26,115 @@ afterEach(async () => {
   await page.viewport(1280, 800);
 });
 
+async function renderApp() {
+  // Match main.tsx: desktop workspaces need a definite root height, while the
+  // existing compact media rule restores the root's document-flow height.
+  appHost = document.body.appendChild(document.createElement("div"));
+  appHost.id = "root";
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+    { container: appHost },
+  );
+}
+
+async function expectUnbrokenAppearanceLabels() {
+  await document.fonts.ready;
+  const appearance = page.getByRole("button", { name: "Appearance", exact: true });
+  await expect.element(appearance).toHaveAttribute("aria-current", "page");
+  for (const element of [
+    appearance.element(),
+    page.getByRole("heading", { name: "Appearance", exact: true }).element(),
+  ]) {
+    const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    expect(range.getClientRects()).toHaveLength(1);
+    const label = range.getBoundingClientRect();
+    const bounds = element.getBoundingClientRect();
+    expect(label.left).toBeGreaterThanOrEqual(bounds.left);
+    expect(label.right).toBeLessThanOrEqual(bounds.right);
+  }
+}
+
+async function expectSettingsCategoryLabelsFit() {
+  const categories = page.getByRole("navigation", { name: "Settings categories" });
+  const buttons = categories.getByRole("button");
+  const keyboardCategory = categories.getByRole("button", {
+    name: "Keyboard and controller",
+    exact: true,
+  });
+  const destinations = buttons.elements();
+  expect(destinations).toHaveLength(8);
+  buttons.first().element().focus();
+  await userEvent.keyboard("{Tab}{Shift>}{Tab}{/Shift}");
+  for (const button of destinations) {
+    await expect.element(button).toHaveFocus();
+    if (button === keyboardCategory.element()) {
+      await captureParityState("settings-keyboard-category-text-200");
+    }
+    const navigation = categories.element();
+    const strip = navigation.getBoundingClientRect();
+    const left = strip.left + navigation.clientLeft;
+    const right = left + navigation.clientWidth;
+    const top = strip.top + navigation.clientTop;
+    const bottom = top + navigation.clientHeight;
+    const label = document.createRange();
+    label.selectNodeContents(button);
+    const text = label.getBoundingClientRect();
+    expect.soft(text.left).toBeGreaterThanOrEqual(left - 1);
+    expect.soft(text.right).toBeLessThanOrEqual(right + 1);
+    const bounds = button.getBoundingClientRect();
+    const style = getComputedStyle(button);
+    const outlineWidth = Number.parseFloat(style.outlineWidth);
+    const outline = outlineWidth + Number.parseFloat(style.outlineOffset);
+    expect.soft(style.outlineStyle).toBe("solid");
+    expect.soft(outlineWidth).toBeGreaterThan(0);
+    expect.soft(bounds.left - outline).toBeGreaterThanOrEqual(left - 1);
+    expect.soft(bounds.right + outline).toBeLessThanOrEqual(right + 1);
+    expect.soft(bounds.top - outline).toBeGreaterThanOrEqual(top - 1);
+    expect.soft(bounds.bottom + outline).toBeLessThanOrEqual(bottom + 1);
+    await userEvent.keyboard("{Tab}");
+  }
+}
+
 for (const theme of ["dark", "light"]) {
+  it(`fits the full ${theme} brand and navigation at intermediate widths`, async () => {
+    transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    initializeLocalization(["en"]);
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(768, 512);
+    await renderApp();
+    const sidebar = document.querySelector<HTMLElement>(".sidebar")!;
+    const wordmark = sidebar.querySelector<HTMLElement>(".brand strong")!;
+    await document.fonts.ready;
+    for (const width of [768, 800, 960, 1040, 1280]) {
+      await page.viewport(width, 512);
+      expect(sidebar.scrollWidth).toBeLessThanOrEqual(sidebar.clientWidth + 1);
+      const text = document.createRange();
+      text.selectNodeContents(wordmark);
+      expect(text.getBoundingClientRect().left).toBeGreaterThanOrEqual(
+        sidebar.getBoundingClientRect().left,
+      );
+      expect(text.getBoundingClientRect().right).toBeLessThanOrEqual(
+        sidebar.getBoundingClientRect().right,
+      );
+    }
+    await page.viewport(768, 512);
+    const label = sidebar.querySelector<HTMLElement>(
+      '[data-navigation-destination="catalog"] .nav-label',
+    )!;
+    label.textContent = "Discover available games and community port projects";
+    expect(sidebar.scrollWidth).toBeLessThanOrEqual(sidebar.clientWidth + 1);
+    for (const control of sidebar.querySelectorAll<HTMLElement>(".nav-item")) {
+      expect(control.scrollWidth).toBeLessThanOrEqual(control.clientWidth + 1);
+    }
+  });
+
   it(`keeps complete ${theme} navigation and theme words at enlarged effective widths`, async () => {
     transport = installInteractiveTransport("library", (message) => {
       throw new Error(message);
@@ -32,11 +143,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(548, 366);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     await page.getByRole("button", { name: "Open navigation", exact: true }).click();
     const library = page.getByRole("button", { name: /^Library/ }).element();
     const label = [...library.querySelectorAll("span")].find(
@@ -75,11 +182,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(320, 640);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     const origin = page.getByRole("button", {
       name: "View details for Orchard Quest",
       exact: true,
@@ -99,14 +202,29 @@ for (const theme of ["dark", "light"]) {
     expect(Math.abs(document.scrollingElement!.scrollTop - top)).toBeLessThanOrEqual(2);
     expect(origin.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
     expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);
-    for (const width of [1280, 320]) {
+    for (const width of Array.from({ length: 8 }, () => [1280, 320]).flat()) {
       await page.viewport(width, 640);
+      const main = page.getByRole("main").element();
+      expect(getComputedStyle(main).overflowY).toBe(width < 672 ? "visible" : "auto");
+      const viewportHeight =
+        width < 672 ? document.documentElement.clientHeight : main.clientHeight;
+      expect(viewportHeight).toBe(innerHeight);
       await expect.element(origin).toHaveFocus();
       await expect
         .poll(() => origin.element().getBoundingClientRect().top)
         .toBeGreaterThanOrEqual(0);
       await expect
-        .poll(() => origin.element().getBoundingClientRect().bottom)
+        .poll(() => origin.element().getBoundingClientRect().bottom, {
+          message: `Detail origin after ${width}px resize; poll-start geometry: ${JSON.stringify({
+            width: innerWidth,
+            height: innerHeight,
+            rootHeight: appHost?.clientHeight,
+            workspaceHeight: main.clientHeight,
+            overflowY: getComputedStyle(main).overflowY,
+            documentScroll: document.scrollingElement?.scrollTop,
+            workspaceScroll: main.scrollTop,
+          })}`,
+        })
         .toBeLessThanOrEqual(innerHeight + 1);
     }
   });
@@ -119,11 +237,7 @@ for (const theme of ["dark", "light"]) {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
     document.documentElement.dataset.theme = theme;
     await page.viewport(960, 640);
-    await render(
-      <LocalizationProvider api={desktopApi}>
-        <App />
-      </LocalizationProvider>,
-    );
+    await renderApp();
     const search = page.getByRole("textbox", { name: "Search your library" });
     await search.fill("a retained search draft");
     for (const [width, height] of [
@@ -173,11 +287,7 @@ for (const theme of ["dark", "light"]) {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
       document.documentElement.dataset.theme = theme;
       await page.viewport(320, 800);
-      await render(
-        <LocalizationProvider api={desktopApi}>
-          <App />
-        </LocalizationProvider>,
-      );
+      await renderApp();
       await page.getByRole("button", { name: "Open navigation", exact: true }).click();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
       await expect
@@ -188,7 +298,10 @@ for (const theme of ["dark", "light"]) {
         spacing.textContent =
           "* {line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important} p {margin-bottom:2em!important}";
         document.head.append(spacing);
-      } else document.documentElement.style.fontSize = "32px";
+      } else {
+        document.documentElement.style.fontSize = "32px";
+        await expectUnbrokenAppearanceLabels();
+      }
       expect(getComputedStyle(document.querySelector(".settings-section-index")!).position).toBe(
         "static",
       );
@@ -205,6 +318,7 @@ for (const theme of ["dark", "light"]) {
       await captureParityState(
         mode === "spacing overrides" ? "settings-spacing-overrides" : "settings-text-200",
       );
+      if (mode === "200% authored text") await expectSettingsCategoryLabelsFit();
     });
   }
 }

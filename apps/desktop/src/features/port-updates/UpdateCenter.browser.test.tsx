@@ -1,3 +1,4 @@
+import "../../styles/index.css";
 import { controlledAct as act } from "../../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { fixtureValue } from "../../test-fixtures";
@@ -6,11 +7,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import * as clipboard from "../../clipboard";
 import { UpdateCenter } from "../../components/UpdateCenter";
 import { failureReport, portStatus } from "../../test-fixtures";
-import type { ActivityRecord } from "../../types";
+import type { ActivityRecord, ActivityDiagnostic as Diagnostic } from "../../types";
+import { desktopApi } from "../../api";
+import { Sidebar } from "../../components/Chrome";
 
 import { installRecord, updateCenterFixtures } from "../../components/rendered-test-fixtures";
 import { captureParityState } from "../../../test/parity-capture";
-import { page } from "vite-plus/test/browser";
+import { expectDisclosureAlignment } from "../../../test/disclosure-alignment";
+import { page, userEvent } from "vite-plus/test/browser";
 
 const { port, priorResult } = updateCenterFixtures();
 
@@ -76,6 +80,41 @@ describe("individual update failure interaction", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(["dark", "light"] as const)(
+    "keeps the actual Activity update-check disclosure aligned in %s",
+    async (theme) => {
+      const oldTheme = document.documentElement.dataset.theme;
+      const oldViewport = { width: innerWidth, height: innerHeight };
+      await page.viewport(960, 640);
+      document.documentElement.dataset.theme = theme;
+      try {
+        await root.rerender(view());
+        const summary = page.getByText("About update checks", { exact: true });
+        await expect.element(summary).toBeVisible();
+        summary.element().scrollIntoView({ block: "center" });
+        await document.fonts.ready;
+        expectDisclosureAlignment(summary.element());
+        summary.element().focus();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.element().closest("details")!.open).toBe(true);
+        expectDisclosureAlignment(summary.element());
+        await expect.element(page.getByText("Update statistics", { exact: true })).toBeVisible();
+        await userEvent.keyboard("{Enter}");
+        expect(summary.element().closest("details")!.open).toBe(false);
+        expect(document.activeElement).toBe(summary.element());
+        const bounds = summary.element().getBoundingClientRect();
+        expect(bounds.top).toBeGreaterThanOrEqual(0);
+        expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+        await captureParityState("activity-update-check-disclosure-aligned");
+        expect(checkAll).not.toHaveBeenCalled();
+      } finally {
+        if (oldTheme === undefined) delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = oldTheme;
+        await page.viewport(oldViewport.width, oldViewport.height);
+      }
+    },
+  );
 
   it("opens and copies only the failed game's supplied diagnostics without navigating or running a check", async () => {
     const error = failureReport();
@@ -495,3 +534,181 @@ it.each([true, false])("renders an empty Activity feed with completeness %s", as
     await page.viewport(1280, 800);
   }
 });
+
+it.each(
+  (["dark", "light"] as const).flatMap((theme) => [
+    { theme, width: 960, display: "grid", sidebarWidth: 192, pageScrolls: false },
+    { theme, width: 430, display: "flex", sidebarWidth: 60, pageScrolls: true },
+  ]),
+)(
+  "separates the retained preparation log focus outline from surrounding task information in $theme at $width",
+  async ({ theme, width, display, sidebarWidth, pageScrolls }) => {
+    const previousTheme = document.documentElement.dataset.theme;
+    const previousViewport = { width: innerWidth, height: innerHeight };
+    const activity: ActivityRecord = {
+      id: "d4a164c6-9af0-40d9-a99a-ee95e510ba07",
+      operation: "prepare",
+      target_kind: "port",
+      target_id: port.id,
+      status: "failed",
+      started_at: 1,
+      finished_at: 2,
+      message: null,
+      failure: failureReport(),
+      cancellation: null,
+    };
+    const stdout = "owned conversion began password=[REDACTED]";
+    const stderr = "owned conversion diagnostic on stderr";
+    const diagnostic: Diagnostic = [
+      {
+        activity_id: activity.id,
+        phase: "preparation.setup",
+        complete: true,
+        updated_at: 2,
+        stream_limit_bytes: 2 * 1024 * 1024,
+        stdout: { text: stdout, observed_bytes: stdout.length, truncated: false },
+        stderr: { text: stderr, observed_bytes: stderr.length, truncated: false },
+      },
+    ];
+    const read = vi.spyOn(desktopApi, "activityDiagnostic").mockResolvedValue(diagnostic);
+    const select = vi.fn();
+    const check = vi.fn();
+    const host = document.body.appendChild(document.createElement("div"));
+    host.className = "h-dvh";
+    let rendered: RenderResult | undefined;
+    try {
+      await page.viewport(width, 780);
+      document.documentElement.dataset.theme = theme;
+      rendered = await renderComponent(
+        <div className="interface-root flex h-full min-h-0 flex-col">
+          <div className="interface-workspace min-h-0 flex-1">
+            <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
+              <Sidebar
+                view="updates"
+                setView={vi.fn()}
+                libraryCount={1}
+                updateCount={0}
+                activities={[activity]}
+              />
+              <main className="workspace-main min-h-0 w-full min-w-0 overflow-auto pb-12 max-[75rem]:pb-10">
+                <UpdateCenter
+                  section="tasks"
+                  generation={7}
+                  ports={[port]}
+                  statuses={new Map()}
+                  activities={[activity]}
+                  activityFeed={{
+                    records: [activity],
+                    current_activity_ids: [],
+                    attention_required_activity_ids: [activity.id],
+                    recovery_required_activity_ids: [],
+                    active_and_actionable_complete: true,
+                    terminal_history_complete: true,
+                    terminal_history_count: 1,
+                    terminal_history_limit: 20,
+                  }}
+                  outcomes={[]}
+                  diagnosticsRefreshing={false}
+                  diagnosticsStale={false}
+                  refreshDiagnostics={vi.fn()}
+                  checkAll={check}
+                  onSelect={select}
+                  onOpenSettings={vi.fn()}
+                />
+              </main>
+            </div>
+          </div>
+        </div>,
+        { container: host },
+      );
+      const appShell = fixtureValue(host.querySelector<HTMLElement>(".app-shell"), "app shell");
+      const sidebar = fixtureValue(appShell.querySelector<HTMLElement>(".sidebar"), "sidebar");
+      expect(getComputedStyle(appShell).display).toBe(display);
+      expect(sidebar.getBoundingClientRect().width).toBe(sidebarWidth);
+      const taskDetails = page.getByText("Task details", { exact: true });
+      await expect.element(taskDetails).toBeVisible();
+      taskDetails.element().focus();
+      await userEvent.keyboard("{Enter}");
+      const log = page.getByText("View preparation log", { exact: true });
+      await expect.element(log).toBeVisible();
+      await userEvent.tab({ shift: true });
+      expect(document.activeElement).toBe(log.element());
+      await userEvent.keyboard("{Enter}");
+      await expect.poll(() => read.mock.calls.length).toBe(1);
+      expect(read).toHaveBeenCalledExactlyOnceWith(activity.id, 7);
+      await expect
+        .element(page.getByRole("textbox", { name: "Preparation standard output", exact: true }))
+        .toBeVisible();
+      expect(document.activeElement).toBe(log.element());
+      const summary = log.element();
+      summary.scrollIntoView({ block: "center", behavior: "instant" });
+      await document.fonts.ready;
+      const taskContainer = fixtureValue(taskDetails.element().closest("details"), "task details");
+      const operationId = fixtureValue(
+        taskContainer.querySelector<HTMLElement>(":scope > dl > dd"),
+        "operation ID",
+      );
+      expect(operationId.textContent?.trim()).toBe(activity.id);
+      const logDetails = fixtureValue(summary.closest("details"), "preparation log");
+      const logOwner = fixtureValue(logDetails.parentElement, "preparation log grid owner");
+      expect(logOwner.nextElementSibling).toBe(taskContainer);
+      const preceding = fixtureValue(logOwner.previousElementSibling, "preceding task failure");
+      expect(preceding.matches(".activity-details")).toBe(true);
+      expect(preceding.textContent).toContain(
+        fixtureValue(activity.failure, "preparation failure").presentation.summary,
+      );
+      expect(preceding.checkVisibility()).toBe(true);
+      const precedingBounds = preceding.getBoundingClientRect();
+      expect(precedingBounds.width).toBeGreaterThan(0);
+      expect(precedingBounds.height).toBeGreaterThan(0);
+      expect(precedingBounds.top).toBeGreaterThanOrEqual(0);
+      expect(precedingBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(precedingBounds.left).toBeGreaterThanOrEqual(0);
+      expect(precedingBounds.right).toBeLessThanOrEqual(innerWidth);
+      const summaryBounds = summary.getBoundingClientRect();
+      const style = getComputedStyle(summary);
+      const outlineExtent =
+        parseFloat(style.outlineWidth) + Math.max(0, parseFloat(style.outlineOffset));
+      expect(style.outlineStyle).not.toBe("none");
+      expect(outlineExtent).toBeGreaterThan(0);
+      expect(summaryBounds.top - outlineExtent).toBeGreaterThanOrEqual(precedingBounds.bottom + 4);
+      expect(summaryBounds.top - outlineExtent).toBeGreaterThanOrEqual(0);
+      expect(summaryBounds.left - outlineExtent).toBeGreaterThanOrEqual(0);
+      expect(summaryBounds.right + outlineExtent).toBeLessThanOrEqual(innerWidth);
+      expect(summaryBounds.bottom + outlineExtent).toBeLessThanOrEqual(innerHeight);
+      expect(
+        host.querySelector<HTMLTextAreaElement>(
+          'textarea[aria-label="Preparation standard output"]',
+        )?.value,
+      ).toBe(stdout);
+      expect(
+        host.querySelector<HTMLTextAreaElement>('textarea[aria-label="Preparation standard error"]')
+          ?.value,
+      ).toBe(stderr);
+      expect(host.textContent).toContain("Both output streams ended. Saved output is shown below.");
+      const stationaryScrollContainer = pageScrolls
+        ? host.querySelector(".workspace-main")
+        : document.scrollingElement;
+      expect(stationaryScrollContainer?.scrollTop).toBe(0);
+      const navigation = page
+        .getByRole("navigation", { name: "Primary navigation", exact: true })
+        .element();
+      expect(navigation.checkVisibility()).toBe(true);
+      const navigationBounds = navigation.getBoundingClientRect();
+      expect(navigationBounds.top).toBeGreaterThanOrEqual(0);
+      expect(navigationBounds.bottom).toBeLessThanOrEqual(innerHeight);
+      expect(navigationBounds.left).toBeGreaterThanOrEqual(0);
+      expect(navigationBounds.right).toBeLessThanOrEqual(innerWidth);
+      await captureParityState("activity-retained-preparation-log-spacing");
+      expect(select).not.toHaveBeenCalled();
+      expect(check).not.toHaveBeenCalled();
+    } finally {
+      await rendered?.unmount();
+      host.remove();
+      read.mockRestore();
+      if (previousTheme === undefined) delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = previousTheme;
+      await page.viewport(previousViewport.width, previousViewport.height);
+    }
+  },
+);

@@ -4,7 +4,7 @@
   "listing": {
     "id": "wave-race-64-recomp",
     "name": "Wave Race 64: Recompiled",
-    "summary": "Native Wave Race 64 recompilation. Portcove installs the official Windows package; on Linux, download the upstream package and maintain it yourself.",
+    "summary": "Native Wave Race 64 recompilation. Portcove installs the official packages on Windows and Linux.",
     "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
     "original_game_title": "Wave Race 64",
     "manual_setup": {
@@ -14,12 +14,12 @@
           "instruction": "On Windows, choose Install for the copy Portcove manages. To keep playing a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
         },
         {
-          "title": "Linux: download and extract the package",
-          "instruction": "Download the official package ending in -linux-x86_64.tar.gz and extract the whole folder somewhere writable. Install the SDL2, GTK 3, FreeType and Vulkan packages named in its README-LINUX.txt. The inspected v1.0.2 program needs glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
+          "title": "Linux: prepare the host and choose Install",
+          "instruction": "Use an x64 host with glibc 2.43, libstdc++ with GLIBCXX_3.4.32, SDL2, GTK 3, FreeType and a working Vulkan driver. Choose Install and select your own Wave Race 64 (USA) (Rev A) original. Use Start Game after opening the managed copy."
         },
         {
-          "title": "Linux: choose your original game",
-          "instruction": "Run WaveRace64Recomp.sh, choose Load ROM and select your own Wave Race 64 (USA) (Rev A) original. You maintain this copy: replace it yourself when upstream publishes a new version."
+          "title": "Keep a separate upstream Linux copy",
+          "instruction": "A copy you already extracted stays yours to maintain. Start it with WaveRace64Recomp.sh and use Load ROM to select your original if it has no source yet. Keep its creating runtime and profile before replacing it."
         }
       ],
       "warnings": [
@@ -47,17 +47,34 @@
     },
     "issue_number": 553,
     "listed_at": "2026-10-23",
-    "platforms": ["linux-x86-64"],
     "release_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/releases",
     "setup_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
     "download_asset_hints": {
       "linux-x86-64": ["WaveRace64Recomp-", "-linux-x86_64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wave-race-64",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
+        "https://github.com/danielgomesvieira2000/wave-race-64-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wave-race-64-nintendo-64",
+          "title": "Wave Race 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "n64-recomp-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -65,12 +82,17 @@
       "provider": "github",
       "repository": "danielgomesvieira2000/wave-race-64-recomp",
       "asset_hints": {
-        "windows-x86-64": ["WaveRace64Recomp-", "-windows-x64.zip"]
+        "windows-x86-64": ["WaveRace64Recomp-", "-windows-x64.zip"],
+        "linux-x86-64": ["WaveRace64Recomp-", "-linux-x86_64.tar.gz"]
       }
     },
     "source_profile": "wave-race-64",
     "executable_hints": {
-      "windows-x86-64": ["WaveRace64Recomp.exe"]
+      "windows-x86-64": ["WaveRace64Recomp.exe"],
+      "linux-x86-64": ["WaveRace64Recomp"]
+    },
+    "runtime_subdirectory_by_platform": {
+      "linux-x86-64": "WaveRace64Recomp-1.0.2-linux-x86_64"
     },
     "portable_marker": true,
     "persistent_paths": [
@@ -92,7 +114,26 @@
       "hud.json",
       "hud.json.bak",
       "water.json",
-      "water.json.bak"
+      "water.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/wr64.us.rev1.z64",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/saves",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/mods",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/mod_config",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/texture_packs",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/general.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/general.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/graphics.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/graphics.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/controls.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/controls.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/sound.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/sound.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/mods.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/mods.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/hud.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/hud.json.bak",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/water.json",
+      "WaveRace64Recomp-1.0.2-linux-x86_64/water.json.bak"
     ],
     "runtime_mutable_paths": ["wr64.log"],
     "runtime_source_filename": "wr64.us.rev1.z64",
@@ -111,7 +152,18 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the unchanged official v1.0.2 Windows package, prepares the original beside the game and creates portable.txt so saves, settings and mods stay with the managed copy. Choose Start Game in the launcher. Portcove has not tested gameplay."
+      "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the official v1.0.2 Windows or Linux x64 package, prepares a copy of the checked original beside the player and keeps the selected original in place. Portcove creates portable.txt to keep saves, settings and mods with the managed copy. Choose Start Game in the launcher.",
+      "manual_setup": {
+        "warnings": [
+          "The package contains recompiled game code; some bundled components have their own notices. Use only your own original game."
+        ],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs its managed package. After installation, choose Play in Portcove, then Start Game in the launcher."
+          }
+        ]
+      }
     }
   }
 }

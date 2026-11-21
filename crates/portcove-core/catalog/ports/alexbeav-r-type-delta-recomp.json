@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["r-type-delta-", "-windows-x64.zip"],
-      "linux-x86-64": ["r-type-delta-", "-linux-x64.zip"],
       "macos-x86-64": ["r-type-delta-", "-macos-x64.zip"],
       "macos-aarch64": ["r-type-delta-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "r-type-delta",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "r-type-delta-playstation",
+          "title": "R-Type Delta (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp/blob/8a6874f81477756c44695c47722d7d5bfb0c5f78/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own R-Type Delta (USA) complete CHD (SLUS-00877, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own R-Type Delta (USA) complete CHD (SLUS-00877, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own R-Type Delta (USA) disc (SLUS-00877) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/r-type-delta-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

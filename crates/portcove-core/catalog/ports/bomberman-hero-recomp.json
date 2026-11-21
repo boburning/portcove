@@ -16,8 +16,24 @@
       "game_slug": "bomberman-hero",
       "match_kind": "underlying-game"
     },
-    "issue_number": 102
+    "issue_number": 102,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-hero",
+      "evidence_urls": ["https://github.com/RevoSucks/BMHeroRecomp"],
+      "source_editions": [
+        {
+          "id": "bomberman-hero-nintendo-64",
+          "title": "Bomberman Hero (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RevoSucks/BMHeroRecomp/blob/400f4c005e9c2b155915b8f04ec7e0e4a95df9f4/README.md"
+          ]
+        }
+      ]
+    }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["beta"],
@@ -41,22 +57,6 @@
       "macos-x86-64": ["BMHeroRecompiled"],
       "macos-aarch64": ["BMHeroRecompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "bmhero.z64"
-    ],
     "runtime_source_filename": "bmhero.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

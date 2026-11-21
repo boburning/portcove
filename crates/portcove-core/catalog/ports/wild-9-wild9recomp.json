@@ -6,7 +6,7 @@
     "summary": "A Wild 9 portable player for your own NTSC-U/USA SLUS-00425 PlayStation CUE and all referenced BIN tracks, including boot executable SLUS_004.25 and the remaining disc files. OpenBIOS is included; your own Sony SCPH BIOS is optional. Official Windows x86-64 ZIP, Linux x86-64 ZIP/AppImage and macOS x86-64/ARM64 ZIP packages need no compiler, Python or MSVC; Linux needs glibc 2.28+. Recent packages include checksum sidecars. Follow the project’s original-file setup; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Wild 9",
     "project_url": "https://github.com/plinkr/Wild9Recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/plinkr/Wild9Recomp",
     "artwork": {
@@ -43,6 +43,24 @@
         {
           "title": "Preserve the creating runtime and its data",
           "instruction": "Keep the complete player folder and original disc location, including saves, memory cards, save states, mods, game.toml, game_options.toml, input.ini, keybinds.ini and any other created settings or diagnostics. The reviewed Windows ZIP route keeps data beside the player; user-selected memory-card folders and individual card paths may point elsewhere and must be preserved too. Linux AppImage data locations do not define the Windows layout. Upstream or you own updates; preserve your actual files and review changed executable bytes before relinking. Portcove does not certify save compatibility between builds."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wild-9",
+      "evidence_urls": [
+        "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/packaging/release/README-WINDOWS.txt",
+        "https://github.com/plinkr/Wild9Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "wild-9-playstation",
+          "title": "Wild 9 (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/plinkr/Wild9Recomp/blob/b0c37ccaa382beeaefd8c81dc99c7a72ec11f391/README.md"
+          ]
         }
       ]
     }

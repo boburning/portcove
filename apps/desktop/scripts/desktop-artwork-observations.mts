@@ -205,7 +205,7 @@ export function artworkObservations({
         );
       };
     });
-  const finish = async (failure?: unknown) => {
+  const finish = async (failure?: unknown, workspaceReadbacks: readonly unknown[] = []) => {
     await capture("scenario-finished");
     const report = path.join(output, "artwork-request-observations.json");
     await writeFile(
@@ -215,6 +215,7 @@ export function artworkObservations({
           method: "Owned native renderer fetch observations; no response substitution",
           failure,
           documents,
+          workspace_readbacks: workspaceReadbacks,
         },
         null,
         2,

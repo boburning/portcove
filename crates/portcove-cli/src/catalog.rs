@@ -74,7 +74,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date; 10 adds funding links.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds dates; 10 adds funding links; 11 adds cover collections; 12 adds implementation descriptions.
         #[arg(long)]
         format_version: Option<u32>,
     },
@@ -86,6 +86,11 @@ pub(crate) enum CatalogCommand {
     /// Check an inert requirements file against installed engine template versions.
     CheckCapabilities {
         /// Inert capability-requirements JSON file to inspect without opening a library.
+        file: PathBuf,
+    },
+    /// Emit one canonical typed definition projection without opening a library.
+    CanonicalDefinitionProjection {
+        /// Inert single-port catalog projection assembled from a generated row and reviewed source graph.
         file: PathBuf,
     },
     /// Validate inert catalog declarations without changing the trusted catalog.
@@ -129,8 +134,9 @@ pub(crate) enum CatalogCommand {
         classify_linux_programs_by_format: bool,
     },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
+    #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
-        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
+        /// Local ZIP, TAR.GZ, Linux x86-64 TAR.XZ, or reviewed native Mac bundle TAR.XZ.
         archive: PathBuf,
         /// Embedded catalog port ID whose managed route the archive belongs to.
         #[arg(long)]
@@ -155,6 +161,9 @@ pub(crate) enum CatalogCommand {
         /// Inert versioned listings JSON file to inspect.
         #[arg(long)]
         path: PathBuf,
+        /// Export this validated directory for a supported strict reader.
+        #[arg(long)]
+        format_version: Option<u32>,
     },
     /// Inspect a fixed local managed-definition publication bundle without authority or library writes.
     InspectDefinitionPublication {
@@ -277,6 +286,7 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::CanonicalDefinitionProjection { .. } => "catalog.canonical-definition-projection",
             Self::InspectTargets { .. } => "catalog.inspect-targets",
             Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
@@ -479,6 +489,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::CanonicalDefinitionProjection { .. } => {
+            unreachable!("projection preparation executes before opening a library")
         }
         CatalogCommand::InspectTargets { .. } => {
             unreachable!("target inspection executes before opening a library")

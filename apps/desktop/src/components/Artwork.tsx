@@ -1,10 +1,16 @@
 import { cn } from "cn";
 import styles from "./Artwork.module.css";
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Gamepad2 } from "lucide-react";
-import { useArtwork, useArtworkVisibility } from "../artwork";
+import {
+  useArtwork,
+  useArtworkVisibility,
+  useCollectionCovers,
+  useCoverCollection,
+} from "../artwork";
+import type { ArtworkPriority } from "../artwork-cache";
 import { pickArtworkPath } from "../file-picker";
-import type { ArtworkSlot, ArtworkState, PortDefinition } from "../types";
+import type { ArtworkSlot, ArtworkState, PortDefinition, IgdbArtwork } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { Button } from "./ui/button";
 import { ExternalLink } from "./ExternalLink";
@@ -22,12 +28,15 @@ export function ArtworkImage({
   className?: string;
   quietFallback?: boolean;
 }) {
-  const { element, visible } = useArtworkVisibility();
-  const { display } = useArtwork(port.id, slot, visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display } = useArtwork(port.id, slot, visible, priority);
   return (
     <ArtworkFrame
       element={element}
       display={display}
+      portId={slot === "cover" ? port.id : undefined}
+      visible={visible}
+      priority={priority}
       className={className}
       quietFallback={quietFallback}
     />
@@ -47,16 +56,30 @@ export function ArtworkFrame({
   element,
   display,
   className = "",
+  companion,
+  portId,
+  visible = true,
+  priority,
   identityArtwork = false,
   quietFallback = false,
 }: {
   element: RefObject<HTMLDivElement | null>;
   display: ReturnType<typeof useArtwork>["display"];
   className?: string;
+  companion?: ReturnType<typeof useArtwork>["display"];
+  portId?: string | undefined;
+  visible?: boolean;
+  priority?: ArtworkPriority;
   identityArtwork?: boolean;
   quietFallback?: boolean;
 }) {
-  const image = display.image;
+  const collection = useCollectionCovers(portId, display, visible, priority);
+  const collectionImages = collection.filter((member) => member.image);
+  const first = collectionImages[0] ?? display;
+  const second = collectionImages.length === 2 ? collectionImages[1] : companion;
+  const image = first.image;
+  const tiled = collectionImages.length > 2;
+  const paired = !tiled && image && second?.image && !display.stale;
   const fallback = display.state?.generated_fallback;
   const notice = artworkDisplayNotice(display);
   const palettes = [
@@ -80,28 +103,64 @@ export function ArtworkFrame({
             ? "bg-transparent"
             : palettes[fallback?.palette_index ?? 0],
       )}
-      data-artwork-source={image ? display.state?.resolved_source.kind : "generated_fallback"}
+      data-artwork-port-id={portId}
+      data-artwork-source={
+        collectionImages.length
+          ? "igdb_cover_collection"
+          : image
+            ? display.state?.resolved_source.kind
+            : "generated_fallback"
+      }
       aria-hidden="true"
     >
-      {image ? (
+      {tiled ? (
+        <span className={styles.collection} data-cover-collection>
+          {collectionImages.map((member) => (
+            <span className={styles.tile} key={member.image}>
+              <img src={member.image} alt="" decoding="async" onError={member.onImageError} />
+            </span>
+          ))}
+        </span>
+      ) : paired ? (
+        <span className={styles.pair} data-companion-cover>
+          <span className={styles.half}>
+            <img src={image} alt="" decoding="async" onError={first.onImageError} />
+          </span>
+          <span className={styles.half}>
+            <img src={second.image} alt="" decoding="async" onError={second.onImageError} />
+          </span>
+        </span>
+      ) : image ? (
         <img
           className={styles.asset}
           src={image}
           alt=""
           decoding="async"
-          onError={display.onImageError}
+          onError={first.onImageError}
         />
-      ) : identityArtwork || quietFallback ? (
+      ) : quietFallback ? (
         <span className="grid max-w-full justify-items-center gap-2 p-2 text-pc-muted-foreground">
           <Gamepad2 aria-hidden="true" className="size-6 max-w-full" />
+        </span>
+      ) : identityArtwork ? (
+        <span className={styles.illustration} data-cover-illustration>
+          <Gamepad2
+            className={cn(styles.illustrationController, "size-[clamp(0.875rem,27cqi,3.25rem)]")}
+          />
         </span>
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
       {image && (
         <span
-          className={styles.backdrop}
+          className={cn(styles.backdrop, paired && styles.pairBackdropStart)}
           style={{ backgroundImage: `url(${JSON.stringify(image)})` }}
+        />
+      )}
+      {paired && (
+        <span
+          className={cn(styles.backdrop, styles.pairBackdropEnd)}
+          style={{ backgroundImage: `url(${JSON.stringify(second.image)})` }}
         />
       )}
       {!identityArtwork && notice && (
@@ -150,16 +209,45 @@ export function ArtworkControls({
   port: Pick<PortDefinition, "id"> & { name?: string };
 }) {
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<ArtworkSlot>("cover");
+  const panelId = useId();
+  const [visited, setVisited] = useState<ArtworkSlot[]>(["cover"]);
   return (
     <details className="artwork-controls" onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer py-3" data-focusable>
+      <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
         Change artwork
       </summary>
       {open && (
         <div className="artwork-slots grid gap-5">
-          <ArtworkSlotControl key={`${port.id}:cover`} port={port} slot="cover" />
-          <ArtworkSlotControl key={`${port.id}:detail`} port={port} slot="detail" />
-          <ArtworkSlotControl key={`${port.id}:landscape`} port={port} slot="landscape" />
+          <div role="group" aria-label="Artwork slot" className="flex flex-wrap gap-2">
+            {(Object.keys(slotCopy) as ArtworkSlot[]).map((slot) => (
+              <Button
+                key={slot}
+                data-focusable
+                variant={selected === slot ? "selected" : "outline"}
+                size="sm"
+                aria-pressed={selected === slot}
+                aria-controls={visited.includes(slot) ? `${panelId}-${slot}` : undefined}
+                onClick={() => {
+                  setSelected(slot);
+                  setVisited((current) => (current.includes(slot) ? current : [...current, slot]));
+                }}
+              >
+                {slotCopy[slot].label}
+              </Button>
+            ))}
+          </div>
+          {visited.map((slot) => (
+            <div
+              id={`${panelId}-${slot}`}
+              key={slot}
+              className="min-w-0"
+              hidden={selected !== slot}
+              inert={selected !== slot}
+            >
+              <ArtworkSlotControl port={port} slot={slot} />
+            </div>
+          ))}
           <DetailArtwork port={port} />
         </div>
       )}
@@ -176,6 +264,8 @@ function ArtworkSlotControl({
 }) {
   const [findOpen, setFindOpen] = useState(false);
   const { cache, display } = useArtwork(port.id, slot);
+  const collectionCovers = useCoverCollection(port.id);
+  const collection = useCollectionCovers(slot === "cover" ? port.id : undefined, display, true);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
@@ -201,8 +291,10 @@ function ArtworkSlotControl({
     if (pending || !returnFocus.current) return;
     const { target, cache: owner } = returnFocus.current;
     returnFocus.current = null;
-    if (currentIdentity.current.cache === owner)
-      (target?.disabled ? pickerButton.current : target)?.focus();
+    const focus = target?.disabled ? pickerButton.current : target;
+    if (currentIdentity.current.cache === owner && !focus?.closest("[hidden], [inert]")) {
+      focus?.focus();
+    }
   }, [pending]);
 
   const stillInView = () =>
@@ -380,13 +472,18 @@ function ArtworkSlotControl({
       )}
       {(error || display.error) && <p role="alert">{error ?? display.error}</p>}
       <details className="artwork-source">
-        <summary className="cursor-pointer py-3" data-focusable>
+        <summary className="disclosure-pad-3 cursor-pointer" data-focusable>
           View source / author information
         </summary>
         <ArtworkSource
           state={display.state}
+          collectionCovers={slot === "cover" ? collectionCovers : undefined}
           renderedSource={
-            display.image ? display.state?.resolved_source.kind : "generated_fallback"
+            collection.some((member) => member.image)
+              ? "igdb_cover_collection"
+              : display.image
+                ? display.state?.resolved_source.kind
+                : "generated_fallback"
           }
         />
       </details>
@@ -425,10 +522,45 @@ export function listingEvidenceText(
 export function ArtworkSource({
   state,
   renderedSource,
+  collectionCovers,
 }: {
   state?: ArtworkState | undefined;
-  renderedSource: "local_import" | "igdb_cover" | "generated_fallback" | undefined;
+  renderedSource:
+    | "local_import"
+    | "igdb_cover"
+    | "igdb_cover_collection"
+    | "generated_fallback"
+    | undefined;
+  collectionCovers?: readonly IgdbArtwork[] | undefined;
 }) {
+  if (collectionCovers?.length && state && !state.choice.asset_sha256) {
+    return (
+      <dl>
+        <dt>Source</dt>
+        <dd>IGDB covers of games represented by this project.</dd>
+        {collectionCovers.map((cover) => (
+          <div key={cover.image_sha256}>
+            <dt>
+              <ExternalLink href={`https://www.igdb.com/games/${cover.game_slug}`}>
+                IGDB game {cover.game_id}
+              </ExternalLink>
+            </dt>
+            <dd>
+              Cover {cover.cover_id} · image {cover.image_id}
+            </dd>
+          </div>
+        ))}
+        {renderedSource === "generated_fallback" && (
+          <>
+            <dt>Displayed artwork</dt>
+            <dd>Fallback artwork while collection images are unavailable.</dd>
+          </>
+        )}
+        <dt>Author and license</dt>
+        <dd>See each linked source.</dd>
+      </dl>
+    );
+  }
   if (state?.resolved_source.kind === "igdb_cover") {
     const mapping = state.resolved_source.artwork;
     return (

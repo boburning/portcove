@@ -284,10 +284,11 @@ impl PortcoveService {
             self.library.consume_authorization(authorization_token, "change_to_managed", port_id, &preview.preview_sha256)?;
             self.require_no_pending_setup(port_id)?;
             let port = self.catalog.port(port_id)?;
-            let resolution = operation.interruptible(self.resolve_release(port, preview.installation.channel, preview.installation.platform)).await?;
+            let mut resolution = operation.interruptible(self.resolve_release(port, preview.installation.channel, preview.installation.platform)).await?;
             if serde_json::to_value(&resolution.release)? != serde_json::to_value(&preview.installation.release)? {
                 return Err(PortcoveError::conflict("the release changed before preparation; review it again without changing the current copy"));
             }
+            resolution.saved_variant = crate::ManagedPackageVariant::from_review(port, preview.installation.platform, &resolution);
             operation.observe_release(&resolution.release.version, None);
             let qualification = InstallQualification::from_catalog(&self.catalog, port_id, preview.installation.platform)?.with_acquisition_resolution(resolution.clone())?;
             let validate_activation = |install: &InstallRecord| {

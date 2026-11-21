@@ -38,6 +38,24 @@
       ],
       "warnings": [],
       "help_url": "https://github.com/JRickey/BattleShip/releases"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros",
+      "evidence_urls": [
+        "https://github.com/JRickey/BattleShip/releases",
+        "https://github.com/JRickey/BattleShip"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-nintendo-64",
+          "title": "Super Smash Bros. (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/9d16cf7085ad34b995bbdc2a5763beb67c7e1190/crates/portcove-core/catalog/catalog.json"
+          ]
+        }
+      ]
     }
   },
   "integration": {
@@ -80,7 +98,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own Super Smash Bros. 64 USA 1.0 cartridge dump. Portcove checks the original and installs the managed BattleShip package."
+          }
+        ]
+      }
     }
   }
 }

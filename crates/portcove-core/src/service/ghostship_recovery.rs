@@ -9,6 +9,44 @@ use crate::{
 use super::PortcoveService;
 
 impl PortcoveService {
+    // This frozen historical reader projects discovery only. Planning rechecks the complete
+    // qualification seal, current library, original and backup under the port lock.
+    pub(super) fn project_legacy_backup_reviews(
+        &self,
+        status: &crate::PortStatus,
+        backups: &mut [BackupRecord],
+    ) -> Result<()> {
+        let (Some(active), Some(previous)) = (&status.active, &status.previous) else {
+            return Ok(());
+        };
+        if backups.is_empty()
+            || active.port_id != "ghostship"
+            || previous.port_id != active.port_id
+            || active.version != "3.0.0"
+            || previous.version != "2.0.0"
+            || status.external_runtime.is_some()
+            || crate::Platform::current().ok() != Some(crate::Platform::WindowsX86_64)
+        {
+            return Ok(());
+        }
+        let connection = self.library.connection()?;
+        let mut qualified = connection.prepare(
+            "SELECT EXISTS(SELECT 1 FROM ghostship_qualified_backups
+              WHERE backup_id=?1 AND port_id=?2 AND json_valid(seal_json)
+              AND json_extract(seal_json, '$.install.id')=?3)",
+        )?;
+        for backup in backups {
+            let present: bool = qualified.query_row(
+                rusqlite::params![backup.id, backup.port_id, previous.id],
+                |row| row.get(0),
+            )?;
+            if present {
+                backup.recovery_review = Some(crate::BackupRecoveryReview::LegacyInstallAndDataV1);
+            }
+        }
+        Ok(())
+    }
+
     pub fn plan_ghostship_legacy_recovery(
         &self,
         backup_id: &str,
@@ -85,6 +123,7 @@ impl PortcoveService {
                 "legacy recovery requires active 3.0.0 and the exact qualified previous 2.0.0 installation",
             ));
         }
+        self.require_activation_uploader_continuity(&legacy, None)?;
         let staged_count: u64 = connection.query_row(
             "SELECT count(*) FROM installs WHERE port_id='ghostship' AND staged=1",
             [],

@@ -9,6 +9,7 @@ import { installInteractiveTransport } from "../dev-scenarios/interactive/transp
 import { comparisonEntries } from "../dev-scenarios/interactive/comparison-scene";
 import type { Journey } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
+import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -40,7 +41,9 @@ async function mount(theme: string, journey: Journey = "comparison") {
     { container: root },
   );
   await expect
-    .poll(() => document.querySelectorAll(".collection-entry").length)
+    .poll(() =>
+      Number(document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize")),
+    )
     .toBe(journey === "comparison" ? 12 : journey === "details" ? 6 : 2);
   document.documentElement.dataset.theme = theme;
   await document.fonts.ready;
@@ -73,6 +76,11 @@ function contained() {
     expect(box.right).toBeLessThanOrEqual(innerWidth);
   }
 }
+async function chooseNarrowSection(label: string) {
+  await page.getByRole("combobox", { name: /^Game detail sections/ }).click();
+  await page.getByRole("option", { name: label, exact: true }).click();
+}
+
 async function capture(name: string, atTop = true) {
   if (atTop) {
     window.scrollTo(0, 0);
@@ -122,6 +130,9 @@ for (const theme of ["dark", "light"]) {
       ]) {
         await page.getByRole("tab", { name: label, exact: true }).click();
         contained();
+        if (label === "Saves & backups" && width === 1366) {
+          await capture(`compact-saves-${theme}-1366`);
+        }
         const detail = document.querySelector<HTMLElement>("[data-detail-workspace]")!;
         const result = await axe.run(detail, {
           runOnly: {
@@ -169,14 +180,19 @@ it.each(["dark", "light"])(
     spacing.textContent =
       "* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }";
     document.head.append(spacing);
-    for (const label of [
+    for (const section of [
       "Overview",
       "Game files",
       "Saves & backups",
       "Versions & updates",
       "Manage",
     ]) {
-      await page.getByRole("tab", { name: label, exact: true }).click();
+      await chooseNarrowSection(section);
+      await expect
+        .element(
+          page.getByRole("combobox", { name: "Game detail sections " + section, exact: true }),
+        )
+        .toBeVisible();
       contained();
     }
     await capture(`text-spacing-${theme}-320`);
@@ -383,9 +399,9 @@ it.each(["Library", "Discover"])("names and restores the known %s origin", async
   const back = page.getByRole("button", { name: `Back to ${origin}`, exact: true });
   await expect.element(back).toBeVisible();
   await back.click();
-  expect(document.activeElement?.getAttribute("data-detail-origin")).toMatch(
-    new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`),
-  );
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
+    .toMatch(new RegExp(`^${origin === "Library" ? "library" : "catalog"}:`));
 });
 
 it("clears search inline, returns focus and retains the declared platform constraint", async () => {
@@ -404,7 +420,9 @@ it("clears search inline, returns focus and retains the declared platform constr
   await expect
     .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
     .toBeVisible();
-  await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
+  await expect
+    .poll(() => document.querySelector("[data-library-port-ids]")?.getAttribute("aria-setsize"))
+    .toBe("12");
 });
 
 it.each([1440, 1024, 740])(
@@ -453,13 +471,53 @@ it.each(["dark", "light"])("gives search its own full row at 740px in %s", async
   }
 });
 
+it("keeps the Saves action in view under the compact header at 390x844", async () => {
+  await page.viewport(390, 844);
+  await mount("dark");
+  await open();
+  const hero = document.querySelector<HTMLElement>(".detail-hero")!;
+  const overviewHeight = hero.getBoundingClientRect().height;
+  const title = page.getByRole("heading", { name: comparisonEntries[0]!.title, exact: true });
+  const play = page.getByRole("button", { name: "Play", exact: true }).element();
+  const sections = page.getByRole("combobox", { name: /^Game detail sections/ });
+  await expect.element(sections).toHaveAccessibleName("Game detail sections Overview");
+  await chooseNarrowSection("Saves & backups");
+  await expect.element(sections).toHaveAccessibleName("Game detail sections Saves & backups");
+  await expect.element(page.getByRole("tabpanel", { name: "Saves & backups" })).toBeVisible();
+  await expect.element(title).toBeVisible();
+  expect(document.querySelector("[data-detail-readiness]")?.textContent?.trim()).toBeTruthy();
+  expect(document.querySelector("[data-installation-fact]")?.textContent?.trim()).toBeTruthy();
+  expect(page.getByRole("button", { name: "Play", exact: true }).element()).toBe(play);
+  expect(hero.querySelector("img")).toBeNull();
+  expect(hero.getBoundingClientRect().height).toBeLessThan(overviewHeight);
+  const workspace = document.querySelector<HTMLElement>("[data-focus-region=workspace]")!;
+  scrollWorkspaceTo(workspace, 0);
+  await expect.poll(() => workspaceScrollTop(workspace)).toBe(0);
+  const backup = page.getByRole("button", { name: "Back up now", exact: true }).element();
+  const bounds = backup.getBoundingClientRect();
+  expect(bounds.top).toBeGreaterThanOrEqual(0);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  contained();
+  await capture("compact-saves-dark-390", false);
+  await chooseNarrowSection("Overview");
+  await expect
+    .poll(
+      () => hero.querySelector<HTMLImageElement>(".game-hero-foreground img")?.naturalWidth ?? 0,
+    )
+    .toBeGreaterThan(0);
+});
+
 it.each([1440, 320])(
   "keeps saved-data facts compact and backup creation above them at %ipx",
   async (width) => {
     await page.viewport(width, 900);
     await mount("light");
     await open();
-    await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
+    if (width === 320) {
+      await chooseNarrowSection("Saves & backups");
+    } else {
+      await page.getByRole("tab", { name: "Saves & backups", exact: true }).click();
+    }
     const heading = page.getByRole("heading", { name: "Saved data", exact: true });
     await expect.element(heading).toBeVisible();
     heading.element().scrollIntoView({ block: "start" });
@@ -470,6 +528,10 @@ it.each([1440, 320])(
       .getByRole("button", { name: "Open folder for saved data", exact: true })
       .element();
     expect(backup.getBoundingClientRect().bottom).toBeLessThanOrEqual(bounds.top);
+    const protection = page.getByRole("heading", { name: "Backups and updates", exact: true });
+    expect(protection.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      heading.element().getBoundingClientRect().top,
+    );
     const explanation = document.getElementById("backup-create-explanation")!;
     expect(backup.getBoundingClientRect().top).toBeGreaterThanOrEqual(
       width === 320

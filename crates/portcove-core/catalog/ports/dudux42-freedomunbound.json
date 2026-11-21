@@ -6,7 +6,7 @@
     "summary": "Register an independently permitted prepared Freedom Unbound Windows copy through its supported waiting launcher, using your own USA Freedom Unite ISO and retained save/profile roots.",
     "original_game_title": "Monster Hunter Freedom Unite",
     "project_url": "https://github.com/Dudux42/FreedomUnbound",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Dudux42/FreedomUnbound",
     "artwork": {
@@ -60,6 +60,24 @@
         {
           "title": "Retain upstream ownership and log behavior",
           "instruction": "The launcher separately stores logs under %LOCALAPPDATA%/FreedomUnbound/logs or its actual -LogDirectory root, including launcher-startup.log and session stdout/stderr/session.json. Its script prunes old timestamped session directories beyond the newest ten; preserve any needed diagnostics before upstream maintenance. Upstream and you own preparation, runtime replacement/recovery and all external files. Removing registration preserves them; no external update, backup, rollback, migration or deletion is offered. Preserve PortableKit and all separate library/font/mod terms; those grants do not supply Capcom/Sony original rights."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-freedom-unite",
+      "evidence_urls": [
+        "https://github.com/Dudux42/FreedomUnbound/blob/d07c6d61a4517af5dc60db5b9aa2d9abb276f0a4/README.md",
+        "https://github.com/Dudux42/FreedomUnbound"
+      ],
+      "source_editions": [
+        {
+          "id": "monster-hunter-freedom-unite-playstation-portable",
+          "title": "Monster Hunter Freedom Unite (PSP)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Dudux42/FreedomUnbound/blob/d07c6d61a4517af5dc60db5b9aa2d9abb276f0a4/README.md"
+          ]
         }
       ]
     }

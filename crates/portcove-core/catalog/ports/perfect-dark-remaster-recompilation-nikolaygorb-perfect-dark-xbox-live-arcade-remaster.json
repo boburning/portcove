@@ -3,9 +3,17 @@
   "listing": {
     "id": "perfect-dark-remaster-recompilation-nikolaygorb-perfect-dark-xbox-live-arcade-remaster",
     "name": "Perfect Dark (Xbox Live Arcade remaster) — Perfect Dark Remaster Recompilation (nikolaygorb)",
-    "original_game_title": "Perfect Dark (Xbox Live Arcade remaster)",
+    "original_game_title": "Perfect Dark",
     "summary": "The project reports D3D12 boot, audio and input, plus mission-restart fixes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp",
+    "artwork": {
+      "game_id": 1466,
+      "cover_id": 138035,
+      "image_id": "co2yib",
+      "image_sha256": "ab9ff7d1027a64b7224f5d114f0403d82f23d0a2f00c98816c7404e0eb6c3d71",
+      "game_slug": "perfect-dark--1",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp"
     },
-    "issue_number": 3222
+    "issue_number": 3222,
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": ["https://github.com/nikolaygorb/PerfectDarkRemasterRecomp"],
+      "source_editions": [
+        {
+          "id": "perfect-dark-xbox-360",
+          "title": "Perfect Dark (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp/blob/ee8259b7c3417e90a565c76adb61049564ee5cc9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

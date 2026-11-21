@@ -379,6 +379,8 @@ fn source_only_inventory_excludes_existing_mutable_and_managed_owners() {
             "blake-stone-planet-strike-bstone",
             "diablo-devilutionx",
             "diablo-hellfire-devilutionx",
+            "doom-3-classic-dhewm3",
+            "doom-3-resurrection-of-evil-classic-dhewm3",
             "g-diffuser",
             "openpete"
         ]
@@ -881,6 +883,57 @@ async fn assert_native6_originals_launch(zip: bool, wrapped: bool) {
     .unwrap();
     assert!(!fixture.service.verify(NATIVE_PORT).unwrap().valid);
     assert!(fixture.service.prepare_launch(NATIVE_PORT, None).is_err());
+}
+
+#[tokio::test]
+async fn native_relative_originals_keep_equal_basenames_in_distinct_directories() {
+    let mut fixture = Fixture::native(false, true);
+    let mut document = fixture.service.catalog().authoritative_document();
+    let port = &mut document.ports[0];
+    let originals = [
+        ("base/pak000.pk4", b"synthetic base".as_slice()),
+        ("d3xp/pak000.pk4", b"synthetic expansion".as_slice()),
+    ];
+    let mut members = Vec::new();
+    port.runtime_source_set.clear();
+    for (index, (path, bytes)) in originals.iter().enumerate() {
+        let source = fixture.source.path.join(path);
+        fs::create_dir_all(source.parent().unwrap()).unwrap();
+        fs::write(&source, bytes).unwrap();
+        let sha256 = crate::signed_catalog::digest(bytes).to_ascii_uppercase();
+        members.push(crate::RelativeSourceMemberIdentity {
+            id: format!("fixture-pak-{index}"),
+            path: (*path).into(),
+            size: bytes.len() as u64,
+            sha256: sha256.clone(),
+        });
+        port.runtime_source_hashes.insert((*path).into(), sha256);
+        port.runtime_source_set.push(crate::RuntimeSourceTarget {
+            source_filenames: vec![(*path).into()],
+            destination: (*path).into(),
+            materialization: RuntimeSourceMaterialization::Copy,
+        });
+    }
+    let identity = &mut document.source_catalog.as_mut().unwrap().identities[0];
+    identity.variants[0].representations[0].kind =
+        crate::SourceRepresentationKind::RelativeFileSet { members };
+
+    let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    fixture.service.replace_catalog_for_test(catalog);
+    fixture.source = fixture
+        .service
+        .register_source(NATIVE_PROFILE, &fixture.source.path)
+        .unwrap();
+    let install = fixture.install(true).await;
+    for (path, bytes) in originals {
+        assert_eq!(
+            fs::read(install.path.join("publisher").join(path)).unwrap(),
+            bytes
+        );
+        assert_eq!(fs::read(fixture.source.path.join(path)).unwrap(), bytes);
+    }
+    assert!(!install.path.join("publisher").join(FILES[0].0).exists());
+    assert!(fixture.service.verify(NATIVE_PORT).unwrap().valid);
 }
 
 #[tokio::test]

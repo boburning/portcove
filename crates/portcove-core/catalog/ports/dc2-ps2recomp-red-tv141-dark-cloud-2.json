@@ -35,6 +35,12 @@
       "image_sha256": "979a7bd602eb224f97a02698c58cb853dfd4e5dbb33138c03e1fb2a97fa6e2fe",
       "game_slug": "dark-cloud-2",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "dark-cloud-2",
+      "evidence_urls": ["https://github.com/Red-tv141/DC2-PS2RECOMP"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

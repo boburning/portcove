@@ -6,7 +6,7 @@
     "summary": "A Star Fox Adventures port that the project describes as fully playable on Windows, Linux and macOS. Obtain it through the official launcher; code-repository tags contain no runtime files. Exact launcher/package CPU architectures are unconfirmed, and mobile targets are not planned releases. The README accepts any copy of your own original disc. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Star Fox Adventures",
     "project_url": "https://github.com/JackPriceBurns/foxhollow",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/JackPriceBurns/foxhollow",
     "artwork": {
@@ -46,6 +46,15 @@
           "instruction": "Preserve the complete player, original-image location, mods, settings, shader caches and SDL’s actual per-user Foxhollow data folder. Keep any independently configured FOXHOLLOW_USER_DIR, FOXHOLLOW_CACHE_DIR, memory-card or other external output locations too; registration does not recreate an external launcher’s settings. Aurora supports regional MemoryCardA/MemoryCardB raw images or regional Card A/Card B folders, and a selected card path may live elsewhere. Preserve the representation used by your own copy. The optional autosave snapshot and its .tmp file are runtime recovery files that the runtime can remove on shutdown, not a durable backup or a Portcove save-conversion promise."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-adventures",
+      "evidence_urls": [
+        "https://github.com/JackPriceBurns/foxhollow/blob/0f054e6c1f2d63af06897677ebdc9f1936b61c75/README.md",
+        "https://github.com/JackPriceBurns/foxhollow"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

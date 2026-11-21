@@ -6,6 +6,14 @@
     "original_game_title": "Captain America: Super Soldier",
     "summary": "Title screen boots, story loading crashes due to missing function addresses. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled",
+    "artwork": {
+      "game_id": 4745,
+      "cover_id": 86640,
+      "image_id": "co1uuo",
+      "image_sha256": "0160d9791906e70d5112234a8095c6e00a20106f0601c852c4490be880bf98b4",
+      "game_slug": "captain-america-super-soldier",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"
     },
-    "issue_number": 3305
+    "issue_number": 3305,
+    "original_game": {
+      "format_version": 1,
+      "id": "captain-america-super-soldier",
+      "evidence_urls": ["https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled"],
+      "source_editions": [
+        {
+          "id": "captain-america-super-soldier-xbox-360",
+          "title": "Captain America: Super Soldier (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled/blob/362f6c305f20ae98645540b9a28e4b0433e7952e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

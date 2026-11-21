@@ -62,6 +62,7 @@ function Fixture({ initial }: { initial?: BrowsingInputs }) {
       setLibraryReadiness={shell.setLibraryReadiness}
       libraryFilterCandidates={filterPorts(ports, statuses, "library", "all", shell.query)}
       statuses={statuses}
+      libraryCount={summarizeLibrary(ports, statuses).installed}
       overview={summarizeLibrary(ports, statuses)}
       filter={shell.filter}
       query={shell.query}
@@ -381,7 +382,7 @@ describe("Catalog channel controls", () => {
     await openAdvancedFilters();
     const readiness = page.getByRole("combobox", { name: /^Readiness / });
     await readiness.click();
-    await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
+    await page.getByRole("option", { name: "Ready to play (1)", exact: true }).click();
     expect(
       [...host.querySelectorAll("article.port-card")].map(
         (card) => card.querySelector('[role="heading"][aria-level="2"]')?.textContent,

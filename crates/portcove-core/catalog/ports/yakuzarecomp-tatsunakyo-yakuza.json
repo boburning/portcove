@@ -35,6 +35,21 @@
       "image_sha256": "5829aa1e717f76e53a3527fb67d3cb1df4a6e42f2e9e7a25a099a82bc4fe68a2",
       "game_slug": "yakuza",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "yakuza",
+      "evidence_urls": ["https://github.com/TatsunaKyo/YakuzaRecomp"],
+      "source_editions": [
+        {
+          "id": "yakuza-playstation-2",
+          "title": "Yakuza (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TatsunaKyo/YakuzaRecomp/blob/fc2938111aaf71d177ab828d9d0f3163f5eee527/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

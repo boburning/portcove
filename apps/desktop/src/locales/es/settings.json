@@ -53,6 +53,11 @@
     "title": "Restaurar desde una copia de la biblioteca",
     "trust": "<strong>Usa una exportación de confianza.</strong> Revisa su origen, el destino, el espacio necesario, las versiones instaladas, las ubicaciones de los archivos guardados y los archivos copiados antes de restaurarla."
   },
+  "steamGridDb": {
+    "readAgain": "Volver a comprobar la configuración",
+    "readFailed": "No se pudo comprobar la configuración de SteamGridDB. Vuelve a comprobarla para saber si hay una clave guardada.",
+    "reading": "Comprobando la configuración de SteamGridDB…"
+  },
   "supportReport": {
     "collecting": "Recopilando los diagnósticos disponibles…",
     "contentsLimits": "Es posible que este informe no incluya todas las entradas del registro ni todas las tareas. Puede faltar actividad o salida del registro anterior o posterior.",

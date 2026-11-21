@@ -5,10 +5,10 @@
     "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
     "original_game_title": "Hot Shots Tennis: Get a Grip",
     "summary": "Experimental project. The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/Jstar269/nakagawa-recomp",
+    "project_url": "https://github.com/Jstar269/Nakagawa-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/Jstar269/nakagawa-recomp",
+    "setup_url": "https://github.com/Jstar269/Nakagawa-Recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/Jstar269/nakagawa-recomp"
+      "help_url": "https://github.com/Jstar269/Nakagawa-Recomp"
     },
     "issue_number": 3010,
     "listed_at": "2026-10-25",
@@ -35,6 +35,12 @@
       "image_sha256": "e36b1e01506e009f5a1b47909ae1a5eb338545209a0af0bec9e9b78d89b62fb0",
       "game_slug": "hot-shots-tennis-get-a-grip",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "hot-shots-tennis-get-a-grip",
+      "evidence_urls": ["https://github.com/Jstar269/nakagawa-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

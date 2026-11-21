@@ -45,8 +45,27 @@
           "instruction": "Preserve ~/.config/HarvestMoon64Recompiled on Linux, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.harvestmoon64recomp.harvestmoon64recomp. Back up the original, saves, mods and settings before replacing an upstream copy."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "harvest-moon-64",
+      "evidence_urls": [
+        "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp#readme",
+        "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "harvest-moon-64-nintendo-64",
+          "title": "Harvest Moon 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarvestMoon64Recomp/HarvestMoon64Recomp/blob/0470d52f2ed7d038b3098799a77d1d7eab187319/README.md"
+          ]
+        }
+      ]
     }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -68,22 +87,6 @@
       "macos-x86-64": ["HarvestMoon64Recompiled"],
       "macos-aarch64": ["HarvestMoon64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "harvest_moon_64.z64"
-    ],
     "runtime_source_filename": "harvest_moon_64.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

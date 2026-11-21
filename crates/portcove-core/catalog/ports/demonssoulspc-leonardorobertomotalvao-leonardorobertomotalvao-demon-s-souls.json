@@ -4,6 +4,14 @@
     "id": "demonssoulspc-leonardorobertomotalvao-leonardorobertomotalvao-demon-s-souls",
     "name": "Demon's Souls — DemonsSoulsPC (Leonardorobertomotalvao) (Leonardorobertomotalvao)",
     "original_game_title": "Demon's Souls",
+    "artwork": {
+      "game_id": 5619,
+      "cover_id": 103412,
+      "image_id": "co27sk",
+      "image_sha256": "65f71553ad5995532f8dbf93e6b10058f1b05372335ddf0cae4e44f69011bb0b",
+      "game_slug": "demon-s-souls",
+      "match_kind": "underlying-game"
+    },
     "summary": "The author reports a working prototype on one Windows 10 PC. Continuous gameplay coverage is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/Leonardorobertomotalvao/demons-souls-pc"
     },
-    "issue_number": 3375
+    "issue_number": 3375,
+    "original_game": {
+      "format_version": 1,
+      "id": "demon-s-souls",
+      "evidence_urls": ["https://github.com/Leonardorobertomotalvao/demons-souls-pc"],
+      "source_editions": [
+        {
+          "id": "demon-s-souls-playstation-3",
+          "title": "Demon's Souls (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Leonardorobertomotalvao/demons-souls-pc/blob/5aa4151ee52d54c9aed67471550d70424b7ce85e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -28,7 +28,25 @@
       "warnings": [],
       "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
     },
-    "original_game_title": "X-COM: Apocalypse"
+    "original_game_title": "X-COM: Apocalypse",
+    "original_game": {
+      "format_version": 1,
+      "id": "x-com-apocalypse",
+      "evidence_urls": [
+        "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md",
+        "https://github.com/OpenApoc/OpenApoc"
+      ],
+      "source_editions": [
+        {
+          "id": "x-com-apocalypse-pc",
+          "title": "X-COM: Apocalypse (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OpenApoc/OpenApoc/blob/d06cc102905e35d0e703d2d25204fd4ab2795e12/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

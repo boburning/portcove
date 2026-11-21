@@ -250,6 +250,22 @@
       ]
     },
     {
+      "file": "scripts/n64-original-publication.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3550],
+        ["release-check", 4350]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/catalog-prepare-publication.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3503],
+        ["release-check", 4303]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 3502],
@@ -481,6 +497,13 @@
       ]
     },
     {
+      "file": "scripts/catalog-chip-gaps.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8922],
+        ["repository-tools-2", 3922]
+      ]
+    },
+    {
       "file": "scripts/listing-funding.test.mts",
       "memberships": [
         ["catalog-full-2", 8917],
@@ -511,6 +534,26 @@
       "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
     },
     {
+      "file": "scripts/catalog-game-review.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8919],
+        ["repository-tools-2", 3919]
+      ],
+      "ordinary_families": [
+        "catalog-generator-contract-tests",
+        "catalog-authoring-contract-tests",
+        "catalog-preparation-contract-tests"
+      ]
+    },
+    {
+      "file": "scripts/catalog-game-identity.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8921],
+        ["repository-tools-2", 3921]
+      ],
+      "ordinary_families": ["catalog-generator-contract-tests", "catalog-authoring-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-staged-check.test.mts",
       "memberships": [
         ["catalog-full-2", 9300],
@@ -522,6 +565,22 @@
       "memberships": [
         ["catalog-full", 1201],
         ["repository-tools", 402]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
+    },
+    {
+      "file": "scripts/public-catalog.test.mts",
+      "memberships": [
+        ["catalog-full", 550],
+        ["repository-tools", 550]
+      ],
+      "ordinary_families": ["catalog-contract-tests"]
+    },
+    {
+      "file": "scripts/scheduled-package-drift.test.mts",
+      "memberships": [
+        ["catalog-full", 1204],
+        ["repository-tools", 417]
       ],
       "ordinary_families": ["upstream-health-contract-tests"]
     },
@@ -765,6 +824,13 @@
       ]
     },
     {
+      "file": "scripts/cleanup-retired-deployments.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7901],
+        ["repository-tools-2", 3701]
+      ]
+    },
+    {
       "file": "scripts/container-browser.test.mts",
       "memberships": [
         ["catalog-full-2", 200],
@@ -906,6 +972,14 @@
       ]
     },
     {
+      "file": "scripts/desktop-setup-batch-fixture.test.mts",
+      "memberships": [
+        ["windows-storage-4", 3301],
+        ["frontend-full-4", 1401],
+        ["development-tools", 5501]
+      ]
+    },
+    {
       "file": "scripts/desktop-execution-plan.test.mts",
       "memberships": [
         ["windows-storage-4", 300],
@@ -958,6 +1032,7 @@
             "Linux native startup refusal cannot establish successful session closure",
             "Malformed private transport after readiness remains a failed qualification after real join",
             "namespace startup failure retains bounded actual stderr and cannot establish custody",
+            "private-X11 waits contain the selected harness deadline and retain finite cleanup margins",
             "published readiness cannot hide a wrapper failure with failed persistence and a live child"
           ]
         }
@@ -1234,6 +1309,20 @@
       ]
     },
     {
+      "file": "scripts/discovery-recompsoftware.test.mts",
+      "memberships": [
+        ["catalog-full", 1381],
+        ["roadmap-check", 1360]
+      ]
+    },
+    {
+      "file": "scripts/upstream-progress.test.mts",
+      "memberships": [
+        ["catalog-full", 1481],
+        ["repository-tools", 517]
+      ]
+    },
+    {
       "file": "scripts/discovery-leads.test.mts",
       "memberships": [
         ["catalog-full", 1000],
@@ -1460,14 +1549,19 @@
           "reason": "The read-only inventory proof needs a real PostgreSQL cluster; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
+            "research progress retains precise history, quiet repeats, failures and project opt-outs",
             "declared records flow through Core assessment, the store and a static report",
+            "unsupported publication facts retain the last good facts and other source updates",
             "complete collection stores changes only, verifies membership and records absence",
             "each host platform keeps its own assessment history, gaps and latest run",
             "release health records coverage, quiet recurrence and needs-attention conditions",
+            "release-health handoffs follow freshly assessed ports across fleet coverage gaps",
             "release content shows findings from partial runs and opens handoffs only after complete runs",
             "a reviewed accounting dismisses a finding: shown as accounted, no attention, its handoff cleared",
             "packages the scan could not inspect are shown and open the release-content handoff",
             "a finding on a port with deferred targets is visible from the latest scan's gap",
+            "published maintenance report reads retained pending-to-eligible history once per candidate",
+            "partial CDN windows leave prior good observations intact in the maintenance store",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
             "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
@@ -1479,6 +1573,13 @@
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
+      ]
+    },
+    {
+      "file": "scripts/maintenance-public-summary.test.mts",
+      "memberships": [
+        ["catalog-full", 1278],
+        ["repository-tools", 413]
       ]
     },
     {
@@ -1538,8 +1639,13 @@
           "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
+            "ordinary maintenance report and history page preserve the full restored timeline",
             "maintenance store guards history and survives an independent PostgreSQL restore",
-            "an interrupted maintenance migration leaves no partial schema and resumes cleanly"
+            "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+            "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
+            "shared admissions fence concurrent callers and retain crash charges",
+            "recovery reconstruction reuses history and restores current state and sequences",
+            "cutover admissions share their finite allowance across purposes"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }
@@ -3926,7 +4032,9 @@
           "reason": "Linux custody probes execute on the maintained complete Linux catalog-full-2 route; other platforms retain their native ownership contracts.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on Linux",
           "cases": [
+            "host bridge refuses a public Linux custody directory before requesting either lease",
             "host bridge Linux probe refuses changed custody, live children and missing cleanup",
+            "Linux bridge client preserves host queue refusal before local admission",
             "host bridge actual client closes its helper on register ACK loss and release-probe failure"
           ]
         }

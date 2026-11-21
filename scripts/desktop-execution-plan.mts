@@ -13,12 +13,18 @@ import type { DesktopSelection } from "./desktop-scenarios.mts";
 // Shared display-identity, review-presentation and staged-layout helpers are runtime imports.
 // Package/lock files are reproduction inputs, never claims of executed source.
 export const nativeTransportReceiptSources = Object.freeze([
+  "apps/desktop/scripts/desktop-standing-setup-test.mts",
+  "apps/desktop/scripts/desktop-standing-pass-observer.mts",
+  "apps/desktop/scripts/desktop-setup-batch-test.mts",
   "apps/desktop/scripts/desktop-scenario-state.mts",
   "apps/desktop/scripts/desktop-cover-observations.mts",
   "apps/desktop/scripts/desktop-scenario-outcomes.mts",
   "apps/desktop/scripts/desktop-review-presentation.mts",
   "apps/desktop/scripts/desktop-staged-layout.mts",
   "apps/desktop/scripts/desktop-game-first-test.mts",
+  "apps/desktop/scripts/desktop-collection-artwork-test.mts",
+  "apps/desktop/scripts/desktop-review-controls.mts",
+  "apps/desktop/scripts/desktop-review-observation.mts",
   "scripts/desktop-game-first-installed-inputs.mts",
   "apps/desktop/scripts/transport-values.mts",
   "apps/desktop/scripts/desktop-source-intake-boundaries-test.mts",
@@ -102,6 +108,8 @@ export function planDesktopExecution(
         "native-library-move-invalidates-prior-reviews",
         "native-contextual-cli-handoff",
         "native-library-layout",
+        "native-secondary-panel-presentation",
+        "native-collection-artwork-presentation",
         "native-staged-update-composition",
         "native-local-artwork-picker-and-recovery",
         "native-artwork-catalog-correction",
@@ -140,6 +148,9 @@ export function planDesktopExecution(
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-retained-contract-repair-state")) ||
     selection.selected_scenarios.includes("native-selected-setup-completion") ||
+    selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch") ||
+    selection.selected_scenarios.includes("native-standing-setup-source-return") ||
+    selection.selected_scenarios.includes("native-large-discovery-setup-review") ||
     selection.selected_scenarios.includes("native-startup-network-diagnostic") ||
     selection.selected_scenarios.includes("native-external-runtime-review") ||
     backupFocusSession ||
@@ -253,6 +264,11 @@ export function planDesktopExecution(
     ])
       inputs.push({ kind: "file", path: source });
   for (const source of nativeTransportReceiptSources) inputs.push({ kind: "file", path: source });
+  if (
+    normalPackageSession ||
+    selection.selected_scenarios.includes("native-game-first-choice-and-restart")
+  )
+    inputs.push({ kind: "file", path: "scripts/fixtures/game-first-catalog-relationships.json" });
   inputs.push({ kind: "file", path: "apps/desktop/test/capture-target.ts" });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });
@@ -375,6 +391,8 @@ export function planDesktopExecution(
     receiptSource(new URL("desktop-catalog-update-test.mts", harnessUrl)),
     receiptSource(new URL("desktop-default-cover-test.mts", harnessUrl)),
   );
+  if (selection.selected_scenarios.includes("native-reviewed-screenshot-display"))
+    inputs.push(receiptSource(new URL("crates/portcove-core/catalog/listings.json", rootUrl)));
   if (selection.prerequisites.includes("owned-fixture")) {
     if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
       for (const name of [
@@ -389,6 +407,12 @@ export function planDesktopExecution(
       inputs.push({ kind: "executable", name });
     }
     inputs.push(receiptSource(new URL("./desktop-preparation-test.mts", harnessUrl)));
+    for (const name of [
+      "desktop-secondary-panels-test.mts",
+      "desktop-secondary-panels-probe.mts",
+      "desktop-secondary-panels-fixture.mts",
+    ])
+      inputs.push(receiptSource(new URL(name, harnessUrl)));
     if (selection.selected_scenarios.includes("native-library-layout"))
       for (const name of ["testdata/catalog-artwork-red.jpg", "testdata/catalog-artwork-blue.jpg"])
         inputs.push(receiptSource(new URL(name, harnessUrl)));
@@ -427,7 +451,12 @@ export function planDesktopExecution(
     executed.has("native-preliminary-source-review") || preliminarySetupJourney;
   const hashResumeJourney = executed.has("native-saved-folder-hash-resume");
   const sourceJourney =
-    executed.has("native-saved-folder-selected-setup") || preliminaryJourney || hashResumeJourney;
+    executed.has("native-saved-folder-selected-setup") ||
+    executed.has("native-reviewed-discovery-setup-batch") ||
+    executed.has("native-standing-setup-source-return") ||
+    executed.has("native-large-discovery-setup-review") ||
+    preliminaryJourney ||
+    hashResumeJourney;
   const completionJourney = executed.has("native-selected-setup-completion");
   const updateReviewJourney = executed.has("native-game-update-review");
   const roles = [
@@ -437,6 +466,7 @@ export function planDesktopExecution(
   // This order is the pre-change harness traversal, not catalog order.
   const preparationSources = new Set([
     "desktop-preparation-test.mts",
+    "desktop-secondary-panels-test.mts",
     "desktop-readiness-test.mts",
     "desktop-preparation-recovery-test.mts",
     "desktop-backup-review-test.mts",
@@ -469,6 +499,10 @@ export function planDesktopExecution(
       members: roles.filter(({ id }) =>
         [
           "native-saved-folder-selected-setup",
+          "native-reviewed-discovery-setup-batch",
+          "native-standing-setup-source-return",
+
+          "native-large-discovery-setup-review",
           "native-preliminary-source-review",
           "native-preliminary-selected-setup",
           "native-saved-folder-hash-resume",

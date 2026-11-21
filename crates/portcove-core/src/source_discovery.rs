@@ -470,6 +470,9 @@ pub struct SourceDiscoveryRequest {
 pub struct SourceDiscoveryIssue {
     pub path: Option<PathBuf>,
     pub profile_id: Option<String>,
+    /// Profiles whose bounded direct inspection can check this skipped file.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub direct_check_profiles: Vec<String>,
     pub message: String,
 }
 
@@ -667,7 +670,20 @@ impl PortcoveService {
         {
             return Err(PortcoveError::usage("scan identity is invalid"));
         }
+        if let Some(profile) = &query.profile_id {
+            self.catalog().source_profile(profile)?;
+        }
         self.library().game_file_scan_match_page(query)
+    }
+
+    /// Match current registrations against the full retained scan for setup
+    /// review. This reads evidence only and grants no setup authorization.
+    pub fn game_file_scan_registered_matches(
+        &self,
+        expected: &crate::GameFileScanMatchSummary,
+    ) -> Result<crate::GameFileScanRegisteredMatches> {
+        self.library()
+            .game_file_scan_registered_matches(expected, &catalog_sha256(self.catalog())?)
     }
 
     /// The source profiles matched inside one saved folder by the current
@@ -917,6 +933,7 @@ fn prepare_saved_folder_scan_batch(
             report.issues.push(SourceDiscoveryIssue {
                 path: Some(root.path.clone()),
                 profile_id: None,
+                direct_check_profiles: Vec::new(),
                 message: "Saved game-file root is currently unavailable; prior scan evidence is not treated as deleted.".into(),
             });
         } else {
@@ -1516,20 +1533,28 @@ fn current_game_file_scan(
         snapshot.continuation = None;
         snapshot.matches = None;
     }
-    snapshot.freshness = if snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
-        && !snapshot
-            .coverage
-            .as_ref()
-            .is_some_and(|coverage| coverage.restart_required)
-        && snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
-        && snapshot.catalog_sha256 == catalog_sha256(catalog)?
-        && snapshot.roots == current_roots
+    snapshot.freshness = if snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
+        && scan_snapshot_inputs_match(&snapshot, &catalog_sha256(catalog)?, &current_roots)
     {
         GameFileScanFreshness::InputsMatch
     } else {
         GameFileScanFreshness::InputsChanged
     };
     Ok(Some(snapshot))
+}
+
+pub(crate) fn scan_snapshot_inputs_match(
+    snapshot: &GameFileScanSnapshot,
+    catalog_sha256: &str,
+    roots: &[crate::GameFileRoot],
+) -> bool {
+    snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
+        && !snapshot
+            .coverage
+            .as_ref()
+            .is_some_and(|coverage| coverage.restart_required)
+        && snapshot.catalog_sha256 == catalog_sha256
+        && snapshot.roots == roots
 }
 
 /// A complete current scan snapshot holding exactly `candidates`, for tests
@@ -1629,7 +1654,7 @@ fn validate_request(request: &SourceDiscoveryRequest, saved: bool) -> Result<()>
     if request.roots.is_empty()
         || (!saved && request.roots.len() > ROOTS_PER_DISCOVERY_BATCH)
         || request.profile_ids.is_empty()
-        || request.profile_ids.len() > 256
+        || (!saved && request.profile_ids.len() > 256)
     {
         return Err(PortcoveError::usage(
             "source discovery needs 1-8 explicit roots and 1-256 profiles",
@@ -1985,7 +2010,10 @@ fn scan_with_continuation<'a>(
     for (path, message) in omitted_owned_paths {
         discovery.owned_path_issue(path, message)?;
     }
+    // Build one set of relevant profile indexes for the file walk. A saved scan
+    // derives its selection from the catalog; explicit requests remain bounded.
     for id in request.profile_ids.iter().collect::<BTreeSet<_>>() {
+        operation.checkpoint()?;
         let profile = catalog.source_profile(id)?;
         if profile.kind == crate::SourceKind::FileSet && catalog.source_catalog().is_some() {
             discovery.directory_profiles.push(profile);
@@ -2894,7 +2922,26 @@ impl Discovery<'_> {
         }
         if size > self.limits.max_file_bytes {
             self.reached.insert(SourceDiscoveryLimit::FileSize);
-            self.issue(Some(path.into()), None, OVERSIZED_FILE_ISSUE.into());
+            let profiles = if extension.eq_ignore_ascii_case("iso")
+                && size <= crate::adapter::MAX_RUNTIME_SOURCE_BYTES
+            {
+                groups
+                    .iter()
+                    .flat_map(|(_, profiles)| profiles.iter().copied())
+                    .filter(|profile| {
+                        crate::source_inspection::is_direct_ps2_iso_profile(self.catalog, profile)
+                    })
+                    .map(|profile| profile.id.clone())
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            self.issue_with_direct_check(
+                Some(path.into()),
+                None,
+                OVERSIZED_FILE_ISSUE.into(),
+                profiles,
+            );
             return Ok(());
         }
         let before = self.budget.hashed;
@@ -3536,6 +3583,16 @@ impl Discovery<'_> {
     }
 
     fn issue(&mut self, path: Option<PathBuf>, profile_id: Option<String>, message: String) {
+        self.issue_with_direct_check(path, profile_id, message, Vec::new());
+    }
+
+    fn issue_with_direct_check(
+        &mut self,
+        path: Option<PathBuf>,
+        profile_id: Option<String>,
+        message: String,
+        direct_check_profiles: Vec<String>,
+    ) {
         // OS paths can contain opaque names. Errors must still serialize through
         // the shared JSON transport without hiding independent readable results.
         let path = path.filter(|path| path.to_str().is_some());
@@ -3550,6 +3607,7 @@ impl Discovery<'_> {
             self.report.issues.push(SourceDiscoveryIssue {
                 path,
                 profile_id,
+                direct_check_profiles,
                 message,
             });
         } else {

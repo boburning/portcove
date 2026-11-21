@@ -56,7 +56,25 @@
     "download_asset_hints": {
       "windows-x86-64": ["omnispeak-win64-", ".zip"]
     },
-    "platforms": ["linux-x86-64"]
+    "platforms": ["linux-x86-64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "commander-keen-6",
+      "evidence_urls": [
+        "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
+        "https://github.com/sulix/omnispeak"
+      ],
+      "source_editions": [
+        {
+          "id": "commander-keen-6-pc",
+          "title": "Commander Keen 6 (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,
@@ -70,6 +88,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -79,19 +98,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "sulix/omnispeak",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "sulix/omnispeak"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

@@ -2,6 +2,7 @@
   "failure": {
     "copied": "Copiado",
     "copyExitCode": "Copiar código de salida",
+    "copyFailed": "No se pudo copiar el código de salida. Selecciona y copia el código de arriba, o vuelve a intentarlo.",
     "exitCode": "Código de salida <code/>",
     "label": "Último inicio",
     "openActivity": "Abrir Actividad",
@@ -19,7 +20,7 @@
     "label": "Componentes de Microsoft",
     "missing": "Lo más probable es que a Windows le falte algo que este juego necesita para iniciarse:",
     "nextAction": "Instala los componentes indicados desde Microsoft y vuelve a comprobarlos aquí.",
-    "present": "Los componentes comprobados están instalados. Selecciona Jugar para volver a intentar iniciar el juego.",
+    "present": "Los componentes comprobados están instalados.",
     "recheck": "Volver a comprobar los componentes",
     "unconfirmed": "Portcove no pudo confirmar que todos los componentes necesarios estén instalados. Puedes volver a comprobarlos.",
     "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",

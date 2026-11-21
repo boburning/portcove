@@ -5,6 +5,14 @@
     "name": "Tomb Raider (OpenLara)",
     "summary": "Use a prepared OpenLara Windows player with your own complete Tomb Raider I PC retail data and matching audio and video. Keep its working game folder and AppData/OpenLara profile backed up. Console data and later Tomb Raider games are different inputs; campaign, patch and save compatibility have not been confirmed.",
     "original_game_title": "Tomb Raider",
+    "artwork": {
+      "game_id": 912,
+      "cover_id": 162573,
+      "image_id": "co3hfx",
+      "image_sha256": "eb17da4235548757ea89c188d94938463249919fc2aa43e265cf8f83c9395776",
+      "game_slug": "tomb-raider",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/XProger/OpenLara",
     "platforms": [],
     "availability": "unknown",
@@ -39,6 +47,15 @@
         "Use only content and a copy you are already permitted to use. Engine licensing does not grant original-game, music, mod or third-party rights.",
         "Preserve complete creating runtimes and all effective player-data roots before changes; shared profiles are not isolated by another executable."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tomb-raider",
+      "evidence_urls": [
+        "https://github.com/XProger/OpenLara/tree/f145f0b9892ad2c509210d2b09f124a39fa79b7f",
+        "https://github.com/XProger/OpenLara"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

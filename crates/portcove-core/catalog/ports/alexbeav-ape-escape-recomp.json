@@ -19,8 +19,6 @@
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
-      "windows-x86-64": ["Ape-Escape-Recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["Ape-Escape-Recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["Ape-Escape-Recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["Ape-Escape-Recomp-", "-macos-arm64.zip"]
     },
@@ -53,8 +51,27 @@
           "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ape-escape",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "ape-escape-playstation",
+          "title": "Ape Escape (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Alexbeav/ape-escape-recomp/blob/53687196c5d93f3a77f89893e0a3f56b9d726a0e/game.toml"
+          ]
+        }
+      ]
     }
   },
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -75,42 +92,6 @@
       "windows-x86-64": ["Ape_Escape_Recompiled.exe"],
       "linux-x86-64": ["Ape_Escape_Recompiled"]
     },
-    "persistent_paths": [
-      "saves",
-      "settings.toml",
-      "input.ini",
-      "keybinds.ini",
-      "config.ini",
-      "disc.cfg",
-      "bios.cfg",
-      "mods/installed",
-      "mods/packages",
-      "mods/.staging",
-      "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/texture-packs",
-      "overlay-captures"
-    ],
-    "runtime_mutable_paths": [
-      "cache",
-      "psx_freeze_heartbeat.json",
-      "psx_freeze_heartbeat.json.tmp",
-      "psx_last_run_report.json",
-      "psx_cps_exit_trace.json",
-      "netplay_lan_lobby.txt",
-      "psx_crash.txt"
-    ],
-    "runtime_mutable_file_patterns": [
-      {
-        "prefix": "psx_freeze_dump_psx-runtime_",
-        "suffix": ".json"
-      }
-    ],
-    "launch_environment": {
-      "PSX_OVERLAY_CAPTURES": "build-portcove/overlay-captures/overlay_captures.json"
-    },
-    "launch_arguments": ["--no-launcher"],
-    "runtime_subdirectory": "build-portcove",
     "presentation": {
       "installation_method": "managed-recompilation",
       "source_requirements": [
@@ -128,8 +109,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching single-disc CHD and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content."
+      "manual_preparation": "Provide your own matching single-disc CHD and retail SCPH-1001 BIOS. The managed Windows and Linux routes build with that BIOS and skip the setup launcher when playing. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL, framework PolyForm Noncommercial and UI/OpenBIOS MIT terms; their notices grant no rights to retail game data or generated retail content.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": ["Generation, runtime, lifecycle and gameplay are untested."],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
-  }
+  },
+  "psx_managed_windows_v1": "split-mods-overlay-directory"
 }

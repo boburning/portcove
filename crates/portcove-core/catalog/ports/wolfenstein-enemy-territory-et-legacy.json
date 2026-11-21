@@ -3,7 +3,7 @@
   "listing": {
     "id": "wolfenstein-enemy-territory-et-legacy",
     "name": "Wolfenstein: Enemy Territory (ET: Legacy)",
-    "summary": "Upstream route: Official etlegacy.com stable 2.86.2 desktop installer/archive plus original freely released Wolfenstein: Enemy Territory data; package and original data are distinct. Limits: Maintained native continuation; official download site linked in README. GitHub Releases empty; resolve official package + original free data route. Upstream platforms: Official stable2.86.2 Windows x86/x86-64, Linux i386/x86-64/AArch64 and macOS x86-64/AArch64 installer/archive downloads.64-bit mods must match64-bit client. Original data: Use original free Wolfenstein: Enemy Territory game data under its original EULA; copy pak0.pk3 into etmain/. Third-party mods may also need pak1.pk3 and pak2.pk3. README links Splash Damage for the free release and targets compatibility with ET 2.60b; the GPL engine/mod source alone does not include game data. Portcove setup/gameplay not verified.",
+    "summary": "ET: Legacy runs Wolfenstein: Enemy Territory on Windows, Linux and Mac. Download the engine from etlegacy.com and supply pak0.pk3 from the original free game. Some mods need two additional data files and a client that matches their architecture.",
     "original_game_title": "Wolfenstein: Enemy Territory",
     "project_url": "https://github.com/etlegacy/etlegacy",
     "platforms": [],
@@ -46,7 +46,22 @@
       "warnings": [
         "Use only components you are already permitted to use; public engine source or releases do not grant original-game, music, mod or middleware rights.",
         "Keep the complete creating runtime and all actual effective data/profile roots before changes. Another executable can share the same player profile."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The reviewed 2.86.2 release includes Windows x86 and x86-64, Linux i386, x86-64 and AArch64, and Mac Intel and Apple silicon packages. The engine targets ET 2.60b compatibility. The original game data keeps its own license. Put pak0.pk3 and any required pak1.pk3 and pak2.pk3 in etmain/."
+        }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "wolfenstein-enemy-territory",
+      "evidence_urls": [
+        "https://github.com/etlegacy/etlegacy/tree/e12f07957cd0b5fae5f83cea24412ee334ea999a",
+        "https://github.com/etlegacy/etlegacy"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

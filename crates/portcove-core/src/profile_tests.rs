@@ -33,6 +33,7 @@ fn package(id: &str, requires: &[&str]) -> ResolvedPackage {
         native_id: id.into(),
         native_version: Some("1.0.0".into()),
         provider: Some(ProviderPackageRef {
+            binding: None,
             provider: "gamebanana".into(),
             project: "12345".into(),
             file: Some("67890".into()),
@@ -42,6 +43,7 @@ fn package(id: &str, requires: &[&str]) -> ResolvedPackage {
         size: 10,
         enabled: true,
         requires: requires.iter().map(|r| r.to_string()).collect(),
+        provider_requires: Vec::new(),
     }
 }
 
@@ -156,9 +158,10 @@ fn two_profiles_keep_different_originals_for_the_same_requirement() {
 fn revisions_are_append_only_exact_and_keep_the_older_build_recoverable() {
     let (_temporary, service, first) = fixture();
     let default = service.ensure_default_profile("starship").unwrap();
-    let second = install(service.library(), "second", b"second runtime", true);
+    let second = install(service.library(), "second", b"second runtime", false);
+    service.library().activate_staged("starship").unwrap();
     let request = ProfileRevisionRequest {
-        expected_revision: 1,
+        expected_revision: 2,
         install_id: Some(second.id.clone()),
         packages: Some(vec![package("mod.a", &[])]),
         ..Default::default()
@@ -166,7 +169,7 @@ fn revisions_are_append_only_exact_and_keep_the_older_build_recoverable() {
     let next = service
         .create_profile_revision("starship", &default.id, &request)
         .unwrap();
-    assert_eq!((next.revision, next.parent_revision), (2, Some(1)));
+    assert_eq!((next.revision, next.parent_revision), (3, Some(2)));
     let revisions = service.profile_revisions("starship", &default.id).unwrap();
     assert_eq!(revisions[0].build.install_id, first.id);
     assert_eq!(revisions[1].build.install_id, second.id);
@@ -188,11 +191,221 @@ fn revisions_are_append_only_exact_and_keep_the_older_build_recoverable() {
         .connection()
         .unwrap()
         .execute(
-            "UPDATE profile_revisions SET revision_json=replace(revision_json,'mod.a','mod.z') WHERE revision=2",
+            "UPDATE profile_revisions SET revision_json=replace(revision_json,'mod.a','mod.z') WHERE revision=3",
             [],
         )
         .unwrap();
     assert!(service.profile_revisions("starship", &default.id).is_err());
+}
+
+#[test]
+fn default_copy_and_recipe_follow_activation_and_rollback_while_custom_stays_pinned() {
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let custom = service
+        .copy_profile(port_id, &default.id, "Pinned")
+        .unwrap();
+    let second = install(service.library(), "second", b"new runtime", false);
+
+    let inactive = ProfileRevisionRequest {
+        expected_revision: 1,
+        install_id: Some(second.id.clone()),
+        ..Default::default()
+    };
+    assert!(
+        service
+            .create_profile_revision(port_id, &default.id, &inactive)
+            .is_err()
+    );
+
+    service.library().activate_staged(port_id).unwrap();
+    let recipe = service
+        .export_profile_recipe(port_id, &default.id, None)
+        .unwrap();
+    assert_eq!(recipe.runtime.artifact, second.artifact);
+    let copied = service
+        .copy_profile(port_id, &default.id, "Current copy")
+        .unwrap();
+    assert_eq!(
+        service.profile_revisions(port_id, &copied.id).unwrap()[0]
+            .build
+            .install_id,
+        second.id
+    );
+    assert_eq!(
+        service.profile_revisions(port_id, &custom.id).unwrap()[0]
+            .build
+            .install_id,
+        first.id
+    );
+    let connection = service.library().connection().unwrap();
+    assert_eq!(
+        selection(&connection, port_id).unwrap(),
+        Some((default.id.clone(), 2))
+    );
+
+    service.library().rollback(port_id).unwrap();
+    let revisions = service.profile_revisions(port_id, &default.id).unwrap();
+    assert_eq!(revisions.len(), 3);
+    assert_eq!(revisions[2].build.install_id, first.id);
+    assert_eq!(revisions[2].save_group, revisions[0].save_group);
+    let retained = service
+        .resolve_retained_build(port_id, &default.id)
+        .unwrap();
+    assert_eq!(retained.history[0].revision.build.install_id, second.id);
+    let recipe = service
+        .export_profile_recipe(port_id, &default.id, None)
+        .unwrap();
+    assert_eq!(recipe.runtime.artifact, first.artifact);
+}
+
+#[test]
+fn rollback_preserves_an_older_default_offer_when_its_registered_identity_changed() {
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let library = service.library();
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let second = install(library, "second", b"new runtime", true);
+
+    // Simulate a legacy record whose install ID now identifies a different
+    // manifest. Current bound-install writers already refuse this mutation.
+    let path = first.path.join(".portcove-manifest.json");
+    let mut bytes = std::fs::read(&path).unwrap();
+    bytes.push(b'\n');
+    std::fs::write(path, &bytes).unwrap();
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "UPDATE installs SET manifest_sha256=?2 WHERE id=?1",
+            params![first.id, hex::encode(Sha256::digest(bytes))],
+        )
+        .unwrap();
+
+    let error = library.rollback(port_id).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let status = library
+        .status(port_id, crate::ReleaseChannel::Stable)
+        .unwrap();
+    assert_eq!(status.active.unwrap().id, second.id);
+    let revisions = service.profile_revisions(port_id, &default.id).unwrap();
+    assert_eq!(revisions.len(), 2);
+    assert_eq!(revisions[0].build.manifest_sha256, first.manifest_sha256);
+    let reference = crate::retained_build::reference_from(&connection, port_id, &default.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(reference.history[0].build, revisions[0].build);
+}
+
+#[test]
+fn default_refresh_repairs_a_legacy_active_pointer_without_rewriting_history() {
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let second = install(service.library(), "second", b"new runtime", false);
+    let connection = service.library().connection().unwrap();
+    connection
+        .execute(
+            "UPDATE port_settings SET active_install_id=?2 WHERE port_id=?1",
+            params![port_id, second.id],
+        )
+        .unwrap();
+    assert!(
+        service
+            .export_profile_recipe(port_id, &default.id, None)
+            .is_err()
+    );
+    assert!(service.copy_profile(port_id, &default.id, "Stale").is_err());
+    let updated = service.ensure_default_profile(port_id).unwrap();
+    assert_eq!(updated.current_revision, 2);
+    assert_eq!(service.ensure_default_profile(port_id).unwrap(), updated);
+    let revisions = service.profile_revisions(port_id, &default.id).unwrap();
+    assert_eq!(revisions[0].build.install_id, first.id);
+    assert_eq!(revisions[1].build.install_id, second.id);
+}
+
+#[test]
+fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
+    use crate::{
+        ReleaseChannel,
+        operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
+        retained_build::MAX_OFFERED_REVISIONS,
+    };
+
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let library = service.library();
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let mut current = first.clone();
+    for number in 0..MAX_OFFERED_REVISIONS {
+        let id = format!("runtime-{number}");
+        current = install(library, &id, id.as_bytes(), true);
+    }
+    let next = install(library, "next", b"next runtime", false);
+    let connection = library.connection().unwrap();
+    let cap = require_default_recovery_capacity(&connection, port_id, &next.id).unwrap_err();
+    assert_eq!(cap.code, ErrorCode::Conflict);
+    assert!(library.activate_staged(port_id).is_err());
+    let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().id, current.id);
+    assert_eq!(status.staged.unwrap().id, next.id);
+    assert!(
+        service
+            .preview_retained_build_removal(port_id, &default.id)
+            .is_err()
+    );
+    assert!(
+        service
+            .preview_retained_build_binding(port_id, &default.id, &next.id)
+            .is_err()
+    );
+
+    // An already materialized historical revision keeps its build until the
+    // player switches away. Current Default activation advances this selection.
+    set_selection(&connection, port_id, &default.id, 1).unwrap();
+    assert!(
+        service
+            .preview_retained_build_revision_retirement(port_id, &default.id, 1)
+            .is_err()
+    );
+    let current_revision = profile_from(&connection, port_id, &default.id)
+        .unwrap()
+        .current_revision;
+    set_selection(&connection, port_id, &default.id, current_revision).unwrap();
+
+    // An interrupted install whose own new build is independent of the offer
+    // can wait for a slot. The player can retire the offer under the port lock.
+    let store = OperationStore::new(library.clone());
+    let mut pending = LifecycleOperation::new(&next.id, LifecycleOperationKind::Install, port_id);
+    pending.install = Some(next.clone());
+    pending.activate = true;
+    pending.phase = LifecyclePhase::PayloadPublished;
+    store.put(&mut pending).unwrap();
+    let plan = service
+        .preview_retained_build_revision_retirement(port_id, &default.id, 1)
+        .unwrap();
+    let authorization = service
+        .authorize_retained_build_revision_retirement(port_id, &default.id, 1, &plan.preview_sha256)
+        .unwrap();
+    let retired = service
+        .retire_retained_build_revision(port_id, &default.id, 1, &authorization.token)
+        .unwrap();
+    assert_eq!(retired.build.install_id, first.id);
+    assert!(store.get(&pending.id).unwrap().is_some());
+    store.remove(&pending.id).unwrap();
+
+    service.library().activate_staged(port_id).unwrap();
+    let profiles = export(&connection).unwrap();
+    let references = crate::retained_build::references_from(&connection).unwrap();
+    assert!(has_retired_history(&profiles, &references));
+    assert!(validate_export(&profiles, &references, false).is_err());
+    validate_export(&profiles, &references, true).unwrap();
+    assert_eq!(profiles[0].revisions[0].build.install_id, first.id);
+    assert_eq!(
+        profiles[0].revisions.last().unwrap().build.install_id,
+        next.id
+    );
+    assert!(first.path.is_dir());
 }
 
 #[test]

@@ -19,7 +19,13 @@
       "game_slug": "tekken-6--3",
       "match_kind": "underlying-game"
     },
-    "availability_override_reason": "GitHub has blocked access to this project's repository for legal reasons (checked November 15, 2026). Portcove keeps this listing for reference and offers no setup or download. If the project becomes available again, Portcove can review it again."
+    "availability_override_reason": "GitHub has blocked access to this project's repository for legal reasons (checked November 15, 2026). Portcove keeps this listing for reference and offers no setup or download. If the project becomes available again, Portcove can review it again.",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-6",
+      "evidence_urls": ["https://github.com/GenryTheFox0/Project-Iron-6"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "kibertoad-chaos-overlords-new-chrome",
+    "artwork": {
+      "game_id": 629,
+      "cover_id": 543952,
+      "image_id": "cobnps",
+      "image_sha256": "f7c8ab0a4a9775aa53f166b0056fbb2795eb0bfcc8427552004dc1603a8ae2cb",
+      "game_slug": "chaos-overlords",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/kibertoad/chaos-overlords-new-chrome",
     "name": "Chaos Overlords / New Chrome",
     "original_game_title": "Chaos Overlords",
@@ -37,6 +45,24 @@
       "warnings": [
         "Original Chaos Overlords saves are a separate format. Keep the creating New Chrome version with your saves and replays because the upstream development format can change.",
         "Upstream describes its Mac installers as unsigned. Review the publisher and follow its macOS setup instructions."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-overlords",
+      "evidence_urls": [
+        "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/0.10.13/README.md",
+        "https://github.com/kibertoad/chaos-overlords-new-chrome"
+      ],
+      "source_editions": [
+        {
+          "id": "chaos-overlords-pc",
+          "title": "Chaos Overlords (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+          ]
+        }
       ]
     }
   }

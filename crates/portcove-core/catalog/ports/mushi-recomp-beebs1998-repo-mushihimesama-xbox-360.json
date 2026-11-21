@@ -3,9 +3,17 @@
   "listing": {
     "id": "mushi-recomp-beebs1998-repo-mushihimesama-xbox-360",
     "name": "Mushihimesama (Xbox 360) — Mushi Recomp (beebs1998-repo)",
-    "original_game_title": "Mushihimesama (Xbox 360)",
+    "original_game_title": "Mushihimesama",
     "summary": "An initial playtest is reported; broad progression coverage unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/beebs1998-repo/rexglue-mushi",
+    "artwork": {
+      "game_id": 47442,
+      "cover_id": 540301,
+      "image_id": "cobkwd",
+      "image_sha256": "6830ccd3115b64cae2d5ad6e1910264fb45e6ef8006af6adb9d3f3caa3b45ee7",
+      "game_slug": "mushihimesama-hd",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/beebs1998-repo/rexglue-mushi"
     },
-    "issue_number": 3211
+    "issue_number": 3211,
+    "original_game": {
+      "format_version": 1,
+      "id": "mushihimesama",
+      "evidence_urls": ["https://github.com/beebs1998-repo/rexglue-mushi"],
+      "source_editions": [
+        {
+          "id": "mushihimesama-xbox-360",
+          "title": "Mushihimesama (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/beebs1998-repo/rexglue-mushi/blob/404d45fbf568f66ccd10a380da8962da84304d53/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

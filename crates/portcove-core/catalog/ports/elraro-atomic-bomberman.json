@@ -38,6 +38,15 @@
         }
       ],
       "help_url": "https://github.com/elraro/atomic-bomberman/blob/47b4c806778c9e476e44da2d2ebf5d38184e2104/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "atomic-bomberman",
+      "evidence_urls": [
+        "https://github.com/elraro/atomic-bomberman",
+        "https://github.com/elraro/atomic-bomberman/blob/47b4c806778c9e476e44da2d2ebf5d38184e2104/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

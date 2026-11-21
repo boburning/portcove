@@ -40,6 +40,15 @@
       ],
       "help_url": "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md"
     },
-    "download_block_reason": "The published port identifies compiled upstream function bodies whose originating project has no published license; the parent MIT grant excludes those components. Portcove has no established acquisition basis for that scope. Reconsider with attributable permission or a reviewed released package that replaces the affected code. Permitted existing copies keep their non-owning setup route."
+    "download_block_reason": "The published port identifies compiled upstream function bodies whose originating project has no published license; the parent MIT grant excludes those components. Portcove has no established acquisition basis for that scope. Reconsider with attributable permission or a reviewed released package that replaces the affected code. Permitted existing copies keep their non-owning setup route.",
+    "original_game": {
+      "format_version": 1,
+      "id": "parasite-eve",
+      "evidence_urls": [
+        "https://github.com/Blizz127/parasite-eve-decomp-port/blob/472469adf1bd96bac9a0b75499732a6e44435d39/README.md",
+        "https://github.com/Blizz127/parasite-eve-decomp-port"
+      ],
+      "source_editions": []
+    }
   }
 }

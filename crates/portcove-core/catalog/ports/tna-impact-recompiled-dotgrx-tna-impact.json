@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tna-impact-recompiled-dotgrx-tna-impact",
+    "artwork": {
+      "game_id": 5228,
+      "cover_id": 430567,
+      "image_id": "co9887",
+      "image_sha256": "dbd3aa2ebebe03d6bdcfb7ed585b2e3c8c462cb160bde3c1d3bccff66949568a",
+      "game_slug": "tna-impact",
+      "match_kind": "underlying-game"
+    },
     "name": "TNA iMPACT! — TNA iMPACT! Recompiled (dotGrx)",
     "original_game_title": "TNA iMPACT!",
     "summary": "The player runtime and controls are documented. Campaign and match completion are unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp"
     },
-    "issue_number": 3267
+    "issue_number": 3267,
+    "original_game": {
+      "format_version": 1,
+      "id": "tna-impact",
+      "evidence_urls": ["https://github.com/dotGrx/TNA-IMPACT-Recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

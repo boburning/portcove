@@ -32,7 +32,7 @@ export function useActionReview<T>({
   const [reviewed, setReviewed] = useState<{ identity: string; value: T }>();
   const preview = reviewed?.identity === identity ? reviewed.value : undefined;
   const [pending, setPending] = useState<"review" | "apply">();
-  const [error, setError] = useState<unknown>();
+  const [failure, setFailure] = useState<{ phase: "review" | "apply"; error: unknown }>();
   const dismiss = () => {
     if (inFlight.current !== "apply") callbacks.current.close();
   };
@@ -42,7 +42,7 @@ export function useActionReview<T>({
     inFlight.current = "review";
     setPending("review");
     setReviewed(undefined);
-    setError(undefined);
+    setFailure(undefined);
     try {
       const value = await callbacks.current.load();
       if (requests.current.isCurrent(request)) {
@@ -50,7 +50,7 @@ export function useActionReview<T>({
         return value;
       }
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(value);
+      if (requests.current.isCurrent(request)) setFailure({ phase: "review", error: value });
     } finally {
       if (requests.current.isCurrent(request)) {
         inFlight.current = undefined;
@@ -71,7 +71,7 @@ export function useActionReview<T>({
     const request = requests.current.begin();
     inFlight.current = "apply";
     setPending("apply");
-    setError(undefined);
+    setFailure(undefined);
     let cancelled = false;
     try {
       const result = await callbacks.current.apply(preview);
@@ -80,9 +80,9 @@ export function useActionReview<T>({
       else if (result === "cancelled") {
         cancelled = callbacks.current.retainOnCancel;
         if (!cancelled) callbacks.current.close();
-      } else setError(unconfirmedApply);
+      } else setFailure({ phase: "apply", error: unconfirmedApply });
     } catch (value) {
-      if (requests.current.isCurrent(request)) setError(value);
+      if (requests.current.isCurrent(request)) setFailure({ phase: "apply", error: value });
     } finally {
       if (requests.current.isCurrent(request)) {
         inFlight.current = undefined;
@@ -94,7 +94,8 @@ export function useActionReview<T>({
   return {
     preview,
     pending,
-    error: error === unconfirmedApply ? failureMessage : error,
+    error: failure?.error === unconfirmedApply ? failureMessage : failure?.error,
+    failurePhase: failure?.phase,
     review,
     execute,
     dismiss,

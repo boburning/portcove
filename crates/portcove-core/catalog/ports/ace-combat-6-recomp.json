@@ -42,6 +42,24 @@
         }
       ],
       "help_url": "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ace-combat-6-fires-of-liberation",
+      "evidence_urls": [
+        "https://github.com/sal063/AC6_recomp/blob/v1.0.0-beta.2/README.md",
+        "https://github.com/sal063/AC6_recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "ace-combat-6-fires-of-liberation-xbox-360",
+          "title": "Ace Combat 6: Fires of Liberation (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sal063/AC6_recomp/blob/09144bb092ad871584808aeead69c395edbd5200/README.md"
+          ]
+        }
+      ]
     }
   },
   "integration": {

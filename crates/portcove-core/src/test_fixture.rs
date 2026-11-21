@@ -5,6 +5,15 @@ use std::{
 };
 
 #[cfg(test)]
+pub(crate) fn grow_catalog_evidence(document: &mut crate::CatalogDocument, bytes: usize) {
+    let evidence = &mut document.source_catalog.as_mut().unwrap().evidence;
+    let mut record = evidence.first().unwrap().clone();
+    record.id = "synthetic-catalog-capacity".into();
+    record.claim = "Synthetic capacity fixture. ".repeat(bytes.div_ceil(28));
+    evidence.push(record);
+}
+
+#[cfg(test)]
 pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     serde_json::json!({
         "provider":"gitlab", "repository":"example/game", "repository_id":7,
@@ -18,6 +27,28 @@ pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
             "assets_complete":true, "assets":[]
         }]
     })
+}
+
+pub(crate) fn retained_devilutionx_appimage_catalog() -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut document = catalog.authoritative_document();
+    for id in ["diablo-devilutionx", "diablo-hellfire-devilutionx"] {
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        let linux = crate::Platform::LinuxX86_64;
+        port.release.linux_tar_xz = false;
+        port.linux_packaged_library = None;
+        port.release
+            .asset_hints
+            .insert(linux, vec!["devilutionx-linux-x86_64.appimage".into()]);
+        port.executable_hints
+            .insert(linux, vec!["devilutionx.AppImage".into()]);
+        port.reviewed_package_layouts.remove(&linux);
+    }
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
 }
 
 pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
@@ -92,6 +123,36 @@ pub(crate) fn archive_file_links_capability(port: &crate::PortDefinition) -> u32
         .map_or(archive, |profile| profile.max(archive))
 }
 
+pub(crate) fn retained_manual_dhewm3_catalog(id: &str) -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let snapshot: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/retained-dhewm3-manual-2026-11-16.json"
+    ))
+    .unwrap();
+    let Some(retained) = snapshot["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|port| port["id"] == id)
+    else {
+        return catalog;
+    };
+    let mut document = catalog.authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == id)
+        .unwrap();
+    *port = serde_json::from_value(retained.clone()).unwrap();
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .contracts
+        .retain(|contract| contract.port_id != id);
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 pub(crate) fn definition_requirements(
     port: &crate::PortDefinition,
     default_version: u32,
@@ -117,6 +178,11 @@ pub(crate) fn definition_requirements(
             json!({"template":port.adapter,"minimum_version":version,"maximum_version":version}),
         ];
     }
+    let default_version = if crate::preparation::source::native_relative(port) {
+        default_version.max(crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY)
+    } else {
+        default_version
+    };
     let default_version = if crate::persistence::requires_psx_retained_scope(port) {
         default_version.max(crate::persistence::PSX_RETAINED_SCOPE_CAPABILITY)
     } else {
@@ -151,6 +217,16 @@ pub(crate) fn definition_requirements(
             .is_ok_and(|catalog| catalog.requires_psx_multi_track_set(port))
     {
         default_version.max(crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.linux_packaged_library.is_some() {
+        default_version.max(crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY)
+    } else {
+        default_version
+    };
+    let default_version = if port.mod_provider_bindings.is_some() {
+        default_version.max(crate::provider_binding::capability(port).unwrap().1)
     } else {
         default_version
     };
@@ -244,6 +320,15 @@ pub(crate) fn legacy_opentyrian_indexed_port(
 
 pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::CatalogDocument {
     let mut document = catalog.authoritative_document();
+    for port in &mut document.ports {
+        if port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+        {
+            port.game_settings = None;
+        }
+    }
     if let Some(port) = document
         .ports
         .iter_mut()
@@ -251,6 +336,25 @@ pub(crate) fn indexed_fixture_document(catalog: &crate::Catalog) -> crate::Catal
     {
         *port = legacy_opentyrian_indexed_port(port);
     }
+    for port in &mut document.ports {
+        port.mod_loader = None;
+    }
+    document
+}
+
+pub(crate) fn indexed_fixture_document_for_port(
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> crate::CatalogDocument {
+    let mut document = indexed_fixture_document(catalog);
+    let selected = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap();
+    let port = catalog.port(port_id).unwrap();
+    selected.mod_loader.clone_from(&port.mod_loader);
+    selected.game_settings.clone_from(&port.game_settings);
     document
 }
 
@@ -323,16 +427,17 @@ pub(crate) struct IndexedCatalogFixture<'a> {
 impl<'a> IndexedCatalogFixture<'a> {
     pub(crate) fn new(catalog: &'a crate::Catalog, port_id: &str) -> Self {
         use sha2::{Digest, Sha256};
+        let port = catalog.port(port_id).unwrap();
         // Keep a noncanonical byte witness for exact retention tests without
         // repeating pretty-print whitespace throughout the complete projection.
+        let schema = if port.mod_loader.is_some() { 3 } else { 1 };
         let mut contract = serde_json::to_vec(&serde_json::json!({
-            "contract_schema":1,"representation":"catalog_projection",
-            "catalog":indexed_fixture_document(catalog)
+            "contract_schema":schema,"representation":"catalog_projection",
+            "catalog":indexed_fixture_document_for_port(catalog, port_id)
         }))
         .unwrap();
         contract.push(b'\n');
         let contract_sha256 = hex::encode(Sha256::digest(&contract));
-        let port = catalog.port(port_id).unwrap();
         Self {
             port: if port_id == "opentyrian-opentyrian" {
                 std::borrow::Cow::Owned(legacy_opentyrian_indexed_port(port))
@@ -356,8 +461,10 @@ impl<'a> IndexedCatalogFixture<'a> {
         {
             // The newest staged-source requirement, so it stays first.
             crate::adapter::SNES_COPIER_HEADER_CAPABILITY
-        } else if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        } else if let Some((_, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(port)
+        {
+            minimum
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; it is the newest
             // staged-source requirement, so it stays first.
@@ -432,6 +539,8 @@ impl<'a> IndexedCatalogFixture<'a> {
             version
         } else if port.mod_package_policy.is_some() {
             24
+        } else if crate::managed_chocolate::applies(port) {
+            crate::managed_chocolate::CAPABILITY
         } else if crate::persistence::ready_staged_archive(port) {
             23
         } else if crate::managed_runtime_policy::requires_provider_resolution(port) {
@@ -502,7 +611,7 @@ impl<'a> IndexedCatalogFixture<'a> {
             1
         };
         let entry = serde_json::to_vec_pretty(&json!({
-        "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
+        "definition_schema":if port.mod_loader.is_some() { 3 } else { 1 },"namespace":"official","stable_id":port_id,"revision":revision,
         "required_capabilities":definition_requirements(port, capability_version),
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]
@@ -583,7 +692,7 @@ fn indexed_fixture_revisions_preserve_full_catalog_projection() {
         assert_eq!(projection.entry().revision(), revision);
         assert_eq!(
             serde_json::to_value(projection.catalog().authoritative_document()).unwrap(),
-            serde_json::to_value(indexed_fixture_document(&catalog)).unwrap()
+            serde_json::to_value(indexed_fixture_document_for_port(&catalog, port_id)).unwrap()
         );
     }
 }

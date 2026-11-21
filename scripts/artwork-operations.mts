@@ -2,8 +2,12 @@ import {
   assertPreparedArtwork,
   reconcileCatalogArtworkWithdrawals,
 } from "./inspect-igdb-artwork.mts";
+import { hashPattern, imagePattern, matchesString, positiveId } from "./catalog-cover-mapping.mts";
+import { isRecord } from "./runtime-values.mts";
+import type { CatalogMediaSubject } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type {
   ArtworkCatalog,
+  ArtworkPort,
   prepareCatalogArtwork,
   prepareCatalogGameMedia,
 } from "./inspect-igdb-artwork.mts";
@@ -71,9 +75,12 @@ export async function prepareCoverArtworkInOperations(
       original_reused: records.filter((record) => record.reason === "accepted-original-game-reused")
         .length,
       selected: records.filter(
-        (record) => record.mapping !== null && !record.reason.startsWith("accepted-mapping"),
+        (record) =>
+          (record.mapping !== null || Boolean(record.collection?.length)) &&
+          !record.reason.startsWith("accepted-mapping"),
       ).length,
-      fallback: records.filter((record) => record.mapping === null).length,
+      fallback: records.filter((record) => record.mapping === null && !record.collection?.length)
+        .length,
       ...metrics,
     },
     gone_image_ids: gone,
@@ -120,4 +127,193 @@ export async function prepareGameMediaInOperations(
     if (record.image_id && gone.has(record.image_id))
       record.reason = "selected-image-gone-later-in-batch";
   return media;
+}
+
+const sceneRoles = ["header", "screenshot"] as const;
+type SceneRole = (typeof sceneRoles)[number];
+
+function scopeKey(subject: CatalogMediaSubject, role: SceneRole) {
+  return JSON.stringify(
+    subject.kind === "port"
+      ? [subject.kind, subject.port_id, role]
+      : [subject.kind, subject.game_id, subject.source_edition_id, role],
+  );
+}
+
+function sceneSubject(portId: string, value: unknown): CatalogMediaSubject | undefined {
+  if (!isRecord(value)) return undefined;
+  if (value.kind === "port" && value.port_id === portId) return { kind: "port", port_id: portId };
+  if (
+    value.kind === "original" &&
+    typeof value.game_id === "string" &&
+    typeof value.source_edition_id === "string"
+  )
+    return { kind: "original", game_id: value.game_id, source_edition_id: value.source_edition_id };
+  return undefined;
+}
+
+function sceneRole(value: unknown): value is SceneRole {
+  return value === "header" || value === "screenshot";
+}
+
+/** Inventory reviewed catalog rows and bounded provider observations independently of publication. */
+export function sceneCoverage(
+  accepted: ArtworkCatalog,
+  preparation: GameMediaPreparation,
+  selectedPortIds?: readonly string[],
+) {
+  const selected = selectedPortIds && new Set(selectedPortIds);
+  const proposedPorts = new Map(preparation.catalog.ports.map((port) => [port.id, port]));
+  const acceptedPorts = new Set(accepted.ports.map(({ id }) => id));
+  const ports = [
+    ...accepted.ports,
+    ...preparation.catalog.ports.filter(({ id }) => !acceptedPorts.has(id)),
+  ];
+  const gone = new Set(preparation.gone_image_ids);
+  type Observation = GameMediaPreparation["records"][number];
+  const byPort = new Map<string, Observation[]>();
+  const providerGames = new Map<string, Set<number>>();
+  const recordGame = (subject: CatalogMediaSubject, role: SceneRole, gameId: unknown) => {
+    if (!positiveId(gameId)) return;
+    const key = scopeKey(subject, role);
+    const ids = providerGames.get(key) ?? new Set<number>();
+    ids.add(gameId);
+    providerGames.set(key, ids);
+  };
+  for (const observation of preparation.records) {
+    if (!sceneRole(observation.role)) continue;
+    const observations = byPort.get(observation.port_id) ?? [];
+    observations.push(observation);
+    byPort.set(observation.port_id, observations);
+    recordGame(observation.subject, observation.role, observation.provider_game_id);
+  }
+  const inventory = (catalog: ArtworkCatalog) =>
+    new Map(
+      catalog.ports.map((port) => {
+        const assets = [];
+        const media: unknown = port.presentation?.media;
+        if (Array.isArray(media))
+          for (const asset of media) {
+            if (!isRecord(asset) || !sceneRole(asset.role) || !isRecord(asset.igdb)) continue;
+            const subject = sceneSubject(port.id, asset.subject);
+            if (
+              !subject ||
+              !matchesString(imagePattern, asset.igdb.image_id) ||
+              !matchesString(hashPattern, asset.sha256)
+            )
+              continue;
+            assets.push({
+              subject,
+              role: asset.role,
+              scope: scopeKey(subject, asset.role),
+              imageId: asset.igdb.image_id,
+              sha256: asset.sha256,
+              gameId: asset.igdb.game_id,
+            });
+          }
+        return [port.id, assets] as const;
+      }),
+    );
+  const acceptedMedia = inventory(accepted);
+  const proposedMedia = inventory(preparation.catalog);
+  for (const entries of [...acceptedMedia.values(), ...proposedMedia.values()]) {
+    for (const entry of entries) {
+      if (!gone.has(entry.imageId)) recordGame(entry.subject, entry.role, entry.gameId);
+    }
+  }
+  return ports
+    .filter(({ id }) => !selected || selected.has(id))
+    .flatMap((port) => {
+      const observations = byPort.get(port.id) ?? [];
+      const subjects = new Map<string, CatalogMediaSubject>();
+      const add = (subject: CatalogMediaSubject) =>
+        subjects.set(scopeKey(subject, "header"), subject);
+      add({ kind: "port", port_id: port.id });
+      const addEditions = (entry: ArtworkPort | undefined) => {
+        const original = entry?.presentation?.original_game;
+        if (
+          !isRecord(original) ||
+          typeof original.id !== "string" ||
+          !Array.isArray(original.source_editions)
+        )
+          return;
+        for (const edition of original.source_editions) {
+          if (isRecord(edition) && typeof edition.id === "string")
+            add({ kind: "original", game_id: original.id, source_edition_id: edition.id });
+        }
+      };
+      addEditions(port);
+      addEditions(proposedPorts.get(port.id));
+      for (const asset of [
+        ...(acceptedMedia.get(port.id) ?? []),
+        ...(proposedMedia.get(port.id) ?? []),
+      ])
+        add(asset.subject);
+      for (const observation of observations) add(observation.subject);
+      return [...subjects.values()].flatMap((subject) =>
+        sceneRoles.map((role) => {
+          const key = scopeKey(subject, role);
+          const currentImages = (acceptedMedia.get(port.id) ?? []).filter(
+            (asset) => asset.scope === key,
+          );
+          const proposedImages = (proposedMedia.get(port.id) ?? []).filter(
+            (asset) => asset.scope === key,
+          );
+          const admitted = currentImages.filter(({ imageId }) => !gone.has(imageId));
+          const proposed = proposedImages.filter(
+            ({ imageId, sha256 }) =>
+              !gone.has(imageId) &&
+              !admitted.some((asset) => asset.imageId === imageId && asset.sha256 === sha256),
+          );
+          const observed = observations.filter(
+            (item) => item.role === role && scopeKey(item.subject, role) === key,
+          );
+          const withdrawn = [
+            ...new Set([
+              ...currentImages
+                .filter(({ imageId }) => gone.has(imageId))
+                .map(({ imageId }) => imageId),
+              ...observed.flatMap(({ image_id }) =>
+                image_id && gone.has(image_id) ? [image_id] : [],
+              ),
+              ...observed.flatMap(({ withdrawn_image_ids }) =>
+                (withdrawn_image_ids ?? []).filter((id) => gone.has(id)),
+              ),
+            ]),
+          ];
+          const knownGames = providerGames.get(key) ?? new Set<number>();
+          const reasons = [...new Set(observed.map(({ reason }) => reason))].sort();
+          if (!reasons.length)
+            reasons.push(
+              proposedPorts.has(port.id)
+                ? "no-exact-provider-observation"
+                : "outside-proposal-input",
+            );
+          const state =
+            knownGames.size > 1
+              ? "conflicting"
+              : admitted.length
+                ? "admitted"
+                : proposed.length
+                  ? "proposed"
+                  : withdrawn.length
+                    ? "withdrawn"
+                    : reasons.length === 1 && reasons[0] === "provider-role-empty"
+                      ? "missing"
+                      : "unknown";
+          return {
+            port_id: port.id,
+            subject,
+            role,
+            provider: "igdb",
+            provider_game_ids: [...knownGames].sort((a, b) => a - b),
+            state,
+            admitted_image_ids: [...new Set(admitted.map(({ imageId }) => imageId))].sort(),
+            proposed_image_ids: [...new Set(proposed.map(({ imageId }) => imageId))].sort(),
+            withdrawn_image_ids: withdrawn.sort(),
+            reasons,
+          };
+        }),
+      );
+    });
 }

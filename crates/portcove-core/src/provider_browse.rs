@@ -17,8 +17,6 @@ use crate::{
 
 /// Mods listed per browse page.
 const BROWSE_PAGE_SIZE: u32 = 20;
-/// Pages beyond this are not offered; the provider's own site covers deep browsing.
-const MAX_BROWSE_PAGE: u32 = 50;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderBrowsePage {
@@ -46,19 +44,122 @@ pub struct ProviderProjectView {
     /// The project's files; a file ID with this project ID is what `provider-plan`
     /// reviews.
     pub project: ProviderProject,
+    /// Current files that Core can review for this port's loader. The bytes
+    /// still have to pass the ordinary install review.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eligible_file_ids: Option<Vec<String>>,
+    pub observed_at: i64,
+    pub freshness: ProviderFreshness,
+}
+
+/// A bounded snapshot for searching, filtering and sorting before paginating.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderCatalog {
+    pub projects: Vec<ProviderProject>,
+    /// Scope of older unscoped package references, when they belong to this catalog.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub legacy_game_id: Option<String>,
+    /// False when additional or unreadable records may exist.
+    pub complete: bool,
     pub observed_at: i64,
     pub freshness: ProviderFreshness,
 }
 
 impl PortcoveService {
+    pub async fn mod_provider_catalog(
+        &self,
+        port_id: &str,
+        source: &str,
+    ) -> Result<ProviderCatalog> {
+        let client = ProviderClient::for_definition(
+            &self.library,
+            self.catalog().port(port_id)?,
+            Some(source),
+        )?;
+        let legacy_game_id = crate::provider_binding::legacy_binding(port_id, source)
+            .filter(|legacy| *legacy == client.binding())
+            .map(|_| client.game_id());
+        match client {
+            ProviderClient::GameBanana { client, game } => {
+                let first = client.search(game, 1, 50).await?;
+                let expected = first.value.total;
+                let mut freshness = first.freshness;
+                let mut observed_at = first.observed_at;
+                let mut terminal = first.value.complete;
+                let mut projects = first.value.projects;
+                let mut consistent = true;
+                // A full Ship catalog currently fits within this bound. A larger
+                // catalog is offered as a partial snapshot, with explicit coverage.
+                for page in 2..=expected.div_ceil(50).min(12) as u32 {
+                    let Ok(next) = client.search(game, page, 50).await else {
+                        consistent = false;
+                        break;
+                    };
+                    if next.value.total != expected
+                        || (next.freshness == ProviderFreshness::Stale)
+                            != (first.freshness == ProviderFreshness::Stale)
+                        || terminal
+                    {
+                        consistent = false;
+                    }
+                    terminal = next.value.complete;
+                    observed_at = observed_at.min(next.observed_at);
+                    if next.freshness == ProviderFreshness::Stale {
+                        freshness = ProviderFreshness::Stale;
+                    }
+                    projects.extend(next.value.projects);
+                }
+                let game = game.to_string();
+                projects.retain(|project| project.game_id.as_deref() == Some(&game));
+                let mut seen = std::collections::HashSet::new();
+                projects.retain(|project| seen.insert(project.project_id.clone()));
+                // GameBanana does not return download counts on every listing.
+                // Preserve its Most Downloaded order even when counts are absent.
+                Ok(ProviderCatalog {
+                    legacy_game_id,
+                    complete: consistent && terminal && projects.len() as u64 == expected,
+                    projects,
+                    observed_at,
+                    freshness,
+                })
+            }
+            ProviderClient::Thunderstore { client, community } => {
+                let observed = client.community_catalog(&community).await?;
+                let (mut projects, expected) = observed.value;
+                let mut seen = std::collections::HashSet::new();
+                projects.retain(|project| seen.insert(project.project_id.clone()));
+                for project in &mut projects {
+                    project.files.clear();
+                }
+                Ok(ProviderCatalog {
+                    legacy_game_id,
+                    complete: projects.len() == expected,
+                    projects,
+                    observed_at: observed.observed_at,
+                    freshness: observed.freshness,
+                })
+            }
+        }
+    }
+
     /// One page of GameBanana mods for a game with a reviewed binding.
     pub async fn browse_provider_mods(
         &self,
         port_id: &str,
         page: u32,
     ) -> Result<ProviderBrowsePage> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.browse_provider_mods_for_provider(port_id, page, None)
+            .await
+    }
+
+    pub async fn browse_provider_mods_for_provider(
+        &self,
+        port_id: &str,
+        page: u32,
+        provider: Option<&str>,
+    ) -> Result<ProviderBrowsePage> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
         self.browse_provider_mods_via(&client, port_id, page).await
     }
 
@@ -81,12 +182,18 @@ impl PortcoveService {
         page: u32,
     ) -> Result<ProviderBrowsePage> {
         let game_name = self.catalog().port(port_id)?.name.clone();
-        if page == 0 || page > MAX_BROWSE_PAGE {
-            return Err(PortcoveError::usage(format!(
-                "browse pages run from 1 to {MAX_BROWSE_PAGE}"
-            )));
+        if page == 0 {
+            return Err(PortcoveError::usage("browse pages start at 1"));
         }
         let mut observed = client.search(page, BROWSE_PAGE_SIZE).await?;
+        let last_page = if observed.value.complete {
+            page
+        } else {
+            let reported = observed.value.total.div_ceil(u64::from(BROWSE_PAGE_SIZE));
+            u32::try_from(reported)
+                .unwrap_or(u32::MAX)
+                .max(page.saturating_add(1))
+        };
         // The provider filters by game; anything it labels as another game is
         // dropped rather than listed under this one.
         let game_text = client.game_id();
@@ -99,7 +206,7 @@ impl PortcoveService {
         Ok(ProviderBrowsePage {
             port_id: port_id.into(),
             game_name,
-            last_page: MAX_BROWSE_PAGE,
+            last_page,
             other_game_records,
             provider: client.provider().into(),
             page: observed.value,
@@ -114,8 +221,18 @@ impl PortcoveService {
         port_id: &str,
         project_id: &str,
     ) -> Result<ProviderProjectView> {
-        self.catalog().port(port_id)?;
-        let client = ProviderClient::for_port(&self.library, port_id)?;
+        self.provider_project_for_provider(port_id, project_id, None)
+            .await
+    }
+
+    pub async fn provider_project_for_provider(
+        &self,
+        port_id: &str,
+        project_id: &str,
+        provider: Option<&str>,
+    ) -> Result<ProviderProjectView> {
+        let client =
+            ProviderClient::for_definition(&self.library, self.catalog().port(port_id)?, provider)?;
         self.provider_project_via(&client, port_id, project_id)
             .await
     }
@@ -139,17 +256,33 @@ impl PortcoveService {
         port_id: &str,
         project_id: &str,
     ) -> Result<ProviderProjectView> {
-        let game_name = self.catalog().port(port_id)?.name.clone();
+        let port = self.catalog().port(port_id)?;
         let observed = client.project(project_id).await?;
         if observed.value.game_id.as_deref() != Some(client.game_id().as_str()) {
             return Err(PortcoveError::verification(
                 "this project does not belong to the game this port is bound to",
             ));
         }
+        let layout = self.optional_deploy_layout(port_id)?;
+        let eligible_file_ids = match layout {
+            Some(layout) if observed.freshness != ProviderFreshness::Stale => observed
+                .value
+                .files
+                .iter()
+                .filter(|file| {
+                    crate::provider_install::accepts_provider_file(&layout, file)
+                        && crate::provider_install::validate_offer(client, &observed.value, file)
+                            .is_ok()
+                })
+                .map(|file| file.file_id.clone())
+                .collect(),
+            _ => Vec::new(),
+        };
         Ok(ProviderProjectView {
             port_id: port_id.into(),
-            game_name,
+            game_name: port.name.clone(),
             project: observed.value,
+            eligible_file_ids: Some(eligible_file_ids),
             observed_at: observed.observed_at,
             freshness: observed.freshness,
         })

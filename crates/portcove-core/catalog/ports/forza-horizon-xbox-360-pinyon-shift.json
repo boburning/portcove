@@ -4,9 +4,9 @@
     "id": "forza-horizon-xbox-360-pinyon-shift",
     "name": "Forza Horizon (Xbox 360) (Pinyon Shift)",
     "summary": "A playable Forza Horizon preview according to the project, with rendering defects and slowdowns. Its launcher packages for Windows x86-64, Linux x86-64/Steam Deck and Apple Silicon macOS ARM64 build the game locally from your own disc or verified extracted files. Android is a separate alpha with an unconfirmed ABI. Portcove has not confirmed setup or gameplay.",
-    "original_game_title": "Forza Horizon (Xbox 360)",
+    "original_game_title": "Forza Horizon",
     "project_url": "https://github.com/arcanite24/pinyon-shift",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/arcanite24/pinyon-shift",
     "artwork": {
@@ -46,6 +46,25 @@
       ],
       "warnings": [
         "Select the prepared waiting launcher with its source ZIP. Preserve the existing ordinary/portable choice and base, v4 and XE data; finish all upstream setup and maintenance separately."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-horizon",
+      "evidence_urls": [
+        "https://github.com/arcanite24/pinyon-shift/blob/9494adadef6a73b340d204f29cfa75d711b78c6a/README.md",
+        "https://github.com/arcanite24/pinyon-shift"
+      ],
+      "source_editions": [
+        {
+          "id": "forza-horizon-xbox-360",
+          "title": "Forza Horizon (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/arcanite24/pinyon-shift/blob/9494adadef6a73b340d204f29cfa75d711b78c6a/README.md",
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/forza-horizon-xbox-360-pinyon-shift.json"
+          ]
+        }
       ]
     }
   },

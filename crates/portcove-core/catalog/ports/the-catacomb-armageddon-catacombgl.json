@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "the-catacomb-armageddon-catacombgl",
+    "artwork": {
+      "game_id": 71138,
+      "cover_id": 161955,
+      "image_id": "co3gyr",
+      "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+      "game_slug": "curse-of-the-catacombs",
+      "match_kind": "underlying-game"
+    },
     "name": "The Catacomb Armageddon (CatacombGL)",
     "summary": "Use The Catacomb Armageddon with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "The Catacomb Armageddon",
@@ -47,6 +55,24 @@
     "download_asset_hints": {
       "windows-x86-64": ["CatacombGL-Windows-64bit-", ".zip"],
       "linux-x86-64": ["CatacombGL-Linux-", ".tar.xz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-catacomb-armageddon",
+      "evidence_urls": [
+        "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
+        "https://github.com/ArnoAnsems/CatacombGL"
+      ],
+      "source_editions": [
+        {
+          "id": "the-catacomb-armageddon-pc",
+          "title": "The Catacomb Armageddon (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -61,6 +87,7 @@
     },
     "decisions": []
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -70,29 +97,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "ArnoAnsems/CatacombGL",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        },
-        "linux-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "ArnoAnsems/CatacombGL"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

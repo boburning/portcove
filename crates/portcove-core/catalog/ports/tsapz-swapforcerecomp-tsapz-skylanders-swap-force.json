@@ -4,10 +4,18 @@
     "id": "tsapz-swapforcerecomp-tsapz-skylanders-swap-force",
     "name": "Skylanders: Swap Force — tsapZ SwapForceRecomp (tsapZ)",
     "original_game_title": "Skylanders: Swap Force",
+    "artwork": {
+      "game_id": 5159,
+      "cover_id": 91739,
+      "image_id": "co1ysb",
+      "image_sha256": "212d713068cc3c34872c86b17a7468f9a2816207c3835edbe07ea79e47e626de",
+      "game_slug": "skylanders-swap-force",
+      "match_kind": "underlying-game"
+    },
     "summary": "The tutorial and Woodburrow are reported to work with swappers. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SwapForceRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/tsapZ/SwapForceRecomp",
     "manual_setup": {
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/tsapZ/SwapForceRecomp"
     },
-    "issue_number": 3153
+    "issue_number": 3153,
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-swap-force",
+      "evidence_urls": [
+        "https://github.com/tsapZ/SwapForceRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-swapforcerecomp-tsapz-skylanders-swap-force.json"
+      ],
+      "source_editions": [
+        {
+          "id": "skylanders-swap-force-xbox-360",
+          "title": "Skylanders: Swap Force (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/tsapz-swapforcerecomp-tsapz-skylanders-swap-force.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

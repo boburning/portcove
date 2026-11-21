@@ -6,6 +6,14 @@
     "original_game_title": "Road Trip / Choro Q HG 2",
     "summary": "Native setup generates the game on your device. Rendering, input, save-state and widescreen features are project claims. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+    "artwork": {
+      "game_id": 44694,
+      "cover_id": 119202,
+      "image_id": "co2jz6",
+      "image_sha256": "7170c8616c73ace7c1adad6110aea11926d5e7749c06d1c4ef161ecb9a1e4113",
+      "game_slug": "road-trip",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/silentsudin/RoadTripAdventure-recomp"
     },
-    "issue_number": 3062
+    "issue_number": 3062,
+    "original_game": {
+      "format_version": 1,
+      "id": "road-trip-choro-q-hg-2",
+      "evidence_urls": ["https://github.com/silentsudin/RoadTripAdventure-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

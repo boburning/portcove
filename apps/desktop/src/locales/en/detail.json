@@ -29,6 +29,16 @@
     "heading": "What works and known issues",
     "intro": "Availability and testing are separate. Each action checks its own current requirements.",
     "label": "What works and known issues",
+    "launch": {
+      "asks-for-game-files": "Asks for game files",
+      "evidenceObserved": "Observed launch behavior",
+      "evidenceUpstream": "Reported by the project",
+      "first": "First launch",
+      "opens-project-launcher": "Opens the project launcher",
+      "repeat": "Repeat Play",
+      "starts-game-directly": "Starts the game directly",
+      "unknown": "Unknown"
+    },
     "mode": {
       "automatic": "Available in Portcove",
       "manual": "Manual",
@@ -47,7 +57,7 @@
       "separator": " · ",
       "source": "Source",
       "sourceLine": "<link /> · {{date}}",
-      "versionSpecific": "Version-specific evidence: check this exact scope before applying it to your copy. Later releases do not inherit a failure or a fix."
+      "versionSpecific": "These details apply to the scope shown above."
     },
     "noticesUnavailable": "Optional known-issue notices are unavailable. Setup and launch retain their current assessments.",
     "observations": {
@@ -69,13 +79,45 @@
     "unavailable": "Feature details are unavailable. Use the current action assessments and setup instructions.",
     "untested": "{{mode}} · Not tested by this report"
   },
+  "carriedFiles": {
+    "availableBytes": "Space available at the switch",
+    "copied": "Copied into the active version",
+    "copiedBytes": "Bytes copied",
+    "count": "Recorded file count: {{value, number}}",
+    "countUnknown": "The complete file count was not recorded.",
+    "details": "Review the recorded file outcome",
+    "differencesKept": "Some files differed between versions. Each version kept its own copy.",
+    "examplesOnly": "Only recorded path examples are listed.",
+    "folderUnavailable": "Folder is no longer recorded",
+    "fromFolder": "Folder of the version before the switch",
+    "fromVersion": "Version before the switch",
+    "historical": "This records the version switch. It does not recheck the current files.",
+    "insufficientSpace": "Files were left with the earlier version because there was not enough free space.",
+    "largeCopy": "Portcove copied {{size}} of files it did not install into this version.",
+    "noLongerRecorded": "No longer recorded",
+    "packageCopy": "The new version supplied its own copies of some files. Earlier copies were left with the earlier version.",
+    "readFailed": "Some files could not be read and were left with the earlier version.",
+    "removed": "Unchanged copies removed from the target",
+    "requiredBytes": "Space required at the switch",
+    "separate": "Different copies kept separately",
+    "shipped": "Supplied by the new version",
+    "sizeUnknown": "Size unknown",
+    "skippedCount": "Files left because of low space",
+    "sourceModified": "Files were left with the earlier version because its installation had changed.",
+    "sourceNotRechecked": "The earlier version is no longer recorded. Its files have not been rechecked.",
+    "title": "Files kept during the version switch",
+    "toFolder": "Active version folder",
+    "toVersion": "Active version",
+    "unreadable": "Could not be read"
+  },
   "identity": {
     "label": "Game and port identity",
     "offeredChannel": "Offered update channel",
     "originalSystem": "Original system",
     "originalSystemUnspecified": "Original system not specified",
     "runsOn": "Runs on",
-    "selectedChannel": "Selected update channel"
+    "selectedChannel": "Selected update channel",
+    "upstreamPlatform": "{{platform}} · Upstream"
   },
   "requirements": {
     "fallback": "Review Game files and the upstream instructions for this port’s requirements.",
@@ -92,11 +134,24 @@
     "website": "Project website"
   },
   "section": {
+    "configuration": "Game settings",
     "files": "Game files",
     "label": "Game detail sections",
     "manage": "Manage",
+    "mods": "Mods",
     "overview": "Overview",
     "saves": "Saves & backups",
     "versions": "Versions & updates"
+  },
+  "withdrawal": {
+    "installedBadge": "Installed release withdrawn",
+    "installedNext": "You can keep your installed copy and its saves.",
+    "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+    "label": "Withdrawn release",
+    "recommendedBadge": "Recommended release withdrawn",
+    "recommendedNext": "Wait for a compatible release or review the available versions.",
+    "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
+    "rollback": "Review rollback",
+    "versions": "View versions"
   }
 }

@@ -55,15 +55,32 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["xena-warrior-princess-recomp-", "-windows-x64.zip"],
-      "linux-x86-64": ["xena-warrior-princess-recomp-", "-linux-x64.zip"],
       "macos-x86-64": ["xena-warrior-princess-recomp-", "-macos-x64.zip"],
       "macos-aarch64": ["xena-warrior-princess-recomp-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Xena: Warrior Princess"
+    "original_game_title": "Xena: Warrior Princess",
+    "original_game": {
+      "format_version": 1,
+      "id": "xena-warrior-princess",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "xena-warrior-princess-playstation",
+          "title": "Xena: Warrior Princess (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/acb27a20e1c940a243447a1e4b27bccaafdd82eb/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -101,7 +118,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00977) and retail SCPH-1001 BIOS. Portcove checks the track count and the first data-track SHA-1, then prepares the private runtime with your own retail SCPH-1001 BIOS. Play starts the generated player. Keep your original files separately. Native gameplay and save compatibility remain unverified."
+      "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00977) and retail SCPH-1001 BIOS. Portcove checks the track count and the first data-track SHA-1, then prepares the private runtime with your own retail SCPH-1001 BIOS. Play starts the generated player. Keep your original files separately. Native gameplay and save compatibility remain unverified.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up the managed player",
+            "instruction": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "Native gameplay and save compatibility remain unverified."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

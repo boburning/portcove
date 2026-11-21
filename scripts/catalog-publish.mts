@@ -11,6 +11,7 @@ import { createHash } from "node:crypto";
 import {
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -56,13 +57,17 @@ function positive(value: unknown, what: string) {
 /** Current online role versions of a published catalog site, or null when none exists. */
 export function priorVersions(site: string | null): Four<number> | null {
   if (!site || !existsSync(path.join(site, "metadata", "timestamp.json"))) return null;
-  const timestamp = readJson(path.join(site, "metadata", "timestamp.json"));
+  return publishedVersionsFromMetadata((file) => readJson(path.join(site, "metadata", file)));
+}
+
+export function publishedVersionsFromMetadata(read: (file: string) => unknown): Four<number> {
+  const timestamp = read("timestamp.json");
   if (!isRecord(timestamp) || !isRecord(timestamp.signed) || !isRecord(timestamp.signed.meta))
     throw new Error("prior catalog timestamp is malformed");
   const snapshotMeta = timestamp.signed.meta["snapshot.json"];
   if (!isRecord(snapshotMeta)) throw new Error("prior catalog timestamp names no snapshot");
   const snapshotVersion = positive(snapshotMeta.version, "snapshot");
-  const snapshot = readJson(path.join(site, "metadata", `${snapshotVersion}.snapshot.json`));
+  const snapshot = read(`${snapshotVersion}.snapshot.json`);
   if (!isRecord(snapshot) || !isRecord(snapshot.signed) || !isRecord(snapshot.signed.meta))
     throw new Error("prior catalog snapshot is malformed");
   const meta = snapshot.signed.meta;
@@ -170,24 +175,50 @@ export const assemblyConfig = {
   output: "repository",
 };
 
+/** Visitor pages are not TUF repository inputs. Preserve the existing prior
+ * repository files while keeping the whole site's digest as the write guard. */
+export function copyPriorRepository(site: string, output: string) {
+  mkdirSync(output, { recursive: true });
+  for (const name of readdirSync(site)) {
+    if (name === "browse") continue;
+    cpSync(path.join(site, name), path.join(output, name), { recursive: true });
+  }
+}
+
 function write(file: string, value: unknown) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 /** Sorted relative file list with digests, used to detect a concurrent catalog change. */
-export function treeDigest(directory: string): string {
-  const entries: string[] = [];
+export function treeInventory(directory: string) {
+  const files = new Map<string, { sha256: string; bytes: number }>();
   const walk = (dir: string) => {
-    if (!existsSync(dir)) return;
     for (const name of readdirSync(dir).sort()) {
       const full = path.join(dir, name);
-      if (statSync(full).isDirectory()) walk(full);
-      else
-        entries.push(`${path.relative(directory, full).split(path.sep).join("/")} ${sha256(full)}`);
+      const stat = lstatSync(full);
+      if (stat.isDirectory()) walk(full);
+      else if (stat.isFile())
+        files.set(path.relative(directory, full).split(path.sep).join("/"), {
+          sha256: sha256(full),
+          bytes: stat.size,
+        });
+      else throw new Error("catalog site inventory contains a nonregular file");
     }
   };
-  walk(directory);
+  if (existsSync(directory)) {
+    if (!lstatSync(directory).isDirectory()) throw new Error("catalog site is not a directory");
+    walk(directory);
+  }
+  return files;
+}
+
+export function inventoryDigest(files: ReturnType<typeof treeInventory>): string {
+  const entries = [...files].map(([name, file]) => `${name} ${file.sha256}`);
   return createHash("sha256").update(entries.join("\n")).digest("hex");
+}
+
+export function treeDigest(directory: string): string {
+  return inventoryDigest(treeInventory(directory));
 }
 
 /** Bundle files as `{target: sha256}`. */
@@ -208,12 +239,21 @@ export function bundleTargets(bundle: string): Record<string, string> {
 export function publishedTargets(site: string): Record<string, string> {
   const versions = priorVersions(site);
   if (!versions) return {};
+  return publishedTargetsFromMetadata(versions, (file) =>
+    readJson(path.join(site, "metadata", file)),
+  );
+}
+
+export function publishedTargetsFromMetadata(
+  versions: Four<number>,
+  read: (file: string) => unknown,
+) {
   const files: Record<string, string> = {};
   for (const [role, version] of [
     ["official-definitions", versions.definitions],
     ["official-policy", versions.policy],
   ] as const) {
-    const signed = readJson(path.join(site, "metadata", `${version}.${role}.json`));
+    const signed = read(`${version}.${role}.json`);
     if (!isRecord(signed) || !isRecord(signed.signed) || !isRecord(signed.signed.targets))
       throw new Error(`prior catalog ${role} is malformed`);
     for (const [name, entry] of Object.entries(signed.signed.targets)) {
@@ -230,6 +270,19 @@ export function sameTargets(a: Record<string, string>, b: Record<string, string>
   return keys.join("\n") === Object.keys(b).sort().join("\n") && keys.every((k) => a[k] === b[k]);
 }
 
+/** The sole dynamic descriptive target is derived after the conditional build.
+ * Scheduled/manual publications refresh its existing observer input; canonical
+ * input changes are also detected by the public-catalog source fingerprint. */
+export function sameStaticPublicationTargets(
+  bundle: Record<string, string>,
+  published: Record<string, string>,
+) {
+  const previous = { ...published };
+  if (!Object.hasOwn(bundle, "policy/official/catalog.listings.json"))
+    delete previous["policy/official/catalog.listings.json"];
+  return sameTargets(bundle, previous);
+}
+
 /** True when the published timestamp is absent or expires within `hours`. */
 export function renewalDue(site: string | null, now: Date, hours: number) {
   if (!site || !existsSync(path.join(site, "metadata", "timestamp.json"))) return true;
@@ -242,8 +295,8 @@ export function renewalDue(site: string | null, now: Date, hours: number) {
 }
 
 /** The newest first-parent `main` commit whose newest `CI` push run succeeded. */
-export function newestGreen(history: readonly string[], conclusions: ReadonlyMap<string, string>) {
-  return history.find((sha) => conclusions.get(sha) === "success") ?? null;
+export function newestGreen(history: readonly string[], conclusion: (sha: string) => string) {
+  return history.find((sha) => conclusion(sha) === "success") ?? null;
 }
 
 function flag(args: string[], name: string) {
@@ -259,7 +312,7 @@ async function main(argv: string[]) {
     // Scheduled and manual runs publish the newest CI-green main commit.
     const token = process.env.GH_TOKEN;
     if (!token) throw new Error("GH_TOKEN is required");
-    const { mainCiConclusions } = await import("./app-release.mts");
+    const { mainCiConclusion, mainCiConclusions } = await import("./app-release.mts");
     const history = execFileSync(
       "git",
       ["rev-list", "--first-parent", "-n", "100", "origin/main"],
@@ -269,7 +322,8 @@ async function main(argv: string[]) {
     )
       .split("\n")
       .filter(Boolean);
-    const commit = newestGreen(history, await mainCiConclusions(token));
+    const conclusions = await mainCiConclusions(token);
+    const commit = newestGreen(history, (sha) => mainCiConclusion(conclusions, sha));
     if (!commit) throw new Error("no CI-green commit among the latest 100 main commits");
     console.log(`commit=${commit}`);
   } else if (command === "prepare") {
@@ -287,9 +341,12 @@ async function main(argv: string[]) {
     );
     const site = prior === "none" || !existsSync(prior) ? null : prior;
     const versions = priorVersions(site);
-    if (versions) cpSync(site!, path.join(work, "prior"), { recursive: true });
+    if (versions) copyPriorRepository(site!, path.join(work, "prior"));
+    if (versions && existsSync(path.join(site!, "browse")))
+      cpSync(path.join(site!, "browse"), path.join(work, "prior-browse"), { recursive: true });
     const plan = planPublication(versions, new Date());
     write(path.join(work, "plan.json"), plan);
+    write(path.join(work, "context.json"), contextConfig(work, new Date()));
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);
     console.error(`Catalog plan: ${JSON.stringify(plan.versions)} (prior site: ${plan.prior})`);
   } else if (command === "sign-config") {
@@ -305,10 +362,12 @@ async function main(argv: string[]) {
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     write(path.join(work, "assembly.json"), assemblyConfig);
   } else if (command === "unchanged") {
-    // Prints true when the published site already serves exactly this bundle.
+    // Compare fixed reviewed inputs; the sole derived listing target refreshes on the existing cadence.
     const site = flag(args, "prior");
     const published = site === "none" || !existsSync(site) ? {} : publishedTargets(site);
-    console.log(String(sameTargets(bundleTargets(flag(args, "bundle")), published)));
+    console.log(
+      String(sameStaticPublicationTargets(bundleTargets(flag(args, "bundle")), published)),
+    );
   } else if (command === "renewal-due") {
     const site = flag(args, "prior");
     console.log(

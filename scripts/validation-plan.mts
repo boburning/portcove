@@ -263,6 +263,7 @@ const protectedPolicyFiles = withNodeTestCompanions([
   "scripts/roadmap-readiness.mts",
   "scripts/runtime-values.mts",
   "scripts/audit-evidence.mts",
+  "scripts/native-audit-checkpoint.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
   "scripts/github-artifact-download.mts",
@@ -307,6 +308,8 @@ const protectedPolicyFiles = withNodeTestCompanions([
 // is separate. A reviewed test path does not grant ownership to its implementation.
 // New or renamed harness files stay unknown until their ownership is reviewed.
 const nativeScenarioFiles = new Set([
+  "apps/desktop/scripts/desktop-collection-artwork-test.mts",
+  "apps/desktop/scripts/desktop-collection-artwork.test.mts",
   "apps/desktop/scripts/desktop-source-reuse-test.mts",
   "apps/desktop/scripts/desktop-runtime-exit-observation.mts",
   "apps/desktop/scripts/desktop-artwork-observations.mts",
@@ -1739,8 +1742,10 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
 // with a single environment string above MAX_ARG_STRLEN. Bound both transport
 // and inflation; compression never replaces plan/digest/source validation.
 const planJsonByteLimit = 1024 * 1024;
-// Leave 32 KiB below Linux’s 128 KiB per-string exec limit, including the key.
-const planEnvironmentByteLimit = 96 * 1024;
+// A complete catalog-wide diff can exceed 96 KiB after compression. Leave
+// 8 KiB below Linux’s 128 KiB per-string exec limit for the environment key
+// and terminator; the complete path/proof inventory and inflation bound stay intact.
+const planEnvironmentByteLimit = 120 * 1024;
 export function encodeValidationPlanEnvironment(plan: ValidationPlan): string {
   validateValidationPlan(plan);
   const json = JSON.stringify(plan);

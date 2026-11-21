@@ -31,6 +31,90 @@
     opacity: 0.5;
     pointer-events: none;
   }
+  .pair {
+    --pair-stagger: min(5.9cqi, 1rem, 10%);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+  .collection {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    gap: 3cqi;
+    padding: 3cqi;
+  }
+  .tile {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+  }
+  .tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: contain;
+  }
+  .half {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 2 / 3;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding-inline: 3.2cqi 1.8cqi;
+  }
+  .half + .half {
+    padding-inline: 1.8cqi 3.2cqi;
+  }
+  .half img {
+    /* Inset and available height use the same definite half-stage height. */
+    position: relative;
+    inset-block-start: calc(-1 * var(--pair-stagger));
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(100% - 2 * var(--pair-stagger));
+    object-fit: contain;
+    box-shadow:
+      0 9px 20px var(--color-bg-overlay),
+      0 0 0 1px color-mix(in srgb, var(--color-art-text) 15%, transparent);
+    border-radius: 3px;
+  }
+  .half + .half img {
+    inset-block-start: var(--pair-stagger);
+  }
+  .pairBackdropStart {
+    inset: -10% 23% -10% 0;
+    width: auto;
+    height: auto;
+    mask-image: repeating-linear-gradient(
+      to right,
+      var(--color-art-text) 0% 24%,
+      transparent 99% 100%
+    );
+  }
+  .pairBackdropEnd {
+    inset: -10% 0 -10% 23%;
+    width: auto;
+    height: auto;
+    mask-image: repeating-linear-gradient(
+      to left,
+      var(--color-art-text) 0% 24%,
+      transparent 99% 100%
+    );
+  }
   @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
     .backdrop {
       display: none;
@@ -43,5 +127,21 @@
     letter-spacing: -0.08em;
     line-height: var(--leading-display);
     text-shadow: 0 3px 10px var(--color-bg-overlay);
+  }
+  .illustration {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: var(--color-bg-inset);
+  }
+  .illustrationController {
+    color: var(--color-text-muted);
+    stroke-width: 1.35;
+  }
+  @media (forced-colors: active) {
+    .illustrationController {
+      color: CanvasText;
+    }
   }
 }

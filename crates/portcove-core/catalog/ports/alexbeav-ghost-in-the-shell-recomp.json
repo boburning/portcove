@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["ghost-in-the-shell-", "-windows-x64.zip"],
-      "linux-x86-64": ["ghost-in-the-shell-", "-linux-x64.zip"],
       "macos-x86-64": ["ghost-in-the-shell-", "-macos-x64.zip"],
       "macos-aarch64": ["ghost-in-the-shell-", "-macos-arm64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "ghost-in-the-shell",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "ghost-in-the-shell-playstation",
+          "title": "Ghost in the Shell (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp/blob/f87a10922b1eeb537833961e6d37ec20cc445434/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Ghost in the Shell (Europe) complete CHD (SCES-01050, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Ghost in the Shell (Europe) complete CHD (SCES-01050, 1 track) and retail SCPH-5552 BIOS. Portcove builds a private player from the upstream setup kit and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Ghost in the Shell (Europe) disc (SCES-01050) with its single data track and your own retail SCPH-5552 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/ghost-in-the-shell-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-5552-bios"
   }

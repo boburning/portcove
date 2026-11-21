@@ -5,6 +5,14 @@
     "name": "Tony Hawk's Pro Skater (Tony Was A Pro Skater)",
     "summary": "Attach an independently permitted, prepared Tony Hawk’s Pro Skater Windows installation using the LANCommander port. Keep its extracted game data and separate Saved Games tree; upstream owns preparation, restarts and runtime replacement.",
     "original_game_title": "Tony Hawk's Pro Skater",
+    "artwork": {
+      "game_id": 6692,
+      "cover_id": 90981,
+      "image_id": "co1y79",
+      "image_sha256": "6c678c082ed9c612ddaa3f469ef647caaef097a78d1cc0405fc568af4f7ee870",
+      "game_slug": "tony-hawk-s-pro-skater",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -41,6 +49,24 @@
       ],
       "warnings": [
         "Keep the original image, prepared Data and actual Saved Games tree; upstream .mcs import and edition switching can change files or start a successor."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "tony-hawk-s-pro-skater",
+      "evidence_urls": [
+        "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/platform/pc/dist/README.txt",
+        "https://github.com/LANCommander/TonyWasAProSkater"
+      ],
+      "source_editions": [
+        {
+          "id": "tony-hawk-s-pro-skater-playstation",
+          "title": "Tony Hawk's Pro Skater (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/README.md"
+          ]
+        }
       ]
     }
   },

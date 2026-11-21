@@ -53,8 +53,18 @@
         }
       ]
     },
-    "original_game_title": "Caesar III"
+    "original_game_title": "Caesar III",
+    "original_game": {
+      "format_version": 1,
+      "id": "caesar-iii",
+      "evidence_urls": [
+        "https://github.com/Keriew/augustus#running-the-game",
+        "https://github.com/Keriew/augustus"
+      ],
+      "source_editions": []
+    }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -64,19 +74,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "Keriew/augustus",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "Keriew/augustus"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

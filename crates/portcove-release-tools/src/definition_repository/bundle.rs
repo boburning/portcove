@@ -89,7 +89,7 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let index_bytes = files
         .get("definitions/index.json")
         .ok_or_else(|| TufRepositoryError::Invalid("catalog index absent".into()))?;
-    if index_bytes.len() > 4 * 1024 * 1024 {
+    if index_bytes.len() as u64 > DEFINITION_INDEX_MAX {
         return invalid("catalog index bound exceeded");
     }
     expected(index_bytes, &report.index_sha256)?;
@@ -140,7 +140,7 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
             || c.target[7..71] != c.sha256
             || !allowed.insert(c.target.clone())
             || c.length == 0
-            || c.length > 4 * 1024 * 1024
+            || c.length > DEFINITION_CONTENT_MAX
         {
             return invalid("catalog content identity/path/bound differs");
         }
@@ -185,7 +185,9 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
         })?;
         if entry.revision != d.revision
             || entry.target != d.definition_target
-            || !content.contains_key(&entry.target)
+            || !content
+                .get(&entry.target)
+                .is_some_and(|target| target.length <= DEFINITION_INDEX_MAX)
         {
             return invalid("catalog definition index linkage differs");
         }

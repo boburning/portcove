@@ -60,8 +60,27 @@
         }
       ]
     },
-    "original_game_title": "Duke Nukem II"
+    "original_game_title": "Duke Nukem II",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-ii",
+      "evidence_urls": [
+        "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
+        "https://github.com/lethal-guitar/RigelEngine"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-ii-pc",
+          "title": "Duke Nukem II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+          ]
+        }
+      ]
+    }
   },
+  "external_registration_v1": true,
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -71,19 +90,7 @@
     "manually_validated_platforms": [],
     "release": {
       "provider": "user-prepared",
-      "repository": "lethal-guitar/RigelEngine",
-      "user_prepared": {
-        "windows-x86-64": {
-          "trust": "user-selected",
-          "version": "user-managed",
-          "archive_name": "",
-          "archive_size": 0,
-          "archive_sha256": "",
-          "immutable_tree_sha256": "",
-          "executable": "",
-          "mutable_paths": []
-        }
-      }
+      "repository": "lethal-guitar/RigelEngine"
     },
     "presentation": {
       "installation_method": "user-prepared-runtime",

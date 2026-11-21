@@ -3,11 +3,19 @@
   "listing": {
     "id": "wwf-smackdown-2-recomp-fabioap-cpu-wwf-smackdown-2",
     "name": "WWF SmackDown! 2 — WWF-SmackDown-2-Recomp (fabioap-cpu)",
-    "original_game_title": "WWF SmackDown! 2",
+    "original_game_title": "WWF SmackDown! 2: Know Your Role",
+    "artwork": {
+      "game_id": 6444,
+      "cover_id": 576150,
+      "image_id": "cocck6",
+      "image_sha256": "4b987f67896fab09be7e7b210f8333e89ae1a511f2a483d102896fd7f452e276",
+      "game_slug": "wwf-smackdown-2-know-your-role",
+      "match_kind": "underlying-game"
+    },
     "summary": "Experimental project. Upstream rendering/input/memory-card playable; USAonly, other regions untested; performance slogan unqualified. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp"
     },
-    "issue_number": 3541
+    "issue_number": 3541,
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-smackdown-2-know-your-role",
+      "evidence_urls": ["https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp"],
+      "source_editions": [
+        {
+          "id": "wwf-smackdown-2-know-your-role-playstation",
+          "title": "WWF SmackDown! 2: Know Your Role (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp/blob/524a939733e305036032f8d34d27444aebce967f/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

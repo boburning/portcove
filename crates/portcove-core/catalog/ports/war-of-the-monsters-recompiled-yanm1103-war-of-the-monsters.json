@@ -4,10 +4,18 @@
     "id": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
     "name": "War of the Monsters — War of the Monsters Recompiled (yanm1103)",
     "original_game_title": "War of the Monsters",
+    "artwork": {
+      "game_id": 3208,
+      "cover_id": 122903,
+      "image_id": "co2mtz",
+      "image_sha256": "b40321c3832a025c2c4c275c6f1f4df5c3db4f1c74b7900a12b89ba9630ec192",
+      "game_slug": "war-of-the-monsters",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project claims keyboard/gamepad fights, movies, sound and 60 FPS through a source build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp"
     },
-    "issue_number": 3014
+    "issue_number": 3014,
+    "original_game": {
+      "format_version": 1,
+      "id": "war-of-the-monsters",
+      "evidence_urls": ["https://github.com/yanm1103/War_of_the_Monsters_recomp"],
+      "source_editions": [
+        {
+          "id": "war-of-the-monsters-playstation-2",
+          "title": "War of the Monsters (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/yanm1103/War_of_the_Monsters_recomp/blob/bf0c4b4ba657733982d0e7672951dbad8901d149/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

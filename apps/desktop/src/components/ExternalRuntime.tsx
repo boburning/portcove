@@ -4,6 +4,9 @@ import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import { targetInvocationContext } from "../features/operations/invocation-state";
+import { useSetupLaunchDrafts } from "../features/browsing/setup-launch-drafts";
 import {
   readSetupChoice,
   writeSetupChoice,
@@ -18,6 +21,7 @@ import { LatestRequestGeneration } from "../shared/concurrency-state";
 import { ChoiceSelect } from "./ChoiceSelect";
 import type {
   ExternalRuntimePreview,
+  ExternalRuntimeRecord,
   PortDefinition,
   PortListingStatus,
   PortStatus,
@@ -29,7 +33,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { ExternalLink } from "./ExternalLink";
-import { platformLabel } from "../view-model";
+import { failurePresentation, platformLabel } from "../view-model";
 import { sharedRuntimeDisclosure } from "../shared/external-runtime-disclosure";
 import { usesUserSelectedRuntime } from "../shared/external-runtime-trust";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
@@ -55,12 +59,15 @@ type ExternalRuntimeControlProps = {
   status?: PortStatus | undefined;
   generation: number;
   busy: boolean;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
   libraryRoot?: string | undefined;
 };
 
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
+  const owner = useOperationPresentation();
   if (props.status?.active) return null;
+  if (owner?.generation === props.generation && owner.unreadExternalPorts?.has(props.port.id))
+    return <ExternalRegistrationReadback />;
   return (
     <>
       <ExternalRuntimeContext
@@ -73,7 +80,7 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
           port={props.port}
           generation={props.generation}
           busy={props.busy}
-          onChanged={props.onChanged}
+          onChanged={() => void props.onChanged?.()}
         />
       )}
     </>
@@ -84,6 +91,7 @@ export function AuthoredPreparationGuidance({
   port,
   ownership = "external",
   setup,
+  openGuide,
 }: {
   port: CatalogEntry;
   ownership?: "managed" | "external";
@@ -91,6 +99,7 @@ export function AuthoredPreparationGuidance({
     | Pick<NonNullable<PortDefinition["presentation"]>, "manual_setup" | "manual_preparation">
     | null
     | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 }) {
   const guide = setup === undefined ? port.presentation?.manual_setup : setup?.manual_setup;
   const note =
@@ -128,7 +137,9 @@ export function AuthoredPreparationGuidance({
             </details>
           )}
           {guide.help_url && (
-            <ExternalLink href={guide.help_url}>Detailed preparation guide</ExternalLink>
+            <ExternalLink href={guide.help_url} {...(openGuide ? { openUrl: openGuide } : {})}>
+              Detailed preparation guide
+            </ExternalLink>
           )}
           {note && !externalManaged && (
             <details className="text-xs">
@@ -167,7 +178,10 @@ function ExternalPreparationRequirements({ port }: { port: PortDefinition }) {
         {Object.entries(port.release.user_prepared).map(([platform, required]) => (
           <li key={platform}>
             {platformLabel(platform)}: Prepare {required.archive_name} version {required.version},
-            then choose the folder containing <code>{required.executable}</code>.{" "}
+            then choose the folder containing this file:{" "}
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {required.executable}
+            </code>
             <details>
               <summary>File details</summary>Archive SHA-256: <code>{required.archive_sha256}</code>
             </details>
@@ -184,6 +198,7 @@ function ExternalRuntimeContext({
   generation,
   busy,
   onChanged,
+  libraryRoot,
 }: ExternalRuntimeControlProps) {
   const [review, setReview] = useState<
     { kind: "register" | "relink"; path: string } | { kind: "remove" }
@@ -203,6 +218,7 @@ function ExternalRuntimeContext({
         generation={generation}
         busy={busy}
         onChanged={onChanged}
+        libraryRoot={libraryRoot}
       />
     );
   }
@@ -220,12 +236,16 @@ function ExternalRuntimeContext({
     <>
       {registered ? (
         <div>
-          <p>
-            Portcove uses version {registered.version} in place at <code>{registered.path}</code>.
-            It does not copy, update, back up, or delete these files.
-          </p>
+          <div className="grid min-w-0 gap-2">
+            <p>Portcove uses version {registered.version} in place at:</p>
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {registered.path}
+            </code>
+            <p>It does not copy, update, back up, or delete these files.</p>
+          </div>
           <Button
             data-focusable
+            data-external-runtime-next-action
             variant="outline"
             disabled={busy}
             onClick={() => void select("relink")}
@@ -288,22 +308,24 @@ type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   listingStatus?: PortListingStatus | undefined;
   initialDirectory?: string | undefined;
+  openGuide?: ((url: string) => Promise<void>) | undefined;
 };
 
 export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
-  return (
-    <UserSelectedRuntimeEditor
-      key={JSON.stringify([
-        props.port.id,
-        props.generation,
-        props.status?.external_runtime,
-        props.initialDirectory,
-        props.port.pendingSetup?.id,
-        props.libraryRoot,
-      ])}
-      {...props}
-    />
-  );
+  const owner = useOperationPresentation();
+  if (owner?.generation === props.generation && owner.unreadExternalPorts?.has(props.port.id))
+    return <ExternalRegistrationReadback />;
+  const scope = JSON.stringify([
+    props.port.id,
+    props.generation,
+    props.status?.external_runtime,
+    props.initialDirectory,
+    props.port.pendingSetup?.id,
+    props.port.pendingSetup?.state,
+    props.port.listing?.project_url ?? props.port.project_url,
+    props.libraryRoot,
+  ]);
+  return <UserSelectedRuntimeEditor key={scope} {...props} scope={scope} />;
 }
 
 function useUserSelectedRuntimeEditor({
@@ -316,12 +338,25 @@ function useUserSelectedRuntimeEditor({
   listingStatus,
   initialDirectory,
   libraryRoot,
-}: UserSelectedRuntimeProps) {
+  openGuide,
+  scope,
+}: UserSelectedRuntimeProps & { scope: string }) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
   const registered = status?.external_runtime;
   const finishingDownload = port.pendingSetup?.state === "downloaded";
-  const [restored] = useState(() => readSetupChoice(libraryRoot, port.id, port.pendingSetup?.id));
+  const workspaceDrafts = useSetupLaunchDrafts();
+  const pendingId = port.pendingSetup?.id;
+  const drafts = pendingId ? undefined : workspaceDrafts;
+  const slot = port.id;
+  const [restored] = useState(() => {
+    const choice = drafts?.read(slot, scope);
+    return choice ? { choice } : readSetupChoice(libraryRoot, port.id, pendingId);
+  });
+  useLayoutEffect(
+    () => workspaceDrafts?.retireOtherTarget(slot, scope),
+    [workspaceDrafts, slot, scope],
+  );
   const [choiceWarning, setChoiceWarning] = useState(restored.warning);
   const defaults = initialRuntimeValues(restored, registered, finishingDownload, initialDirectory);
   const [executable, setExecutable] = useState(defaults.executable);
@@ -331,7 +366,7 @@ function useUserSelectedRuntimeEditor({
   const savedArguments = registered?.user_selected?.arguments ?? [];
   const preserveStructuredArguments =
     !argumentsEdited && savedArguments.some((argument) => !argument || /[\r\n]/u.test(argument));
-  const [editing, setEditing] = useState(finishingDownload);
+  const [editing, setEditing] = useState(finishingDownload || Boolean(drafts && restored.choice));
   const [launchDetailsOpen, setLaunchDetailsOpen] = useState(!finishingDownload);
   const [selected, setSelected] = useState<SelectedLaunch>();
   const [removing, setRemoving] = useState(false);
@@ -340,20 +375,24 @@ function useUserSelectedRuntimeEditor({
   const markTargetEdited = () => {
     targetEdited.current = true;
   };
-  const pendingId = port.pendingSetup?.id;
   const pendingState = port.pendingSetup?.state;
   const hasRegistered = Boolean(registered && !finishingDownload);
   const rememberSetup = (change: Partial<SetupChoice>) => {
-    setChoiceWarning(
-      writeSetupChoice(libraryRoot, port.id, pendingId, {
-        executable,
-        workingDirectory,
-        argumentLines,
-        argumentsEdited,
-        targetEdited: targetEdited.current,
-        ...change,
-      }),
-    );
+    const choice = {
+      executable,
+      workingDirectory,
+      argumentLines,
+      argumentsEdited,
+      targetEdited: targetEdited.current,
+      ...change,
+    };
+    drafts?.write(slot, scope, choice);
+    setChoiceWarning(writeSetupChoice(libraryRoot, port.id, pendingId, choice));
+  };
+  const clearDraft = () => drafts?.clear(slot, scope);
+  const registrationChanged = () => {
+    clearDraft();
+    return onChanged?.();
   };
   const { suggestions, scanning, refreshTargets } = useRuntimeLaunchTargets({
     portId: port.id,
@@ -426,7 +465,8 @@ function useUserSelectedRuntimeEditor({
     port,
     generation,
     busy,
-    onChanged,
+    onChanged: registrationChanged,
+    clearDraft,
     workingDirectoryId,
     launchDetailsId,
     registered,
@@ -468,6 +508,7 @@ function useUserSelectedRuntimeEditor({
     canRemove,
     chooseExecutable,
     chooseDirectory,
+    openGuide,
   };
 }
 
@@ -507,6 +548,107 @@ function UserSelectedRuntimeEditorView(model: ReturnType<typeof useUserSelectedR
   );
 }
 
+export function RuntimeLaunchFacts({
+  executable,
+  workingDirectory,
+  launchArguments,
+}: {
+  executable: string;
+  workingDirectory: string;
+  launchArguments?: readonly string[] | undefined;
+}) {
+  return (
+    <dl className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
+      <dt>Game program</dt>
+      <dd dir="ltr" className="path-value whitespace-normal">
+        {executable}
+      </dd>
+      <dt>Start in folder</dt>
+      <dd dir="ltr" className="path-value whitespace-normal">
+        {workingDirectory}
+      </dd>
+      {launchArguments && (
+        <>
+          <dt>Launch options (advanced)</dt>
+          <dd>
+            {launchArguments.length
+              ? launchArguments.map((argument, index) => (
+                  <div key={index}>
+                    <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
+                    {argument ? (
+                      <code dir="ltr" className="block whitespace-pre-wrap">
+                        {argument}
+                      </code>
+                    ) : (
+                      <span className="block">Empty argument</span>
+                    )}
+                  </div>
+                ))
+              : "None"}
+          </dd>
+        </>
+      )}
+    </dl>
+  );
+}
+
+function ExternalRegistrationReadback() {
+  return (
+    <p role="status">
+      Launch details saved. Waiting for the library to confirm the current registration.
+    </p>
+  );
+}
+
+function useExternalRegistration(
+  port: Pick<PortDefinition, "id" | "name">,
+  generation: number,
+  relink: boolean,
+) {
+  const owner = useOperationPresentation();
+  const run = async (
+    apply: () => Promise<ExternalRuntimeRecord | null>,
+    onChanged?: () => void | Promise<unknown>,
+  ) => {
+    const task = async () => {
+      const record = await apply();
+      if (record && (!record.id || record.port_id !== port.id))
+        throw new Error(
+          "Portcove could not confirm the registration for this game. Refresh the library.",
+        );
+      return record;
+    };
+    if (!owner?.perform) {
+      const result = await task();
+      if (result) void onChanged?.();
+      return result;
+    }
+    const action = relink ? "Save external launch details" : "Register external installation";
+    return owner.perform(action, task, {
+      ...(onChanged
+        ? {
+            invalidateDiagnostics: false,
+            refresh: async (record) => {
+              if (record) await onChanged();
+            },
+          }
+        : {}),
+      cancelledResult: (result) => result === null,
+      externalRegistrationResult: (result) => result ?? undefined,
+      context: {
+        ...targetInvocationContext(
+          action,
+          { kind: "port", id: port.id, label: gameIdentityLabel(port) },
+          generation,
+        ),
+        operation: "register_external",
+      },
+      propagateFailure: true,
+    });
+  };
+  return run;
+}
+
 function SelectedRuntimeDialog({
   port,
   generation,
@@ -524,9 +666,10 @@ function SelectedRuntimeDialog({
   inline?: boolean;
   busy?: boolean;
   close: () => void;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const register = useExternalRegistration(port, generation, relink);
   const [finished, setFinished] = useState(false);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([port.id, generation, selected, relink]),
@@ -551,26 +694,29 @@ function SelectedRuntimeDialog({
       );
     },
     apply: async (value) => {
-      const record = await (
-        relink ? desktopApi.relinkUserSelectedRuntime : desktopApi.registerUserSelectedRuntime
-      )(
-        port.id,
-        selected.executable,
-        selected.workingDirectory,
-        selected.arguments,
-        value.preview_sha256,
-        generation,
+      const mutate = relink
+        ? desktopApi.relinkUserSelectedRuntime
+        : desktopApi.registerUserSelectedRuntime;
+      const record = await register(
+        () =>
+          mutate(
+            port.id,
+            selected.executable,
+            selected.workingDirectory,
+            selected.arguments,
+            value.preview_sha256,
+            generation,
+          ),
+        onChanged,
       );
-      if (record) {
-        setFinished(true);
-        onChanged?.();
-      }
-      return record ? true : "cancelled";
+      if (record) setFinished(true);
+      return record ? true : record === null ? "cancelled" : false;
     },
     close,
     failureMessage:
       "Portcove couldn't register these launch details. Review the selected executable and working directory.",
   });
+  const launchArguments = preview?.user_selected?.arguments ?? selected.arguments;
   const content = (
     <>
       {inline ? (
@@ -595,30 +741,11 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl
-        hidden={inline && (!preview || preview.executable === selected.executable)}
-        className="grid gap-2 [overflow-wrap:anywhere]"
-      >
-        <dt>Game program</dt>
-        <dd>{preview?.executable ?? selected.executable}</dd>
-        <dt>Start in folder</dt>
-        <dd>{preview?.path ?? selected.workingDirectory}</dd>
-        <dt>Launch options (advanced)</dt>
-        <dd>
-          {selected.arguments.length
-            ? selected.arguments.map((argument, index) => (
-                <div key={index}>
-                  <span className="text-xs text-pc-muted-foreground">Argument {index + 1}</span>
-                  {argument ? (
-                    <code className="block whitespace-pre-wrap">{argument}</code>
-                  ) : (
-                    <span className="block">Empty argument</span>
-                  )}
-                </div>
-              ))
-            : "None"}
-        </dd>
-      </dl>
+      <RuntimeLaunchFacts
+        executable={preview?.executable ?? selected.executable}
+        workingDirectory={preview?.path ?? selected.workingDirectory}
+        launchArguments={launchArguments}
+      />
       {pending === "review" && <p role="status">Checking executable and paths…</p>}
       <ActionReviewFailure error={error} />
       <DialogFooter>
@@ -677,6 +804,23 @@ function SelectedRuntimeDialog({
   );
 }
 
+/** Core emits both digests only when the accepted external release check fails. */
+function isExternalRuntimeDigestMismatch(error: unknown) {
+  if (typeof error !== "object" || !error || !("code" in error) || error.code !== "verification")
+    return false;
+  const context = failurePresentation(error)?.technical_context;
+  const expected = context?.expected_tree_sha256;
+  const actual = context?.actual_tree_sha256;
+  const digest = /^[a-f0-9]{64}$/i;
+  return (
+    typeof expected === "string" &&
+    typeof actual === "string" &&
+    digest.test(expected) &&
+    digest.test(actual) &&
+    expected.toLowerCase() !== actual.toLowerCase()
+  );
+}
+
 function RegisterExternalDialog({
   port,
   mode,
@@ -690,10 +834,11 @@ function RegisterExternalDialog({
   path: string;
   generation: number;
   close: () => void;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
-  const { preview, pending, error, review, execute, dismiss } = useActionReview({
+  const register = useExternalRegistration(port, generation, mode === "relink");
+  const { preview, pending, error, failurePhase, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([mode, port.id, path, generation]),
     retainOnCancel: true,
     load: async (): Promise<ExternalRuntimePreview & { previous_path?: string }> => {
@@ -713,16 +858,19 @@ function RegisterExternalDialog({
     },
     apply: async (preview) => {
       if (preview.shared_preferences) sharedRuntimeDisclosure(preview.shared_preferences);
-      const record = await (
-        mode === "relink" ? desktopApi.relinkExternalRuntime : desktopApi.registerExternalRuntime
-      )(port.id, path, preview.preview_sha256, generation);
-      if (record) onChanged?.();
-      return record ? true : "cancelled";
+      const mutate =
+        mode === "relink" ? desktopApi.relinkExternalRuntime : desktopApi.registerExternalRuntime;
+      const record = await register(
+        () => mutate(port.id, path, preview.preview_sha256, generation),
+        onChanged,
+      );
+      return record ? true : record === null ? "cancelled" : false;
     },
     close,
     failureMessage:
       "Portcove couldn't use this installation. Check the folder before trying again.",
   });
+  const mismatchedPreview = failurePhase === "review" && isExternalRuntimeDigestMismatch(error);
   return (
     <Dialog
       open
@@ -746,13 +894,17 @@ function RegisterExternalDialog({
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
         {preview?.previous_path && (
-          <p className="[overflow-wrap:anywhere]">
-            Previous folder: <code>{preview.previous_path}</code>. Its files stay where they are.
-          </p>
+          <div className="grid min-w-0 gap-2">
+            <p>Previous folder:</p>
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {preview.previous_path}
+            </code>
+            <p>Its files stay where they are.</p>
+          </div>
         )}
         {preview && (
           <div
-            className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
+            className="metadata grid grid-cols-2 gap-[10px]"
             aria-label="External runtime review"
           >
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
@@ -760,16 +912,20 @@ function RegisterExternalDialog({
               {preview.version}
             </span>
             <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
-              {preview.path}
-            </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-              <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
-              {preview.executable}
-            </span>
-            <span className="min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
               <small className="mb-[5px] block text-[var(--color-text-muted)]">Checked files</small>
               {preview.immutable_file_count}
+            </span>
+            <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Folder</small>
+              <code dir="ltr" className="path-value block w-full whitespace-normal">
+                {preview.path}
+              </code>
+            </span>
+            <span className="col-span-2 min-w-0 rounded-pc-md bg-[var(--color-bg-subtle)] p-[12px] text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
+              <small className="mb-[5px] block text-[var(--color-text-muted)]">Game program</small>
+              <code dir="ltr" className="path-value block w-full whitespace-normal">
+                {preview.executable}
+              </code>
             </span>
             {preview.shared_preferences && (
               <p className="col-span-2 [overflow-wrap:anywhere]">
@@ -778,7 +934,15 @@ function RegisterExternalDialog({
             )}
           </div>
         )}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure
+          error={error}
+          summary={
+            mismatchedPreview
+              ? "The files in this folder don’t match the required release. Prepare the required version and check again, or cancel to choose another folder."
+              : undefined
+          }
+          showMutationSummary={!mismatchedPreview}
+        />
         <DialogFooter>
           <ReviewCancelButton
             cancelRef={cancelButton}
@@ -814,7 +978,7 @@ function RemoveExternalDialog({
   port: Pick<PortDefinition, "id" | "name">;
   generation: number;
   close: () => void;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
@@ -826,7 +990,7 @@ function RemoveExternalDialog({
         preview.preview_sha256,
         generation,
       );
-      if (record) onChanged?.();
+      if (record) void onChanged?.();
       return record ? true : "cancelled";
     },
     close,
@@ -853,7 +1017,10 @@ function RemoveExternalDialog({
         {pending === "review" && <p role="status">Checking saved location…</p>}
         {preview && (
           <p>
-            Files will stay in: <code>{preview.path}</code>
+            Files will stay in:{" "}
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {preview.path}
+            </code>
           </p>
         )}
         <ActionReviewFailure error={error} />
@@ -912,7 +1079,7 @@ function RuntimeArgumentEditor(
 ) {
   return (
     <details>
-      <summary data-focusable className="cursor-pointer py-2 font-medium">
+      <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
         Advanced launch options
       </summary>
       {model.preserveStructuredArguments ? (
@@ -922,7 +1089,7 @@ function RuntimeArgumentEditor(
             you change the executable or working directory. This editor can replace the list with
             one argument per line.
           </p>
-          <pre className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
+          <pre dir="ltr" className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap">
             {JSON.stringify(model.savedArguments, null, 2)}
           </pre>
           <Button
@@ -942,8 +1109,8 @@ function RuntimeArgumentEditor(
           <label className="grid gap-1">
             Launch options (advanced) (one per line, optional)
             <textarea
+              dir="ltr"
               className="rounded-pc-md border border-pc-input bg-pc-surface p-2"
-              aria-label="Launch arguments"
               value={model.argumentLines}
               disabled={model.busy}
               onChange={(event) => {
@@ -1007,6 +1174,12 @@ function RuntimeLaunchSuggestions({
                   disabled={model.busy || !model.canEdit}
                   options={[
                     { value: "", label: "Choose a native application…" },
+                    ...(model.executable &&
+                    !suggestions.candidates.some(
+                      (candidate) => candidate.executable === model.executable,
+                    )
+                      ? [{ value: model.executable, label: "Selected game program" }]
+                      : []),
                     ...suggestions.candidates.map((candidate) => ({
                       value: candidate.executable,
                       label: `${candidate.executable}${candidate.supporting_program ? " · Supporting program" : ""}`,
@@ -1028,7 +1201,10 @@ function RuntimeLaunchSuggestions({
               )}
             {model.executable === suggestions.recommended_executable && (
               <p className="[overflow-wrap:anywhere]">
-                Game or launcher: <code>{model.executable}</code>
+                Game or launcher:{" "}
+                <code dir="ltr" className="path-value block w-full whitespace-normal">
+                  {model.executable}
+                </code>
               </p>
             )}
           </>
@@ -1047,6 +1223,7 @@ function RuntimeRegistrationForm({
   | "generation"
   | "busy"
   | "onChanged"
+  | "clearDraft"
   | "workingDirectoryId"
   | "launchDetailsId"
   | "registered"
@@ -1084,6 +1261,7 @@ function RuntimeRegistrationForm({
   | "canRemove"
   | "chooseExecutable"
   | "chooseDirectory"
+  | "openGuide"
 >) {
   return registered && !model.editing ? (
     <ExistingRuntimeActions {...{ registered, model }} />
@@ -1100,11 +1278,14 @@ function RuntimeRegistrationForm({
         Confirm the game executable or its supported native launcher. You or upstream provide
         runtime updates. Adding it saves launch details; Play remains a separate action.
       </p>
-      <AuthoredPreparationGuidance port={model.port} />
+      <AuthoredPreparationGuidance port={model.port} openGuide={model.openGuide} />
       {<RuntimeLaunchSuggestions {...model} />}
       {model.executable && model.executable !== model.suggestions?.recommended_executable && (
         <p className="[overflow-wrap:anywhere]">
-          Game or launcher: <code>{model.executable}</code>
+          Game or launcher:{" "}
+          <code dir="ltr" className="path-value block w-full whitespace-normal">
+            {model.executable}
+          </code>
         </p>
       )}
       <Button
@@ -1133,6 +1314,7 @@ function RuntimeRegistrationForm({
           variant="ghost"
           onClick={() => {
             model.pickerRequests.current.begin();
+            model.clearDraft();
             model.setExecutable(registered.executable);
             model.setWorkingDirectory(registered.path);
             model.setArgumentLines(registered.user_selected?.arguments.join("\n") ?? "");
@@ -1182,13 +1364,17 @@ function RuntimeLaunchDetails(
         </Button>
         {model.executable && (
           <p className="[overflow-wrap:anywhere]">
-            Game program: <code>{model.executable}</code>
+            Game program:{" "}
+            <code dir="ltr" className="path-value block w-full whitespace-normal">
+              {model.executable}
+            </code>
           </p>
         )}
         <label className="grid gap-1" htmlFor={model.workingDirectoryId}>
           Start in folder
           <Input
             id={model.workingDirectoryId}
+            dir="ltr"
             aria-label="Start in folder"
             value={model.workingDirectory}
             disabled={model.busy}
@@ -1427,14 +1613,42 @@ function ExistingRuntimeActions({
   return (
     <>
       <p>
-        You or the upstream launcher manage this installation and its updates. Portcove launches{" "}
-        <code>{registered.executable}</code> using <code>{registered.path}</code> as its working
-        directory. It does not manage its files, settings or saves.
+        You or the upstream launcher manage this installation and its updates. Portcove launches
+        using these details:
+      </p>
+      <dl className="grid min-w-0 gap-3">
+        <div className="min-w-0">
+          <dt>Game program</dt>
+          <dd dir="ltr" className="path-value font-mono whitespace-normal">
+            {registered.executable}
+          </dd>
+        </div>
+        <div className="min-w-0">
+          <dt>Start in folder</dt>
+          <dd dir="ltr" className="path-value font-mono whitespace-normal">
+            {registered.path}
+          </dd>
+        </div>
+        {registered.setup_download && (
+          <div className="min-w-0">
+            <dt>Last recorded setup download</dt>
+            <dd dir="auto" className="path-value font-mono whitespace-normal">
+              {registered.setup_download.filename}
+            </dd>
+            <dd>
+              Release <bdi>{registered.setup_download.release_tag}</bdi>
+            </dd>
+          </div>
+        )}
+      </dl>
+      <p>
+        It does not manage its files, settings or saves.
         {registered.user_selected && " It does not authenticate it as an official package."}
       </p>
       <Button
         variant="outline"
         data-focusable
+        data-external-runtime-next-action
         disabled={model.busy || !model.canEdit}
         onClick={() => model.setEditing(true)}
       >

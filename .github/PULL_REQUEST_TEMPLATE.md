@@ -6,6 +6,7 @@
 
 <!-- Concrete behavior/outcome and material scope boundaries. -->
 <!-- Identify affected stable contracts, user documentation or release snapshots; explain if none needs updating. -->
+<!-- For visible changes to Library, the sidebar, or game details, see the README screenshot refresh steps in docs/media/readme/README.md. -->
 
 ## Verification
 

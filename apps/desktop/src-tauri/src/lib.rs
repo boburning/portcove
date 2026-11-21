@@ -27,6 +27,8 @@ mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
+mod mod_file_commands;
+mod mod_original_commands;
 mod mod_setup_commands;
 mod organization_commands;
 mod output_location;
@@ -38,6 +40,7 @@ mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
 mod source_removal;
+mod startup_context;
 pub mod steam_artwork;
 pub mod steam_entries;
 pub mod steam_entry_commands;
@@ -1255,7 +1258,7 @@ async fn get_port_intents(
     .await
 }
 
-/// Reassesses remembered choices against current files, catalog and tools. Reads only.
+/// Reassesses remembered choices against current files, catalog and tools, saving scan progress.
 #[tauri::command]
 async fn assess_port_intents(
     state: tauri::State<'_, DesktopState>,
@@ -1470,6 +1473,20 @@ async fn get_game_file_scan_matches(
     .await
 }
 
+#[tauri::command]
+async fn get_game_file_scan_registered_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    expected: portcove_core::GameFileScanMatchSummary,
+) -> DesktopResult<portcove_core::GameFileScanRegisteredMatches> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_scan_registered_matches(&expected)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 /// The game-file profiles the current scan matched inside one saved folder,
 /// so its setup choices cover every match. Reads only.
 #[tauri::command]
@@ -1492,9 +1509,14 @@ async fn get_game_file_root_match_profiles(
 async fn get_store_game_installs(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
+    profile_id: Option<String>,
 ) -> DesktopResult<portcove_core::StoreGameInstalls> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
-        service.store_game_installs().map_err(Into::into)
+        match profile_id.as_deref() {
+            Some(profile_id) => service.store_game_installs_for_profile(profile_id),
+            None => service.store_game_installs(),
+        }
+        .map_err(Into::into)
     })
     .await
 }
@@ -1534,7 +1556,7 @@ async fn refresh_game_file_query_at_generation(
     let snapshot = blocking_worker(move || {
         let service = service_at_generation(&worker_state, generation)?;
         service
-            .refresh_game_file_query_with_progress(&request, emit)
+            .refresh_browsing_game_file_query_with_progress(&request, emit)
             .map_err(Into::into)
     })
     .await?;
@@ -2733,14 +2755,10 @@ async fn create_support_bundle(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
-    let directory = diagnostics.directory.clone();
+    let diagnostics = diagnostics.inner().clone();
     // Export is available even when service construction fails. Use the same
     // worker/restart guard as other blocking host work, without requiring ready().
-    blocking_worker(move || {
-        let directory = directory?;
-        support_bundle_for_state(&state, &directory)
-    })
-    .await
+    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?)).await
 }
 
 /// Opens the host-chosen diagnostics directory that support reports are written
@@ -2751,8 +2769,8 @@ async fn create_support_bundle(
 async fn open_support_report_folder(
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
 ) -> DesktopResult<()> {
-    let directory = diagnostics.directory.clone();
-    blocking_worker(move || open_support_report_directory(&directory?)).await
+    let diagnostics = diagnostics.inner().clone();
+    blocking_worker(move || open_support_report_directory(diagnostics.directory()?)).await
 }
 
 fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
@@ -2953,8 +2971,16 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
+    let context = startup_context::new();
     #[cfg(any(windows, target_os = "linux"))]
-    if let Err(message) = runtime_support::check() {
+    if let Err(message) = runtime_support::check(
+        context
+            .config()
+            .bundle
+            .windows
+            .minimum_webview2_version
+            .as_deref(),
+    ) {
         tracing::error!(
             component = "startup",
             phase = "runtime_support",
@@ -3032,17 +3058,45 @@ pub fn run() -> std::process::ExitCode {
             game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
+            mod_original_commands::review_mod_setup_original,
+            mod_original_commands::select_mod_setup_original,
+            mod_original_commands::relink_mod_setup_original,
+            mod_file_commands::inspect_mod_file,
+            mod_file_commands::preserve_mod_file,
             mod_setup_commands::get_mod_setups,
             mod_setup_commands::create_default_mod_setup,
             mod_setup_commands::copy_mod_setup,
+            mod_setup_commands::create_clean_mod_setup,
             mod_setup_commands::use_mod_setup,
+            mod_setup_commands::list_mod_setup_revisions,
+            mod_setup_commands::plan_profile_recovery,
+            mod_setup_commands::apply_profile_recovery,
+            mod_setup_commands::list_mod_setup_recovery_builds,
+            mod_setup_commands::preview_mod_setup_retirement,
+            mod_setup_commands::retire_mod_setup_recovery_build,
+            mod_setup_commands::export_mod_recipe,
+            mod_setup_commands::inspect_mod_recipe,
+            mod_setup_commands::acquire_mod_recipe_package,
+            mod_setup_commands::discard_mod_recipe_review,
+            mod_setup_commands::apply_mod_recipe,
             mod_setup_commands::set_mod_package_enabled,
+            mod_setup_commands::remove_mod_package,
+            mod_setup_commands::set_mod_update_policy,
+            mod_setup_commands::check_provider_mod_updates,
             mod_setup_commands::add_mod_package,
-            mod_setup_commands::browse_provider_mods,
+            mod_setup_commands::jakmods_setup_url,
+            mod_setup_commands::get_jakmods_catalog,
+            mod_setup_commands::open_jakmods_resource,
+            mod_setup_commands::get_mod_provider_catalog,
+            mod_setup_commands::open_provider_mod_project,
             mod_setup_commands::get_provider_project,
             mod_setup_commands::plan_provider_install,
             mod_setup_commands::apply_provider_install,
+            mod_setup_commands::preview_mod_setup_draft,
+            mod_setup_commands::apply_mod_setup_draft,
             mod_setup_commands::discard_provider_install,
+            mod_setup_commands::plan_local_mod_package,
+            mod_setup_commands::apply_local_mod_package,
             mod_setup_commands::review_mod_package_code,
             dat_commands::get_dat_references,
             dat_commands::add_dat_reference,
@@ -3058,6 +3112,7 @@ pub fn run() -> std::process::ExitCode {
             application_update::get_application_update_preferences,
             application_update::set_application_update_preferences,
             cli_context::get_cli_command_context,
+            steam_entry_commands::discover_steam_client_roots,
             steam_entry_commands::list_steam_profiles,
             steam_entry_commands::preview_steam_entry,
             steam_entry_commands::apply_steam_entry,
@@ -3124,6 +3179,8 @@ pub fn run() -> std::process::ExitCode {
             ghostship_recovery::recover_ghostship_legacy_data,
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
+            artwork::get_companion_cover_thumbnail,
+            artwork::get_collection_cover_thumbnail,
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,
@@ -3176,6 +3233,7 @@ pub fn run() -> std::process::ExitCode {
             scan_game_file_roots,
             get_game_file_scan_snapshot,
             get_game_file_scan_matches,
+            get_game_file_scan_registered_matches,
             get_game_file_root_match_profiles,
             get_store_game_installs,
             refresh_game_file_query,
@@ -3210,6 +3268,8 @@ pub fn run() -> std::process::ExitCode {
             catalog_download::download_catalog_package,
             catalog_download::forget_pending_setup,
             catalog_download::open_pending_setup_folder,
+            catalog_download::open_pending_setup_resource,
+            catalog_download::open_catalog_download_release_notes,
             external_runtime_commands::preview_external_runtime_relink,
             external_runtime_commands::preview_managed_route_change,
             external_runtime_commands::change_to_managed_runtime,
@@ -3279,7 +3339,7 @@ pub fn run() -> std::process::ExitCode {
                 })?;
             Ok(())
         })
-        .build(tauri::generate_context!());
+        .build(context);
     match application {
         Ok(application) => application.run(move |_, event| {
             // Tauri exits the process directly, without dropping local guards.

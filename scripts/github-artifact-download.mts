@@ -8,6 +8,8 @@ import type {
 } from "./github-client.mts";
 import { GitHubApiError } from "./github-operation.mts";
 
+export const observerCheckpointArchiveLimit = 16 * 1024 * 1024;
+
 /** GitHub Actions redirects the authenticated API lookup to a short-lived
  * blob URL. Keep that URL out of observations, diagnostics and persistence. */
 type ArtifactDownloadOptions = {
@@ -25,20 +27,24 @@ type ArtifactDownloadOptions = {
     };
 };
 
-async function transferGitHubArtifactArchive(
+async function transferGitHubActionsObject(
   endpoint: string,
   options: ArtifactDownloadOptions,
   maximum: number,
   receive: (chunk: Uint8Array) => void | Promise<void>,
   maximumDuration = 120000,
+  kind: "artifact" | "step-log" = "artifact",
+  charge?: (bytes: number) => void,
 ) {
   const { credential, deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
+  const endpointPattern =
+    kind === "artifact"
+      ? /^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u
+      : /^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/jobs\/[1-9][0-9]{0,15}\/steps\/[1-9][0-9]{0,4}\/logs$/u;
   if (
-    !/^repos\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/actions\/artifacts\/[1-9][0-9]{0,15}\/zip$/u.test(
-      endpoint,
-    ) ||
+    !endpointPattern.test(endpoint) ||
     !Number.isSafeInteger(maxBytes) ||
-    maxBytes < 22 ||
+    maxBytes < (kind === "artifact" ? 22 : 1) ||
     maxBytes > maximum ||
     !Number.isFinite(deadline) ||
     deadline - performance.now() > maximumDuration
@@ -67,10 +73,11 @@ async function transferGitHubArtifactArchive(
   if (
     !delivery ||
     !/^productionresultssa[0-9]+\.blob\.core\.windows\.net$/u.test(delivery.hostname) ||
-    !delivery.pathname.startsWith("/actions-results/")
+    !delivery.pathname.startsWith("/actions-results/") ||
+    (kind === "step-log" && !delivery.searchParams.has("sig"))
   )
     throw new GitHubApiError("redirect_refused", "GitHub artifact delivery address refused");
-  return transferSignedDelivery(delivery, { ...options, fetch: fetcher }, receive);
+  return transferSignedDelivery(delivery, { ...options, fetch: fetcher }, receive, charge);
 }
 
 function downloadRequestPolicy(options: ArtifactDownloadOptions): GitHubRequestPolicy {
@@ -124,6 +131,7 @@ async function transferSignedDelivery(
   delivery: URL,
   options: ArtifactDownloadOptions,
   receive: (chunk: Uint8Array) => void | Promise<void>,
+  charge?: (bytes: number) => void,
 ) {
   const { deadline, maxBytes, fetch: fetcher = globalThis.fetch } = options;
   const remaining = Math.ceil(deadline - performance.now());
@@ -132,6 +140,7 @@ async function transferSignedDelivery(
   const timeout = AbortSignal.timeout(remaining);
   const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
   let bytes = 0;
+  let chargeFailed = false;
   try {
     const response = await fetcher(delivery, {
       method: "GET",
@@ -141,7 +150,11 @@ async function transferSignedDelivery(
     });
     if (response.status !== 200 || !response.body) {
       await response.body?.cancel();
-      throw new GitHubApiError("request_failed", "GitHub artifact delivery unavailable");
+      throw new GitHubApiError(
+        "request_failed",
+        "GitHub artifact delivery unavailable",
+        charge ? { status: response.status } : {},
+      );
     }
     const reader = response.body.getReader();
     const cancel = () => {
@@ -160,6 +173,12 @@ async function transferSignedDelivery(
             "GitHub artifact body contains invalid bytes",
           );
         bytes += payload.byteLength;
+        try {
+          charge?.(payload.byteLength);
+        } catch (error) {
+          chargeFailed = true;
+          throw error;
+        }
         if (bytes > maxBytes)
           throw new GitHubApiError("response_limit", "GitHub artifact exceeds its byte limit");
         await receive(payload);
@@ -172,7 +191,7 @@ async function transferSignedDelivery(
     if (performance.now() >= deadline)
       throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
   } catch (error) {
-    if (error instanceof GitHubApiError) throw error;
+    if (chargeFailed || error instanceof GitHubApiError) throw error;
     if (timeout.aborted)
       throw new GitHubApiError("deadline_exceeded", "GitHub artifact deadline exhausted");
     if (signal.aborted) throw new GitHubApiError("cancelled", "GitHub artifact delivery cancelled");
@@ -183,14 +202,74 @@ async function transferSignedDelivery(
 
 export async function downloadGitHubArtifactArchive(
   endpoint: string,
-  options: ArtifactDownloadOptions & { bufferAllowance?: "ci-provenance" },
+  options: ArtifactDownloadOptions & { bufferAllowance?: "ci-provenance" | "observer-checkpoint" },
 ): Promise<Buffer> {
   const chunks: Uint8Array[] = [];
-  const maximum = (options.bufferAllowance === "ci-provenance" ? 20 : 8) * 1024 * 1024;
-  const bytes = await transferGitHubArtifactArchive(endpoint, options, maximum, (chunk) => {
+  const maximum =
+    options.bufferAllowance === "observer-checkpoint"
+      ? observerCheckpointArchiveLimit
+      : (options.bufferAllowance === "ci-provenance" ? 20 : 8) * 1024 * 1024;
+  const bytes = await transferGitHubActionsObject(endpoint, options, maximum, (chunk) => {
     chunks.push(chunk);
   });
   return Buffer.concat(chunks, bytes);
+}
+
+/** Fixed GitHub Actions step logs, read without forwarding credentials to the signed blob. */
+export async function downloadGitHubWorkflowStepLog(
+  endpoint: string,
+  options: ArtifactDownloadOptions,
+  consumeBytes: (amount: number) => void,
+) {
+  const chunks: Uint8Array[] = [];
+  const reserve = options.lookup?.reserve;
+  let accountingFailure: { error: unknown } | undefined;
+  const preserveAccountingFailure = (error: unknown): never => {
+    accountingFailure = { error };
+    throw error;
+  };
+  const metered: ArtifactDownloadOptions = reserve
+    ? {
+        ...options,
+        lookup: {
+          ...options.lookup,
+          async reserve(request) {
+            const reservation = await Promise.resolve()
+              .then(() => reserve(request))
+              .catch(preserveAccountingFailure);
+            return {
+              consumeBytes(bytes) {
+                try {
+                  reservation.consumeBytes(bytes);
+                } catch (error) {
+                  preserveAccountingFailure(error);
+                }
+              },
+              settle: (observation) => reservation.settle(observation),
+            };
+          },
+        },
+      }
+    : options;
+  try {
+    const length = await transferGitHubActionsObject(
+      endpoint,
+      metered,
+      512 * 1024,
+      (chunk) => {
+        chunks.push(chunk);
+      },
+      20_000,
+      "step-log",
+      consumeBytes,
+    );
+    return Buffer.concat(chunks, length);
+  } catch (error) {
+    // The SDK sanitizes request failures. Preserve application budget errors
+    // from its caller-owned admission and accounting hooks.
+    if (accountingFailure) throw accountingFailure.error;
+    throw error;
+  }
 }
 
 async function transferGitHubReleaseAsset(
@@ -295,11 +374,8 @@ export async function downloadGitHubArtifactArchiveFile(
   options: ArtifactDownloadOptions,
 ) {
   return writeExclusiveDownload(filename, async (file) => {
-    const bytes = await transferGitHubArtifactArchive(
-      endpoint,
-      options,
-      512 * 1024 * 1024,
-      (chunk) => file.writeFile(chunk),
+    const bytes = await transferGitHubActionsObject(endpoint, options, 512 * 1024 * 1024, (chunk) =>
+      file.writeFile(chunk),
     );
     if (bytes !== options.maxBytes)
       throw new GitHubApiError("invalid_response", "GitHub artifact byte count differs");
@@ -317,7 +393,7 @@ export async function downloadRetainedRebootArtifactFile(
     filename,
     async (file) => {
       const digest = createHash("sha256");
-      const bytes = await transferGitHubArtifactArchive(
+      const bytes = await transferGitHubActionsObject(
         endpoint,
         options,
         640 * 1024 * 1024,

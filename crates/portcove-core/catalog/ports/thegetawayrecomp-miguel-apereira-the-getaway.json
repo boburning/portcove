@@ -35,6 +35,12 @@
       "image_sha256": "4e2d416fb01ef83338d839d759d69e658af81e5220b35f25ff4b84b7fd906da5",
       "game_slug": "the-getaway",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-getaway",
+      "evidence_urls": ["https://github.com/miguel-apereira/TheGetawayRecomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

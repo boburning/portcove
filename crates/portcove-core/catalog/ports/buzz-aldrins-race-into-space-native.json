@@ -5,6 +5,14 @@
     "name": "Buzz Aldrin’s Race Into Space",
     "summary": "Direct the American or Soviet space program in the updated strategy game.",
     "project_url": "https://github.com/raceintospace/raceintospace",
+    "artwork": {
+      "game_id": 80723,
+      "cover_id": 55453,
+      "image_id": "eeepswgxaiuaxqt8qlxb",
+      "image_sha256": "ebd2ffef955f3c0aed9c8ae0d7c2761cd1337f18803abfbd150e8543eacc225d",
+      "game_slug": "buzz-aldrins-race-into-space--1",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6133,
     "listed_at": "2026-11-14",
     "original_game_title": "Buzz Aldrin’s Race Into Space",
@@ -30,6 +38,15 @@
           "instruction": "Keep the .raceintospace folder in your home directory when changing versions. If you set BARIS_SAVE, preserve that folder instead. The same location stores the game’s config file."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "buzz-aldrins-race-into-space",
+      "evidence_urls": [
+        "https://github.com/raceintospace/raceintospace/releases/tag/v2.0.0",
+        "https://github.com/raceintospace/raceintospace"
+      ],
+      "source_editions": []
     }
   }
 }

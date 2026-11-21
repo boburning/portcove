@@ -15,14 +15,13 @@ use crate::{Catalog, CatalogDocument, PortcoveError, Result, SourceCatalog};
 /// catalog. Raised from 4 MiB with database writer protocol 60; content above
 /// it is refused, never truncated.
 pub(crate) const MAX_CATALOG_BYTES: usize = 16 * 1024 * 1024;
-/// The bound every client before writer protocol 60 still enforces. Historical
-/// migration 11 keeps it, and the catalog size guard keeps published catalogs
-/// within a stated margin below it until the owner retires those clients.
+/// Historical database constraint used by migration 11. Clients before writer
+/// protocol 60 enforce this bound independently of new publication.
 pub(crate) const LEGACY_MAX_CATALOG_BYTES: usize = 4 * 1024 * 1024;
-/// Published catalogs stay below this share of the legacy bound. The Core
+/// Published catalogs stay below this share of each supported bound. The Core
 /// growth test and `scripts/catalog-capacity.mts --check` both enforce it.
 #[cfg(test)]
-pub(crate) const CATALOG_GROWTH_CEILING_PERCENT: usize = 85;
+pub(crate) const CATALOG_SUPPORTED_CAPACITY_PERCENT: usize = 85;
 pub(crate) const MAX_CATALOG_LIMIT_MESSAGE: &str = "signed catalog exceeds the 16 MiB limit";
 pub(crate) const MAX_SEQUENCE: i64 = 9_007_199_254_740_991;
 const SIGNING_DOMAIN: &[u8] = b"Portcove signed catalog v1\n";
@@ -76,6 +75,51 @@ pub enum CatalogOrigin {
     DefinitionSelected,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CatalogFallbackCode {
+    Unknown,
+    ReplayFloor,
+    UntrustedKey,
+    SignatureInvalid,
+    InvalidValidity,
+    SelectedDefinitionUnavailable,
+    ListingDirectoryUnavailable,
+}
+
+impl CatalogFallbackCode {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::ReplayFloor => "replay_floor",
+            Self::UntrustedKey => "untrusted_key",
+            Self::SignatureInvalid => "signature_invalid",
+            Self::InvalidValidity => "invalid_validity",
+            Self::SelectedDefinitionUnavailable => "selected_definition_unavailable",
+            Self::ListingDirectoryUnavailable => "listing_directory_unavailable",
+        }
+    }
+}
+
+impl PortcoveError {
+    pub(crate) fn with_catalog_fallback(mut self, code: CatalogFallbackCode) -> Self {
+        self.failure.catalog_fallback = Some(code);
+        self
+    }
+
+    pub(crate) fn catalog_fallback(&self) -> Option<CatalogFallbackCode> {
+        self.failure.catalog_fallback.or(match self.known_cause() {
+            Some(crate::failure::KnownFailureCause::CatalogValidity) => {
+                Some(CatalogFallbackCode::InvalidValidity)
+            }
+            Some(crate::failure::KnownFailureCause::CatalogReplay) => {
+                Some(CatalogFallbackCode::ReplayFloor)
+            }
+            _ => None,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogProvenance {
     pub origin: CatalogOrigin,
@@ -84,6 +128,18 @@ pub struct CatalogProvenance {
     pub key_id: Option<String>,
     pub expires_at: Option<i64>,
     pub fallback_reasons: Vec<String>,
+    /// Stable codes in the same order as the legacy diagnostic strings.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fallback_codes: Vec<CatalogFallbackCode>,
+}
+
+impl CatalogProvenance {
+    pub(crate) fn push_fallback(&mut self, code: CatalogFallbackCode, diagnostic: String) {
+        self.fallback_codes
+            .resize(self.fallback_reasons.len(), CatalogFallbackCode::Unknown);
+        self.fallback_codes.push(code);
+        self.fallback_reasons.push(diagnostic);
+    }
 }
 
 pub(crate) struct VerifiedCatalog {
@@ -146,7 +202,10 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let trusted = keys
         .iter()
         .find(|key| key.key_id == envelope.key_id)
-        .ok_or_else(|| PortcoveError::verification("catalog signing key is not trusted"))?;
+        .ok_or_else(|| {
+            PortcoveError::verification("catalog signing key is not trusted")
+                .with_catalog_fallback(CatalogFallbackCode::UntrustedKey)
+        })?;
     let checked = CatalogTrustKey::from_public_key(&trusted.public_key)?;
     if checked.key_id != envelope.key_id {
         return Err(PortcoveError::verification(
@@ -155,12 +214,18 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     }
     let key = VerifyingKey::from_bytes(&decode_hex::<32>(&trusted.public_key)?)
         .map_err(|_| PortcoveError::verification("invalid catalog public key"))?;
-    let signature = Signature::from_bytes(&decode_hex::<64>(&envelope.signature)?);
+    let signature = Signature::from_bytes(
+        &decode_hex::<64>(&envelope.signature)
+            .map_err(|error| error.with_catalog_fallback(CatalogFallbackCode::SignatureInvalid))?,
+    );
     key.verify_strict(
         &signing_message(&envelope.key_id, &envelope.payload),
         &signature,
     )
-    .map_err(|_| PortcoveError::verification("catalog signature verification failed"))?;
+    .map_err(|_| {
+        PortcoveError::verification("catalog signature verification failed")
+            .with_catalog_fallback(CatalogFallbackCode::SignatureInvalid)
+    })?;
     let mut payload: SignedCatalogPayload = serde_json::from_str(&envelope.payload)
         .map_err(|_| PortcoveError::verification("invalid signed catalog payload"))?;
     if !(1..=MAX_SEQUENCE).contains(&payload.sequence)
@@ -183,6 +248,53 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     let baseline = Catalog::embedded()?;
     for port in &mut payload.catalog.ports {
         let original = baseline.port(&port.id)?;
+        if port.release.reviewed_package_choices_v2.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver reviewed package choices",
+            ));
+        }
+        if original.release.reviewed_package_choices_v2.is_some() {
+            port.release
+                .reviewed_package_choices_v2
+                .clone_from(&original.release.reviewed_package_choices_v2);
+            // The old envelope has no choice-specific publisher authority.
+            // Preserve the compiled repository and selection rules with the choice.
+            if serde_json::to_value(&port.release)? != serde_json::to_value(&original.release)? {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot change the release contract for compiled package choices",
+                ));
+            }
+        }
+        if port.mod_loader.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver native mod loader bindings",
+            ));
+        }
+        port.mod_loader.clone_from(&original.mod_loader);
+        let package_only = crate::GameSettingsContract::package_only;
+        if port.game_settings.as_ref().is_some_and(package_only) {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver package-only settings authority",
+            ));
+        }
+        if original.game_settings.as_ref().is_some_and(package_only) {
+            if port.game_settings.is_some()
+                || serde_json::to_value(&port.release)? != serde_json::to_value(&original.release)?
+            {
+                return Err(PortcoveError::verification(
+                    "legacy signed catalogs cannot replace compiled package-only settings authority",
+                ));
+            }
+            port.game_settings.clone_from(&original.game_settings);
+        }
+        if port.mod_provider_bindings.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver mod provider bindings",
+            ));
+        }
+        port.mod_provider_bindings
+            .clone_from(&original.mod_provider_bindings);
+
         if port.windows_shipwright_persistence {
             return Err(PortcoveError::verification(
                 "legacy signed catalogs cannot deliver Shipwright working-directory persistence",
@@ -264,6 +376,7 @@ pub(crate) fn validate_installed_port_contract(
         "platforms",
         "release",
         "upstream_status",
+        "upstream_active_reviewed",
         "presentation",
     ] {
         contract
@@ -383,14 +496,16 @@ pub(crate) fn provenance(
     catalog: &Catalog,
     origin: CatalogOrigin,
     verified: Option<&VerifiedCatalog>,
-    reasons: Vec<String>,
+    fallbacks: Vec<(CatalogFallbackCode, String)>,
 ) -> Result<CatalogProvenance> {
+    let (fallback_codes, fallback_reasons) = fallbacks.into_iter().unzip();
     Ok(CatalogProvenance {
         origin,
         catalog_sha256: digest(&serde_json::to_vec(&catalog.authoritative_document())?),
         sequence: verified.map(|value| value.payload.sequence),
         key_id: verified.map(|value| value.envelope.key_id.clone()),
         expires_at: verified.map(|value| value.payload.expires_at),
-        fallback_reasons: reasons,
+        fallback_reasons,
+        fallback_codes,
     })
 }

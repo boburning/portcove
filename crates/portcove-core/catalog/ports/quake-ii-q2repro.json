@@ -5,6 +5,14 @@
     "project_url": "https://github.com/Paril/q2repro",
     "name": "Quake II / Q2rePRO",
     "original_game_title": "Quake II",
+    "artwork": {
+      "game_id": 261085,
+      "cover_id": 434747,
+      "image_id": "co9bgb",
+      "image_sha256": "0582a3455678d4ed8db6a726c1bfeebf0a70bf7996a26c242ddfa8e6da337f80",
+      "game_slug": "quake-ii--1",
+      "match_kind": "underlying-game"
+    },
     "summary": "Set up the Q2rePRO engine with your own Quake II rerelease installation.",
     "issue_number": 6102,
     "listed_at": "2026-11-15",
@@ -32,6 +40,24 @@
       "warnings": [
         "On Windows in rerelease mode the engine uses the Windows Saved Games folder under NightDive Studios/Quake II. Back up that shared profile before switching engines. A separate executable folder does not isolate the profile.",
         "The publisher marks native rerelease game-DLL multiplayer as unfinished. The nightly release can replace its ZIP in place."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": [
+        "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
+        "https://github.com/Paril/q2repro"
+      ],
+      "source_editions": [
+        {
+          "id": "quake-ii-pc",
+          "title": "Quake II (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md"
+          ]
+        }
       ]
     }
   }

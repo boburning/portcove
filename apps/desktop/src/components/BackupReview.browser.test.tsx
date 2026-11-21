@@ -78,11 +78,42 @@ it("reviews exact paths and safety-backup behavior before a bound restore", asyn
   expect(document.body.textContent).toContain("game must be stopped");
   expect(document.body.textContent).toContain("retains recovery data");
   await captureParityState("backup-restore-reviewed-fixture");
-  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
+  await expect.poll(() => document.activeElement?.id).toBe("backup-review-title");
   await click("Restore this backup");
   expect(apply).toHaveBeenCalledWith(review.preview.backup, "reviewed-data");
   expect(close).toHaveBeenCalledOnce();
 });
+
+it.each([
+  { action: "delete", backup: review.preview.backup },
+  { action: "restore", backup: { ...review.preview.backup, id: "different" } },
+  { action: "restore", backup: { ...review.preview.backup, port_id: "other" } },
+  { action: "restore", backup: { ...review.preview.backup, sha256: "b".repeat(64) } },
+] as const)(
+  "holds a preview that no longer matches the selected backup and action (%#)",
+  async (response) => {
+    vi.spyOn(desktopApi, "previewBackupAction").mockResolvedValue({
+      ...review,
+      preview: { ...review.preview, ...response },
+    });
+    const apply = vi.fn();
+    await root.rerender(
+      <BackupReviewDialog
+        backup={review.preview.backup}
+        action="restore"
+        generation={7}
+        apply={apply}
+        close={vi.fn()}
+      />,
+    );
+    await expect
+      .poll(() => document.body.querySelector('[role="alert"]')?.textContent)
+      .toContain("Close it and refresh backup history.");
+    expect(document.body.textContent).not.toContain("Restore this backup");
+    expect(document.body.textContent).not.toContain("Review again");
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
 
 it("tells the player when the reviewed backup is an automatic snapshot", async () => {
   const automatic = {

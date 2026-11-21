@@ -49,6 +49,24 @@
           "instruction": "Keep the per-user profile or the active portable folder. On Linux, follow the upstream portable-data instructions for your package. Include saves, settings, ghosts and any custom content you want to keep."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "diddy-kong-racing",
+      "evidence_urls": [
+        "https://github.com/ThatGuyMcd/DKR-R/blob/53a78c3e32714957df3e4bad43c1ef7fc82f96dc/README.md",
+        "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "diddy-kong-racing-nintendo-64",
+          "title": "Diddy Kong Racing (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/akratch/goldenballoon/blob/106bad37244a2f8829bab21c655d25ff4b4dcdbf/platform/rom_validation.c"
+          ]
+        }
+      ]
     }
   },
   "integration": {

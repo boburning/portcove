@@ -181,11 +181,14 @@ def main():
                 raise RuntimeError("Owned GTK folder chooser is unavailable")
             return window
 
-        def controls():
+        def controls(until=None):
+            until = deadline if until is None else until
             pending = [(chooser(), 0)]
             found = []
             visited = 0
             while pending:
+                if time.monotonic() >= until:
+                    raise RuntimeError("GTK chooser control observation deadline reached")
                 node, depth = pending.pop()
                 node.clear_cache()
                 visited += 1
@@ -197,9 +200,15 @@ def main():
                 if role in (Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON, Atspi.Role.TEXT, Atspi.Role.ENTRY, Atspi.Role.FILE_CHOOSER):
                     found.append(node)
                 count = node.get_child_count()
-                if count > 512 - visited - len(pending) or (depth == 12 and count):
+                if count < 0 or count > 512 - visited - len(pending) or (depth == 12 and count):
                     raise RuntimeError("GTK chooser child inventory exceeded its bound")
-                pending.extend((node.get_child_at_index(i), depth + 1) for i in range(count))
+                for index in range(count):
+                    if time.monotonic() >= until:
+                        raise RuntimeError("GTK chooser control observation deadline reached")
+                    child = node.get_child_at_index(index)
+                    if child is None:
+                        raise RuntimeError("Owned GTK chooser control inventory changed")
+                    pending.append((child, depth + 1))
             return found
 
         def button(names):
@@ -269,24 +278,47 @@ def main():
             bound_control(node)
             action = node.get_action_iface()
             count = action.get_n_actions() if action is not None else 0
-            if count != captured_count or not 0 <= index < count <= 8 or action.get_action_name(index) != "show_location" or not action.do_action(index):
+            if count != captured_count or not 0 <= index < count <= 8 or action.get_action_name(index) != "show_location" or time.monotonic() >= deadline or not action.do_action(index):
                 raise RuntimeError("Owned GTK location action changed or was refused")
 
-        if directory:
-            def editable(node):
-                states = node.get_state_set()
-                return all(states.contains(state) for state in (Atspi.StateType.EDITABLE, Atspi.StateType.SHOWING, Atspi.StateType.SENSITIVE))
+        def editable(node):
+            if node.get_role() not in (Atspi.Role.TEXT, Atspi.Role.ENTRY):
+                return False
+            states = node.get_state_set()
+            return all(states.contains(state) for state in (Atspi.StateType.EDITABLE, Atspi.StateType.SHOWING, Atspi.StateType.SENSITIVE))
 
+        def location_entry():
+            phase = "initial"
             entries = [node for node in controls() if editable(node)]
             if not entries:
                 show_location()
-                entries = [node for node in controls() if editable(node)]
+                phase = "after-show-location"
+                # GTK can expose the location entry on a later accessibility frame.
+                # The completed action need not remain available after it reveals the field.
+                ready_by = min(deadline, time.monotonic() + 1)
+                while not entries and time.monotonic() < ready_by:
+                    entries = [node for node in controls(ready_by) if editable(node)]
+                    if not entries:
+                        time.sleep(max(0, min(0.05, ready_by - time.monotonic())))
+                if time.monotonic() >= ready_by:
+                    raise RuntimeError(f"GTK location entry deadline reached: phase={phase} count={len(entries)}")
             if len(entries) != 1:
-                raise RuntimeError("Expected one editable owned GTK location field")
-            bound_control(entries[0])
-            if not editable(entries[0]):
-                raise RuntimeError("Owned GTK location field changed")
-            if not entries[0].get_editable_text_iface().set_text_contents(str(directory)):
+                raise RuntimeError(f"Expected one editable owned GTK location field: phase={phase} count={len(entries)}")
+            entry = entries[0]
+            bound_control(entry)
+            current = [node for node in controls() if editable(node)]
+            if len(current) != 1 or current[0].path != entry.path:
+                raise RuntimeError(f"Owned GTK location field changed: phase=before-input count={len(current)}")
+            return current[0]
+
+        if directory:
+            entry = location_entry()
+            bound_control(entry)
+            input_field = entry.get_editable_text_iface()
+            entry.clear_cache()
+            if input_field is None or not editable(entry) or time.monotonic() >= deadline:
+                raise RuntimeError("Owned GTK location field unavailable")
+            if not input_field.set_text_contents(str(directory)):
                 raise RuntimeError("Owned GTK location input was refused")
             invoke(button({"Open", "Select", "Select Folder"}))
         else:

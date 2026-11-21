@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "mgrayd-fable2pubgames-recomp",
+    "artwork": {
+      "game_id": 21328,
+      "cover_id": 431477,
+      "image_id": "co98xh",
+      "image_sha256": "793f6e451b5b086d8c1ed7cb1a6a1b47f7894649dc6acbe01e54fc851044dec9",
+      "game_slug": "fable-ii-pub-games",
+      "match_kind": "underlying-game"
+    },
     "name": "Fable II Pub Games (MGRayd Recomp)",
     "summary": "Play the Fable II Pub Games recompilation with your own purchased Xbox 360 Pub Games package.",
     "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
@@ -34,7 +42,25 @@
     "download_asset_hints": {
       "windows-x86-64": ["Fable2PubGames-Recomp-v", "-win-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "fable-ii-pub-games",
+      "evidence_urls": [
+        "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md",
+        "https://github.com/MGRayd/Fable2PubGames-Recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "fable-ii-pub-games-xbox-360",
+          "title": "Fable II Pub Games (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

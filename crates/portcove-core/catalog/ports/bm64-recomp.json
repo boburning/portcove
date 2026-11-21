@@ -16,8 +16,24 @@
       "game_slug": "bomberman-64",
       "match_kind": "underlying-game"
     },
-    "issue_number": 66
+    "issue_number": 66,
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-64",
+      "evidence_urls": ["https://github.com/RevoSucks/BM64Recomp"],
+      "source_editions": [
+        {
+          "id": "bomberman-64-nintendo-64",
+          "title": "Bomberman 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RevoSucks/BM64Recomp/blob/726adc908ca7abd27c4cba12d1f52a0c243727df/README.md"
+          ]
+        }
+      ]
+    }
   },
+  "n64_recomp_persistence_v1": true,
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -41,22 +57,6 @@
       "macos-x86-64": ["BM64Recompiled"],
       "macos-aarch64": ["BM64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "bm64_us.z64"
-    ],
     "runtime_source_filename": "bm64_us.z64",
     "presentation": {
       "installation_method": "portable-recompilation",

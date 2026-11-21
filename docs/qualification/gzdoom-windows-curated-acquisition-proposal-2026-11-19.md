@@ -1,0 +1,24 @@
+# GZDoom Windows exact-byte acquisition proposal
+
+The published Windows x64 Preview.9 CLI selected `gzdoom-4-14-2-windows.zip` through the existing Stable route and refused the install plan because the release does not publish a SHA-256 digest. The observer recorded the same unresolved integrity requirement. The proposed repair supplies the exact expected bytes through the existing schema-4 curated acquisition contract. It preserves the GitHub repository, route, Stable channel, executable, portable profile and player-owned IWADs. [Observer attempt](https://github.com/boburning/portcove/actions/runs/44644689934/attempts/1) · [Route owner](https://github.com/boburning/portcove/issues/1824) · [Acquisition owner](https://github.com/boburning/portcove/issues/315)
+
+The candidate is GitHub repository `10879376`, release `216296130`, tag `g4.14.2`, commit `99aa489d09015a95bb78df2b30ede29f328cc874`, and asset `251530238`. The original upstream archive is 21,879,627 bytes. Its SHA-256 is `6d01c5bb48610cebfa9dfd0b7705a1e20bfd56032a74484ac256d8c4e3c51bee`, which matches the retained November 10 inspection. The publisher metadata has no digest and the complete release inventory has no checksum sidecar. The flat ZIP contains the x86-64 `gzdoom.exe`, engine resources, licenses and supporting libraries. It supplies no retail IWAD. The requested exact-byte intake is for direct upstream acquisition. [Official release](https://github.com/ZDoom/gzdoom/releases/tag/g4.14.2) · [Exact acquisition evidence](gzdoom-windows-curated-acquisition-evidence-2026-11-19.json) · [Prior package inspection](raze-windows-managed-2026-11-10.md)
+
+The preserved runtime settings are `gzdoom_portable.ini`, `Save`, `Screenshots`, `Demos` and `autoexec.cfg`. Native startup with an IWAD, player-generated file persistence and subsequent activation still require their own evidence. [Tagged Windows path implementation](https://github.com/ZDoom/gzdoom/blob/99aa489d09015a95bb78df2b30ede29f328cc874/src/common/platform/win32/i_specialpaths.cpp)
+
+Independent review downloaded the public release asset through its named upstream
+URL and reproduced all 21,879,627 bytes and the recorded SHA-256. The ZIP's
+`gzdoom.exe` has Windows PE machine `0x8664`. The nested license archive
+includes GPL, LGPL and component notices, and the outer ZIP contains no
+`.wad` entries. The protected intake decision remains open for direct download
+from this exact upstream endpoint.
+
+## Acceptance input
+
+The [machine-readable proposal](gzdoom-windows-curated-acquisition-proposal-2026-11-19.json) is scoped to `official/zdoom-gzdoom`, Windows x86-64 and native portable capability 19 or later. It records the exact existing port, requested curated record, and policy scope. The acquisition evidence URL resolves after publication of those exact evidence bytes. The independent review and protected input acceptance references await decisions on this tuple. The proposal grants no authority.
+
+The current authenticated prior is public Pages commit `cba59c093ba6a58403545a3bc3443fd09c21ebf2`, with timestamp, snapshot, definitions and policy versions 28. When intake completes, prepare against the then-current authenticated prior. The existing keyless bridge can emit the typed overlay and check it with the frozen client. If the Chameleon-only index remains current, adding GZDoom preserves the Chameleon definition, content, acquisition scope and descriptive listing target. Chameleon’s policy and launch binding must advance to the new common index. If the pending Crawl input lands first, rebind every affected policy and launch target against that authenticated prior. [Prior publication and readback](https://github.com/boburning/portcove/actions/runs/44635323966) · [Definition delivery](../DEFINITION-DELIVERY.md)
+
+The keyless bridge produced an inert two-definition bundle against prior 28. The released Windows Preview.9 executable read both the prior and candidate bundle. The candidate used disposable evidence placeholders to check the schema-4 contract. Its unsigned inspection returned authority `none`.
+
+After independent review and protected input acceptance, bind their exact bytes, perform the existing governed catalog publication, then verify cold acquisition, verified-cache reuse, refusal and recovery on the same released Preview.9 executable. A curated record admits this one tuple. A later ordinary successor remains separate from this repair and needs independently observed eligible upstream evidence.

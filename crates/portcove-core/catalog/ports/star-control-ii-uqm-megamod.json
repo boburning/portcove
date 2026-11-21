@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "star-control-ii-uqm-megamod",
+    "artwork": {
+      "game_id": 1046,
+      "cover_id": 110505,
+      "image_id": "co2d9l",
+      "image_sha256": "b4012c48e5e5f6e84b9c5352454dc81ec01052175df789a17421e977334682db",
+      "game_slug": "star-control-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Star Control II / The Ur-Quan Masters MegaMod",
     "original_game_title": "Star Control II",
     "summary": "Explore the original Star Control II campaign with the standalone Ur-Quan Masters MegaMod and its optional graphics and audio packs.",
@@ -45,6 +53,12 @@
           "instruction": "This MegaMod release offers Windows and Linux packages. The tag includes Mac source build material, with no publisher Intel or Apple Silicon Mac binary and no Android APK in this release."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-control-ii",
+      "evidence_urls": ["https://github.com/JHGuitarFreak/UQM-MegaMod"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

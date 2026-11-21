@@ -70,8 +70,8 @@ node scripts/sign-catalog.mts --catalog legacy-catalog.json --key publisher-priv
 The key and catalog inputs must be regular files, limited to 64 KiB (65536 bytes)
 and 16 MiB (16777216 bytes), respectively. The escaped signed envelope has its own
 16 MiB limit, so a catalog within its input limit can still produce an oversized
-envelope. The signer does not apply the older-client 4 MiB floor; the repository
-size guard below does. Refusals identify the affected argument, limit and observed size without
+envelope. The capacity check reserves growth margin below supported bounds.
+Refusals identify the affected argument, limit and observed size without
 including key or catalog contents. Sequence must be a positive safe integer;
 issuance and expiry use integer Unix seconds with validity of at most 366 days.
 
@@ -86,7 +86,7 @@ portcove --library <isolated-review-library> --json doctor
 
 Production users verify the public key/fingerprint through a trusted independent channel before granting trust. Key rotation requires explicitly adding the replacement key and later revoking the old one. Sequences continue increasing across keys; rotation does not reset replay protection. No production custody or infrastructure decision is implied by these examples.
 
-The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations.
+The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations. Desktop keeps the selected source when the trust prompt is cancelled or accepted. Review that source again after a trust change. Each verification replaces the previous review, and applying a verified catalog requires a separate action.
 
 ## Publication and recovery
 
@@ -104,54 +104,68 @@ Bundled-runtime updates may change their pinned archive asset and archive root, 
 
 ## Size bounds and older clients
 
-Core's `MAX_CATALOG_BYTES` is 16 MiB (16777216 bytes). It bounds the signed
-envelope, the local or HTTPS catalog read (refused from the declared length or as
-the stream passes the bound), the stored active and previous envelopes, a retained
-format-1 installation catalog, the projected catalog and `catalog inspect-proposal`
-input. Content above it is refused whole; nothing is truncated to fit.
+The publication policy in #5894 uses supported consumer bounds. Changes reserve
+15% of capacity for growth, including JSON escaping. A catalog may exceed 4 MiB
+once compatible application packages are available on the affected channels.
 
-Other bounds stay smaller and are not raised by this change:
+| Representation                            | Supported bound and owner                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generated and compact operational catalog | 16 MiB for signer input, local proposal inspection and whole-catalog upstream observation and checkpoints.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Escaped signed envelope                   | 16 MiB including the signature, checked on file and HTTPS reads and before signing. Migration 60 preserves both exact active and previous envelopes and the replay floor. Each has a frozen 16 MiB SQLite check.                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Core catalog projection                   | 16 MiB per indexed content target. The release-tools publisher and Core share the path-specific size policy. The separate index and definition entries have 4 MiB limits. Definition contents share a 32 MiB aggregate bound.                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Retained format-1 catalog                 | 16 MiB of compact catalog JSON. The retained contract is escaped again inside an installation manifest or registration. The CI guard budgets that escaped contract against 16 MiB and leaves space for the rest of the record.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Retained browsing                         | Verified per-install manifests and retained registration reads have a 32 MiB byte limit. The retired-listing lookup and workspace projection still use finite request-wide budgets. User-selected listings already retain one entry. Artwork requests can use the existing per-port route.                                                                                                                                                                                                                                                                                                                                                                                          |
+| Other retained and descriptive documents  | SQLite indexed selection rows have a separate 16 MiB limit including escaping. Publication checks the exact escaped snapshot and reserves 4 KiB for selection identity and provenance. The embedded listing directory and its signed descriptive target have independent 8 MiB limits. The TUF snapshot has a 4 MiB limit. [Observer recovery archives](UPSTREAM-OBSERVATIONS.md#catalog-scheduling-and-definition-delivery-handoff) have a 16 MiB format 4 limit and a 4 MiB legacy limit. The staged coherence check has a 64 MiB aggregate budget for authored, generated and historical data together. Provider responses, package downloads and artwork keep their own bounds. |
 
-- Indexed definition content targets, including a full catalog projection, keep
-  `definition_index::MAX_CONTENT_BYTES` (4 MiB), and the index keeps 4 MiB.
-  Selected-definition storage allows 16 MiB including JSON escaping.
-- Listing and artwork browsing read retained registration catalogs under an
-  8 MiB budget (`service/listings.rs`, `artwork.rs`), so their effective
-  per-entry ceiling is 8 MiB.
-- Independent 4 MiB consumers: the upstream health monitor's compact catalog
-  check (`scripts/upstream-health-monitor.mts`), and the definition repository
-  publisher's index, content leaf, definition-role target and TUF snapshot limits
-  (`portcove-release-tools`: `definition_repository/bundle.rs`,
-  `definition_repository/repository.rs`, `definition_repository.rs`).
+`node scripts/catalog-capacity.mts --check` reports generated and compact
+operational bytes, a representative escaped signed envelope and the separate
+embedded listing directory. The Core test
+`catalog_growth_stays_within_supported_capacity` measures Core serialization for
+the complete projection, escaped indexed snapshot, retained catalog and escaped contract. On November 18, 2026 the generated operational catalog measured 3,993,745 bytes,
+the compact catalog 3,076,225 bytes, and its representative signed envelope
+3,241,972 bytes. The generated listing directory measured 5,535,922 bytes,
+leaving 1,594,394 bytes before the guard and 2,852,686 bytes before its reader
+limit. The complete retained graph remains available for existing installs and rollback. A per-port
+retention redesign requires separate work.
 
-The size guard below keeps every catalog measure within those 4 MiB consumers.
+The catalog publisher bounds the retained signed repository at 768 MiB.
+The publication job checks the exact staged Pages tree against its separate
+900,000,000-byte limit, including browse and application files. The keyless
+prepare job checks that retained files and new hash-addressed targets fit
+before it starts the signing jobs. The signer rechecks capacity before opening
+its key file. Assembly verifies the exact signed output and preserves prior
+immutable URLs. The verifier loads one bounded history file at a time and
+rechecks its digest before use.
+[GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
 
-Library writer protocol 60 rebuilds the `catalog_state` table so its BLOB checks
-admit 16 MiB, copying the singleton selection, replay floor and both stored
-envelopes unchanged in the migration transaction. A failed rebuild rolls back to
-schema 59 with the 4 MiB table intact. Clients before schema 60 refuse a migrated
-library as newer before reading or writing it, and they still refuse a signed
-envelope or retained catalog above 4 MiB with their existing
-errors. They never accept or truncate larger content, but they would lose catalog
-updates that outgrow 4 MiB.
+Once the keyless release tool verifies and assembles the repository, the Pages
+job matches its exact file inventory against the guarded current Pages tree.
+It retains matching immutable files in place and stages only added repository
+files, the new timestamp and the browse update. A stale prior digest, a missing
+retained file, an immutable replacement or a changed assembled body stops the
+run before the Pages push. Signers and the keyless assembler still validate
+retained history under the existing TUF root and role keys. The signer extracts
+historical revision floors from the delegated role body it already verified.
+It checks each signed descriptor against a fresh SHA-256 inventory and parses
+each referenced historical target body once. If Tough has already authenticated
+that exact target body in the current generation, the signer reuses those bytes. Each new invocation computes its
+own inventory and keeps the existing write-time and post-write readbacks.
 
-Until the owner retires those clients (#5894), the repository keeps the bytes
-they receive at most 85% of the 4 MiB floor (3565158 bytes).
-`node scripts/catalog-capacity.mts --check` measures the compact catalog and the
-escaped signed envelope against that ceiling, and the generated `catalog.json`
-against 85% of the current 16 MiB bound, printing each size and its headroom.
-Core's `catalog_growth_stays_within_the_legacy_compatibility_margin` test holds
-the serialized catalog projection, retained format-1 `catalog_json` and its
-JSON-escaped manifest copy to the same ceiling, because those bytes come from
-Core serialization rather than the source file. Both read the bounds and
-`CATALOG_GROWTH_CEILING_PERCENT` from `signed_catalog.rs`. A failure asks for
-fewer catalog bytes or an owner decision to move the floor, not a larger margin.
+Each descriptive target remains limited to 8 MiB per directory revision.
 
-Measured November 14, 2026: generated `catalog.json` 3728878 bytes (88.9% of
-the old floor, 22.2% of the current bound), compact catalog 2895856 bytes (69.0%),
-escaped envelope 3046445 bytes (72.6%), Core projection 3122403 bytes (74.4%),
-retained `catalog_json` 3122333 bytes and its escaped contract 3291814 bytes
-(78.5%, 273344 bytes of headroom). Requalification cohorts add roughly 5–15 KB.
+Run 44643025884 needed 139,099,484 bytes for retained files and new targets
+before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
+could still read signed timestamp 45, but its proposed directory exceeded the
+later 256 MiB limit.
+
+Library writer protocol 60 rebuilds `catalog_state` in one transaction, copying
+the singleton row, replay floor and both envelopes byte for byte. Failure leaves
+the schema-59 table intact. Older binaries refuse both a migrated library and
+their own catalog input above 4 MiB. The migration-11 and migration-60 constants
+are fixed historical schema values.
+
+See [Upgrading before a larger public catalog](UPGRADING.md#upgrading-before-a-larger-public-catalog)
+for the release prerequisite and the supported player path.
 
 ## Capacity diagnostics and retained representations
 
@@ -201,3 +215,8 @@ samples per case, the 1,000/10,000-row aggregate checks averaged 0.080/0.759ms;
 unconditional window eviction averaged 0.420/3.857ms. These are small-body fixture
 CPU observations, not application timings or provider costs. Live occupancy,
 API consumption, process memory and actual release throughput remain Unknown.
+
+Catalog provenance reports `fallback_codes` in the same order as the legacy
+`fallback_reasons` diagnostics. The codes drive localized Desktop guidance.
+Clients can continue to display the original diagnostic and use generic guidance
+when a reason code is absent or unfamiliar.

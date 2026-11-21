@@ -2,12 +2,20 @@
   "format_version": 1,
   "listing": {
     "id": "elgus-kameorecomp-elguslml-kameo-elements-of-power",
+    "artwork": {
+      "game_id": 7029,
+      "cover_id": 87149,
+      "image_id": "co1v8t",
+      "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
+      "game_slug": "kameo-elements-of-power",
+      "match_kind": "underlying-game"
+    },
     "name": "Kameo: Elements of Power — ElGus KameoRecomp (ElGuslml)",
     "original_game_title": "Kameo: Elements of Power",
     "summary": "Early Kameo port using your USA Xbox 360 ISO. Upstream reports playing Thorn’s Castle and the first Enchanted Kingdom areas; later levels are untested. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ElGuslml/KameoRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ElGuslml/KameoRecomp",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/ElGuslml/KameoRecomp"
     },
-    "issue_number": 3141
+    "issue_number": 3141,
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": ["https://github.com/ElGuslml/KameoRecomp"],
+      "source_editions": [
+        {
+          "id": "kameo-elements-of-power-xbox-360",
+          "title": "Kameo: Elements of Power (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ElGuslml/KameoRecomp/blob/f56b5ca35daed1ca282e0a5e92a480fa85930b35/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

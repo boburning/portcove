@@ -109,6 +109,59 @@ fn shape_records_every_part_through_a_wrapper() {
     assert_eq!(shape.missing_persistent_parents.as_deref(), Some(&[][..]));
 }
 
+#[cfg(unix)]
+#[test]
+fn only_the_verified_empty_portable_directory_is_neutral_to_shape() {
+    const PLATFORM: Platform = Platform::LinuxX86_64;
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
+    let package = package(&["OpenSC2K.x86_64", "licenses/fixture.txt"]);
+    let root = package.path().join("game-1.0");
+    let mut elf = [0_u8; 48];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    fs::write(root.join("OpenSC2K.x86_64"), elf).unwrap();
+    crate::permissions::normalize_archive_entry(&root.join("OpenSC2K.x86_64"), false, true)
+        .unwrap();
+    let qualification = crate::install::InstallQualification::from_port(port, PLATFORM).unwrap();
+    let observed = || {
+        let roots = roots(port, &qualification, PLATFORM, package.path())?;
+        derive(port, PLATFORM, &roots)
+    };
+    let absent = observed().unwrap();
+    fs::create_dir(root.join("data")).unwrap();
+    assert_eq!(observed().unwrap(), absent);
+    fs::create_dir(root.join("data/empty")).unwrap();
+    assert!(
+        observed().is_err(),
+        "even a nested empty directory populates the data slot"
+    );
+    fs::remove_dir(root.join("data/empty")).unwrap();
+    fs::remove_dir(root.join("data")).unwrap();
+
+    fs::create_dir(root.join("DATA")).unwrap();
+    assert!(
+        observed().is_err(),
+        "a case alias is not the declared directory"
+    );
+    fs::remove_dir(root.join("DATA")).unwrap();
+    #[cfg(unix)]
+    {
+        std::os::unix::fs::symlink("licenses", root.join("data")).unwrap();
+        assert!(
+            observed().is_err(),
+            "a linked directory is not the declared slot"
+        );
+        fs::remove_file(root.join("data")).unwrap();
+    }
+    fs::create_dir(root.join("other")).unwrap();
+    let unknown = observed().unwrap();
+    assert!(matches!(
+        evaluate(port, PLATFORM, SHA, &unknown, None).0,
+        ShapeVerdict::Drifted { .. }
+    ));
+}
+
 #[test]
 fn a_compatible_release_with_the_same_shape_passes_without_edits() {
     let mut files = REVIEWED.to_vec();
@@ -740,4 +793,333 @@ fn archive_inspection_derives_the_installer_shape() {
     assert!(
         inspect_package_shape_archive(&path, &port, Platform::MacosAarch64, size, &digest).is_err()
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn sole_n64_mac_bundle_proves_flat_install_root_persistence_absent() {
+    use std::io::{Cursor, Write as _};
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("zelda64-recomp").unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let archive = directory.path().join("official.zip");
+    let make_archive = |bundle: &str, executable: &str, ship_saves: bool| {
+        let mut inner = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        inner
+            .start_file(
+                format!("{bundle}/Contents/MacOS/{executable}"),
+                options.unix_permissions(0o755),
+            )
+            .unwrap();
+        inner.write_all(b"inert executable for layout").unwrap();
+        inner
+            .start_file(format!("{bundle}/Contents/Resources/config.json"), options)
+            .unwrap();
+        inner.write_all(b"{}").unwrap();
+        if ship_saves {
+            inner.start_file("saves/slot/README", options).unwrap();
+            inner.write_all(b"upstream data beside the bundle").unwrap();
+        }
+        let payload = inner.finish().unwrap().into_inner();
+        let mut outer = zip::ZipWriter::new(fs::File::create(&archive).unwrap());
+        outer.start_file("inner.zip", options).unwrap();
+        outer.write_all(&payload).unwrap();
+        outer.finish().unwrap();
+    };
+    let inspect = |port: &PortDefinition, platform| {
+        let size = fs::metadata(&archive).unwrap().len();
+        let digest = crate::service::sha256_file(&archive).unwrap();
+        inspect_package_shape_archive(&archive, port, platform, size, &digest)
+            .unwrap()
+            .shape
+    };
+
+    make_archive("Game.app", "Zelda64Recompiled", false);
+    for platform in [Platform::MacosX86_64, Platform::MacosAarch64] {
+        let observed = inspect(port, platform);
+        assert_eq!(
+            observed.programs,
+            Some(vec!["contents/macos/zelda64recompiled".into()])
+        );
+        assert_eq!(observed.top_directories, Some(vec!["contents".into()]));
+        assert_eq!(
+            observed.config_files,
+            Some(vec!["contents/resources/config.json".into()])
+        );
+        assert_eq!(observed.persistent_parent_children, Some(vec![]));
+        assert_eq!(observed.persistent_overlap, Some(vec![]));
+        assert_eq!(observed.missing_persistent_parents, Some(vec![]));
+
+        let mut older = observed.clone();
+        older.persistent_parent_children = None;
+        older.persistent_overlap = None;
+        older.missing_persistent_parents = None;
+        assert!(matches!(
+            compare(ShapeBaseline::ReviewedLayout, &older, &observed),
+            ShapeVerdict::Unknown {
+                reason: ShapeUnknownReason::IncompleteComparison,
+                ..
+            }
+        ));
+    }
+
+    let mut nested = port.clone();
+    nested
+        .persistent_paths
+        .push("mods/profile/settings.json".into());
+    assert_eq!(
+        inspect(&nested, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+    let mut bundle_owned = port.clone();
+    bundle_owned.persistent_paths.push("GAME.APP".into());
+    assert_eq!(
+        inspect(&bundle_owned, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+
+    make_archive("OrdinaryWrapper", "Zelda64Recompiled", false);
+    assert_eq!(
+        inspect(port, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+    make_archive("Game.app", "DifferentPlayer", false);
+    assert_eq!(
+        inspect(port, Platform::MacosAarch64).persistent_overlap,
+        None
+    );
+
+    make_archive("Game.app", "Zelda64Recompiled", true);
+    let observed = inspect(port, Platform::MacosAarch64);
+    assert_eq!(
+        observed.persistent_parent_children,
+        Some(vec!["saves/slot".into()])
+    );
+    assert_eq!(
+        observed.persistent_overlap,
+        Some(vec!["saves/slot/readme".into()])
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn reviewed_openmohaa_shape_uses_prepared_title_programs() {
+    use std::io::Write as _;
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let mut elf = [0_u8; 48];
+    elf[..6].copy_from_slice(b"\x7fELF\x02\x01");
+    elf[16..20].copy_from_slice(&[3, 0, 0x3e, 0]);
+    let mut universal = [0_u8; 112];
+    universal[..8].copy_from_slice(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2]);
+    for (entry, offset, cpu) in [(8, 48, 7), (28, 80, 12)] {
+        universal[entry..entry + 4].copy_from_slice(&[1, 0, 0, cpu]);
+        universal[entry + 8..entry + 16].copy_from_slice(&[0, 0, 0, offset as u8, 0, 0, 0, 32]);
+        universal[offset..offset + 8].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe, cpu, 0, 0, 1]);
+        universal[offset + 12] = 2; // MH_EXECUTE
+    }
+    let launchers = [
+        (
+            "medal-of-honor-allied-assault-openmohaa",
+            "launch_openmohaa_base",
+        ),
+        (
+            "medal-of-honor-allied-assault-spearhead-openmohaa",
+            "launch_openmohaa_spearhead",
+        ),
+        (
+            "medal-of-honor-allied-assault-breakthrough-openmohaa",
+            "launch_openmohaa_breakthrough",
+        ),
+    ];
+    for (filename, platforms, program, companions) in [
+        (
+            "openmohaa-v0.82.1-linux-amd64.zip",
+            &[Platform::LinuxX86_64][..],
+            &elf[..],
+            [
+                "cgame.so",
+                "game.so",
+                "libSDL2-2.0.so.0",
+                "libopenal.so.1",
+                "libcurl.so.4",
+            ],
+        ),
+        (
+            "openmohaa-v0.82.1-macos-multiarch-arm64-x86_64.zip",
+            &[Platform::MacosX86_64, Platform::MacosAarch64][..],
+            &universal[..],
+            [
+                "cgame.dylib",
+                "game.dylib",
+                "libSDL2-2.0.0.dylib",
+                "libopenal.1.dylib",
+                "libcurl.4.dylib",
+            ],
+        ),
+    ] {
+        let path = temporary.path().join(filename);
+        for dedicated_mode in [0o644, 0o755] {
+            let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+            // The official ZIPs contain all three launchers and the dedicated
+            // server. All ten members have mode 0644. An executable dedicated
+            // server is the control that must still be reported as drift.
+            for name in launchers
+                .iter()
+                .map(|(_, launcher)| *launcher)
+                .chain(["openmohaa", "omohaaded"])
+                .chain(companions)
+            {
+                let mode = if name == "omohaaded" {
+                    dedicated_mode
+                } else {
+                    0o644
+                };
+                archive
+                    .start_file(
+                        name,
+                        zip::write::SimpleFileOptions::default().unix_permissions(mode),
+                    )
+                    .unwrap();
+                archive.write_all(program).unwrap();
+            }
+            archive.finish().unwrap();
+            let size = fs::metadata(&path).unwrap().len();
+            let sha = crate::service::sha256_file(&path).unwrap();
+
+            for &platform in platforms {
+                for (port_id, launcher) in launchers {
+                    let port = catalog.port(port_id).unwrap();
+                    let inspection =
+                        inspect_package_shape_archive(&path, port, platform, size, &sha).unwrap();
+                    let observed = inspection.shape.programs.as_deref().unwrap();
+                    if dedicated_mode == 0o644 {
+                        assert_eq!(observed, [launcher, "openmohaa"]);
+                        assert!(matches!(
+                            inspection.verdict,
+                            ShapeVerdict::Unknown {
+                                baseline: Some(ShapeBaseline::ReviewedLayout),
+                                reason: ShapeUnknownReason::IncompleteComparison,
+                                ..
+                            }
+                        ));
+                    } else {
+                        assert_eq!(observed, [launcher, "omohaaded", "openmohaa"]);
+                        assert!(matches!(
+                            inspection.verdict,
+                            ShapeVerdict::Drifted { changes, .. }
+                                if changes.len() == 1
+                                    && changes[0].component == ShapeComponent::Programs
+                                    && changes[0].added == ["omohaaded"]
+                        ));
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn reviewed_mac_tar_shape_uses_managed_bundle_rules() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("bio-menace-reflectionhle").unwrap();
+    let no_opt_in = catalog.port("tux-racer-sdl2-port").unwrap();
+    let other_adapter = catalog.port("perfect-dark").unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let archive = temporary.path().join("fixture.tar.xz");
+    let program = "publisher/reflectionhle.app/Contents/MacOS/reflectionhle";
+
+    for (platform, cpu) in [
+        (Platform::MacosX86_64, 0x0100_0007_u32),
+        (Platform::MacosAarch64, 0x0100_000c_u32),
+    ] {
+        let mut binary = [0_u8; 32];
+        binary[..4].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe]);
+        binary[4..8].copy_from_slice(&cpu.to_le_bytes());
+        binary[12..16].copy_from_slice(&2_u32.to_le_bytes());
+        let tar = |link| {
+            let mut tar = tar::Builder::new(Vec::new());
+            let mut header = tar::Header::new_ustar();
+            header.set_mode(0o755);
+            header.set_size(binary.len() as u64);
+            tar.append_data(&mut header, program, &binary[..]).unwrap();
+            if link {
+                let mut header = tar::Header::new_ustar();
+                header.set_entry_type(tar::EntryType::Symlink);
+                header.set_size(0);
+                tar.append_link(
+                    &mut header,
+                    "publisher/alias",
+                    "reflectionhle.app/Contents/MacOS/reflectionhle",
+                )
+                .unwrap();
+            }
+            crate::archive::encode_xz_fixture(&tar.into_inner().unwrap())
+        };
+        let write = |bytes: &[u8]| {
+            fs::write(&archive, bytes).unwrap();
+            (
+                bytes.len() as u64,
+                crate::service::sha256_file(&archive).unwrap(),
+            )
+        };
+        let (size, digest) = write(&tar(false));
+        let inspection =
+            inspect_package_shape_archive(&archive, port, platform, size, &digest).unwrap();
+        let layout = &port.reviewed_package_layouts[&platform];
+        assert_eq!(
+            inspection.shape.top_directories.as_ref(),
+            Some(&layout.directories)
+        );
+        assert_eq!(
+            inspection.shape.programs.as_ref(),
+            Some(&layout.executables)
+        );
+        assert!(matches!(
+            inspection.verdict,
+            ShapeVerdict::Unknown {
+                reason: ShapeUnknownReason::IncompleteComparison,
+                ..
+            }
+        ));
+        for unqualified in [no_opt_in, other_adapter] {
+            let error =
+                inspect_package_shape_archive(&archive, unqualified, platform, size, &digest)
+                    .unwrap_err();
+            assert_eq!(error.message, "choose a supported managed archive");
+        }
+        let error =
+            crate::package_layout::inspect_package_archive(&archive, platform, size, &digest)
+                .unwrap_err();
+        assert_eq!(error.message, "choose a supported managed archive");
+        let error = inspect_package_shape_archive(&archive, port, platform, size, SHA).unwrap_err();
+        assert_eq!(error.message, "package archive SHA-256 differs");
+        let zip_name = temporary.path().join("fixture.zip");
+        let error =
+            inspect_package_shape_archive(&zip_name, port, platform, size, &digest).unwrap_err();
+        assert_eq!(error.message, "the reviewed Mac bundle requires TAR.XZ");
+
+        let (size, digest) = write(&tar(true));
+        let error =
+            inspect_package_shape_archive(&archive, port, platform, size, &digest).unwrap_err();
+        assert!(error.message.contains("TAR links"), "{}", error.message);
+
+        let mut oversized = tar::Header::new_ustar();
+        oversized.set_path("pax").unwrap();
+        oversized.set_entry_type(tar::EntryType::XHeader);
+        oversized.set_size(64 * 1024 + 1);
+        oversized.set_cksum();
+        let (size, digest) = write(&crate::archive::encode_xz_fixture(oversized.as_bytes()));
+        let error =
+            inspect_package_shape_archive(&archive, port, platform, size, &digest).unwrap_err();
+        assert!(
+            error.message.contains("extension metadata exceeds"),
+            "{}",
+            error.message
+        );
+    }
 }

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "little-fighter-2-openlf2",
+    "artwork": {
+      "game_id": 8700,
+      "cover_id": 205763,
+      "image_id": "co4ern",
+      "image_sha256": "255b5e8101679f9cc05c4c5e22dd5c5b5f9e42cf37d305bc8d82bc4e4a16b235",
+      "game_slug": "little-fighter-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Little Fighter 2 / OpenLF2",
     "summary": "Play Little Fighter 2 in OpenLF2 with the original v2.0a installer as game data.",
     "project_url": "https://github.com/OpenLF2/OpenLF2",
@@ -45,6 +53,15 @@
           "instruction": "The v1.2.0 release includes Windows x86, x64 and ARM64 installers, Linux x86, x64 and ARM64 AppImage and Debian packages, and separate Intel and Apple Silicon Mac apps. Android previews cover ARM32, ARM64, x86 and x64 on API 21 or later. Choose the package for the device's architecture. On Linux, use APPIMAGE_EXTRACT_AND_RUN=1 for a manual AppImage launch if FUSE is unavailable."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "little-fighter-2",
+      "evidence_urls": [
+        "https://github.com/OpenLF2/OpenLF2/blob/v1.2.0/README.md",
+        "https://github.com/OpenLF2/OpenLF2"
+      ],
+      "source_editions": []
     }
   }
 }

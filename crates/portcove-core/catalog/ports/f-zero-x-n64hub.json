@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "f-zero-x-n64hub",
+    "name": "F-Zero X / n64hub",
+    "summary": "Race in a native Windows or Linux build using your own first-revision USA F-Zero X ROM.",
+    "project_url": "https://github.com/n64hub/f-zero-x-recomp",
+    "original_game_title": "F-Zero X",
+    "issue_number": 5939,
+    "listed_at": "2026-11-18",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "download_asset_hints": {
+      "windows-x86-64": ["FZeroXRecompiled-", "-windows-x64.zip"],
+      "linux-x86-64": ["FZeroXRecompiled-", "-linux-x64.tar.gz"]
+    },
+    "release_url": "https://github.com/n64hub/f-zero-x-recomp/releases/tag/v0.1.16",
+    "setup_url": "https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the project launcher",
+          "instruction": "Extract the archive for your system and open FZeroXRecompiled.exe on Windows or FZeroXRecompiled on Linux from the extracted folder. Keep the assets beside the program. Windows needs the Visual C++ 2015–2022 x64 Redistributable. Linux needs glibc 2.35 or newer, a Vulkan driver, GTK 3 and FreeType."
+        },
+        {
+          "title": "Load your original game",
+          "instruction": "Choose Load ROM and select your own first-revision USA F-Zero X cartridge dump, a 16 MiB big-endian .z64. Then choose Start Game. Other regions and the 64DD expansion are outside this release’s ROM support."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep your racing records and settings",
+          "instruction": "The project uses %LOCALAPPDATA%/FZeroXRecompiled on Windows and ~/.config/FZeroXRecompiled on Linux by default. Keep the actual profile if you use the project’s portable.txt marker or a Linux APP_FOLDER_PATH override. You maintain the downloaded program and should back up the profile separately."
+        }
+      ],
+      "warnings": ["The project’s game saves and settings stay outside Portcove’s backups."]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero-x",
+      "evidence_urls": ["https://github.com/n64hub/f-zero-x-recomp/blob/v0.1.16/README.md"],
+      "source_editions": [
+        {
+          "id": "f-zero-x-nintendo-64",
+          "title": "F-Zero X (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/f-zero-x-n64hub.json"
+          ]
+        }
+      ]
+    }
+  }
+}

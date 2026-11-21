@@ -207,3 +207,102 @@ it("leaves the review open and changes nothing when native confirmation is decli
   expect(document.body.querySelector("[aria-label='Save import review']")).not.toBeNull();
   expect(document.body.querySelector("[role=status]")).toBeNull();
 });
+
+it.each([
+  { busy: undefined, destination: "the import button" },
+  { busy: "another operation", destination: "the section heading" },
+])("returns focus to $destination after cancelling import review", async ({ busy }) => {
+  const fake = api();
+  const view = (pending?: string) => (
+    <PortableSaves portId="shipwright" gameName="Ship" generation={4} busy={pending} api={fake} />
+  );
+  await act(async () => root.rerender(view()));
+  const opener = button("Import saves…")!;
+  await act(async () => opener.click());
+  await act(async () => root.rerender(view(busy)));
+  const cancel = button("Cancel")!;
+  await act(async () => {
+    cancel.focus();
+    cancel.click();
+  });
+  expect(container.querySelector('[aria-label="Save import review"]')).toBeNull();
+  expect(document.activeElement).toBe(busy ? container.querySelector("h3") : opener);
+  expect(fake.importSaves).not.toHaveBeenCalled();
+});
+
+it.each([
+  {
+    kind: "export",
+    label: "Export saves…",
+    message: "The export file picker could not open. Try Export saves again.",
+  },
+  {
+    kind: "import",
+    label: "Import saves…",
+    message: "The import file picker could not open. Try Import saves again.",
+  },
+])("shows a rejected $kind picker and lets the player retry", async ({ kind, label, message }) => {
+  const picker = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("Picker unavailable"))
+    .mockResolvedValue(null);
+  const fake = api(kind === "export" ? { pickExportPath: picker } : { pickImportPath: picker });
+  await act(async () =>
+    root.rerender(<PortableSaves portId="shipwright" gameName="Ship" generation={4} api={fake} />),
+  );
+  await act(async () => button(label)?.click());
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(message);
+  await act(async () => button(label)?.click());
+  expect(picker).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('[role="alert"]')).toBeNull();
+  expect(fake.previewImport).not.toHaveBeenCalled();
+  expect(fake.importSaves).not.toHaveBeenCalled();
+  expect(fake.exportSaves).not.toHaveBeenCalled();
+});
+
+it.each(["export", "import"] as const)(
+  "keeps focus and prevents other save actions while the %s picker is open",
+  async (kind) => {
+    let dismiss!: (path: null) => void;
+    const picker = new Promise<null>((resolve) => {
+      dismiss = resolve;
+    });
+    const fake = api(
+      kind === "export"
+        ? { pickExportPath: vi.fn(() => picker) }
+        : { pickImportPath: vi.fn(() => picker) },
+    );
+    await act(async () =>
+      root.rerender(
+        <PortableSaves portId="shipwright" gameName="Ship" generation={4} api={fake} />,
+      ),
+    );
+    const opener = button(kind === "export" ? "Export saves…" : "Import saves…")!;
+    const other = button(kind === "export" ? "Import saves…" : "Export saves…")!;
+    await act(async () => {
+      opener.focus();
+      opener.click();
+      opener.click();
+      other.click();
+    });
+    expect(fake.pickExportPath).toHaveBeenCalledTimes(kind === "export" ? 1 : 0);
+    expect(fake.pickImportPath).toHaveBeenCalledTimes(kind === "import" ? 1 : 0);
+    expect(document.activeElement).toBe(opener);
+    expect(opener.getAttribute("aria-disabled")).toBe("true");
+    expect(other.getAttribute("aria-disabled")).toBe("true");
+    expect(getComputedStyle(opener).opacity).toBe("0.7");
+    expect(getComputedStyle(other).opacity).toBe("0.7");
+    expect(fake.previewImport).not.toHaveBeenCalled();
+    expect(fake.importSaves).not.toHaveBeenCalled();
+    expect(fake.exportSaves).not.toHaveBeenCalled();
+
+    await act(async () => dismiss(null));
+    expect(document.activeElement).toBe(opener);
+    expect(opener.matches(":disabled,[aria-disabled=true]")).toBe(false);
+    expect(other.matches(":disabled,[aria-disabled=true]")).toBe(false);
+    expect(container.querySelector('[role="alert"], [aria-label="Save import review"]')).toBeNull();
+    expect(fake.previewImport).not.toHaveBeenCalled();
+    expect(fake.importSaves).not.toHaveBeenCalled();
+    expect(fake.exportSaves).not.toHaveBeenCalled();
+  },
+);

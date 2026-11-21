@@ -17,7 +17,13 @@
       "game_slug": "the-legend-of-dragoon",
       "match_kind": "underlying-game"
     },
-    "issue_number": 112
+    "issue_number": 112,
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-dragoon",
+      "evidence_urls": ["https://github.com/Legend-of-Dragoon-Modding/Severed-Chains"],
+      "source_editions": []
+    }
   },
   "integration": {
     "support_tier": "rolling",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "diegodedios-alienrerecomp",
+    "artwork": {
+      "game_id": 44995,
+      "cover_id": 504131,
+      "image_id": "coaszn",
+      "image_sha256": "4a5c0dbbfb4f7c8f6815e2c171d5eb9f0e2efb5a657c4ff5b5acd6726c39c704",
+      "game_slug": "alien-resurrection",
+      "match_kind": "underlying-game"
+    },
     "name": "Alien Resurrection / AlienReRecomp",
     "original_game_title": "Alien Resurrection",
     "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
@@ -38,7 +46,25 @@
         }
       ]
     },
-    "platforms": ["macos-x86-64", "macos-aarch64"]
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": [
+        "https://github.com/DiegoDeDios/AlienReRecomp#quick-save",
+        "https://github.com/DiegoDeDios/AlienReRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "alien-resurrection-playstation",
+          "title": "Alien Resurrection (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/DiegoDeDios/AlienReRecomp/blob/59c60ebc171a2e7715122599e4e36d4a91ecd86d/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

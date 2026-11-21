@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-mylifeking-recomp",
+    "artwork": {
+      "game_id": 21054,
+      "cover_id": 127210,
+      "image_id": "co2q5m",
+      "image_sha256": "30c780d62487c5466f220004a47b15461ac702a423e469f82ef1f5b6921d1bce",
+      "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
     "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifeking-recomp",
@@ -31,10 +39,25 @@
       "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
     },
     "release_url": "https://github.com/darkuni/mylifeking-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["MyLifeAsAKing-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md",
+        "https://github.com/darkuni/mylifeking-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-my-life-as-a-king-wii",
+          "title": "Final Fantasy Crystal Chronicles: My Life as a King (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -63,5 +86,6 @@
         "executables": ["mylifeking.exe", "record-audio.bat"]
       }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

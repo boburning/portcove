@@ -4,7 +4,15 @@
     "id": "bc160201983-uncharted-1",
     "name": "Uncharted: Drakes Fortune — PS4 remaster (bc160201983 Uncharted PC port)",
     "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Fortune. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
-    "original_game_title": "Uncharted: Drakes Fortune",
+    "original_game_title": "Uncharted: Drake’s Fortune",
+    "artwork": {
+      "game_id": 41878,
+      "cover_id": 86366,
+      "image_id": "co1un2",
+      "image_sha256": "b525931c961c2d511b9d6fea7df37b2036accc81e3f4bb0dde97818782b8aaae",
+      "game_slug": "uncharted-drakes-fortune-remastered",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
@@ -42,6 +50,15 @@
       "warnings": [
         "Keep the complete independently permitted collection installation and every player-data root; upstream maintenance can restart the launcher and must finish outside attachment."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "uncharted-drakes-fortune",
+      "evidence_urls": [
+        "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port/blob/6b2f6c5442f58b1dd895b1c46447f175e3f20e01/README.md",
+        "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

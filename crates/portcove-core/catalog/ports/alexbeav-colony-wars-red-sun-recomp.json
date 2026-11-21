@@ -52,14 +52,31 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["colonywarsredsun-", "-linux-x64.zip"],
       "macos-aarch64": ["colonywarsredsun-", "-macos-arm64.zip"],
-      "macos-x86-64": ["colonywarsredsun-", "-macos-x64.zip"],
-      "windows-x86-64": ["colonywarsredsun-", "-windows-x64.zip"]
+      "macos-x86-64": ["colonywarsredsun-", "-macos-x64.zip"]
     },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "colony-wars-red-sun",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "colony-wars-red-sun-playstation",
+          "title": "Colony Wars: Red Sun (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/5f1bc05d723de19bf32f2194127705f55a84ef02/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -97,7 +114,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Colony Wars - Red Sun (USA) complete CHD (SLUS-00866, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned."
+      "manual_preparation": "Select your own Colony Wars - Red Sun (USA) complete CHD (SLUS-00866, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player and retains its declared saves, settings and installed mods. Bundled mods belong to the runtime version. Runtime rollback carries the current player data. Mac setup is upstream-owned.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the exact original files",
+            "instruction": "Use your own Colony Wars - Red Sun (USA) disc (SLUS-00866) with its single data track and your own retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove checks the first data track and track count. Keep the complete disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

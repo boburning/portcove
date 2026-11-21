@@ -6,7 +6,7 @@
     "original_game_title": "Naruto: The Broken Bond",
     "summary": "The project reports menus, story and combat working. NVIDIA graphics need Direct3D 12 ROV support to avoid black 3D output; Japanese dialogue hangs without the patched player. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/DIMASIK1502/broken-bond-recomp",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/DIMASIK1502/broken-bond-recomp",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "6972453fdae5d42a13eb5888f31c4c666f580eb958e65f59a150584ef5f402f5",
       "game_slug": "naruto-the-broken-bond",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-the-broken-bond",
+      "evidence_urls": ["https://github.com/DIMASIK1502/broken-bond-recomp"],
+      "source_editions": [
+        {
+          "id": "naruto-the-broken-bond-xbox-360",
+          "title": "Naruto: The Broken Bond (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/DIMASIK1502/broken-bond-recomp/blob/aed9c18c72d08557a08efc66fa98a5046c309319/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

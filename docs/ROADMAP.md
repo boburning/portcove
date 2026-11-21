@@ -26,7 +26,7 @@ See [the pickup contract](PROJECT-GOVERNANCE.md#pickup-consumption-and-execution
 | What prevents the next release?              | [Required for Beta](https://github.com/users/boburning/projects/1/views/6), then complete dependency-derived readiness below. [Required through 1.0](https://github.com/users/boburning/projects/1/views/10) shows later obligations.                               |
 | What are runners doing, and what comes next? | [In Progress](https://github.com/users/boburning/projects/1/views/3), [Next Queue](https://github.com/users/boburning/projects/1/views/2) and current ownership/handoff evidence on the owning issues/PRs. Status or Horizon alone does not prove an active writer. |
 | Where is approved non-gating work?           | [Planned Additions](https://github.com/users/boburning/projects/1/views/9); these participate in the common execution queue.                                                                                                                                        |
-| What is happening with ports?                | Complete [Port Pipeline](https://github.com/users/boburning/projects/1/views/4) and [Active Port Work](https://github.com/users/boburning/projects/1/views/11). Catalog data establishes support.                                                                   |
+| What is happening with ports?                | Complete [Port Pipeline](https://github.com/users/boburning/projects/1/views/4), [Active Port Work](https://github.com/users/boburning/projects/1/views/11) and the Blocked Port Work view. Catalog data establishes support.                                       |
 | What requires the owner's decision?          | Concrete questions in the existing nightly report and the owning issue/PR, with effect and recommendation. Blocked or Deferred alone does not imply owner action.                                                                                                   |
 
 Projects owns live planning fields and the port pipeline. Issues own executable
@@ -37,10 +37,10 @@ of accepted scope or release readiness.
 
 ```sh
 node scripts/roadmap.mts next
-# Initial public beta: Windows x86-64 planning assessment
-node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
-# Broader full-scope investigation
+# Public beta readiness across target platforms
 node scripts/roadmap.mts readiness --release "Public beta"
+# Windows x86-64 planning assessment
+node scripts/roadmap.mts readiness --release "Public beta" --release-profile initial-beta-windows-x86_64-v1
 node scripts/roadmap.mts readiness --release "1.0"
 ```
 
@@ -107,8 +107,8 @@ below. Priority, Horizon, status and queue order remain solely in the Project.
 
 Start with the [integrated acceptance and next actions in #921](https://github.com/boburning/portcove/issues/921)
 and the [protected release decision and delivery in #534](https://github.com/boburning/portcove/issues/534).
-Use the Windows profile above to check current prerequisites, including those
-outside the direct Required for Beta view.
+Check the platform-specific and shared prerequisites, including those outside
+the direct Required for Beta view.
 
 Use [Product Triage](https://github.com/users/boburning/projects/1/views/8) for
 product reports and requests. For port intake, open the
@@ -116,12 +116,11 @@ product reports and requests. For port intake, open the
 `status:Inbox,Triage` for the current pass. Clearing the filter returns the
 complete inventory.
 
-The first Public beta application host commitment is **Windows x86-64**, qualified
-at the existing supported Windows/WebView2 baseline. Linux remains planned for a
-subsequent beta with its existing owners, implementation, support metadata and
-evidence retained. Existing before-1.0 commitments remain unchanged; no Linux
-release date is assigned. Shared trust, correctness and Windows-delivery checks
-remain required on their appropriate Linux/WSL/macOS or Windows hosts. See the
+The first public beta targets **Windows x86-64** and **Linux x86-64**. Each
+platform needs its own install, installed-update and save-preservation
+qualification at its supported baseline. Existing owners retain their
+platform work and accepted evidence. Shared trust, correctness and delivery
+checks run on their appropriate hosts. See the
 [scope and evidence classes](DELIVERY.md#first-public-beta-host-boundary).
 
 Beta readiness depends on the required product, platform, reliability, usability,
@@ -166,13 +165,13 @@ representative qualification, retain their scope.
 
 For the exact release artifacts, upgrade paths, packaging and signing
 requirements for each claimed platform, follow the
-[release task order](RELEASING.md#release-task-order),
-[required package matrix](RELEASING.md#declared-package-policy),
+[current release runbook](RELEASING.md#current-release-process),
+[download choices](DOWNLOADS.md#choose-the-package),
 [upgrade and recovery guide](UPGRADING.md) and
-[independent trust owners](UPDATER-TRUST.md#owners-and-independent-trust-claims).
-[Signed in-app updates](RELEASING.md#upgrade-acceptance-and-technical-previews)
-retain their platform-specific acceptance; optional
-[signed catalog delivery](SIGNED-CATALOG.md) has its own metadata authority.
+[application update trust contract](UPDATER-TRUST.md#owners-and-independent-trust-claims).
+[Hosted installed-update checks](NATIVE-HOSTED-ACCEPTANCE.md#hosted-installed-application-update)
+record their platform and package scope. [Signed catalog delivery](SIGNED-CATALOG.md)
+has its own metadata authority.
 
 Completed source, lifecycle, definition and public-client foundations remain
 credited. Reusable CLI/integration contracts and useful manual/plugin-free
@@ -401,10 +400,9 @@ classifications in the Project rather than a copied scheduling table here.
 durability measurement and evidence-backed keep/change decision;
 [#34](https://github.com/boburning/portcove/issues/34) retains typed export data
 classification. Neither investigation becomes an umbrella or a blanket gate.
-[#202](https://github.com/boburning/portcove/issues/202) retains Required Public beta
-semantic errors, truthful committed/unknown/recovery outcomes and its finite
-remaining acceptance. These new diagnostics enhancements do not defer that
-acceptance or silently add beta requirements. Live Project fields own scheduling.
+[#202](https://github.com/boburning/portcove/issues/202) closed with its
+acceptance evidence for semantic errors and committed, unknown and recovery
+outcomes. The live Project tracks further diagnostic work.
 
 The shared Desktop/CLI host policy, early bootstrap, isolated leased sessions,
 bounded writer, independent health readback, finite exit flush, versioned typed
@@ -491,25 +489,12 @@ requirement is introduced.
 
 ## Optional Docker development tooling
 
-Owner decision, 2026-10-15: two finite development-speed outcomes are authorized
-for the existing Windows development PC and local runner. Browser tooling comes first; Linux build and
-unsigned packaging starts only after the shared host preflight, committed-source
-isolation, orchestration, result export and cleanup have actual Windows-to-Linux
-container evidence:
-
-1. [Optional Windows-driven Docker browser testing #2006](https://github.com/boburning/portcove/issues/2006).
-2. [Separate Linux build and unsigned packaging #2007](https://github.com/boburning/portcove/issues/2007),
-   blocked by #2006's implemented and demonstrated shared adapter.
-
-The [optional browser adapter](reference/docker-browser-tooling.md) provides the
-Windows host commands, committed-source selection, retained evidence and scoped
-cleanup contract. #2006 owns its actual execution evidence. The separate builder
-keeps #2007's scheduling and packaging scope.
-
-The Project placement is **Public beta / Planned**, not Required: target useful
-delivery before beta where capacity permits, without blocking any existing
-Required beta outcome. Only the builder depends on the browser outcome; no
-reverse beta-release dependency or new parent/epic is authorized.
+The October 15 decision authorized two optional development tools. The
+[browser adapter](reference/docker-browser-tooling.md) landed under
+[#2006](https://github.com/boburning/portcove/issues/2006). The
+[Linux build and unsigned packaging adapter](reference/docker-linux-build.md)
+followed under [#2007](https://github.com/boburning/portcove/issues/2007).
+Use the linked references for host setup, commands, evidence and cleanup.
 
 Docker Desktop with the WSL 2 Linux-container backend is optional developer
 tooling, not application deployment, mandatory contributor setup, another runner
@@ -577,9 +562,8 @@ integration, cold/warm/failure/interruption evidence and unchanged native comman
   covers independent GameBanana and Thunderstore paths, dynamic release
   resolution with unchanged integrations, and proof of updates under standing
   policy. [A different native loader #1457](https://github.com/boburning/portcove/issues/1457)
-  and [bounded recipe sharing #1458](https://github.com/boburning/portcove/issues/1458)
-  are separate follow-ons. The first local journey can ship independently of
-  all three. These planned additions sit outside required beta and 1.0 acceptance.
+  has its own acceptance. [Bounded recipe sharing #1458](https://github.com/boburning/portcove/issues/1458)
+  shipped separately. See each issue for its scope and verification.
 - [Historical releases #40](https://github.com/boburning/portcove/issues/40),
   [game-centered discovery #251](https://github.com/boburning/portcove/issues/251),
   [save transfer #252](https://github.com/boburning/portcove/issues/252), then

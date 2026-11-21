@@ -3,6 +3,14 @@
   "listing": {
     "id": "nocturne-nearlytrex",
     "project_url": "https://github.com/NearlyTRex/NocturneDecomp",
+    "artwork": {
+      "game_id": 4850,
+      "cover_id": 549033,
+      "image_id": "cobrmx",
+      "image_sha256": "9813bc82278130ad270ce89f2f17d87ed54c4964e4b58b66d01c41596b5582ea",
+      "game_slug": "nocturne",
+      "match_kind": "underlying-game"
+    },
     "name": "Nocturne / NocturneDecomp",
     "original_game_title": "Nocturne",
     "summary": "Use NocturneDecomp with a complete installation from your own copy of Nocturne.",
@@ -35,6 +43,15 @@
         "Upstream’s 0BSD license covers its original work. The release includes reconstructed game code that this license does not cover."
       ],
       "help_url": "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "nocturne",
+      "evidence_urls": [
+        "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11",
+        "https://github.com/NearlyTRex/NocturneDecomp"
+      ],
+      "source_editions": []
     }
   }
 }

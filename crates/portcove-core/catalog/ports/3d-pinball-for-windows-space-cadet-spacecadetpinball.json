@@ -6,6 +6,14 @@
     "summary": "Space Cadet on modern desktop systems using your own Windows or Full Tilt game resources. The official Windows player is a ZIP; upstream or you provide updates.",
     "original_game_title": "3D Pinball for Windows: Space Cadet",
     "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
+    "artwork": {
+      "game_id": 79247,
+      "cover_id": 318016,
+      "image_id": "co6tds",
+      "image_sha256": "e2d9a8e5b3d4fbd987a7b5a895dee21bd2b38f34f7694551d71388d07f9a9a79",
+      "game_slug": "3d-pinball-space-cadet",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 2553,
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
@@ -42,6 +50,14 @@
           "instruction": "You or upstream provide updates to this external copy. Close the game and preserve your original/custom resources, any chosen external font, and the SpaceCadetPinball user profile before changing versions. On Windows the normal profile is %APPDATA%\\SpaceCadetPinball and includes imgui_pb.ini; it is separate from the downloaded player folder. Verify your options and progress in the new copy before retiring the old one. Removing the Portcove registration leaves every external file untouched; it does not provide managed Update, Backup or Rollback."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "3d-pinball-for-windows-space-cadet",
+      "evidence_urls": [
+        "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

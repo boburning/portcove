@@ -22,6 +22,10 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { channels } from "../apps/desktop/src/catalog-values.generated.ts";
+import { isRecord } from "./runtime-values.mts";
+import { readScheduledArtworkHealth } from "./maintenance-artwork-health.mts";
+import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
   MaintenanceStoreError,
   batchedStatements,
@@ -53,8 +57,10 @@ import {
 } from "./maintenance-release-content.mts";
 import {
   readUpstreamObservations,
+  readObserverOperatingUsage,
   upstreamAttention,
   upstreamObservation,
+  managedReleaseEligibilityWindow,
   upstreamSummary,
   type UpstreamInput,
   type UpstreamObservation,
@@ -64,10 +70,13 @@ import {
   hostedIntakeObservation,
   hostedIntakeSummary,
   readHostedIntake,
+  retainHostedIntakeHandoffs,
   type HostedIntakeObservation,
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
 import type { GitHubCredential } from "./github-client.mts";
+import { sanitizeOperationError } from "./github-operation.mts";
+import { collectRoadmapInventoryWithRecollection } from "./roadmap-inventory.mts";
 import {
   disabledCapabilities,
   handoffCollectionSql,
@@ -90,6 +99,27 @@ import {
   type HandoffSource,
   type OpenHandoff,
 } from "./maintenance-handoffs.mts";
+
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import {
+  managedInterventionEvidenceLimit,
+  readManagedInterventionEvidence,
+  scopedManagedInterventions,
+  type ManagedInterventionEvidence,
+} from "./maintenance-interventions.mts";
+import {
+  collectProgress,
+  validateProgressSources,
+  type ProgressCollection,
+  type ProgressSource,
+} from "./upstream-progress.mts";
+import {
+  progressCollectionSql,
+  progressReportQuery,
+  progressOptedOutRepositoriesQuery,
+  visibleProgress,
+  type StoredProgress,
+} from "./maintenance-progress.mts";
 
 const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 export const defaultSamplePath = path.join(
@@ -214,11 +244,14 @@ function committedOperationalDefinition(revision: string) {
   const catalog = JSON.parse(
     git(["show", `${revision}:crates/portcove-core/catalog/catalog.json`]),
   ) as {
-    ports: { id: string }[];
+    ports: { id: string; release?: { curated?: Record<string, unknown> } }[];
     source_catalog?: { qualification?: { scope?: { port_id?: string } }[] };
   };
   return {
     ids: new Set(catalog.ports.map((port) => port.id)),
+    curated: new Map(
+      catalog.ports.map((port) => [port.id, Object.keys(port.release?.curated ?? {})]),
+    ),
     qualification: catalog.source_catalog?.qualification ?? [],
   };
 }
@@ -365,9 +398,18 @@ export function capabilityResult(observation: CapabilityObservation) {
   };
 }
 
-export function hostPlatform() {
-  const arch = process.arch === "x64" ? "x86-64" : process.arch;
-  return `${process.platform === "win32" ? "windows" : process.platform === "darwin" ? "macos" : process.platform}-${arch}`;
+/** Use the executable's runtime identity for its own assessment. */
+export async function readAssessmentPlatform(cli: string, supportedPlatforms: readonly unknown[]) {
+  const envelope = await isolatedCli(cli, ["doctor"]);
+  const { platform } = (envelope.data ?? {}) as { platform?: unknown };
+  if (
+    !envelope.ok ||
+    typeof platform !== "string" ||
+    !/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform) ||
+    !supportedPlatforms.includes(platform)
+  )
+    throw new MaintenanceStoreError("Portcove doctor did not identify a supported host platform");
+  return platform;
 }
 
 const literal = (value: string) => `'${value.replaceAll("'", "''")}'`;
@@ -378,6 +420,8 @@ export interface CollectedSubject {
   record: unknown;
   operational: boolean;
   qualification: unknown[];
+  observationDefinitionSha256?: string | undefined;
+  curatedPlatforms?: string[] | undefined;
   /** Null when a selective run reused the subject's unchanged Core result without calling Core. */
   capabilities: CapabilityObservation | null;
 }
@@ -439,6 +483,7 @@ export function coreReuseKey(input: {
       api: input.apiSchema,
       projection: capabilityProjectionVersion,
       platform: input.platform,
+      platform_identity: "cli-doctor-platform-v1",
       isolation: isolationScope,
     }),
   );
@@ -529,12 +574,19 @@ export function planReassessment(input: {
 
 /** The authored catalog fact of one subject, as stored by `catalog-records`. */
 export function catalogFactOf(
-  subject: Pick<CollectedSubject, "record" | "operational" | "qualification">,
+  subject: Pick<
+    CollectedSubject,
+    "record" | "operational" | "qualification" | "observationDefinitionSha256" | "curatedPlatforms"
+  >,
 ) {
   return {
     authored_record: subject.record,
     operational_definition: subject.operational,
     scoped_qualification: subject.qualification,
+    ...(subject.observationDefinitionSha256
+      ? { observation_definition_sha256: subject.observationDefinitionSha256 }
+      : {}),
+    ...(subject.curatedPlatforms?.length ? { curated_platforms: subject.curatedPlatforms } : {}),
   };
 }
 
@@ -661,20 +713,50 @@ export async function readIssueInventory(credential?: GitHubCredential): Promise
       ghCommand: process.env.PORTCOVE_ROADMAP_GH,
     }),
   );
-  const inventory = await client.repositoryIssues({ projectMemberships: true });
-  // The configured Project number, as the roadmap doctor resolves it: one read,
-  // unaffected by other Projects the credential can see.
-  const roadmap = await client.projectDetails(client.projectNumber(undefined));
-  if (roadmap.title !== config.project.title)
-    throw new MaintenanceStoreError("The configured roadmap Project's identity did not match");
-  return {
-    roadmap_project_id: roadmap.id,
-    repository: inventory.repository,
-    observed_at: inventory.observed_at,
-    total: inventory.evidence.total ?? -1,
-    issues: inventory.issues,
-    memberships: inventory.project_memberships ?? [],
+  const attempts = { inventoryRecollections: 0 };
+  const diagnostic = (status: "pending" | "complete" | "failed", code?: string) => {
+    console.error(
+      JSON.stringify({
+        format: 1,
+        kind: "maintenance-issue-inventory-recollection",
+        first: { code: "inventory_changed" },
+        second: { status, ...(code ? { code } : {}) },
+      }),
+    );
   };
+  try {
+    return await collectRoadmapInventoryWithRecollection(
+      client,
+      async () => {
+        const inventory = await client.repositoryIssues({ projectMemberships: true });
+        // The configured Project number, as the roadmap doctor resolves it.
+        const roadmap = await client.projectDetails(client.projectNumber(undefined));
+        if (roadmap.title !== config.project.title)
+          throw new MaintenanceStoreError(
+            "The configured roadmap Project's identity did not match",
+          );
+        return {
+          roadmap_project_id: roadmap.id,
+          repository: inventory.repository,
+          observed_at: inventory.observed_at,
+          total: inventory.evidence.total ?? -1,
+          issues: inventory.issues,
+          memberships: inventory.project_memberships ?? [],
+        };
+      },
+      attempts,
+      {
+        before: () => diagnostic("pending"),
+        after: (status, error) =>
+          diagnostic(status, status === "failed" ? sanitizeOperationError(error).code : undefined),
+      },
+    );
+  } catch (error) {
+    if (!attempts.inventoryRecollections) throw error;
+    throw new MaintenanceStoreError(
+      `Issue and Project inventory recollection failed (${sanitizeOperationError(error).code}).`,
+    );
+  }
 }
 
 /** The appointed official metadata location (docs/DEFINITION-DELIVERY.md). */
@@ -685,19 +767,28 @@ export interface PublicationObservation {
   inspection: { index_sha256?: unknown; definitions?: unknown };
 }
 
-const definitionIdentity = /^[a-z0-9][a-z0-9-]{0,63}$/u;
+/** Mirrors Core's definition index identity components, which are bounded ASCII. */
+function validDefinitionIdentity(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= 1 &&
+    value.length <= 255 &&
+    !/[^a-z0-9-]/u.test(value)
+  );
+}
 
 function definitionKey(definition: Record<string, unknown>, origin: string) {
   const namespace = definition.namespace;
   const id = definition.stable_id;
-  if (
-    typeof namespace !== "string" ||
-    typeof id !== "string" ||
-    !definitionIdentity.test(namespace) ||
-    !definitionIdentity.test(id)
-  )
+  if (!validDefinitionIdentity(namespace) || !validDefinitionIdentity(id))
     throw new MaintenanceStoreError(`Unsupported definition identity in the ${origin}`);
-  return `definition:${namespace}/${id}`;
+  const key = `definition:${namespace}/${id}`;
+  // The store's subject key bound includes the kind and component separator.
+  if (key.length > 300)
+    throw new MaintenanceStoreError(
+      `Definition identity exceeds the maintenance key bound in the ${origin}`,
+    );
+  return key;
 }
 
 /**
@@ -1135,6 +1226,7 @@ export function collectionSql(input: {
     core: ReadonlyMap<string, string>;
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
+    artworkHealth?: ReadonlyMap<string, string>;
     releaseContent?: ReadonlyMap<string, string>;
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
@@ -1187,12 +1279,22 @@ export function collectionSql(input: {
     /** Deferred ports; each carries the findings this report already has for it. */
     gaps: SourceGap[];
   };
+  artworkHealth?: {
+    revision: string;
+    failed?: boolean;
+    complete: boolean;
+    expected: number | null;
+    facts: ReadonlyMap<string, unknown>;
+    gaps: SourceGap[];
+  };
   upstream?: UpstreamObservation;
+  progress?: ProgressCollection;
   hostedIntake?: HostedIntakeObservation;
   /** Core's per-target route offering, bound to the same Core binary as the assessments. */
   targets?: {
     facts: ReadonlyMap<string, unknown>;
     expected: number;
+    catalogBytesVerified?: boolean;
     failure?: SourceGap;
   };
   issues?: {
@@ -1241,6 +1343,7 @@ export function collectionSql(input: {
            coreSource,
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
+           ...(input.artworkHealth ? ["cover-artwork-health"] : []),
            ...(input.releaseContent ? ["release-content"] : []),
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
@@ -1594,21 +1697,22 @@ export function collectionSql(input: {
   if (input.targets) {
     if (input.mode !== "all")
       throw new MaintenanceStoreError("Target-route collection requires --all");
+    const targetRevision = `${coreRevision};catalog=${input.targets.catalogBytesVerified ? "verified" : "unverified"}`;
     lines.push(
       `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
-        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(coreRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
+        (${literal(targetsRun)}, 'core-target-routes', ${literal(input.runner)}, ${literal(targetRevision)}, ${literal(input.startedAt)}, ${acquisition});`,
     );
     const targetFacts = new Map<string, Fact>();
     for (const [key, payload] of input.targets.facts)
       targetFacts.set(key, {
         digest: sha256(canonicalJson(payload)),
         scope: { source: "core-target-routes", policy, isolation: "fresh-library" },
-        revision: coreRevision,
+        revision: targetRevision,
         payload,
       });
     runs.push([
       targetsRun,
-      coreRevision,
+      targetRevision,
       input.targets.failure ? "failed" : "complete",
       input.targets.failure ? [input.targets.failure] : [],
       targetFacts,
@@ -1616,7 +1720,34 @@ export function collectionSql(input: {
       input.targets.failure ? null : input.targets.expected,
     ]);
   }
+  const artworkHealthRun = `cover-artwork-health:${token}`;
+  if (input.artworkHealth) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Cover artwork health collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(artworkHealthRun)}, 'cover-artwork-health', ${literal(input.runner)}, ${literal(input.artworkHealth.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    const artworkFacts = new Map<string, Fact>();
+    for (const [key, payload] of input.artworkHealth.facts)
+      artworkFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "cover-artwork-health", authority: "none" },
+        revision: input.artworkHealth.revision,
+        payload,
+      });
+    runs.push([
+      artworkHealthRun,
+      input.artworkHealth.revision,
+      input.artworkHealth.failed ? "failed" : input.artworkHealth.complete ? "complete" : "partial",
+      input.artworkHealth.gaps,
+      artworkFacts,
+      input.latest?.artworkHealth,
+      input.artworkHealth.expected,
+    ]);
+  }
   const sourceOf = new Map([
+    [artworkHealthRun, "cover-artwork-health"],
     [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
     [deliveryRun, "definition-delivery"],
@@ -1652,43 +1783,54 @@ export function collectionSql(input: {
          WHERE run_id = ${literal(run)};`,
     );
   }
-  // Handoffs follow only a complete run of their source over the complete universe:
-  // a partial or failed run neither records nor clears attention. Core has no handoff.
+  // Release health explicitly partitions fresh-complete ports from coverage gaps.
+  // Other handoff sources require complete fleet coverage.
   if (input.mode === "all") {
-    const complete = new Map<HandoffSource, { run: string; conditions: HandoffCondition[] }>();
-    if (input.releaseHealth && !input.releaseHealth.gaps.length)
-      complete.set("release-health", {
+    const assessed = new Map<
+      HandoffSource,
+      {
+        run: string;
+        conditions: HandoffCondition[];
+        assessedSources?: string[];
+      }
+    >();
+    if (input.releaseHealth && !input.releaseHealth.failed && input.releaseHealth.facts.size)
+      assessed.set("release-health", {
         run: healthRun,
         conditions: releaseHealthHandoffs(input.releaseHealth.facts),
+        ...(input.releaseHealth.gaps.length
+          ? { assessedSources: [...input.releaseHealth.facts.keys()] }
+          : {}),
       });
     if (input.releaseContent && !input.releaseContent.gaps.length)
-      complete.set("release-content", {
+      assessed.set("release-content", {
         run: contentRun,
         conditions: releaseContentHandoffs(input.releaseContent.facts),
       });
     if (input.upstream && !input.upstream.failed && !input.upstream.gaps.length)
-      complete.set("upstream-observations", {
+      assessed.set("upstream-observations", {
         run: upstreamRun,
         conditions: upstreamHandoffs(input.upstream.facts),
       });
     if (input.hostedIntake && !input.hostedIntake.failed && !input.hostedIntake.gaps.length)
-      complete.set("hosted-intake", {
+      assessed.set("hosted-intake", {
         run: hostedRun,
         conditions: hostedIntakeHandoffs(input.hostedIntake.facts),
       });
     for (const entry of handoffRegistry) {
-      const source = complete.get(entry.source);
+      const source = assessed.get(entry.source);
       if (source)
         lines.push(
           ...handoffCollectionSql({
             kind: entry.kind,
             run: source.run,
+            ...(source.assessedSources ? { assessedSources: source.assessedSources } : {}),
             conditions: source.conditions.filter(({ kind }) => kind === entry.kind),
           }),
         );
     }
     // A kind no longer in the registry clears on any complete handoff source run.
-    const first = [...complete.values()][0];
+    const first = [...assessed.values()].find((source) => source.assessedSources === undefined);
     if (first) lines.push(...handoffCollectionSql({ retired: true, run: first.run }));
     // Holds and deferrals follow only a complete read of their owning source.
     // Without the roadmap Project's identity no Status is attributable, so nothing changes.
@@ -1709,6 +1851,8 @@ export function collectionSql(input: {
         }),
       );
   }
+  if (input.progress)
+    lines.push(...progressCollectionSql(input.progress, input.runner, input.acquisition));
   // The two session settings run as their own statements first: the server parses a
   // batched query whole, so a setting inside it could not govern the literals after it.
   // Everything else is one query, so a remote host costs one round trip, not one per statement.
@@ -1814,16 +1958,19 @@ export async function collect(options: {
     | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
+  artworkHealth?: string | undefined;
   /** With `all`, also collect the latest scheduled release-content scan report. */
   releaseContent?: (() => Promise<ReleaseContentInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
   upstream?: (() => Promise<UpstreamInput>) | undefined;
+  /** Optional reviewed progress sources; never changes Core operation assessment. */
+  progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
-  /** Host platform label; defaults to this host. Fixtures use it to model other hosts. */
-  platform?: string | undefined;
+  intakeReceiptRevision?: string | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
+  bindCatalogDefinitions?: boolean;
 }) {
   const revision = git(["rev-parse", "HEAD"]).trim();
   const ids = options.all
@@ -1833,21 +1980,20 @@ export async function collect(options: {
   const cliSha256 = sha256(readFileSync(options.cli));
   const envelope = await isolatedCli(options.cli, ["capabilities"]);
   const capabilities = envelope.data as
-    | { schema_version?: unknown; port_capability_schema?: unknown }
+    | { schema_version?: unknown; port_capability_schema?: unknown; platforms?: unknown }
     | undefined;
   if (
     !envelope.ok ||
     capabilities?.port_capability_schema !== 1 ||
-    typeof capabilities.schema_version !== "number"
+    typeof capabilities.schema_version !== "number" ||
+    !Array.isArray(capabilities.platforms)
   )
     throw new MaintenanceStoreError(
       "portcove capabilities are unavailable or use an unsupported port capability schema",
     );
   const apiSchema = capabilities.schema_version;
   const coreSourceClean = git(["status", "--porcelain", "--", ...coreSemanticPaths]).trim() === "";
-  const platform = options.platform ?? hostPlatform();
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/u.test(platform))
-    throw new MaintenanceStoreError("Invalid platform label");
+  const platform = await readAssessmentPlatform(options.cli, capabilities.platforms);
   // Freshness is the database's order of this ticket, never this runner's clock.
   const acquisition = acquireCollection(options.environment);
   const startedAt = new Date().toISOString();
@@ -1865,14 +2011,35 @@ export async function collect(options: {
   const requested = options.reassess ?? "full";
   if (requested === "changed" && (!options.all || !options.targets))
     throw new MaintenanceStoreError("--reassess changed requires --all and --targets");
+  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
+  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
+  const reviewedCatalogBytes = bindingVerified
+    ? committedBytes(revision, "crates/portcove-core/catalog/catalog.json")
+    : null;
+  const catalogBytesVerified =
+    reviewedCatalogBytes !== null &&
+    sha256(reviewedCatalogBytes) === producer?.embedded_catalog_sha256;
+  const currentDefinitionHashes =
+    (options.upstream || options.bindCatalogDefinitions) && catalogBytesVerified
+      ? await sourceOutcome(async () => {
+          const root = mkdtempSync(path.join(os.tmpdir(), "portcove-maintenance-definitions-"));
+          try {
+            return await inspectCatalogDefinitions(options.cli, root, reviewedCatalogBytes);
+          } finally {
+            rmSync(root, { recursive: true, force: true });
+          }
+        })
+      : undefined;
   const authored = ids.map((id) => ({
     id,
     record: committedRecord(revision, id),
     operational: definitions.ids.has(id),
     qualification: definitions.qualification.filter((record) => record.scope?.port_id === id),
+    observationDefinitionSha256: currentDefinitionHashes?.ok
+      ? currentDefinitionHashes.value.get(id)
+      : undefined,
+    curatedPlatforms: definitions.curated.get(id),
   }));
-  const producer = targetsRead?.ok ? targetsRead.value.producer : null;
-  const bindingVerified = coreBindingVerified(producer, revision, coreSourceClean);
   const reuseKey =
     producer && bindingVerified
       ? coreReuseKey({
@@ -1951,6 +2118,13 @@ export async function collect(options: {
     : undefined;
   if (options.releaseContent && !options.all)
     throw new MaintenanceStoreError("Release-content collection requires --all");
+  if (options.artworkHealth && !options.all)
+    throw new MaintenanceStoreError("Cover artwork health collection requires --all");
+  const artworkRead = options.artworkHealth
+    ? await sourceOutcome(() =>
+        readScheduledArtworkHealth(options.artworkHealth!, revision, cliSha256),
+      )
+    : undefined;
   const contentRead = options.releaseContent
     ? await sourceOutcome(async () => {
         const report = await options.releaseContent!();
@@ -1960,20 +2134,30 @@ export async function collect(options: {
   if (options.upstream && !options.all)
     throw new MaintenanceStoreError("Upstream-observation collection requires --all");
   const upstream = options.upstream ? await upstreamObservation(options.upstream) : undefined;
+  const progress = options.progress ? await collectProgress(options.progress) : undefined;
   if (options.hostedIntake && !options.all)
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
     ? await hostedIntakeObservation(options.hostedIntake)
     : undefined;
+  const receiptFence =
+    hostedIntake && options.intakeReceiptRevision !== undefined
+      ? !hostedIntake.failed &&
+        !hostedIntake.gaps.length &&
+        hostedIntake.revision === options.intakeReceiptRevision
+        ? "verified"
+        : "deferred"
+      : undefined;
+  if (hostedIntake && receiptFence === "deferred") retainHostedIntakeHandoffs(hostedIntake);
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
-    ? await sourceOutcome(() =>
-        (typeof options.publication === "function" ? options.publication : readPublication)(
-          options.cli,
-          revision,
-        ),
-      )
+    ? await sourceOutcome(async () => {
+        const observation = await (
+          typeof options.publication === "function" ? options.publication : readPublication
+        )(options.cli, revision);
+        return publicationFacts(observation);
+      })
     : undefined;
   if (options.delivery && !options.all)
     throw new MaintenanceStoreError("Definition-delivery collection requires --all");
@@ -2028,6 +2212,20 @@ export async function collect(options: {
                 },
           }
         : {}),
+      ...(artworkRead
+        ? {
+            artworkHealth: artworkRead.ok
+              ? artworkRead.value
+              : {
+                  revision: "cover-artwork-health:unavailable",
+                  failed: true,
+                  complete: false,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:cover-artwork-health", artworkRead.message)],
+                },
+          }
+        : {}),
       ...(contentRead
         ? {
             releaseContent: contentRead.ok
@@ -2042,12 +2240,17 @@ export async function collect(options: {
           }
         : {}),
       ...(upstream ? { upstream } : {}),
+      ...(progress ? { progress } : {}),
       ...(hostedIntake ? { hostedIntake } : {}),
       ...(targetsRead?.ok ? { producer: targetsRead.value.producer, coreSourceClean } : {}),
       ...(targetsRead
         ? {
             targets: targetsRead.ok
-              ? { facts: targetsRead.value.facts, expected: targetsRead.value.facts.size }
+              ? {
+                  facts: targetsRead.value.facts,
+                  expected: targetsRead.value.facts.size,
+                  catalogBytesVerified,
+                }
               : {
                   facts: new Map(),
                   expected: 0,
@@ -2060,7 +2263,7 @@ export async function collect(options: {
             publication: publicationRead.ok
               ? {
                   revision,
-                  ...publicationFacts(publicationRead.value),
+                  ...publicationRead.value,
                 }
               : {
                   revision: `${revision}+inspection:unavailable`,
@@ -2091,6 +2294,7 @@ export async function collect(options: {
               core: members(coreSourceName(platform)),
               ...(issueRead ? { issues: members("issues-project") } : {}),
               ...(healthRead ? { releaseHealth: members("release-health") } : {}),
+              ...(artworkRead ? { artworkHealth: members("cover-artwork-health") } : {}),
               ...(contentRead ? { releaseContent: members("release-content") } : {}),
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
@@ -2107,6 +2311,7 @@ export async function collect(options: {
     coreSourceName(platform),
     ...(issueRead ? ["issues-project"] : []),
     ...(healthRead ? ["release-health"] : []),
+    ...(artworkRead ? ["cover-artwork-health"] : []),
     ...(contentRead ? ["release-content"] : []),
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
@@ -2119,9 +2324,22 @@ export async function collect(options: {
   for (let attempt = 1; ; attempt++) {
     const baseline =
       mode === "all"
-        ? new Map(sources.map((source) => [source, latestMembers(options.environment, source)]))
+        ? new Map(
+            sources.map((source) => {
+              const prior =
+                attempt === 1 && decidedBaseline
+                  ? source === "catalog-records"
+                    ? decidedBaseline.catalog
+                    : source === coreSource
+                      ? decidedBaseline.core
+                      : undefined
+                  : undefined;
+              return [source, prior ?? latestMembers(options.environment, source)];
+            }),
+          )
         : undefined;
-    // Reuse was decided against these baselines; another run in between voids it.
+    // Reuse binds the considered baselines. The transaction confirms that the
+    // first attempt still has those exact runs, and retries verify them again.
     if (
       plan.reused.size &&
       (baseline?.get("catalog-records")?.run !== decidedBaseline?.catalog.run ||
@@ -2160,6 +2378,7 @@ export async function collect(options: {
     failed_sources: [
       ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
       ...(healthRead && !healthRead.ok ? ["release-health"] : []),
+      ...(artworkRead && !artworkRead.ok ? ["cover-artwork-health"] : []),
       ...(contentRead && !contentRead.ok ? ["release-content"] : []),
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
@@ -2175,6 +2394,15 @@ export async function collect(options: {
         }
       : deliveryRead
         ? { serving: "inspection-unavailable", published: 0 }
+        : null,
+    artwork_health: artworkRead?.ok
+      ? {
+          coverage: artworkRead.value.complete ? "complete" : "partial",
+          rows: artworkRead.value.rows,
+          counts: artworkRead.value.counts,
+        }
+      : artworkRead
+        ? { coverage: "failed" }
         : null,
     release_content: contentRead
       ? contentRead.ok
@@ -2202,6 +2430,7 @@ export async function collect(options: {
             : hostedIntake.gaps.length
               ? "partial"
               : "complete",
+          ...(receiptFence ? { receipt_fence: receiptFence } : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,
@@ -2216,7 +2445,13 @@ export async function collect(options: {
 
 const corePrefix = "core-port-capabilities-";
 
-const reportQuery = `WITH latest_issue AS (
+export const reportHistoryLimit = 12;
+
+const reportQuery = (
+  from: string,
+  through: string,
+  withInterventionEvidence: boolean,
+) => `WITH latest_issue AS (
     SELECT DISTINCT ON (o.subject_key) o.payload
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
@@ -2237,7 +2472,7 @@ const reportQuery = `WITH latest_issue AS (
       WHERE r.source = 'release-content' AND r.coverage <> 'in_progress'
       ORDER BY o.subject_key, r.acquisition DESC, o.observation_id DESC
   ), latest_upstream AS (
-    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload
+    SELECT DISTINCT ON (o.subject_key) o.subject_key, o.payload, o.content_sha256
       FROM portcove_maintenance.observations o
       JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
       WHERE r.source = 'upstream-observations' AND r.coverage <> 'in_progress'
@@ -2355,6 +2590,35 @@ SELECT json_build_object(
                      AS observed_at
               FROM portcove_maintenance.collection_runs
              WHERE coverage <> 'in_progress' GROUP BY source) f),
+  'managed_route_inputs', (SELECT coalesce(json_agg(json_build_object(
+        'port_key', c.subject_key, 'targets', t.payload, 'upstream', u.payload,
+        'definition_sha256', c.payload ->> 'observation_definition_sha256',
+        'curated_platforms', c.payload -> 'curated_platforms')
+        ORDER BY c.subject_key), '[]')
+      FROM latest_catalog c
+      LEFT JOIN latest_targets t ON t.subject_key = c.subject_key
+      LEFT JOIN latest_upstream u ON u.subject_key = c.subject_key
+      WHERE c.payload -> 'operational_definition' = 'true'::jsonb),
+  'upstream_present_members', (SELECT coalesce(json_object_agg(u.subject_key, u.content_sha256), '{}')
+      FROM latest_upstream u WHERE u.payload <> portcove_maintenance.absent_payload()),
+  'managed_release_observations', (
+    SELECT coalesce(json_agg(candidate.value || jsonb_build_object('recorded_at', o.observed_at${
+      withInterventionEvidence
+        ? `, 'port_key', o.subject_key, 'observer_revision', r.source_revision,
+             'definition_sha256', source.value ->> 'catalog_definition_sha256'`
+        : ""
+    })
+                             ORDER BY o.observed_at, o.observation_id), '[]')
+    FROM portcove_maintenance.observations o
+    JOIN portcove_maintenance.collection_runs r ON r.run_id = o.run_id
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(o.payload -> 'sources') = 'array'
+          THEN o.payload -> 'sources' ELSE '[]'::jsonb END) AS source(value)
+    CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(source.value -> 'managed_release_candidates') = 'array'
+          THEN source.value -> 'managed_release_candidates' ELSE '[]'::jsonb END) AS candidate(value)
+    WHERE r.source = 'upstream-observations' AND r.coverage IN ('complete', 'partial')
+      AND o.observed_at BETWEEN ${literal(from)}::timestamptz AND ${literal(through)}::timestamptz
+  ),
+  'progress', ${progressReportQuery},
   'generation', (SELECT coalesce(max(acquisition), 0) FROM portcove_maintenance.collection_runs
       WHERE coverage <> 'in_progress'),
   'runs', (SELECT coalesce(json_agg(r ORDER BY r.source, r.acquisition DESC), '[]') FROM (
@@ -2378,11 +2642,15 @@ SELECT json_build_object(
           WHERE r.run_id = c.verified_run_id) AS verified_by,
         (SELECT json_agg(json_build_object('sequence', t.sequence, 'state', t.state, 'recorded_at', t.recorded_at,
                  'returns_to_earlier_result', t.returns_to_earlier_result) ORDER BY t.sequence)
-           FROM portcove_maintenance.subject_transitions t WHERE t.subject_key = c.subject_key) AS history,
+           FROM (SELECT sequence, state, recorded_at, returns_to_earlier_result
+               FROM portcove_maintenance.subject_transitions
+               WHERE subject_key = c.subject_key ORDER BY sequence DESC LIMIT ${reportHistoryLimit}) t) AS history,
+        c.sequence > ${reportHistoryLimit} AS earlier_history_available,
         (SELECT json_agg(json_build_object('source', o.source, 'run_id', o.run_id, 'input_revision', o.input_revision,
                  'scope', o.scope, 'observed_at', o.observed_at, 'content_sha256', o.content_sha256,
                  'absent', o.payload = portcove_maintenance.absent_payload()) ORDER BY o.source)
-           FROM (SELECT DISTINCT ON (r.source) r.source, ob.*
+           FROM (SELECT DISTINCT ON (r.source) r.source, ob.run_id, ob.input_revision,
+                        ob.scope, ob.observed_at, ob.content_sha256, ob.payload
                    FROM portcove_maintenance.observations ob
                    JOIN portcove_maintenance.collection_runs r ON r.run_id = ob.run_id
                    WHERE ob.subject_key = c.port_key AND r.coverage <> 'in_progress'
@@ -2470,6 +2738,10 @@ export interface InventoryReport {
   };
   unsupported_sources: { source: string; reason: string }[];
   runs: unknown[];
+  progress?: ReturnType<typeof visibleProgress>;
+  managed_release_eligibility?: ReturnType<typeof managedReleaseEligibilityWindow>;
+  managed_intervention_evidence?: ReturnType<typeof scopedManagedInterventions>;
+  managed_route_observation_coverage?: ReturnType<typeof managedRouteObservationCoverage>;
   /** Per source: when it was last attempted and last read successfully, aged against this report. */
   freshness?: SourceFreshness[];
   subjects: unknown[];
@@ -2723,15 +2995,293 @@ export interface HostedIntakeEntry {
   issues: { number: number; state: string | null; status: string | null }[];
 }
 
-export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): InventoryReport {
-  const data = JSON.parse(runSql(environment, reportQuery).trim()) as {
+interface ManagedRouteCoverageRun {
+  source: string;
+  source_revision: string | null;
+  acquisition: number;
+  completed_at: string;
+  coverage: string;
+  expected_count: number | null;
+  observed_count: number;
+  member_count: number | null;
+  member_digest: string | null;
+  gaps: { subject_key: string; code: string }[];
+}
+
+interface ManagedRouteCoverageInput {
+  port_key: string;
+  targets: TargetRoutesFact | null;
+  upstream: unknown;
+  definition_sha256: string | null;
+  curated_platforms?: string[] | null;
+}
+
+type ManagedRouteCandidateEvidence = { candidate_key: string } & (
+  | { channel: (typeof channels)[number]; state: "eligible" | "pending" }
+  | { state: "ambiguous" }
+);
+
+type ManagedRouteEvidence = { port_key: string; platform: string } & (
+  | { evidence: "fixed" }
+  | { evidence: "exact-observation"; candidates: ManagedRouteCandidateEvidence[] }
+  | { evidence: "gap"; reason: string }
+);
+
+/** Count distinct definition/platform pairs for which Core reported both operations. */
+function catalogOperationOffers(ports: readonly ManagedRouteCoverageInput[]) {
+  const platforms = new Map<
+    string,
+    {
+      managed_install_only: number;
+      external_registration_only: number;
+      both_operations: number;
+      neither_operation: number;
+    }
+  >();
+  for (const { targets } of ports) {
+    if (targets?.presence !== "operational") return null;
+    const seen = new Set<string>();
+    for (const target of targets.targets) {
+      if (seen.has(target.platform)) return null;
+      seen.add(target.platform);
+      const installs = target.routes.filter(({ action }) => action === "install");
+      const registrations = target.routes.filter(({ action }) => action === "register_external");
+      if (installs.length !== 1 || registrations.length !== 1) return null;
+      const managed = installs[0]!.offered;
+      const external = registrations[0]!.offered;
+      if (typeof managed !== "boolean" || typeof external !== "boolean") return null;
+      if (!managed && !external && !targets.declared_platforms.includes(target.platform)) continue;
+      const counts = platforms.get(target.platform) ?? {
+        managed_install_only: 0,
+        external_registration_only: 0,
+        both_operations: 0,
+        neither_operation: 0,
+      };
+      if (managed && external) counts.both_operations++;
+      else if (managed) counts.managed_install_only++;
+      else if (external) counts.external_registration_only++;
+      else counts.neither_operation++;
+      platforms.set(target.platform, counts);
+    }
+    if (targets.declared_platforms.some((platform) => !seen.has(platform))) return null;
+  }
+  return Array.from(platforms, ([platform, counts]) => ({
+    platform,
+    ...counts,
+    distinct_offered_pairs:
+      counts.managed_install_only + counts.external_registration_only + counts.both_operations,
+  })).sort((left, right) => left.platform.localeCompare(right.platform));
+}
+
+/** Joins Core's offered install platforms to the latest authenticated checkpoint facts. */
+export function managedRouteObservationCoverage(
+  ports: readonly ManagedRouteCoverageInput[],
+  runs: readonly ManagedRouteCoverageRun[],
+  upstreamPresentMembers: Readonly<Record<string, string>>,
+) {
+  const catalog = runs.find(({ source }) => source === "catalog-records");
+  const targets = runs.find(({ source }) => source === "core-target-routes");
+  const upstream = runs.find(({ source }) => source === "upstream-observations");
+  const targetScopeKnown =
+    catalog?.coverage === "complete" &&
+    catalog.member_digest !== null &&
+    targets?.coverage === "complete" &&
+    targets.member_digest !== null &&
+    targets.acquisition === catalog.acquisition &&
+    targets.observed_count === catalog.observed_count &&
+    catalog.source_revision !== null &&
+    targets.source_revision?.includes(`;source=${catalog.source_revision};`) === true &&
+    targets.source_revision.endsWith(";binding=verified;catalog=verified");
+
+  const gaps = new Map(upstream?.gaps.map(({ subject_key, code }) => [subject_key, code]));
+  // Partial collections retain older rows. Remove precisely the reported gaps
+  // and verify the original collection digest before counting any inherited row.
+  const members = new Map(
+    Object.entries(upstreamPresentMembers).filter(([port]) => !gaps.has(port)),
+  );
+  const membershipVerified =
+    upstream !== undefined &&
+    ["complete", "partial"].includes(upstream.coverage) &&
+    upstream.member_count === members.size &&
+    upstream.member_digest === membershipDigest(members);
+  const observerFailure = !upstream
+    ? "no-observer-collection"
+    : upstream.coverage === "failed"
+      ? "observer-collection-failed"
+      : membershipVerified
+        ? null
+        : "observer-membership-unverified";
+
+  let missingTargets = 0;
+  let retainedCandidates = 0;
+  const platforms = new Map<
+    string,
+    { offered: number; fixed: number; candidate_observed: number }
+  >();
+  const reasons = new Map<string, number>();
+  const routes: ManagedRouteEvidence[] = [];
+  for (const port of ports) {
+    if (!targetScopeKnown || port.targets?.presence !== "operational") {
+      missingTargets++;
+      continue;
+    }
+    const offered = new Map(
+      port.targets.targets
+        .filter(({ routes }) =>
+          routes.some(({ action, offered }) => action === "install" && offered),
+        )
+        .map(({ platform, qualification }) => [
+          platform,
+          qualification.offered_artifact.state === "fixed" ||
+            port.curated_platforms?.includes(platform) === true,
+        ]),
+    );
+    const observed = new Map<string, Map<string, ManagedRouteCandidateEvidence>>();
+    const retained = new Set<string>();
+    if (membershipVerified && members.has(port.port_key) && isRecord(port.upstream)) {
+      const sources = port.upstream.sources;
+      if (Array.isArray(sources))
+        for (const source of sources)
+          if (isRecord(source) && Array.isArray(source.managed_release_candidates))
+            for (const candidate of source.managed_release_candidates)
+              if (
+                isRecord(candidate) &&
+                typeof candidate.platform === "string" &&
+                typeof candidate.candidate_key === "string" &&
+                /^[a-f0-9]{64}$/u.test(candidate.candidate_key) &&
+                (candidate.state === "eligible" || candidate.state === "pending")
+              ) {
+                retained.add(candidate.platform);
+                if (
+                  port.definition_sha256 &&
+                  source.catalog_definition_sha256 === port.definition_sha256
+                ) {
+                  const candidates =
+                    observed.get(candidate.platform) ??
+                    new Map<string, ManagedRouteCandidateEvidence>();
+                  observed.set(candidate.platform, candidates);
+                  const { candidate_key, state } = candidate;
+                  const channel = channels.find((value) => value === candidate.channel);
+                  if (channel) {
+                    const previous = candidates.get(candidate_key);
+                    const conflict =
+                      previous &&
+                      (previous.state === "ambiguous" ||
+                        previous.channel !== channel ||
+                        previous.state !== state);
+                    candidates.set(
+                      candidate_key,
+                      conflict
+                        ? { candidate_key, state: "ambiguous" }
+                        : { candidate_key, channel, state },
+                    );
+                  }
+                }
+              }
+    }
+    for (const [platform, fixed] of offered) {
+      const route = { port_key: port.port_key, platform };
+      const counts = platforms.get(platform) ?? { offered: 0, fixed: 0, candidate_observed: 0 };
+      counts.offered++;
+      if (fixed) {
+        counts.fixed++;
+        routes.push({ ...route, evidence: "fixed" });
+      } else {
+        if (retained.has(platform)) retainedCandidates++;
+        const candidates = observed.get(platform);
+        if (candidates) {
+          counts.candidate_observed++;
+          routes.push({
+            ...route,
+            evidence: "exact-observation",
+            candidates: [...candidates.values()].sort((a, b) =>
+              a.candidate_key.localeCompare(b.candidate_key),
+            ),
+          });
+        } else {
+          const reason =
+            observerFailure ??
+            gaps.get(port.port_key) ??
+            (retained.has(platform)
+              ? port.definition_sha256
+                ? "definition-scope-unverified"
+                : "current-definition-unbound"
+              : members.has(port.port_key)
+                ? "no-managed-candidate"
+                : "outside-observer-scope");
+          reasons.set(reason, (reasons.get(reason) ?? 0) + 1);
+          routes.push({ ...route, evidence: "gap", reason });
+        }
+      }
+      platforms.set(platform, counts);
+    }
+  }
+
+  const completeOffering = targetScopeKnown && missingTargets === 0;
+  const byPlatform = [...platforms.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([platform, { offered, fixed, candidate_observed }]) => ({
+      platform,
+      offered,
+      fixed,
+      candidate_observed: membershipVerified ? candidate_observed : null,
+    }));
+  return {
+    catalog_collection_complete: catalog?.coverage === "complete" && catalog.member_digest !== null,
+    target_scope_known: completeOffering,
+    operational_definitions: ports.length,
+    operational_definitions_without_target_projection: missingTargets,
+    catalog_operation_offers_by_platform: completeOffering ? catalogOperationOffers(ports) : null,
+    offered_managed_platforms: completeOffering
+      ? byPlatform.reduce((total, { offered }) => total + offered, 0)
+      : null,
+    offered_following_platforms: completeOffering
+      ? byPlatform.reduce((total, { offered, fixed }) => total + offered - fixed, 0)
+      : null,
+    fixed_managed_platforms: completeOffering
+      ? byPlatform.reduce((total, { fixed }) => total + fixed, 0)
+      : null,
+    platforms_with_candidate_observed:
+      membershipVerified && completeOffering
+        ? byPlatform.reduce((total, { candidate_observed }) => total + (candidate_observed ?? 0), 0)
+        : null,
+    platforms_with_retained_candidate:
+      membershipVerified && completeOffering ? retainedCandidates : null,
+    by_platform: byPlatform,
+    gaps: [...reasons.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reason, offered_platforms]) => ({ reason, offered_platforms })),
+    routes: completeOffering
+      ? routes.sort(
+          (a, b) => a.port_key.localeCompare(b.port_key) || a.platform.localeCompare(b.platform),
+        )
+      : null,
+    observer_revision: upstream?.source_revision ?? null,
+    observer_checkpoint_imported_at: upstream?.completed_at ?? null,
+    observer_membership_verified: membershipVerified,
+  };
+}
+
+export function buildReport(
+  environment: NodeJS.ProcessEnv,
+  now = new Date(),
+  interventionEvidence?: ManagedInterventionEvidence,
+): InventoryReport {
+  const { from, through } = managedReleaseEligibilityWindow([], now);
+  const data = JSON.parse(
+    runSql(environment, reportQuery(from, through, interventionEvidence !== undefined)).trim(),
+  ) as {
     generation: number;
     universe_inputs: {
       records: Parameters<typeof buildUniverse>[0]["records"];
       issues: Record<string, unknown>;
       intake: Record<string, unknown>;
     };
-    runs: unknown[];
+    runs: ManagedRouteCoverageRun[];
+    progress?: StoredProgress[];
+    managed_release_observations: unknown[];
+    managed_route_inputs: ManagedRouteCoverageInput[];
+    upstream_present_members: Record<string, string>;
     freshness: {
       source: string;
       attempted_at: string | null;
@@ -2870,6 +3420,26 @@ export function buildReport(environment: NodeJS.ProcessEnv, now = new Date()): I
       .filter(([source]) => !(serving && source === "definition-delivery"))
       .map(([source, reason]) => ({ source, reason })),
     runs: data.runs,
+    progress: visibleProgress(data.progress ?? [], now),
+    managed_release_eligibility: managedReleaseEligibilityWindow(
+      data.managed_release_observations,
+      now,
+    ),
+    ...(interventionEvidence
+      ? {
+          managed_intervention_evidence: scopedManagedInterventions(
+            interventionEvidence,
+            data.managed_release_observations,
+            from,
+            through,
+          ),
+        }
+      : {}),
+    managed_route_observation_coverage: managedRouteObservationCoverage(
+      data.managed_route_inputs,
+      data.runs,
+      data.upstream_present_members,
+    ),
     freshness: sourceFreshness(data.freshness, now),
     subjects: subjects.map((subject) => {
       const target = subject.identity?.target_key;
@@ -3023,6 +3593,32 @@ ${entries
   )
   .join("\n")}
 </tbody></table>`;
+}
+
+function managedRouteCoverageSection(report: InventoryReport) {
+  const coverage = report.managed_route_observation_coverage;
+  if (!coverage) return "";
+  const gaps = coverage.routes?.filter((route) => route.evidence === "gap") ?? [];
+  return `<h2>Managed installation observation coverage</h2>
+<p>The latest checkpoint recorded candidates that match the current definition for ${escapeHtml(coverage.platforms_with_candidate_observed ?? "unknown")} of ${escapeHtml(coverage.offered_following_platforms ?? "unknown")} offered release-following port and platform pairs. Fixed package offers account for ${escapeHtml(coverage.fixed_managed_platforms ?? "unknown")} pairs. The maintenance collector imported the checkpoint at ${escapeHtml(coverage.observer_checkpoint_imported_at ?? "an unknown time")}. Released-client availability requires separate receipts.</p>
+<p><a href="inventory.json">JSON report with route and channel evidence</a></p>
+${
+  gaps.length
+    ? `<details>
+<summary>Show ${gaps.length} route observation gaps</summary>
+<div class="scrollable-table" tabindex="0" role="region" aria-labelledby="managed-route-gaps-caption"><table>
+<caption id="managed-route-gaps-caption">Offered routes without exact candidate evidence</caption>
+<thead><tr><th scope="col">Port</th><th scope="col">Platform</th><th scope="col">Evidence gap</th></tr></thead><tbody>
+${gaps
+  .map(
+    ({ port_key, platform, reason }) =>
+      `<tr><th scope="row"><code>${escapeHtml(port_key)}</code></th><td>${escapeHtml(platform)}</td><td>${escapeHtml(reason)}</td></tr>`,
+  )
+  .join("\n")}
+</tbody></table></div>
+</details>`
+    : ""
+}`;
 }
 
 function hostedIntakeSection(report: InventoryReport) {
@@ -3339,11 +3935,28 @@ export function renderHtml(report: InventoryReport) {
     generated_at: report.generated_at,
     unassessed_gaps: report.unassessed_gaps ?? [],
     universe: (report.universe ?? []).map(
-      ({ key, kind, name, game, target_key, port_keys, relations, identity_gap }) => ({
+      ({
+        key,
+        kind,
+        name,
+        game,
+        target_key,
+        original_game_id,
+        grouping_gap,
+        grouping_disposition,
+        grouping_reason,
+        port_keys,
+        relations,
+        identity_gap,
+      }) => ({
         key,
         kind,
         label: [name, game].filter(Boolean).join(" — "),
         target_key,
+        original_game_id,
+        grouping_gap,
+        grouping_disposition,
+        grouping_reason,
         port_keys,
         relations: relations.map(({ type, key: related }) => `${type} ${related}`),
         identity_gap,
@@ -3364,6 +3977,8 @@ table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #8884; padding: .4rem; text-align: left; vertical-align: top; }
 .unknown { color: #b26b00; }
 input { width: 100%; padding: .5rem; font: inherit; }
+.scrollable-table { overflow: auto; max-inline-size: 100%; }
+.scrollable-table th, .scrollable-table td { min-inline-size: 12rem; overflow-wrap: anywhere; }
 </style>
 </head>
 <body>
@@ -3391,16 +4006,27 @@ ${report.unsupported_sources
   )
   .join("\n")}
 </tbody></table>
+${managedRouteCoverageSection(report)}
 ${publicationSection(report)}
 ${reconsiderationSection(report)}
 ${hostedIntakeSection(report)}
 ${releaseContentSection(report)}
+<h2 id="research-progress-heading">Research progress</h2>
+<p>Optional source-backed research observations. Matching, fuzzy similarity and linked code measure different work. They do not establish playable packages or support. Failed reads preserve the last dated observation.</p>
+${
+  report.progress?.length
+    ? `<div class="scrollable-table" tabindex="0" role="region" aria-labelledby="research-progress-heading"><table>
+<caption>Observed project and edition progress</caption><thead><tr><th scope="col">Project and edition</th><th scope="col">Metrics</th><th scope="col">Source and freshness</th></tr></thead><tbody>
+${report.progress.map((p) => `<tr><th scope="row">${escapeHtml(p.repository)} · ${escapeHtml(p.game_key)} · ${escapeHtml(p.version)}</th><td>${escapeHtml(p.display)}<br>${escapeHtml(p.methodology)}</td><td><a href="${escapeHtml(p.source_url)}">${escapeHtml(p.provider)} report for ${escapeHtml(p.repository)}</a><br><a href="${escapeHtml(p.evidence_url)}">Source evidence for ${escapeHtml(p.repository)}</a><br>Observed ${escapeHtml(p.observed_at ?? "unknown")}; checked ${escapeHtml(p.checked_at)} (${escapeHtml(p.freshness)}; latest attempt ${escapeHtml(p.latest_attempt)} at ${escapeHtml(p.last_attempt_at)})<br>${escapeHtml(p.commit ?? "commit unavailable")}</td></tr>`).join("\n")}
+</tbody></table></div>`
+    : "<p>No optional progress observations are available.</p>"
+}
 <p>Next actions are executor handoffs. Disabled: ${escapeHtml(disabledCapabilities.join("; "))}.</p>
 <h2>Games and implementations</h2>
 <p>Every known port, implementation identity, issue-only implementation, intake request and definition. Related entries are linked, never merged; names are labels, not identity.</p>
 <label for="universe-search">Search games and implementations</label>
 <input id="universe-search" type="search" placeholder="Name, game, port key or identity">
-<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
+<table><thead><tr><th>Identity</th><th>Kind</th><th>Name and game</th><th>Original game ID</th><th>Lineage target</th><th>Port keys</th><th>Related</th></tr></thead><tbody id="universe"></tbody></table>
 <h2>Subjects</h2>
 <p>Every full run re-reads Core for every port; an opt-in selective run (marked in Sources) reuses unchanged results under the same Core semantics without re-reading them, so their "Last verified" does not move. A port is reassessed, recording a new assessment, only when ${reassessmentTriggers.map(escapeHtml).join("; or ")}. Only a changed result records a change; a rebuild with the same output, a failed run, or a port Core could not read in a partial run records nothing. "Last verified" is the latest run that re-read the port and found the same inputs.</p>
 <form id="filters" role="search" onsubmit="return false">
@@ -3463,10 +4089,10 @@ function renderUniverse(filter) {
   universe.replaceChildren();
   const entries = report.universe ?? [];
   for (const entry of entries) {
-    const text = [entry.key, entry.label, entry.target_key, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
+    const text = [entry.key, entry.label, entry.original_game_id, entry.target_key, entry.grouping_gap, entry.grouping_disposition, entry.grouping_reason, entry.identity_gap, ...entry.port_keys, ...entry.relations].join(" ").toLowerCase();
     if (filter && !text.includes(filter)) continue;
     const row = universe.insertRow();
-    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : [])].join("; ")])
+    for (const value of [entry.key, entry.kind, entry.label || "unnamed", entry.original_game_id || "not reviewed", entry.target_key || "not recorded", entry.port_keys.join(", "), [...entry.relations, ...(entry.identity_gap ? ["identity unknown: " + entry.identity_gap] : []), ...(entry.grouping_gap ? ["grouping review: " + entry.grouping_gap] : []), ...(entry.grouping_disposition ? [entry.grouping_disposition + (entry.grouping_reason ? ": " + entry.grouping_reason : "")] : [])].join("; ")])
       row.insertCell().textContent = value;
   }
   if (!entries.length) universe.insertRow().insertCell().textContent = "No identities observed yet.";
@@ -3545,7 +4171,7 @@ export function buildDigest(environment: NodeJS.ProcessEnv) {
          JOIN portcove_maintenance.assessments a ON a.assessment_id = t.assessment_id
          LEFT JOIN portcove_maintenance.subject_transitions p
            ON p.subject_key = t.subject_key AND p.sequence = t.sequence - 1
-        WHERE n.status = 'pending';`,
+        WHERE n.status = 'pending' AND NOT (starts_with(n.subject_key,'progress:') AND lower(a.explanation ->> 'repository') IN ${progressOptedOutRepositoriesQuery});`,
     ).trim(),
     "maintenance digest",
   ) as DigestEntry[];
@@ -3648,43 +4274,100 @@ commands:
                                        --reassess changed (with --all and --targets) reuses
                                        unchanged Core results under the same Core semantics
                                        after a full read within 7 days; full (default) reads all
+                                       --catalog-only reads only the pinned catalog and Core sources
+                                       --progress FILE adds a reviewed format-1 progress-source
+                                       manifest through bounded provider/project report reads;
+                                       failures retain last-good research observations
   report --output DIR [--previous DIR]  write inventory.json and index.html to a new DIR; with
                                        --previous, refuse if that report reflects newer collections
+                                       --intervention-evidence FILE --intervention-evidence-sha256 DIGEST
+                                       optionally include operator-supplied intervention assertions in JSON
   digest --output DIR                  write the pending changes-only digest (digest.json, digest.md)
+  status                               read counts and last completed collection time
+  history --subject KEY [--before N]   read up to 100 retained transitions for one subject
   acknowledge --digest FILE --receipt REF
                                        record delivery of that digest's notifications against the
                                        delivering executor's receipt (executor role)
   handoffs [--json]                    list open executor handoffs with their registry entry and
                                        open operation (read-only; dispatch is disabled)
+  handoffs --reconcile-intake          record original executor receipts for finished hosted-intake handoffs
   handoffs --record                    plan one operation per open handoff at its current fence and
                                        abandon planned operations whose handoff moved on (executor
                                        role, local store only; never dispatches)
 
+  observer-usage --report FILE --output FILE
+
 options:
   --database-env NAME   environment variable holding the database URL (default ${defaultDatabaseEnvironment})
+  --database-env-file PATH   read that variable from an env file
 
 PORTCOVE_MAINTENANCE_RUNNER optionally names the runner recorded with each collection run.`;
 
 export async function main(argv = process.argv.slice(2)) {
   const args = [...argv];
   const command = args.shift();
+  if (command === "observer-usage") {
+    const report = option(args, "--report");
+    const output = option(args, "--output");
+    if (!report || !output || args.length)
+      throw new MaintenanceStoreError("observer-usage requires --report FILE --output FILE");
+    const source = path.resolve(report);
+    const bytes = await readBoundedPublicBuildInputFile(
+      path.dirname(source),
+      path.basename(source),
+      64 * 1024 * 1024,
+    );
+    const usage = await readObserverOperatingUsage(
+      parseJson(new TextDecoder("utf-8", { fatal: true }).decode(bytes), "maintenance report"),
+    );
+    const evidence = { ...usage, inventory_sha256: sha256(bytes) };
+    writeFileSync(output, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx" });
+    return;
+  }
+
   if (!command || command === "--help" || command === "-h") {
     console.log(usage);
     return command ? 0 : 2;
   }
   const databaseEnvironment = option(args, "--database-env") ?? defaultDatabaseEnvironment;
-  const environment = connectionFromEnvironment(databaseEnvironment);
+  const environment = connectionFromEnvironment(
+    databaseEnvironment,
+    process.env,
+    option(args, "--database-env-file"),
+  );
   // Core CLI, Git and libpq children receive only the libpq translation, never the URL.
   delete process.env[databaseEnvironment];
+  delete process.env.PORTCOVE_NEON_METER_TOKEN;
   const cli = option(args, "--cli");
   const sample = option(args, "--sample");
   const output = option(args, "--output");
   const previous = option(args, "--previous");
+  const interventionFile = option(args, "--intervention-evidence");
+  const interventionSha256 = option(args, "--intervention-evidence-sha256");
+  if (
+    (interventionFile !== undefined || interventionSha256 !== undefined) &&
+    (command !== "report" || !interventionFile || !interventionSha256)
+  )
+    throw new MaintenanceStoreError("Intervention evidence requires both flags on report");
   const digestFile = option(args, "--digest");
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
-  const reassess = option(args, "--reassess");
-  if (reassess !== undefined && reassess !== "full" && reassess !== "changed")
+  const progressManifest = option(args, "--progress");
+  const artworkHealth = option(args, "--artwork-health");
+  if (artworkHealth !== undefined && command !== "collect")
+    throw new MaintenanceStoreError("--artwork-health applies only to collect");
+  const historySubject = option(args, "--subject");
+  const historyBefore = option(args, "--before");
+  if ((historySubject || historyBefore) && command !== "history")
+    throw new MaintenanceStoreError("--subject and --before apply only to history");
+  if (progressManifest !== undefined && command !== "collect")
+    throw new MaintenanceStoreError("--progress applies only to collect");
+  const requestedReassessment = option(args, "--reassess");
+  const reassess =
+    requestedReassessment === "full" || requestedReassessment === "changed"
+      ? requestedReassessment
+      : undefined;
+  if (requestedReassessment !== undefined && reassess === undefined)
     throw new MaintenanceStoreError("--reassess must be full or changed");
   const issuesTokenEnvironment = option(args, "--issues-token-env");
   const allIndex = args.indexOf("--all");
@@ -3718,12 +4401,40 @@ export async function main(argv = process.argv.slice(2)) {
   };
   const json = flag("--json");
   const record = flag("--record");
+  const reconcileIntake = flag("--reconcile-intake");
+  const intakeReceiptRevision = option(args, "--intake-receipt-revision");
+  const catalogOnly = flag("--catalog-only");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
   if (issues) args.splice(issuesIndex, 1);
+  if (
+    catalogOnly &&
+    (command !== "collect" ||
+      !all ||
+      !targets ||
+      reassess !== "changed" ||
+      issues ||
+      delivery ||
+      publication ||
+      releaseHealth ||
+      releaseContent ||
+      upstreamSource ||
+      artworkHealth ||
+      hostedSource ||
+      progressManifest)
+  )
+    throw new MaintenanceStoreError(
+      "--catalog-only takes --all --targets --reassess changed without external sources",
+    );
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
+  if (intakeReceiptRevision !== undefined && !(command === "collect" && all && hostedSource))
+    throw new MaintenanceStoreError(
+      "--intake-receipt-revision requires collect --all --hosted-intake",
+    );
+  if (reconcileIntake && !(command === "handoffs" && !record && !json))
+    throw new MaintenanceStoreError("--reconcile-intake requires handoffs");
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
@@ -3732,82 +4443,179 @@ export async function main(argv = process.argv.slice(2)) {
     throw new MaintenanceStoreError("--previous applies only to report");
   if (args.length)
     throw new MaintenanceStoreError(`Unexpected arguments: ${args.join(" ")}\n${usage}`);
-  if (command === "collect") {
-    if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
-    const issueCredential =
-      issuesTokenEnvironment === undefined
-        ? undefined
-        : takeIssueCredential(issuesTokenEnvironment);
-    console.log(
-      JSON.stringify(
-        await collect({
-          cli: path.resolve(cli),
-          sample,
-          all,
-          concurrency: concurrency === undefined ? undefined : Number(concurrency),
-          issues: issues ? () => readIssueInventory(issueCredential) : undefined,
-          releaseHealth: releaseHealth ? readReleaseHealth : undefined,
-          releaseContent: releaseContent ? readReleaseContent : undefined,
-          upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
-          hostedIntake: hostedSource ? readHostedIntake : undefined,
-          publication: publication || undefined,
-          delivery: delivery || undefined,
-          targets: targets || undefined,
-          reassess,
-          environment,
-        }),
-        null,
-        2,
-      ),
+  const operation =
+    command === "collect" || command === "report" || command === "digest" || command === "handoffs"
+      ? command
+      : "inspect";
+  let complete = true;
+  let request: string | undefined;
+  if (
+    catalogOnly &&
+    environment.GITHUB_SHA &&
+    environment.GITHUB_WORKFLOW === "Maintenance inventory"
+  ) {
+    const revision = git(["rev-parse", "HEAD"]).trim();
+    if (revision !== environment.GITHUB_SHA)
+      throw new MaintenanceStoreError(
+        "Hosted catalog-only request does not match its checked-out revision",
+      );
+    const started = Math.floor(Date.now() / 1000);
+    const window = Math.floor(started / 600) * 600;
+    const documents = ["catalog.json", "listings.json"].map((file): unknown =>
+      JSON.parse(git(["show", `${revision}:crates/portcove-core/catalog/${file}`])),
     );
-  } else if (command === "report") {
-    if (!output) throw new MaintenanceStoreError("report requires --output DIR");
-    const report = buildReport(environment);
-    writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
-    console.log(
-      JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
-    );
-  } else if (command === "digest") {
-    if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
-    const digest = buildDigest(environment);
-    writeDigest(digest, path.resolve(output));
-    console.log(
-      JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
-    );
-  } else if (command === "acknowledge") {
-    if (!digestFile || !receipt)
-      throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
-    const digest = parseJson(
-      readFileSync(path.resolve(digestFile), "utf8"),
-      "digest",
-    ) as ReturnType<typeof buildDigest>;
-    if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
-      throw new MaintenanceStoreError("Unsupported digest file");
-    console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
-  } else if (command === "handoffs") {
-    if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
-    if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
-    else {
-      const handoffs = readOpenHandoffs(environment);
-      if (json)
-        console.log(
-          JSON.stringify(
-            {
-              format: "portcove-maintenance-handoffs",
-              format_version: 1,
-              dispatch: "disabled",
-              disabled: disabledCapabilities,
-              without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
-              handoffs,
-            },
-            null,
-            2,
-          ),
-        );
-      else process.stdout.write(renderHandoffs(handoffs));
+    // If a dated fact became effective inside this window, use the exact event
+    // run identity so a prior completion can never obscure the change.
+    if (!clockWindowCrossed(documents, window, started))
+      request = `github:catalog-only:${revision}:${window}`;
+  }
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred, MaintenanceRequestCoalesced } =
+    await import("./maintenance-resource-policy.mts");
+  try {
+    return await withMaintenanceAdmission(environment, operation, run, {
+      executor: command === "handoffs" && reconcileIntake,
+      request,
+      completed: () => complete,
+    });
+  } catch (error) {
+    if (error instanceof MaintenanceRequestCoalesced) {
+      console.log(JSON.stringify({ outcome: "coalesced", request }));
+      return 0;
     }
-  } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
-  return 0;
+    if (!(error instanceof MaintenanceResourceDeferred)) throw error;
+    console.error(`Maintenance deferred: ${error.message}`);
+    return 75;
+  }
+
+  async function run() {
+    if (command === "collect") {
+      if (!cli) throw new MaintenanceStoreError("collect requires --cli PATH");
+      const issueCredential =
+        issuesTokenEnvironment === undefined
+          ? undefined
+          : takeIssueCredential(issuesTokenEnvironment);
+      const collected = await collect({
+        cli: path.resolve(cli),
+        sample,
+        all,
+        concurrency: concurrency === undefined ? undefined : Number(concurrency),
+        issues: issues ? () => readIssueInventory(issueCredential) : undefined,
+        releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+        artworkHealth,
+        releaseContent: releaseContent ? readReleaseContent : undefined,
+        upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
+        progress: progressManifest
+          ? validateProgressSources(
+              JSON.parse(
+                new TextDecoder("utf-8", { fatal: true }).decode(
+                  await readBoundedPublicBuildInputFile(
+                    path.dirname(path.resolve(progressManifest)),
+                    path.basename(progressManifest),
+                    64 * 1024,
+                  ),
+                ),
+              ),
+            )
+          : undefined,
+        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        intakeReceiptRevision,
+        publication: publication || undefined,
+        delivery: delivery || undefined,
+        targets: targets || undefined,
+        reassess,
+        bindCatalogDefinitions: catalogOnly,
+        environment,
+      });
+      complete = collected.failed_sources.length === 0 && collected.core_gaps === 0;
+      console.log(JSON.stringify(collected, null, 2));
+    } else if (command === "report") {
+      if (!output) throw new MaintenanceStoreError("report requires --output DIR");
+      const interventionPath = interventionFile && path.resolve(interventionFile);
+      const evidence =
+        interventionPath && interventionSha256
+          ? readManagedInterventionEvidence(
+              await readBoundedPublicBuildInputFile(
+                path.dirname(interventionPath),
+                path.basename(interventionPath),
+                managedInterventionEvidenceLimit,
+              ),
+              interventionSha256,
+            )
+          : undefined;
+      const report = buildReport(environment, new Date(), evidence);
+      writeReport(report, path.resolve(output), previous ? path.resolve(previous) : undefined);
+      console.log(
+        JSON.stringify({ output: path.resolve(output), subjects: report.subjects.length }, null, 2),
+      );
+    } else if (command === "digest") {
+      if (!output) throw new MaintenanceStoreError("digest requires --output DIR");
+      const digest = buildDigest(environment);
+      writeDigest(digest, path.resolve(output));
+      console.log(
+        JSON.stringify({ output: path.resolve(output), changes: digest.entries.length }, null, 2),
+      );
+    } else if (command === "acknowledge") {
+      if (!digestFile || !receipt)
+        throw new MaintenanceStoreError("acknowledge requires --digest FILE and --receipt REF");
+      const digest = parseJson(
+        readFileSync(path.resolve(digestFile), "utf8"),
+        "digest",
+      ) as ReturnType<typeof buildDigest>;
+      if (digest.format !== "portcove-maintenance-digest" || !Array.isArray(digest.entries))
+        throw new MaintenanceStoreError("Unsupported digest file");
+      console.log(JSON.stringify(acknowledgeDigest(environment, digest, receipt), null, 2));
+    } else if (command === "handoffs") {
+      if (record && json) throw new MaintenanceStoreError("handoffs takes --json or --record");
+      if (reconcileIntake) {
+        const { reconcileIntakeHandoffReceipts } =
+          await import("./maintenance-intake-receipts.mts");
+        console.log(JSON.stringify(await reconcileIntakeHandoffReceipts(environment), null, 2));
+      } else if (record) console.log(JSON.stringify(recordHandoffOperations(environment), null, 2));
+      else {
+        const handoffs = readOpenHandoffs(environment);
+        if (json)
+          console.log(
+            JSON.stringify(
+              {
+                format: "portcove-maintenance-handoffs",
+                format_version: 1,
+                dispatch: "disabled",
+                disabled: disabledCapabilities,
+                without_handoff: withoutHandoff.map(([source, reason]) => ({ source, reason })),
+                handoffs,
+              },
+              null,
+              2,
+            ),
+          );
+        else process.stdout.write(renderHandoffs(handoffs));
+      }
+    } else if (command === "status") {
+      process.stdout.write(
+        runSql(
+          environment,
+          `SELECT json_build_object(
+      'subjects', (SELECT count(*) FROM portcove_maintenance.subject_current),
+      'latest_collection', (SELECT max(completed_at) FROM portcove_maintenance.collection_runs),
+      'pending_notifications', (SELECT count(*) FROM portcove_maintenance.notifications WHERE status = 'pending'));`,
+        ),
+      );
+    } else if (command === "history") {
+      const before = historyBefore ?? "9223372036854775807";
+      if (!historySubject || historySubject.length > 512 || !/^[0-9]{1,19}$/u.test(before))
+        throw new MaintenanceStoreError("history requires --subject KEY and optionally --before N");
+      process.stdout.write(
+        runSql(
+          environment,
+          `SELECT coalesce(json_agg(t ORDER BY sequence DESC), '[]')
+      FROM (SELECT sequence, state, recorded_at, returns_to_earlier_result
+        FROM portcove_maintenance.subject_transitions WHERE subject_key = ${literal(historySubject)}
+        AND sequence < ${before} ORDER BY sequence DESC LIMIT 100) t;`,
+        ),
+      );
+    } else throw new MaintenanceStoreError(`Unknown command: ${command}\n${usage}`);
+    return 0;
+  }
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

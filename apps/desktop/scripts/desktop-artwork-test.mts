@@ -31,6 +31,7 @@ import {
   clearCatalogFilters,
 } from "./desktop-review-controls.mts";
 import { artworkObservations } from "./desktop-artwork-observations.mts";
+import { readWorkspaceSnapshotObservation } from "./desktop-review-observation.mts";
 
 export async function readArtworkFallback(
   browser: Pick<ScenarioContext["browser"], "executeScript">,
@@ -125,6 +126,7 @@ export async function artworkScenario({
 }: ArtworkContext) {
   await scenario("native-local-artwork-picker-and-recovery", async () => {
     const observations = artworkObservations({ browser, output, artifacts });
+    const workspaceReadbacks: unknown[] = [];
     let failure;
     try {
       const bootstrap = transportValue(
@@ -250,6 +252,24 @@ export async function artworkScenario({
           until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
           15_000,
         );
+        // Check the real workspace after reload: a name search must not conceal
+        // a missing qualification definition or discovery listing after refresh.
+        const workspace = await readWorkspaceSnapshotObservation(
+          invoke,
+          bootstrap,
+          workspaceReadbacks,
+        );
+        assert.deepEqual(
+          required(workspace.catalog).ports.find((candidate) => candidate.id === port.id),
+          port,
+          "Artwork reload must retain the exact owned operational definition",
+        );
+        assert.equal(
+          required(workspace.listing_catalog?.listings.find((listing) => listing.id === port.id))
+            .name,
+          port.name,
+          "Artwork reload must retain the owned fixture in the discovery directory",
+        );
         // Keep the reload above paired with observations.begin(); a second
         // reload here would discard its request observers.
         await click(By.xpath('//nav//button[contains(., "Discover")]'));
@@ -257,6 +277,7 @@ export async function artworkScenario({
         await search.sendKeys(
           Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
           Key.BACK_SPACE,
+          port.name,
         );
         await clearCatalogFilters(browser);
         await selectCatalogPort(browser, port.id);
@@ -478,7 +499,7 @@ export async function artworkScenario({
       failure = errorMessage(error);
       throw error;
     } finally {
-      await observations.finish(failure);
+      await observations.finish(failure, workspaceReadbacks);
     }
   });
 }

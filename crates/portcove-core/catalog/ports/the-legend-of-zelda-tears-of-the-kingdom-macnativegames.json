@@ -3,11 +3,11 @@
   "listing": {
     "id": "the-legend-of-zelda-tears-of-the-kingdom-macnativegames",
     "name": "The Legend of Zelda: Tears of the Kingdom (MacNativeGames)",
-    "summary": "An experimental Tears of the Kingdom Apple ARM64 rewrite with shared Horizon/NVN-to-Metal services and a local builder. Mac profiles cover 1.0.0, 1.1.2, 1.2.1 and 1.4.3, with limited performance/rendering/audio reports. iPhone/iPad 1.4.3 was played; other iOS versions are untested. A contributor visionOS demonstration is separate from current support, and no full playthrough is established. Apple Silicon Mac needs macOS 26+/Metal 4; iOS/iPadOS needs 26+ and iPhone 14+. Python 3.14 build_app.py builds a local app or signed/sideloaded IPA; no release package exists. Back up profiles before rebuilding/updating; rollback does not establish backward save compatibility. Supply your own 1.0.0 title 0100F2C0115B6000 base XCI/NSP and prod.keys, with optional cumulative 1.1.2/1.2.1/1.4.3 NSP/NSZ update. NSPs need a common ticket unless rights-free, plus your own firmware or six shared BFTTF fonts, potentially from the XCI update partition. DLC, other combined packages, compressed base games and personalized tickets are unsupported. Portcove offers no setup or launch integration and has not tested gameplay.",
+    "summary": "Build Tears of the Kingdom for Apple silicon Mac, iPhone or iPad from your own Switch game. The Mac version has several game profiles. The project reports mobile play with version 1.4.3. Back up your profile before changing versions.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
     "project_url": "https://github.com/ly05010419/MacNativeGames",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ly05010419/MacNativeGames",
     "artwork": {
@@ -18,7 +18,35 @@
       "game_slug": "the-legend-of-zelda-tears-of-the-kingdom",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2973
+    "issue_number": 2973,
+    "manual_setup": {
+      "help_url": "https://github.com/ly05010419/MacNativeGames",
+      "steps": [
+        {
+          "title": "Check your original game files",
+          "instruction": "Use the 1.0.0 base XCI or NSP for title 0100F2C0115B6000 and your own prod.keys. Supported cumulative updates are 1.1.2, 1.2.1 and 1.4.3 in NSP or NSZ format. An NSP needs a common ticket unless rights-free. Supply your firmware or the six shared BFTTF fonts."
+        },
+        {
+          "title": "Follow the project’s setup",
+          "instruction": "Run the project’s Python 3.14 build_app.py for an Apple silicon Mac with macOS 26 and Metal 4 or later. The mobile build produces an IPA to sign and install on iOS or iPadOS 26 or later. The guide specifies iPhone 14 or later."
+        }
+      ],
+      "warnings": [
+        "Keep a backup of the profile before rebuilding or applying an update. Reverting the build may leave newer saves incompatible."
+      ],
+      "references": [
+        {
+          "title": "Version and platform notes",
+          "instruction": "The project excludes DLC, compressed base games, personalized tickets and other combined packages. It has no published player or confirmed full playthrough. The visionOS demonstration is separate from Mac and mobile support."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/ly05010419/MacNativeGames"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

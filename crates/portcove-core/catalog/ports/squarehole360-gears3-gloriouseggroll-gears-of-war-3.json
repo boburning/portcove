@@ -6,7 +6,7 @@
     "original_game_title": "Gears of War 3",
     "summary": "The project reports playable Linux results and benchmarks for specific scenes. A Windows binary procedure is documented, but Portcove has not tested it. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GloriousEggroll/squarehole360",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/GloriousEggroll/squarehole360",
     "manual_setup": {
@@ -35,6 +35,21 @@
       "image_sha256": "9d52d23bb2122aa4484bf3d971ecffea246fcced40234bae059106a95f950f40",
       "game_slug": "gears-of-war-3",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-3",
+      "evidence_urls": ["https://github.com/GloriousEggroll/squarehole360"],
+      "source_editions": [
+        {
+          "id": "gears-of-war-3-xbox-360",
+          "title": "Gears of War 3 (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/GloriousEggroll/squarehole360/blob/c2ce9095306eb13204ef6a3faad26bcf0eaf1e8f/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

@@ -1,0 +1,72 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "widelands",
+    "name": "Widelands",
+    "original_game_title": "Widelands",
+    "summary": "Build roads, supply workshops, and grow a settlement in this open-source strategy game.",
+    "project_url": "https://github.com/widelands/widelands",
+    "artwork": {
+      "game_id": 47043,
+      "cover_id": 86674,
+      "image_id": "co1uvm",
+      "image_sha256": "13666c205039e2943eaacdcf531ee908f72df1ce74d4f8632eb40175998b30c3",
+      "game_slug": "widelands",
+      "match_kind": "port"
+    },
+    "issue_number": 6518,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://github.com/widelands/widelands/releases/latest",
+    "setup_url": "https://www.widelands.org/wiki/Game%20Manual/",
+    "download_block_reason": "Install and update Widelands through the publisher or the package manager you choose.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your Windows or Mac package",
+          "instruction": "On Windows, run the publisher installer for x64, x86, or ARM64. On Mac, open the disk image for Intel or Apple Silicon and copy Widelands to Applications. Use macOS 15 or later with the 1.3.1 disk images because bundled libraries target it."
+        },
+        {
+          "title": "Choose your Linux package",
+          "instruction": "The publisher offers an x86-64 AppImage. Make it executable before opening it. The AppImage needs FUSE and can also need your distribution's JACK compatibility library. If the AppImage cannot open, use the Widelands Flatpak for x86-64 or ARM64."
+        },
+        {
+          "title": "Start and save a settlement",
+          "instruction": "Choose Single Player, then New Game or a campaign. In a game, open the menu and choose Save Game. From the main menu, choose Single Player and Load Game to continue."
+        }
+      ],
+      "warnings": [
+        "Close Widelands before copying its data. Keep your saves, settings, maps, add-ons, and replays together. If you started the game with --homedir, keep the folder you selected. Use the same game version and required add-ons when opening an older save for the first time."
+      ],
+      "references": [
+        {
+          "title": "Find your Windows or Mac data",
+          "instruction": "Look in %USERPROFILE%/.widelands on Windows or ~/.widelands on Mac."
+        },
+        {
+          "title": "Find your Linux data",
+          "instruction": "Keep an existing ~/.widelands directory. On new standalone setups, save data goes under $XDG_DATA_HOME/widelands or ~/.local/share/widelands, and settings go under $XDG_CONFIG_HOME/widelands or ~/.config/widelands. For Flatpak, keep the app profile under ~/.var/app/org.widelands.Widelands, including its .widelands folder when present."
+        }
+      ],
+      "help_url": "https://www.widelands.org/wiki/Technical%20FAQ/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "widelands",
+      "evidence_urls": [
+        "https://www.widelands.org/wiki/Technical%20FAQ/",
+        "https://github.com/widelands/widelands"
+      ],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "widelands",
+    "origin": {
+      "project_url": "https://github.com/widelands/widelands"
+    },
+    "decisions": []
+  }
+}

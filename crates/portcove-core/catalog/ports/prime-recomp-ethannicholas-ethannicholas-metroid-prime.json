@@ -6,6 +6,14 @@
     "original_game_title": "Metroid Prime",
     "summary": "The project claims the whole game is complete without significant bugs. Development focuses on VR. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ethannicholas/prime-recomp",
+    "artwork": {
+      "game_id": 1105,
+      "cover_id": 181616,
+      "image_id": "co3w4w",
+      "image_sha256": "a1edc2e606ed753e2749ccf5b4a544c087ebda7fb00866c4592d8f013aa016c4",
+      "game_slug": "metroid-prime",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "macos-aarch64"],
     "availability": "unknown",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/ethannicholas/prime-recomp"
     },
-    "issue_number": 3364
+    "issue_number": 3364,
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime",
+      "evidence_urls": ["https://github.com/ethannicholas/prime-recomp"],
+      "source_editions": [
+        {
+          "id": "metroid-prime-nintendo-gamecube",
+          "title": "Metroid Prime (GameCube)",
+          "system": "nintendo-gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/prime-recomp/blob/aee55ab6d2e73bfd800ac60756c94d422acc74eb/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

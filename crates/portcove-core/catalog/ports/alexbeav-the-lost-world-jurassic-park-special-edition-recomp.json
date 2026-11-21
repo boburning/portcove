@@ -5,6 +5,14 @@
     "name": "The Lost World: Jurassic Park Special Edition / Alexbeav PSXRecomp",
     "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+    "artwork": {
+      "game_id": 19536,
+      "cover_id": 139080,
+      "image_id": "co2zbc",
+      "image_sha256": "14d38899ee8ceb666c85362dd055a4ad70216d7a67e66d287a8958504a0e46ea",
+      "game_slug": "the-lost-world-jurassic-park--1",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 483,
     "listed_at": "2026-10-23",
     "platforms": ["macos-x86-64", "macos-aarch64"],
@@ -39,15 +47,32 @@
     },
     "release_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/releases",
     "download_asset_hints": {
-      "linux-x86-64": ["The-Lost-World-Jurassic-Park-Special-Edition-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["The-Lost-World-Jurassic-Park-Special-Edition-Recomp-", "-macos-arm64.zip"],
-      "macos-x86-64": ["The-Lost-World-Jurassic-Park-Special-Edition-Recomp-", "-macos-x64.zip"],
-      "windows-x86-64": ["The-Lost-World-Jurassic-Park-Special-Edition-Recomp-", "-windows-x64.zip"]
+      "macos-x86-64": ["The-Lost-World-Jurassic-Park-Special-Edition-Recomp-", "-macos-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "The Lost World: Jurassic Park Special Edition"
+    "original_game_title": "The Lost World: Jurassic Park Special Edition",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lost-world-jurassic-park-special-edition",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme",
+        "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lost-world-jurassic-park-special-edition-playstation",
+          "title": "The Lost World: Jurassic Park Special Edition (PlayStation)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/30a3d23f1436bc26a534477135e3736cdd21bb7f/game.toml"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
+  "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -88,7 +113,20 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own USA The Lost World: Jurassic Park Special Edition CHD (SLUS-00515) containing all 3 tracks, plus your own retail SCPH-1001 BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters."
+      "manual_preparation": "Provide your own USA The Lost World: Jurassic Park Special Edition CHD (SLUS-00515) containing all 3 tracks, plus your own retail SCPH-1001 BIOS. Portcove runs the local kit build with that BIOS and launches the completed player. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Keep your original disc and BIOS files independently. On Linux, use the native C/C++ compiler, CMake, Ninja and Python 3, with glibc 2.14 and GLIBCXX 3.4.26 for the kit’s emitters.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply the exact original disc",
+            "instruction": "Use your own USA The Lost World: Jurassic Park Special Edition disc, SLUS-00515, with all 3 tracks present. Portcove checks the files and builds the player."
+          }
+        ],
+        "warnings": [
+          "Portcove has not confirmed setup or gameplay for this package.",
+          "The source check uses first data-track identity and track count. Keep the full original disc intact."
+        ],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme"
+      }
     },
     "bios_source_profile": "psx-scph-1001-bios"
   }

@@ -16,7 +16,55 @@
       "game_slug": "super-mario-world",
       "match_kind": "underlying-game"
     },
-    "issue_number": 147
+    "issue_number": 147,
+    "platforms": ["linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest",
+    "download_asset_hints": {
+      "linux-x86-64": ["SuperMarioWorldRecomp-linux-", "-x86_64.AppImage"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Select your own Super Mario World original",
+          "instruction": "Use your own stock Super Mario World (USA) SNES ROM. On Windows, select the original in Portcove. On Linux, run the publisher’s AppImage and select the original in its launcher."
+        },
+        {
+          "title": "Run the Linux x64 AppImage",
+          "instruction": "Choose the Linux x86-64 AppImage from the publisher’s release. Make it executable and start it from a writable folder dedicated to this game. It needs glibc 2.38 or later. If FUSE is unavailable, start it with --appimage-extract-and-run. Select Browse For ROM (built-in) when your desktop has no file picker. Keep the original where you store it."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Keep the upstream Linux profile together",
+          "instruction": "With the game closed, back up the working folder beside the AppImage, including saves, config.ini, keybinds.ini, rom.cfg, and your own Lua scripts and mods. The AppImage refreshes matching bundled mod files and makes entries in mods writable by their owner. Keep your working copy and its profile before trying a replacement AppImage. Portcove’s managed Windows backup does not include this Linux folder."
+        },
+        {
+          "title": "Check Mac and Android availability",
+          "instruction": "The current release offers Windows x64 and Linux x86-64 packages. It does not publish Intel Mac, Apple Silicon, Linux ARM64, or Android packages."
+        }
+      ],
+      "help_url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-world",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest",
+        "https://github.com/mstan/SuperMarioWorldRecomp"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-world-super-nintendo",
+          "title": "Super Mario World (Super Nintendo)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -36,6 +84,50 @@
     "executable_hints": {
       "windows-x86-64": ["SuperMarioWorldSNESRecomp.exe"]
     },
+    "game_settings": {
+      "format_version": 2,
+      "releases": [
+        {
+          "version": "v0.15.9",
+          "platform": "windows-x86-64",
+          "archive_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+          "source_commit": "8c280aac7ea08456372cd2b42603bb2ad7ab51eb",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.9",
+            "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/config.c"
+          ]
+        },
+        {
+          "version": "v0.15.10",
+          "platform": "windows-x86-64",
+          "archive_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+          "source_commit": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.10",
+            "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/config.c"
+          ]
+        },
+        {
+          "version": "v0.15.11",
+          "platform": "windows-x86-64",
+          "archive_sha256": "c4c0933bcbbf575ce1d74389b7ce89c9e34960aed395c18764683c483ecdc5cd",
+          "source_commit": "cbbf35c57dd637102925798d0cc092803dd44c32",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.11",
+            "https://github.com/mstan/SuperMarioWorldRecomp/blob/cbbf35c57dd637102925798d0cc092803dd44c32/src/config.c"
+          ]
+        }
+      ],
+      "files": [
+        {
+          "id": "graphics-config",
+          "path": "config.ini",
+          "format": "ini",
+          "maximum_bytes": 32767,
+          "settings": []
+        }
+      ]
+    },
     "presentation": {
       "installation_method": "portable-recompilation",
       "source_requirements": [
@@ -47,7 +139,22 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups."
+      "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your own stock Super Mario World original",
+            "instruction": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Choose a short installation path using basic Latin characters. Your original file can stay where it is."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Review what the Windows backup contains",
+            "instruction": "Portcove manages the default local saves and settings in this installation. The bundled Falcon setup helper uses an external user cache that stays outside Portcove backups."
+          }
+        ]
+      }
     },
     "launch_arguments": ["smw.sfc"],
     "launch_environment": {

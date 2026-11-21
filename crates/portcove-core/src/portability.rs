@@ -20,6 +20,9 @@ pub struct LibraryMetadata {
     pub original_root: PathBuf,
     pub content_roots: Vec<LibraryContentRoot>,
     pub source_references: Vec<SourceRecord>,
+    /// Other admitted original locations in metadata schema 12.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_instances: Vec<SourceRecord>,
     pub application_versions: Vec<InstallRecord>,
     pub port_settings: Vec<LibraryPortSettings>,
     pub launch_history: Vec<LibraryLaunchHistory>,
@@ -149,6 +152,7 @@ impl Library {
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let source_references = Self::sources_from(&transaction)?;
+        let source_instances = crate::source_instances::export(&transaction, &source_references)?;
         let mut application_versions = Self::installs_from(&transaction)?;
         let original_root = managed_root.to_path_buf();
         application_versions.sort_by(|left, right| left.id.cmp(&right.id));
@@ -156,8 +160,10 @@ impl Library {
             let absolute = crate::path::resolve_existing_ancestor(&install.path)?;
             let relative = absolute.strip_prefix(&original_root).map_err(|_| {
                 PortcoveError::state(
-                    "registered installation is outside the library being exported",
+                    "a Portcove installation is outside the library being exported",
                 )
+                .detail("port_id", &install.port_id)
+                .detail("install_id", &install.id)
             })?;
             install.path = PathBuf::from(portable_relative(relative)?);
             install.selected_executable =
@@ -197,6 +203,7 @@ impl Library {
             })
             .collect(),
             source_references,
+            source_instances,
             application_versions,
             port_settings,
             launch_history,
@@ -211,8 +218,16 @@ impl Library {
         for install in &metadata.application_versions {
             let mut absolute = install.clone();
             absolute.path = managed_root.join(&install.path);
-            if let Some(catalog) =
-                crate::install::portability_catalog_for_install(&absolute, &embedded)?
+            let (retained, choice) =
+                crate::install::portable_install_contract(&absolute, &embedded)?;
+            if let Some(choice) = choice {
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_embedded_choice(
+                        install, &choice,
+                    )?,
+                );
+            }
+            if let Some(catalog) = retained
                 && catalog.definition_selection(&install.port_id).is_some()
             {
                 let identity = catalog
@@ -242,6 +257,60 @@ impl Library {
         crate::portability_authority::seal(&mut metadata, admissions)?;
         Ok(metadata)
     }
+}
+
+/// Recognize saved inbox paths without opening the source or following links.
+pub(crate) fn saved_inbox_relative(library_root: &Path, source: &Path) -> Option<PathBuf> {
+    if library_root.is_absolute()
+        && let Ok(relative) = source.strip_prefix(library_root.join("source-inbox"))
+    {
+        return Some(relative.to_path_buf());
+    }
+    let root = crate::path::comparable_windows_absolute(library_root)?;
+    let source = crate::path::comparable_windows_absolute(source)?;
+    Path::new(&source)
+        .strip_prefix(Path::new(&root).join("source-inbox"))
+        .ok()
+        .map(Path::to_path_buf)
+}
+
+/// The source inbox moves with the library copy. External user originals
+/// stay at their saved locations, with the same identity either way.
+pub(crate) fn source_for_import(
+    metadata: &LibraryMetadata,
+    source: &SourceRecord,
+    target: &Path,
+) -> Result<SourceRecord> {
+    let mut source = source.clone();
+    if metadata.schema_version >= 12
+        && let Some(relative) = saved_inbox_relative(&metadata.original_root, &source.path)
+    {
+        let inbox = target.join("source-inbox");
+        source.path = if relative.as_os_str().is_empty() {
+            inbox
+        } else {
+            let (portable, _) =
+                crate::portable_tree::validate_relative_path(&portable_relative(&relative)?, true)?;
+            inbox.join(portable)
+        };
+    }
+    Ok(source)
+}
+
+pub(crate) fn restore_saved_originals(
+    connection: &rusqlite::Connection,
+    metadata: &LibraryMetadata,
+    target: &Path,
+) -> Result<()> {
+    for source in &metadata.source_references {
+        let source = source_for_import(metadata, source, target)?;
+        Library::write_source(connection, &source)?;
+    }
+    for source in &metadata.source_instances {
+        let source = source_for_import(metadata, source, target)?;
+        crate::source_instances::record(connection, &source)?;
+    }
+    Ok(())
 }
 
 fn read_settings(connection: &rusqlite::Connection) -> Result<Vec<LibraryPortSettings>> {
@@ -312,6 +381,36 @@ pub(crate) fn portable_relative(path: &Path) -> Result<String> {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn saved_inbox_paths_match_disk_and_unc_spelling_without_the_source_volume() {
+        let disk_root = ["C:", "OldLibrary"].join("\\");
+        let unc_root = ["server", "share", "OldLibrary"].join("\\");
+        let inbox_file = r"source-inbox\folder\game.z64";
+        let disk_spelling = ["c:", "OldLibrary", inbox_file].join("\\");
+        let unc_spelling = ["", "", &unc_root, inbox_file].join("\\");
+        let extended = |kind: &str, base: &str| ["", "", kind, base].join("\\");
+        for (root, file) in [
+            (extended("?", &disk_root), disk_spelling),
+            (extended("?", &["UNC", &unc_root].join("\\")), unc_spelling),
+        ] {
+            let relative = saved_inbox_relative(Path::new(&root), Path::new(&file)).unwrap();
+            assert_eq!(portable_relative(&relative).unwrap(), "folder/game.z64");
+        }
+
+        let root = extended("?", &disk_root);
+        for external in [
+            [&disk_root, r"source-inbox-other\game.z64"].join("\\"),
+            ["C:", "OLDLIBRARY", inbox_file].join("\\"),
+            ["D:", "OldLibrary", inbox_file].join("\\"),
+            extended(".", &[&disk_root, inbox_file].join("\\")),
+        ] {
+            assert!(saved_inbox_relative(Path::new(&root), Path::new(&external)).is_none());
+        }
+        let parent = [&disk_root, r"source-inbox\..\game.z64"].join("\\");
+        let traversal = saved_inbox_relative(Path::new(&root), Path::new(&parent)).unwrap();
+        assert!(portable_relative(&traversal).is_err());
+    }
 
     #[test]
     fn metadata_preserves_active_previous_and_staged_artifact_identity() {

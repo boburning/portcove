@@ -115,6 +115,78 @@ function dialog() {
   return document.body.querySelector("[data-game-update-review]");
 }
 
+it("downloads the exact archive already shown in the update review", async () => {
+  const archiveDigest = "9".repeat(64);
+  const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    activate: true,
+    plan_sha256: "8".repeat(64),
+    archive_only_plan_sha256: archiveDigest,
+    plan: {
+      ...plan.plan,
+      download_bytes: 1536,
+      release: {
+        ...plan.plan.release,
+        asset: {
+          ...plan.plan.release.asset,
+          url: "https://example.com/sample.zip?key=fixture-only",
+        },
+      },
+      bundled_runtime: {
+        asset: {
+          ...plan.plan.release.asset,
+          name: "runtime.zip",
+          url: "https://example.net/runtime.zip",
+          size: 512,
+        },
+        archive_root: ".",
+        target_directory: "runtime",
+        executable: "runtime.exe",
+      },
+    },
+  });
+  const archiveReview = vi.spyOn(desktopApi, "planGameUpdateAcquisition");
+  const acquire = vi.spyOn(desktopApi, "acquireGameUpdate").mockResolvedValue(acquisition);
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+
+  await click("Update now");
+  const reviewDialog = page.getByRole("dialog");
+  await expect.element(reviewDialog.getByText("2.0", { exact: true })).toBeVisible();
+  await expect.element(reviewDialog.getByText("sample.zip", { exact: true })).toBeVisible();
+  await expect
+    .element(reviewDialog.getByText("https://example.com/sample.zip", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(
+      reviewDialog.getByText(
+        "Downloading the archive keeps your installed version and saves as they are.",
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(reviewDialog.getByText("https://example.net/runtime.zip", { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(reviewDialog.getByText("1.5 KiB to download", { exact: true }))
+    .toBeVisible();
+  expect(reviewDialog.element().textContent).not.toContain("fixture-only");
+  expect(acquire).not.toHaveBeenCalled();
+  await click("Download archive for later");
+  expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
+  expect(archiveReview).not.toHaveBeenCalled();
+  expect(acquire).toHaveBeenCalledExactlyOnceWith("sample", archiveDigest, 9, expect.any(Function));
+  expect(apply).not.toHaveBeenCalled();
+});
+
 it("keeps Download for later available across detail tabs and acquires only its reviewed target", async () => {
   vi.unstubAllGlobals();
   const review = vi.spyOn(desktopApi, "planGameUpdateAcquisition").mockResolvedValue(plan);
@@ -256,7 +328,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   expect(apply).not.toHaveBeenCalled();
   expect(container.textContent).toContain("Update now");
   expect(container.textContent).toContain(
-    "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged.",
+    "Update archive downloaded. Your installed version and saves were preserved during the download.",
   );
   expect(container.textContent).not.toContain("Update downloaded for later");
 });
@@ -1231,7 +1303,7 @@ it("downloads an immutable archive during an explicit launch without granting Ap
       },
     },
   ]);
-  expect(container.textContent).toContain("Update downloaded, not installed");
+  expect(container.textContent).toContain("Update archive downloaded");
   expect(container.textContent).not.toContain("Update saved for later");
   await expect
     .element(page.getByRole("button", { name: "Update now", exact: true }))
@@ -1263,7 +1335,7 @@ it.each([false, true])(
         currentVersion="1.0"
       />,
     );
-    expect(container.textContent).toContain("Update downloaded, not installed");
+    expect(container.textContent).toContain("Update archive downloaded");
     expect(apply).not.toHaveBeenCalled();
     await expect
       .element(page.getByRole("button", { name: "Download for later", exact: true }))
@@ -1344,8 +1416,46 @@ it.each(["acquired", "attention_required"] as const)(
   },
 );
 
+it("keeps the archive status accurate after its exact release becomes active", async () => {
+  const release = acquisition.release;
+  await root.rerender(
+    <GameUpdateControl
+      portId={acquisition.port_id}
+      generation={9}
+      policy="notify"
+      busy={false}
+      currentVersion={release.version}
+      status={{
+        ...portStatus(),
+        port_id: acquisition.port_id,
+        active: {
+          ...stagedUpdate,
+          id: "activated-from-archive",
+          port_id: acquisition.port_id,
+          version: release.version,
+          channel: release.channel,
+          staged: false,
+          artifact: {
+            asset_name: release.asset.name,
+            sha256: release.asset.sha256,
+            size: release.asset.size,
+          },
+        },
+        staged: null,
+        acquisition,
+      }}
+      perform={perform}
+    />,
+  );
+  const archive = container.querySelector('[aria-label="Downloaded update"]');
+  expect(archive?.querySelector("h4")?.textContent).toBe("Update archive downloaded");
+  expect(archive?.textContent).toContain(`Version you’re using: ${release.version}`);
+  expect(archive?.textContent).not.toContain("not installed");
+});
+
 it("distinguishes acquired archives from prepared updates in Activity and keeps current Play available", async () => {
   const port = portDefinition();
+  const secondPort = { ...portDefinition(), id: "no-update", name: "Another game" };
   const status = {
     ...portStatus(),
     port_id: port.id,
@@ -1359,8 +1469,20 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
     <UpdateCenter
       section="updates"
       generation={9}
-      ports={[port]}
-      statuses={new Map([[port.id, status]])}
+      ports={[port, secondPort]}
+      statuses={
+        new Map([
+          [port.id, status],
+          [
+            secondPort.id,
+            {
+              ...portStatus(),
+              port_id: secondPort.id,
+              active: { ...status.active, port_id: secondPort.id },
+            },
+          ],
+        ])
+      }
       activities={[]}
       outcomes={[]}
       diagnosticsRefreshing={false}
@@ -1376,9 +1498,9 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   expect(
     container.querySelector(".update-state")?.textContent ??
       container.querySelector(".update-row")?.textContent,
-  ).toContain("Update downloaded, not installed");
+  ).toContain("Update archive downloaded");
   expect(container.querySelector('[aria-label="Downloaded update"]')?.textContent).toContain(
-    "Prepare or install the update separately",
+    "Version you’re using: 1.0",
   );
   expect(container.textContent).not.toContain("Update saved for later");
   const prepared = [...container.querySelectorAll(".update-stat")].find((stat) =>
@@ -1386,18 +1508,23 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   );
   expect(prepared?.querySelector("strong")?.textContent).toBe("0");
   const header = container.querySelector<HTMLElement>(".update-entry > .update-row")!;
-  const actions = container.querySelector<HTMLElement>('.update-entry > [role="group"]')!;
+  const ordinaryHeader = container.querySelector<HTMLElement>(
+    '[data-detail-origin="updates:installed:no-update"]',
+  )!;
+  const actions = container.querySelector<HTMLElement>('.update-entry-tools > [role="group"]')!;
   const title = header.querySelector<HTMLElement>(".update-title")!;
   const archive = actions.querySelector<HTMLElement>('[aria-label="Downloaded update"]')!;
   expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
     header.getBoundingClientRect().bottom,
   );
+  expect(header.getBoundingClientRect().width).toBe(ordinaryHeader.getBoundingClientRect().width);
   expect(title.getBoundingClientRect().width).toBeGreaterThan(160);
   expect(archive.getBoundingClientRect().right).toBeLessThanOrEqual(
     container.getBoundingClientRect().right,
   );
   await captureParityState("game-update-archive-not-prepared-fixture");
   await page.viewport(414, 896);
+  expect(header.getBoundingClientRect().width).toBe(ordinaryHeader.getBoundingClientRect().width);
   expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
     header.getBoundingClientRect().bottom,
   );
@@ -1478,7 +1605,7 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   await click("Download for later");
   await click("Download archive for later");
   expect(container.textContent).toContain(
-    "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged.",
+    "Update archive downloaded. Your installed version and saves were preserved during the download.",
   );
   expect(container.textContent).toContain(
     "The operation finished, but library status could not be refreshed",

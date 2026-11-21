@@ -6,6 +6,14 @@
     "original_game_title": "Mario Forever",
     "summary": "Use a permitted Mario Forever: Community Edition copy, the community remake of Mario Forever.",
     "project_url": "https://github.com/meteo-dream/mf-community-edition",
+    "artwork": {
+      "game_id": 324070,
+      "cover_id": 424896,
+      "image_id": "co93uo",
+      "image_sha256": "e21718700078f690f91043b92dbcf250e2b6f8be3c1938b56aeee6f2cea5e218",
+      "game_slug": "mario-forever-community-edition",
+      "match_kind": "port"
+    },
     "issue_number": 2729,
     "listed_at": "2026-10-26",
     "availability": "packages",
@@ -35,6 +43,15 @@
         }
       ]
     },
-    "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established."
+    "download_block_reason": "New downloads are paused while the bundled third-party game assets are reviewed. Keep using your permitted existing copy; downloads can resume when the package’s distribution terms are established.",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-forever",
+      "evidence_urls": [
+        "https://github.com/meteo-dream/mf-community-edition#readme",
+        "https://github.com/meteo-dream/mf-community-edition"
+      ],
+      "source_editions": []
+    }
   }
 }

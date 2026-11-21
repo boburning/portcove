@@ -35,6 +35,21 @@
       "image_sha256": "d1ffd856cea68a9685dd75760cfd6aa02ba1119539511efa1d713558b809c956",
       "game_slug": "folklore",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "folklore",
+      "evidence_urls": ["https://github.com/Mava-b/folklore-decomp"],
+      "source_editions": [
+        {
+          "id": "folklore-playstation-3",
+          "title": "Folklore (PlayStation 3)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Mava-b/folklore-decomp/blob/a828b4bbe63c8b4b37696e5ce65bff3e6ac47480/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

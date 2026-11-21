@@ -4,9 +4,9 @@
     "id": "the-legend-of-zelda-tears-of-the-kingdom-switch-edition-totk-recomp",
     "name": "The Legend of Zelda: Tears of the Kingdom — Switch edition (totk-recomp)",
     "summary": "An experimental Linux port of Tears of the Kingdom built from your own version 1.0.0 cartridge image. Build and run it with the project’s tools.",
-    "original_game_title": "The Legend of Zelda: Tears of the Kingdom — Switch edition",
+    "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
     "project_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
-    "platforms": [],
+    "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Muhammad1259-sigma/totk-recomp",
     "artwork": {
@@ -36,6 +36,12 @@
         }
       ],
       "help_url": "https://github.com/Muhammad1259-sigma/totk-recomp"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": ["https://github.com/Muhammad1259-sigma/totk-recomp"],
+      "source_editions": []
     }
   },
   "upstream_lineage": {

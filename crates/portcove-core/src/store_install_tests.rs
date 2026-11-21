@@ -325,6 +325,108 @@ fn classic_steam_original_hint_requires_matching_manifest_identity_and_a_folder(
 }
 
 #[test]
+fn classic_doom_steam_hints_require_the_classic_product_and_layout() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(&steam, 9050, "DOOM 3", "Classic", true);
+    steam_app(&steam, 9070, "Resurrection of Evil", "Expansion", true);
+    steam_app(&steam, 208200, "DOOM 3", "BFG", true);
+    let common = steam.join("steamapps/common");
+    for folder in [
+        "Classic/base",
+        "Expansion/base",
+        "Expansion/d3xp",
+        "BFG/base",
+        "BFG/d3xp",
+    ] {
+        fs::create_dir(common.join(folder)).unwrap();
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![steam.clone()],
+            ..FixtureHost::default()
+        },
+    );
+    let hints = || {
+        service
+            .store_game_installs()
+            .unwrap()
+            .installs
+            .into_iter()
+            .filter_map(|row| row.original_folder)
+            .map(|hint| (hint.profile_id, hint.path))
+            .collect::<BTreeMap<_, _>>()
+    };
+    assert_eq!(
+        hints(),
+        BTreeMap::from([
+            (
+                "doom-3-classic-pc-131-pk4".into(),
+                canonical(&common.join("Classic"))
+            ),
+            (
+                "doom-3-roe-classic-pc-131-pk4".into(),
+                canonical(&common.join("Expansion"))
+            ),
+        ])
+    );
+    fs::remove_dir(common.join("Expansion/base")).unwrap();
+    assert!(!hints().contains_key("doom-3-roe-classic-pc-131-pk4"));
+    steam_app(&steam, 9070, "Resurrection of Evil", "Classic", false);
+    fs::create_dir(common.join("Classic/d3xp")).unwrap();
+    assert!(
+        hints().is_empty(),
+        "conflicting product identities must not offer a hint"
+    );
+}
+
+#[test]
+fn classic_gog_original_hint_uses_the_registered_root_and_preserves_move_protection() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut gog = Vec::new();
+    for (folder, product_id) in [
+        ("Classic", Some("1421404433")),
+        ("Remaster", Some("1853348102")),
+        ("Unknown", None),
+    ] {
+        let path = temporary.path().join(folder);
+        fs::create_dir(&path).unwrap();
+        gog.push(RegisteredStoreInstall {
+            title: "Dark Forces".into(),
+            path,
+            product_id: product_id.map(str::to_owned),
+        });
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog,
+            ..FixtureHost::default()
+        },
+    );
+    let report = service.store_game_installs().unwrap();
+    assert_eq!(report.installs.len(), 3);
+    let root = canonical(&temporary.path().join("Classic"));
+    assert_eq!(
+        report
+            .installs
+            .into_iter()
+            .filter_map(|install| install.original_folder)
+            .collect::<Vec<_>>(),
+        [StoreOriginalFolder {
+            profile_id: "dark-forces-pc-complete-installed-data".into(),
+            path: root.clone(),
+        }]
+    );
+    let refusal = service
+        .refuse_store_install_move("dark-forces-pc-complete-installed-data", &root)
+        .unwrap_err();
+    assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+    assert!(refusal.message.contains("GOG installed"));
+}
+
+#[test]
 fn conflicting_steam_metadata_keeps_the_folder_without_a_product_hint() {
     for text in [
         r#""AppState" { "appid" "32400" "installdir" "Classic" "installdir" "Other" }"#,
@@ -370,6 +472,345 @@ fn linked_steam_install_is_protected_without_an_original_folder_hint() {
             .protected
             .contains(&(GameStore::Steam, row.path.clone()))
     );
+}
+
+#[test]
+fn a_new_store_product_can_get_an_original_hint_from_data_alone() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(
+        &steam,
+        440001,
+        "Existing title from the manifest",
+        "ExtraGame",
+        true,
+    );
+    let game = steam.join("steamapps/common/ExtraGame");
+    let source = game.join("data/demo");
+    fs::create_dir_all(source.join("levels")).unwrap();
+    let host = FixtureHost {
+        steam: vec![steam],
+        ..FixtureHost::default()
+    };
+    let profile = "dark-forces-pc-complete-installed-data";
+    let row = serde_json::json!({
+        "store": "steam",
+        "product_id": "440001",
+        "profile_id": profile,
+        "relative_directory": "data/demo",
+        "required_directories": ["levels"],
+    });
+    let layouts = parse_store_original_layouts(&serde_json::json!([row]).to_string()).unwrap();
+    assert!(detect(&host).report.installs[0].original_folder.is_none());
+    let with_layout = detect_with_layouts(&host, Some(profile), &layouts);
+    assert_eq!(
+        with_layout.report.installs[0]
+            .original_folder
+            .as_ref()
+            .unwrap()
+            .path,
+        canonical(&source)
+    );
+    assert!(
+        detect_with_layouts(&host, Some("different-edition"), &layouts)
+            .report
+            .installs[0]
+            .original_folder
+            .is_none()
+    );
+    fs::remove_dir(source.join("levels")).unwrap();
+    assert!(
+        detect_with_layouts(&host, Some(profile), &layouts)
+            .report
+            .installs[0]
+            .original_folder
+            .is_none()
+    );
+
+    let mut invalid = row.clone();
+    invalid["relative_directory"] = serde_json::json!("../outside");
+    assert!(parse_store_original_layouts(&serde_json::json!([invalid]).to_string()).is_err());
+    assert!(parse_store_original_layouts(&serde_json::json!([row, row]).to_string()).is_err());
+
+    let catalog = crate::Catalog::embedded().unwrap();
+    assert!(!embedded_store_original_layouts().is_empty());
+    for layout in embedded_store_original_layouts() {
+        catalog.source_profile(&layout.profile_id).unwrap();
+    }
+}
+
+#[test]
+fn bstone_store_products_offer_only_the_reviewed_original_folders() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    let cases = [
+        (
+            358190,
+            "Gold",
+            "Blake Stone - Aliens of Gold",
+            "bstone-aliens-of-gold-originals",
+        ),
+        (
+            358310,
+            "Strike",
+            "Blake Stone - Planet Strike",
+            "bstone-planet-strike-originals",
+        ),
+    ];
+    for (id, folder, child, _) in cases {
+        steam_app(&steam, id, "Untrusted store title", folder, true);
+        fs::create_dir(steam.join("steamapps/common").join(folder).join(child)).unwrap();
+    }
+    steam_app(&steam, 12345, "Blake Stone", "Unreviewed", true);
+    let mut gog = Vec::new();
+    for (id, folder) in [("1207658728", "GOG Gold"), ("1207658729", "GOG Strike")] {
+        let path = temporary.path().join(folder);
+        fs::create_dir(&path).unwrap();
+        gog.push(RegisteredStoreInstall {
+            title: "Untrusted store title".into(),
+            path,
+            product_id: Some(id.into()),
+        });
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![steam.clone()],
+            gog,
+            ..FixtureHost::default()
+        },
+    );
+    let report = service.store_game_installs().unwrap();
+    assert_eq!(report.installs.len(), 5);
+    assert_eq!(
+        report
+            .installs
+            .iter()
+            .filter(|row| row.original_folder.is_some())
+            .count(),
+        4
+    );
+    for (id, folder, child, profile) in cases {
+        let row = report
+            .installs
+            .iter()
+            .find(|row| row.product_id.as_deref() == Some(id.to_string().as_str()))
+            .unwrap();
+        let hint = row.original_folder.as_ref().unwrap();
+        assert_eq!(hint.profile_id, profile);
+        assert_eq!(
+            hint.path,
+            canonical(&steam.join("steamapps/common").join(folder).join(child))
+        );
+        // Recognized store metadata is only a path hint. Empty originals must
+        // still fail the existing complete file-set admission.
+        assert!(
+            service
+                .inspect_source(profile, &hint.path)
+                .and_then(|inspection| inspection.require_admitted_record())
+                .is_err()
+        );
+        assert!(service.library().source(profile).unwrap().is_none());
+    }
+    for (id, folder, profile) in [
+        ("1207658728", "GOG Gold", "bstone-aliens-of-gold-originals"),
+        ("1207658729", "GOG Strike", "bstone-planet-strike-originals"),
+    ] {
+        let hint = report
+            .installs
+            .iter()
+            .find(|row| row.product_id.as_deref() == Some(id))
+            .unwrap()
+            .original_folder
+            .as_ref()
+            .unwrap();
+        assert_eq!(hint.profile_id, profile);
+        assert_eq!(hint.path, canonical(&temporary.path().join(folder)));
+        assert!(
+            service
+                .refuse_store_install_move(profile, &hint.path)
+                .is_err()
+        );
+    }
+}
+
+#[test]
+fn bstone_anthology_requires_profile_context_and_serializes_the_matching_hint() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(
+        &steam,
+        238050,
+        "The Apogee Throwback Pack",
+        "Throwback",
+        true,
+    );
+    let root = steam.join("steamapps/common/Throwback");
+    for child in ["Blake Stone", "Planet Strike"] {
+        fs::create_dir(root.join(child)).unwrap();
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![steam],
+            ..FixtureHost::default()
+        },
+    );
+    assert!(
+        service.store_game_installs().unwrap().installs[0]
+            .original_folder
+            .is_none()
+    );
+    for (profile, child) in [
+        ("bstone-aliens-of-gold-originals", "Blake Stone"),
+        ("bstone-planet-strike-originals", "Planet Strike"),
+    ] {
+        let report = service.store_game_installs_for_profile(profile).unwrap();
+        let expected = canonical(&root.join(child));
+        assert_eq!(
+            report.installs[0].original_folder.as_ref().unwrap(),
+            &StoreOriginalFolder {
+                profile_id: profile.into(),
+                path: expected.clone()
+            }
+        );
+        let wire = serde_json::to_value(&report).unwrap();
+        assert_eq!(
+            wire["installs"][0]["original_folder"]["profile_id"],
+            profile
+        );
+        assert_eq!(
+            wire["installs"][0]["original_folder"]["path"],
+            expected.to_str().unwrap()
+        );
+        assert!(
+            service
+                .refuse_store_install_move(profile, &expected)
+                .is_err()
+        );
+    }
+    assert!(
+        service
+            .store_game_installs_for_profile("dark-forces-pc-complete-installed-data")
+            .unwrap()
+            .installs[0]
+            .original_folder
+            .is_none()
+    );
+    fs::remove_dir(root.join("Blake Stone")).unwrap();
+    assert!(
+        service
+            .store_game_installs_for_profile("bstone-aliens-of-gold-originals")
+            .unwrap()
+            .installs[0]
+            .original_folder
+            .is_none()
+    );
+    assert!(
+        service
+            .store_game_installs_for_profile("bstone-planet-strike-originals")
+            .unwrap()
+            .installs[0]
+            .original_folder
+            .is_some()
+    );
+}
+
+#[test]
+fn unknown_store_profile_refuses_before_host_metadata_is_read() {
+    struct UnreadHost;
+    impl StoreInstallHost for UnreadHost {
+        fn steam_client_roots(&self) -> Vec<PathBuf> {
+            panic!("unknown profile must not read Steam");
+        }
+        fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall> {
+            panic!("unknown profile must not read GOG");
+        }
+        fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
+            panic!("unknown profile must not read Epic");
+        }
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let service = PortcoveService::new(Library::open(temporary.path().join("library")).unwrap())
+        .unwrap()
+        .with_store_install_host(Arc::new(UnreadHost));
+    assert_eq!(
+        service
+            .store_game_installs_for_profile("unknown-profile")
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::NotFound
+    );
+}
+
+#[test]
+fn contextual_bstone_hint_does_not_restore_conflicting_product_identity() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    for id in [238050, 358190] {
+        steam_app(&steam, id, "Blake Stone", "Shared", true);
+    }
+    for child in ["Blake Stone", "Blake Stone - Aliens of Gold"] {
+        fs::create_dir(steam.join("steamapps/common/Shared").join(child)).unwrap();
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![steam],
+            ..FixtureHost::default()
+        },
+    );
+    let report = service
+        .store_game_installs_for_profile("bstone-aliens-of-gold-originals")
+        .unwrap();
+    assert_eq!(report.installs.len(), 1);
+    assert!(report.installs[0].product_id.is_none());
+    assert!(report.installs[0].original_folder.is_none());
+    assert!(
+        service
+            .refuse_store_install_move("bstone-aliens-of-gold-originals", &report.installs[0].path)
+            .is_err()
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn contextual_bstone_hint_refuses_linked_child_and_linked_install_coordinates() {
+    for linked_install in [false, true] {
+        let temporary = tempfile::tempdir().unwrap();
+        let steam = temporary.path().join("Steam");
+        let elsewhere = temporary.path().join("elsewhere");
+        fs::create_dir(&elsewhere).unwrap();
+        steam_app(&steam, 238050, "Throwback", "Throwback", !linked_install);
+        let installed = steam.join("steamapps/common/Throwback");
+        if linked_install {
+            for child in ["Blake Stone", "Planet Strike"] {
+                fs::create_dir(elsewhere.join(child)).unwrap();
+            }
+            std::os::unix::fs::symlink(&elsewhere, &installed).unwrap();
+        } else {
+            std::os::unix::fs::symlink(&elsewhere, installed.join("Blake Stone")).unwrap();
+        }
+        let service = service_with(
+            temporary.path(),
+            FixtureHost {
+                steam: vec![steam],
+                ..FixtureHost::default()
+            },
+        );
+        let report = service
+            .store_game_installs_for_profile("bstone-aliens-of-gold-originals")
+            .unwrap();
+        assert!(report.installs[0].original_folder.is_none());
+        assert!(
+            service
+                .refuse_store_install_move(
+                    "bstone-aliens-of-gold-originals",
+                    &report.installs[0].path
+                )
+                .is_err()
+        );
+    }
 }
 
 #[test]

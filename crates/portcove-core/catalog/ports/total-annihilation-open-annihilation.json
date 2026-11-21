@@ -7,7 +7,7 @@
     "project_url": "https://github.com/open-annihilation/open-annihilation",
     "issue_number": 1635,
     "listed_at": "2026-10-23",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/open-annihilation/open-annihilation",
     "artwork": {
@@ -50,6 +50,16 @@
         "Source/API and inert native probes are distinct from acquired-package, actual original/game/save/mod/network, installed Desktop, physical/human, other-platform and protected acceptance. No Supported promotion or immutable source-to-binary certification.",
         "This bounded existing-player route adds no managed runtime or console-family infrastructure. Player/upstream retains all original inputs, generated/private outputs, profiles, actual replacements and recovery."
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "total-annihilation",
+      "evidence_urls": [
+        "https://github.com/open-annihilation/open-annihilation/blob/5fbdd16fe30758a31a0f4f713fc45093fc0c32ea/README.md",
+        "https://github.com/open-annihilation/open-annihilation"
+      ],
+      "source_editions": []
+    },
+    "original_game_title": "Total Annihilation"
   }
 }

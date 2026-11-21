@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "turok-xbox-360-static-recompilation-sp00nznet-turok-2008",
+    "artwork": {
+      "game_id": 1330,
+      "cover_id": 130295,
+      "image_id": "co2sjb",
+      "image_sha256": "1060b1f1f97bb68ac809cfe9dec3c302d74203fd80c94a7fb5426b0feb4892cc",
+      "game_slug": "turok",
+      "match_kind": "underlying-game"
+    },
     "name": "Turok (2008) — Turok (Xbox 360) - Static Recompilation (sp00nznet)",
     "original_game_title": "Turok (2008)",
     "summary": "Only the logo, loading spinner, settings and input are established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/sp00nznet/turok"
     },
-    "issue_number": 3282
+    "issue_number": 3282,
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-2008",
+      "evidence_urls": ["https://github.com/sp00nznet/turok"],
+      "source_editions": [
+        {
+          "id": "turok-2008-xbox-360",
+          "title": "Turok (2008) (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/turok/blob/73a8dbb2af9c8e6b7a902b3263851a223ca514fa/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

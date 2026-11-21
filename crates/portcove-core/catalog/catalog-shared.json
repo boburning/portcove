@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "debian-gdp89-classic-doom3-pk4-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_url": null,
+        "claim": "Debian game-data-packager 89 lists exact byte sizes and SHA-256 for the nine classic Doom 3 1.3.1 base PK4s and the two Resurrection of Evil expansion PK4s. The MD5 cross-check agrees with dhewm3. These are published identity data, without local retail or runtime observations.",
+        "reviewed_at": "2026-11-16"
+      },
+      {
         "id": "the-force-engine-complete-data-archive-2026-10-18",
         "role": "byte_identity",
         "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
@@ -421,6 +431,16 @@
         "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md"
       },
       {
+        "id": "wave-race-recomp-1-0-2-linux-source-contract",
+        "role": "upstream_support",
+        "authority": "danielgomesvieira2000/wave-race-64-recomp",
+        "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
+        "reviewed_at": "2026-11-15",
+        "claim": "The tagged Linux x64 package uses the same USA Rev A ROM identity as Windows and supports placing the checked source and portable.txt beside the player.",
+        "immutable_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/src/main.cpp",
+        "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/src/main.cpp"
+      },
+      {
         "id": "f-zero-snes-recomp-1-8-3-source-contract",
         "role": "upstream_support",
         "authority": "mstan/FZeroSNESRecomp",
@@ -828,6 +848,16 @@
         "reviewed_at": "2026-11-15",
         "claim": "Exact v0.15.9 Windows x64 package (26746609 bytes, SHA-256 8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82) was computed from the downloaded bytes; the release publishes no SHA256SUMS, SHA256SUMS.txt or per-asset .sha256 file and the provider release digest was not read. At this tag src/main.c keeps CRC B19ED489, SHA-256 0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b and the positional ROM argument. SuperMarioWorldSNESRecomp.exe keeps its root path. The pinned snesrecomp 3d73fa26b2b6ac1c6f932916c8229d1e561b6e31 moves the mod root from mods to mods/preloaded, so the mod runtime commits its selection at every start to mods/preloaded/state.toml through a .tmp companion. The definition declares that pair as disposable runtime output rather than player data: neither file is a package member, declaring it persistent would widen the persistence scope recorded by existing ready-archive installations, and runtime-mutable paths are outside that scope. Managed play sets SNESRECOMP_NO_LAUNCHER and never changes the selection from the package default; a selection made by running the game outside Portcove is not carried across update or rollback. Packaged manifests under mods/preloaded/packages stay immutable package files. The package adds smw-falcon-cache.exe, which the player spawns for optional Falcon setup with its cache under LOCALAPPDATA, smw-controller-report.exe and the player-run Collect-Controller-Diagnostics.cmd/.ps1, which write diagnostics/, and drops the MinGW runtime DLLs. Native co-op data stays under saves. Netplay, account sign-in (netplay_secret), moderation.ini and peer mod transfer are reachable only from the pre-boot launcher or the SNES_NETPLAY/SMW_NET_AUTO_ROLE environment, which the positional launch with SNESRECOMP_NO_LAUNCHER skips; diagnostic replay recording under logs is a default-off mod feature. Native execution, gameplay, saves and the absence of runtime network use remain unobserved for this release.",
         "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/main.c",
+        "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
+      },
+      {
+        "id": "super-mario-world-recomp-0-15-10-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMarioWorldRecomp",
+        "authority_ref": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+        "reviewed_at": "2026-11-16",
+        "claim": "Exact Windows x64 v0.15.10 ZIP (26825013 bytes, SHA-256 d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc) matches GitHub release 445852347 asset 750041540 and publisher SHA256SUMS.txt. BUILDINFO binds the same Git tree to build and release and retains the v0.15.9 framework pins. The title diff keeps the stock USA original hash and positional smw.sfc launch, and changes the fresh window default and adaptive renderer. Core shape comparison with v0.15.9 adds only the immutable notices directory; source, executable, configured launch, and player-data ownership are unchanged. Retain earlier applicability and writer-contract evidence. Publisher report covers scoped exact package controls; Portcove native managed execution, retail input, gameplay and installed preservation were not observed for this Windows release.",
+        "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/main.c",
         "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
       },
       {
@@ -4071,9 +4101,257 @@
         "claim": "Official v0.1.5 Windows and Linux archives match the publisher's digests. Both keep the two-track SCUS-94227 disc and retail SCPH-1001 identity and generate MediEvil_Recompiled. The title playtest diagnostics package is absent; the retained persistence paths still protect v0.1.4 captures. Native preparation and gameplay were not run.",
         "immutable_url": "https://github.com/alexbeavs-ps1-ports/medievil-recomp/blob/24d3d2dbeab83b90bb7d76c05c92e677a703559f/game.toml",
         "live_url": null
+      },
+      {
+        "id": "debian-gdp89-chocolate-doom-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "770855b3ec8214bd92fae2ccdc4d80aa9b7728a186b22e9b3c76263f33f105fc",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected doom IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-doom2-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "d6a8bcd8e040451e275adadb793232800895ef62c2a3ebe4396248ea90dee578",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom2.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected doom2 IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-hexen-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "bffd1b50dccb9fa5f998c064756f5cdb6f6c6513da3fbfeb3cc6ac0659dfb07e",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/hexen.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected hexen IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-doom-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/doom/d_main.c",
+        "live_url": null,
+        "claim": "Chocolate Doom 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-hexen-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/hexen/h2_main.c",
+        "live_url": null,
+        "claim": "Chocolate Hexen 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "debian-gdp89-chocolate-heretic-iwad-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "a6e8c7426bcaea5b3fc42b46c7d1a1b1c28b5f9ce10d513a6a40edbc2a534bd7",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/heretic.yaml",
+        "live_url": null,
+        "claim": "Published full-file SHA-1 identities for the selected heretic IWAD editions; the Heretic shareware identity additionally has a published SHA-256. Document identity does not establish title execution or a save-compatibility observation.",
+        "reviewed_at": "2026-11-18"
+      },
+      {
+        "id": "chocolate-heretic-tagged-iwad-contract-v1",
+        "role": "upstream_support",
+        "authority": "Chocolate Doom maintainers",
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "immutable_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c",
+        "live_url": null,
+        "claim": "Chocolate Heretic 3.1.1 selects an explicit IWAD and identifies its game data from content. Core supplies a closed local configuration and a per-IWAD save directory; this source inspection is distinct from packaged-player and populated-save acceptance.",
+        "reviewed_at": "2026-11-18"
       }
     ],
     "identities": [
+      {
+        "id": "doom-3-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "doom-3-roe-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  },
+                  {
+                    "id": "d3xp-pak000",
+                    "path": "d3xp/pak000.pk4",
+                    "size": 538385153,
+                    "sha256": "b5236ac25be28e1cb6021e54dfff595ac569eaea350c199f2eb5b6ba0df67f08"
+                  },
+                  {
+                    "id": "d3xp-pak001",
+                    "path": "d3xp/pak001.pk4",
+                    "size": 99336,
+                    "sha256": "2ba245254b8ed3440e252f6e2e24af2c6343d7c312f9a9a7e73509abdaf13e49"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       {
         "id": "ocarina-of-time",
         "label": "The Legend of Zelda: Ocarina of Time source",
@@ -16391,9 +16669,341 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "chocolate-doom-pc-iwad",
+        "label": "Doom PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "shareware-1-9",
+            "title": "Doom shareware v1.9",
+            "region": "Worldwide",
+            "revision": "shareware-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "5b2e249b9c5133ec987b3ea77596381dc0d6bc1d",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom-iwad-identities"
+            ]
+          },
+          {
+            "id": "registered-1-9",
+            "title": "Doom registered v1.9",
+            "region": "Worldwide",
+            "revision": "registered-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "7742089b4468a736cadb659a7deca3320fe6dcbd",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom-iwad-identities"
+            ]
+          },
+          {
+            "id": "ultimate-1-9",
+            "title": "The Ultimate Doom",
+            "region": "Worldwide",
+            "revision": "ultimate-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "9b07b02ab3c275a6a7570c3f73cc20d63a0e3833",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom-iwad-identities"
+            ]
+          },
+          {
+            "id": "doom2-1-9",
+            "title": "Doom II v1.9",
+            "region": "Worldwide",
+            "revision": "doom2-1.9",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "7ec7652fcfce8ddc6e801839291f0e28ef1d5ae7",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-doom2-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-doom2-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "chocolate-hexen-pc-iwad",
+        "label": "Hexen PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "four-level-demo",
+            "title": "Hexen four-level demo",
+            "region": "Worldwide",
+            "revision": "four-level-demo",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "fa89a2475855e43c7f7e3198d6e4c4bee23bfab9",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-hexen-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-hexen-iwad-identities"
+            ]
+          },
+          {
+            "id": "retail-1-1",
+            "title": "Hexen retail v1.1",
+            "region": "Worldwide",
+            "revision": "retail-1.1",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "4b53832f0733c1e29e5f1de2428e5475e891af29",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-hexen-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-hexen-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "chocolate-heretic-pc-iwad",
+        "label": "Heretic PC IWAD (selected original or demo editions)",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "shareware-1-2",
+            "title": "Heretic shareware v1.2",
+            "region": "Worldwide",
+            "revision": "shareware-1.2",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "b4c50ca9bea07f7c35250a1a11906091971c05ae",
+                    "sha256": "3ab2f21828877e49e5eb3220785aaf8798050b7c4132003b5db7b8f3678bede4",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-heretic-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-heretic-iwad-identities"
+            ]
+          },
+          {
+            "id": "retail-1-3",
+            "title": "Heretic: Shadow of the Serpent Riders v1.3",
+            "region": "Worldwide",
+            "revision": "retail-1.3",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-iwad",
+                "extensions": [
+                  "wad"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "f489d479371df32f6d280a0cb23b59a35ba2b833",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-chocolate-heretic-iwad-identities"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "debian-gdp89-chocolate-heretic-iwad-identities"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
+      {
+        "id": "doom-3-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-roe-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
       {
         "id": "shipwright-game-source",
         "port_id": "shipwright",
@@ -16623,6 +17233,18 @@
           {
             "upstream_ref": "v1.2.2",
             "artifact_sha256": null
+          },
+          {
+            "upstream_ref": "v1.2.2",
+            "artifact_sha256": "d02b95f1cf5e4d44d6587fa6136c6db521f61aa41ba8700c05f91bea8b0a26d0"
+          },
+          {
+            "upstream_ref": "v1.2.2",
+            "artifact_sha256": "de8b19cdb4e3ad0c10fd6d8127f7a6cc2a9eba106d89c753439178b718887c42"
+          },
+          {
+            "upstream_ref": "v1.2.2",
+            "artifact_sha256": "f369815d7ba2a1139a6fab8a0aa51c52e5f064dcfcce649eb888fdef9f648689"
           }
         ],
         "aliases": [],
@@ -18302,10 +18924,11 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "wave-race-recomp-1-0-2-source-contract"
+          "wave-race-recomp-1-0-2-source-contract",
+          "wave-race-recomp-1-0-2-linux-source-contract"
         ],
         "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
-        "reviewed_at": "2026-09-25",
+        "reviewed_at": "2026-11-15",
         "immutable_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
         "live_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md",
         "evidence_gap": null,
@@ -18313,6 +18936,10 @@
           {
             "upstream_ref": "v1.0.2",
             "artifact_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583"
+          },
+          {
+            "upstream_ref": "v1.0.2",
+            "artifact_sha256": "5ea07206731b1afde10f52909443a50b64b6ebd113634d383a5538f86437e60f"
           }
         ],
         "aliases": [],
@@ -19593,7 +20220,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "super-mario-world-recomp-0-12-0-source-contract",
-          "super-mario-world-recomp-0-15-9-source-contract"
+          "super-mario-world-recomp-0-15-9-source-contract",
+          "super-mario-world-recomp-0-15-10-source-contract"
         ],
         "authority_ref": "5fc466cd11a3cb1a4bdc529ebf29e35915ef0252",
         "reviewed_at": "2026-10-18",
@@ -19608,6 +20236,10 @@
           {
             "upstream_ref": "v0.15.9",
             "artifact_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82"
+          },
+          {
+            "upstream_ref": "v0.15.10",
+            "artifact_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc"
           }
         ],
         "aliases": [],
@@ -27090,6 +27722,96 @@
           {
             "upstream_ref": "v0.1.3",
             "artifact_sha256": "24f566068202d31f2cee7f7068ba8de636168e39cdcf1b95cb7dac43d9c62625"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-doom-family-game-source",
+        "port_id": "chocolate-doom-family",
+        "role": "game",
+        "profile_id": "chocolate-doom-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "shareware-1-9",
+          "registered-1-9",
+          "ultimate-1-9",
+          "doom2-1-9"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-doom-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-doom-iwad-identities",
+          "debian-gdp89-chocolate-doom2-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/doom/d_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "58c34c61ae954493fce5ff01fd553898240a0de25658aa97b43ac9510c49581f"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-hexen-game-source",
+        "port_id": "chocolate-hexen",
+        "role": "game",
+        "profile_id": "chocolate-hexen-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "four-level-demo",
+          "retail-1-1"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-hexen-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-hexen-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/hexen/h2_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "472a0d039acab04d0f93cb5d348ddd623270563c7c15b9b4b601e3b0f35acf23"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "chocolate-heretic-game-source",
+        "port_id": "chocolate-heretic",
+        "role": "game",
+        "profile_id": "chocolate-heretic-pc-iwad",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "shareware-1-2",
+          "retail-1-3"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "chocolate-heretic-tagged-iwad-contract-v1",
+          "debian-gdp89-chocolate-heretic-iwad-identities"
+        ],
+        "authority_ref": "410d96855b5df5410ff591a90efeafa889119224",
+        "reviewed_at": "2026-11-18",
+        "immutable_review_url": "https://github.com/chocolate-doom/chocolate-doom/blob/410d96855b5df5410ff591a90efeafa889119224/src/heretic/d_main.c",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "chocolate-doom-3.1.1",
+            "artifact_sha256": "6faa3ba85d0fb18065d6a530cf74e7d17896742b67c6acc513fcb45263ffba63"
           }
         ],
         "aliases": [],

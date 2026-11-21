@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "lords-of-the-realm-ii-open-lords2",
+    "artwork": {
+      "game_id": 19124,
+      "cover_id": 193649,
+      "image_id": "co45f5",
+      "image_sha256": "5b35a6646aae8ed0ba4fa41118ef0272474a98b862c02c3496fda4151c1c8c03",
+      "game_slug": "lords-of-the-realm-ii",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/brettins/open-lords2",
     "name": "Lords of the Realm II / Open Lords2",
     "original_game_title": "Lords of the Realm II",
@@ -32,6 +40,16 @@
       "warnings": [
         "This is the upstream preview. If you use its multiplayer option, both players need the same engine build and their own original game files."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "lords-of-the-realm-ii",
+      "evidence_urls": [
+        "https://github.com/brettins/open-lords2/blob/v0.1.0-pre.6/README.md",
+        "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
+        "https://github.com/brettins/open-lords2"
+      ],
+      "source_editions": []
     }
   }
 }

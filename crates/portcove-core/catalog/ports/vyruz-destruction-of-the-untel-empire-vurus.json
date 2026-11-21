@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "vyruz-destruction-of-the-untel-empire-vurus",
+    "artwork": {
+      "game_id": 112224,
+      "cover_id": 382135,
+      "image_id": "co86uv",
+      "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+      "game_slug": "vyruz-destruction-of-the-untel-empire",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/rzrbld/vurus",
     "name": "Vyruz: Destruction of the Untel Empire / Vurus",
     "original_game_title": "Vyruz: Destruction of the Untel Empire",
@@ -32,9 +40,28 @@
           "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep a copy you manage yourself, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
         }
       ],
+      "references": [
+        {
+          "title": "Set up the upstream PortMaster build on an ARM64 handheld",
+          "instruction": "Use compatible ARM64 firmware with PortMaster installed, SDL 2.0.18 or newer and native OpenGL ES 3.0. Get vurus-portmaster.zip from https://github.com/rzrbld/vurus/releases/tag/portmaster-v202611031626-beta. Extract Vurus.sh, Vurus Benchmark.sh and vurus/ together into the firmware’s Ports folder."
+        },
+        {
+          "title": "Import and preserve your handheld data",
+          "instruction": "Place your own ISO or single-BIN CUE and its BIN beside vurus.aarch64, or copy an existing data/ import there. Start Vurus from the firmware’s Ports menu. Back up data/, saves/, slot1.vzs, options.cfg and vz.sco before applying an upstream update. Keep these files when updating the engine in place. You manage this copy."
+        }
+      ],
       "warnings": [
-        "This is the desktop beta release. PortMaster ARM64 on compatible handheld firmware uses a separate upstream release. There is no Android APK or Linux ARM64 desktop package in this release."
+        "The managed routes use the desktop beta packages. The separate PortMaster package needs compatible handheld firmware. There is no Android APK or general-purpose Linux ARM64 desktop package in this release."
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "vyruz-destruction-of-the-untel-empire",
+      "evidence_urls": [
+        "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
+        "https://github.com/rzrbld/vurus"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

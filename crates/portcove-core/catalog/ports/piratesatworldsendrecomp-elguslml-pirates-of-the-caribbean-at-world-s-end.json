@@ -4,10 +4,18 @@
     "id": "piratesatworldsendrecomp-elguslml-pirates-of-the-caribbean-at-world-s-end",
     "name": "Pirates of the Caribbean: At World's End — PiratesAtWorldsEndRecomp (ElGuslml)",
     "original_game_title": "Pirates of the Caribbean: At World's End",
+    "artwork": {
+      "game_id": 5100,
+      "cover_id": 421347,
+      "image_id": "co9143",
+      "image_sha256": "3730c87577030c9e9f629d877d39698af638c9153df48e0807387b64b2dab647",
+      "game_slug": "pirates-of-the-caribbean-at-world-s-end",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports playing early levels. Later levels are untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ElGuslml/PiratesAtWorldsEndRecomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/ElGuslml/PiratesAtWorldsEndRecomp",
     "manual_setup": {
@@ -27,7 +35,25 @@
       ],
       "help_url": "https://github.com/ElGuslml/PiratesAtWorldsEndRecomp"
     },
-    "issue_number": 3140
+    "issue_number": 3140,
+    "original_game": {
+      "format_version": 1,
+      "id": "pirates-of-the-caribbean-at-worlds-end",
+      "evidence_urls": [
+        "https://github.com/ElGuslml/PiratesAtWorldsEndRecomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/piratesatworldsendrecomp-elguslml-pirates-of-the-caribbean-at-world-s-end.json"
+      ],
+      "source_editions": [
+        {
+          "id": "pirates-of-the-caribbean-at-worlds-end-xbox-360",
+          "title": "Pirates of the Caribbean: At World's End (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/piratesatworldsendrecomp-elguslml-pirates-of-the-caribbean-at-world-s-end.json"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

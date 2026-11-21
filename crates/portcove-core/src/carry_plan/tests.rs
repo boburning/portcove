@@ -497,6 +497,8 @@ fn name_rules_exclude_unsafe_and_portcove_paths() {
         "bin/ReShade.ini",
         "portable.txt",
         "Game.exe.config",
+        "Engine.DLL.CONFIG",
+        "plugins/Engine.dll.config",
     ] {
         assert_excluded(loader, &none, Exclusion::LoaderName);
     }

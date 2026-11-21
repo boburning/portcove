@@ -4,6 +4,14 @@
     "id": "empire-earth-gold-apple-silicon",
     "name": "Empire Earth for Apple Silicon",
     "original_game_title": "Empire Earth Gold",
+    "artwork": {
+      "game_id": 53999,
+      "cover_id": 113510,
+      "image_id": "co2fl2",
+      "image_sha256": "787f7fca4e2c625f61798c9d7b544671de6e9f40ec4088169202aa9f699c966e",
+      "game_slug": "empire-earth-gold-edition",
+      "match_kind": "underlying-game"
+    },
     "summary": "Play the base Empire Earth game on Apple Silicon using your own GOG Gold edition.",
     "project_url": "https://github.com/maxgraf96/ee-macos",
     "issue_number": 6117,
@@ -32,6 +40,24 @@
         {
           "title": "Keep saved games and settings",
           "instruction": "Before replacing the player, back up your active ~/Library/Application Support/EmpireEarth folder. It contains game saves and scenarios in Data, profiles in Users, and private settings and your game key in registry.json. The app prepares the game in your profile. Replace EmpireEarth.app yourself with a verified publisher release."
+        }
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "empire-earth-gold",
+      "evidence_urls": [
+        "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+        "https://github.com/maxgraf96/ee-macos"
+      ],
+      "source_editions": [
+        {
+          "id": "empire-earth-gold-pc",
+          "title": "Empire Earth Gold (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+          ]
         }
       ]
     }

@@ -1,0 +1,71 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "ddnet",
+    "name": "DDNet (DDraceNetwork)",
+    "original_game_title": "DDNet",
+    "artwork": {
+      "game_id": 136770,
+      "cover_id": 112926,
+      "image_id": "co2f4u",
+      "image_sha256": "24dd1afda4d0dad2b35c4b92c448bdef115a14bf238a2528b0488e99ba5daf18",
+      "game_slug": "ddracenetwork",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Play cooperative platforming maps or practice locally with the bundled server.",
+    "project_url": "https://github.com/ddnet/ddnet",
+    "issue_number": 6435,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://ddnet.org/downloads/",
+    "setup_url": "https://ddnet.org/downloads/",
+    "download_block_reason": "Get the package for your device from DDNet’s downloads page. Use the matching package source for updates.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the upstream package for your device",
+          "instruction": "On Windows, choose the x64, ARM64, or 32-bit ZIP, extract the complete folder, and start DDNet.exe. On Mac, use the universal disk image for Intel or Apple Silicon and copy the complete DDNet app into Applications."
+        },
+        {
+          "title": "Install DDNet on Linux",
+          "instruction": "Use your distribution’s DDNet package or install tw.ddnet.ddnet from Flathub on x86-64 or ARM64. To use the official Linux archive instead, choose the x86-64 or x86 build, extract the full package with its data directory, and start DDNet from that folder. The archive expects system dependencies such as libnotify. Use the same package source when you update."
+        },
+        {
+          "title": "Set your player name and choose a map",
+          "instruction": "Set a player name in DDNet and choose a server. For local practice, start the included DDNet-Server from a desktop archive and choose it in the DDNet client’s LAN tab. To connect manually, use the local server’s address and its actual listening port."
+        },
+        {
+          "title": "Back up the profile you use",
+          "instruction": "Close the client and server, then keep %APPDATA%/DDNet on Windows, ~/Library/Application Support/DDNet on Mac, or $XDG_DATA_HOME/ddnet on Linux (normally ~/.local/share/ddnet). For Flatpak, keep ~/.var/app/tw.ddnet.ddnet/data/ddnet. Keep the settings, custom maps, skins, and demos you want to restore. If you changed storage.cfg or still use a Teeworlds profile, keep the actual folders that DDNet reads."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Get DDNet on Android",
+          "instruction": "Use the Android APK on the official Downloads page. Its current build includes ARM64, ARMv7, x86, and x86-64 libraries. Android and your package source handle installation and updates."
+        }
+      ],
+      "help_url": "https://ddnet.org/downloads/"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "ddnet",
+      "evidence_urls": ["https://ddnet.org/downloads/", "https://github.com/ddnet/ddnet"],
+      "source_editions": []
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "ddnet",
+    "origin": {
+      "project_url": "https://github.com/ddnet/ddnet",
+      "repository": {
+        "host": "github.com",
+        "id": "22821674"
+      }
+    },
+    "decisions": []
+  }
+}

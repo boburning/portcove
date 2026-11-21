@@ -55,6 +55,13 @@
           "instruction": "The Linux launcher keeps userdata and imported files under $XDG_DATA_HOME/SpaceChannel5 or ~/.local/share/SpaceChannel5 by default. The macOS launcher uses ~/Library/Application Support/SpaceChannel5. Keep any custom data location with your backup."
         }
       ]
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "space-channel-5",
+      "evidence_urls": ["https://github.com/ZoomiesZaggy/Space-Channel-5"],
+      "source_editions": []
+    },
+    "original_game_title": "Space Channel 5"
   }
 }

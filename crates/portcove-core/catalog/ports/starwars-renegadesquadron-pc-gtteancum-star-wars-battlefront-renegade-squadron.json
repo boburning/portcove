@@ -4,6 +4,14 @@
     "id": "starwars-renegadesquadron-pc-gtteancum-star-wars-battlefront-renegade-squadron",
     "name": "Star Wars Battlefront: Renegade Squadron — StarWars-RenegadeSquadron-PC (GTTeancum)",
     "original_game_title": "Star Wars Battlefront: Renegade Squadron",
+    "artwork": {
+      "game_id": 23063,
+      "cover_id": 79883,
+      "image_id": "co1pmz",
+      "image_sha256": "da326f8b20487ce51bc5b1a57adb68a13c5f7aa3137681f9d59669e86de7ec18",
+      "game_slug": "star-wars-battlefront-renegade-squadron",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project provides a native host and statically translated game runtime. The extent of working gameplay has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC"
     },
-    "issue_number": 3096
+    "issue_number": 3096,
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-battlefront-renegade-squadron",
+      "evidence_urls": ["https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC"],
+      "source_editions": [
+        {
+          "id": "star-wars-battlefront-renegade-squadron-playstation-portable",
+          "title": "Star Wars Battlefront: Renegade Squadron (PlayStation Portable)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC/blob/7c0e0db52d5076f5794284f000277525d11fe563/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

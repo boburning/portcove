@@ -84,6 +84,14 @@ pub(super) fn manifest_input(
     match operation.original_paths.as_slice() {
         [] => Ok(None),
         [path] if path.parent() == Some(recovery) && manifest_filename(path) => {
+            if operation.phase == LifecyclePhase::CleanupPending {
+                refuse_symlink_ancestors(path)?;
+                if !path.try_exists()? {
+                    // After the cleanup transition the operation-owned directory
+                    // may already have been deleted, including its receipt.
+                    return Ok(Some(path.clone()));
+                }
+            }
             let manifest = read_input(path)?;
             if manifest.port_id != operation.port_id {
                 return Err(PortcoveError::verification(
@@ -132,10 +140,14 @@ impl PortcoveService {
         &self,
         operation: &mut LifecycleOperation,
         bytes: &[u8],
+        settings_deletion: bool,
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
-        let guarded = manifest.guarded_archive_v1.is_some()
+        let has_loader = self.optional_deploy_layout(&operation.port_id)?.is_some();
+        let guarded = settings_deletion
+            || has_loader
+            || manifest.guarded_archive_v1.is_some()
             || manifest.partitioned_data_v1.is_some()
             || self
                 .library
@@ -176,6 +188,9 @@ impl PortcoveService {
         snapshot: &Path,
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
+        self.require_no_switch_journal(&operation.port_id)?;
+        crate::profile_file_preservation::require_idle(&self.library, &operation.port_id)?;
+        let has_loader = self.optional_deploy_layout(&operation.port_id)?.is_some();
         let (binding, partitioned) = if let Some(path) = restore.input_manifest {
             let manifest = read_input(&path)?;
             let mut stats = BackupStats::default();
@@ -192,6 +207,14 @@ impl PortcoveService {
             )?;
             (binding, partitioned)
         } else {
+            if has_loader
+                && crate::profile::selection(&self.library.connection()?, &operation.port_id)?
+                    .is_some()
+            {
+                return Err(PortcoveError::conflict(
+                    "This interrupted restore has no verified backup receipt. Keep its staged and previous data for recovery.",
+                ));
+            }
             (None, None)
         };
         self.require_direct_backup_snapshot(

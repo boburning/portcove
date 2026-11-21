@@ -4,6 +4,14 @@
     "id": "crash-twinsanity-native-smartkin-hab3x-hab3x-crash-twinsanity",
     "name": "Crash Twinsanity — Crash Twinsanity native (Smartkin/HAB3X) (HAB3X)",
     "original_game_title": "Crash Twinsanity",
+    "artwork": {
+      "game_id": 1189,
+      "cover_id": 240423,
+      "image_id": "co55if",
+      "image_sha256": "746563adfe93a7c797bbe21881e04eb1f6cd0f0587d9548a9c398c4c1f2adc7d",
+      "game_slug": "crash-twinsanity",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project offers a macOS player and reports sound, movies and saves. Stable 60 FPS and testing on physical Intel Macs remain unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac",
     "listed_at": "2026-10-25",
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/HAB3X/Crash-Twinsanity-Mac"
     },
-    "issue_number": 3012
+    "issue_number": 3012,
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-twinsanity",
+      "evidence_urls": ["https://github.com/HAB3X/Crash-Twinsanity-Mac"],
+      "source_editions": [
+        {
+          "id": "crash-twinsanity-playstation-2",
+          "title": "Crash Twinsanity (PlayStation 2)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/HAB3X/Crash-Twinsanity-Mac/blob/bfe9fbbf69b02ba002178ca2954606debcf9ba82/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

@@ -35,6 +35,21 @@
       "image_sha256": "580e9735786ce1d0c34ca13635f35902222ef8c783e554f2f1c5a909971270b9",
       "game_slug": "blue-stinger",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "blue-stinger",
+      "evidence_urls": ["https://github.com/DCRecomp/BlueStingerRecomp"],
+      "source_editions": [
+        {
+          "id": "blue-stinger-dreamcast",
+          "title": "Blue Stinger (Sega Dreamcast)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/DCRecomp/BlueStingerRecomp/blob/fbc6761d49fa701f3c90e2444f7f98a6b5e61687/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

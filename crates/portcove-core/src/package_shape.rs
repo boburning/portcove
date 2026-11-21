@@ -1,4 +1,4 @@
-//! Derived package shapes and the shadow release-drift verdict (#5359 phase 1).
+//! Derived upstream package shapes and release-drift verdicts (#5359).
 //!
 //! A managed route follows the newest upstream release its selector matches.
 //! A release can keep matching while it changes reviewed behavior, for example
@@ -9,10 +9,10 @@
 //! `reviewed_package_layouts` fingerprint, or the shape recorded by the active
 //! local installation.
 //!
-//! This phase only records the verdict. Nothing is refused or reordered on its
-//! account; the explicit reviewed layout gate in `package_layout` stays the
-//! only refusal. Manifests store the record as untyped JSON and read it with
-//! [`stored_record`], so records from other Portcove versions stay harmless.
+//! Managed portable installs withhold known drift before publication. Unknown
+//! components remain visible alongside the existing reviewed-layout checks.
+//! Manifests store records as untyped JSON and read them with [`stored_record`]
+//! so they can handle records from different Portcove versions.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -23,11 +23,52 @@ use std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Platform, PortDefinition, PortcoveError, Result};
+use crate::{AdapterKind, Catalog, Platform, PortDefinition, PortcoveError, Result};
+
+pub(crate) mod withheld;
 
 /// Version of the derivation rules. The generated table records the version it
 /// was derived with; a different version is not a baseline.
 pub(crate) const SHAPE_VERSION: u32 = 1;
+/// First template capability that withholds a package with known shape drift.
+pub(crate) fn enforcement_capability(adapter: AdapterKind) -> Option<u32> {
+    match adapter {
+        AdapterKind::NativePortable => Some(38),
+        AdapterKind::StagedSourcePortable => Some(37),
+        AdapterKind::N64RecompPortable => Some(7),
+        AdapterKind::LibultrashipPortable | AdapterKind::PsxRecompManaged => Some(5),
+        AdapterKind::GeneratedCache => Some(4),
+        AdapterKind::ReferencedDisc | AdapterKind::UpstreamManagedSetup => None,
+    }
+}
+
+/// Embedded/legacy definitions use this build's template. Indexed definitions
+/// use the supported template version selected by their capability contract.
+pub(crate) fn selected_enforcement_capability(
+    catalog: &Catalog,
+    port: &PortDefinition,
+) -> Result<Option<u32>> {
+    let Some(minimum) = enforcement_capability(port.adapter) else {
+        return Ok(None);
+    };
+    let Some(snapshot) = catalog.definition_snapshot(&port.id) else {
+        return Ok(Some(minimum));
+    };
+    let template = serde_json::to_value(port.adapter)?;
+    let projection = snapshot.projection()?;
+    Ok(projection
+        .entry()
+        .capabilities()
+        .checks
+        .iter()
+        .find(|check| {
+            template.as_str() == Some(check.requirement.template.as_str())
+                && check.outcome == crate::DefinitionCapabilityOutcome::Supported
+        })
+        .and_then(|check| check.installed_version)
+        .filter(|version| *version >= minimum))
+}
+
 const TABLE_FORMAT: u32 = 1;
 const MAXIMUM_ENTRIES: usize = 200_000;
 /// Bound on all recorded paths of one shape together.
@@ -179,7 +220,7 @@ pub struct ShapeChange {
     pub removed: Vec<String>,
 }
 
-/// The shadow verdict for one candidate package. It refuses nothing.
+/// The comparison verdict for one candidate package.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ShapeVerdict {
@@ -211,6 +252,15 @@ impl ShapeVerdict {
             Self::Unknown { .. } => "unknown",
         }
     }
+}
+
+/// An unreviewed local observation can explain drift, but cannot withhold a release.
+pub(crate) fn withholds_release(verdict: &ShapeVerdict) -> bool {
+    matches!(
+        verdict,
+        ShapeVerdict::Drifted { baseline, .. }
+            if !matches!(baseline, ShapeBaseline::Local { provenance: ShapeProvenance::Unreviewed, .. })
+    )
 }
 
 /// The shape and shadow verdict an installation records in its manifest.
@@ -311,6 +361,27 @@ fn generated_table() -> &'static [GeneratedEntry] {
     TABLE.get_or_init(|| parse_table(GENERATED_TABLE).unwrap_or_default())
 }
 
+/// Exact, independently reviewed versions whose observations still apply to this route.
+pub(crate) fn reviewed_release_digests(
+    port: &PortDefinition,
+    platform: Platform,
+) -> Vec<(&'static str, &'static str)> {
+    let mut route = generated_table()
+        .iter()
+        .filter(|entry| entry.port_id == port.id && entry.platform == platform)
+        .peekable();
+    if route.peek().is_none() {
+        return Vec::new();
+    }
+    let Some(inputs) = applicable_generated_inputs(port, platform) else {
+        return Vec::new();
+    };
+    route
+        .filter(|entry| entry.derivation_inputs_sha256 == inputs)
+        .map(|entry| (entry.version.as_str(), entry.sha256.as_str()))
+        .collect()
+}
+
 fn parse_table(text: &str) -> Result<Vec<GeneratedEntry>> {
     let table: GeneratedTable = serde_json::from_str(text)?;
     if table.format != TABLE_FORMAT
@@ -396,6 +467,28 @@ pub(crate) fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str)
     if !linux_format.is_null() {
         inputs["classify_linux_programs_by_format"] = linux_format.clone();
     }
+    // The prepared OpenMoHAA programs differ from the raw ZIP modes. A
+    // retained observation made before this rule cannot hold the same asset.
+    if port["external_profile_policy"] == "openmohaa-unix-v1"
+        && matches!(platform, "linux-x86-64" | "macos-x86-64" | "macos-aarch64")
+    {
+        inputs["openmohaa_prepared_programs"] = serde_json::Value::Bool(true);
+    }
+    // Older shape readers did not normalize this independently owned path.
+    // Observations from those readers cannot establish a new generated baseline.
+    if platform == "linux-x86-64" && !port["linux_portable_data_directory"].is_null() {
+        inputs["verified_optional_empty_portable_data"] =
+            port["linux_portable_data_directory"].clone();
+    }
+    // The sole N64 app bundle can prove flat install-root siblings absent.
+    // Older CLI builds must not record a partial shape under this input digest.
+    if port["adapter"] == "n64-recomp-portable"
+        && matches!(platform, "macos-x86-64" | "macos-aarch64")
+        && (port["launch_from_install_root"] == true
+            || port["n64_runtime_at_executable_parent"] != true)
+    {
+        inputs["n64_macos_flat_persistence_observed"] = serde_json::Value::Bool(true);
+    }
     inputs.sort_all_objects();
     Ok(hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
         serde_json::to_string(&inputs)?.as_bytes(),
@@ -425,18 +518,32 @@ fn embedded_raw_port(port_id: &str) -> Option<serde_json::Value> {
 
 /// Compare the same typed representation on both sides so absent fields and
 /// their deserialized defaults cannot look like different derivation inputs.
-fn generated_inputs_match(entry: &GeneratedEntry, port: &PortDefinition) -> Option<bool> {
-    let platform_value = serde_json::to_value(entry.platform).ok()?;
-    let platform = platform_value.as_str()?;
-    let raw = embedded_raw_port(&entry.port_id)?;
-    if derivation_inputs_sha256(&raw, platform).ok()? != entry.derivation_inputs_sha256 {
-        return Some(false);
-    }
-    let embedded: PortDefinition = serde_json::from_value(raw).ok()?;
-    let embedded =
-        derivation_inputs_sha256(&serde_json::to_value(embedded).ok()?, platform).ok()?;
-    let active = derivation_inputs_sha256(&serde_json::to_value(port).ok()?, platform).ok()?;
-    Some(embedded == active)
+fn generated_inputs_match(entry: &GeneratedEntry, port: &PortDefinition) -> bool {
+    applicable_generated_inputs(port, entry.platform).as_deref()
+        == Some(entry.derivation_inputs_sha256.as_str())
+}
+
+fn applicable_generated_inputs(port: &PortDefinition, platform: Platform) -> Option<String> {
+    let platform_value = serde_json::to_value(platform).ok()?;
+    let raw = embedded_raw_port(&port.id)?;
+    let inputs = derivation_inputs_sha256(&raw, platform_value.as_str()?).ok()?;
+    let embedded = serde_json::from_value(raw).ok()?;
+    (same_derivation_inputs(&embedded, port, platform) == Some(true)).then_some(inputs)
+}
+
+/// Compare the catalog facts used to derive both shapes on the same platform.
+pub(crate) fn same_derivation_inputs(
+    baseline: &PortDefinition,
+    candidate: &PortDefinition,
+    platform: Platform,
+) -> Option<bool> {
+    let platform = serde_json::to_value(platform).ok()?;
+    let platform = platform.as_str()?;
+    let baseline =
+        derivation_inputs_sha256(&serde_json::to_value(baseline).ok()?, platform).ok()?;
+    let candidate =
+        derivation_inputs_sha256(&serde_json::to_value(candidate).ok()?, platform).ok()?;
+    Some(baseline == candidate)
 }
 
 /// Inputs that locate declared persistent paths in an extracted package.
@@ -446,6 +553,10 @@ pub(crate) struct ShapeRoots {
     /// The directory declared persistent paths are relative to, when the
     /// declared executable resolved.
     pub persistence: Option<PathBuf>,
+    /// A single app owns the whole payload and its parent owns player data.
+    sole_n64_mac_bundle: bool,
+    /// A verified optional player data slot at the package root, if declared.
+    optional_top_directory: Option<String>,
 }
 
 pub(crate) fn roots(
@@ -459,12 +570,39 @@ pub(crate) fn roots(
     } else {
         crate::package_layout::look_through_wrapper(payload)?
     };
-    let persistence = crate::install::resolve_declared_executable(payload, qualification)
-        .ok()
-        .map(|selected| qualification.persistence_root(payload, &selected));
+    let executable = crate::install::resolve_declared_executable(payload, qualification).ok();
+    let persistence = executable
+        .as_deref()
+        .map(|selected| qualification.persistence_root(payload, selected));
+    let sole_n64_mac_bundle = port.adapter == crate::AdapterKind::N64RecompPortable
+        && matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+        && persistence.as_deref() == Some(payload)
+        && package.parent() == Some(payload)
+        && package
+            .extension()
+            .and_then(std::ffi::OsStr::to_str)
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("app"))
+        && executable
+            .as_deref()
+            .and_then(Path::parent)
+            .is_some_and(|parent| parent == package.join("Contents/MacOS"));
+    let optional_top_directory = if let Some(name) =
+        crate::native_portable_data::directory_name(port, platform)
+    {
+        let executable = executable.as_deref().ok_or_else(|| {
+            PortcoveError::verification("cannot locate the portable Linux player in the package")
+        })?;
+        let directory =
+            crate::native_portable_data::require_pristine_package(payload, executable, name)?;
+        (directory.parent() == Some(package.as_path())).then(|| name.to_ascii_lowercase())
+    } else {
+        None
+    };
     Ok(ShapeRoots {
         package,
         persistence,
+        sole_n64_mac_bundle,
+        optional_top_directory,
     })
 }
 
@@ -519,7 +657,9 @@ pub(crate) fn derive(
         .collect::<BTreeSet<_>>();
     let top_directories = directories
         .iter()
-        .filter(|path| !path.contains('/'))
+        .filter(|path| {
+            !path.contains('/') && Some(path.as_str()) != roots.optional_top_directory.as_deref()
+        })
         .cloned()
         .collect::<BTreeSet<_>>();
     let mut shape = PackageShape {
@@ -619,6 +759,24 @@ fn anchors(
     roots: &ShapeRoots,
     persistence: &Path,
 ) -> Anchors {
+    let declared_paths = crate::persistence::declared_paths(port, platform);
+    if roots.sole_n64_mac_bundle {
+        let bundle_name = roots.package.file_name().and_then(std::ffi::OsStr::to_str);
+        if let Some(bundle_name) = bundle_name
+            && declared_paths
+                .iter()
+                .all(|path| !path.contains(['/', '\\']) && !path.eq_ignore_ascii_case(bundle_name))
+        {
+            // Looking through the sole app proves the install root contains no
+            // other entry. Flat siblings and regular files matched by root
+            // patterns are absent, and their parent (the install root) exists.
+            return Anchors {
+                paths: BTreeSet::new(),
+                pattern_directory: None,
+                complete: true,
+            };
+        }
+    }
     let relative_lower = |path: &Path| -> Option<String> {
         let parts = path
             .components()
@@ -648,7 +806,7 @@ fn anchors(
     };
     let mut paths = BTreeSet::new();
     let mut complete = inside.is_some() || port.persistent_file_patterns.is_empty();
-    for declared in crate::persistence::declared_paths(port, platform) {
+    for declared in declared_paths {
         let declared = normalize(declared);
         let anchored = match (&inside, &outside) {
             (Some(prefix), _) if prefix.is_empty() => Some(declared),
@@ -693,7 +851,7 @@ pub(crate) fn evaluate(
 ) -> (ShapeVerdict, ShapeProvenance) {
     let entry = preferred_generated_entry(generated_table(), &port.id, platform, sha256);
     if let Some(entry) = entry
-        && generated_inputs_match(entry, port) != Some(true)
+        && !generated_inputs_match(entry, port)
     {
         return (
             ShapeVerdict::Unknown {
@@ -877,8 +1035,7 @@ fn compare(
 }
 
 /// Derive and judge one extracted package for its installation manifest.
-/// Every failure becomes an `observation_failed` verdict: the shadow
-/// comparison never refuses an installation.
+/// A derivation failure becomes an `observation_failed` unknown verdict.
 pub(crate) fn record_for_install(
     port: &PortDefinition,
     qualification: &crate::install::InstallQualification,
@@ -921,13 +1078,15 @@ pub fn inspect_package_shape_archive(
         )));
     }
     let qualification = crate::install::InstallQualification::from_port(port, platform)?;
+    let native_mac_bundle_tar_xz = crate::runtime::native_mac_bundle_tar_xz(port, platform);
     let (_workspace, payload) = crate::package_layout::extract_verified_archive(
         source,
         platform,
         expected_size,
         expected_sha256,
+        native_mac_bundle_tar_xz,
     )?;
-    let payload = if crate::runtime::native_mac_bundle_tar_xz(port, platform) {
+    let payload = if native_mac_bundle_tar_xz {
         crate::package_layout::native_mac_bundle_root(&payload, port, platform)?
     } else {
         payload
@@ -938,6 +1097,7 @@ pub fn inspect_package_shape_archive(
     if port.release.grant_declared_executable {
         crate::install::grant_declared_executable(&payload, &qualification)?;
     }
+    crate::native_external_profile::openmohaa::prepare_package(port, platform, &payload)?;
     let roots = roots(port, &qualification, platform, &payload)?;
     let shape = derive(port, platform, &roots)?;
     let (verdict, provenance) = evaluate(port, platform, expected_sha256, &shape, None);

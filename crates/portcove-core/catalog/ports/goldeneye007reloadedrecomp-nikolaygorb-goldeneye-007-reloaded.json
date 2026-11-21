@@ -35,6 +35,21 @@
       "image_sha256": "0a8ac0b001727dc4259e77d8690c6b21be487cf452070a1a2c354e2b004c49b2",
       "game_slug": "goldeneye-007-reloaded",
       "match_kind": "underlying-game"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007-reloaded",
+      "evidence_urls": ["https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp"],
+      "source_editions": [
+        {
+          "id": "goldeneye-007-reloaded-xbox-360",
+          "title": "GoldenEye 007: Reloaded (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp/blob/f266e8492e40d62f2fac00a7717242f2b75f9f9b/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

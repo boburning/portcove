@@ -51,6 +51,24 @@
           "instruction": "Close actual game instances before upstream changes. Preserve the whole creating runtime, every original/profile root and custom/unknown files, make deliberate compatible updates upstream, then review/relink a changed executable. Upstream/player owns preparation, replacement, migration and recovery. Portcove supervises the selected process; removing registration preserves external files. This route offers no Portcove-managed download, setup, update, backup, rollback, migration or external-file deletion."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "chasm-the-rift",
+      "evidence_urls": [
+        "https://github.com/Panzerschrek/Chasm-Reverse",
+        "https://github.com/Panzerschrek/Chasm-Reverse/tree/3f5ed23bba9bfdfade61b2aaff1bfa1edaa9769d"
+      ],
+      "source_editions": [
+        {
+          "id": "chasm-the-rift-pc",
+          "title": "Chasm: The Rift (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Panzerschrek/Chasm-Reverse/blob/f3a80d70ecde2e76ee07384fd47f889bd60e9615/README.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {

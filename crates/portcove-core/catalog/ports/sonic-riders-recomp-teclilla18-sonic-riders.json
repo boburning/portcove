@@ -4,6 +4,14 @@
     "id": "sonic-riders-recomp-teclilla18-sonic-riders",
     "name": "Sonic Riders — sonic-riders-recomp (teclilla18)",
     "original_game_title": "Sonic Riders",
+    "artwork": {
+      "game_id": 4158,
+      "cover_id": 181003,
+      "image_id": "co3vnv",
+      "image_sha256": "c1f38b509042418d1fc6453b0e48371f6fa4c465079bea62b3592536bd6e0b39",
+      "game_slug": "sonic-riders",
+      "match_kind": "underlying-game"
+    },
     "summary": "Native title/player setup described; the extent of working races, story progression and completion has not been confirmed. Switch is destination, not source. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/teclilla18/sonic-riders-recomp",
     "listed_at": "2026-10-25",
@@ -27,7 +35,13 @@
       ],
       "help_url": "https://github.com/teclilla18/sonic-riders-recomp"
     },
-    "issue_number": 3581
+    "issue_number": 3581,
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-riders",
+      "evidence_urls": ["https://github.com/teclilla18/sonic-riders-recomp"],
+      "source_editions": []
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

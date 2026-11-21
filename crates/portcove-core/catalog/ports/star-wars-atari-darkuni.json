@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "star-wars-atari-darkuni",
+    "artwork": {
+      "game_id": 12858,
+      "cover_id": 136614,
+      "image_id": "co2xeu",
+      "image_sha256": "afe76c1966766a2dfc1b3cfb0913f98f6ee831d43b8c6427e7d9c0dc74f8a44a",
+      "game_slug": "star-wars",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
     "name": "Star Wars (Atari arcade) / darkuni",
     "original_game_title": "Star Wars (Atari arcade)",
@@ -37,6 +45,15 @@
         "The publisher does not provide a license for its project code."
       ],
       "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-atari-arcade",
+      "evidence_urls": [
+        "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b",
+        "https://github.com/darkuni/starwars-arcade-recomp"
+      ],
+      "source_editions": []
     }
   },
   "integration": {

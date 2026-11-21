@@ -27,6 +27,7 @@ body:
         - Steam Deck
         - macOS Intel
         - macOS Apple Silicon
+        - Android
         - Multi-platform
     validations:
       required: true

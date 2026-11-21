@@ -3,11 +3,19 @@
   "listing": {
     "id": "bakuganbb-recomp-realamethyst-bakugan-battle-brawlers-2009",
     "name": "Bakugan Battle Brawlers (2009) — BakuganBB-recomp (RealAmethyst)",
-    "original_game_title": "Bakugan Battle Brawlers (2009)",
+    "original_game_title": "Bakugan: Battle Brawlers",
+    "artwork": {
+      "game_id": 4703,
+      "cover_id": 198036,
+      "image_id": "co48t0",
+      "image_sha256": "176ffcb2838fd3fcdb7a1b8054093b4a0a1273e463bc36ad31fa2cf133c2e575",
+      "game_slug": "bakugan-battle-brawlers",
+      "match_kind": "underlying-game"
+    },
     "summary": "Research project. Upstream early work: input and audio working, crashes and unfinished features remain, not tested far into game. Maintainer cannot visually check graphics; no complete playthrough claim. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/RealAmethyst/BakuganBB-recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/RealAmethyst/BakuganBB-recomp",
     "manual_setup": {
@@ -27,7 +35,22 @@
       ],
       "help_url": "https://github.com/RealAmethyst/BakuganBB-recomp"
     },
-    "issue_number": 3157
+    "issue_number": 3157,
+    "original_game": {
+      "format_version": 1,
+      "id": "bakugan-battle-brawlers",
+      "evidence_urls": ["https://github.com/RealAmethyst/BakuganBB-recomp"],
+      "source_editions": [
+        {
+          "id": "bakugan-battle-brawlers-xbox-360",
+          "title": "Bakugan: Battle Brawlers (Xbox 360)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/RealAmethyst/BakuganBB-recomp/blob/c5312453db7a0c80ef2c615e8c80993559e29619/README.md"
+          ]
+        }
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

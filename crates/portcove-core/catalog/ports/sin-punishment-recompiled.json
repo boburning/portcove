@@ -35,6 +35,25 @@
         }
       ],
       "help_url": "https://github.com/maximilianoide/sin-punishment-recompiled#readme"
-    }
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": [
+        "https://github.com/maximilianoide/sin-punishment-recompiled#readme",
+        "https://github.com/maximilianoide/sin-punishment-recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "sin-and-punishment-nintendo-64",
+          "title": "Sin and Punishment (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/maximilianoide/sin-punishment-recompiled/blob/8c31a07009464a0f285fb40e252789393bd101b1/README.md"
+          ]
+        }
+      ]
+    },
+    "original_game_title": "Sin and Punishment"
   }
 }

@@ -403,6 +403,7 @@ impl PortcoveService {
             };
             operation.begin_publication()?;
             let record = ExternalRuntimeRecord {
+                setup_download: None,
                 user_selected: preview.user_selected,
                 id: Uuid::new_v4().to_string(),
                 port_id: port_id.into(),
@@ -419,13 +420,12 @@ impl PortcoveService {
                 shared_preferences: None,
             };
             self.library.register_external_runtime_finishing_setup(
-                &record,
+                record,
                 &retained,
                 pending
                     .as_ref()
                     .map(|(record, json)| (record.id.as_str(), json.as_str())),
-            )?;
-            Ok(record)
+            )
         })();
         self.finish_activity(activity, result)
     }
@@ -748,6 +748,14 @@ mod tests {
         // The first-listed date is directory recency; a retained selection does not keep it.
         expected_retained_listing.listed_at = None;
         expected_retained_listing.funding_urls = None;
+        if expected_creating_definition.is_none() {
+            expected_retained_listing.implementation = None;
+            // Typed IGDB scenes belong to the current directory, outside the retained
+            // listing formats that preserve this registration's launch contract.
+            expected_retained_listing
+                .media
+                .retain(|asset| !asset.is_typed_igdb_scene());
+        }
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action

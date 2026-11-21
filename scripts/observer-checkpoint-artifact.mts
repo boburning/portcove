@@ -12,7 +12,10 @@ import { rateLimitFromResponse } from "./github-operation.mts";
 import { createGitHubClient } from "./github-client.mts";
 import { readObserverMetadata } from "./upstream-observer.mts";
 import type { GitHubMetadataResponse } from "./github-operation.mts";
-import { downloadGitHubArtifactArchive } from "./github-artifact-download.mts";
+import {
+  downloadGitHubArtifactArchive,
+  observerCheckpointArchiveLimit,
+} from "./github-artifact-download.mts";
 import { readCompleteRunArtifactInventoryAsync } from "./release-run-artifact-inventory.mts";
 import {
   validateCatalogObserverCheckpoint,
@@ -38,7 +41,11 @@ import {
 
 // One existing response envelope is reserved inside the sixteen-MiB output budget.
 export const observerSnapshotLimit = 4 * 1024 * 1024;
-export const observerStreamingSnapshotLimit = 8 * 1024 * 1024;
+export const observerStreamingSnapshotLimit = observerCheckpointArchiveLimit;
+// Format 4 collects and validates the full stored graph. Keep its allowance
+// separate from a single checkpoint, legacy JSON/ZIP limits and archive transport.
+export const observerStreamingGraphLimit = 48 * 1024 * 1024;
+const snapshotExportBudgetMs = 120000;
 const repository = "boburning/portcove",
   repositoryId = 1354613114;
 const workflow = ".github/workflows/configured-upstream-observer.yml";
@@ -53,7 +60,7 @@ const maximumAge = 24 * 3600000;
 const member = "checkpoint.json";
 const binarySnapshotMagic = Buffer.from("PORTCOVE-OBSERVER-SNAPSHOT-3\n", "ascii");
 // Already-compressed members can grow slightly under ZIP's deflate framing.
-// Keep that packaging inside the existing four-MiB complete archive budget.
+// Keep that packaging inside each format's complete archive budget.
 const binaryMemberLimit = observerSnapshotLimit - 16 * 1024;
 const streamingMemberLimit = observerStreamingSnapshotLimit - 16 * 1024;
 // One owner-approved fresh baseline after the retained loss. Scheduled history,
@@ -108,6 +115,10 @@ export function snapshotName(config: string, value: Producer) {
   return `upstream-observer-checkpoint-${config}-${value.run}-${value.attempt}`;
 }
 
+function snapshotFileEntryBytes(name: string, valueBytes: number, hasPrevious: boolean) {
+  return Buffer.byteLength(JSON.stringify(name)) + 1 + valueBytes + Number(hasPrevious);
+}
+
 /** Validate the complete graph before any filesystem publication. Changed current
  * catalog/Core inputs are subsequently invalidated by their existing owners. */
 export function validateObserverSnapshot(
@@ -116,6 +127,7 @@ export function validateObserverSnapshot(
   now: number,
   deadline = Infinity,
   clock = Date.now,
+  graphLimit = observerCheckpointByteLimit,
 ) {
   requireValue(isRecord(raw), "snapshot missing");
   exactKeys(
@@ -142,10 +154,13 @@ export function validateObserverSnapshot(
     "snapshot age unavailable",
   );
   requireValue(
-    isRecord(raw.files) && Buffer.byteLength(JSON.stringify(raw)) <= observerCheckpointByteLimit,
+    isRecord(raw.files) && Buffer.byteLength(JSON.stringify(raw)) <= graphLimit,
     "decoded snapshot exceeds checkpoint read envelope",
   );
-  const controller = validateCatalogObserverCheckpoint(raw.files["catalog/checkpoint.json"], now);
+  const controller = validateCatalogObserverCheckpoint(
+    decodeStoredObserverCheckpoint(raw.files["catalog/checkpoint.json"], deadline, clock),
+    now,
+  );
   const configs = new Map<
     string,
     NonNullable<(typeof controller.sources)[string]["current_config"]>
@@ -222,7 +237,24 @@ async function collectUnlockedObserverSnapshot(
     JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
     now,
   );
-  const files: Record<string, unknown> = { "catalog/checkpoint.json": controller };
+  const storedController = compact
+    ? encodeStoredObserverCheckpoint(controller, deadline)
+    : controller;
+  const files: Record<string, unknown> = { "catalog/checkpoint.json": storedController };
+  const snapshot: Snapshot = {
+    format: 1,
+    authority: "observer-checkpoint-cache-only",
+    repository,
+    repository_id: repositoryId,
+    workflow,
+    ref: "refs/heads/main",
+    config_sha256: config,
+    created_at: new Date(now).toISOString(),
+    producer: expected,
+    files,
+  };
+  const graphLimit = projectFacts ? observerStreamingGraphLimit : observerCheckpointByteLimit;
+  const controllerBytes = Buffer.byteLength(JSON.stringify(controller));
   const configs = new Map<
     string,
     NonNullable<(typeof controller.sources)[string]["current_config"]>
@@ -236,9 +268,11 @@ async function collectUnlockedObserverSnapshot(
       if (config) configs.set(`${observationHash(config)}/checkpoint.json`, config);
   const metrics = {
     input_bytes: bytes.length,
-    logical_json_bytes: Buffer.byteLength(JSON.stringify(controller)),
-    fact_json_bytes: Buffer.byteLength(JSON.stringify(controller)),
-    stored_json_bytes: Buffer.byteLength(JSON.stringify(controller)),
+    logical_json_bytes: controllerBytes,
+    fact_json_bytes: controllerBytes,
+    stored_json_bytes: Buffer.byteLength(JSON.stringify(storedController)),
+    stored_graph_bytes: Buffer.byteLength(JSON.stringify(snapshot)),
+    controller_bytes: controllerBytes,
     largest_source_json_bytes: 0,
     checkpoint_files: 1,
     compacted_sources: 0,
@@ -261,35 +295,21 @@ async function collectUnlockedObserverSnapshot(
     metrics.logical_json_bytes += logicalBytes;
     metrics.fact_json_bytes += Buffer.byteLength(JSON.stringify(projected));
     metrics.stored_json_bytes += compact ? storedBytes : Math.max(value.length, logicalBytes);
+    metrics.stored_graph_bytes += snapshotFileEntryBytes(name, storedBytes, true);
     metrics.largest_source_json_bytes = Math.max(metrics.largest_source_json_bytes, logicalBytes);
     metrics.checkpoint_files++;
     if (storedBytes < logicalBytes) metrics.compacted_sources++;
-    if (metrics.stored_json_bytes > observerCheckpointByteLimit) log?.(metrics);
+    const chargedBytes = Math.max(metrics.stored_json_bytes, metrics.stored_graph_bytes);
+    if (chargedBytes > graphLimit) log?.(metrics);
     requireValue(
-      metrics.stored_json_bytes <= observerCheckpointByteLimit,
+      chargedBytes <= graphLimit,
       "decoded snapshot exceeds checkpoint read envelope; checkpoints retained",
     );
     files[name] = stored;
   }
   requireValue(Date.now() < deadline, "snapshot collection deadline exhausted");
   log?.(metrics);
-  return validateObserverSnapshot(
-    {
-      format: 1,
-      authority: "observer-checkpoint-cache-only",
-      repository,
-      repository_id: repositoryId,
-      workflow,
-      ref: "refs/heads/main",
-      config_sha256: config,
-      created_at: new Date(now).toISOString(),
-      producer: expected,
-      files,
-    },
-    config,
-    now,
-    deadline,
-  );
+  return validateObserverSnapshot(snapshot, config, now, deadline, Date.now, graphLimit);
 }
 
 export async function collectCompactObserverSnapshot(
@@ -335,13 +355,21 @@ export async function collectFactObserverSnapshot(
   );
 }
 
+function withRawSnapshotController(snapshot: Snapshot, deadline: number): Snapshot {
+  const name = "catalog/checkpoint.json";
+  const stored = snapshot.files[name];
+  const raw = decodeStoredObserverCheckpoint(stored, deadline);
+  return raw === stored ? snapshot : { ...snapshot, files: { ...snapshot.files, [name]: raw } };
+}
+
 /** Transfer representation only. The complete graph is retained losslessly;
  * the physical artifact reserve remains four MiB. Expansion shares the existing
  * checkpoint reader's thirty-two-MiB bound, now across the entire snapshot. */
 export function encodeObserverSnapshot(snapshot: Snapshot, deadline = Infinity) {
   requireValue(Date.now() < deadline, "snapshot encoding deadline exhausted");
-  validateObserverSnapshot(snapshot, snapshot.config_sha256, Date.now(), deadline);
-  const decoded = Buffer.from(JSON.stringify(snapshot));
+  const raw = withRawSnapshotController(snapshot, deadline);
+  validateObserverSnapshot(raw, raw.config_sha256, Date.now(), deadline);
+  const decoded = Buffer.from(JSON.stringify(raw));
   const compressed = gzipSync(decoded, { maxOutputLength: observerSnapshotLimit });
   const bytes = Buffer.from(
     JSON.stringify({
@@ -368,8 +396,9 @@ export function encodeObserverSnapshot(snapshot: Snapshot, deadline = Infinity) 
  * The complete member stays four MiB, expansion stays thirty-two MiB. */
 export function encodeCompactObserverSnapshot(snapshot: Snapshot, deadline = Infinity) {
   requireValue(Date.now() < deadline, "snapshot encoding deadline exhausted");
-  validateObserverSnapshot(snapshot, snapshot.config_sha256, Date.now(), deadline);
-  const decoded = Buffer.from(JSON.stringify(snapshot));
+  const raw = withRawSnapshotController(snapshot, deadline);
+  validateObserverSnapshot(raw, raw.config_sha256, Date.now(), deadline);
+  const decoded = Buffer.from(JSON.stringify(raw));
   const compressed = gzipSync(decoded, { level: 9, maxOutputLength: observerSnapshotLimit });
   const header = Buffer.from(
     JSON.stringify({
@@ -394,13 +423,22 @@ export function encodeCompactObserverSnapshot(snapshot: Snapshot, deadline = Inf
 
 const maximumSnapshotRecords = 2 + Math.floor(observerCheckpointByteLimit / 80);
 export async function encodeStreamingObserverSnapshot(snapshot: Snapshot, deadline: number) {
-  validateObserverSnapshot(snapshot, snapshot.config_sha256, Date.now(), deadline);
+  validateObserverSnapshot(
+    snapshot,
+    snapshot.config_sha256,
+    Date.now(),
+    deadline,
+    Date.now,
+    observerStreamingGraphLimit,
+  );
   const { files, ...metadata } = snapshot;
   async function* records() {
     yield { name: "$snapshot", bytes: Buffer.from(JSON.stringify(metadata)) };
     yield {
       name: "catalog/checkpoint.json",
-      bytes: Buffer.from(JSON.stringify(files["catalog/checkpoint.json"])),
+      bytes: Buffer.from(
+        JSON.stringify(decodeStoredObserverCheckpoint(files["catalog/checkpoint.json"], deadline)),
+      ),
     };
     for (const [name, stored] of Object.entries(files)) {
       if (name === "catalog/checkpoint.json") continue;
@@ -471,20 +509,21 @@ async function decodeStreamingObserverSnapshot(
             ...progress.retired_configs,
           ])
             if (source) configs.set(`${observationHash(source)}/checkpoint.json`, source);
-        stored = controller;
+        stored = encodeStoredObserverCheckpoint(controller, deadline);
       } else {
         const source = configs.get(name);
         requireValue(source && parsed !== null, "foreign stream source");
         validateObserverCheckpoint(parsed, source);
         stored = encodeStoredObserverCheckpoint(parsed, deadline);
       }
-      storedBytes +=
-        Buffer.byteLength(JSON.stringify(name)) +
-        1 +
-        Buffer.byteLength(JSON.stringify(stored)) +
-        (fileCount++ ? 1 : 0);
+      storedBytes += snapshotFileEntryBytes(
+        name,
+        Buffer.byteLength(JSON.stringify(stored)),
+        fileCount > 0,
+      );
+      fileCount++;
       requireValue(
-        storedBytes <= observerCheckpointByteLimit,
+        storedBytes <= observerStreamingGraphLimit,
         "stream stored graph exceeds checkpoint envelope",
       );
       snapshot.files[name] = stored;
@@ -510,7 +549,14 @@ async function decodeStreamingObserverSnapshot(
     },
   );
   requireValue(snapshot, "stream snapshot absent");
-  return validateObserverSnapshot(snapshot, config, now, deadline);
+  return validateObserverSnapshot(
+    snapshot,
+    config,
+    now,
+    deadline,
+    Date.now,
+    observerStreamingGraphLimit,
+  );
 }
 
 function decodeObserverSnapshot(bytes: Buffer, config: string, now: number, deadline: number) {
@@ -651,7 +697,14 @@ export async function publishObserverSnapshot(
   now = Date.now,
 ) {
   requireValue(now() < deadline, "snapshot publication deadline exhausted");
-  validateObserverSnapshot(snapshot, snapshot.config_sha256, now(), deadline, now);
+  validateObserverSnapshot(
+    snapshot,
+    snapshot.config_sha256,
+    now(),
+    deadline,
+    now,
+    observerStreamingGraphLimit,
+  );
   const work = await assertOwnedUnlinkedPath(
     root,
     path.join(root, "work"),
@@ -684,7 +737,11 @@ export async function publishObserverSnapshot(
       requireValue(now() < deadline, "snapshot publication deadline exhausted");
       const filename = path.join(staging, name);
       await mkdir(path.dirname(filename), { recursive: true });
-      await writeFile(filename, JSON.stringify(value), { flag: "wx" });
+      const published =
+        name === "catalog/checkpoint.json"
+          ? decodeStoredObserverCheckpoint(value, deadline, now)
+          : value;
+      await writeFile(filename, JSON.stringify(published), { flag: "wx" });
     }
     await assertOwnedUnlinkedPath(work, destination, "observer restore");
     await absent();
@@ -862,7 +919,7 @@ async function initializeApprovedBaseline(
   const documents: Record<string, unknown> = {};
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
-    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
     ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source input");
@@ -898,7 +955,7 @@ async function initializeApprovedBaseline(
   );
   for (const [key, filename, limit] of [
     ["config", "release/upstream-observer.json", 16384],
-    ["catalog", "crates/portcove-core/catalog/catalog.json", 4 * 1024 * 1024],
+    ["catalog", "crates/portcove-core/catalog/catalog.json", 16 * 1024 * 1024],
     ["listings", "crates/portcove-core/catalog/listings.json", 8 * 1024 * 1024],
   ] as const) {
     await assertOwnedUnlinkedPath(root, path.join(root, filename), "baseline source readback");
@@ -1226,15 +1283,13 @@ export async function recoverObserverCheckpoint(options: RecoveryOptions) {
         runAfter.conclusion === raw.conclusion,
       "producer changed during collection",
     );
+    const sequence = validateCatalogObserverCheckpoint(
+      decodeStoredObserverCheckpoint(snapshot.files["catalog/checkpoint.json"], deadline, now),
+      now(),
+    ).sequence;
     await publishObserverSnapshot(root, snapshot, deadline, now);
     remaining();
-    return {
-      origin: "artifact",
-      producer: source,
-      artifact: artifact.id,
-      sequence: validateCatalogObserverCheckpoint(snapshot.files["catalog/checkpoint.json"], now())
-        .sequence,
-    };
+    return { origin: "artifact", producer: source, artifact: artifact.id, sequence };
   }
   requireValue(
     inventory.covered && (inventory.complete || reachedAgeBoundary),
@@ -1281,6 +1336,7 @@ export async function recoverObserverCheckpointWithSdk({
         credential,
         deadline: Math.min(deadline, performance.now() + timeoutMs),
         maxBytes,
+        bufferAllowance: "observer-checkpoint",
         lookup: { requestTimeoutMs: timeoutMs },
         ...(fetch ? { fetch } : {}),
       }),
@@ -1327,8 +1383,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       );
     } else if (process.argv[2] === "export" && process.argv.length === 3) {
       const deadline = Math.min(
-        Date.now() + 60000,
-        Date.parse(process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC ?? "") + 60000,
+        Date.now() + snapshotExportBudgetMs,
+        Date.parse(process.env.PORTCOVE_OBSERVER_OPPORTUNITY_DEADLINE_UTC ?? "") +
+          snapshotExportBudgetMs,
       );
       requireValue(Number.isFinite(deadline), "export deadline unavailable");
       const snapshot = await collectFactObserverSnapshot(
@@ -1344,11 +1401,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         JSON.stringify({
           kind: "observer-checkpoint-input",
           checkpoint_files: Object.keys(snapshot.files).length,
-          controller_bytes: Buffer.byteLength(
+          controller_stored_bytes: Buffer.byteLength(
             JSON.stringify(snapshot.files["catalog/checkpoint.json"]),
           ),
           decoded_bytes: Buffer.byteLength(JSON.stringify(snapshot)),
-          decoded_byte_limit: observerCheckpointByteLimit,
+          decoded_byte_limit: observerStreamingGraphLimit,
           artifact_byte_limit: observerStreamingSnapshotLimit,
         }),
       );
@@ -1365,7 +1422,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
           kind: "observer-checkpoint-snapshot",
           checkpoint_files: encoded.checkpoint_files,
           decoded_bytes: encoded.decoded_bytes,
-          decoded_byte_limit: observerCheckpointByteLimit,
+          decoded_byte_limit: observerStreamingGraphLimit,
           artifact_bytes: encoded.bytes.length,
           artifact_byte_limit: observerStreamingSnapshotLimit,
           logical_transfer_bytes: encoded.logical_transfer_bytes,

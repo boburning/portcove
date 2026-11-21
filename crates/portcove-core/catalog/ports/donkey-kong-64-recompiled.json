@@ -46,7 +46,30 @@
           "instruction": "If you already use an upstream-managed copy, preserve ~/.config/DK64Recompiled on Linux, the DK64Recompiled profile under ~/Library/Application Support on Mac, or your actual custom profile. For Flatpak also keep ~/.var/app/io.github.dk64recompiled.dk64recompiled. Back up the original, saves, mods and settings before replacing it. Portcove-managed installs keep their data in the Portcove profile and do not adopt these folders."
         }
       ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-64",
+      "evidence_urls": [
+        "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme",
+        "https://github.com/Rainchus/Donkey-Kong-64-Recompiled"
+      ],
+      "source_editions": [
+        {
+          "id": "donkey-kong-64-nintendo-64",
+          "title": "Donkey Kong 64 (Nintendo 64)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Rainchus/Donkey-Kong-64-Recompiled/blob/f77cc642e22ee376956271ee54dfdaf8fce768a6/README.md"
+          ]
+        }
+      ]
     }
+  },
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified on Apple Silicon Mac for this package."
+    ]
   },
   "integration": {
     "support_tier": "stable",
@@ -70,24 +93,6 @@
       "linux-x86-64": ["DK64Recompiled"],
       "macos-aarch64": ["DK64Recompiled"]
     },
-    "persistent_paths": [
-      "mods",
-      "mod_config",
-      "saves",
-      "mods.json",
-      "mods.json.bak",
-      "general.json",
-      "general.json.bak",
-      "graphics.json",
-      "graphics.json.bak",
-      "controls.json",
-      "controls.json.bak",
-      "sound.json",
-      "sound.json.bak",
-      "technical.json",
-      "technical.json.bak",
-      "DK64.z64"
-    ],
     "runtime_source_filename": "DK64.z64",
     "presentation": {
       "installation_method": "portable-recompilation",
@@ -107,11 +112,10 @@
             "instruction": "Choose your own Donkey Kong 64 US 1.0 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
           }
         ],
-        "warnings": [
-          "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified on Apple Silicon Mac for this package."
-        ],
+        "warnings": [],
         "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme"
       }
     }
-  }
+  },
+  "n64_recomp_persistence_v1": "technical-settings"
 }

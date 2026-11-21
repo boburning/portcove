@@ -1,5 +1,5 @@
 import { Notice } from "../../components/ui/patterns";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { focusAndReveal, focusRegion } from "../../focus";
 import { errorText, failurePresentation } from "../../view-model";
@@ -7,6 +7,8 @@ import { FailureDetails } from "../../components/FailureDetails";
 import { Icon } from "../../components/ui";
 import { Button } from "../../components/ui/button";
 import { useAppTranslation } from "../../localization";
+
+const noticeLayout = "grid grid-cols-[2rem_minmax(0,1fr)]";
 
 export function WorkspaceRefreshNotice({
   failure,
@@ -29,14 +31,31 @@ export function WorkspaceRefreshNotice({
   const retryButton = useRef<HTMLButtonElement>(null);
   const recoveryRetryButton = useRef<HTMLButtonElement>(null);
   const retryRequested = useRef(false);
+  const recoveryRetryInFlight = useRef(false);
+  const [recoveryRetryPending, setRecoveryRetryPending] = useState(false);
+  const recoveryBusy = refreshing || recoveryRetryPending;
   useEffect(() => {
-    if (refreshing || !retryRequested.current) return;
+    if (recoveryBusy || !retryRequested.current) return;
     retryRequested.current = false;
     if (document.activeElement !== document.body) return;
-    if (failure) focusAndReveal(retryButton.current);
+    if (failure || (!recoveryFailure && subscriptionFailure)) focusAndReveal(retryButton.current);
     else if (recoveryFailure) focusAndReveal(recoveryRetryButton.current);
     else focusRegion("workspace");
-  }, [failure, recoveryFailure, refreshing]);
+  }, [failure, recoveryFailure, recoveryBusy, subscriptionFailure]);
+  const requestRecoveryRetry = async () => {
+    if (refreshing || recoveryRetryInFlight.current) return;
+    recoveryRetryInFlight.current = true;
+    retryRequested.current = true;
+    setRecoveryRetryPending(true);
+    try {
+      await retryRecovery();
+    } catch {
+      // The workspace coordinator publishes recovery and refresh failures.
+    } finally {
+      recoveryRetryInFlight.current = false;
+      setRecoveryRetryPending(false);
+    }
+  };
   if (!failure && !recoveryFailure && !subscriptionFailure) return null;
   const recoveryPresentation = recoveryFailure && failurePresentation(recoveryFailure.error);
   const recoveryCode =
@@ -47,14 +66,14 @@ export function WorkspaceRefreshNotice({
       ? String(recoveryFailure.error.code)
       : undefined;
   const recoveryNotice = recoveryFailure && (
-    <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
+    <Notice intent="danger" className={noticeLayout} role="alert" aria-busy={recoveryBusy}>
       <span
         data-slot="notice-icon"
         className="error-icon grid h-[2rem] w-[2rem] place-items-center"
       >
         <Icon glyph={AlertTriangle} />
       </span>
-      <div data-slot="notice-body">
+      <div data-slot="notice-body" className="grid justify-items-start gap-1">
         <strong>{t("recovery.heading")}</strong>
         <p>{hasSnapshot ? t("recovery.snapshot") : t("notLoaded")}</p>
         <p>{errorText(recoveryFailure.error)}</p>
@@ -62,14 +81,13 @@ export function WorkspaceRefreshNotice({
           <FailureDetails presentation={recoveryPresentation} code={recoveryCode} />
         )}
         <Button
+          className="mt-1"
           ref={recoveryRetryButton}
           variant="outline"
           data-focusable
-          disabled={refreshing}
-          onClick={() => {
-            retryRequested.current = true;
-            void retryRecovery();
-          }}
+          aria-busy={recoveryBusy}
+          focusableWhenDisabled={recoveryBusy}
+          onClick={() => void requestRecoveryRetry()}
         >
           {t("recovery.retry")}
         </Button>
@@ -79,21 +97,27 @@ export function WorkspaceRefreshNotice({
   if (!failure && recoveryFailure) return recoveryNotice;
   if (!failure)
     return (
-      <Notice intent="neutral" className="" role="status" aria-busy={refreshing}>
+      <Notice intent="neutral" className={noticeLayout} role="status" aria-busy={refreshing}>
         <span
           data-slot="notice-icon"
           className="error-icon grid h-[2rem] w-[2rem] place-items-center"
         >
           <Icon glyph={AlertTriangle} />
         </span>
-        <div data-slot="notice-body">
+        <div data-slot="notice-body" className="grid justify-items-start gap-1">
           <strong>{t("live.heading")}</strong>
           <p>{t("live.body")}</p>
           <Button
+            className="mt-1"
+            ref={retryButton}
             variant="outline"
             data-focusable
-            disabled={refreshing}
-            onClick={() => void retry()}
+            aria-busy={refreshing}
+            focusableWhenDisabled={refreshing}
+            onClick={() => {
+              retryRequested.current = true;
+              void retry();
+            }}
           >
             {refreshing ? t("refreshing") : t("live.refresh")}
           </Button>
@@ -111,14 +135,14 @@ export function WorkspaceRefreshNotice({
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   return (
     <>
-      <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
+      <Notice intent="danger" className={noticeLayout} role="alert" aria-busy={refreshing}>
         <span
           data-slot="notice-icon"
           className="error-icon grid h-[2rem] w-[2rem] place-items-center"
         >
           <Icon glyph={AlertTriangle} />
         </span>
-        <div data-slot="notice-body">
+        <div data-slot="notice-body" className="grid justify-items-start gap-1">
           <strong>
             {hasSnapshot ? t("refresh.headingSnapshot") : t("refresh.headingInitial")}
           </strong>
@@ -133,10 +157,12 @@ export function WorkspaceRefreshNotice({
           )}
           <p>{hasSnapshot ? t("refresh.effectSnapshot") : t("refresh.effectInitial")}</p>
           <Button
+            className="mt-1"
             ref={retryButton}
             variant="outline"
             data-focusable
-            disabled={refreshing}
+            aria-busy={refreshing}
+            focusableWhenDisabled={refreshing}
             onClick={() => {
               retryRequested.current = true;
               void retry();

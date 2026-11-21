@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "quake-ironwail",
+    "artwork": {
+      "game_id": 333,
+      "cover_id": 434745,
+      "image_id": "co9bg9",
+      "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+      "game_slug": "quake",
+      "match_kind": "underlying-game"
+    },
     "name": "Quake (Ironwail)",
     "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
@@ -35,6 +43,15 @@
     "release_url": "https://github.com/andrei-drexler/ironwail/releases",
     "download_asset_hints": {
       "linux-x86-64": ["ironwail-", "-linux-x64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/andrei-drexler/ironwail/tree/1eabd0df21130e55d94496c7af177e2dcbed75df",
+        "https://github.com/andrei-drexler/ironwail"
+      ],
+      "source_editions": []
     }
   },
   "upstream_lineage": {
@@ -106,7 +123,7 @@
     "managed_native": {
       "preparation": {
         "title": "Copy your own classic Quake data beside the managed player",
-        "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside ironwail.exe before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
+        "instruction": "Open the managed runtime folder and copy the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation beside the Ironwail program before Play. Keep the original copy in its existing location. Portcove starts this copy from that local base folder and disables the online add-on server."
       },
       "warnings": [
         "For store discovery, rerelease migration, expansions, mods or custom base directories, use a separately prepared copy. The managed route preserves id1 and console history only. Gameplay and real save compatibility across versions remain unverified."

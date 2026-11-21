@@ -391,7 +391,7 @@ export async function readOriginalHostedWindowsDiagnosticInputs() {
   assert.equal(result.production_signing, false);
   assert.deepEqual(result.fixture_versions, diagnosticVersions);
   const runtimeBytes = await read("work/hosted-continuity-evidence/windows-runtime.json"),
-    floorBytes = await read("apps/desktop/src-tauri/src/runtime_support.rs"),
+    floorBytes = await read("apps/desktop/src-tauri/tauri.conf.json"),
     runtime = inspectSupportedHostedWindowsRuntimeInput(floorBytes, runtimeBytes, {
       source,
       workflow,

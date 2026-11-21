@@ -5,16 +5,24 @@
     "project_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
     "name": "Crusader: No Remorse / SDL port",
     "original_game_title": "Crusader: No Remorse",
+    "artwork": {
+      "game_id": 7840,
+      "cover_id": 104235,
+      "image_id": "co28ff",
+      "image_sha256": "c6ad7109ca86f9ef9490a0e75f6abc0d7375b5b497f408b5d8f646419115578c",
+      "game_slug": "crusader-no-remorse",
+      "match_kind": "underlying-game"
+    },
     "summary": "Set up the upstream Windows, Linux or PortMaster player with a copy of your original game data.",
     "issue_number": 5569,
     "listed_at": "2026-11-15",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
-    "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases/tag/v1.41.2",
+    "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases",
     "setup_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
     "download_asset_hints": {
-      "windows-x86-64": ["crusader-1.41.2-windows-x64.zip"],
-      "linux-x86-64": ["crusader-1.41.2-linux-x64.tar.gz"]
+      "windows-x86-64": ["crusader-", "-windows-x64.zip"],
+      "linux-x86-64": ["crusader-", "-linux-x64.tar.gz"]
     },
     "manual_setup": {
       "help_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
@@ -38,6 +46,25 @@
       ],
       "warnings": [
         "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route."
+      ]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "crusader-no-remorse",
+      "evidence_urls": [
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+        "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
+        "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/crusader-no-remorse-sebsebseb1982-sdl-port.json"
+      ],
+      "source_editions": [
+        {
+          "id": "crusader-no-remorse-pc",
+          "title": "Crusader: No Remorse (PC)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/boburning/portcove/blob/ab20dc67f547382dbb924333c9c71186ffe2d5a4/crates/portcove-core/catalog/ports/crusader-no-remorse-sebsebseb1982-sdl-port.json"
+          ]
+        }
       ]
     }
   }

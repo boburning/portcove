@@ -1,7 +1,16 @@
 {
   "format_version": 1,
+  "reviewed_flat_package_layout_v1": ["windows-x86-64"],
   "listing": {
     "id": "darkuni-target-terror-wii-recomp",
+    "artwork": {
+      "game_id": 5213,
+      "cover_id": 272083,
+      "image_id": "co5txv",
+      "image_sha256": "6cd058c5b3471cd965e8b12a1b90bc75c909329f2932c39c90be073f31bca8e2",
+      "game_slug": "target-terror",
+      "match_kind": "underlying-game"
+    },
     "name": "TARGET: Terror (darkuni Recomp)",
     "summary": "Play TARGET: Terror with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
@@ -31,10 +40,25 @@
       "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
     },
     "release_url": "https://github.com/darkuni/target-terror-wii-recomp/releases",
-    "download_asset_hints": {
-      "windows-x86-64": ["TargetTerror-", "-win64.zip"]
-    },
-    "recommended_download_channel": "stable"
+    "recommended_download_channel": "stable",
+    "original_game": {
+      "format_version": 1,
+      "id": "target-terror",
+      "evidence_urls": [
+        "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md",
+        "https://github.com/darkuni/target-terror-wii-recomp"
+      ],
+      "source_editions": [
+        {
+          "id": "target-terror-wii",
+          "title": "TARGET: Terror (Wii)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
@@ -56,12 +80,7 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Before first Play, copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the managed folder beside targetterror.exe, and keep your original separately. On first Play the game builds its game folder from the image, which takes a few minutes and up to about 4.4 GB; leave its console window open while it runs, and if the first start is interrupted or used the wrong image, delete the game folder before starting again; without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. The download is the recompiled player with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves and high scores) and targetterror.ini across updates and backups. The log and hang report beside the program are diagnostics. Backups include the game folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats."
-    },
-    "reviewed_package_layouts": {
-      "windows-x86-64": {
-        "directories": [],
-        "executables": ["targetterror.exe"]
-      }
     }
-  }
+  },
+  "listing_inherit_asset_hints": ["windows-x86-64"]
 }

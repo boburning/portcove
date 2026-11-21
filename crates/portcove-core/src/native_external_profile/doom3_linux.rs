@@ -59,6 +59,26 @@ pub(super) fn validate(port: &PortDefinition) -> Result<()> {
     if expansion {
         originals.extend(["d3xp/pak000.pk4".into(), "d3xp/pak001.pk4".into()]);
     }
+    let source = match port.id.as_str() {
+        "doom-3-classic-dhewm3" => Some("doom-3-classic-pc-131-pk4"),
+        "doom-3-resurrection-of-evil-classic-dhewm3" => Some("doom-3-roe-classic-pc-131-pk4"),
+        _ => None,
+    };
+    let reviewed_originals = if port.source_profile.is_none() {
+        port.persistent_paths == originals
+    } else {
+        port.source_profile.as_deref() == source
+            && crate::preparation::source::native_relative(port)
+            && port.persistent_paths.is_empty()
+            && port.runtime_source_set.len() == originals.len()
+            && originals.iter().all(|original| {
+                port.runtime_source_set.iter().any(|target| {
+                    target.destination == *original
+                        && target.source_filenames == [original.as_str()]
+                        && target.materialization == crate::RuntimeSourceMaterialization::Copy
+                })
+            })
+    };
     let linux = Platform::LinuxX86_64;
     if !port.release.repository.eq_ignore_ascii_case(repository)
         || port.channels != [ReleaseChannel::Stable]
@@ -74,8 +94,7 @@ pub(super) fn validate(port: &PortDefinition) -> Result<()> {
             .is_none_or(|hints| hints != &[player])
         || !port.reviewed_package_layouts.contains_key(&linux)
         || port.launch_arguments != arguments
-        || port.persistent_paths != originals
-        || port.source_profile.is_some()
+        || !reviewed_originals
         || !port.release.direct.is_empty()
         || !port.release.curated.is_empty()
         || !port.release.managed_build.is_empty()

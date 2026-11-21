@@ -9,6 +9,7 @@ import { BackupHistory } from "./BackupHistory";
 
 const backup: BackupRecord = {
   id: "qualified-backup",
+  recovery_review: "legacy_install_and_data_v1",
   port_id: "ghostship",
   path: "library/backups/legacy",
   created_at: 1,
@@ -20,7 +21,7 @@ const tree = { directories: [], files: [], skipped_entries: [], total_bytes: 0 }
 const plan: GhostshipRecoveryPlan = {
   format_version: 1,
   library_root: "library",
-  backup,
+  backup: { ...backup, recovery_review: null },
   qualification_sha256: "b".repeat(64),
   legacy_install: installRecord({
     id: "legacy-2",
@@ -81,7 +82,9 @@ it("reviews compound consequences separately from ordinary restore and binds the
     "Ordinary restore",
   ])
     expect(document.body.textContent?.toLowerCase()).toContain(text.toLowerCase());
-  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
+  await expect
+    .poll(() => document.activeElement?.textContent)
+    .toBe("Review Ghostship legacy recovery");
   await click("Recover legacy installation and data");
   expect(apply).toHaveBeenCalledExactlyOnceWith(backup, plan.plan_sha256);
   expect(ordinary).not.toHaveBeenCalled();
@@ -158,7 +161,7 @@ it("keeps discovery distinct from eligibility and disables review of stale backu
   await root.rerender(
     <BackupHistory
       {...props}
-      backups={[{ ...backup, port_id: "other" }]}
+      backups={[{ ...backup, recovery_review: null }]}
       readState={{ status: "current", hasInventory: true }}
     />,
   );
@@ -177,7 +180,9 @@ it("reviews legacy recovery in the current language with exact paths", async () 
     await root.rerender(
       <GhostshipRecoveryReview backup={backup} generation={7} apply={vi.fn()} close={vi.fn()} />,
     );
-    await expect.poll(() => document.activeElement?.textContent).toBe("إلغاء");
+    await expect
+      .poll(() => document.activeElement?.textContent)
+      .toBe("مراجعة استرداد Ghostship القديم");
     expect(document.body.textContent).toContain("مراجعة استرداد Ghostship القديم");
     expect(document.body.textContent).toContain(backup.path);
     expect(document.body.textContent).toContain("library/retained2");
