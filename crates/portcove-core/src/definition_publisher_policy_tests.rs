@@ -3268,6 +3268,59 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             assert_eq!(after.checked_at, before.checked_at);
             assert_eq!(after.check.release, unrelated.release);
 
+            let connection = library.connection().unwrap();
+            let transition_count: i64 = connection
+                .query_row(
+                    "SELECT transition_count FROM curated_artifact_history",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET transition_count=257",
+                    [],
+                )
+                .unwrap();
+            // Intact admission and scope history can rule out this different
+            // digest even while authenticated transition history is unusable.
+            let advised = service
+                .record_update_check(ID, &status, &unrelated.release, None)
+                .unwrap();
+            assert_eq!(advised.release, unrelated.release);
+            let refused = service
+                .record_update_check(ID, &status, &stale.release, None)
+                .unwrap_err();
+            assert!(refused.message.contains("curated transition history"));
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET transition_count=?1, scope_count=scope_count+1",
+                    [transition_count],
+                )
+                .unwrap();
+            // With missing scopes, a plausible GitHub package could have
+            // participated. A download from a different origin cannot have.
+            let refused = service
+                .record_update_check(ID, &status, &unrelated.release, None)
+                .unwrap_err();
+            assert!(refused.message.contains("curated artifact scope history"));
+            let mut outside = unrelated.release.clone();
+            outside.asset.url = "https://downloads.example.org/package.zip".into();
+            let advised = service
+                .record_update_check(ID, &status, &outside, None)
+                .unwrap();
+            assert_eq!(advised.release, outside);
+            assert_eq!(
+                library.update_snapshot(ID).unwrap().unwrap().check.release,
+                outside
+            );
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET scope_count=scope_count-1",
+                    [],
+                )
+                .unwrap();
+
             library.store_update_snapshot(stale).unwrap();
         }
         let projected = service.status(ID).unwrap();
