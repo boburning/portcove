@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { InstallRecord, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
 import { DetailPanel, InstallationVersionSummary } from "./DetailPanel";
+import { ReleaseWithdrawalBadge, ReleaseWithdrawalNotice } from "./ReleaseWithdrawal";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import {
   port,
@@ -2462,3 +2463,55 @@ it.each([null, "bios"])(
     expect(overview.includes("Required BIOS not specified")).toBe(biosProfile !== null);
   },
 );
+
+it("shows only exact installed and recommended distribution withdrawal", () => {
+  const held = (
+    retained: boolean,
+    reason: NonNullable<PortStatus["definition_operations"]>[number]["eligibility"]["reason"],
+  ) => ({ operation: "install", retained, eligibility: { outcome: "hold", reason } }) as const;
+  const markup = (status: PortStatus) =>
+    renderToStaticMarkup(
+      <>
+        <ReleaseWithdrawalBadge status={status} />
+        <ReleaseWithdrawalNotice status={status} reviewVersions={vi.fn()} />
+      </>,
+    );
+  const installed = {
+    ...portStatus(),
+    active: installRecord(),
+    previous: installRecord(),
+    definition_operations: [held(true, "curated_distribution_withdrawn")],
+    port_actions: [{ action: "rollback", availability: "allowed", reason: "available" }],
+  } satisfies PortStatus;
+  expect(markup(installed)).toContain("Installed release withdrawn");
+  expect(markup(installed)).toContain("withdrawn by the catalog maintainer");
+  expect(markup(installed)).toContain("keep your installed copy and its saves");
+  expect(markup(installed)).toContain("Review rollback");
+  expect(markup({ ...installed, port_actions: [] })).not.toContain("Review rollback");
+  expect(
+    markup({
+      ...installed,
+      definition_operations: [held(true, "curated_artifact_revoked")],
+    }),
+  ).not.toContain("Withdrawn release");
+  expect(markup({ ...installed, active: null })).not.toContain("Withdrawn release");
+  const recommended = markup({
+    ...portStatus(),
+    definition_operations: [held(false, "curated_distribution_withdrawn")],
+  });
+  expect(recommended).toContain("Recommended release withdrawn");
+  expect(recommended).toContain("Wait for a compatible release");
+  expect(recommended).not.toContain("Review rollback");
+  const both = markup({
+    ...installed,
+    definition_operations: [
+      held(true, "curated_distribution_withdrawn"),
+      held(false, "curated_distribution_withdrawn"),
+    ],
+  });
+  expect(both).toContain("Installed release withdrawn");
+  expect(both).toContain("Recommended release withdrawn");
+  expect(both).toContain("keep your installed copy and its saves");
+  expect(both).toContain("Wait for a compatible release");
+  expect(both).toContain("Review rollback");
+});

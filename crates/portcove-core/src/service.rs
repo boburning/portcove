@@ -1170,8 +1170,9 @@ impl PortcoveService {
         let status_catalog = match self.catalog_for_installed_fallback(port_id) {
             Ok(catalog) => catalog,
             Err(error) if error.code == crate::ErrorCode::NotFound => {
-                let status = self.library.status(port_id, ReleaseChannel::Stable)?;
+                let mut status = self.library.status(port_id, ReleaseChannel::Stable)?;
                 if status.acquisition.is_some() {
+                    self.omit_withdrawn_cached_offer(&mut status);
                     return Ok(Self::acquisition_metadata_status(status));
                 }
                 return Err(error);
@@ -1188,9 +1189,10 @@ impl PortcoveService {
             )],
             false,
         )?;
-        let status = statuses
+        let mut status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
+        self.omit_withdrawn_cached_offer(&mut status);
         if port.is_none()
             || status
                 .external_runtime
@@ -1338,6 +1340,54 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))
     }
 
+    fn withdrawn_offer_identity(
+        connection: &rusqlite::Connection,
+        port_id: &str,
+        release: &ResolvedRelease,
+    ) -> Result<Option<(u64, u64)>> {
+        use crate::definition_repository::publisher_policy::{
+            CuratedArtifactOperation, assess_known_artifact_operation,
+        };
+        let Some((repository_id, asset_id)) =
+            crate::curated_acquisition::scoped_identity_for_cached_offer(
+                connection, port_id, release,
+            )?
+        else {
+            return Ok(None);
+        };
+        let eligibility = assess_known_artifact_operation(
+            connection,
+            repository_id,
+            asset_id,
+            &release.asset.sha256,
+            CuratedArtifactOperation::Acquisition,
+        )?;
+        Ok(
+            (eligibility.reason
+                == crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn)
+                .then_some((repository_id, asset_id)),
+        )
+    }
+
+    fn omit_withdrawn_cached_offer(&self, status: &mut PortStatus) {
+        if let Some(snapshot) = &status.last_update_check
+            && snapshot.check.update_available
+            && snapshot.check.port_id == status.port_id
+        {
+            let withdrawn = self.library.connection().and_then(|connection| {
+                Self::withdrawn_offer_identity(
+                    &connection,
+                    &status.port_id,
+                    &snapshot.check.release,
+                )
+            });
+            if withdrawn.is_ok_and(|identity| identity.is_some()) {
+                // The durable check still describes the historical observation.
+                status.last_update_check = None;
+            }
+        }
+    }
+
     /// An archive is display metadata, never a replacement operational definition.
     fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
         status.readiness = None;
@@ -1375,7 +1425,8 @@ impl PortcoveService {
             .collect::<HashMap<_, _>>();
         statuses
             .into_iter()
-            .map(|status| {
+            .map(|mut status| {
+                self.omit_withdrawn_cached_offer(&mut status);
                 let port = match catalog.port(&status.port_id) {
                     Ok(port) => port,
                     Err(_) if status.acquisition.is_some() => {
@@ -2652,6 +2703,28 @@ impl PortcoveService {
             return Ok(status);
         };
         let installed_port = installed_catalog.port(&active.port_id)?;
+        if !installed_port.release.curated.is_empty() {
+            // The retained Install decision describes reacquiring this exact
+            // artifact. Current Install and retained Launch keep their own decisions.
+            let distribution = Installer::new(self.library.clone()).and_then(|installer| {
+                installer.assess_curated_operation(
+                    active,
+                    crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+                )
+            });
+            if let Ok(eligibility) = distribution
+                && eligibility.reason
+                    == crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+            {
+                status
+                    .definition_operations
+                    .push(DefinitionOperationAssessment {
+                        operation: DefinitionOperation::Install,
+                        eligibility,
+                        retained: true,
+                    });
+            }
+        }
         if crate::preparation::managed_install(installed_port, active) {
             status
                 .definition_operations
@@ -2727,7 +2800,10 @@ impl PortcoveService {
             status
                 .definition_operations
                 .iter()
-                .find(|item| item.operation == operation)
+                .find(|item| {
+                    item.operation == operation
+                        && (operation != DefinitionOperation::Install || !item.retained)
+                })
                 .map(|item| item.eligibility)
                 .filter(|eligibility| eligibility.outcome != DefinitionEligibilityOutcome::Eligible)
         };
@@ -3421,7 +3497,7 @@ impl PortcoveService {
         Ok(forecast)
     }
 
-    fn record_update_check(
+    pub(crate) fn record_update_check(
         &self,
         port_id: &str,
         status: &PortStatus,
@@ -3481,7 +3557,24 @@ impl PortcoveService {
                     .filter(|activity| activity.describes(port)),
             },
         };
-        self.library.store_update_snapshot(&check)?;
+        // Serialize the final offer check and snapshot write with authenticated
+        // policy admission. Resolution may have finished before policy changed.
+        let mut connection = self.library.connection()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        if update_available
+            && let Some((repository_id, asset_id)) =
+                Self::withdrawn_offer_identity(&transaction, port_id, release)?
+        {
+            return Err(
+                PortcoveError::conflict("curated artifact distribution is withdrawn")
+                    .detail("repository_id", repository_id.to_string())
+                    .detail("asset_id", asset_id.to_string())
+                    .detail("sha256", &release.asset.sha256),
+            );
+        }
+        Library::store_update_snapshot_from(&transaction, &check)?;
+        transaction.commit()?;
         Ok(check)
     }
 

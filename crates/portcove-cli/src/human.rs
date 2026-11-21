@@ -1895,6 +1895,26 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        for assessment in &status.definition_operations {
+            if assessment.operation != portcove_core::DefinitionOperation::Install
+                || assessment.eligibility.reason
+                    != portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+            {
+                continue;
+            }
+            let target = if assessment.retained {
+                let Some(active) = &status.active else {
+                    continue;
+                };
+                format!("Installed release {}", clean(&active.version))
+            } else {
+                "Recommended release".into()
+            };
+            output.push_str(&format!(
+                "\n{}: {target} withdrawn by the catalog maintainer.",
+                port_name(catalog, &status.port_id)
+            ));
+        }
         if let Some(carried) = &status.carried_files {
             output.push_str(&format!(
                 "\nFiles kept during the version switch for {}:\n{}",
@@ -4865,6 +4885,33 @@ mod tests {
             assert!(!rendered.contains("(definition_ineligible)"));
             assert!(!rendered.contains("No current blocker"));
         }
+    }
+
+    #[test]
+    fn status_discloses_both_installed_and_recommended_release_withdrawals() {
+        let mut status = status_disclosure_fixture();
+        status.active = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "fixture-install", "port_id": status.port_id,
+                "version": "v1", "path": "installed", "channel": "stable",
+                "installed_at": 1, "verified": true, "staged": false
+            }))
+            .unwrap(),
+        );
+        for retained in [true, false] {
+            status.definition_operations.push(portcove_core::DefinitionOperationAssessment {
+                operation: portcove_core::DefinitionOperation::Install,
+                eligibility: portcove_core::DefinitionEligibility {
+                    outcome: portcove_core::DefinitionEligibilityOutcome::Hold,
+                    reason: portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn,
+                },
+                retained,
+            });
+        }
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let output = super::status(&status, &catalog);
+        assert!(output.contains("Installed release v1 withdrawn by the catalog maintainer."));
+        assert!(output.contains("Recommended release withdrawn by the catalog maintainer."));
     }
 
     #[test]
