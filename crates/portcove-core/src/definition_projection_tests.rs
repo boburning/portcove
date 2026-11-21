@@ -1072,13 +1072,15 @@ fn complete_indexed_projections_keep_package_only_settings_with_the_selected_por
     let mut complete = projection();
     let ports = complete["catalog"]["ports"].as_array().unwrap();
     let settings_port = "super-mario-world-recomp";
+    let sibling_port = "render96ex";
+    assert!(baseline.port(sibling_port).unwrap().mod_loader.is_none());
     let settings_index = ports
         .iter()
         .position(|port| port["id"] == settings_port)
         .unwrap();
     let sibling_index = ports
         .iter()
-        .position(|port| port["id"] == "zelda64-recomp")
+        .position(|port| port["id"] == sibling_port)
         .unwrap();
     let settings = serde_json::to_value(
         baseline
