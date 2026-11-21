@@ -31,7 +31,7 @@ struct CompactListingCarrier {
     gzip_base64: String,
 }
 
-fn decode_compact_listing(bytes: &[u8]) -> Result<Vec<u8>> {
+fn decode_compact_listing(bytes: &[u8]) -> Result<(Vec<u8>, String)> {
     const ERROR: &str = "invalid compact listing directory carrier";
     if bytes.len() > MAX_BYTES {
         return Err(PortcoveError::verification(ERROR));
@@ -55,7 +55,7 @@ fn decode_compact_listing(bytes: &[u8]) -> Result<Vec<u8>> {
     {
         return Err(PortcoveError::verification(ERROR));
     }
-    Ok(output)
+    Ok((output, carrier.decoded_sha256))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -268,6 +268,9 @@ pub struct ListingDeliveryStatus {
     pub anchor_sha256: Option<String>,
     pub repository_root_sha256: Option<String>,
     pub target_sha256: Option<String>,
+    /// Digest of the authenticated compact transport target, when applicable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transport_target_sha256: Option<String>,
     pub expires_at: Option<String>,
     pub listing_count: usize,
     pub withdrawn_ids: Vec<String>,
@@ -285,6 +288,7 @@ impl Default for ListingDeliveryStatus {
             anchor_sha256: None,
             repository_root_sha256: None,
             target_sha256: None,
+            transport_target_sha256: None,
             expires_at: None,
             listing_count: 0,
             withdrawn_ids: vec![],
@@ -294,10 +298,47 @@ impl Default for ListingDeliveryStatus {
     }
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct CompactListingProof {
+    transport: PolicyProvenance,
+    decoded_sha256: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(untagged)]
+enum ListingAdmissionProof {
+    Compact(CompactListingProof),
+    Legacy(PolicyProvenance),
+}
+
+impl ListingAdmissionProof {
+    fn provenance(&self) -> &PolicyProvenance {
+        match self {
+            Self::Compact(proof) => &proof.transport,
+            Self::Legacy(proof) => proof,
+        }
+    }
+
+    fn decoded_sha256(&self) -> &str {
+        match self {
+            Self::Compact(proof) => &proof.decoded_sha256,
+            Self::Legacy(proof) => &proof.target_sha256,
+        }
+    }
+
+    fn transport_target_sha256(&self) -> Option<String> {
+        match self {
+            Self::Compact(proof) => Some(proof.transport.target_sha256.clone()),
+            Self::Legacy(_) => None,
+        }
+    }
+}
+
 pub(crate) struct AuthenticatedListings {
     bytes: Vec<u8>,
     document: ListingDeliveryDocument,
-    provenance: PolicyProvenance,
+    proof: ListingAdmissionProof,
 }
 
 impl AuthenticatedListings {
@@ -315,9 +356,9 @@ impl AuthenticatedListings {
                     "stored listing provenance exceeds its bound",
                 ));
             }
-            let provenance: PolicyProvenance = serde_json::from_str(&provenance)?;
-            provenance.validate()?;
-            if super::digest(document.as_bytes()) != provenance.target_sha256 {
+            let proof: ListingAdmissionProof = serde_json::from_str(&provenance)?;
+            proof.provenance().validate()?;
+            if super::digest(document.as_bytes()) != proof.decoded_sha256() {
                 return Err(PortcoveError::state(
                     "stored listing bytes differ from admission",
                 ));
@@ -325,18 +366,19 @@ impl AuthenticatedListings {
             Ok(Self {
                 document: ListingDeliveryDocument::parse(document.as_bytes())?,
                 bytes: document.into_bytes(),
-                provenance,
+                proof,
             })
         })
         .transpose()
     }
 
     fn require_current(&self, connection: &Connection, now: i64) -> Result<()> {
-        let floor = installed_authority_floor(connection, &self.provenance.anchor_sha256)?
+        let provenance = self.proof.provenance();
+        let floor = installed_authority_floor(connection, &provenance.anchor_sha256)?
             .ok_or_else(|| PortcoveError::state("listing authority lost its replay floor"))?;
         // Other policy targets may have advanced shared metadata since this target was admitted.
-        floor.check_advance(&self.provenance)?;
-        let expiry = OffsetDateTime::parse(&self.provenance.expires_at, &Rfc3339)
+        floor.check_advance(provenance)?;
+        let expiry = OffsetDateTime::parse(&provenance.expires_at, &Rfc3339)
             .map_err(|_| PortcoveError::state("invalid listing expiration"))?
             .unix_timestamp();
         if now >= expiry {
@@ -348,14 +390,16 @@ impl AuthenticatedListings {
     }
 
     fn status(&self) -> ListingDeliveryStatus {
+        let provenance = self.proof.provenance();
         ListingDeliveryStatus {
             delivery_schema: 1,
             revision: Some(self.document.revision),
             selected: true,
-            anchor_sha256: Some(self.provenance.anchor_sha256.clone()),
-            repository_root_sha256: Some(self.provenance.root_sha256.clone()),
-            target_sha256: Some(self.provenance.target_sha256.clone()),
-            expires_at: Some(self.provenance.expires_at.clone()),
+            anchor_sha256: Some(provenance.anchor_sha256.clone()),
+            repository_root_sha256: Some(provenance.root_sha256.clone()),
+            target_sha256: Some(self.proof.decoded_sha256().to_owned()),
+            transport_target_sha256: self.proof.transport_target_sha256(),
+            expires_at: Some(provenance.expires_at.clone()),
             listing_count: self.document.directory.listings.len(),
             withdrawn_ids: self.document.withdrawn_ids.clone(),
             fallback_reason: None,
@@ -423,15 +467,16 @@ impl Library {
         candidate: &AuthenticatedListings,
         publish: bool,
     ) -> Result<ListingDeliveryStatus> {
-        candidate.provenance.require_fresh()?;
+        let provenance = candidate.proof.provenance();
+        provenance.require_fresh()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let floor = installed_authority_floor(&transaction, &candidate.provenance.anchor_sha256)?;
+        let floor = installed_authority_floor(&transaction, &provenance.anchor_sha256)?;
         if let Some(floor) = &floor {
-            candidate.provenance.check_advance(floor)?;
+            provenance.check_advance(floor)?;
         }
         if let Some(previous) = AuthenticatedListings::stored(&transaction)?
-            && (previous.provenance.anchor_sha256 != candidate.provenance.anchor_sha256
+            && (previous.proof.provenance().anchor_sha256 != provenance.anchor_sha256
                 || candidate.document.revision < previous.document.revision
                 || (candidate.document.revision == previous.document.revision
                     && candidate.bytes != previous.bytes))
@@ -446,8 +491,8 @@ impl Library {
         let (catalog, _) =
             crate::catalog_store::resolve_before_listings(&transaction, baseline, provenance, now)?;
         candidate.document.project(catalog)?;
-        candidate.provenance.require_fresh()?;
-        let provenance = serde_json::to_string(&candidate.provenance)?;
+        provenance.require_fresh()?;
+        let proof = serde_json::to_string(&candidate.proof)?;
         let document = std::str::from_utf8(&candidate.bytes)
             .map_err(|_| PortcoveError::verification("listing target must be UTF-8"))?;
         if !publish {
@@ -457,11 +502,11 @@ impl Library {
         transaction.execute(
             "INSERT INTO listing_delivery(singleton,document_json,provenance_json) VALUES(1,?1,?2)
              ON CONFLICT(singleton) DO UPDATE SET document_json=excluded.document_json,provenance_json=excluded.provenance_json",
-            params![document, provenance],
+            params![document, proof],
         )?;
         transaction.execute(
             "UPDATE definition_publisher_authority SET replay_floor_json=?1 WHERE anchor_sha256=?2",
-            params![provenance, candidate.provenance.anchor_sha256],
+            params![serde_json::to_string(provenance)?, provenance.anchor_sha256],
         )?;
         transaction.commit()?;
         Ok(candidate.status())
@@ -543,19 +588,25 @@ async fn acquire_listings(repository: &Repository, root: &[u8]) -> Result<Authen
         .all_targets()
         .any(|(name, _)| name.raw() == COMPACT_TARGET);
     let target = if compact { COMPACT_TARGET } else { TARGET };
-    let (mut bytes, mut provenance) =
+    let (bytes, provenance) =
         super::acquire_target_with_limit(repository, root, target, MAX_BYTES as u64).await?;
-    if compact {
-        bytes = decode_compact_listing(&bytes)?;
-        // Listing admission and persisted status bind the exact decoded JSON.
-        // The raw carrier has already been authenticated by the repository above.
-        provenance.target_sha256 = super::digest(&bytes);
-    }
+    let (bytes, proof) = if compact {
+        let (decoded, decoded_sha256) = decode_compact_listing(&bytes)?;
+        (
+            decoded,
+            ListingAdmissionProof::Compact(CompactListingProof {
+                transport: provenance,
+                decoded_sha256,
+            }),
+        )
+    } else {
+        (bytes, ListingAdmissionProof::Legacy(provenance))
+    };
     let document = ListingDeliveryDocument::parse(&bytes)?;
     Ok(AuthenticatedListings {
         bytes,
         document,
-        provenance,
+        proof,
     })
 }
 

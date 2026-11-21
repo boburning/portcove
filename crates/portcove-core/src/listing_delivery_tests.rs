@@ -970,6 +970,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let root = publish(&fixture, &key, 1, &feed(1)).await;
     provision(&library, &root);
     let prior = refresh(&library, &fixture, &root).await.unwrap();
+    assert_eq!(prior.transport_target_sha256, None);
     let next = serde_json::to_vec(&feed(2)).unwrap();
     let next_digest = hex::encode(Sha256::digest(&next));
 
@@ -1001,15 +1002,17 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     same_revision_replacement.push(b' ');
     signed_carriers.push((carrier(&same_revision_replacement), false, 2));
 
+    let mut transport_digest = None;
     for (index, (compact, accepted, revision)) in signed_carriers.into_iter().enumerate() {
+        let raw = serde_json::to_vec(&compact).unwrap();
+        if accepted {
+            transport_digest = Some(hex::encode(Sha256::digest(&raw)));
+        }
         let root = fixture
             .publish_with_policy(
                 &[
                     (listing_delivery::TARGET.into(), old.clone()),
-                    (
-                        listing_delivery::COMPACT_TARGET.into(),
-                        serde_json::to_vec(&compact).unwrap(),
-                    ),
+                    (listing_delivery::COMPACT_TARGET.into(), raw),
                 ],
                 true,
                 &DEFINITION_ROLE_PATHS,
@@ -1021,6 +1024,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
         assert_eq!(result.is_ok(), accepted, "{compact:?}");
         let stored = library.listing_delivery_status().unwrap();
         assert_eq!(stored.revision, Some(revision));
+        assert_eq!(stored.transport_target_sha256, transport_digest);
         if revision == 1 {
             // Reload still uses exactly the original decoded content and digest.
             assert_eq!(stored.target_sha256, prior.target_sha256);

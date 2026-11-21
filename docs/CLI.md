@@ -408,7 +408,8 @@ directory revision and replay rules as `json-v1`. It reads the legacy carrier
 when the compact target is absent from the signed repository. A failed compact
 read leaves the existing installation and admitted directory state available
 under their existing validity checks. The listing status digest identifies the
-exact decoded directory.
+exact decoded directory. For compact delivery, `transport_target_sha256`
+reports the independently authenticated carrier digest.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
