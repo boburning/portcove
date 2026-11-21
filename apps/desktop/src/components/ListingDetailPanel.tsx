@@ -152,7 +152,7 @@ export function ListingDetailPanel({
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
-  onChanged: () => void;
+  onChanged: () => void | Promise<unknown>;
   close: () => void;
   backLabel?: string | undefined;
   opening?: DetailOpening | undefined;

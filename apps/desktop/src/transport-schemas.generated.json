@@ -19738,6 +19738,13 @@
       "activate": {
         "type": "boolean"
       },
+      "archive_only_plan_sha256": {
+        "description": "Archive-only review for the same candidate. Acquisition still revalidates it.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "assessment": {
         "$ref": "#/$defs/PortActionAssessment",
         "description": "Read-only decision for this exact reviewed candidate, not authorization."
