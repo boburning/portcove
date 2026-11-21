@@ -165,9 +165,11 @@ impl InstalledContract {
         let port = catalog.port(port_id)?;
         let definition = catalog.definition_snapshot(port_id).cloned();
         let admission = catalog.definition_selection(port_id).cloned();
-        if port.reviewed_launch_contract_v1.is_some() && definition.is_none() {
+        if port.reviewed_launch_contract_v1.is_some()
+            && (definition.is_none() || admission.is_none())
+        {
             return Err(PortcoveError::verification(
-                "named package and launch declarations require the exact retained indexed entry",
+                "named package and launch declarations require the exact admitted indexed entry",
             ));
         }
         let packaged_library = port.linux_packaged_library.is_some()

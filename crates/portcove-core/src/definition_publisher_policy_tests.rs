@@ -5467,6 +5467,60 @@ async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
     .unwrap()
     .unwrap()
     .0;
+    assert!(
+        crate::InstallQualification::from_catalog(candidate.projection().catalog(), ID, platform)
+            .unwrap_err()
+            .message
+            .contains("exact admitted indexed entry")
+    );
+
+    let availability_fixture = RepositoryFixture::new();
+    let availability_key = Key::new(availability_fixture._directory.path());
+    let mut availability_targets = targets[..targets.len() - 1].to_vec();
+    let availability = availability_for(&availability_targets, ID, 1);
+    availability_targets.push((
+        format!("policy/official/{ID}.json"),
+        serde_json::to_vec(&availability).unwrap(),
+    ));
+    let availability_root = availability_fixture
+        .publish_with_policy(
+            &availability_targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&availability_key, 1)),
+        )
+        .await;
+    let availability_candidate = acquire(&availability_fixture, &availability_root)
+        .await
+        .unwrap();
+    let availability_proof = acquire_policy(&availability_fixture, &availability_root, ID)
+        .await
+        .unwrap();
+    let (_availability_dir, availability_library) = self::library();
+    policy::install_authority_for_test(&availability_library, &availability_root).unwrap();
+    availability_library
+        .apply_definition_publisher_policy(&availability_proof, Some(&availability_candidate))
+        .unwrap();
+    let eligible = availability_library
+        .assess_definition_candidate(&availability_candidate, "official", ID)
+        .unwrap()
+        .into_eligible()
+        .unwrap();
+    availability_library
+        .select_definition_candidate_fixture(eligible)
+        .unwrap();
+    let availability_catalog =
+        crate::definition_candidate::selection::load_selected_definition_catalog(
+            &availability_library.connection().unwrap(),
+            &baseline,
+            now_unix(),
+        )
+        .unwrap()
+        .unwrap()
+        .0;
+    assert!(policy::acquisition_scope(&availability_library, &availability_catalog, ID).is_err());
+
     let mut scope = policy::acquisition_scope(&library, &catalog, ID)
         .unwrap()
         .unwrap();
@@ -5521,12 +5575,23 @@ async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
         qualification,
     };
     let qualification = crate::InstallQualification::from_catalog(&catalog, ID, platform).unwrap();
-    assert!(
-        installer
-            .install(request(qualification.clone()), &operation, |_| {})
-            .await
-            .is_err()
-    );
+    let error = installer
+        .install(request(qualification.clone()), &operation, |_| {})
+        .await
+        .unwrap_err();
+    assert!(error.message.contains("independent acquisition authority"));
+    let availability_qualification =
+        crate::InstallQualification::from_catalog(&availability_catalog, ID, platform).unwrap();
+    let availability_request = crate::InstallRequest {
+        output_root: availability_library.versions_dir().join(ID),
+        ..request(availability_qualification)
+    };
+    let error = crate::Installer::new(availability_library)
+        .unwrap()
+        .install(availability_request, &operation, |_| {})
+        .await
+        .unwrap_err();
+    assert!(error.message.contains("independent acquisition authority"));
     assert_eq!(server.requests.lock().unwrap().len(), 2);
     server.bytes(&archive);
     let operation = crate::OperationCoordinator::new("install", None);

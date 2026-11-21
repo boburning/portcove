@@ -221,17 +221,6 @@ impl InstallQualification {
         if let Some(contract) = &self.retained_contract {
             let catalog = contract.catalog(contract.port_id())?;
             let port = catalog.port(contract.port_id())?;
-            if port.reviewed_launch_contract_v1.is_some() {
-                let resolution = request.qualification.acquisition.as_ref().filter(|resolved| resolved.scope.is_some())
-                .ok_or_else(|| PortcoveError::verification(
-                    "named package and launch declarations require independent acquisition authority",
-                ))?;
-                resolution.require_selection(
-                    port,
-                    request.qualification.platform,
-                    request.release.channel,
-                )?;
-            }
             if crate::managed_runtime_policy::requires_provider_resolution_on(port, self.platform) {
                 resolution.require_selection(port, self.platform, resolution.release.channel)?;
             }
@@ -1235,6 +1224,24 @@ impl Installer {
             )?;
         }
         let port = catalog.port(&request.port_id)?;
+        if port.reviewed_launch_contract_v1.is_some() {
+            let resolution = request
+                .qualification
+                .acquisition
+                .as_ref()
+                .filter(|resolved| resolved.scope.is_some())
+                .filter(|_| request.qualification.retained_contract.is_some())
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "named package and launch declarations require independent acquisition authority",
+                    )
+                })?;
+            resolution.require_selection(
+                port,
+                request.qualification.platform,
+                request.release.channel,
+            )?;
+        }
         let requires_tar_xz = port.release.requires_tar_xz(request.qualification.platform);
         let is_tar_xz = request
             .release
