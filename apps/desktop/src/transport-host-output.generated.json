@@ -10078,6 +10078,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -10374,6 +10395,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -14445,6 +14473,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -15199,6 +15234,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16721,6 +16776,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -17458,6 +17520,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -23596,6 +23678,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -26608,6 +26711,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
