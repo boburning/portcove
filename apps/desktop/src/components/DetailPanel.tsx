@@ -3,6 +3,7 @@ import {
   currentGamePlayKey,
 } from "../features/app-shell/current-game-play";
 import { useAppTranslation } from "../localization";
+import { managedRouteReadbackGuidance } from "../features/operations/invocation-state";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
@@ -287,9 +288,12 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   const state: DetailState = actionState.installReadbackRequired
     ? {
-        title: "Installation finished",
-        description:
-          "The library will show this installation’s current details after it refreshes.",
+        title: actionState.managedRouteReadbackRequired
+          ? "Check the current installation"
+          : "Installation finished",
+        description: actionState.managedRouteReadbackRequired
+          ? managedRouteReadbackGuidance
+          : "The library will show this installation’s current details after it refreshes.",
         tone: "unknown",
         icon: RefreshCw,
       }
@@ -413,6 +417,7 @@ export function DetailPanel(props: DetailPanelProps) {
       sources={sources}
       installed={installed}
       installReadbackRequired={actionState.installReadbackRequired}
+      managedRouteReadbackRequired={actionState.managedRouteReadbackRequired}
       deferSetupChoices={!installed && missingRequirement !== undefined}
       sourceReady={sourceReady}
       biosReady={biosReady}
@@ -524,6 +529,7 @@ function DetailBody(model: {
   sources: SourceControls;
   installed: boolean;
   installReadbackRequired: boolean;
+  managedRouteReadbackRequired: boolean;
   deferSetupChoices: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -4119,11 +4125,12 @@ function DetailFilesSection({
                 ? "Managed by Portcove"
                 : "Not installed"}
         </p>
-        {(model.status?.active?.path || model.status?.external_runtime?.path) && (
-          <p className="wrap-anywhere select-text">
-            {model.status?.active?.path ?? model.status?.external_runtime?.path}
-          </p>
-        )}
+        {!model.managedRouteReadbackRequired &&
+          (model.status?.active?.path || model.status?.external_runtime?.path) && (
+            <p className="wrap-anywhere select-text">
+              {model.status?.active?.path ?? model.status?.external_runtime?.path}
+            </p>
+          )}
         {model.hasFileObservations && (
           <details className="detail-file-observations">
             <summary data-focusable>File matching details</summary>
@@ -4148,15 +4155,17 @@ function DetailManageSection({
     <>
       <CurrentStateSummary
         title={
-          model.installReadbackRequired
-            ? "Installation finished · awaiting library refresh"
-            : !model.status
-              ? "Installation status unavailable"
-              : model.status.active || model.status.external_runtime
-                ? model.status.external_runtime
-                  ? "External installation"
-                  : "Managed installation"
-                : "No active installation"
+          model.managedRouteReadbackRequired
+            ? "Check the current installation"
+            : model.installReadbackRequired
+              ? "Installation finished · awaiting library refresh"
+              : !model.status
+                ? "Installation status unavailable"
+                : model.status.active || model.status.external_runtime
+                  ? model.status.external_runtime
+                    ? "External installation"
+                    : "Managed installation"
+                  : "No active installation"
         }
       >
         {model.status?.active && (
@@ -4336,7 +4345,15 @@ function DetailVersionsSection({
   return (
     <div className="detail-versions-workspace">
       <div className="detail-version-main">
-        {model.status?.external_runtime ? (
+        {model.installReadbackRequired ? (
+          <CurrentStateSummary
+            title={
+              model.managedRouteReadbackRequired
+                ? "Check the current installation"
+                : "Installed version will appear after the library refreshes"
+            }
+          />
+        ) : model.status?.external_runtime ? (
           <CurrentStateSummary
             title={
               <span className="inline-flex items-center gap-2">
@@ -4353,8 +4370,6 @@ function DetailVersionsSection({
               Open upstream project <Icon glyph={ArrowRight} />
             </ProjectLink>
           </CurrentStateSummary>
-        ) : model.installReadbackRequired ? (
-          <CurrentStateSummary title="Installed version will appear after the library refreshes" />
         ) : (
           <InstallationVersionSummary
             status={model.status}

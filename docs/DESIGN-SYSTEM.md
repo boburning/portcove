@@ -1133,7 +1133,13 @@ assessment, reports the game ready with nothing left to confirm, the completion
 notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
 external runtimes and every other outcome keep the factual "Action · Title:
 finished." notice. A successful launch shows no visible notice; its announcement
-remains. On the game page one Cancel serves running setup: the Game files control
+remains. Creating a Portcove-managed copy retains the exact installed version
+in workspace feedback. If Portcove cannot refresh the library, the player can
+retry the refresh from that feedback. Open game appears when the current
+library confirms the exact installation and its game page is available. If the result is uncertain, the previous launch route stays on hold until a
+fresh read confirms a managed installation or Portcove restarts and resolves the
+workspace state.
+On the game page one Cancel serves running setup: the Game files control
 omits its own when the page's cancellation covers the operation, and the review
 dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
