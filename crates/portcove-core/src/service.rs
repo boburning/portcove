@@ -8085,11 +8085,7 @@ fn require_no_other_host_downgrade(
     let Some(active) = &status.active else {
         return Ok(());
     };
-    if resolved
-        .newer_other_host_releases
-        .iter()
-        .any(|tag| *tag == active.version)
-    {
+    if resolved.newer_other_host_releases.contains(&active.version) {
         return Err(PortcoveError::conflict(
             "The installed version is newer than the latest release with a package for this computer. Portcove keeps the installed version.",
         )
