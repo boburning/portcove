@@ -28,7 +28,7 @@ impl PortcoveService {
     ) -> Result<GameUpdatePlan> {
         self.plan_game_update_with_status(port_id, activate, review_data)
             .await
-            .map(|(plan, _)| plan)
+            .map(|(plan, _, _)| plan)
     }
 
     pub(super) async fn plan_game_update_with_status(
@@ -36,7 +36,11 @@ impl PortcoveService {
         port_id: &str,
         activate: bool,
         review_data: bool,
-    ) -> Result<(GameUpdatePlan, crate::PortStatus)> {
+    ) -> Result<(
+        GameUpdatePlan,
+        crate::PortStatus,
+        crate::ScopedResolvedRelease,
+    )> {
         let status = self.status(port_id)?;
         if status.active.is_none() {
             return Err(PortcoveError::not_found(
@@ -62,7 +66,7 @@ impl PortcoveService {
         let offer_archive = review_data
             && plan.action == crate::InstallPlanAction::Download
             && assessment.availability == crate::PortActionAvailability::Allowed
-            && self.require_acquisition_state(&status).is_ok();
+            && self.require_acquisition_state(&status, &plan).is_ok();
         let (mut plan_sha256, mut archive_only_plan_sha256) = self.game_release_review_digests(
             "Portcove game update review v1",
             &plan,
@@ -117,7 +121,7 @@ impl PortcoveService {
             archive_only_plan_sha256,
             release_notes,
         };
-        Ok((reviewed, status))
+        Ok((reviewed, status, resolution))
     }
 
     /// The release list link is kept only when Desktop's reviewed-link check would
@@ -211,6 +215,15 @@ impl PortcoveService {
                 &sources,
                 activate,
             ))?);
+            let digest = if let Some(pin) = &plan.exact_release {
+                crate::signed_catalog::digest(&serde_json::to_vec(&(
+                    "Portcove exact release review v1",
+                    digest,
+                    pin,
+                ))?)
+            } else {
+                digest
+            };
             if let Some(shared) = &plan.shared_preferences {
                 return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
                     "Portcove managed shared preference review v1",
@@ -287,9 +300,24 @@ impl PortcoveService {
         let mut data_transition_completed = false;
         let result = async {
             let _guard = self.library.try_lock_port(port_id, "reviewed-update")?;
-            let reviewed = operation
-                .interruptible(self.plan_game_update_locked(port_id, activate))
+            let (reviewed, _, mut resolution) = operation
+                .interruptible(self.plan_game_update_with_status(port_id, activate, true))
                 .await?;
+            let port = self.catalog.port(port_id)?;
+            if reviewed.data_transition.is_some()
+                && let Some(verdict) = self.current_package_shape_refusal(
+                    port,
+                    reviewed.plan.platform,
+                    &resolution.release,
+                    Some(&resolution),
+                )?
+            {
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &resolution.release,
+                    &verdict,
+                ));
+            }
             self.library.consume_authorization(
                 authorization,
                 "game-update",
@@ -316,20 +344,34 @@ impl PortcoveService {
             let acquired = self.acquired_inputs(&reviewed, &operation)?;
             let status = self.status(port_id)?;
             operation.observe_release(&reviewed.plan.release.version, None);
-            self.record_update_check(port_id, &status, &reviewed.plan.release, None)?;
+            self.record_update_check_from_selection(port_id, &status, &resolution, None)?;
+            if resolution.saved_variant.is_none()
+                && reviewed.plan.action == crate::InstallPlanAction::Download
+                && crate::ManagedPackageVariant::can_record(
+                    port,
+                    reviewed.plan.platform,
+                    &resolution.release,
+                )
+            {
+                resolution.saved_variant = crate::ManagedPackageVariant::from_review(
+                    port,
+                    reviewed.plan.platform,
+                    &resolution,
+                );
+            }
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_resolved_release(
-                self.catalog.port(port_id)?,
+            self.apply_scoped_release_with_shared(
+                port,
                 status,
                 InstallOverrides {
                     source: None,
                     bios: None,
                     output_directory: None,
                 },
-                reviewed.plan.release,
+                resolution,
                 ReleaseIntent {
                     activate,
                     acquired,
@@ -539,12 +581,69 @@ mod tests {
         (temporary, service_with_release(library, "v2"))
     }
 
+    #[tokio::test]
+    async fn both_update_review_intents_bind_the_exact_provider_identity() {
+        let (_temporary, service) = fixture();
+        let (reviewed, mut status, _) = service
+            .plan_game_update_with_status(PORT, true, false)
+            .await
+            .unwrap();
+        let mut plan = reviewed.plan;
+        let release = &plan.release;
+        plan.exact_release = Some(crate::ExactReleaseSelection {
+            port_id: PORT.into(),
+            channel: plan.channel,
+            platform: plan.platform,
+            version: release.version.clone(),
+            filename: release.asset.name.clone(),
+            size: release.asset.size,
+            sha256: release.asset.sha256.clone(),
+            identity: crate::ExactReleaseIdentity::Github {
+                repository_id: 1,
+                release_id: 2,
+                asset_id: 3,
+                commit_sha1: "a".repeat(40),
+            },
+        });
+        status.exact_release = plan.exact_release.clone();
+        let digest = |plan: &crate::InstallPlan| {
+            service
+                .game_release_review_digests(
+                    "Portcove game update review v1",
+                    plan,
+                    &status,
+                    true,
+                    true,
+                )
+                .unwrap()
+        };
+        let (install, archive) = digest(&plan);
+        let archive = archive.unwrap();
+        assert_ne!(install, archive);
+        assert_eq!(
+            service
+                .game_release_review_digest("Portcove game update review v1", &plan, &status, false)
+                .unwrap(),
+            archive,
+        );
+        if let crate::ExactReleaseIdentity::Github { asset_id, .. } =
+            &mut plan.exact_release.as_mut().unwrap().identity
+        {
+            *asset_id += 1;
+        }
+        let (changed_install, changed_archive) = digest(&plan);
+        assert_ne!(changed_install, install);
+        assert_ne!(changed_archive.as_deref(), Some(archive.as_str()));
+        assert!(service.require_acquisition_state(&status, &plan).is_err());
+    }
+
     struct NotesProvider {
         inner: std::sync::Arc<dyn crate::ReleaseProvider>,
         /// Repository used for the release list link; the port's own when `None`.
         repository: Option<String>,
         entries: Vec<crate::UpdateReleaseNotesEntry>,
         requests: std::sync::Mutex<Vec<(Option<String>, String)>>,
+        selections: std::sync::atomic::AtomicI64,
     }
 
     impl NotesProvider {
@@ -558,6 +657,7 @@ mod tests {
                 repository: repository.map(str::to_owned),
                 entries,
                 requests: Default::default(),
+                selections: Default::default(),
             })
         }
     }
@@ -571,6 +671,27 @@ mod tests {
             platform: crate::Platform,
         ) -> crate::Result<crate::ResolvedRelease> {
             self.inner.resolve(port, channel, platform).await
+        }
+
+        async fn resolve_scoped(
+            &self,
+            port: &crate::PortDefinition,
+            channel: crate::ReleaseChannel,
+            platform: crate::Platform,
+            scope: Option<&crate::DefinitionAcquisitionScope>,
+        ) -> crate::Result<crate::ScopedResolvedRelease> {
+            use std::sync::atomic::Ordering;
+            let mut selection = self
+                .inner
+                .resolve_scoped(port, channel, platform, scope)
+                .await?;
+            selection.upstream_activity = Some(crate::UpstreamActivity {
+                repository: port.release.repository.clone(),
+                observed_at: self.selections.fetch_add(1, Ordering::Relaxed) + 1,
+                archived: false,
+                last_change_at: None,
+            });
+            Ok(selection)
         }
 
         fn cached_release_notes(
@@ -920,6 +1041,33 @@ mod tests {
                 service_with_release(Library::open(service.library.root()).unwrap(), "v2");
             assert_eq!(reopened.status(PORT).unwrap().update_policy, policy);
         }
+    }
+
+    #[tokio::test]
+    async fn reviewed_apply_records_the_fresh_selection_and_reuses_it() {
+        use std::sync::atomic::Ordering;
+
+        let (_temporary, service) = fixture();
+        let provider = NotesProvider::new(&service, None, Vec::new());
+        let service = reviewed_repository_service(&service.library, provider.clone());
+        let review = service.plan_game_update(PORT, true).await.unwrap();
+        let grant = service
+            .authorize_game_update(PORT, true, &review.plan_sha256)
+            .await
+            .unwrap();
+        let before = provider.selections.load(Ordering::Relaxed);
+        service
+            .apply_game_update(PORT, true, &grant.token, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(provider.selections.load(Ordering::Relaxed), before + 1);
+        let checked = service.library.update_snapshot(PORT).unwrap().unwrap();
+        assert_eq!(checked.check.release, review.plan.release);
+        assert_eq!(
+            checked.check.upstream_activity.unwrap().observed_at,
+            before + 1
+        );
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");
     }
 
     #[tokio::test]

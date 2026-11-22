@@ -64,8 +64,24 @@ void test(
         command: 1_230_000,
       },
     );
+    // The selected-setup completion scenario carries the 900 s harness deadline
+    // calibrated in scripts/desktop-scenarios.mts; its outer and command budgets
+    // must contain that deadline with the same cleanup margins.
+    assert.deepEqual(
+      linuxX11ExecutionBudgets({
+        stage: "harness",
+        harness_args: ["--scenario", "native-selected-setup-completion"],
+      }),
+      {
+        harness: 960_000,
+        outer: 1_230_000,
+        inputCapture: 300_000,
+        inputVerification: 120_000,
+        namespaceCapture: 60_000,
+        command: 1_770_000,
+      },
+    );
     for (const scenario of [
-      "native-selected-setup-completion",
       "native-saved-folder-selected-setup",
       "native-large-discovery-setup-review",
     ])

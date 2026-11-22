@@ -200,3 +200,44 @@ pub(crate) fn embedded(platform: Platform) -> Result<&'static ToolchainArtifact>
         .and_then(|artifacts| artifacts.iter().find(|row| row.platform == platform))
         .ok_or_else(|| PortcoveError::state("bundled PS1 toolchain artifact inventory is invalid"))
 }
+
+#[cfg(test)]
+mod player_classification_tests {
+    use super::*;
+    use crate::route_facts::{player_candidates, suggest_from_filename};
+
+    /// The PS1 toolchain is a build tool, never a game runtime: its release
+    /// asset is classified as a compiler, and none of its executables can be
+    /// a player candidate where a PS1 build route would hold them.
+    #[test]
+    fn psx_toolchain_executables_are_never_player_candidates() {
+        for platform in [
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
+            let artifact = embedded(platform).unwrap();
+            assert_eq!(
+                suggest_from_filename(&artifact.name).role,
+                crate::ArtifactRole::Compiler,
+                "{platform:?}"
+            );
+            let executables = artifact
+                .python_paths
+                .iter()
+                .map(String::as_str)
+                .chain([artifact.cmake.as_str(), artifact.ninja.as_str()])
+                .chain(
+                    artifact
+                        .pinned_executables
+                        .iter()
+                        .map(|file| file.path.as_str()),
+                )
+                .map(|path| format!("overlay_toolchain/{path}"))
+                .collect::<Vec<_>>();
+            assert!(executables.len() >= 3);
+            assert!(player_candidates(&executables).is_empty(), "{platform:?}");
+        }
+    }
+}

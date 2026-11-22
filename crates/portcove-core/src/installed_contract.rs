@@ -23,6 +23,10 @@ pub(crate) fn legacy_retained_document(
         // A whole legacy catalog is decoded before the installed port is chosen.
         if port.id != port_id {
             port.mod_loader = None;
+            port.reviewed_predecessor_package_layouts_v1.clear();
+        } else if let Some(platform) = platform {
+            port.reviewed_predecessor_package_layouts_v1
+                .retain(|host, _| *host == platform);
         }
         if port.linux_packaged_library.is_none() {
             return true;
@@ -492,6 +496,74 @@ impl InstalledContract {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn predecessor_layouts_remain_platform_scoped_in_legacy_retained_contracts() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "dethrace-labs-dethrace";
+        let linux =
+            InstalledContract::capture_for_platform(&catalog, id, Some(Platform::LinuxX86_64))
+                .unwrap();
+        let ordinary = catalog.port(id).unwrap();
+        assert_eq!(
+            linux
+                .catalog(id)
+                .unwrap()
+                .port(id)
+                .unwrap()
+                .reviewed_predecessor_package_layouts_v1,
+            ordinary.reviewed_predecessor_package_layouts_v1,
+        );
+        let windows =
+            InstalledContract::capture_for_platform(&catalog, id, Some(Platform::WindowsX86_64))
+                .unwrap();
+        let remembered = windows.catalog(id).unwrap();
+        let windows_port = remembered.port(id).unwrap();
+        assert!(
+            !windows
+                .catalog_json
+                .contains("reviewed_predecessor_package_layouts_v1")
+        );
+        assert_eq!(
+            windows_port.reviewed_package_layouts[&Platform::WindowsX86_64],
+            ordinary.reviewed_package_layouts[&Platform::WindowsX86_64],
+        );
+        let unrelated = InstalledContract::capture(&catalog, "shipwright").unwrap();
+        assert!(
+            !unrelated
+                .catalog_json
+                .contains("reviewed_predecessor_package_layouts_v1")
+        );
+        let mut historical = catalog.authoritative_document();
+        let previous = historical
+            .ports
+            .iter_mut()
+            .find(|port| port.id == id)
+            .unwrap();
+        let linux_platform = Platform::LinuxX86_64;
+        let old_layout = previous.reviewed_predecessor_package_layouts_v1[&linux_platform][0]
+            .layout
+            .clone();
+        previous.reviewed_predecessor_package_layouts_v1.clear();
+        previous
+            .reviewed_package_layouts
+            .insert(linux_platform, old_layout.clone());
+        let historical = Catalog::from_document(historical).unwrap();
+        let prior =
+            InstalledContract::capture_for_platform(&historical, id, Some(linux_platform)).unwrap();
+        let bytes = serde_json::to_vec(&prior).unwrap();
+        let reopened: InstalledContract = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            reopened
+                .catalog(id)
+                .unwrap()
+                .port(id)
+                .unwrap()
+                .reviewed_package_layouts[&linux_platform],
+            old_layout
+        );
+        assert_eq!(serde_json::to_vec(&reopened).unwrap(), bytes);
+    }
 
     #[test]
     fn packaged_linux_library_fences_only_the_creating_managed_runtime() {
@@ -1457,7 +1529,11 @@ mod tests {
             .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
         for port in &mut legacy.ports {
             if port.id != "zelda64-recomp" {
+                // Retention projects other ports' install-scoped semantics: a
+                // mod loader or reviewed predecessor layout is interpreted only
+                // for its own installed port, never for this contract's port.
                 port.mod_loader = None;
+                port.reviewed_predecessor_package_layouts_v1.clear();
             }
             if package_only_settings(port) {
                 port.game_settings = None;

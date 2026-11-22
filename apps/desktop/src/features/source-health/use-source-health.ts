@@ -1,5 +1,5 @@
 import { useQueries, type QueryClient } from "@tanstack/react-query";
-import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
 import type { SourceInspectionReport, SourceRecord, SourceVerificationOutcome } from "../../types";
@@ -19,6 +19,7 @@ export function useSourceHealth(
   requestedProfileIds: readonly string[] = [],
   catalogIdentity = "",
   queryClient: QueryClient,
+  artworkRead?: { profileId: string; generation: number },
 ) {
   const [verified, setVerified] = useState<{
     baseline: string;
@@ -45,39 +46,82 @@ export function useSourceHealth(
       verifications.begin();
     };
   }, [baseline, lifetime, queryClient]);
-  const options = inspectionSources.map((source) => ({
-    queryKey: ["source-inspection", lifetime, baseline, source.profile_id] as const,
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+  const options = inspectionSources.map((source) => {
+    const read = async (signal: AbortSignal, artworkGeneration?: number) => {
       // IPC has no cancellation API. Guard dispatch and frontend acceptance, rather
       // than suggesting Query cancellation stops already running native work.
       signal.throwIfAborted();
       if (!mounted.current || inspectionInput.current.baseline !== baseline)
         throw new Error("The inspection baseline changed.");
-      const report = await desktopApi.inspectSource(source.profile_id);
+      const report =
+        artworkGeneration === undefined
+          ? await desktopApi.inspectSource(source.profile_id)
+          : await desktopApi.inspectSource(source.profile_id, artworkGeneration);
       signal.throwIfAborted();
       if (report.profile_id !== source.profile_id)
         throw new Error("The inspection does not match the requested saved file.");
       return report;
-    },
-    enabled: false,
-    retry: false,
-    retryOnMount: false,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    networkMode: "always" as const,
-    staleTime: 0, // Every settled explicit request reinspects; concurrent calls share native work.
-    gcTime: 0,
-    structuralSharing: false as const,
-  }));
+    };
+    return {
+      queryKey: ["source-inspection", lifetime, baseline, source.profile_id] as const,
+      queryFn: ({ signal }: { signal: AbortSignal }) => read(signal),
+      read,
+      enabled: false,
+      retry: false,
+      retryOnMount: false,
+      refetchOnMount: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      networkMode: "always" as const,
+      staleTime: 0, // Every settled explicit request reinspects; concurrent calls share native work.
+      gcTime: 0,
+      structuralSharing: false as const,
+    };
+  });
   const results = useQueries({ queries: options }, queryClient);
   const inspectionOptions = useRef(options);
   useLayoutEffect(() => {
     inspectionOptions.current = options;
   });
+  const automaticProfile = artworkRead?.profileId;
+  const automaticGeneration = artworkRead?.generation;
+  const automaticInspection = useRef<
+    | {
+        baseline: string;
+        profile: string;
+        done: Promise<unknown>;
+      }
+    | undefined
+  >(undefined);
+  useEffect(() => {
+    if (!automaticProfile || automaticGeneration === undefined) return;
+    const selected = inspectionOptions.current.find(
+      (option) => option.queryKey[3] === automaticProfile,
+    );
+    if (
+      !selected ||
+      queryClient.getQueryData(selected.queryKey) ||
+      queryClient.getQueryState(selected.queryKey)?.fetchStatus === "fetching"
+    )
+      return;
+    const done = queryClient
+      .query({
+        ...selected,
+        queryFn: ({ signal }: { signal: AbortSignal }) =>
+          selected.read(signal, automaticGeneration),
+      })
+      .catch(() => {
+        // The scoped query retains its own read error and the hero uses fallback.
+      });
+    automaticInspection.current = { baseline, profile: automaticProfile, done };
+  }, [automaticProfile, automaticGeneration, baseline, queryClient]);
   const inspectSource = useCallback(
     async (profileId: string) => {
-      if (!mounted.current) return;
+      const baseline = inspectionInput.current.baseline;
+      const automatic = automaticInspection.current;
+      // A player-requested full check must follow a bounded read already in flight.
+      if (automatic?.baseline === baseline && automatic.profile === profileId) await automatic.done;
+      if (!mounted.current || inspectionInput.current.baseline !== baseline) return;
       const selected = inspectionOptions.current.find((option) => option.queryKey[3] === profileId);
       if (!selected) return;
       try {

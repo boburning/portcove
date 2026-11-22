@@ -151,7 +151,10 @@ each referenced historical target body once. If Tough has already authenticated
 that exact target body in the current generation, the signer reuses those bytes. Each new invocation computes its
 own inventory and keeps the existing write-time and post-write readbacks.
 
-Each descriptive target remains limited to 8 MiB per directory revision.
+Each descriptive target has an 8 MiB wire limit. The compact carrier has a
+separate 32 MiB decoded limit. Both carriers share one decoded revision floor.
+Checkpoint segments preserve the exact legacy artifact and every immutable
+carrier body. Compact publication still requires explicit activation.
 
 Run 44643025884 needed 139,099,484 bytes for retained files and new targets
 before new role metadata, exceeding the former 128 MiB limit. Run 44838313111
@@ -180,6 +183,75 @@ managed acquisition policy accepts the game subject's release asset and has
 no tool-pack admission. Legacy catalog updates cannot appoint tool artifacts.
 The primary publisher continues to produce its existing formats until a
 capable released reader qualifies.
+
+## Authenticated publication history checkpoints
+
+History checkpoints are implemented but inert. Merging the implementation
+enables no new publication. Push and scheduled `Catalog publish` runs never
+request a checkpoint. Without a published checkpoint pointer they produce the
+same plan, signing context and Pages tree as before. They create no checkpoint
+target or `catalog-history/` tree and run no history steps.
+
+Bootstrap is a separate owner-authorized activation. Only a manual
+`workflow_dispatch` run with the `bootstrap_history` input set passes the
+bootstrap request. The planner also refuses that request from any other
+trigger. Bootstrap signs a new official-policy target,
+`policy/official/catalog.history-checkpoint.json`, and publishes
+`catalog-history/`. After that, every run continues the segmented history.
+Activation is one-way: no supported path removes the pointer.
+
+The checkpoint uses one standard official-policy target under the existing
+scoped delegation. The target names an active checkpoint by length and
+SHA-256. The checkpoint binds its predecessor timestamp, compiled root,
+delegated authority and exact revision floors. Immutable segments carry old
+file identities outside the legacy TUF URL tree. There are no custom Snapshot
+or Timestamp fields, which earlier release tools would refuse.
+
+The first checkpoint uses a fully verified predecessor. Once the current
+signed policy names a checkpoint, each signing job receives the active TUF
+roles and targets, a bounded active index and its tip segment. It verifies
+the TUF chain, authority, latest suffix and exact revision floors before using
+a role key. No file passed from the prepare job becomes signing authority.
+
+Keyless assembly restores the pinned Pages inputs, verifies the segment and
+parent chain against the actual historical SHA-256 inventory, and compares the
+independently signed role bodies with its own expected successor. Publication
+guards both the previous catalog and history trees and adds only addressed
+history objects. An expected missing checkpoint, unavailable segment, exceeded
+bound, stale Pages tree or changed body stops publication. Recover the exact
+addressed objects from the pinned last-good Git tree before retrying. A broken
+history pointer cannot trigger a new bootstrap.
+
+### Activation preconditions
+
+The owner must resolve these before history bootstrap or compact listing
+activation. Each failure below stops publication in the prepare job's context
+check, before any role key is used. The last good publication stays served,
+but publication stays stopped until the cause is repaired.
+
+1. **Unbounded chain.** Each publication adds one inventory segment and one
+   parent checkpoint. Verification walks both chains under one shared bound of
+   4,096 objects and 64 MiB. After about 2,048 publications, every run fails
+   with `catalog history chain reached its verification bound`. Two
+   publications a day reach that in under three years. There is no bounded
+   rebase. A rebase needs a fresh active checkpoint without a parent, and a
+   defined way to keep archive-retention evidence once the segment chain
+   restarts.
+2. **Root rotation.** Each checkpoint binds the compiled root's SHA-256. The
+   first publication after a root rotation fails with `catalog history
+   checkpoint was made under a different trusted root`. Bootstrap cannot
+   recover it, because an existing pointer always selects segmented history.
+   Rotation needs a defined checkpoint successor before history is activated.
+3. **Fixed legacy listing.** After compact activation the legacy target's
+   bytes are fixed. A reviewed legacy successor may only add `withdrawn_ids`.
+   A hold or other restriction added later reaches format-11 readers only by
+   withdrawing that row.
+4. **No enrichment fallback.** Legacy preparation drops an invalid optional
+   observer enrichment and keeps publishing. Compact preparation has no such
+   fallback. One invalid observer candidate fails the whole prepare step.
+5. **Revision bump.** Compact activation must use a revision above the legacy
+   target. A format-15 compact target beside a format-11 legacy target at the
+   same revision decodes differently, and the release tools refuse it.
 
 ## Capacity diagnostics and retained representations
 

@@ -515,6 +515,8 @@ mod tests {
 
     fn status(id: &str) -> PortStatus {
         PortStatus {
+            exact_release: None,
+            exact_release_hold: None,
             carried_files: None,
             acquisition: None,
             port_id: id.into(),

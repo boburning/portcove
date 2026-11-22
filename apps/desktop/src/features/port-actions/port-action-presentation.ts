@@ -1,5 +1,5 @@
 import type { PortStatus } from "../../types";
-import { withoutVerbatimPrefix } from "../app-shell/use-library-browsing-context";
+import { withoutVerbatimPrefix } from "../../path-presentation";
 
 type PresentedAction = "install" | "launch" | "rollback";
 type ActionPresentation = { blocked: false; reason?: never } | { blocked: true; reason: string };

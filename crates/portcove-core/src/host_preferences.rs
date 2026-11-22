@@ -27,6 +27,10 @@ pub use organization::{
     SetupConfirmation, UpdateNoticeChoice, UpdateNoticeRelease,
 };
 
+fn library_choice_changed() -> PortcoveError {
+    PortcoveError::conflict("the saved library choice changed after review; check it again")
+}
+
 fn invalid_document(error: PortcoveError) -> PortcoveError {
     error.detail(INVALID_DOCUMENT_DETAIL, "true")
 }
@@ -236,6 +240,15 @@ impl HostPreferenceStore {
     }
 
     pub fn set_library(&self, root: &Path) -> Result<()> {
+        self.set_library_if(root, None)
+    }
+
+    /// Save a library only while the stored startup choice still matches the review.
+    pub fn set_reviewed_library(&self, root: &Path, previous: Option<&Path>) -> Result<()> {
+        self.set_library_if(root, Some(previous))
+    }
+
+    fn set_library_if(&self, root: &Path, expected: Option<Option<&Path>>) -> Result<()> {
         let root = crate::Library::validate_selection_target(root)
             .map_err(|error| selection_phase(error, "selected-target-validation"))?;
         let process_guard = self
@@ -254,6 +267,11 @@ impl HostPreferenceStore {
         let mut preferences = self
             .load()
             .map_err(|error| selection_phase(error, "load"))?;
+        if let Some(previous) = expected
+            && preferences.library_root.as_deref() != previous
+        {
+            return Err(library_choice_changed());
+        }
         preferences.library_root = Some(root);
         self.publish(&preferences)
             .map_err(|error| selection_phase(error, "publication"))
@@ -267,6 +285,11 @@ impl HostPreferenceStore {
         self.publish(&preferences)
     }
 
+    /// True only for the document failures covered by explicit reset.
+    pub fn can_reset_invalid_document(error: &PortcoveError) -> bool {
+        error.details.contains_key(INVALID_DOCUMENT_DETAIL)
+    }
+
     /// Select the default library without erasing other valid settings. Explicit
     /// recovery replaces only a document that fails parsing or validation; path,
     /// lock, and publication errors remain failures.
@@ -277,10 +300,27 @@ impl HostPreferenceStore {
                 preferences.library_root = None;
                 self.publish(&preferences)
             }
-            Err(error) if error.details.contains_key(INVALID_DOCUMENT_DETAIL) => {
+            Err(error) if Self::can_reset_invalid_document(&error) => {
                 self.publish(&HostPreferences::default())
             }
             Err(error) => Err(error),
+        }
+    }
+
+    /// Clear the reviewed saved choice, or replace an invalid document only if that
+    /// broader reset was explicitly reviewed and the document is still invalid.
+    pub fn clear_reviewed_library(&self, expected: Option<Option<&Path>>) -> Result<()> {
+        let _lock = self.lock()?;
+        match (self.load(), expected) {
+            (Ok(mut preferences), Some(root)) if preferences.library_root.as_deref() == root => {
+                preferences.library_root = None;
+                self.publish(&preferences)
+            }
+            (Err(error), None) if Self::can_reset_invalid_document(&error) => {
+                self.publish(&HostPreferences::default())
+            }
+            (Err(error), _) if !Self::can_reset_invalid_document(&error) => Err(error),
+            _ => Err(library_choice_changed()),
         }
     }
 

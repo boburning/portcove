@@ -187,7 +187,7 @@ const listingPresentationFields = [
   "media",
 ] as const;
 
-function typedIgdbScene(asset: unknown) {
+export function typedIgdbScene(asset: unknown) {
   return (
     isRecord(asset) &&
     (asset.role === "header" || asset.role === "screenshot") &&

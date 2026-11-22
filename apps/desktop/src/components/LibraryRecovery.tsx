@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId } from "react";
+import { useLibraryInformationExport } from "../features/workspace/settings-export-results";
 import type { LibraryMetadataFile, PortDefinition, PortStatus } from "../types";
 import { gameIdentityLabel } from "../port-identity";
 import { errorText } from "../view-model";
@@ -27,20 +28,11 @@ export function LibraryRecovery({
   onOpenActivity?: (() => void) | undefined;
   onReviewSaves?: ((portId: string, origin: string) => void) | undefined;
 }) {
-  const [preparing, setPreparing] = useState(false);
-  const [exported, setExported] = useState<LibraryMetadataFile>();
-  const [error, setError] = useState<string>();
+  const { result, run } = useLibraryInformationExport();
+  const preparing = result.phase === "exporting";
+  const exported = result.receipt;
+  const error = result.phase === "failed" ? errorText(result.error) : undefined;
   const errorId = useId();
-  const pending = useRef(false);
-  const current = useRef(true);
-  useEffect(() => {
-    current.current = true;
-    return () => {
-      current.current = false;
-    };
-  }, []);
-  // The owner keys this guide to the workspace generation. No result from an
-  // outgoing library may become a receipt for a replacement library.
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
   return (
     <SettingsRow className="library-recovery min-w-0 wrap-anywhere" data-focus-group>
@@ -49,6 +41,7 @@ export function LibraryRecovery({
         Keep a verified recovery bundle, restore a copy, or change where this library is stored.
       </p>
       <LibraryRecoveryBundleControls
+        libraryRoot={libraryRoot}
         generation={generation}
         disabled={Boolean(busy) || preparing || !libraryRoot}
       />
@@ -67,21 +60,7 @@ export function LibraryRecovery({
           aria-busy={preparing}
           aria-describedby={error ? errorId : undefined}
           onClick={() => {
-            if (pending.current || !exportMetadata) return;
-            pending.current = true;
-            setPreparing(true);
-            setError(undefined);
-            void exportMetadata()
-              .then((result) => {
-                if (current.current && result) setExported(result);
-              })
-              .catch((value: unknown) => {
-                if (current.current) setError(errorText(value));
-              })
-              .finally(() => {
-                pending.current = false;
-                if (current.current) setPreparing(false);
-              });
+            if (exportMetadata) void run(exportMetadata);
           }}
         >
           {preparing ? "Exporting library information…" : "Export library information"}

@@ -116,6 +116,28 @@ pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str
     Ok(())
 }
 
+/// The final gate for a fresh adoption: any hold on adopting this port on the
+/// current host refuses, whatever the deciding scope. The offer-phase
+/// acquisition gate alone can clear a whole hold that a possible install
+/// permit outranks. Recovery of a journaled adoption keeps
+/// [`require_adoption_available`] alone, so a route-wide hold added later
+/// never strands a started adoption.
+pub(crate) fn require_fresh_adoption_available(
+    catalog: &crate::Catalog,
+    port_id: &str,
+) -> Result<()> {
+    fresh_adoption_gate(&EffectiveRestrictions::of(catalog, port_id))
+}
+
+pub(crate) fn fresh_adoption_gate(restrictions: &EffectiveRestrictions) -> Result<()> {
+    restrictions.require(
+        &RestrictionSubject::deferred(RestrictedOperation::Adopt)
+            .on_current_host()
+            .unverifiable_artifact()
+            .final_check(),
+    )
+}
+
 /// The final gate for an exact artifact: any hold on it refuses, whatever the
 /// deciding scope. Route-wide holds already refuse earlier through
 /// [`require_acquisition_available`] with the same explanation.

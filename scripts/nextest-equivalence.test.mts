@@ -171,6 +171,11 @@ void test("Nextest configuration reports slow tests, terminates hangs and preser
   const timeoutBudgets = [
     [
       "x86_64-pc-windows-msvc",
+      "package(portcove-core) & test(/^service::(native_portable::tests::compatible_archive_progression_sonic_additive_settings|tests::mstan_snes_installations_update_with_the_disposable_preloaded_mod_state)$/)",
+      240,
+    ],
+    [
+      "x86_64-pc-windows-msvc",
       "package(portcove-core) & test(/^service::native_portable::tests::tails_nativeportable_progression_rollback_backup_restore_recovery_1895$/)",
       180,
     ],

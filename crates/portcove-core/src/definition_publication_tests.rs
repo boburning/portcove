@@ -314,3 +314,29 @@ fn publication_inspects_named_advice_without_changing_report_or_authority() {
         crate::ErrorCode::Unsupported,
     );
 }
+
+#[test]
+fn publication_inspects_the_compact_producer_body_and_retained_legacy_together() {
+    let mut files = BTreeMap::from([(
+        INDEX.into(),
+        br#"{"index_schema":1,"definitions":[],"contents":[]}"#.to_vec(),
+    )]);
+    let old = portcove_listing_carrier::LEGACY_TARGET;
+    let new = portcove_listing_carrier::COMPACT_TARGET;
+    let wire = include_bytes!("testdata/compact-listing-delivery.generated.json");
+    files.insert(new.into(), wire.to_vec());
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+    let legacy = include_bytes!("testdata/listing-observation-delivery.generated.json");
+    files.insert(old.into(), legacy.to_vec());
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    let summary = report.listings.unwrap();
+    assert_eq!(summary.target, new);
+    assert_eq!(summary.sha256, hash(wire));
+    assert_eq!(summary.revision, 1);
+    assert_eq!(summary.listing_count, 1);
+    assert!(report.definitions.is_empty());
+    let mut revised = legacy.to_vec();
+    revised.push(b' ');
+    files.insert(old.into(), revised);
+    assert!(inspect_definition_publication_bytes(&files).is_err());
+}

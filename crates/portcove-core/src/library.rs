@@ -21,6 +21,26 @@ use crate::{
     database,
 };
 
+/// The files recognized during a read-only library selection check.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LibrarySelectionContents {
+    EmptyDirectory,
+    ExistingDatabase,
+    RecoveryRecords,
+    NewDefaultDirectory,
+}
+
+/// Read-only evidence about a candidate. Compatibility is checked when it opens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibrarySelectionTarget {
+    pub root: PathBuf,
+    pub contents: LibrarySelectionContents,
+    pub relocated_to: Option<PathBuf>,
+}
+
 struct StoredSourceRow {
     profile_id: String,
     path: String,
@@ -307,6 +327,9 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) github_mod_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
@@ -642,6 +665,12 @@ impl Library {
     /// Empty directories and recognizable Portcove roots are accepted; unrelated
     /// nonempty directories are left untouched.
     pub fn validate_selection_target(root: &Path) -> Result<PathBuf> {
+        Ok(Self::inspect_selection_target(root)?.root)
+    }
+
+    /// Read the same bounded directory evidence used by validation, without
+    /// opening or initializing a library.
+    pub fn inspect_selection_target(root: &Path) -> Result<LibrarySelectionTarget> {
         crate::path::unicode(root, "library root")?;
         if !root.is_absolute() {
             return Err(PortcoveError::usage("library root must be absolute"));
@@ -686,19 +715,29 @@ impl Library {
         let recovery_present = [".portcove-authority.json", ".portcove-import.json"]
             .iter()
             .any(|name| canonical.join(name).exists());
-        let recovery_recognized = if recovery_present {
-            crate::library_authority::open_target(&canonical)?;
-            true
+        let relocated_to = if recovery_present {
+            crate::library_authority::open_target(&canonical)?
         } else {
-            false
+            None
         };
-        if nonempty && !database_recognized && !recovery_recognized {
+        if nonempty && !database_recognized && !recovery_present {
             return Err(PortcoveError::conflict(
                 "selected directory is nonempty and is not a recognizable Portcove library",
             )
             .detail("library_root", canonical.display().to_string()));
         }
-        Ok(canonical)
+        let contents = if recovery_present {
+            LibrarySelectionContents::RecoveryRecords
+        } else if database_recognized {
+            LibrarySelectionContents::ExistingDatabase
+        } else {
+            LibrarySelectionContents::EmptyDirectory
+        };
+        Ok(LibrarySelectionTarget {
+            root: canonical,
+            contents,
+            relocated_to,
+        })
     }
 
     /// After the adapter drops its current state, an exclusive lease proves that
@@ -712,11 +751,30 @@ impl Library {
     }
 
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let mut root = root.into();
+        Self::open_with_relocation(root.into(), true)
+    }
+
+    /// Open the selected directory without following a relocation discovered
+    /// after the player reviewed the target.
+    pub fn open_reviewed_selection(root: impl Into<PathBuf>) -> Result<Self> {
+        Self::open_with_relocation(root.into(), false)
+    }
+
+    fn open_with_relocation(mut root: PathBuf, follow_relocation: bool) -> Result<Self> {
+        let target = |root: &Path| -> Result<Option<PathBuf>> {
+            let destination = crate::library_authority::open_target(root)?;
+            if !follow_relocation && let Some(moved) = &destination {
+                return Err(PortcoveError::conflict(
+                    "the selected library moved after review; choose its current folder",
+                )
+                .detail("current_library_root", moved.display().to_string()));
+            }
+            Ok(destination)
+        };
         for _ in 0..8 {
             crate::path::unicode(&root, "library root")?;
             let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
-            if let Some(destination) = crate::library_authority::open_target(&root)? {
+            if let Some(destination) = target(&root)? {
                 root = destination;
             } else if database::requires_migration(&root)? {
                 // A previously opened client holds a shared lease for its whole
@@ -727,7 +785,7 @@ impl Library {
                         &root,
                         crate::library_access::LibraryAccess::Exclusive,
                     )?);
-                if let Some(destination) = crate::library_authority::open_target(&root)? {
+                if let Some(destination) = target(&root)? {
                     root = destination;
                 } else {
                     drop(Self::initialize(root.clone(), exclusive)?);
@@ -780,6 +838,9 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
             jakmods: Default::default(),
             _lease: lease,
         })
@@ -794,6 +855,9 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
             jakmods: Default::default(),
             _lease: lease,
         };
@@ -1847,18 +1911,30 @@ impl Library {
             checked_at: Self::now(),
             check: check.clone(),
         };
-        connection.execute(
+        let encoded_pin = check
+            .exact_release
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let changed = connection.execute(
             "INSERT INTO update_snapshots(port_id, check_json, checked_at)
-             VALUES (?1, ?2, ?3)
+             SELECT ?1, ?2, ?3
+             WHERE (SELECT exact_release_json FROM port_settings WHERE port_id=?1) IS ?4
              ON CONFLICT(port_id) DO UPDATE SET
                check_json=excluded.check_json,
                checked_at=excluded.checked_at",
             params![
                 check.port_id,
                 serde_json::to_string(check)?,
-                snapshot.checked_at
+                snapshot.checked_at,
+                encoded_pin,
             ],
         )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "the saved release changed while checking for updates",
+            ));
+        }
         Ok(snapshot)
     }
 
@@ -2317,9 +2393,41 @@ impl Library {
     pub fn set_channel(&self, port_id: &str, channel: ReleaseChannel) -> Result<()> {
         self.ensure_settings(port_id, channel)?;
         self.connection()?.execute(
-            "UPDATE port_settings SET channel=?2 WHERE port_id=?1",
+            "UPDATE port_settings SET
+                 exact_release_json=CASE WHEN channel=?2 THEN exact_release_json ELSE NULL END,
+                 channel=?2
+             WHERE port_id=?1",
             params![port_id, channel.to_string()],
         )?;
+        Ok(())
+    }
+
+    pub(crate) fn set_exact_release(
+        &self,
+        port_id: &str,
+        channel: ReleaseChannel,
+        pin: Option<&crate::ExactReleaseSelection>,
+    ) -> Result<()> {
+        if let Some(pin) = pin {
+            pin.require_persisted(port_id, channel)?;
+        }
+        let encoded = pin.map(serde_json::to_string).transpose()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let changed = transaction.execute(
+            "INSERT INTO port_settings(port_id, channel, update_policy, exact_release_json)
+             VALUES (?1, ?2, 'notify', ?3)
+             ON CONFLICT(port_id) DO UPDATE SET exact_release_json=excluded.exact_release_json
+             WHERE port_settings.channel=excluded.channel",
+            params![port_id, channel.to_string(), encoded],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "the release channel changed; review the release preference again",
+            ));
+        }
+        transaction.execute("DELETE FROM update_snapshots WHERE port_id=?1", [port_id])?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -2605,9 +2713,12 @@ impl Library {
         if activate {
             crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
+                // A pin is bound to its channel; activation that changes the
+                // channel ends it, exactly as choosing another channel does.
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
                    active_install_id = ?2,
+                   exact_release_json = CASE WHEN channel = ?3 THEN exact_release_json ELSE NULL END,
                    channel = ?3
                  WHERE port_id = ?1",
                 params![install.port_id, install.id, install.channel.to_string()],
@@ -3246,7 +3357,7 @@ impl Library {
             metrics.record_query();
             let sql = format!(
                 "SELECT s.port_id, s.channel, s.update_policy, s.active_install_id,
-                        s.previous_install_id, c.from_install_id, c.outcome
+                        s.previous_install_id, s.exact_release_json, c.from_install_id, c.outcome
                  FROM port_settings s
                  LEFT JOIN carried_file_outcomes c ON c.port_id=s.port_id
                     AND c.to_install_id=s.active_install_id AND c.format={}
@@ -3267,9 +3378,10 @@ impl Library {
                         row.get::<_, String>(2)?,
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
                     ),
-                    row.get::<_, Option<String>>(5)?,
                     row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
                 ))
             })?;
             for row in rows {
@@ -3440,12 +3552,24 @@ impl Library {
                         outcome: outcome.clone(),
                     })
                 });
+                // One unusable pin holds only its own port.
+                let (exact_release, exact_release_hold) =
+                    match crate::ExactReleaseSelection::decode_or_hold(
+                        port_id,
+                        channel,
+                        stored.and_then(|settings| settings.4.as_deref()),
+                    ) {
+                        Ok(pin) => (pin, None),
+                        Err(hold) => (None, Some(hold)),
+                    };
                 Ok(PortStatus {
                     carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
                     channel,
+                    exact_release,
+                    exact_release_hold,
                     update_policy,
                     active,
                     external_runtime: external_runtimes.get(port_id).cloned(),
@@ -3560,7 +3684,13 @@ impl Library {
     }
 
     pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
-        let connection = self.connection()?;
+        Self::installs_for_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn installs_for_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Vec<InstallRecord>> {
         let mut statement = connection.prepare(
             "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                     artifact_name, artifact_sha256, artifact_size, manifest_sha256,
@@ -4916,6 +5046,8 @@ mod tests {
             .unwrap();
         library
             .store_update_snapshot(&UpdateCheck {
+                exact_release: None,
+                channel_latest_version: None,
                 port_id: "target-port".into(),
                 channel: ReleaseChannel::Stable,
                 installed_version: Some("1.0.0".into()),

@@ -12,6 +12,10 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 export const netTreeDeltaScope = "portcove-release-net-tree-delta-v1";
+// Accepted limit (owner decision, November 22, 2026; arbitrary-limits audit
+// L12): comparisons stay bounded by commit distance from the accepted baseline,
+// matching the sandboxed history depth in semantic-source-git.py. Release
+// regularly; revisit only if a release approaches these distances.
 export const maximumReleaseSourceCommits = 2048;
 // The first Windows Preview baseline is over 3,080 commits past Alpha 2.
 // Keep the application history bound in sync with semantic-source-git.py.

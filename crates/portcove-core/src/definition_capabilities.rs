@@ -502,6 +502,10 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::PREDECESSOR_LAYOUT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
             contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
         });
         supported.push(Self {

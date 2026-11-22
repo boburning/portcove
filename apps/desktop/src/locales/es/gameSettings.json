@@ -15,13 +15,16 @@
     "error": {
       "choose": "Elige una de las opciones de la lista.",
       "number": "Escribe un número.",
+      "range": "Introduce un número dentro del intervalo indicado.",
       "tooLarge": "Este número es demasiado grande para guardarlo con precisión.",
       "whole": "Escribe un número entero."
     },
+    "pendingDefault": "Se usará el valor predeterminado al guardar.",
     "rangeNumber": "Números de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
     "rangeWhole": "Números enteros de {{minimum}} a {{maximum}}, en pasos de {{step}}.",
-    "reset": "Restablecer el valor predeterminado…",
-    "review": "Revisar el cambio"
+    "reset": "Usar valor predeterminado",
+    "review": "Revisar cambios",
+    "undo": "Deshacer"
   },
   "jakMods": {
     "browse": "Explorar JakMods",
@@ -135,6 +138,34 @@
     "createFirst": "Crear el primer perfil",
     "defaultRefreshRequired": "El perfil predeterminado aún registra una versión anterior del juego. Actualízalo antes de copiarlo o exportarlo.",
     "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
+    "external": {
+      "cached": "Se muestran resultados anteriores. La fuente no se pudo consultar ahora.",
+      "checked": "Consultado el {{date}}",
+      "coopDx": "Explorar mods de CoopDX",
+      "coopSetup": "Descarga el archivo ZIP o Lua compatible. Abre SM64 Co-op DX y arrastra el archivo a la ventana del juego para importarlo.",
+      "daggerfallSetup": "Elige la versión de Daggerfall Unity y el sistema operativo correctos. Sigue las instrucciones del archivo en una copia separada de Daggerfall Unity. Coloca los archivos .dfmod en StreamingAssets/Mods.",
+      "empty": "La fuente no devolvió resultados.",
+      "heading": "Sitios de mods de la comunidad",
+      "incomplete": "Algunas entradas tenían datos ilegibles. Los resultados pueden estar incompletos.",
+      "latest": "Ver lo más reciente en Quaddicted",
+      "linkUnavailable": "El enlace ya no está confirmado. Actualiza los resultados antes de abrirlo.",
+      "loading": "Consultando la fuente…",
+      "modDb": "Ver en Mod DB",
+      "modIo": "Ver en mod.io",
+      "more": "Más resultados",
+      "nexus": "Obtener en Nexus",
+      "notices": "Ver avisos de archivos de Arcane Dimensions",
+      "openXcomSetup": "Revisa los requisitos del juego base y del motor. Usa solo archivos que indiquen tu motor y juego de OpenXcom.",
+      "otherEngine": "Requiere otro motor",
+      "owner": "Elige, instala y actualiza los archivos fuera de Portcove.",
+      "previous": "Resultados anteriores",
+      "quaddicted": "Ver en Quaddicted",
+      "quakeSetup": "Comprueba que el paquete sea compatible con tu motor de Quake. Sigue las instrucciones del autor en una copia separada de Quake.",
+      "search": "Buscar en Quaddicted",
+      "searchFilename": "Nombre de archivo",
+      "unavailable": "No se pudo consultar la fuente. Inténtalo de nuevo o abre su sitio web.",
+      "unverifiedEngine": "Comprueba qué motores admite este archivo."
+    },
     "filePreservation": {
       "adopt": "Para un mod compatible, usa Añadir archivo de mod y elige este archivo guardado.",
       "details": "Detalles del archivo",
@@ -149,6 +180,11 @@
     },
     "fromProvider": "<name /> (de <provider />)",
     "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
+    "github": {
+      "browse": "Ver mods en GitHub",
+      "platform": "Puedes ver las versiones. Para instalar este ZIP necesitas una copia instalada del juego cuya versión lo admita en esta plataforma.",
+      "setup": "Descarga el ZIP completo. Abre una copia separada del juego y selecciona el ZIP en Install Mods. Actualiza esa copia cuando quieras una versión más reciente."
+    },
     "heading": "Perfiles y mods",
     "held": {
       "intro_one": "Portcove mantuvo la versión actual de un mod porque su actualización necesita tu revisión:",
@@ -467,10 +503,15 @@
     }
   },
   "panel": {
+    "discard": "Descartar borrador",
     "fileUnavailable": "Este archivo de ajustes no está disponible.",
     "heading": "Ajustes del juego",
-    "intro": "Revisa cada cambio antes de guardarlo. Las demás preferencias no cambian.",
+    "held": "Esta configuración o este archivo cambió. Se conserva tu borrador. Vuelve a leer los ajustes o descarta el borrador para empezar de nuevo.",
+    "installTarget": "Versión del juego {{version}}",
+    "intro": "Edita los ajustes y revisa los cambios de cada archivo antes de guardarlos.",
     "label": "Ajustes del juego",
+    "limit": "Puedes revisar hasta 16 cambios a la vez. Deshaz algunos para continuar.",
+    "setupTarget": "Configuración {{setup}} · Versión del juego {{version}}",
     "unavailable": "Los ajustes no están disponibles para esta instalación."
   },
   "review": {
@@ -478,15 +519,17 @@
     "cancel": "Cancelar",
     "current": "Valor guardado actual",
     "default": "Predeterminado",
-    "description": "Guarda solo esta preferencia para el juego instalado. Es posible que el juego deba reiniciarse para usarla.",
-    "failure": "No se aceptó el cambio. Actualiza los ajustes y vuelve a revisarlos.",
+    "description": "Comprueba los cambios antes de guardarlos. Puede que necesites reiniciar el juego.",
+    "failure": "Portcove no pudo confirmar que se guardaran los cambios. Vuelve a leer los ajustes antes de guardar de nuevo.",
     "installationChanged": "La instalación cambió. Actualiza los ajustes y vuelve a revisarlos.",
     "new": "Nuevo valor",
-    "reading": "Leyendo el ajuste actual…",
-    "save": "Guardar el ajuste",
-    "setting": "Ajuste",
+    "reading": "Comprobando los ajustes actuales…",
+    "requiresStandardWindowsSession": "No se pueden revisar los ajustes del juego en esta sesión de Windows. Abre Portcove desde el escritorio sin privilegios de administrador para editar los ajustes del juego.",
+    "save": "Guardar cambios",
+    "saved": "Cambios guardados.",
+    "savedReadback": "Cambios guardados. Vuelve a leer los ajustes para ver los valores actuales.",
     "technical": "Detalles técnicos",
-    "title": "Revisar el ajuste del juego"
+    "title": "Revisar ajustes del juego"
   },
   "value": {
     "notSaved": "Sin guardar",

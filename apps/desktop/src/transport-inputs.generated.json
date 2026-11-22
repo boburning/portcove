@@ -227,6 +227,59 @@
     ],
     "title": "GameSettingChange"
   },
+  "game_settings_edit": {
+    "$defs": {
+      "GameSettingChange": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "const": "set",
+                "type": "string"
+              },
+              "value": true
+            },
+            "required": [
+              "action",
+              "value"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "const": "reset",
+                "type": "string"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "description": "An edit to one declared key within the change-set's single configuration file.",
+    "properties": {
+      "change": {
+        "$ref": "#/$defs/GameSettingChange"
+      },
+      "setting_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "setting_id",
+      "change"
+    ],
+    "title": "GameSettingsEdit",
+    "type": "object"
+  },
   "source_discovery_limits": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {

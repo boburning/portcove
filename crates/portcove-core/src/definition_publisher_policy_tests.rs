@@ -3257,7 +3257,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             let status = service.status(ID).unwrap();
             let before = library.update_snapshot(ID).unwrap().unwrap();
             let refused = service
-                .record_update_check(ID, &status, &stale.release, None)
+                .record_update_check(ID, &status, &stale.release, None, None)
                 .unwrap_err();
             assert_eq!(refused.code, crate::ErrorCode::Conflict);
             assert_eq!(
@@ -3285,11 +3285,11 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             // Intact admission and scope history can rule out this different
             // digest even while authenticated transition history is unusable.
             let advised = service
-                .record_update_check(ID, &status, &unrelated.release, None)
+                .record_update_check(ID, &status, &unrelated.release, None, None)
                 .unwrap();
             assert_eq!(advised.release, unrelated.release);
             let refused = service
-                .record_update_check(ID, &status, &stale.release, None)
+                .record_update_check(ID, &status, &stale.release, None, None)
                 .unwrap_err();
             assert!(refused.message.contains("curated transition history"));
             connection
@@ -3301,13 +3301,13 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             // With missing scopes, a plausible GitHub package could have
             // participated. A download from a different origin cannot have.
             let refused = service
-                .record_update_check(ID, &status, &unrelated.release, None)
+                .record_update_check(ID, &status, &unrelated.release, None, None)
                 .unwrap_err();
             assert!(refused.message.contains("curated artifact scope history"));
             let mut outside = unrelated.release.clone();
             outside.asset.url = "https://downloads.example.org/package.zip".into();
             let advised = service
-                .record_update_check(ID, &status, &outside, None)
+                .record_update_check(ID, &status, &outside, None, None)
                 .unwrap();
             assert_eq!(advised.release, outside);
             assert_eq!(
@@ -7669,6 +7669,23 @@ async fn authenticated_forge_install_fixture(gitlab: bool) {
             .unwrap()
             .valid
     );
+    server.status(404, "Not Found");
+    assert!(!service.can_review_exact_release(ID).unwrap());
+    let review = service.review_exact_release(ID, "v1").await.unwrap_err();
+    let pin = service
+        .pin_exact_release(ID, "v1", &"0".repeat(64))
+        .await
+        .unwrap_err();
+    for error in [review, pin] {
+        assert_eq!(error.code, crate::ErrorCode::Unsupported);
+        assert!(
+            error
+                .message
+                .contains("independently admitted package selection")
+        );
+    }
+    assert!(service.status(ID).unwrap().exact_release.is_none());
+
     let requests = server.requests.lock().unwrap();
     let expected = if gitlab {
         [

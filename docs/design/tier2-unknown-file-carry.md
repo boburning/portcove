@@ -480,8 +480,8 @@ backup doesn't put them back."
   removals and unchanged paths don't count). Each file is rounded up to the
   volume's cluster size, or 4 KiB when that can't be read, plus a per-file
   allowance for directory and file-table overhead. The check requires that
-  estimate **plus** a reserve left free afterwards of max(1 GiB, 2% of the
-  volume), measured with `fs4::available_space` on the target version's
+  estimate **plus** a reserve left free afterwards of min(8 GiB, max(1 GiB, 2% of the
+  volume)), measured with `fs4::available_space` on the target version's
   volume. The reserve keeps room for the next session's saves, collection and
   Portcove's own backups, so an automatic copy never leaves the drive nearly
   full.

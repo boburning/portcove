@@ -28,7 +28,7 @@ const unsupportedByReason: Record<string, string[]> = {
     acquire_mod_recipe_package discard_mod_recipe_review
     acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package apply_local_mod_package
     add_source adopt_batch adopt_port
-    apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
+    apply_catalog_update apply_game_setting apply_game_settings_change_set apply_game_update apply_steam_batch_add
     apply_steam_artwork apply_steam_entry begin_github_device_login
     change_to_managed_runtime clear_host_tool_path
     copy_mod_setup create_backup
@@ -37,7 +37,7 @@ const unsupportedByReason: Record<string, string[]> = {
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork import_library import_source install_application_update install_port logout_github
-    move_library open_bug_report open_external_url open_jakmods_resource open_provider_mod_project open_host_tool_official_site submit_report
+    move_library open_bug_report open_external_url open_jakmods_resource open_upstream_mod_notice open_provider_mod_project open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_pending_setup_resource
     open_catalog_download_release_notes open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
@@ -51,7 +51,7 @@ const unsupportedByReason: Record<string, string[]> = {
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
     set_port_intent acknowledge_port_readiness
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
-    set_channel
+    set_channel pin_exact_release clear_exact_release
     set_default_library set_github_token set_host_tool_path set_locale_preference
     remove_mod_package select_mod_setup_original set_mod_package_enabled set_mod_update_policy
     set_output_location set_policy trust_catalog_key use_cached_catalog
@@ -65,6 +65,7 @@ const unsupportedByReason: Record<string, string[]> = {
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
     plan_library_recovery_bundle inspect_library_recovery_bundle plan_library_recovery_restore
+    read_library_recovery_restore
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
@@ -72,15 +73,15 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
-    scan_game_file_roots
+    review_exact_release plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
+    review_library_selection scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
-    get_jakmods_catalog get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
+    get_jakmods_catalog get_quaddicted_catalog get_moddb_file_notices get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
-    get_engine_capabilities get_game_settings get_install_batch get_library_identity
+    get_engine_capabilities get_game_settings get_game_settings_change_set_view get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles
     search_steamgriddb_games get_steamgriddb_candidates get_steamgriddb_preview

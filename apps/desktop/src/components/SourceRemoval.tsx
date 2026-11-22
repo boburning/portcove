@@ -1,3 +1,5 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import { sourceImportRecoveryGuidance } from "../features/operations/invocation-state";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
@@ -33,6 +35,8 @@ function SourceRemovalForIdentity({
   onRemoved,
 }: SourceRemovalProps) {
   const { t } = useAppTranslation("removal");
+  const owner = useOperationPresentation();
+  const onHold = owner?.generation === generation && owner.sourceWriteOnHold?.(source.profile_id);
   const identity = `${generation}:${source.profile_id}:${source.path}:${source.sha256}`;
   const [intent, setIntent] = useState<string>();
   const [refreshFailure, setRefreshFailure] = useState<string>();
@@ -66,8 +70,8 @@ function SourceRemovalForIdentity({
         data-focusable
         variant="outline"
         size="sm"
-        disabled={disabled}
-        aria-disabled={disabled || open}
+        disabled={disabled || onHold}
+        aria-disabled={disabled || onHold || open}
         aria-expanded={open}
         aria-controls={open ? regionId : undefined}
         onClick={() => {
@@ -76,6 +80,11 @@ function SourceRemovalForIdentity({
       >
         {t("source.review")}
       </Button>
+      {onHold && (
+        <p className="basis-full" role="status">
+          {sourceImportRecoveryGuidance}
+        </p>
+      )}
       {refreshFailure === identity && (
         <div className="basis-full">
           <p role="status">{t("source.removedRefresh")}</p>
@@ -116,6 +125,8 @@ export function SourceRemovalReview({
   onRemoved: () => Promise<unknown>;
 }) {
   const { t } = useAppTranslation("removal");
+  const owner = useOperationPresentation();
+  const onHold = () => owner?.generation === generation && owner.sourceWriteOnHold?.(profileId);
   const identity = `${profileId}:${generation}`;
   const active = useRef<string | undefined>(undefined);
   useLayoutEffect(() => {
@@ -128,6 +139,7 @@ export function SourceRemovalReview({
     identity,
     load: () => desktopApi.previewSourceRemoval(profileId, generation),
     apply: async (preview) => {
+      if (onHold()) throw new Error(sourceImportRecoveryGuidance);
       const result = await desktopApi.removeSource(profileId, preview.preview_sha256, generation);
       if (result === null) return "cancelled";
       if (active.current === identity) await onRemoved();
@@ -161,7 +173,7 @@ export function SourceRemovalReview({
           <Button
             data-focusable
             variant="destructive"
-            disabled={Boolean(pending)}
+            disabled={Boolean(pending) || onHold()}
             onClick={() => void execute()}
           >
             {pending === "apply" ? t("source.confirmInDialog") : t("source.remove")}

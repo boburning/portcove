@@ -280,6 +280,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         mod_loader: _,
         managed_acquisition_hold: _,
         reviewed_package_layouts: _,
+        reviewed_predecessor_package_layouts_v1: _,
         presentation: _,
     } = port;
     // Reviewed release uploaders gate only fresh acquisition, like the hold and
