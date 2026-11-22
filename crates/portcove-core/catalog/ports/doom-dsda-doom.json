@@ -50,7 +50,16 @@
         }
       ]
     },
-    "download_block_reason": "The publisher archives bundle a soundfont and game sounds whose redistribution terms need verification. Use a distribution package or the upstream project for an external copy."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "third-party-component-terms",
+        "explanation": "The publisher archives bundle a soundfont and game sounds whose redistribution terms need verification. Use a distribution package or the upstream project for an external copy.",
+        "tracking_issue": 5665
+      }
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,

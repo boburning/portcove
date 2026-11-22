@@ -14,15 +14,19 @@ export async function captureParityState(name: string) {
   await expect
     .poll(() => [...globalThis.document.images].every((image) => image.complete))
     .toBe(true);
+  // A loaded hosted browser can schedule a finite transition after its first
+  // frame. Keep waiting for the real settlement before taking the screenshot.
   await expect
-    .poll(() =>
-      globalThis.document
-        .getAnimations()
-        .every((animation) =>
-          animation.effect?.getComputedTiming().iterations === Infinity
-            ? true
-            : !animation.pending && ["finished", "idle"].includes(animation.playState),
-        ),
+    .poll(
+      () =>
+        globalThis.document
+          .getAnimations()
+          .every((animation) =>
+            animation.effect?.getComputedTiming().iterations === Infinity
+              ? true
+              : !animation.pending && ["finished", "idle"].includes(animation.playState),
+          ),
+      { timeout: 6_000, message: "Wait for finite animations before capturing parity" },
     )
     .toBe(true);
   await new Promise<void>((resolve) =>

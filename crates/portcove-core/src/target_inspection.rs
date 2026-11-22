@@ -414,8 +414,15 @@ fn inspect_port(
     port_id: String,
     platforms: &[Platform],
 ) -> PortTargetInspection {
+    use crate::acquisition_restriction::{
+        EffectiveRestrictions, RestrictedOperation, RestrictionSubject,
+    };
     let listing = catalog.listing(&port_id).ok();
-    let download_restriction = listing.and_then(|listing| listing.download_block_reason.clone());
+    let download_restriction = listing.and_then(|listing| {
+        EffectiveRestrictions::listing_only(listing)
+            .evaluate(&RestrictionSubject::deferred(RestrictedOperation::Download))
+            .explanation()
+    });
     let port = catalog.port(&port_id).ok();
     let content_capabilities = platforms
         .iter()
@@ -438,16 +445,22 @@ fn inspect_port(
             port_id,
         };
     };
-    let held = crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id).is_some();
+    let restrictions = EffectiveRestrictions::of(catalog, &port_id);
     let targets = platforms
         .iter()
         .map(|&platform| {
             let routes: Vec<TargetRoute> = [PortAction::Install, PortAction::RegisterExternal]
                 .into_iter()
                 .map(|action| {
-                    // A reviewed acquisition hold withdraws fresh managed acquisition,
-                    // exactly as it does in a library's action table.
-                    let reason = if held && crate::managed_runtime_policy::hold_withdraws(action) {
+                    // A restriction withdraws the operation it names on this
+                    // platform, exactly as it does in a library's action table.
+                    let held =
+                        RestrictedOperation::from_port_action(action).is_some_and(|operation| {
+                            restrictions
+                                .evaluate(&RestrictionSubject::deferred(operation).on(platform))
+                                .is_held()
+                        });
+                    let reason = if held {
                         Some(PortActionReason::RouteNotOffered)
                     } else {
                         route_exclusion(port, RouteHolding::default(), platform, action)
@@ -479,8 +492,7 @@ fn inspect_port(
     PortTargetInspection {
         presence: CatalogPresence::Operational,
         declared_platforms: port.platforms.clone(),
-        acquisition_hold: crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id)
-            .map(str::to_owned),
+        acquisition_hold: crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id),
         download_restriction,
         targets,
         content_capabilities,
