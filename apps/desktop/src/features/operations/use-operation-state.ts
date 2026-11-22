@@ -6,12 +6,14 @@ import type {
   InstallRecord,
   OperationEvent,
   PortStatus,
+  SourceRecord,
 } from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
 import {
   invocationFailure,
   pendingInvocationConflict,
-  requiresManagedRouteReadback,
+  mutationNeedsReadback,
+  sourceImportRecoveryGuidance,
   settleInvocationResult,
   type InvocationContext,
   type InvocationRecord,
@@ -44,6 +46,8 @@ export type PerformOptions<Result = unknown> = {
   installedResult?: (result: Result) => InvocationRecord["installed"];
   /** Captures the exact external registration returned by a reviewed native command. */
   externalRegistrationResult?: (result: Result) => ExternalRuntimeRecord | undefined;
+  /** Captures a source or BIOS registration returned by Core. */
+  sourceRegistrationResult?: (result: Result) => SourceRecord | undefined;
 };
 
 export type ReportError = (value: unknown, context?: InvocationContext) => void;
@@ -78,11 +82,18 @@ export function useOperationState(configuration: {
     new Map(),
   );
   const activeOwner = useRef<number | undefined>(generation);
+  const sourceImportsNeedingRecovery = useRef(new Set<string>());
+  const sourceWriteOnHold = useCallback(
+    (profileId: string) => sourceImportsNeedingRecovery.current.has(profileId),
+    [],
+  );
   useLayoutEffect(() => {
     activeOwner.current = generation;
+    const imports = sourceImportsNeedingRecovery.current;
     return () => {
       activeOwner.current = undefined;
       setCommittedSetups(new Map());
+      imports.clear();
     };
   }, [generation]);
   const noteSetupCommitted = useCallback(
@@ -269,8 +280,13 @@ export function useOperationState(configuration: {
         (context.operation === "change_managed_route" ||
           context.operation === "launch" ||
           context.operation === "register_external");
-      const hold =
-        requiresReadback && unreadInstallPorts.has(context.target.id)
+      const sourceRecovery =
+        context.target.kind === "source" &&
+        options.sourceRegistrationResult &&
+        sourceImportsNeedingRecovery.current.has(context.target.id);
+      const hold = sourceRecovery
+        ? sourceImportRecoveryGuidance
+        : requiresReadback && unreadInstallPorts.has(context.target.id)
           ? "Refresh the library to confirm the current installation."
           : requiresReadback && unreadExternalPorts.has(context.target.id)
             ? "Refresh the library to confirm the current external launch details."
@@ -286,6 +302,7 @@ export function useOperationState(configuration: {
             failure: new Error(hold),
           }),
         );
+        if (sourceRecovery && options.propagateFailure) throw new Error(hold);
         return undefined;
       }
       updateInvocations((current) => new Map(current).set(pendingId, record));
@@ -339,16 +356,31 @@ export function useOperationState(configuration: {
             noteSetupCommitted(registration.port_id, "external");
             record = { ...record, externalRegistration: registration };
           }
+        } else if (context.target.kind === "source" && options.sourceRegistrationResult) {
+          const source = options.sourceRegistrationResult(result);
+          if (source?.profile_id === context.target.id && source.path)
+            record = {
+              ...record,
+              sourceRegistration: { source, afterRead: startedWorkspaceReadRevision?.() },
+            };
         }
       } catch (value) {
         taskFailure = { value };
         if (
           context.operation === "change_managed_route" &&
           context.target.kind === "port" &&
-          requiresManagedRouteReadback(value) &&
+          mutationNeedsReadback(value) &&
           isOwned()
         ) {
           noteSetupCommitted(context.target.id, "managed_route");
+          record = { ...record, reviewCurrentState: true };
+        } else if (
+          context.operation === "import_source" &&
+          context.target.kind === "source" &&
+          mutationNeedsReadback(value) &&
+          isOwned()
+        ) {
+          sourceImportsNeedingRecovery.current.add(context.target.id);
           record = { ...record, reviewCurrentState: true };
         }
         ({ outcome, failure } = classifyInvocationFailure(value));
@@ -399,6 +431,7 @@ export function useOperationState(configuration: {
       refresh,
       refreshActivities,
       noteSetupCommitted,
+      startedWorkspaceReadRevision,
       unreadInstallPorts,
       unreadExternalPorts,
       updateInvocations,
@@ -413,6 +446,7 @@ export function useOperationState(configuration: {
     unreadInstallPorts,
     unreadExternalPorts,
     unreadManagedRoutePorts,
+    sourceWriteOnHold,
     noteInstallCommitted,
     invocations,
     dismissInvocation,

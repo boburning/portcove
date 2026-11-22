@@ -11,6 +11,7 @@ type PresentationOwner = {
   unreadExternalPorts?: ReadonlySet<string> | undefined;
   unreadManagedRoutePorts?: ReadonlySet<string> | undefined;
   perform?: Perform | undefined;
+  sourceWriteOnHold?: ((profileId: string) => boolean) | undefined;
 };
 const OperationPresentation = createContext<PresentationOwner | null>(null);
 export function OperationPresentationProvider({
@@ -20,6 +21,7 @@ export function OperationPresentationProvider({
   unreadExternalPorts,
   unreadManagedRoutePorts,
   perform,
+  sourceWriteOnHold,
   children,
 }: PresentationOwner & { children: ReactNode }) {
   const owner = useMemo(
@@ -30,6 +32,7 @@ export function OperationPresentationProvider({
       unreadExternalPorts,
       unreadManagedRoutePorts,
       perform,
+      sourceWriteOnHold,
     }),
     [
       generation,
@@ -38,6 +41,7 @@ export function OperationPresentationProvider({
       unreadExternalPorts,
       unreadManagedRoutePorts,
       perform,
+      sourceWriteOnHold,
     ],
   );
   return <OperationPresentation value={owner}>{children}</OperationPresentation>;

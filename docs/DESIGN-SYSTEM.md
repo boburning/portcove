@@ -1154,7 +1154,12 @@ in workspace feedback. If Portcove cannot refresh the library, the player can
 retry the refresh from that feedback. Open game appears when the current
 library confirms the exact installation and its game page is available. If the result is uncertain, the previous launch route stays on hold until a
 fresh read confirms a managed installation or Portcove restarts and resolves the
-workspace state.
+workspace state. Saving a game-file or BIOS location retains the exact receipt
+in workspace feedback. View saved location focuses that registration in Game files
+after a fresh library read confirms it. A missing or replaced registration keeps
+the earlier receipt visible without a link to the replacement. A lost source
+import reply retires its review and holds writes for that requirement. The
+player can refresh read-only or restart Portcove to reconcile the import.
 On the game page one Cancel serves running setup: the Game files control
 omits its own when the page's cancellation covers the operation, and the review
 dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and

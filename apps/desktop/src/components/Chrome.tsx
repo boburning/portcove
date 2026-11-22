@@ -1,3 +1,4 @@
+import { referenceIdentity } from "../shared/reference-identity";
 import { focusAndReveal } from "../focus";
 import { countMessage, useAppTranslation } from "../localization";
 import {
@@ -102,6 +103,7 @@ import { SourceDiscoveryButton } from "./SourceDiscovery";
 import {
   invocationFailure,
   managedRouteReadbackGuidance,
+  sourceImportRecoveryGuidance,
   type InvocationRecord,
 } from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
@@ -514,6 +516,7 @@ export function StatusLayer({
   readyToPlay,
   openInstalledGame,
   openExternalGame,
+  openSavedSource,
   completedActivityAvailable,
   onActivity = false,
 }: {
@@ -536,6 +539,7 @@ export function StatusLayer({
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
   openInstalledGame?: (record: InvocationRecord) => (() => void) | undefined;
   openExternalGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openSavedSource?: (record: InvocationRecord) => (() => void) | undefined;
   completedActivityAvailable?: (id: string) => boolean;
 }) {
   const { t } = useAppTranslation("common");
@@ -549,6 +553,7 @@ export function StatusLayer({
         record.outcome !== "succeeded" ||
         record.installed ||
         record.externalRegistration ||
+        record.sourceRegistration ||
         invocationFailure(record) !== undefined ||
         acknowledgedSuccess.current.has(record.id)
       )
@@ -583,6 +588,7 @@ export function StatusLayer({
                 invocationFailure(record) === undefined &&
                 !record.installed &&
                 !record.externalRegistration &&
+                !record.sourceRegistration &&
                 // A successful launch needs no visible message; the game itself is the result.
                 (record.id !== latestSuccess ||
                   (record.context.operation === "launch" && record.outcome === "succeeded"))
@@ -616,6 +622,7 @@ export function StatusLayer({
                   readyToPlay={readyToPlay}
                   openInstalledGame={openInstalledGame}
                   openExternalGame={openExternalGame}
+                  openSavedSource={openSavedSource}
                   completedActivityAvailable={completedActivityAvailable}
                   dismissInvocation={dismissInvocation}
                   openActivity={openActivity}
@@ -731,9 +738,12 @@ function ErrorNotice({
           showMutationSummary={!readbackOnly && !committed}
         />
       )}
-      {invocation?.reviewCurrentState && !committed && (
-        <p className="mt-1 text-sm">{managedRouteReadbackGuidance}</p>
+      {invocation?.reviewCurrentState && invocation.context.operation === "import_source" && (
+        <p className="mt-1 text-sm">{sourceImportRecoveryGuidance}</p>
       )}
+      {invocation?.reviewCurrentState &&
+        invocation.context.operation === "change_managed_route" &&
+        !committed && <p className="mt-1 text-sm">{managedRouteReadbackGuidance}</p>}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
         <p>
           Refreshing the current state also failed: {errorText(invocation.refreshFailure)}. The
@@ -1330,6 +1340,7 @@ function SourceHealthRow({
     <div
       className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 last:border-b-0"
       data-source-profile={source.profile_id}
+      data-saved-source-identity={referenceIdentity(source)}
       tabIndex={-1}
     >
       <div className="min-w-0">
@@ -2798,6 +2809,7 @@ function SettledInvocation({
   readyToPlay,
   openInstalledGame,
   openExternalGame,
+  openSavedSource,
   completedActivityAvailable,
   dismissInvocation,
   openActivity,
@@ -2808,38 +2820,53 @@ function SettledInvocation({
   readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   openInstalledGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   openExternalGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openSavedSource: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   completedActivityAvailable: ((id: string) => boolean) | undefined;
   dismissInvocation: ((id: number) => void) | undefined;
   openActivity: ((id?: string, section?: "history") => void) | undefined;
   onActivity: boolean;
 }) {
-  if (record.outcome === "succeeded" && (record.installed || record.externalRegistration)) {
+  const savedSource = record.sourceRegistration?.source;
+  if (
+    record.outcome === "succeeded" &&
+    (record.installed || record.externalRegistration || savedSource)
+  ) {
     const registration = record.externalRegistration;
-    const openGame = registration ? openExternalGame?.(record) : openInstalledGame?.(record);
+    const openResult = savedSource
+      ? openSavedSource?.(record)
+      : registration
+        ? openExternalGame?.(record)
+        : openInstalledGame?.(record);
     const origin = (registration ? "external-result:" : "install-result:") + record.id;
     const activityId = record.context.activityId;
     return (
       <Notice intent="success" className="mb-0 items-center">
         <p data-slot="notice-body">
-          {registration
-            ? "Saved external launch details for " + record.context.target.label
-            : (record.context.operation === "change_managed_route"
-                ? "Created a managed copy of "
-                : "Installed ") +
-              record.context.target.label +
-              " · " +
-              record.installed?.version}
+          {savedSource ? (
+            <>
+              Saved file location for {record.context.target.label} · <bdi>{savedSource.path}</bdi>
+            </>
+          ) : registration ? (
+            "Saved external launch details for " + record.context.target.label
+          ) : (
+            (record.context.operation === "change_managed_route"
+              ? "Created a managed copy of "
+              : "Installed ") +
+            record.context.target.label +
+            " · " +
+            record.installed?.version
+          )}
         </p>
         <div data-slot="notice-actions">
-          {openGame && (
+          {openResult && (
             <Button
               data-focusable
-              data-detail-origin={origin}
+              data-detail-origin={savedSource ? undefined : origin}
               variant="primary"
               size="sm"
-              onClick={openGame}
+              onClick={openResult}
             >
-              Open game
+              {savedSource ? "View saved location" : "Open game"}
             </Button>
           )}
           {activityId && openActivity && (completedActivityAvailable?.(activityId) ?? true) && (

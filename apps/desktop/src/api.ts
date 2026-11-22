@@ -1131,8 +1131,8 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  addSource: (profileId: string, path: string, expectedSha256?: string) =>
-    invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  addSource: (profileId: string, path: string, generation: number, expectedSha256?: string) =>
+    invoke<SourceRecord>("add_source", { profileId, path, generation, expectedSha256 }),
   reviewSourceReuse: (profileId: string, generation: number) =>
     invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
