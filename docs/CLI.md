@@ -1531,18 +1531,28 @@ under the current generation and lease; Desktop continues to call core directly.
 ```text
 portcove --json artwork show <port-id> --slot cover
 portcove --json artwork import <port-id> <image.png> --slot cover --expected-revision <revision>
+portcove --json artwork suppress <port-id> --slot cover --expected-revision <revision>
+portcove --json artwork unhide <port-id> --slot cover --expected-revision <revision>
 portcove --json artwork reset <port-id> --slot cover --expected-revision <revision>
 portcove --json artwork clear-cache
 portcove --json artwork unused
 portcove --json --non-interactive artwork remove-unused <asset-sha256> --yes
 ```
 
-Slots are `cover` (default), `detail` and `landscape`; their selections are independent. `landscape` is a wide cover, separate from the detail image, that Steam uses as its library capsule; it has no catalog default. Read the
-current choice revision before changing it. Omitted `--expected-revision` captures
+Slots are `cover` (default), `detail`, `landscape` and `logo`. Each slot has
+its own selection. Steam uses the separate `landscape` wide cover as its library
+capsule. Use `--slot logo` to import or reset a local logo. A library export with
+a logo choice or reset revision requires metadata schema 14.
+Read the current choice revision before changing it. Omitted `--expected-revision` captures
 the current revision at command execution; interactive clients should pass their
-reviewed revision so stale selections fail explicitly. Reset increments the
-revision and returns to fallback, retaining copied originals. Removal requires an
-unused asset and explicit confirmation; external source images are never removed.
+reviewed revision so stale selections fail explicitly. Suppression requires an
+explicit revision. It hides the selected and automatic artwork for that port and
+slot and keeps the selected image and framing stored while hidden. `unhide` shows
+that same selection again, or automatic artwork when nothing was selected.
+Choosing a new image also shows the role. Reset returns the slot to automatic
+artwork. All of them retain copied originals.
+Removal requires an unused asset and explicit confirmation. External source
+images are never removed.
 
 Core copies static PNG/JPEG images into library-owned storage, preserves the first
 filename/import time for deduplicated content and reports `available`, `unavailable`
@@ -1598,27 +1608,31 @@ fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
 
 `search` returns up to 50 matching games. `candidates` returns one provider page of
 up to 50 static PNG or JPEG images (`--page`, starting at 0; an empty page ends the
-listing) for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
-its CDN URL, size, style and author attribution. Both are suggestions: they choose
+listing) for `portrait-cover`, `landscape-cover` or `hero-banner`. Use `--role logo`
+for static PNG logos. Each result includes its CDN URL, size, style and artist
+credit. Both are suggestions: they choose
 no artwork, establish no game identity, download no image bytes and write nothing
 to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
 key or a rejected key is a usage error, and a missing game is not-found. Rate
 limiting reports `retry_after_seconds` when SteamGridDB provides it, and an
 unavailable service is a network error. Malformed responses fail verification.
 `choose` copies one listed image into your library for a port's `cover` (portrait
-images), `detail` (hero images) or `landscape` (wide grid images) slot and returns `artwork_state`. Core looks the image
+images), `detail` (hero images), `landscape` (wide grid images) or `logo` slot
+and returns `artwork_state`. Core looks the image
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
-and the destination handoff. Core finds the chosen image by its ID across listing pages,
-so an image that moved to a later page is still confirmed. An image missing from the
-game's complete listing is not-found; if the listing is too long to finish
-confirming, the result is a state error asking you to list the images again. A
-changed choice revision is a conflict; in both cases the current
+and in the destination handoff for its supported artwork. Logo stays in the
+library. Core finds the chosen image by its ID across listing pages, so an image
+that moved to a later page is still confirmed. An image missing from the game's
+complete listing is not-found; if the listing is too long to finish confirming,
+the result is a state error asking you to list the images again. A changed choice
+revision is a conflict; in all of these cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
-check has confirmed a withdrawal.
+check has confirmed a withdrawal. Exports with Logo choices or provider records
+use metadata schema 14.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 `check-listings` checks, with your key, whether SteamGridDB still lists each

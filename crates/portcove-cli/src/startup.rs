@@ -74,6 +74,8 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
+            | ArtworkCommand::Suppress { .. }
+            | ArtworkCommand::Unhide { .. }
             | ArtworkCommand::ClearCache
             | ArtworkCommand::RemoveUnused { .. } => Recovering,
         },
@@ -463,6 +465,8 @@ mod tests {
         let recovering = [
             "artwork import p file",
             "artwork reset p",
+            "artwork suppress p --expected-revision 0",
+            "artwork unhide p --expected-revision 0",
             "artwork clear-cache",
             "artwork remove-unused hash",
             "artwork steamgriddb set-key --stdin",

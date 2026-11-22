@@ -60,6 +60,7 @@ fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
             response["command"],
             "catalog.inspect-definition-publication"
         );
+        assert_eq!(response["schema_version"], 100);
         assert_eq!(response["data"]["authority"], "none");
         assert_eq!(response["data"]["publication_schema"], 1);
         assert_eq!(
@@ -70,16 +71,25 @@ fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
         assert!(!library.exists());
     }
     std::fs::write(bundle.join("extra.json"), b"{}").unwrap();
-    let result = portcove(
-        &library,
-        &[
-            "--json",
-            "catalog",
-            "inspect-definition-publication",
-            bundle.to_str().unwrap(),
-        ],
-    );
-    assert!(!result.status.success());
+    for mode in ["--json", "--jsonl"] {
+        let result = portcove(
+            &library,
+            &[
+                mode,
+                "catalog",
+                "inspect-definition-publication",
+                bundle.to_str().unwrap(),
+            ],
+        );
+        assert!(!result.status.success());
+        let response = json_stdout(&result);
+        assert_eq!(response["schema_version"], 100);
+        assert_eq!(response["ok"], false);
+        assert_eq!(
+            response["command"],
+            "catalog.inspect-definition-publication"
+        );
+    }
     assert!(!library.exists());
 }
 

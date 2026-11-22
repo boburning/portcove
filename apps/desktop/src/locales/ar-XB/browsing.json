@@ -89,7 +89,8 @@
   "hero": {
     "continueLabel": "{{title}} لُعبت مؤخرًا",
     "credits": "حقوق الصور",
-    "detailLabel": "تفاصيل لعبة {{title}}"
+    "detailLabel": "تفاصيل لعبة {{title}}",
+    "openDetails": "تفاصيل اللعبة"
   },
   "implementation": {
     "choose": "اختيار <name/>",

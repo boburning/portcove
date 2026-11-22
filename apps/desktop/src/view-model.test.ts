@@ -16,6 +16,7 @@ import {
   filterPorts,
   indexStatuses,
   hasUnconfirmedLaunchInput,
+  continueActionPresentation,
   mostRecentPort,
   portReadiness,
   progressPresentation,
@@ -54,6 +55,28 @@ it("does not turn current bytes or missing legacy assessment into confirmed comp
   expect(
     hasUnconfirmedLaunchInput(status, { ...portDefinition(), source_profile: "required" }),
   ).toBe(true);
+});
+
+it("uses actual Continue action labels for the current runtime state", () => {
+  const definition = portDefinition();
+  const status: PortStatus = {
+    ...portStatus(),
+    successful_launches: 2,
+    readiness: { launchable: true, pending_setup: false, blockers: [] },
+  };
+  expect(continueActionPresentation(definition, status, false).label).toBe("Continue playing");
+  expect(continueActionPresentation(definition, status, true).label).toBe("Review launch");
+  expect(continueActionPresentation(definition, undefined, false).label).toBe("Review launch");
+  expect(
+    continueActionPresentation(
+      definition,
+      { ...status, readiness: { launchable: true, pending_setup: true, blockers: [] } },
+      false,
+    ).label,
+  ).toBe("Launch to finish setup");
+  expect(
+    continueActionPresentation({ ...definition, source_profile: "required" }, status, false).label,
+  ).toBe("Try launch");
 });
 
 it("does not inherit managed source requirements for a user-selected installation", () => {

@@ -427,20 +427,27 @@ it.each(["dark", "light"])("preserves transparent artwork against the %s frame",
   await capture(`transparent-${theme}-960`);
 });
 
-it("opens and focuses the real artwork disclosure from the hero menu after Manage rows are flattened", async () => {
+it("opens and focuses the real artwork sheet from the hero menu after Manage rows are flattened", async () => {
   await mount("dark");
   await open();
   await page.getByRole("button", { name: /^More actions for / }).click();
   await page.getByRole("menuitem", { name: "Change artwork", exact: true }).click();
   await expect
-    .element(page.getByRole("tab", { name: "Manage", exact: true }))
-    .toHaveAttribute("aria-selected", "true");
-  const summary = page.elementLocator(
-    document.querySelector<HTMLElement>(".artwork-controls > summary")!,
-  );
-  await expect.element(summary).toHaveFocus();
-  expect(summary.element().closest("details")?.open).toBe(true);
-  expect(document.activeElement?.closest("[inert], [hidden]")).toBeNull();
+    .poll(() =>
+      document
+        .getElementById("detail-section-manage")
+        ?.closest('[role="tabpanel"]')
+        ?.hasAttribute("hidden"),
+    )
+    .toBe(false);
+  const sheet = page.getByRole("dialog", { name: "Change artwork", exact: true });
+  await expect.element(sheet).toBeVisible();
+  await expect.element(sheet.getByRole("button", { name: "Close", exact: true })).toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(sheet).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Change artwork", exact: true }))
+    .toHaveFocus();
 });
 
 it.each(["Library", "Discover"])("names and restores the known %s origin", async (origin) => {

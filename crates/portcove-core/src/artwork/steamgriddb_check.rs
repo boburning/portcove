@@ -249,8 +249,7 @@ impl ListingQuery {
                 // Only a size the provider documents for this role narrows the
                 // listing; any other stored size lists the whole collection.
                 let dimensions = accepted
-                    .split(',')
-                    .any(|value| value == size)
+                    .is_some_and(|values| values.split(',').any(|value| value == size))
                     .then_some(size);
                 let mime = match format {
                     ArtworkImageFormat::Png => "image/png",

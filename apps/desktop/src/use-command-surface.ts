@@ -25,18 +25,20 @@ import {
   type SettingsCategory,
 } from "./features/app-shell/settings-categories";
 
-type CurrentGameCommands = {
-  port: CatalogEntry;
-  destinations: readonly DetailDestination[];
-  open: (destination: DetailDestination) => void;
-  play?: (() => void) | undefined;
-};
-
-const detailCommandLabels: Record<DetailDestination, string> = {
+const detailCommandLabels = {
   files: "Game files",
   saves: "Saves and backups",
   updates: "Versions",
   manage: "Manage",
+} satisfies Partial<Record<DetailDestination, string>>;
+
+type CurrentGameDestination = keyof typeof detailCommandLabels;
+
+type CurrentGameCommands = {
+  port: CatalogEntry;
+  destinations: readonly CurrentGameDestination[];
+  open: (destination: CurrentGameDestination) => void;
+  play?: (() => void) | undefined;
 };
 
 interface CommandSurfaceOptions {

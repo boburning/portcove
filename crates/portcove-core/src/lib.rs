@@ -197,15 +197,16 @@ pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_CACHE_MISS, ARTWORK_HANDOFF_SCHEMA, ARTWORK_RETRY, ArtworkAttribution,
     ArtworkAvailability, ArtworkCacheClear, ArtworkCacheEpoch, ArtworkChoice, ArtworkEvictedAsset,
-    ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
-    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
-    ArtworkWithdrawalRecord, ArtworkWithdrawalSignal, DestinationArtworkBytes,
-    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
-    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
-    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
-    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
-    SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
-    SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    ArtworkFocalPoint, ArtworkFraming, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
+    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSelectionFraming,
+    ArtworkSelectionPreview, ArtworkSlot, ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord,
+    ArtworkWithdrawalSignal, DestinationArtworkBytes, DestinationArtworkContent,
+    DestinationArtworkHandoff, DestinationArtworkRole, DestinationArtworkSource,
+    DestinationArtworkUnavailableReason, GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT,
+    LocalArtworkAsset, PreparedSteamGridDbArtwork, STEAMGRIDDB_API_ORIGIN,
+    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbArtworkRole, SteamGridDbAuthor,
+    SteamGridDbCandidate, SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure,
+    SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
     SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
     clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
     steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
@@ -574,7 +575,7 @@ pub use windows_runtime::{
 // Public 98 adds reviewed mod-file inspection and preservation receipts.
 // Public 99 reports partial results when the game setup queue is unavailable.
 // Public 100 adds exact original, settings and acquisition data to recipe reviews.
-pub const API_SCHEMA_VERSION: u32 = 100;
+pub const API_SCHEMA_VERSION: u32 = 101;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.
