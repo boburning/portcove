@@ -49,7 +49,16 @@
         "The upstream game includes the Digger soundtrack. Use a copy you already have permission to use, and keep your scores and recordings before replacing it."
       ]
     },
-    "download_block_reason": "The package includes gameplay music whose source and permissions still need review. Use a copy you already have permission to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "The package includes gameplay music whose source and permissions still need review. Use a copy you already have permission to use.",
+        "tracking_issue": 6740
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "digger",

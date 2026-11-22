@@ -476,7 +476,8 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
         if !allowed {
             return Err(PortcoveError::conflict(
                 "import requires a new or empty library; existing data was retained",
-            ));
+            )
+            .detail("import_destination_state", "occupied"));
         }
     }
     let path = root.join("portcove.sqlite3");
@@ -486,9 +487,10 @@ pub(crate) fn ensure_empty_destination(root: &Path) -> Result<()> {
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
         )?;
         if !metadata_tables_empty(&connection)? {
-            return Err(PortcoveError::conflict(
-                "import cannot merge with an existing library",
-            ));
+            return Err(
+                PortcoveError::conflict("import cannot merge with an existing library")
+                    .detail("import_destination_state", "occupied"),
+            );
         }
     }
     Ok(())

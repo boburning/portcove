@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://unvanquished.net/download/",
     "setup_url": "https://unvanquished.net/download/",
-    "download_block_reason": "Get the official Unvanquished launcher or the universal ZIP from the publisher’s download page.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get the official Unvanquished launcher or the universal ZIP from the publisher’s download page.",
+        "tracking_issue": 6468
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

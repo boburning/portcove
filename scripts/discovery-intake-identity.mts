@@ -73,16 +73,24 @@ export function reconcileDiscoveryIntakeIdentity(
     // replace the primary upstream or admit executable trust/relocation history.
     const aliases = reviewedDiscoveryFamilyAliases(body);
     const bodyIds = portRepositoryIds(body);
-    const game =
-      authored?.listing.original_game_title ??
-      body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1];
+    // Canonical display cleanup must not erase a retained source/edition title
+    // that already identifies this issue's exact implementation ownership.
+    const gameKeys = [
+      ...new Set(
+        [
+          authored?.listing.original_game_title,
+          body.match(/^Underlying game: \*\*([^*\r\n]{1,256})\*\*/mu)?.[1],
+        ].flatMap((title) => (title ? [discoveryGameKey(title)] : [])),
+      ),
+    ];
     for (const alias of aliases)
-      canonical.push({
-        ...alias,
-        issue: number,
-        state,
-        ...(game ? { game_key: discoveryGameKey(game) } : {}),
-      });
+      for (const gameKey of gameKeys.length ? gameKeys : [undefined])
+        canonical.push({
+          ...alias,
+          issue: number,
+          state,
+          ...(gameKey ? { game_key: gameKey } : {}),
+        });
     for (const url of urls) {
       const key = githubKey(url);
       const lineage = history.find(
@@ -100,18 +108,38 @@ export function reconcileDiscoveryIntakeIdentity(
       ].filter((id) => Number.isSafeInteger(id) && id > 0);
       // Conflicting observations constrain that identity, not unrelated work.
       for (const id of ids.length ? ids : [undefined])
-        canonical.push({
-          repository: url,
-          issue: number,
-          state,
-          ...(id !== undefined ? { repository_id: id } : {}),
-          ...(game ? { game_key: discoveryGameKey(game) } : {}),
-        });
+        for (const gameKey of gameKeys.length ? gameKeys : [undefined])
+          canonical.push({
+            repository: url,
+            issue: number,
+            state,
+            ...(id !== undefined ? { repository_id: id } : {}),
+            ...(gameKey ? { game_key: gameKey } : {}),
+          });
     }
   }
   const result = reconcileDiscoveryIdentity(candidate, canonical);
+  // Candidate context only: source-family ownership and original-game grouping
+  // remain separate reviewed decisions. Matching words never assign a game ID.
+  const groupingCandidates = records
+    .filter(
+      (record) =>
+        candidate.game_key &&
+        discoveryGameKey(record.listing.original_game_title ?? record.listing.name) ===
+          candidate.game_key,
+    )
+    .map((record) => ({
+      port_id: record.listing.id,
+      original_game_id: record.listing.original_game?.id ?? null,
+      review: record.original_game_review ?? null,
+    }));
   return {
     ...result,
+    grouping_review: {
+      scope:
+        "Review candidates only; canonical intake ownership and source compatibility are unchanged.",
+      candidates: groupingCandidates,
+    },
     game_scope_known: canonical
       .filter((row) => result.issues.includes(row.issue))
       .every((row) => row.game_key !== undefined),

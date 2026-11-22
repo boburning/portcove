@@ -13,8 +13,14 @@ import { InvocationOwnerProvider } from "../operations/invocation-owner";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import { useOperationState } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
+import { comparisonFixture } from "../recommendations/comparison-test-fixture";
 import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
+import { prepareCaptureTarget } from "../../../test/capture-target";
+import {
+  observeCollectionLayoutReady,
+  observeVisibleTarget,
+} from "../../../scripts/browser-readiness.mts";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
@@ -42,6 +48,91 @@ afterEach(async () => {
   await i18n.changeLanguage("en");
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("reveals one complete game identity after resize restoration finishes", async () => {
+  await page.viewport(1280, 900);
+  host.style.cssText = "position:fixed;inset:0 auto 0 224px;width:1056px";
+  const ports = ["2ship2harkinian", "zelda64-recomp"].map((id) => ({
+    ...portDefinition(),
+    id,
+    presentation: {
+      ...portDefinition().presentation,
+      original_game_title: "The Legend of Zelda: Majora's Mask",
+      original_game: {
+        format_version: 1 as const,
+        id: "the-legend-of-zelda-majoras-mask",
+        evidence_urls: [],
+        source_editions: [],
+      },
+    },
+  }));
+  await act(async () =>
+    root.render(
+      <OperationPresentationProvider generation={7} pending={new Map()}>
+        <main
+          data-focus-region="workspace"
+          className="workspace-main"
+          style={{ height: "100%", overflow: "auto" }}
+        >
+          <div style={{ height: 259.5 }} />
+          <GroupedDiscover
+            all={ports}
+            matching={[...ports].reverse()}
+            statuses={new Map()}
+            onSelect={vi.fn()}
+          />
+        </main>
+      </OperationPresentationProvider>,
+    ),
+  );
+  const frames = async () => {
+    await act(async () => {
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+    });
+  };
+  await frames();
+  const target =
+    '.discover-game[data-detail-return-group="game:the-legend-of-zelda-majoras-mask"] .discover-game-identity';
+  const identity = host.querySelector<HTMLElement>(target)!;
+  await act(async () => identity.focus({ preventScroll: true }));
+  await frames();
+  await page.viewport(960, 640);
+  await act(async () => {
+    // The real ResizeObserver/virtualizer must finish preserving the reading
+    // anchor before capture makes its single intentional reveal.
+    host.style.width = "736px";
+  });
+  const prepared = prepareCaptureTarget({
+    target,
+    label: "resized-game-identity",
+    ready: observeCollectionLayoutReady,
+    scroll: () => {
+      const current = host.querySelectorAll<HTMLElement>(target);
+      expect(current).toHaveLength(1);
+      expect(current[0]!.isConnected).toBe(true);
+      current[0]!.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    },
+    observe: () => {
+      const observation = observeVisibleTarget(target, "visual");
+      expect(observation.visible, JSON.stringify(observation)).toBe(true);
+      return observation;
+    },
+    settle: frames,
+  });
+  const result = await prepared;
+  expect(result.observation.visible).toBe(true);
+  expect(document.activeElement).toBe(host.querySelector(target));
+  const current = host.querySelector<HTMLElement>(target)!;
+  expect(current.dataset.detailGameId).toBe("zelda64-recomp");
+  expect(current.querySelector(".collection-art")?.getAttribute("data-artwork-port-id")).toBe(
+    "2ship2harkinian",
+  );
+  for (let frame = 0; frame < 3; frame++) {
+    await frames();
+    expect(observeVisibleTarget(target, "visual")).toEqual(result.observation);
+  }
 });
 
 it("updates shared card translations and pending actions without remounting the card", async () => {
@@ -122,6 +213,108 @@ it("updates shared card translations and pending actions without remounting the 
   expect(host.querySelector("article")).toBe(card);
   expect(action.textContent).toBe(idleLabel);
 });
+
+it.each([
+  ["recommended", /Suggested starting point/, /Comparing Fixture original on Windows/],
+  [
+    "uncertain",
+    /don’t have enough information to suggest a port/,
+    /Choose a game edition to compare/,
+  ],
+  ["failed", /couldn’t load this comparison/, /Comparing the selected game on this device/],
+] as const)(
+  "shows the %s decision in the grouped comparison before opening settings",
+  async (outcome, message, scope) => {
+    const sample = portDefinition();
+    const first = {
+      ...sample,
+      id: "first-port",
+      name: "First project",
+      presentation: {
+        ...sample.presentation,
+        original_game_title: "Fixture original",
+        original_game: {
+          format_version: 1 as const,
+          id: "fixture-game",
+          evidence_urls: [],
+          source_editions: [],
+        },
+      },
+    };
+    const alternative = { ...first, id: "alternate-port", name: "Alternate project" };
+    const ports = [first, alternative];
+    const report = comparisonFixture(first.id);
+    report.ports[0]!.name = first.name;
+    const held = "This version cannot be prepared on the selected device.";
+    report.ports.push({
+      ...comparisonFixture(alternative.id).ports[0]!,
+      name: alternative.name,
+      operation: { kind: "held", reason: held },
+    });
+    if (outcome === "recommended") {
+      report.assessment = {
+        ...report.assessment!,
+        status: "recommended-starting-point",
+        recommended: report.assessment!.candidates[0]!.scope,
+      };
+    } else {
+      report.edition_id = null;
+      report.editions.push({
+        ...report.editions[0]!,
+        id: "second-edition",
+        title: "Second edition",
+      });
+      report.assessment = { ...report.assessment!, status: "insufficient-evidence" };
+    }
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(async () => {
+      await pending;
+      if (outcome === "failed") throw new Error("Unavailable fixture");
+      return report;
+    });
+    const onSelect = vi.fn();
+    await act(async () =>
+      root.render(
+        <OperationPresentationProvider generation={7} pending={new Map()}>
+          <main data-focus-region="workspace">
+            <GroupedDiscover
+              all={ports}
+              matching={ports}
+              statuses={new Map()}
+              onSelect={onSelect}
+            />
+          </main>
+        </OperationPresentationProvider>,
+      ),
+    );
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>(".discover-game-actions button")!.click(),
+    );
+    const dialog = page.getByRole("dialog", { name: "Fixture original" });
+    const decision = dialog.getByRole("region", { name: "Comparison options" });
+    await expect.element(decision.getByText("Refreshing the selected comparison…")).toBeVisible();
+
+    await act(async () => finish());
+    await expect.element(decision.getByText(message)).toBeVisible();
+    await expect.element(decision.getByText(scope)).toBeVisible();
+    const heldReason = dialog.getByText(held);
+    expect(heldReason.query() instanceof HTMLElement && heldReason.query()!.checkVisibility()).toBe(
+      outcome !== "failed",
+    );
+
+    const settings = document.querySelector<HTMLDetailsElement>(
+      '[role="dialog"] .comparison-settings',
+    );
+    expect(settings?.open).toBe(false);
+    await page
+      .elementLocator(document.querySelector('[data-discover-port-id="alternate-port"]')!)
+      .click();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(alternative.id, expect.any(String));
+  },
+);
 
 it.each(["control", "origin"] as const)(
   "returns comparison focus to the current deep card after column regrouping: %s identity",

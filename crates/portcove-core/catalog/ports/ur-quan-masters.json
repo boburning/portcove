@@ -19,7 +19,16 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "availability": "packages",
     "release_url": "https://sc2.sourceforge.net/downloads.php",
-    "download_block_reason": "Use the publisher's setup or your Linux package manager. The release bundles game content under separate terms and installation stays with the upstream installer or package manager.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the publisher's setup or your Linux package manager. The release bundles game content under separate terms and installation stays with the upstream installer or package manager.",
+        "tracking_issue": 6376
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

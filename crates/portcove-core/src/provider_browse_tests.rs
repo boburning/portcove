@@ -49,11 +49,45 @@ async fn browsing_lists_a_bound_games_mods_and_names_files_to_plan() {
         .unwrap();
     server.join().unwrap();
     assert_eq!(view.project.files[0].file_id, "10");
+    assert_eq!(view.eligible_file_ids, Some(vec!["10".into()]));
     let first = requests.recv().unwrap();
     assert!(
         first.contains("Generic_Game%5D=777") || first.contains("Generic_Game]=777"),
         "{first}"
     );
+}
+
+#[tokio::test]
+async fn project_files_remain_visible_when_the_definition_lacks_native_mod_state() {
+    let (_temporary, mut service, _) = fixture();
+    let mut document = service.catalog().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == "shipwright")
+        .unwrap();
+    port.mod_loader = None;
+    port.mod_provider_bindings = None;
+    port.persistent_paths.retain(|path| path != "mods");
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+
+    let project = serde_json::json!({
+        "_sName": "HD Link", "_bIsObsolete": false,
+        "_tsDateUpdated": 5, "_aGame": {"_idRow": 16121},
+        "_aFiles": [{"_idRow": 10, "_sFile": "pack.zip", "_nFilesize": 9,
+            "_tsDateAdded": 4, "_sAvResult": "clean", "_bIsArchived": false}]
+    })
+    .to_string();
+    let (root, _requests, server) = serve_http_bytes(vec![json_response(&project)]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let view = service
+        .provider_project_with(&client, "shipwright", 42)
+        .await
+        .unwrap();
+    server.join().unwrap();
+
+    assert_eq!(view.project.files[0].file_id, "10");
+    assert_eq!(view.eligible_file_ids, Some(Vec::new()));
 }
 
 #[tokio::test]
@@ -209,4 +243,44 @@ async fn oversized_thunderstore_community_has_a_direct_browse_handoff() {
         error.details.get("provider_browse_url").map(String::as_str),
         Some(url)
     );
+}
+
+#[tokio::test]
+async fn the_mods_catalog_continues_past_six_hundred_projects() {
+    let page = |page: u64, count: u64, complete: bool| {
+        let records = (0..count)
+            .map(|index| {
+                let id = (page - 1) * 50 + index + 1;
+                serde_json::json!({
+                    "_idRow": id,
+                    "_sName": if id == 601 { "Deep match".to_string() } else { format!("Mod {id}") },
+                    "_aGame": {"_idRow": 777}
+                })
+            })
+            .collect::<Vec<_>>();
+        json_response(
+            &serde_json::json!({
+                "_aMetadata": {"_nRecordCount": 601, "_bIsComplete": complete},
+                "_aRecords": records
+            })
+            .to_string(),
+        )
+    };
+    let mut responses = (1..=12)
+        .map(|number| page(number, 50, false))
+        .collect::<Vec<_>>();
+    responses.push(page(13, 1, true));
+    let (root, requests, server) = serve_http_bytes(responses);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let first = gamebanana_catalog(&client, 777, 1, None).await.unwrap();
+    assert_eq!(first.projects.len(), 600);
+    assert!(!first.complete);
+    assert_eq!(first.next_page, Some(13));
+    assert_eq!(first.expected_total, Some(601));
+    let rest = gamebanana_catalog(&client, 777, 13, None).await.unwrap();
+    server.join().unwrap();
+    assert!(rest.complete);
+    assert_eq!(rest.next_page, None);
+    assert_eq!(rest.projects[0].name, "Deep match");
+    assert_eq!(requests.try_iter().count(), 13);
 }

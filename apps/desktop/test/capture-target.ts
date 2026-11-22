@@ -39,6 +39,7 @@ export async function prepareCaptureTarget<State extends CaptureTargetObservatio
   label,
   scroll,
   observe,
+  ready = () => true,
   settle = () => new Promise<void>((resolve) => globalThis.setTimeout(resolve, 50)),
   timeoutMs = 1500,
 }: {
@@ -46,6 +47,7 @@ export async function prepareCaptureTarget<State extends CaptureTargetObservatio
   label: string;
   scroll(this: void): void | Promise<unknown>;
   observe(this: void): State | Promise<State>;
+  ready?(this: void): boolean | Promise<boolean>;
   settle?(this: void): Promise<unknown>;
   timeoutMs?: number;
 }) {
@@ -70,6 +72,12 @@ export async function prepareCaptureTarget<State extends CaptureTargetObservatio
       globalThis.clearTimeout(timer);
     }
   };
+  // A collection can still be restoring its reading anchor after resize.
+  // Await that owner before this single reveal; do not scroll again to fight it.
+  for (let samples = 0; !(await bounded(ready)); samples++) {
+    if (samples >= 20) throw new Error("Capture layout did not settle within 20 samples");
+    await bounded(settle);
+  }
   await bounded(scroll);
   let previous: State | undefined;
   for (let samples = 1; samples <= 20; samples++) {

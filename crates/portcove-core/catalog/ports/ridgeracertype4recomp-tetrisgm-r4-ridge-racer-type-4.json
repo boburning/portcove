@@ -8,7 +8,16 @@
     "project_url": "https://github.com/tetrisgm/RidgeRacerType4Remaster",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "New downloads are unavailable while the committed game-derived C and applicable package redistribution rights remain unresolved. A full playthrough and VSLink are unconfirmed by Portcove. Information about the own-disc preview is retained under its existing identity; package rights and trust require review before automated distribution.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are unavailable while the committed game-derived C and applicable package redistribution rights remain unresolved. A full playthrough and VSLink are unconfirmed by Portcove. Information about the own-disc preview is retained under its existing identity; package rights and trust require review before automated distribution.",
+        "tracking_issue": 3400
+      }
+    ],
     "issue_number": 3400,
     "listed_at": "2026-10-25",
     "artwork": {

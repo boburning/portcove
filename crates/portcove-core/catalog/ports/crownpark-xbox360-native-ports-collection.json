@@ -10,7 +10,16 @@
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports#using-a-release-launcher",
-    "download_block_reason": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+        "tracking_issue": 6005
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

@@ -171,6 +171,7 @@ interface SetupObservations {
   returned_owner_focus?: boolean;
   initial?: GameFileScanSnapshot;
   continued?: GameFileScanSnapshot;
+  reopened_exact_scan?: string;
   fresh_plan?: OutputSourceImportPlan;
   originals_unchanged?: boolean;
   no_acquisition?: boolean;
@@ -302,6 +303,7 @@ import {
   openCatalogPortAfterRefresh,
   reviewControls,
   selectGameFilesSettings,
+  selectPrimaryNavigation,
   openGameFileScan,
 } from "./desktop-review-controls.mts";
 
@@ -1975,6 +1977,55 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       assert.ok(newlyDiscovered);
       report.observations.continued = continued;
       await capture("hash-batch-complete");
+      report.checkpoint = "reopen the exact saved scan after navigation";
+      const scanActivities = () => {
+        const feed = transportValue("activity", command(["activity", "--limit", "100"]));
+        assert.equal(feed.active_and_actionable_complete, true);
+        assert.equal(feed.terminal_history_complete, true);
+        return feed.records.filter((record) => record.operation === "discover_sources");
+      };
+      const activitiesBeforeReview = scanActivities();
+      const receiptIdentity = JSON.stringify([
+        scanId,
+        continued.catalog_sha256,
+        continued.completed_at,
+        required(continued.coverage).batches,
+      ]);
+      await selectPrimaryNavigation(browser, "Discover");
+      const receipt = await browser.wait(
+        async () => {
+          const controls = await browser.findElements(button("Review saved scan"));
+          const [control] = controls;
+          if (!control || controls.length !== 1 || !(await control.isDisplayed())) return false;
+          return (await control.getAttribute("data-scan-result-trigger")) === receiptIdentity
+            ? control
+            : false;
+        },
+        30_000,
+        "The exact completed scan receipt must remain available on Discover",
+      );
+      assert.ok(receipt);
+      await clickVisible(browser, receipt);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () =>
+              document.activeElement?.matches(
+                '[data-saved-folders-workspace] [aria-label="Saved folder scan results"] h3',
+              ) && document.activeElement.textContent?.trim() === "Last completed scan",
+          ),
+        30_000,
+        "Review saved scan must focus its exact completed results",
+      );
+      assert.deepEqual(await nativeRead("get_game_file_scan_snapshot"), continued);
+      assert.deepEqual(
+        scanActivities(),
+        activitiesBeforeReview,
+        "Review must not start a new scan",
+      );
+      report.observations.reopened_exact_scan = receiptIdentity;
+      await capture("hash-batch-review-return");
       report.checkpoint = "fresh review and neutral cancel";
       const candidate = await browser.wait(
         until.elementLocated(

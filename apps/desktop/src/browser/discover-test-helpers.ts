@@ -38,29 +38,39 @@ export async function openDiscoverPort(portId: string) {
 async function mountPort(portId: string) {
   const workspace = document.querySelector<HTMLElement>("[data-focus-region=workspace], main");
   if (!workspace) throw new Error("No browsing workspace");
+  let current = true;
   let pending!: Promise<boolean>;
-  await act(async () => {
-    pending = mountCollectionDestination(workspace, { portId }, () => true);
-  });
-  let settled = false;
-  void pending.then(
-    () => {
-      settled = true;
-    },
-    () => {
-      settled = true;
-    },
-  );
-  await expect
-    .poll(async () => {
-      await act(async () => {
-        await new Promise(requestAnimationFrame);
-        await new Promise(requestAnimationFrame);
-      });
-      return settled;
-    })
-    .toBe(true);
-  expect(await pending).toBe(true);
+  try {
+    await act(async () => {
+      pending = mountCollectionDestination(workspace, { portId }, () => current);
+    });
+    let settled = false;
+    void pending.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    // Under the full macOS contributor suite, the exact card was visible before
+    // the measured virtual window finished acknowledging its mounted position.
+    await expect
+      .poll(
+        async () => {
+          await act(async () => {
+            await new Promise(requestAnimationFrame);
+            await new Promise(requestAnimationFrame);
+          });
+          return settled;
+        },
+        { timeout: 6_000, message: "Wait for the exact virtualized row to finish measuring" },
+      )
+      .toBe(true);
+    expect(await pending).toBe(true);
+  } finally {
+    current = false;
+  }
 }
 
 export async function mountDiscoverPort(portId: string) {

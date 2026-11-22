@@ -27,6 +27,10 @@
         {
           "title": "Carry your progress to a new upstream version",
           "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
+        },
+        {
+          "title": "Add the prepared game to Portcove",
+          "instruction": "On Linux, install the SDL3 library first; the upstream launcher does not open without it. After the launcher finishes installing the game, choose Use an existing installation in Portcove. Select the game program the launcher installed and its containing folder. Keep data and companion files together. Choose Play separately. Use the upstream launcher for future setup and replacement. Removing the registration leaves the external files in place. If Portcove already manages a Blocksphere installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
         }
       ],
       "warnings": [],
@@ -57,20 +61,48 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
-    "managed_acquisition_hold": {
-      "reason": "Blocksphere now uses an upstream installer. Managed Install and Update are on hold while Portcove checks how the new packages handle existing saves and settings.",
-      "activation_reason": "This staged Blocksphere package does not match a reviewed direct-player release. Keep your current installed copy.",
-      "reviewed_artifacts": [
-        {
-          "version": "v1.1.0",
-          "sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
-        },
-        {
-          "version": "v1.1.0",
-          "sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+    "acquisition_restrictions": [
+      {
+        "id": "acquisition",
+        "effect": "hold",
+        "operations": ["download", "install", "update", "adopt"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "Blocksphere now uses an upstream installer. Managed Install and Update are on hold while Portcove checks how the new packages handle existing saves and settings."
+      },
+      {
+        "id": "activation",
+        "effect": "hold",
+        "operations": ["activate"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "This staged Blocksphere package does not match a reviewed direct-player release. Keep your current installed copy."
+      },
+      {
+        "id": "reviewed-1",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.1.0",
+              "sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
+            }
+          ]
         }
-      ]
-    },
+      },
+      {
+        "id": "reviewed-2",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.1.0",
+              "sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+            }
+          ]
+        }
+      }
+    ],
     "release": {
       "repository": "djultra64/Blocksphere",
       "asset_hints": {

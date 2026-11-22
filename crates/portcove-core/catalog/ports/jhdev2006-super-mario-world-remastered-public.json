@@ -52,7 +52,16 @@
       "warnings": [],
       "help_url": "https://github.com/JHDev2006/Super-Mario-World-Remastered-Public/blob/4c520cf0bf5ad919991b0a84d1e30643508f0086/README.md"
     },
-    "download_block_reason": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Fresh acquisition of the selected parent Super Mario World Remastered Windows export is held while an attributable permission or authorized-source basis for its bundled original-game sprite and music assets remains unresolved. The project ISC code grant and an owner-supplied ROM do not establish that separate media basis. Resume with an applicable reviewed basis or a supported clean package/preparation excluding or independently sourcing those assets; independently permitted existing completed copies remain distinct.",
+        "tracking_issue": 1891
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "super-mario-world",

@@ -98,7 +98,7 @@ pub(crate) fn recover_published_install(
                     ));
                 }
                 require_install_publication_authority(service, &operation, &staged)?;
-                crate::install::check_retained_runtime_paths(&staged, &install.path)?;
+                crate::install::check_retained_launch_destination(&staged, &install.path)?;
                 fs::create_dir_all(
                     install
                         .path
@@ -109,7 +109,7 @@ pub(crate) fn recover_published_install(
             }
             (false, true) => {
                 require_install_publication_authority(service, &operation, &install)?;
-                crate::install::check_retained_runtime_paths(&install, &install.path)?;
+                crate::install::check_retained_launch_destination(&install, &install.path)?;
             }
             (true, true) => {
                 return Err(PortcoveError::conflict(
@@ -130,7 +130,7 @@ pub(crate) fn recover_published_install(
         }
     }
     if operation.phase == LifecyclePhase::PayloadPublished {
-        crate::install::check_retained_runtime_paths(&install, &install.path)?;
+        crate::install::check_retained_launch_destination(&install, &install.path)?;
         if !Installer::new(service.library.clone())?
             .verify(&install)?
             .valid
@@ -859,6 +859,7 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
+            crate::install::check_retained_launch_destination(&install, &install.path)?;
             if let Err(error) = service.require_activation_gates(&install, None) {
                 if error.is_recorded_uploader_hold() {
                     // The target is already staged. Drop only the unfinished
