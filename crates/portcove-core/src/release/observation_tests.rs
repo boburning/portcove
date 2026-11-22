@@ -1,5 +1,6 @@
 use super::*;
 use crate::release::GithubAsset;
+use crate::{ArtifactRole, TargetArch, TargetOs};
 use serde_json::json;
 
 const REPOSITORY_ID: u64 = 472575717;
@@ -143,9 +144,10 @@ fn cvlod_windows_successor_preserves_exact_versioned_selection() -> Result<()> {
 }
 
 #[test]
-fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() -> Result<()> {
+fn cvlod_windows_successor_with_ambiguous_or_unhashed_package_holds_without_older_fallback()
+-> Result<()> {
     let original = cvlod_facts()?;
-    for defect in ["missing", "ambiguous", "unhashed", "wrong-platform"] {
+    for defect in ["ambiguous", "unhashed"] {
         let mut facts = original.clone();
         let assets = facts["releases"][0]["assets"].as_array_mut().unwrap();
         let windows = assets
@@ -153,9 +155,6 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
             .position(|asset| asset["name"] == "LodRecomp-v0.2.27-windows-x64.zip")
             .unwrap();
         match defect {
-            "missing" => {
-                assets.remove(windows);
-            }
             "ambiguous" => {
                 let mut duplicate = assets[windows].clone();
                 duplicate["id"] = json!(999_999_999);
@@ -165,14 +164,8 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
                 );
                 assets.push(duplicate);
             }
-            "unhashed" => {
-                assets[windows]["digest"] = Value::Null;
-            }
             _ => {
-                assets[windows]["name"] = json!("LodRecomp-v0.2.27-linux-x64-alternate.zip");
-                assets[windows]["browser_download_url"] = json!(
-                    "https://github.com/fliperama86/cvlod_recomp/releases/download/v0.2.27/LodRecomp-v0.2.27-linux-x64-alternate.zip"
-                );
+                assets[windows]["digest"] = Value::Null;
             }
         }
         let report = inspect_cvlod(facts)?;
@@ -213,6 +206,132 @@ fn inspect_persona(facts: Value) -> Result<UpstreamObservationReport> {
     let path = directory.path().join("persona-observation.json");
     std::fs::write(&path, serde_json::to_vec(&document)?)?;
     inspect_upstream_observation(&port, repository_id, &path)
+}
+
+#[test]
+fn cvlod_withdrawn_windows_package_moves_the_windows_stream_to_the_preceding_release() -> Result<()>
+{
+    // The newest release keeps only other hosts' players when its Windows
+    // package is withdrawn or renamed for another host (#8555 defect 1). Its
+    // complete asset list puts it outside the Windows stream.
+    let original = cvlod_facts()?;
+    for defect in ["withdrawn", "renamed-for-linux"] {
+        let mut facts = original.clone();
+        let assets = facts["releases"][0]["assets"].as_array_mut().unwrap();
+        let windows = assets
+            .iter()
+            .position(|asset| asset["name"] == "LodRecomp-v0.2.27-windows-x64.zip")
+            .unwrap();
+        if defect == "withdrawn" {
+            assets.remove(windows);
+        } else {
+            assets[windows]["name"] = json!("LodRecomp-v0.2.27-linux-x64-alternate.zip");
+            assets[windows]["browser_download_url"] = json!(
+                "https://github.com/fliperama86/cvlod_recomp/releases/download/v0.2.27/LodRecomp-v0.2.27-linux-x64-alternate.zip"
+            );
+        }
+        let report = inspect_cvlod(facts)?;
+        let projection = &report.projections[0];
+        assert_eq!(projection.latest_observed.as_ref().unwrap().tag, "v0.2.27");
+        assert_eq!(
+            projection.channel_candidate.as_ref().unwrap().tag,
+            "v0.2.26",
+            "{defect}"
+        );
+        assert_eq!(
+            projection
+                .latest_eligible
+                .as_ref()
+                .unwrap()
+                .release
+                .asset
+                .name,
+            "LodRecomp-v0.2.26-windows-x64.zip",
+            "{defect}"
+        );
+        assert!(projection.hold_reasons.is_empty(), "{defect}");
+        // An installation of v0.2.27 is held instead of offered v0.2.26; see
+        // `release::tests::a_newer_other_host_release_is_passed_and_reported_for_a_managed_route`
+        // and `service::other_host_downgrade_tests`.
+    }
+    Ok(())
+}
+
+#[test]
+fn a_reviewed_fallback_is_named_for_asset_selection_and_coverage_stays_complete() -> Result<()> {
+    let facts = cvlod_facts()?;
+    let artifact = |index: usize| {
+        let release = &facts["releases"][index];
+        let asset = release["assets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|asset| {
+                asset["name"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("-windows-x64.zip")
+            })
+            .unwrap();
+        crate::ReviewedHoldArtifact {
+            version: release["tag_name"].as_str().unwrap().into(),
+            sha256: parse_digest(asset["digest"].as_str().unwrap()).unwrap(),
+        }
+    };
+    let mut port = crate::Catalog::embedded()?.port("cvlod-recomp")?.clone();
+    port.platforms = vec![Platform::WindowsX86_64];
+    port.managed_acquisition_hold = Some(crate::ManagedAcquisitionHold {
+        reason: "Excluded exact artifact".into(),
+        activation_reason: "Excluded staged artifact".into(),
+        excluded_artifacts: vec![artifact(0)],
+        reviewed_artifacts: vec![artifact(1)],
+    });
+    let latest = facts["releases"][0]["id"].as_u64().unwrap();
+    let fallback = facts["releases"][1]["id"].as_u64().unwrap();
+    let scoped = |covered: &[u64]| -> Result<UpstreamObservationReport> {
+        let mut facts = facts.clone();
+        for release in facts["releases"].as_array_mut().unwrap() {
+            if !covered.contains(&release["id"].as_u64().unwrap()) {
+                release["assets"] = json!([]);
+            }
+        }
+        let document = json!({ "format": 2, "authority": "provider-observation-only",
+            "port_id": port.id, "started_at": "2026-10-13T00:00:00Z",
+            "completed_at": "2026-10-13T00:00:00Z", "facts_sha256": json_digest(&facts)?,
+            "coverage": {"kind": "channel-candidate-assets", "complete_release_headers": true,
+                "asset_release_ids": covered},
+            "facts": facts });
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("cvlod-observation.json");
+        std::fs::write(&path, serde_json::to_vec(&document)?)?;
+        inspect_upstream_observation(&port, facts["repository"]["id"].as_u64().unwrap(), &path)
+    };
+    // Only the excluded candidate's assets were collected: the fallback is
+    // named so selection can collect it, the projection holds, and the
+    // accepted observation still states complete provider coverage.
+    let report = scoped(&[latest])?;
+    let projection = &report.projections[0];
+    assert_eq!(projection.reviewed_fallback.as_ref().unwrap().id, fallback);
+    assert!(projection.latest_eligible.is_none());
+    assert_eq!(
+        projection.hold_reasons,
+        [
+            "reviewed-artifact-excluded",
+            "release-asset-observation-incomplete"
+        ]
+    );
+    assert_eq!(projection.route_holds, [RouteHold::IncompleteCoverage]);
+    assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
+    // Once the fallback's assets are collected it is eligible.
+    let report = scoped(&[latest, fallback])?;
+    let projection = &report.projections[0];
+    assert_eq!(
+        projection.latest_eligible.as_ref().unwrap().release_id,
+        fallback
+    );
+    assert_eq!(projection.reviewed_fallback.as_ref().unwrap().id, fallback);
+    assert!(projection.route_holds.is_empty());
+    Ok(())
 }
 
 #[test]
@@ -1166,5 +1285,211 @@ fn dk64_windows_selector_covers_both_release_name_forms() -> Result<()> {
             expected
         );
     }
+    Ok(())
+}
+
+fn release_with_assets(id: u64, tag: &str, names: &[&str]) -> Value {
+    let mut release = release(id, tag);
+    release["assets"] = json!(
+        names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| json!({
+                "id": id * 10 + index as u64, "name": name, "state": "uploaded",
+                "size": 16, "digest": format!("sha256:{}", "a".repeat(64)),
+                "created_at": CLOCK, "updated_at": CLOCK,
+                "browser_download_url": format!("https://github.com/HarbourMasters/Shipwright/releases/download/{tag}/{name}")
+            }))
+            .collect::<Vec<_>>()
+    );
+    release
+}
+
+fn generic_desktop_port() -> Result<PortDefinition> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    port.platforms = vec![Platform::WindowsX86_64, Platform::LinuxX86_64];
+    port.release.asset_hints.clear();
+    port.release.curated.clear();
+    port.release.github_other_stream_tag_prefixes.clear();
+    Ok(port)
+}
+
+#[test]
+fn a_newest_foreign_only_release_does_not_hide_an_older_desktop_release() -> Result<()> {
+    let port = generic_desktop_port()?;
+    for newest in [
+        &["game-3.0.apk"][..],
+        &["game-3.0-android-arm64.zip", "game-3.0-ios.ipa"][..],
+        &["game-3.0-portmaster.zip", "game-3.0-switch.nro"][..],
+    ] {
+        let document = envelope(vec![
+            release_with_assets(3, "3.0.0", newest),
+            release_with_assets(2, "2.0.0", &["game-windows-x64.zip"]),
+        ])?;
+        let report = inspect(&port, &document)?;
+        let windows = &report.projections[0];
+        assert_eq!(windows.platform, Platform::WindowsX86_64);
+        assert_eq!(windows.latest_observed.as_ref().unwrap().id, 3);
+        assert_eq!(
+            windows.channel_candidate.as_ref().unwrap().id,
+            2,
+            "{newest:?}"
+        );
+        let eligible = windows.latest_eligible.as_ref().unwrap();
+        assert_eq!(
+            (eligible.release_id, eligible.release.asset.name.as_str()),
+            (2, "game-windows-x64.zip")
+        );
+        let fact = windows.selected_artifact.as_ref().unwrap();
+        assert_eq!(
+            (fact.role, fact.os, fact.arch),
+            (
+                ArtifactRole::DesktopGameRuntime,
+                TargetOs::Windows,
+                TargetArch::X86_64
+            )
+        );
+        // No reviewed selector matched (the test port has no asset hints):
+        // generic scoring keeps today's selection and records only a
+        // non-authorizing filename suggestion, without a hold.
+        assert_eq!(
+            fact.source,
+            crate::FactSource::FilenameSuggestion { rule_version: 1 }
+        );
+        assert!(windows.route_holds.is_empty());
+
+        // The Windows package is outside the Linux stream: Linux selects no
+        // candidate instead of offering another host's package.
+        let linux = &report.projections[3];
+        assert_eq!(linux.platform, Platform::LinuxX86_64);
+        assert!(linux.channel_candidate.is_none());
+        assert!(linux.latest_eligible.is_none());
+        assert_eq!(linux.hold_reasons, ["no-published-channel-candidate"]);
+
+        let facts = &report.release_facts[0];
+        assert!(facts.assets_complete);
+        assert!(facts.artifacts.iter().all(|fact| {
+            matches!(
+                fact.role,
+                ArtifactRole::MobilePackage | ArtifactRole::ConsoleOutput
+            ) && !fact.source.authorizes()
+        }));
+        assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
+        assert_eq!(report.fact_provenance.facts_sha256, report.facts_sha256);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_matching_reviewed_hint_is_a_stable_declaration() -> Result<()> {
+    let mut port = generic_desktop_port()?;
+    port.release
+        .asset_hints
+        .insert(Platform::WindowsX86_64, vec!["windows-x64".into()]);
+    let document = envelope(vec![release_with_assets(
+        2,
+        "2.0.0",
+        &["game-windows-x64.zip", "game-linux-x64.tar.gz"],
+    )])?;
+    let report = inspect(&port, &document)?;
+    let windows = report.projections[0].selected_artifact.as_ref().unwrap();
+    assert_eq!(windows.source, crate::FactSource::StableDeclaration);
+    // Linux has no reviewed hint: its fact stays a filename suggestion.
+    let linux = report.projections[3].selected_artifact.as_ref().unwrap();
+    assert!(!linux.source.authorizes());
+    Ok(())
+}
+
+#[test]
+fn one_desktop_host_never_selects_another_hosts_package() -> Result<()> {
+    let port = generic_desktop_port()?;
+    // Only the classifier names `osx` and `win32`; the older selector's
+    // conflict tokens did not, so these packages tied or crossed hosts.
+    let document = envelope(vec![release_with_assets(
+        2,
+        "2.0.0",
+        &["game-osx.zip", "game-win.zip", "game-win32-linux.tar.gz"],
+    )])?;
+    let report = inspect(&port, &document)?;
+    let windows = report.projections[0].latest_eligible.as_ref().unwrap();
+    assert_eq!(windows.release.asset.name, "game-win.zip");
+    let document = envelope(vec![release_with_assets(2, "2.0.0", &["game-win32.zip"])])?;
+    let report = inspect(&port, &document)?;
+    let linux = &report.projections[3];
+    assert!(linux.channel_candidate.is_none());
+    assert!(linux.latest_eligible.is_none());
+    Ok(())
+}
+
+#[test]
+fn incomplete_asset_coverage_stops_the_walk_with_a_typed_hold() -> Result<()> {
+    let port = generic_desktop_port()?;
+    let mut document = envelope(vec![
+        release_with_assets(3, "3.0.0", &["game-3.0.apk"]),
+        release_with_assets(2, "2.0.0", &["game-windows-x64.zip"]),
+    ])?;
+    document["format"] = json!(2);
+    document["coverage"] = json!({"kind":"channel-candidate-assets", "complete_release_headers":true, "asset_release_ids":[2]});
+    document["facts"]["releases"][0]["assets"] = json!([]);
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let report = inspect(&port, &document)?;
+    let windows = &report.projections[0];
+    // The uncollected newest release is UNKNOWN, never "no player".
+    assert_eq!(windows.channel_candidate.as_ref().unwrap().id, 3);
+    assert!(windows.latest_eligible.is_none());
+    assert_eq!(
+        windows.hold_reasons,
+        ["release-asset-observation-incomplete"]
+    );
+    assert_eq!(windows.route_holds, [RouteHold::IncompleteCoverage]);
+    // Only the releases a projection observed carry facts; the held walk
+    // never reached the older release.
+    assert_eq!(report.release_facts.len(), 1);
+    assert_eq!(report.release_facts[0].release_id, 3);
+    assert!(!report.release_facts[0].assets_complete);
+    assert!(report.release_facts[0].artifacts.is_empty());
+    // A selection-scoped asset gap is a projection hold, not partial provider
+    // coverage: the observation itself is accepted.
+    assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
+    Ok(())
+}
+
+#[test]
+fn typed_report_fields_are_additive_to_existing_projection_fields() -> Result<()> {
+    let port = generic_desktop_port()?;
+    let document = envelope(vec![release_with_assets(
+        2,
+        "2.0.0",
+        &["game-windows-x64.zip", "game-linux-x64.tar.gz"],
+    )])?;
+    let report = serde_json::to_value(inspect(&port, &document)?)?;
+    let windows = report["projections"][0].as_object().unwrap();
+    let mut keys = windows.keys().map(String::as_str).collect::<Vec<_>>();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        [
+            "channel",
+            "channel_candidate",
+            "hold_reasons",
+            "latest_eligible",
+            "latest_observed",
+            "platform",
+            "selected_artifact"
+        ]
+    );
+    // A held projection keeps the previous field set exactly.
+    let held = report["projections"][1].as_object().unwrap();
+    assert!(!held.contains_key("selected_artifact"));
+    assert!(!held.contains_key("route_holds"));
+    assert_eq!(
+        report["fact_provenance"]["coverage"],
+        json!({"kind": "complete"})
+    );
+    assert_eq!(report["fact_provenance"]["parser_version"], 1);
+    assert_eq!(
+        report["release_facts"][0]["artifacts"][1]["source"],
+        json!({"kind": "filename-suggestion", "rule_version": 1})
+    );
     Ok(())
 }

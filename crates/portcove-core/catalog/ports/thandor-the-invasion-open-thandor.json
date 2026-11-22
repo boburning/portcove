@@ -20,7 +20,16 @@
     "availability": "packages",
     "setup_url": "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/README.md#install-and-play",
     "release_url": "https://github.com/idkFoxes/open-thandor/releases/tag/v1.0.7",
-    "download_block_reason": "The Patch 7 installer contains wizard images made from an original Thandor screenshot and logo. Portcove can offer the package when an asset-clean installer is available or permission covers these images.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "The Patch 7 installer contains wizard images made from an original Thandor screenshot and logo. Portcove can offer the package when an asset-clean installer is available or permission covers these images.",
+        "tracking_issue": 6121
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/idkFoxes/open-thandor/blob/v1.0.7/docs/BUILDING.md#patch-installer",
       "steps": [

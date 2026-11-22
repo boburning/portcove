@@ -102,6 +102,7 @@ interface FixtureOptions {
   hashResumeJourney?: boolean;
   completionJourney?: boolean;
   acquisitionJourney?: boolean;
+  managedCopyJourney?: boolean;
   updateReviewJourney?: boolean;
   gameSettingsJourney?: boolean;
   preparationTool?: string;
@@ -214,9 +215,11 @@ function createInstallArtifact(seed?: number) {
   return gzipSync(tar, { level: 0 });
 }
 
-async function createCompletionArtifact(tool: string | undefined, seed?: number) {
+async function createExecutableInstallArtifact(tool: string | undefined, seed?: number) {
   if (!tool || !path.isAbsolute(tool) || !(await stat(tool)).isFile())
-    throw new Error("Selected setup completion requires an absolute owned preparation tool file");
+    throw new Error(
+      "Executable installation fixture requires an absolute owned preparation tool file",
+    );
   const executable = await readFile(tool);
   if (executable.length === 0) throw new Error("Owned preparation tool must not be empty");
   return gzipSync(
@@ -626,6 +629,7 @@ async function writeFixtureCatalog({
   acquisitionWaitPath,
   updateReviewJourney,
   gameSettingsJourney,
+  managedCopyJourney,
   revision,
 }: {
   root: string;
@@ -634,6 +638,7 @@ async function writeFixtureCatalog({
   artifact: Buffer;
   updateReviewJourney: boolean;
   gameSettingsJourney: boolean;
+  managedCopyJourney: boolean;
   sourceJourney: boolean;
   preliminarySetupJourney: boolean;
   completionJourney: boolean;
@@ -654,7 +659,7 @@ async function writeFixtureCatalog({
     ...contract,
     url,
     artifact,
-    adapter: "n64-recomp-portable",
+    adapter: managedCopyJourney ? "native-portable" : "n64-recomp-portable",
   });
   portDefinition = ownedPortDefinition;
   refreshPortDefinition = fixturePort({
@@ -858,6 +863,7 @@ export async function createInstallFixture({
   hashResumeJourney = false,
   completionJourney = false,
   acquisitionJourney = false,
+  managedCopyJourney = false,
   updateReviewJourney = false,
   gameSettingsJourney = false,
   preparationTool,
@@ -880,8 +886,8 @@ export async function createInstallFixture({
   if (hashResumeJourney && (!sourceJourney || preliminaryJourney || completionJourney))
     throw new Error("Hash continuation requires its standalone source fixture");
   let artifact =
-    completionJourney || acquisitionJourney
-      ? await createCompletionArtifact(preparationTool)
+    completionJourney || acquisitionJourney || managedCopyJourney
+      ? await createExecutableInstallArtifact(preparationTool)
       : createInstallArtifact();
   const artifacts = new Map([[`/${artifactName}`, artifact]]);
   const requests: RequestObservation[] = [];
@@ -915,6 +921,7 @@ export async function createInstallFixture({
       acquisitionWaitPath,
       updateReviewJourney,
       gameSettingsJourney,
+      managedCopyJourney,
       revision,
     }));
     if (preliminaryJourney) {
@@ -943,6 +950,7 @@ export async function createInstallFixture({
     preliminaryJourney: preliminarySelection,
     ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
     ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
+    ...(managedCopyJourney ? { managedCopyJourney: true } : {}),
     completionJourney,
     acquisitionWaitPath,
     url,
@@ -983,7 +991,7 @@ export async function createInstallFixture({
           "Fixture upgrades require a version, publication time, and nonzero integer seed",
         );
       const nextArtifact = acquisitionJourney
-        ? await createCompletionArtifact(preparationTool, seed)
+        ? await createExecutableInstallArtifact(preparationTool, seed)
         : createInstallArtifact(seed);
       const raw: unknown = JSON.parse(await readFile(catalogPath, "utf8"));
       const current = catalog(raw);

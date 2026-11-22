@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { compactOpenGoalSetup, projectOpenGoalSetup } from "./catalog-opengoal-setup.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
+import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { projectCrispyDoomWindowsPersistence } from "./catalog-crispy-doom-windows-persistence.mts";
 import { projectRsdkv4PortableData } from "./catalog-rsdkv4-portable-data.mts";
 import { projectGen2RecompWindowsPersistence } from "./catalog-gen2recomp-windows-persistence.mts";
@@ -47,7 +48,173 @@ import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectReflectionHlePortablePaths } from "./catalog-portable-reflectionhle.mts";
 import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
-import type { AuthoredPort } from "./catalog-authoring.mts";
+import type { AuthoredPort, CatalogPort } from "./catalog-authoring.mts";
+import { managedSetupReleaseAdvice } from "./catalog-setup-release-advice.mts";
+
+void test("managed setup release advice reports exact actions without changing evidence", () => {
+  const releaseBase = "https://github.com/example/fixture/releases";
+  const asset = "fixture-v1.2.3-win64.zip";
+  const tagUrl = `${releaseBase}/tag/v1.2.3`;
+  const assetUrl = `${releaseBase}/download/v1.2.3/${asset}`;
+  const guide = {
+    steps: [
+      { title: "Start the player", instruction: "Choose the release tagged v1.2.3." },
+      { title: "Get the package", instruction: `Download the release asset at ${assetUrl}.` },
+      { title: "Find the package", instruction: `Download ${asset}.` },
+      { title: "Open the release", instruction: `Open ${tagUrl}.` },
+      {
+        title: "Keep your original",
+        instruction: "Use your own original revision 1.2.3 with BIOS v1.2.3.",
+      },
+      { title: "Check the ABI", instruction: "Use glibc 2.38 or newer and match build ID 1.2.3." },
+      { title: "Check requirements", instruction: `Open ${tagUrl}.` },
+      { title: "Keep an existing copy", instruction: `Open ${tagUrl}.` },
+      {
+        title: "Use a separate installation",
+        instruction: `Open ${tagUrl}. Extract it outside your Portcove library.`,
+      },
+      { title: "Review changes", instruction: "The release tagged v1.2.3 was tested." },
+      { title: "Follow the stable path", instruction: "Download fixture-win64.zip." },
+      { title: "Keep the original ready", instruction: "Download original-v1.2.3.zip." },
+      { title: "Find the right build", instruction: "Choose the release tagged v2.0.0." },
+      {
+        title: "Check the dependency",
+        instruction: "Open https://github.com/dependency/elsewhere/releases/tag/v1.2.3.",
+      },
+      {
+        title: "Use a historic special release",
+        instruction: "For older builds only, choose the release tagged v1.2.3.",
+      },
+    ],
+    help_url: tagUrl,
+    warnings: [`Open ${tagUrl}.`],
+    references: [{ title: "Old process", instruction: `Download ${assetUrl}.` }],
+  };
+  const release = {
+    repository: "example/fixture",
+    asset_hints: { "windows-x86-64": [asset, "fixture-win64.zip"] },
+  };
+  const port: CatalogPort = {
+    id: "fixture",
+    release,
+    presentation: { manual_setup: guide },
+  };
+  const before = structuredClone(port);
+  assert.deepEqual(managedSetupReleaseAdvice(port, tagUrl), [
+    { step: 1, kind: "release tag", literal: "v1.2.3" },
+    { step: 2, kind: "repository asset", literal: assetUrl },
+    { step: 3, kind: "repository asset", literal: asset },
+    { step: 4, kind: "release tag", literal: tagUrl },
+  ]);
+  assert.deepEqual(port, before);
+  for (const releaseOverride of [
+    { provider: "user-prepared" },
+    { provider: "direct-manifest" },
+    { rolling_tag: "v1.2.3" },
+    { direct: { "windows-x86-64": {} } },
+    { curated: { "windows-x86-64": {} } },
+    { managed_build: { "windows-x86-64": {} } },
+    { user_prepared: { "windows-x86-64": {} } },
+  ])
+    assert.deepEqual(
+      managedSetupReleaseAdvice({ ...port, release: { ...release, ...releaseOverride } }),
+      [],
+    );
+  assert.deepEqual(
+    managedSetupReleaseAdvice({
+      ...port,
+      presentation: { ...port.presentation, installation_method: "user-prepared-runtime" },
+    }),
+    [],
+  );
+  assert.deepEqual(managedSetupReleaseAdvice(undefined), []);
+});
+
+void test("managed setup release advice recognizes canonical slash tags without widening asset scope", () => {
+  const repository = "BodbDearg/PsyDoom";
+  const releaseBase = `https://github.com/${repository}/releases`;
+  const tag = "releases/1.1.1";
+  const encodedTag = "releases%2F1.1.1";
+  const asset = "PsyDoom_1.1.1_Windows_x86_64.zip";
+  const tagLinks = [tag, encodedTag].map((value) => `${releaseBase}/tag/${value}`);
+  const assetLinks = [tag, encodedTag].map((value) => `${releaseBase}/download/${value}/${asset}`);
+  const guide = {
+    steps: [
+      { title: "Choose a release", instruction: `Choose the release tagged ${tag}.` },
+      ...tagLinks.map((url) => ({ title: "Open the release", instruction: `Open ${url}.` })),
+      ...assetLinks.map((url) => ({ title: "Get the package", instruction: `Download ${url}.` })),
+      { title: "Use an existing copy", instruction: `Download ${assetLinks[1]}.` },
+      {
+        title: "Get an asset",
+        instruction: `Download ${releaseBase}/download/${encodedTag}/x%2F${asset}.`,
+      },
+      {
+        title: "Get an asset",
+        instruction: `Download ${releaseBase}/download/releases%2F../1.1.1/${asset}.`,
+      },
+      {
+        title: "Get an asset",
+        instruction: `Download ${releaseBase.replace(repository, "BodbDearg%2FPsyDoom")}/download/${encodedTag}/${asset}.`,
+      },
+    ],
+    warnings: [],
+  };
+  const port: CatalogPort = {
+    id: "fixture",
+    release: { repository },
+    presentation: { manual_setup: guide },
+  };
+  assert.deepEqual(managedSetupReleaseAdvice(port, tagLinks[1]), [
+    { step: 1, kind: "release tag", literal: tag },
+    ...tagLinks.map((literal, index) => ({ step: index + 2, kind: "release tag", literal })),
+    ...assetLinks.map((literal, index) => ({ step: index + 4, kind: "repository asset", literal })),
+  ]);
+  assert.deepEqual(
+    managedSetupReleaseAdvice(
+      {
+        ...port,
+        release: { repository, rolling_tag: tag },
+      },
+      tagLinks[1],
+    ),
+    [],
+  );
+});
+
+void test("preparation finds release advice on a shared managed guide and honors its override", () => {
+  const source = readCatalogSource(catalogRoot);
+  const record = source.records.find(({ listing }) => listing.id === "star-wars-atari-darkuni")!;
+  const before = structuredClone(record);
+  const feedback = declarativePreparationFeedback(record);
+  assert.deepEqual(feedback.managed_setup_release_literals?.steps, [
+    { step: 2, kind: "release tag", literal: "V1.1.0b" },
+  ]);
+  assert.deepEqual(record, before);
+  const override = {
+    ...record,
+    integration: {
+      ...record.integration,
+      presentation: {
+        manual_setup: {
+          steps: [
+            {
+              title: "Prepare to play",
+              instruction: "Put your own arcade ROM in your home directory.",
+            },
+          ],
+          warnings: [],
+        },
+      },
+    },
+  };
+  assert.equal(declarativePreparationFeedback(override).managed_setup_release_literals, undefined);
+  const listingOnly = { ...record };
+  delete listingOnly.integration;
+  assert.equal(
+    declarativePreparationFeedback(listingOnly).managed_setup_release_literals,
+    undefined,
+  );
+});
 
 void test("canonical preparation exposes the exact specification without deriving acquisition authority", () => {
   const record: AuthoredPort = {
@@ -58,7 +225,15 @@ void test("canonical preparation exposes the exact specification without derivin
       summary: "Fixture",
       project_url: "https://github.com/example/fixture",
       issue_number: 156,
-      download_block_reason: "Retain the reviewed exact acquisition condition.",
+      restrictions: [
+        {
+          id: "download",
+          effect: "hold",
+          operations: ["download"],
+          reason: "package-facts-unresolved",
+          explanation: "Retain the reviewed exact acquisition condition.",
+        },
+      ],
     },
   };
   const before = structuredClone(record);
@@ -78,7 +253,10 @@ void test("canonical preparation exposes the exact specification without derivin
   assert.equal(feedback.specification.body_sha256, createHash("sha256").update(body).digest("hex"));
   assert.equal(feedback.specification.observed_at, "2026-10-25T00:00:00Z");
   assert.match(feedback.specification.location, /files.upstream/);
-  assert.equal(feedback.authored_acquisition_condition, before.listing.download_block_reason);
+  assert.equal(
+    feedback.authored_acquisition_condition,
+    before.listing.restrictions?.[0]?.explanation,
+  );
   assert.match(feedback.next, /complete retained canonical specification/);
   assert.match(feedback.scope, /No prose is classified/);
   assert.deepEqual(record, before);
@@ -1272,16 +1450,18 @@ void test("listing inspection binds exact generated bytes and validator identity
     const receipt = first.report.listing_validation as ListingReceipt;
     assert.equal(
       receipt.format_version,
-      12,
-      "the merged directory retains implementation descriptions, so it is listing v12",
+      15,
+      "the merged directory retains typed acquisition restrictions, so it is listing v15",
     );
     const bytes = readFileSync(first.report.files.listings);
+    const directory = JSON.parse(bytes.toString()) as {
+      format_version: number;
+      listings: unknown[];
+    };
+    assert.equal(receipt.format_version, directory.format_version);
     assert.equal(receipt.input_sha256, createHash("sha256").update(bytes).digest("hex"));
     assert.equal(receipt.input_bytes, bytes.length);
-    assert.deepEqual(
-      receipt.listings,
-      (JSON.parse(bytes.toString()) as { listings: unknown[] }).listings,
-    );
+    assert.deepEqual(receipt.listings, directory.listings);
     assert.equal(calls, 1);
     const resumed = await preparePort(options);
     assert.deepEqual(resumed.report.listing_validation, receipt);
@@ -1418,6 +1598,14 @@ void test("single-port preparation reuses selected artwork and rebuilds the curr
   }
 });
 
+const hold = (explanation: string) => ({
+  id: "download",
+  effect: "hold" as const,
+  operations: ["download" as const],
+  reason: "third-party-component-terms",
+  explanation,
+});
+
 void test("preparation preserves authored acquisition restrictions despite replacement records and provider facts", async () => {
   const f = fixture();
   try {
@@ -1429,20 +1617,17 @@ void test("preparation preserves authored acquisition restrictions despite repla
         name: "Restricted preparation fixture",
         summary: "An unresolved acquisition condition.",
         project_url: project,
-        download_block_reason: "Resolve the exact bundled-component permission.",
+        restrictions: [hold("Resolve the exact bundled-component permission.")],
       },
     };
     const file = join(source, "ports", `${record.listing.id}.json`);
     const original = `${JSON.stringify(record, null, 2)}\n`;
     writeFileSync(file, original);
-    for (const condition of [
-      undefined,
-      "A package exists now.",
-      record.listing.download_block_reason,
-    ]) {
+    const authoredCondition = record.listing.restrictions?.[0]?.explanation;
+    for (const condition of [undefined, "A package exists now.", authoredCondition]) {
       const proposal = structuredClone(record);
-      if (condition === undefined) delete proposal.listing.download_block_reason;
-      else proposal.listing.download_block_reason = condition;
+      if (condition === undefined) delete proposal.listing.restrictions;
+      else proposal.listing.restrictions = [hold(condition)];
       proposal.listing.availability = "packages";
       proposal.listing.release_url = `${project}/releases`;
       proposal.listing.download_asset_hints = { "windows-x86-64": ["windows", ".zip"] };
@@ -1451,7 +1636,7 @@ void test("preparation preserves authored acquisition restrictions despite repla
           catalogRoot: source,
           outputDirectory: join(
             f.root,
-            `proposal-${condition === undefined ? "removed" : condition === record.listing.download_block_reason ? "retained" : "changed"}`,
+            `proposal-${condition === undefined ? "removed" : condition === authoredCondition ? "retained" : "changed"}`,
           ),
           record: proposal,
           facts: {
@@ -1464,7 +1649,7 @@ void test("preparation preserves authored acquisition restrictions despite repla
           },
           artwork: { inspectGame: () => [] },
         });
-      if (condition !== record.listing.download_block_reason)
+      if (condition !== authoredCondition)
         await assert.rejects(prepare(), /cannot remove or change an authored download restriction/);
       else {
         const result = await prepare();
@@ -1472,7 +1657,9 @@ void test("preparation preserves authored acquisition restrictions despite repla
           JSON.parse(readFileSync(result.report.files.listings, "utf8")) as {
             listings: AuthoredPort["listing"][];
           }
-        ).listings.find((entry) => entry.id === record.listing.id);
+        ).listings.find((entry) => entry.id === record.listing.id) as
+          | Record<string, unknown>
+          | undefined;
         assert.equal(listing?.download_block_reason, condition);
         assert.equal(result.report.operational_changed, false);
       }
@@ -1703,10 +1890,16 @@ void test("bounded artwork batch enriches listing-only records in the complete l
     assert.ok(accepted.records.length > 400);
     assert.equal(additions.length, 2);
     const acceptedCover = accepted.records.find((record) => record.listing.artwork)!;
+    const acceptedCollection = accepted.records.find(
+      ({ listing }) =>
+        Array.isArray(listing.collection_covers) && listing.collection_covers.length > 0,
+    );
     assert.ok(acceptedCover);
+    assert.ok(acceptedCollection);
     const selectedPortIds = [
       ...additions.map((record) => record.listing.id),
       acceptedCover.listing.id,
+      acceptedCollection.listing.id,
     ];
     const queries: string[] = [];
     const options = {
@@ -2408,6 +2601,7 @@ void test("preparation reports all declared route projections across the current
   assert.ok(records.some((record) => record.chocolate_family_windows_persistence_v1));
   assert.ok(records.some((record) => record.opengoal_setup_v1));
   assert.ok(records.some((record) => record.openmohaa_portable_v1));
+  assert.ok(records.some((record) => record.openx_portable_v1));
   assert.ok(records.some((record) => record.native_managed_profile_v1));
   assert.ok(records.some((record) => record.external_registration_v1));
   assert.ok(records.some((record) => record.gen2recomp_windows_persistence_v1));
@@ -2427,6 +2621,7 @@ void test("preparation reports all declared route projections across the current
     if (record.external_registration_v1) expected.push("external_registration_v1");
     if (record.opengoal_setup_v1) expected.push("opengoal_setup_v1");
     if (record.openmohaa_portable_v1) expected.push("openmohaa_portable_v1");
+    if (record.openx_portable_v1) expected.push("openx_portable_v1");
     if (record.raze_windows_profile_v1) expected.push("raze_windows_profile_v1");
     if (record.crispy_doom_windows_persistence_v1)
       expected.push("crispy_doom_windows_persistence_v1");
@@ -2643,45 +2838,71 @@ void test("a reviewed operational record retains the verified origin on issue-fr
   }
 });
 
-void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layout", async () => {
+void test("official URL preparation compacts the exact TechnicallyComputers PSX persistence layouts", async () => {
   const f = fixture();
   try {
     const root = copiedCatalog(join(f.root, "catalog"));
     const accepted = readCatalogSource(root);
-    const id = "bomberman-fantasy-race-recompiled";
-    const record = accepted.records.find((entry) => entry.listing.id === id)!;
-    const explicit = projectPsxManagedWindows(record);
-    delete explicit.psx_managed_windows_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const result = await preparePort({
-      id,
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: record.listing.project_url,
-      originalGame: record.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({
-                ...metadata,
-                full_name: "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
-                archived: false,
-              }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    const candidate = checkedAuthoredPort(
-      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-    );
-    assert.deepEqual(result.report.changed_records, [id]);
-    assert.equal(result.report.operational_changed, false);
-    assert.equal(candidate.psx_managed_windows_v1, "technically-computers");
-    assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
-    assert.equal(readFileSync(source, "utf8"), bytes);
+    for (const [id, repository, recipe] of [
+      [
+        "bomberman-fantasy-race-recompiled",
+        "TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
+        "technically-computers",
+      ],
+      [
+        "bomberman-party-edition-recompiled",
+        "TechnicallyComputers/BombermanPartyEditionRecomp",
+        "technically-computers-input-files",
+      ],
+      [
+        "final-fantasy-vii-recompiled",
+        "TechnicallyComputers/Final-Fantasy-VII",
+        "technically-computers-input-files",
+      ],
+    ] as const) {
+      const record = accepted.records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectPsxManagedWindows(record);
+      delete explicit.psx_managed_windows_v1;
+      const source = join(root, "ports", `${id}.json`);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        id,
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: record.listing.project_url,
+        originalGame: record.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({
+                  ...metadata,
+                  full_name: repository,
+                  archived: false,
+                }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      const candidate = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.equal(result.report.operational_changed, false);
+      assert.equal(candidate.psx_managed_windows_v1, recipe);
+      const advice = result.report.declarative_authoring.projections.find(
+        ({ field }) => field === "psx_managed_windows_v1",
+      );
+      assert.ok(advice);
+      if (recipe === "technically-computers-input-files") {
+        assert.match(advice.scope, /Bomberman Party Edition and Final Fantasy VII/u);
+        assert.match(advice.next, /raw disc set/u);
+      }
+      assert.deepEqual(candidate.listing.original_game, record.listing.original_game);
+      assert.deepEqual(projectPsxManagedWindows(candidate).integration, explicit.integration);
+      assert.equal(readFileSync(source, "utf8"), bytes);
+    }
   } finally {
     f.clean();
   }
@@ -2791,41 +3012,49 @@ void test("official URL preparation proposes the exact reviewed N64 persistence 
   try {
     const root = copiedCatalog(join(f.root, "catalog"));
     const accepted = readCatalogSource(root);
-    const id = "quest-64-recompiled";
-    const selected = accepted.records.find((entry) => entry.listing.id === id)!;
-    const explicit = projectN64RecompPersistence(selected);
-    delete explicit.n64_recomp_persistence_v1;
-    const source = join(root, "ports", `${id}.json`);
-    const bytes = JSON.stringify(explicit);
-    writeFileSync(source, bytes);
-    const result = await preparePort({
-      catalogRoot: root,
-      outputDirectory: join(f.root, "output"),
-      projectUrl: selected.listing.project_url,
-      originalGame: selected.listing.original_game,
-      facts: {
-        fetcher: f.fetcher((url) =>
-          url.includes("/releases?")
-            ? json([])
-            : json({ ...metadata, full_name: "Rainchus/Quest64-Recomp", archived: false }),
-        ),
-      },
-      artwork: { inspectGame: () => [] },
-    });
-    assert.equal(result.report.port_id, id);
-    assert.deepEqual(result.report.changed_records, [id]);
-    assert.equal(result.report.operational_changed, false);
-    const proposed = checkedAuthoredPort(
-      JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
-    );
-    assert.equal(proposed.n64_recomp_persistence_v1, true);
-    assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
-    assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
-    assert.deepEqual(
-      JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
-      accepted.catalog,
-    );
-    assert.equal(readFileSync(source, "utf8"), bytes);
+    const cases = [
+      ["quest-64-recompiled", "Rainchus/Quest64-Recomp", true],
+      ["dinosaur-planet", "DinosaurPlanetRecomp/dino-recomp", "config-directory"],
+      ["donkey-kong-64-recompiled", "Rainchus/Donkey-Kong-64-Recompiled", "technical-settings"],
+    ] as const;
+    for (const [id, repository, variant] of cases) {
+      const selected = accepted.records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectN64RecompPersistence(selected);
+      delete explicit.n64_recomp_persistence_v1;
+      const source = join(root, "ports", `${id}.json`);
+      const original = readFileSync(source);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: selected.listing.project_url,
+        originalGame: selected.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, full_name: repository, archived: false }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      assert.equal(result.report.port_id, id);
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.equal(result.report.operational_changed, false);
+      const proposed = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.equal(proposed.n64_recomp_persistence_v1, variant);
+      assert.deepEqual(proposed.listing.original_game, selected.listing.original_game);
+      assert.deepEqual(proposed.listing.issue_number, selected.listing.issue_number);
+      assert.deepEqual(
+        JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
+        accepted.catalog,
+      );
+      assert.equal(readFileSync(source, "utf8"), bytes);
+      writeFileSync(source, original);
+    }
   } finally {
     f.clean();
   }
@@ -3383,6 +3612,55 @@ void test("settings qualification requests complete exact package facts and limi
       JSON.parse(readFileSync(result.report.files.catalog, "utf8")),
       authored.catalog,
     );
+  } finally {
+    f.clean();
+  }
+});
+
+void test("official URL preparation compacts both exact OpenX portable package routes", async () => {
+  const f = fixture();
+  try {
+    const root = copiedCatalog(join(f.root, "catalog"));
+    const { records } = readCatalogSource(root);
+    for (const [id, repository, repositoryId] of [
+      ["star-wars-x-wing-openxw", "elyosh/OpenXW", 1393268483],
+      ["star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt", "elyosh/OpenXvT", 1367490590],
+    ] as const) {
+      const record = records.find((entry) => entry.listing.id === id)!;
+      const explicit = projectOpenXPortable(record);
+      const source = join(root, "ports", `${id}.json`);
+      const bytes = JSON.stringify(explicit);
+      writeFileSync(source, bytes);
+      const result = await preparePort({
+        id,
+        catalogRoot: root,
+        outputDirectory: join(f.root, id),
+        projectUrl: record.listing.project_url,
+        originalGame: record.listing.original_game,
+        facts: {
+          fetcher: f.fetcher((url) =>
+            url.includes("/releases?")
+              ? json([])
+              : json({ ...metadata, id: repositoryId, full_name: repository, archived: false }),
+          ),
+        },
+        artwork: { inspectGame: () => [] },
+      });
+      const candidate = checkedAuthoredPort(
+        JSON.parse(readFileSync(result.report.files.records[0]!.path, "utf8")),
+      );
+      assert.equal(candidate.openx_portable_v1, String(repositoryId));
+      assert.equal(result.report.operational_changed, false);
+      assert.deepEqual(result.report.changed_records, [id]);
+      assert.deepEqual(projectOpenXPortable(candidate).integration, explicit.integration);
+      assert.deepEqual(candidate.upstream_lineage, record.upstream_lineage);
+      assert.ok(
+        result.report.declarative_authoring.projections.some(
+          ({ field }) => field === "openx_portable_v1",
+        ),
+      );
+      assert.equal(readFileSync(source, "utf8"), bytes);
+    }
   } finally {
     f.clean();
   }

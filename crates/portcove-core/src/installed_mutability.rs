@@ -277,8 +277,10 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         upstream_active_reviewed: _,
         mod_provider_bindings: _,
         legacy_mod_provider_held: _,
+        mod_loader: _,
         managed_acquisition_hold: _,
         reviewed_package_layouts: _,
+        reviewed_predecessor_package_layouts_v1: _,
         presentation: _,
     } = port;
     // Reviewed release uploaders gate only fresh acquisition, like the hold and
@@ -286,6 +288,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     let release = crate::ReleaseSpec {
         accepted_uploaders: Vec::new(),
         github_other_stream_tag_prefixes: Default::default(),
+        reviewed_package_choices_v2: None,
         ..release.clone()
     };
     let mut compatibility = serde_json::json!({

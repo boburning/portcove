@@ -85,6 +85,10 @@ impl PortcoveService {
             ));
         }
         let status = self.status(&reviewed.plan.port_id)?;
+        self.require_acquisition_state(&status)
+    }
+
+    pub(super) fn require_acquisition_state(&self, status: &crate::PortStatus) -> Result<()> {
         if status.acquisition.is_some() {
             return Err(PortcoveError::conflict(
                 "discard the existing archive before another acquisition",
@@ -131,7 +135,7 @@ impl PortcoveService {
             let (reviewed, reviewed_status) = {
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: fresh review ({:?})", observed.elapsed());
-                let (reviewed, reviewed_status) = operation
+                let (reviewed, reviewed_status, _) = operation
                     .interruptible(self.plan_game_update_with_status(port_id, false, false))
                     .await?;
                 #[cfg(test)]
@@ -157,6 +161,7 @@ impl PortcoveService {
                     view,
                     definition_sha256: definition_digest(self.catalog.port(port_id)?)?,
                     assets: assets_for(&reviewed.plan),
+                    explicit_package_proof_sha256: reviewed.explicit_package_proof_sha256.clone(),
                 })?;
                 record.persist(&store)?;
                 #[cfg(test)]
@@ -195,7 +200,7 @@ impl PortcoveService {
             eprintln!("immutable acquisition phase: private ownership durable; provider resolution ({:?})", observed.elapsed());
             let port = self.catalog.port(port_id)?;
             let resolution = self
-                .resolve_reviewed_update_acquisition(port, &reviewed.plan.release, &reviewed_status, &operation)
+                .resolve_reviewed_update_acquisition(port, &reviewed.plan.release, reviewed.explicit_package_proof_sha256.as_deref(), &reviewed_status, &operation)
                 .await?;
             let qualification =
                 InstallQualification::from_catalog(&self.catalog, port_id, Platform::current()?)?
@@ -253,6 +258,7 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         release: &ResolvedRelease,
+        explicit_package_proof_sha256: Option<&str>,
         reviewed_status: &PortStatus,
         operation: &OperationCoordinator,
     ) -> Result<crate::ScopedResolvedRelease> {
@@ -275,7 +281,10 @@ impl PortcoveService {
                     saved.as_ref(),
                 ))
                 .await?;
-            if resolution.release != *release {
+            if resolution.release != *release
+                || resolution.explicit_package_proof_sha256()?.as_deref()
+                    != explicit_package_proof_sha256
+            {
                 return Err(PortcoveError::conflict(
                     "reviewed release changed before immutable acquisition",
                 ));
@@ -292,6 +301,10 @@ impl PortcoveService {
                 }
             }
             Ok(resolution)
+        } else if explicit_package_proof_sha256.is_some() {
+            Err(PortcoveError::conflict(
+                "reviewed package acquisition no longer has its provider proof",
+            ))
         } else {
             Ok(crate::ScopedResolvedRelease::legacy(release.clone()))
         }
@@ -301,6 +314,7 @@ impl PortcoveService {
         &self,
         status: &PortStatus,
         plan: &crate::InstallPlan,
+        explicit_package_proof_sha256: Option<&str>,
     ) -> Result<Option<GameUpdateAcquisition>> {
         if plan.action != crate::InstallPlanAction::Download {
             return Ok(None);
@@ -324,6 +338,8 @@ impl PortcoveService {
         let payload = record.payload();
         Ok(
             (payload.definition_sha256 == definition_digest(self.catalog.port(&plan.port_id)?)?
+                && payload.explicit_package_proof_sha256.as_deref()
+                    == explicit_package_proof_sha256
                 && payload.assets == assets_for(plan))
             .then(|| view.clone()),
         )
@@ -349,6 +365,7 @@ impl PortcoveService {
         }
         let payload = record.payload();
         if payload.view != *view
+            || payload.explicit_package_proof_sha256 != reviewed.explicit_package_proof_sha256
             || payload.definition_sha256 != definition_digest(self.catalog.port(&view.port_id)?)?
             || payload.assets != assets_for(&reviewed.plan)
         {

@@ -5,7 +5,7 @@ use std::{io::Read, path::PathBuf};
 
 use clap::{Subcommand, ValueEnum};
 use portcove_core::{
-    OriginalAvailability, PortcoveError, PortcoveService, Profile, ProfileInventory,
+    OriginalAvailability, Platform, PortcoveError, PortcoveService, Profile, ProfileInventory,
     ProfileProgressCopy, ProfileRecoveryPlan, ProfileRevision, ProfileRevisionRequest,
     ProfileUpdatePolicy, Result,
 };
@@ -309,6 +309,58 @@ pub(crate) enum ProfileCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Browse reviewed GitHub mod releases and their upstream import route.
+    GithubMods {
+        /// Catalog port ID with a reviewed GitHub mod source.
+        port_id: String,
+        /// Platform for the upstream import information. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Inspect a local intact ZIP against a reviewed GitHub release and asset.
+    GithubModReview {
+        /// Catalog port ID with a reviewed GitHub mod source.
+        port_id: String,
+        /// Numeric GitHub release ID from profile github-mods.
+        release_id: u64,
+        /// Numeric GitHub asset ID of the reviewed ZIP in that release.
+        asset_id: u64,
+        /// Local copy of that exact ZIP. Omit it to download the asset.
+        archive: Option<PathBuf>,
+        /// Platform whose companion layout to inspect. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Browse Quaddicted's single-player Quake content, newest first. Reads only.
+    Quaddicted {
+        /// Catalog port ID with a reviewed Quake engine.
+        port_id: String,
+        /// Search the provider's filenames, case-insensitively.
+        #[arg(long)]
+        search: Option<String>,
+        /// Page number, from 1.
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        /// Carrier platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Read the reviewed Mod DB files channel for Arcane Dimensions.
+    ModDbNotices {
+        /// Catalog port ID with a reviewed Arcane Dimensions source.
+        port_id: String,
+        /// Carrier platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
+    /// Browse the opt-in JakMods community catalog for an OpenGOAL game.
+    Jakmods {
+        /// Catalog port ID with reviewed OpenGOAL setup.
+        port_id: String,
+        /// View builds for this platform. Defaults to the current platform.
+        #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
+        platform: Option<String>,
+    },
     /// Browse a game's mods on its reviewed provider (GameBanana or Thunderstore); reads only.
     ProviderBrowse {
         /// Catalog port ID with a reviewed provider binding.
@@ -436,6 +488,11 @@ impl ProfileCommand {
             Self::RecipeDiscard { .. } => "profile.recipe-discard",
             Self::RecipePlan { .. } => "profile.recipe-plan",
             Self::RecipeApply { .. } => "profile.recipe-apply",
+            Self::GithubMods { .. } => "profile.github-mods",
+            Self::GithubModReview { .. } => "profile.github-mod-review",
+            Self::Quaddicted { .. } => "profile.quaddicted",
+            Self::ModDbNotices { .. } => "profile.mod-db-notices",
+            Self::Jakmods { .. } => "profile.jakmods",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
             Self::ProviderProject { .. } => "profile.provider-project",
             Self::ProviderUpdates { .. } => "profile.provider-updates",
@@ -457,6 +514,11 @@ impl ProfileCommand {
                 | Self::RecipeExport { .. }
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
+                | Self::GithubMods { .. }
+                | Self::GithubModReview { .. }
+                | Self::Quaddicted { .. }
+                | Self::ModDbNotices { .. }
+                | Self::Jakmods { .. }
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
                 | Self::ProviderUpdates { .. }
@@ -752,9 +814,10 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     if !page.complete {
         if page.page < result.last_page {
             lines.push(format!(
-                "More mods: `portcove profile provider-browse {} --page {}`.",
+                "More mods: `portcove profile provider-browse {} --page {} --provider {}`.",
                 clean(&result.port_id),
-                page.page + 1
+                page.page + 1,
+                clean(&result.provider)
             ));
         } else {
             lines.push(format!("More mods are listed on {provider} itself."));
@@ -762,8 +825,9 @@ pub(crate) fn provider_browse_text(result: &portcove_core::ProviderBrowsePage) -
     }
     if !page.projects.is_empty() {
         lines.push(format!(
-            "See a mod's files: `portcove profile provider-project {} MOD_ID`.",
-            clean(&result.port_id)
+            "See a mod's files: `portcove profile provider-project {} MOD_ID --provider {}`.",
+            clean(&result.port_id),
+            clean(&result.provider)
         ));
     }
     lines.join("\n")
@@ -819,24 +883,29 @@ pub(crate) fn provider_project_text(view: &portcove_core::ProviderProjectView) -
     }
     let installable = !project.obsolete
         && project.status_unknown.is_none()
-        && project
-            .files
-            .iter()
-            .any(|file| !file.archived && file.status_unknown.is_none());
+        && project.files.iter().any(|file| {
+            !file.archived
+                && file.status_unknown.is_none()
+                && view
+                    .eligible_file_ids
+                    .as_ref()
+                    .is_none_or(|ids| ids.contains(&file.file_id))
+        });
     if stale.is_some() {
         lines.push(format!(
             "Try again when {provider} can be reached before reviewing a {noun}."
         ));
     } else if installable {
         lines.push(format!(
-            "Review a {noun} for a setup: `portcove profile provider-plan {} PROFILE_ID {} {}`.",
+            "Review a {noun} for a setup: `portcove profile provider-plan {} PROFILE_ID {} {} --provider {}`.",
             clean(&view.port_id),
             clean(&project.project_id),
             if noun == "version" {
                 "VERSION"
             } else {
                 "FILE_ID"
-            }
+            },
+            clean(&project.provider)
         ));
     }
     lines.join("\n")
@@ -859,6 +928,116 @@ fn read_request(path: &PathBuf) -> Result<ProfileRevisionRequest> {
         .map_err(|error| PortcoveError::usage(format!("invalid revision request: {error}")))
 }
 
+fn github_mod_platform(platform: Option<String>) -> Result<Platform> {
+    match platform {
+        Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
+            .map_err(|_| PortcoveError::usage("unsupported platform")),
+        None => Platform::current(),
+    }
+}
+
+fn github_mods_text(catalog: &portcove_core::GithubModCatalog) -> String {
+    let mut lines = vec![format!("GitHub Releases · {}", clean(&catalog.repository))];
+    if catalog.freshness == portcove_core::ProviderFreshness::Stale {
+        lines.push(format!(
+            "Showing cached releases from {}.",
+            utc_time(catalog.observed_at)
+        ));
+    }
+    if !catalog.complete {
+        lines.push("Some releases or assets could not be listed.".into());
+    }
+    for release in &catalog.releases {
+        lines.push(format!(
+            "{} · {} · View on GitHub: {}",
+            clean(&release.tag),
+            clean(&release.asset.name),
+            clean(&release.release_url)
+        ));
+    }
+    if catalog.native_import_offered {
+        lines.push("Download the intact ZIP from GitHub. Use Install Mods in a separate copy of the game before starting it.".into());
+    } else {
+        lines.push(
+            "Setting up this ZIP needs an installed copy of the game whose build supports it on this platform."
+                .into(),
+        );
+    }
+    lines.join("\n")
+}
+
+fn jakmods_text(catalog: &portcove_core::JakModsCatalog) -> String {
+    use portcove_core::{JakModsBuildStatus, ProviderFreshness};
+    let platform = crate::human::platform_name(catalog.platform);
+    let mut lines = vec![format!(
+        "JakMods community source · {} · {platform}",
+        clean(&catalog.game)
+    )];
+    if catalog.freshness == ProviderFreshness::Stale {
+        lines.push(format!(
+            "Showing cached results from {}.",
+            utc_time(catalog.observed_at)
+        ));
+    }
+    if !catalog.complete {
+        lines.push("Some listings or builds could not be read.".into());
+    }
+    if catalog.projects.is_empty()
+        && catalog.complete
+        && catalog.freshness != ProviderFreshness::Stale
+    {
+        lines.push("No mods are listed for this game.".into());
+    }
+    for project in &catalog.projects {
+        let status = match project.build_status {
+            JakModsBuildStatus::Available => "Standalone OpenGOAL mod build",
+            JakModsBuildStatus::Unavailable => "No listed build for this platform",
+            JakModsBuildStatus::Unknown => "Build availability unknown",
+            JakModsBuildStatus::External => "External project",
+        };
+        lines.push(format!(
+            "{} ({}) — {status}",
+            clean(&project.name),
+            clean(&project.id)
+        ));
+        if let Some(url) = project
+            .external_url
+            .as_deref()
+            .or(project.website_url.as_deref())
+        {
+            lines.push(format!("  View on source: {}", clean(url)));
+        }
+        if let Some((release, build)) = project.releases.iter().find_map(|release| {
+            release
+                .builds
+                .iter()
+                .find(|build| build.platform == catalog.platform)
+                .map(|build| (release, build))
+        }) {
+            let date = release
+                .published_at
+                .map(utc_time)
+                .unwrap_or_else(|| "date unknown".into());
+            let downloads = build.downloads.map_or_else(
+                || "download count unknown".into(),
+                |count| format!("{count} downloads for this build"),
+            );
+            lines.push(format!(
+                "  {} · {date} · {downloads}",
+                clean(&release.version)
+            ));
+        }
+    }
+    lines.push(format!("OpenGOAL setup: {}", clean(&catalog.setup_url)));
+    lines.push(format!(
+        "Add this source in OpenGOAL Launcher Settings > Mods: {}",
+        clean(&catalog.feed_url)
+    ));
+    lines
+        .push("The OpenGOAL Launcher manages supported mod installs, versions and updates.".into());
+    lines.join("\n")
+}
+
 pub(crate) async fn execute(
     command: ProfileCommand,
     service: &PortcoveService,
@@ -867,6 +1046,123 @@ pub(crate) async fn execute(
 ) -> Result<()> {
     let name = command.name();
     match command {
+        ProfileCommand::Quaddicted {
+            port_id,
+            search,
+            page,
+            platform,
+        } => {
+            let page = page
+                .checked_sub(1)
+                .ok_or_else(|| PortcoveError::usage("Quaddicted page numbers start at 1"))?;
+            let result = service
+                .quaddicted_catalog(
+                    &port_id,
+                    github_mod_platform(platform)?,
+                    search.as_deref(),
+                    page,
+                )
+                .await?;
+            render_read_success(mode, name, result, |result| {
+                let report = &result.value;
+                let mut rows = vec![format!("{} · {}", report.attribution, report.source_url)];
+                if result.freshness == portcove_core::ProviderFreshness::Stale {
+                    rows.push("Showing previously observed Quaddicted results.".into());
+                }
+                for entry in &report.entries {
+                    rows.push(format!("{} · {}", clean(&entry.title), entry.page_url));
+                }
+                if report.unreadable_rows > 0 {
+                    rows.push(format!(
+                        "{} unreadable rows on this page.",
+                        report.unreadable_rows
+                    ));
+                }
+                if report.may_have_more {
+                    rows.push("Quaddicted may have more results.".into());
+                }
+                rows.push("Check the upstream page for requirements. Use a separate upstream-prepared copy for mods.".into());
+                rows.join(
+                    "
+",
+                )
+            })
+        }
+        ProfileCommand::ModDbNotices { port_id, platform } => {
+            let result = service
+                .moddb_file_notices(&port_id, github_mod_platform(platform)?)
+                .await?;
+            render_read_success(mode, name, result, |result| {
+                let report = &result.value;
+                let mut rows = vec![format!("{} · {}", report.attribution, report.source_url)];
+                if result.freshness == portcove_core::ProviderFreshness::Stale {
+                    rows.push("Showing previously observed Mod DB notices.".into());
+                }
+                for notice in &report.notices {
+                    rows.push(format!("{} · {}", clean(&notice.title), notice.page_url));
+                }
+                rows.push("These file notices may include tutorials and patches.".into());
+                rows.join(
+                    "
+",
+                )
+            })
+        }
+        ProfileCommand::GithubMods { port_id, platform } => {
+            let platform = github_mod_platform(platform)?;
+            let catalog = service.github_mod_catalog(&port_id, platform).await?;
+            render_read_success(mode, name, catalog, github_mods_text)
+        }
+        ProfileCommand::GithubModReview {
+            port_id,
+            release_id,
+            asset_id,
+            archive,
+            platform,
+        } => {
+            let result = service
+                .review_github_mod_archive(
+                    &port_id,
+                    github_mod_platform(platform)?,
+                    release_id,
+                    asset_id,
+                    archive.as_deref(),
+                )
+                .await?;
+            render_read_success(mode, name, result, |report| {
+                let mut lines = vec![format!(
+                    "Inspected {} release {} asset {}",
+                    clean(&report.repository),
+                    report.release_id,
+                    report.asset_id
+                )];
+                lines.push(format!("ZIP SHA-256: {}", report.review.archive_sha256));
+                for file in &report.review.companions {
+                    lines.push(format!(
+                        "Host library {} · SHA-256 {}",
+                        clean(&file.file_name),
+                        file.sha256
+                    ));
+                }
+                lines.push(if report.native_import_offered {
+                    "Open a separate copy of the game and choose the intact ZIP in Install Mods."
+                        .into()
+                } else {
+                    "Setting up this ZIP needs an installed copy of the game whose build meets every mod's runtime requirement on this platform."
+                        .into()
+                });
+                lines.join("\n")
+            })
+        }
+        ProfileCommand::Jakmods { port_id, platform } => {
+            let platform = match platform {
+                Some(platform) => serde_json::from_value(serde_json::Value::String(platform))
+                    .map_err(|_| PortcoveError::usage("unsupported platform"))?,
+                None => Platform::current()?,
+            };
+            let catalog = service.jakmods_catalog(&port_id, platform).await?;
+            render_read_success(mode, name, catalog, jakmods_text)
+        }
         ProfileCommand::ProviderBrowse {
             port_id,
             page,
@@ -1335,25 +1631,36 @@ pub(crate) async fn execute(
         ),
         ProfileCommand::Setups { port_id } => {
             render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
-                if !view.supported {
-                    return "This game has no reviewed mod support.".into();
-                }
-                let Some(inventory) = &view.inventory else {
-                    return "No setups yet; the installed game gets its default setup first."
-                        .into();
-                };
-                let mut lines = inventory
-                    .profiles
+                let mut lines = view
+                    .external_mod_portals
                     .iter()
-                    .map(|entry| {
+                    .map(|portal| {
                         format!(
-                            "{} ({}) revision {}",
-                            clean(&entry.profile.display_name),
-                            clean(&entry.profile.id),
-                            entry.profile.current_revision
+                            "Browse upstream mods: {} (you manage installation and updates)",
+                            portal.url
                         )
                     })
                     .collect::<Vec<_>>();
+                if !view.supported {
+                    if lines.is_empty() {
+                        lines.push("This game has no reviewed mod support.".into());
+                    }
+                    return lines.join("\n");
+                }
+                let Some(inventory) = &view.inventory else {
+                    lines.push(
+                        "No setups yet; the installed game gets its default setup first.".into(),
+                    );
+                    return lines.join("\n");
+                };
+                lines.extend(inventory.profiles.iter().map(|entry| {
+                    format!(
+                        "{} ({}) revision {}",
+                        clean(&entry.profile.display_name),
+                        clean(&entry.profile.id),
+                        entry.profile.current_revision
+                    )
+                }));
                 if let Some(live) = &view.live {
                     lines.push(live_text(live));
                 }
@@ -1755,11 +2062,24 @@ mod provider_text_tests {
     }
 
     #[test]
+    fn project_text_keeps_file_details_when_core_holds_review() {
+        let mut view = view(project(false, 0, false), ProviderFreshness::Fresh);
+        view.eligible_file_ids = Some(Vec::new());
+        let text = provider_project_text(&view);
+        assert!(text.contains(&view.project.files[0].file_name));
+        assert!(!text.contains("provider-plan"));
+        view.eligible_file_ids = Some(vec![view.project.files[0].file_id.clone()]);
+        assert!(provider_project_text(&view).contains("provider-plan"));
+    }
+
+    #[test]
     fn project_text_states_stale_data_unlisted_files_and_only_runnable_next_steps() {
         let fresh =
             provider_project_text(&view(project(false, 0, false), ProviderFreshness::Fresh));
         assert!(fresh.contains("Ship of Harkinian"));
-        assert!(fresh.contains("provider-plan shipwright PROFILE_ID 42 FILE_ID"));
+        assert!(
+            fresh.contains("provider-plan shipwright PROFILE_ID 42 FILE_ID --provider gamebanana")
+        );
         assert!(!fresh.contains("bytes)"), "sizes are readable: {fresh}");
 
         let stale =
@@ -1794,10 +2114,10 @@ mod provider_text_tests {
         };
         let empty = provider_browse_text(&page(Vec::new(), 41, 4, false));
         assert!(empty.contains("No mods on this page."));
-        assert!(empty.contains("provider-browse shipwright --page 5"));
+        assert!(empty.contains("provider-browse shipwright --page 5 --provider gamebanana"));
         let unknown = provider_browse_text(&page(vec![project(false, 0, false)], 0, 1, false));
         assert!(unknown.contains("total unknown"));
-        assert!(unknown.contains("provider-browse shipwright --page 2"));
+        assert!(unknown.contains("provider-browse shipwright --page 2 --provider gamebanana"));
         let last = provider_browse_text(&page(vec![project(false, 0, false)], 1000, 50, false));
         assert!(!last.contains("--page 51"));
         assert!(last.contains("GameBanana itself"));

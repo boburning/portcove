@@ -113,10 +113,10 @@ pub trait Adapter: Send + Sync {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct StandardAdapter(AdapterKind);
+pub(crate) struct StandardAdapter(AdapterKind);
 
 /// Built-in dispatch without allocating an erased adapter for internal callers.
-pub(crate) fn standard(kind: AdapterKind) -> impl Adapter {
+pub(crate) fn standard(kind: AdapterKind) -> StandardAdapter {
     StandardAdapter(kind)
 }
 
@@ -328,19 +328,13 @@ impl Adapter for StandardAdapter {
             && port.runtime_source_materialization == Some(RuntimeSourceMaterialization::PsxRawSet);
         if !immutable_managed_psx_source
             && !crate::preparation::managed(port)
-            && let (Some(_), Some(filename)) = (source, &port.runtime_source_filename)
+            && source.is_some()
+            && let Some(path) = runtime_source_path(port, &working_directory, &user_data)
         {
-            let source_root = if self.0 == AdapterKind::N64RecompPortable
-                && port.user_data_environment.is_some()
-            {
-                &user_data
-            } else {
-                &working_directory
-            };
             if let Some(variable) = &port.source_environment {
                 environment.insert(
                     variable.clone(),
-                    crate::path::unicode(&source_root.join(filename), "materialized source")?,
+                    crate::path::unicode(&path, "materialized source")?,
                 );
             }
         }
@@ -457,6 +451,17 @@ impl Adapter for StandardAdapter {
         request: LaunchSpecRequest<'_>,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<LaunchSpec> {
+        self.prepare_launch_with_n64_input(request, None, checkpoint)
+    }
+}
+
+impl StandardAdapter {
+    pub(crate) fn prepare_launch_with_n64_input(
+        &self,
+        request: LaunchSpecRequest<'_>,
+        n64_input: Option<&crate::source_inspection::N64ReleaseInputProof>,
+        checkpoint: &dyn Fn() -> Result<()>,
+    ) -> Result<LaunchSpec> {
         let LaunchSpecRequest {
             library,
             port,
@@ -553,16 +558,9 @@ impl Adapter for StandardAdapter {
             && !sealed_source
             && !retained_setup_is_current
             && !crate::preparation::managed(port)
-            && let (Some(source), Some(filename)) = (source, &port.runtime_source_filename)
+            && let Some(source) = source
+            && let Some(stored_source) = runtime_source_path(port, &working_directory, &user_data)
         {
-            let source_root = if self.0 == AdapterKind::N64RecompPortable
-                && port.user_data_environment.is_some()
-            {
-                &user_data
-            } else {
-                &working_directory
-            };
-            let stored_source = source_root.join(filename);
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
             }
@@ -607,6 +605,7 @@ impl Adapter for StandardAdapter {
                     crate::tool_process::ToolProcessObserver::default(),
                     disc.as_ref(),
                     port.runtime_stfs_package.as_ref(),
+                    n64_input,
                 )?,
             }
             checkpoint()?;
@@ -676,6 +675,22 @@ impl Adapter for StandardAdapter {
         }
         self.launch_spec_with_executable(request, checkpoint)
     }
+}
+
+pub(crate) fn runtime_source_path(
+    port: &PortDefinition,
+    working_directory: &Path,
+    user_data: &Path,
+) -> Option<PathBuf> {
+    let root =
+        if port.adapter == AdapterKind::N64RecompPortable && port.user_data_environment.is_some() {
+            user_data
+        } else {
+            working_directory
+        };
+    port.runtime_source_filename
+        .as_ref()
+        .map(|filename| root.join(filename))
 }
 
 fn managed_psx_bios(
@@ -865,6 +880,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
         observer,
         None,
         None,
+        None,
     )
 }
 
@@ -939,6 +955,7 @@ pub(crate) fn prepare_disc_runtime_source(
         crate::tool_process::ToolProcessObserver::default(),
         Some(disc),
         None,
+        None,
     )
 }
 
@@ -963,6 +980,7 @@ pub(crate) fn prepare_admitted_runtime_source(
         observer,
         None,
         stfs,
+        None,
     )
 }
 
@@ -982,6 +1000,7 @@ fn prepare_runtime_source_input(
     observer: crate::tool_process::ToolProcessObserver<'_>,
     disc: Option<&DiscUnpack<'_>>,
     stfs: Option<&crate::StfsPackageProfile>,
+    n64_input: Option<&crate::source_inspection::N64ReleaseInputProof>,
 ) -> Result<()> {
     let (source, admitted_zip) = match input {
         RuntimeSourceInput::Legacy(path) => (path, None),
@@ -990,6 +1009,13 @@ fn prepare_runtime_source_input(
             admitted_zip_source::AdmittedZipCopy::select(record, materialization, required_hashes)?,
         ),
     };
+    let verify_destination = || {
+        if let Some(proof) = n64_input {
+            proof.require_materialized(destination, checkpoint)
+        } else {
+            verify_runtime_source_hashes(destination, required_hashes, checkpoint)
+        }
+    };
     let marker_path = runtime_source_marker_path(destination)?;
     let expected = runtime_source_marker(
         source,
@@ -997,6 +1023,7 @@ fn prepare_runtime_source_input(
             .as_ref()
             .map(|copy| copy.member_name().to_owned()),
         materialization,
+        n64_input.map(|_| crate::source_inspection::MAXIMUM_N64_INPUT_BYTES),
         checkpoint,
     )?;
     if let Some(copy) = &admitted_zip {
@@ -1025,12 +1052,11 @@ fn prepare_runtime_source_input(
             .as_ref()
             == Some(&expected);
     if reusable {
-        let verified = verify_runtime_source_hashes(destination, required_hashes, checkpoint)
-            .and_then(|()| {
-                admitted_zip.as_ref().map_or(Ok(()), |copy| {
-                    copy.verify_destination(destination, checkpoint)
-                })
-            });
+        let verified = verify_destination().and_then(|()| {
+            admitted_zip.as_ref().map_or(Ok(()), |copy| {
+                copy.verify_destination(destination, checkpoint)
+            })
+        });
         match verified {
             Ok(()) => return checkpoint(),
             Err(error) if error.code == crate::ErrorCode::Verification => {}
@@ -1040,7 +1066,7 @@ fn prepare_runtime_source_input(
 
     match materialization {
         RuntimeSourceMaterialization::N64BigEndian => {
-            prepare_n64_source(source, destination, checkpoint)?
+            prepare_n64_source(source, destination, n64_input, checkpoint)?
         }
         RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc => {
             match &admitted_zip {
@@ -1100,7 +1126,7 @@ fn prepare_runtime_source_input(
         }
     }
     checkpoint()?;
-    verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
+    verify_destination()?;
     if let Some(copy) = &admitted_zip {
         copy.verify_destination(destination, checkpoint)?;
     }
@@ -1127,7 +1153,7 @@ fn prepare_transient_n64_launch_source(
     cleanup_transient_n64_launch_sources(parent)?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-launch-source-{}", Uuid::new_v4()));
-    let prepared = prepare_n64_source(source, &temporary, checkpoint)
+    let prepared = prepare_n64_source(source, &temporary, None, checkpoint)
         .and_then(|()| checkpoint())
         .and_then(|()| {
             let (actual_sha256, actual_size) = hash_file_with_checkpoint(&temporary, checkpoint)?;
@@ -1209,10 +1235,20 @@ fn runtime_source_marker(
     source: &Path,
     source_member: Option<String>,
     materialization: RuntimeSourceMaterialization,
+    maximum_size: Option<u64>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<RuntimeSourceMarker> {
-    let (storage_sha256, storage_size) =
-        source_storage_identity_with_checkpoint(source, checkpoint)?;
+    let (storage_sha256, storage_size) = if let Some(maximum) = maximum_size {
+        let identity = hash_file_bounded_with_checkpoint(source, maximum, checkpoint)?;
+        if identity.1 > maximum {
+            return Err(PortcoveError::source(
+                "N64 original exceeds its safety limit",
+            ));
+        }
+        identity
+    } else {
+        source_storage_identity_with_checkpoint(source, checkpoint)?
+    };
     let canonical = std::fs::canonicalize(source).unwrap_or_else(|_| source.to_path_buf());
     Ok(RuntimeSourceMarker {
         schema_version: 2,
@@ -1270,8 +1306,13 @@ pub(crate) fn prepare_runtime_source_set_member(
         })?
         .to_ascii_lowercase();
     let marker_path = runtime_source_marker_path(destination)?;
-    let expected =
-        runtime_source_marker(source_root, Some(member_name), materialization, checkpoint)?;
+    let expected = runtime_source_marker(
+        source_root,
+        Some(member_name),
+        materialization,
+        None,
+        checkpoint,
+    )?;
     let reusable = destination.is_file()
         && crate::path::read_bounded_regular(&marker_path, 16 * 1024)
             .ok()
@@ -1294,7 +1335,7 @@ pub(crate) fn prepare_runtime_source_set_member(
     let size = entry.size();
     if materialization == RuntimeSourceMaterialization::N64BigEndian {
         let rom = read_runtime_bytes(entry, 512 * 1024 * 1024, checkpoint)?;
-        write_n64_big_endian(rom, destination, checkpoint)?;
+        write_n64_big_endian(rom, destination, None, checkpoint)?;
     } else {
         copy_runtime_reader(entry, destination, size, checkpoint)?;
     }
@@ -2302,7 +2343,7 @@ fn completed_upstream_setup_matches(
             .port
             .runtime_source_materialization
             .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
-        let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
+        let expected = runtime_source_marker(source, None, materialization, None, checkpoint)?;
         let marker = crate::path::read_bounded_regular(
             &runtime_source_marker_path(&destination)?,
             16 * 1024,
@@ -2739,6 +2780,7 @@ fn replace_directory_transactional(temporary: &Path, destination: &Path) -> Resu
 fn prepare_n64_source(
     source: &Path,
     destination: &Path,
+    proof: Option<&crate::source_inspection::N64ReleaseInputProof>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
@@ -2764,14 +2806,19 @@ fn prepare_n64_source(
             checkpoint,
         )?
     } else {
-        read_runtime_bytes(File::open(source)?, u64::MAX, checkpoint)?
+        read_runtime_bytes(
+            File::open(source)?,
+            crate::source_inspection::MAXIMUM_N64_INPUT_BYTES,
+            checkpoint,
+        )?
     };
-    write_n64_big_endian(rom, destination, checkpoint)
+    write_n64_big_endian(rom, destination, proof, checkpoint)
 }
 
 fn write_n64_big_endian(
     mut rom: Vec<u8>,
     destination: &Path,
+    proof: Option<&crate::source_inspection::N64ReleaseInputProof>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
@@ -2810,6 +2857,10 @@ fn write_n64_big_endian(
         }
     }
 
+    if let Some(proof) = proof {
+        let (sha256, size) = hash_reader_with_checkpoint(rom.as_slice(), checkpoint)?;
+        proof.require_normalized_identity(&sha256, size)?;
+    }
     copy_runtime_reader(rom.as_slice(), destination, rom.len() as u64, checkpoint)
 }
 
@@ -5234,7 +5285,7 @@ mod tests {
         assert_eq!(record.size, rom.len() as u64);
 
         let destination = temporary.path().join("materialized.z64");
-        prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
+        prepare_n64_source(&record.path, &destination, None, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
     }
 
@@ -6191,7 +6242,7 @@ mod tests {
             let source = temporary.path().join(name);
             let destination = temporary.path().join(format!("stored-{index}.z64"));
             std::fs::write(&source, bytes).unwrap();
-            prepare_n64_source(&source, &destination, &|| Ok(())).unwrap();
+            prepare_n64_source(&source, &destination, None, &|| Ok(())).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
         }
     }
@@ -6242,6 +6293,15 @@ mod tests {
         assert_eq!(std::fs::read(&destination).unwrap(), content);
     }
 
+    fn set_modified_time(path: &std::path::Path, modified: std::time::SystemTime) {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+    }
+
     #[test]
     fn copied_runtime_sources_are_replaced_when_bytes_change_at_the_same_path_and_timestamp() {
         let temporary = tempfile::tempdir().unwrap();
@@ -6249,8 +6309,7 @@ mod tests {
         let destination = temporary.path().join("runtime/baserom.gba");
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(&source, b"first source").unwrap();
-        let original_mtime =
-            filetime::FileTime::from_last_modification_time(&std::fs::metadata(&source).unwrap());
+        let original_mtime = std::fs::metadata(&source).unwrap().modified().unwrap();
 
         prepare_runtime_source(
             &source,
@@ -6263,7 +6322,7 @@ mod tests {
         assert_eq!(std::fs::read(&destination).unwrap(), b"first source");
 
         std::fs::write(&source, b"other source").unwrap();
-        filetime::set_file_mtime(&source, original_mtime).unwrap();
+        set_modified_time(&source, original_mtime);
         prepare_runtime_source(
             &source,
             &destination,
@@ -6282,8 +6341,8 @@ mod tests {
             source_storage_identity(&source).unwrap().0
         );
 
-        let reuse_sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, reuse_sentinel).unwrap();
+        let reuse_sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, reuse_sentinel);
         prepare_runtime_source(
             &source,
             &destination,
@@ -6292,9 +6351,7 @@ mod tests {
             &|| Ok(()),
         )
         .unwrap();
-        let reused_mtime = filetime::FileTime::from_last_modification_time(
-            &std::fs::metadata(&destination).unwrap(),
-        );
+        let reused_mtime = std::fs::metadata(&destination).unwrap().modified().unwrap();
         assert_eq!(reused_mtime, reuse_sentinel);
     }
 
@@ -6319,15 +6376,13 @@ mod tests {
         let mut bytes = std::fs::read(&marker).unwrap();
         bytes.resize(16 * 1024 + 1, b' ');
         std::fs::write(&marker, bytes).unwrap();
-        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, sentinel).unwrap();
+        let sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, sentinel);
 
         prepare().unwrap();
 
         assert_ne!(
-            filetime::FileTime::from_last_modification_time(
-                &std::fs::metadata(&destination).unwrap()
-            ),
+            std::fs::metadata(&destination).unwrap().modified().unwrap(),
             sentinel
         );
         assert!(std::fs::metadata(marker).unwrap().len() < 16 * 1024);
@@ -6357,15 +6412,13 @@ mod tests {
         std::fs::rename(&marker, &external_marker).unwrap();
         let original = std::fs::read(&external_marker).unwrap();
         std::os::unix::fs::symlink(&external_marker, &marker).unwrap();
-        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, sentinel).unwrap();
+        let sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, sentinel);
 
         prepare().unwrap();
 
         assert_ne!(
-            filetime::FileTime::from_last_modification_time(
-                &std::fs::metadata(&destination).unwrap()
-            ),
+            std::fs::metadata(&destination).unwrap().modified().unwrap(),
             sentinel
         );
         assert_eq!(std::fs::read(external_marker).unwrap(), original);

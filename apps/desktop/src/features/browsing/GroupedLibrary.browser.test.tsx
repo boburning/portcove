@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { controlledAct as act } from "../../../test/controlled-react-act";
+import { OperationPresentationProvider } from "../operations/operation-presentation";
+import { comparisonFixture } from "../recommendations/comparison-test-fixture";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -8,18 +11,23 @@ import {
   portDefinition,
   portStatus,
 } from "../../test-fixtures";
-import type { LibraryOrganization, OrganizationChange, PortCapabilityReport } from "../../types";
+import type {
+  GameComparison,
+  LibraryOrganization,
+  OrganizationChange,
+  PortCapabilityReport,
+} from "../../types";
 import { OrganizationControls, type Organization } from "../organization/OrganizationControls";
 import { GroupedLibrary } from "./GroupedLibrary";
+import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
 import { desktopApi } from "../../api";
 import { useOrganization } from "../organization/use-organization";
+import type { useFavorites } from "../favorites/use-favorites";
 import { PortBrowser } from "../../components/PortBrowser";
 import { install } from "../../dev-scenarios/interactive/scenarios";
 import { browserFixture } from "../../../test/browser-fixture";
 import { captureParityState } from "../../../test/parity-capture";
-import { OperationPresentationProvider } from "../operations/operation-presentation";
-import { comparisonFixture } from "../recommendations/comparison-test-fixture";
 import { observeVisibleTarget } from "../../../scripts/browser-readiness.mts";
 import "../../styles/index.css";
 
@@ -166,7 +174,8 @@ it("shows scoped launch stages beside the matching port in Discover", async () =
   expect(document.body.textContent).not.toContain("Different platform");
   await captureLaunchNotice("current-platform");
 
-  await page.getByText("Comparison settings", { exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Original game", exact: true });
+  await dialog.getByText("Comparison settings", { exact: true }).click();
   await page.getByRole("combobox", { name: /Game edition/ }).click();
   await page.getByRole("option", { name: "Fixture original", exact: true }).click();
   await expect
@@ -591,6 +600,24 @@ it.each([
     await page.screenshot({
       path: `../../../../../outputs/ui-refinement/grouped-library-${layout}-${theme}-${width}-${zoom}.png`,
     });
+    const summary = page.elementLocator(
+      fixtureValue(
+        document.querySelector<HTMLElement>('summary[data-collection-control="alternatives"]'),
+        "Library alternatives",
+      ),
+    );
+    const disclosure = summary.element().closest("details")!;
+    const row = disclosure.closest("[data-collection-row]")!;
+    const fits = () =>
+      disclosure.getBoundingClientRect().bottom <= row.getBoundingClientRect().bottom + 1;
+    expect(disclosure.open).toBe(false);
+    await expect.poll(fits).toBe(true);
+    await summary.click();
+    await expect.poll(() => disclosure.open).toBe(true);
+    await expect.poll(fits).toBe(true);
+    expect(launch).not.toHaveBeenCalled();
+    await summary.click();
+    await expect.poll(() => disclosure.open).toBe(false);
   },
 );
 
@@ -607,12 +634,12 @@ it("presents grouped Discover cards and the comparison in the active locale", as
       />,
     );
     expect(document.querySelector("article")?.getAttribute("aria-label")).toBe(
-      "Original game. 2 separate port projects; 2 matching.",
+      "Original game. 2 options; 2 matching.",
     );
     await localization.changeLanguage("ar-XB");
     await expect
       .poll(() => document.querySelector("article")?.getAttribute("aria-label"))
-      .toBe("Original game. مشروعان منفصلان؛ 2 مطابقة.");
+      .toBe("Original game. خياران؛ 2 مطابقة.");
     expect(document.querySelector("section")?.getAttribute("aria-label")).toBe("اكتشاف الألعاب");
     expect(document.body.textContent).toContain(
       "قارن المنافذ المطابقة لمعرفة متطلبات الإعداد وحالة التثبيت الخاصة بكل منها.",
@@ -620,7 +647,7 @@ it("presents grouped Discover cards and the comparison in the active locale", as
     await page.getByRole("button", { name: "مقارنة المنافذ", exact: true }).click();
     await expect
       .poll(() => document.querySelector("[role=dialog]")?.textContent)
-      .toContain("قارن متطلبات الإعداد للمنافذ (2).");
+      .toContain("قارن متطلبات الإعداد للخيارات (2).");
     const dialog = document.querySelector("[role=dialog]")?.textContent;
     expect(dialog).toContain("من يتولى التحديثات");
     expect(dialog).toContain("الجهة المسؤولة عن التثبيت غير معروفة.");
@@ -644,14 +671,14 @@ it("names a chosen port in a multi-port group with its matching project and acti
     const identity = () =>
       document.querySelector(".discover-game-identity")?.getAttribute("aria-label") ?? "";
     expect(identity()).toMatch(
-      /^Original game 2 separate port projects\. Matching port: First project\. .+\. View port$/u,
+      /^Original game 2 options\. Matching port: First project\. .+\. View port$/u,
     );
     expect(document.body.textContent).toContain("Matching port: First project");
     expect(document.body.textContent).toContain("Compare all 2");
     await localization.changeLanguage("ar-XB");
     await expect
       .poll(identity)
-      .toMatch(/^Original game مشروعان منفصلان\. المنفذ المطابق: First project\. .+\. عرض المنفذ$/u);
+      .toMatch(/^Original game خياران\. المنفذ المطابق: First project\. .+\. عرض المنفذ$/u);
     expect(document.querySelector(".discover-game-observation bdi")?.textContent).toBe(
       "First project",
     );
@@ -832,6 +859,315 @@ it("omits empty rows from a single-port review while a comparison keeps every ro
   expect(dialogText().split("No update channel is listed.")).toHaveLength(3);
   expect(dialogText()).toContain("Unavailable in this catalog");
   expect(dialogText()).toContain("Requirements are not listed here.");
+});
+
+it("keeps stable game presentation while selected actions and file drops use the exact implementation", async () => {
+  const sourceFirst = { ...first, source_profile: "first-source" };
+  const selected = {
+    ...second,
+    source_profile: "second-source",
+    presentation: { ...second.presentation, original_game_title: "Regional alias" },
+  };
+  const organization: Organization = {
+    snapshot: { ...empty, preferred_port_by_game: { "original-game": selected.id } },
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit: vi.fn(),
+  };
+  const onSelect = vi.fn();
+  const screen = await render(
+    <GroupedDiscover
+      all={[selected, sourceFirst]}
+      matching={[selected]}
+      statuses={new Map()}
+      organization={organization}
+      nativeSourceDrag={{ active: true, pathCount: 1 }}
+      onSelect={onSelect}
+    />,
+  );
+  const card = () => document.querySelector<HTMLElement>(".discover-game")!;
+  expect(card().querySelector("h2")?.textContent).toBe("Original game");
+  expect(card().dataset.discoverPrimaryPortId).toBe(selected.id);
+  expect(card().dataset.sourceDropPortId).toBe(selected.id);
+  expect(card().dataset.sourceDropProfileId).toBe(selected.source_profile);
+  await page.getByRole("button", { name: /Matching port: Second project/u }).click();
+  expect(onSelect).toHaveBeenCalledWith(selected.id, `catalog:card:${selected.id}`);
+  await screen.rerender(
+    <GroupedDiscover
+      all={[sourceFirst, selected]}
+      matching={[sourceFirst, selected]}
+      statuses={new Map()}
+      organization={organization}
+      onSelect={onSelect}
+    />,
+  );
+  expect(card().querySelector("h2")?.textContent).toBe("Original game");
+  expect(organization.commit).not.toHaveBeenCalled();
+});
+
+it.each(["filter", "device"] as const)(
+  "keeps a %s click shortcut separate from cancelled and confirmed ambiguous file drops",
+  async (shortcut) => {
+    const first = {
+      ...portDefinition(),
+      id: "first-port",
+      name: "First project",
+      presentation: second.presentation,
+      source_profile: "first-source",
+    };
+    const secondPort = {
+      ...second,
+      source_profile: "second-source",
+      platforms: ["linux-x86-64" as const],
+    };
+    const onSelect = vi.fn();
+    const onGameDropSelect = vi.fn();
+    const onGameDropDismiss = vi.fn();
+    const commit = vi.fn();
+    const organization: Organization = {
+      snapshot: empty,
+      busy: false,
+      failure: undefined,
+      refresh: async () => true,
+      commit,
+    };
+    const view = (pendingGameDrop?: { gameId: string; paths: string[] }) => (
+      <GroupedDiscover
+        all={[first, secondPort]}
+        matching={shortcut === "filter" ? [secondPort] : [first, secondPort]}
+        devicePlatform={shortcut === "device" ? "windows-x86-64" : undefined}
+        statuses={new Map()}
+        organization={organization}
+        nativeSourceDrag={{ active: true, pathCount: 1 }}
+        pendingGameDrop={pendingGameDrop}
+        onGameDropSelect={onGameDropSelect}
+        onGameDropDismiss={onGameDropDismiss}
+        onSelect={onSelect}
+      />
+    );
+    const screen = await render(view());
+    expect(
+      document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropPortId,
+    ).toBeUndefined();
+    expect(document.querySelector<HTMLElement>(".discover-game")?.dataset.sourceDropGameId).toBe(
+      "game:original-game",
+    );
+    const clicked = shortcut === "device" ? first : secondPort;
+    await page
+      .getByRole("button", { name: new RegExp(`Matching port: ${clicked.name}`, "u") })
+      .click();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(clicked.id, `catalog:card:${clicked.id}`);
+    expect(onGameDropSelect).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+    onGameDropDismiss.mockClear();
+
+    await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    expect(onGameDropSelect).not.toHaveBeenCalled();
+    await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+    expect(onGameDropDismiss).toHaveBeenCalledExactlyOnceWith();
+    await screen.rerender(view());
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+    expect(onGameDropSelect).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+
+    await screen.rerender(view({ gameId: "game:original-game", paths: ["D:/Game.z64"] }));
+    await expect.element(page.getByRole("dialog")).toBeVisible();
+    await page
+      .getByRole("button", { name: "Check files with Second project", exact: true })
+      .click();
+    expect(onGameDropSelect).toHaveBeenCalledExactlyOnceWith({
+      portId: second.id,
+      profileId: secondPort.source_profile,
+      paths: ["D:/Game.z64"],
+    });
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(commit).not.toHaveBeenCalled();
+  },
+);
+
+it("supplies a stable game presentation separately from the Library action target", async () => {
+  const selected = {
+    ...second,
+    presentation: { ...second.presentation, original_game_title: "Regional alias" },
+  };
+  const renderPort = vi.fn((port: CatalogEntry, presentationPort?: CatalogEntry) => (
+    <button>
+      Play {port.id}: {presentationPort?.presentation?.original_game_title}
+    </button>
+  ));
+  const organization: Organization = {
+    snapshot: { ...empty, preferred_port_by_game: { "original-game": selected.id } },
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit: vi.fn(),
+  };
+  await render(
+    <GroupedLibrary
+      all={[selected, first]}
+      matching={[selected]}
+      statuses={new Map()}
+      organization={organization}
+      onSelect={vi.fn()}
+      renderPort={renderPort}
+    />,
+  );
+  expect(renderPort).toHaveBeenCalledWith(selected, first, expect.any(Object));
+  await expect
+    .element(page.getByRole("button", { name: "Play second-port: Original game" }))
+    .toBeVisible();
+});
+
+it("continues a choice while optional comparison evidence remains pending", async () => {
+  const onSelect = vi.fn();
+  const onGameDropDismiss = vi.fn();
+  let finishComparison!: (report: GameComparison) => void;
+  const comparison = vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(
+    () =>
+      new Promise<GameComparison>((resolve) => {
+        finishComparison = resolve;
+      }),
+  );
+  const organization: Organization = {
+    snapshot: empty,
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit: vi.fn(async () => true),
+  };
+  function Fixture() {
+    const [pendingGameDrop, setDrop] = useState<{ gameId: string; paths: string[] } | undefined>({
+      gameId: "game:original-game",
+      paths: ["D:/Game.z64"],
+    });
+    return (
+      <OperationPresentationProvider generation={1} pending={new Map()}>
+        <GroupedDiscover
+          all={[first, second]}
+          matching={[first, second]}
+          statuses={new Map()}
+          organization={organization}
+          pendingGameDrop={pendingGameDrop}
+          onGameDropDismiss={() => {
+            onGameDropDismiss();
+            setDrop(undefined);
+          }}
+          onSelect={onSelect}
+        />
+      </OperationPresentationProvider>
+    );
+  }
+  await render(<Fixture />);
+  await expect.poll(() => comparison.mock.calls.length).toBe(1);
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).click();
+  await expect.poll(() => onSelect.mock.calls.length).toBe(1);
+  expect(onSelect).toHaveBeenCalledWith(second.id, `catalog:card:${first.id}`);
+  expect(onGameDropDismiss).toHaveBeenCalledOnce();
+  await act(async () => finishComparison(comparisonFixture(first.id)));
+  expect(onSelect).toHaveBeenCalledOnce();
+});
+
+it.each(["close", "library generation"] as const)(
+  "does not navigate on a late choice acknowledgement after dropped-file review changes by %s",
+  async (change) => {
+    const onSelect = vi.fn();
+    const onGameDropDismiss = vi.fn();
+    let finishChoice!: (accepted: boolean) => void;
+    const replies: ((report: GameComparison) => void)[] = [];
+    vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(
+      () => new Promise<GameComparison>((resolve) => replies.push(resolve)),
+    );
+    const organization: Organization = {
+      snapshot: empty,
+      busy: false,
+      failure: undefined,
+      refresh: async () => true,
+      commit: vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finishChoice = resolve;
+          }),
+      ),
+    };
+    function Fixture({ generation = 1 }: { generation?: number }) {
+      const [pendingGameDrop, setDrop] = useState<{ gameId: string; paths: string[] } | undefined>({
+        gameId: "game:original-game",
+        paths: ["D:/Game.z64"],
+      });
+      return (
+        <OperationPresentationProvider generation={generation} pending={new Map()}>
+          <GroupedDiscover
+            all={[first, second]}
+            matching={[first, second]}
+            statuses={new Map()}
+            organization={organization}
+            pendingGameDrop={pendingGameDrop}
+            onGameDropDismiss={() => {
+              onGameDropDismiss();
+              setDrop(undefined);
+            }}
+            onSelect={onSelect}
+          />
+        </OperationPresentationProvider>
+      );
+    }
+    const screen = await render(<Fixture />);
+    await page.getByRole("button", { name: "Choose Second project", exact: true }).click();
+    if (change === "close") await userEvent.keyboard("{Escape}");
+    else await screen.rerender(<Fixture generation={2} />);
+    await expect.poll(() => Boolean(document.querySelector('[role="dialog"]'))).toBe(false);
+    expect(onGameDropDismiss).toHaveBeenCalledOnce();
+    await act(async () => {
+      finishChoice(true);
+      replies.forEach((reply) => reply(comparisonFixture(first.id)));
+    });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onGameDropDismiss).toHaveBeenCalledOnce();
+    expect(organization.commit).toHaveBeenCalledExactlyOnceWith({
+      kind: "set_preferred_implementation",
+      game_id: "original-game",
+      port_id: second.id,
+    });
+  },
+);
+
+it("retains ambiguous dropped originals through an acknowledged eligible implementation choice", async () => {
+  const onSelect = vi.fn();
+  const onGameDropSelect = vi.fn();
+  const chosen = { ...second, source_profile: "chosen-source" };
+  const organization: Organization = {
+    snapshot: empty,
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit: vi.fn(async () => true),
+  };
+  vi.spyOn(desktopApi, "compareGamePorts").mockImplementation(
+    () => new Promise<GameComparison>(() => {}),
+  );
+  await render(
+    <OperationPresentationProvider generation={1} pending={new Map()}>
+      <GroupedDiscover
+        all={[first, chosen]}
+        matching={[first, chosen]}
+        statuses={new Map()}
+        organization={organization}
+        pendingGameDrop={{ gameId: "game:original-game", paths: ["D:/Original.z64"] }}
+        onGameDropSelect={onGameDropSelect}
+        onSelect={onSelect}
+      />
+    </OperationPresentationProvider>,
+  );
+  await page.getByRole("button", { name: "Choose Second project", exact: true }).click();
+  await expect.poll(() => onGameDropSelect.mock.calls.length).toBe(1);
+  expect(onGameDropSelect).toHaveBeenCalledExactlyOnceWith({
+    portId: chosen.id,
+    profileId: "chosen-source",
+    paths: ["D:/Original.z64"],
+  });
+  expect(onSelect).not.toHaveBeenCalled();
 });
 
 it.each([
@@ -1033,3 +1369,89 @@ it.each([
     expect(commit).not.toHaveBeenCalled();
   },
 );
+
+async function renderFilteredUnifiedFavorite(view: "catalog" | "library") {
+  const selected = {
+    ...second,
+    presentation: { ...second.presentation, original_game_title: "Regional alias" },
+  };
+  const commit = vi.fn(async (_change: OrganizationChange) => true);
+  const organization: Organization = {
+    snapshot: {
+      ...empty,
+      saved_game_ids: [`port-${first.id}`, "port-retired-port"],
+      preferred_port_by_game: { "original-game": selected.id },
+    },
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    commit,
+  };
+  const setPorts = vi.fn(
+    async (_ids: readonly string[], _favorite: boolean, before?: () => Promise<boolean>) =>
+      before ? before() : true,
+  );
+  const favorites: ReturnType<typeof useFavorites> = {
+    ids: new Set([first.id, "retired-port"]),
+    only: false,
+    setOnly: vi.fn(),
+    busy: false,
+    failure: undefined,
+    refresh: async () => true,
+    toggle: async () => true,
+    setPorts,
+  };
+  const onSelect = vi.fn();
+  await render(
+    <PortBrowser
+      view={view}
+      ports={[selected]}
+      catalogUniverse={[selected, first]}
+      catalogFilterCandidates={[selected, first]}
+      libraryCount={1}
+      statuses={new Map()}
+      overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      loading={false}
+      organization={organization}
+      favorites={favorites}
+      onSelect={onSelect}
+    />,
+  );
+  return { selected, commit, setPorts, favorites, organization, onSelect };
+}
+
+it.each(["catalog", "library"] as const)(
+  "removes a unified Favorite across filtered-out siblings in %s without selecting their actions",
+  async (view) => {
+    const { selected, commit, setPorts, favorites, organization, onSelect } =
+      await renderFilteredUnifiedFavorite(view);
+    const favorite = page.getByRole("button", { name: "Favorite Original game", exact: true });
+    await expect.element(favorite).toHaveAttribute("aria-pressed", "true");
+    await favorite.click();
+    await expect.poll(() => commit.mock.calls.length).toBe(1);
+    expect(setPorts).toHaveBeenCalledWith([first.id], false, expect.any(Function));
+    const change = commit.mock.calls[0]?.[0];
+    expect(change?.kind).toBe("set_saved_group");
+    if (change?.kind !== "set_saved_group") throw new Error("Expected exact game Favorite request");
+    expect(change.game_id).toBe("game-original-game");
+    expect(change.saved).toBe(false);
+    expect(change.legacy_port_ids).toHaveLength(2);
+    expect(change.legacy_port_ids).toEqual(expect.arrayContaining([first.id, selected.id]));
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(favorites.ids).toEqual(new Set([first.id, "retired-port"]));
+    expect(organization.snapshot?.saved_game_ids).toContain("port-retired-port");
+  },
+);
+
+it("names Library details with the visible stable game and exact project while opening the selected port", async () => {
+  const { selected, onSelect } = await renderFilteredUnifiedFavorite("library");
+  const details = page.getByRole("button", {
+    name: "View details for Original game Second project",
+    exact: true,
+  });
+  await expect.element(details).toHaveTextContent("Original game Second project");
+  await details.click();
+  expect(onSelect).toHaveBeenCalledWith(selected.id, `library:card:${selected.id}`);
+});

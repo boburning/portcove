@@ -1171,7 +1171,7 @@ void test("external runtime qualification is standalone and keeps a source-free 
     "native-dialog",
     "external-runtime-fixture",
   ]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 420_000);
   assert.deepEqual(required(desktopScenarioById.get(id)).platforms, ["win32"]);
   assert.equal(required(desktopScenarioById.get(id)).qualification_only, true);
   for (const platform of ["linux", "darwin"] as const)
@@ -1183,7 +1183,9 @@ void test("external runtime qualification is standalone and keeps a source-free 
   const fixture = await createExternalRuntimeFixture(output);
   const document = object(json(await readFile(fixture.catalogPath, "utf8")));
   const ports = values(document.ports);
-  assert.equal(ports.length, 1);
+  assert.equal(ports.length, 2);
+  assert.deepEqual(ports[1], fixture.selectedPort);
+  assert.equal(fixture.selectedPort.release.user_prepared["windows-x86-64"].trust, "user-selected");
   assert.deepEqual(document.source_catalog, {
     evidence: [],
     identities: [],
@@ -2517,6 +2519,20 @@ void test("live default-cover observation remains opt-in without fixtures or off
   }
 });
 
+void test("reviewed screenshot observation is an explicit Windows normal-app case", () => {
+  const id = "native-reviewed-screenshot-display";
+  for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+  assert.throws(() =>
+    resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+  );
+});
+
 void test("exact selections are deduplicated and returned in catalog order", () => {
   const selection = resolveDesktopSelection({
     scenarios: ["accessibility", "keyboard-layout", "accessibility"],
@@ -3048,6 +3064,15 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 2_400_000);
 });
 
+void test("standalone Library layout retains enough time for both themes and cleanup", () => {
+  const layout = resolveDesktopSelection({
+    scenarios: ["native-library-layout"],
+    platform: "win32",
+  });
+  assert.deepEqual(layout.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(layout), 300_000);
+});
+
 void test("isolated reviewed backup chains retain the finite lifecycle allowance", () => {
   for (const scenarios of [
     ["native-reviewed-backup-restore-and-delete"],
@@ -3061,7 +3086,7 @@ void test("isolated reviewed backup chains retain the finite lifecycle allowance
       "native-reviewed-source-reference-removal",
     ],
   ]) {
-    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 600_000);
+    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 1_200_000);
   }
   assert.equal(
     desktopHarnessDeadlineMs(
@@ -3140,7 +3165,7 @@ void test("selected setup completion remains a separate Windows/Linux opt-in wit
     required(desktopScenarioById.get(id)).source,
     "desktop-selected-setup-completion-test.mts",
   );
-  assert.equal(desktopHarnessDeadlineMs(selected), 600_000);
+  assert.equal(desktopHarnessDeadlineMs(selected), 900_000);
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
   assert.throws(
     () =>

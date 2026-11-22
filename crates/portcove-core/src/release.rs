@@ -13,6 +13,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
+use crate::acquisition_restriction::{EffectiveRestrictions, Knowledge, RestrictedOperation};
 use crate::{
     AdapterKind, GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit, Library, Platform, PortDefinition, PortcoveError,
@@ -83,6 +84,18 @@ pub trait ReleaseProvider: Send + Sync {
         ))
     }
 
+    async fn resolve_explicit_first_variant(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _platform: Platform,
+        _variant: &ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        Err(PortcoveError::unsupported(
+            "the release provider cannot resolve an explicit first-install package choice",
+        ))
+    }
+
     /// Resolve a reviewed fallback for an already-withheld fresh-install candidate.
     /// Providers without exact reviewed-release selection keep the refusal.
     async fn resolve_shape_fallback(
@@ -108,6 +121,10 @@ pub trait ReleaseProvider: Send + Sync {
 
     /// Provider request budget for a check that must enforce a reviewed package choice.
     fn forecast_saved_variant_request_cost(&self, _scoped: bool) -> crate::RequestCostForecast {
+        crate::RequestCostForecast::default()
+    }
+
+    fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
         crate::RequestCostForecast::default()
     }
 
@@ -275,13 +292,16 @@ struct CachedRelease {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
     fallback_reason: Option<String>,
+    newer_other_host_releases: Vec<String>,
 }
 
 struct ResolvedGithub {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    explicit_tag_commit: Option<String>,
     activity: Option<crate::UpstreamActivity>,
     fallback_reason: Option<String>,
+    newer_other_host_releases: Vec<String>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -294,9 +314,16 @@ pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
 const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
 const CHECKSUM_MAX_SIDECARS: usize = 8;
 const PROVIDER_PAGE_SIZE: usize = 100;
+/// Pages the request-cost forecast and offline release notes consider. It is
+/// not a selection bound: selection reads as much history as its choice needs.
 const GITHUB_MAX_RELEASE_PAGES: usize = 10;
 const GITHUB_SAVED_RELEASE_INVENTORY_LIMIT: usize = 10;
-const GITHUB_ASSET_INVENTORY_PAGE_LIMIT: usize = 3;
+/// Asset pages of 100 a release inventory may read: GitHub allows at most
+/// 1,000 assets per release, so ten pages always reach the complete inventory.
+const GITHUB_ASSET_INVENTORY_PAGE_LIMIT: usize = 10;
+/// Asset pages the request-cost forecast budgets for a typical saved package
+/// release; the inventory itself reads to completion.
+const GITHUB_FORECAST_ASSET_PAGES: usize = 3;
 // Small provider metadata and authentication requests get an overall deadline;
 // streamed downloads intentionally use only connection and read-idle bounds.
 const PROVIDER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -360,6 +387,15 @@ impl GithubReleaseProvider {
         record: &crate::CuratedAcquisitionRecord,
         scope: &crate::DefinitionAcquisitionScope,
     ) -> Result<String> {
+        self.github_tag_commit(port, &record.tag, Some(scope)).await
+    }
+
+    async fn github_tag_commit(
+        &self,
+        port: &PortDefinition,
+        release_tag: &str,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<String> {
         let mut url = reqwest::Url::parse(&format!(
             "{}/repos/{}",
             self.api_root, port.release.repository
@@ -367,9 +403,12 @@ impl GithubReleaseProvider {
         .map_err(|_| PortcoveError::verification("invalid curated repository URL"))?;
         url.path_segments_mut()
             .map_err(|_| PortcoveError::verification("invalid curated tag URL"))?
-            .extend(["git", "ref", "tags", record.tag.as_str()]);
-        let reference: GithubTagReference = self.scoped_json(url.as_str(), scope).await?;
-        if reference.reference != format!("refs/tags/{}", record.tag) {
+            .extend(["git", "ref", "tags", release_tag]);
+        let reference: GithubTagReference = match scope {
+            Some(scope) => self.scoped_json(url.as_str(), scope).await?,
+            None => self.get_json(url.as_str()).await?,
+        };
+        if reference.reference != format!("refs/tags/{release_tag}") {
             return Err(PortcoveError::verification("curated tag reference differs"));
         }
         let mut object = reference.object;
@@ -394,15 +433,14 @@ impl GithubReleaseProvider {
                     "curated tag does not identify a commit",
                 ));
             }
-            let tag: GithubAnnotatedTag = self
-                .scoped_json(
-                    &format!(
-                        "{}/repos/{}/git/tags/{}",
-                        self.api_root, port.release.repository, object.sha
-                    ),
-                    scope,
-                )
-                .await?;
+            let tag_url = format!(
+                "{}/repos/{}/git/tags/{}",
+                self.api_root, port.release.repository, object.sha
+            );
+            let tag: GithubAnnotatedTag = match scope {
+                Some(scope) => self.scoped_json(&tag_url, scope).await?,
+                None => self.get_json(&tag_url).await?,
+            };
             if tag.sha != object.sha {
                 return Err(PortcoveError::verification(
                     "curated annotated tag identity differs",
@@ -817,28 +855,118 @@ impl GithubReleaseProvider {
         self.releases_scoped(repository_url, None).await
     }
 
+    /// Reads the complete release history, bounded by the provider request budget
+    /// rather than by a release count.
     async fn releases_scoped(
         &self,
         repository_url: &str,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<Vec<GithubRelease>> {
-        let mut releases = Vec::new();
-        for page in 1..=GITHUB_MAX_RELEASE_PAGES {
-            let url = paginated_url(repository_url, "releases", page, PROVIDER_PAGE_SIZE)?;
-            let mut current: Vec<GithubRelease> = match scope {
-                Some(scope) => self.scoped_json(&url, scope).await?,
-                None => self.get_json(&url).await?,
-            };
-            let has_more = current.len() == PROVIDER_PAGE_SIZE;
-            releases.append(&mut current);
-            if !has_more {
-                return Ok(releases);
+        let mut inventory = self.release_inventory(repository_url);
+        self.extend_release_inventory_until(&mut inventory, scope, |_| false)
+            .await?;
+        Ok(inventory.releases)
+    }
+
+    fn release_inventory(&self, repository_url: &str) -> GithubReleaseInventory {
+        GithubReleaseInventory {
+            repository_url: repository_url.to_string(),
+            releases: Vec::new(),
+            next_page: Some(1),
+            deadline: tokio::time::Instant::now() + self.network_bounds.request,
+        }
+    }
+
+    /// Adds the next page of release history. Returns `false` when the history
+    /// was already complete. Running out of the request budget is reported as an
+    /// incomplete inventory, never as an absent release.
+    async fn extend_release_inventory(
+        &self,
+        inventory: &mut GithubReleaseInventory,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+    ) -> Result<bool> {
+        let Some(page) = inventory.next_page else {
+            return Ok(false);
+        };
+        let incomplete = || {
+            PortcoveError::network(
+                "GitHub release history did not finish within the provider request budget. Try again.",
+            )
+            .detail("release_inventory", "incomplete")
+            .detail("release_pages_read", (page - 1).to_string())
+        };
+        if tokio::time::Instant::now() >= inventory.deadline {
+            return Err(incomplete());
+        }
+        let url = paginated_url(
+            &inventory.repository_url,
+            "releases",
+            page,
+            PROVIDER_PAGE_SIZE,
+        )?;
+        let read = async {
+            match scope {
+                Some(scope) => self.scoped_json::<Vec<GithubRelease>>(&url, scope).await,
+                None => self.get_json::<Vec<GithubRelease>>(&url).await,
+            }
+        };
+        let mut current = tokio::time::timeout_at(inventory.deadline, read)
+            .await
+            .map_err(|_| incomplete())??;
+        if current.len() > PROVIDER_PAGE_SIZE {
+            return Err(PortcoveError::verification(
+                "GitHub returned more releases than the requested page size",
+            ));
+        }
+        inventory.next_page = (current.len() == PROVIDER_PAGE_SIZE).then_some(page + 1);
+        inventory.releases.append(&mut current);
+        Ok(true)
+    }
+
+    /// Reads further pages until `done` holds for the observed prefix or the
+    /// history is complete.
+    async fn extend_release_inventory_until(
+        &self,
+        inventory: &mut GithubReleaseInventory,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        mut done: impl FnMut(&[GithubRelease]) -> bool,
+    ) -> Result<()> {
+        while (inventory.next_page == Some(1) || !done(&inventory.releases))
+            && self.extend_release_inventory(inventory, scope).await?
+        {}
+        Ok(())
+    }
+
+    /// Checks uploader continuity, reading older history while it could still
+    /// establish the uploader, and completely before accepting that no release
+    /// carries uploader facts.
+    async fn continuing_uploader(
+        &self,
+        port: &PortDefinition,
+        owner: Option<&uploader_continuity::GithubAccount>,
+        inventory: &mut GithubReleaseInventory,
+        scope: Option<&crate::DefinitionAcquisitionScope>,
+        tag: &str,
+        asset: &GithubAsset,
+    ) -> Result<uploader_continuity::Continuity> {
+        loop {
+            match uploader_continuity::require(port, owner, &inventory.releases, tag, asset) {
+                Err(_)
+                    if inventory.next_page.is_some()
+                        && uploader_continuity::history_can_establish(asset) =>
+                {
+                    self.extend_release_inventory(inventory, scope).await?;
+                }
+                // "Not observed" means no release carries uploader facts, which
+                // only the complete history can establish.
+                Ok(uploader_continuity::Continuity::NotObserved)
+                    if inventory.next_page.is_some() =>
+                {
+                    self.extend_release_inventory(inventory, scope).await?;
+                }
+                result => return result,
             }
         }
-        Err(PortcoveError::verification(format!(
-            "GitHub release discovery exceeds the supported {}-release bound",
-            GITHUB_MAX_RELEASE_PAGES * PROVIDER_PAGE_SIZE
-        )))
     }
 
     #[cfg(test)]
@@ -852,14 +980,17 @@ impl GithubReleaseProvider {
         cache.get(key).map(|entry| ResolvedGithub {
             release: entry.release.clone(),
             identity: entry.identity.clone(),
+            explicit_tag_commit: None,
             activity: None,
             fallback_reason: entry.fallback_reason.clone(),
+            newer_other_host_releases: entry.newer_other_host_releases.clone(),
         })
     }
 
     #[cfg(test)]
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
-        self.store_selection(key, release, None, None).await;
+        self.store_selection(key, release, None, None, Vec::new())
+            .await;
     }
 
     async fn store_selection(
@@ -868,6 +999,7 @@ impl GithubReleaseProvider {
         release: ResolvedRelease,
         identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
         fallback_reason: Option<String>,
+        newer_other_host_releases: Vec<String>,
     ) {
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
@@ -887,6 +1019,7 @@ impl GithubReleaseProvider {
                 release,
                 identity,
                 fallback_reason,
+                newer_other_host_releases,
             },
         );
     }
@@ -1392,6 +1525,29 @@ impl ReleaseProvider for GithubReleaseProvider {
         .await
     }
 
+    async fn resolve_explicit_first_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        variant: &ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        variant.require_contract(port, channel, platform)?;
+        if variant.explicit_id().is_none() {
+            return Err(PortcoveError::verification(
+                "explicit package choice identity is missing",
+            ));
+        }
+        self.resolve_scoped_selection(
+            port,
+            channel,
+            platform,
+            None,
+            GithubSelection::ExplicitFirst(variant),
+        )
+        .await
+    }
+
     async fn resolve_shape_fallback(
         &self,
         port: &PortDefinition,
@@ -1444,11 +1600,21 @@ impl ReleaseProvider for GithubReleaseProvider {
         // less, and a stale inline list cannot predict which inventories we need.
         let counted_requests = (1
             + GITHUB_MAX_RELEASE_PAGES
-            + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT * GITHUB_ASSET_INVENTORY_PAGE_LIMIT)
+            + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT * GITHUB_FORECAST_ASSET_PAGES)
             as u32;
         crate::RequestCostForecast {
             counted_requests,
             sign_in_relief_requests: if scoped { 0 } else { counted_requests },
+        }
+    }
+
+    fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
+        let inventory = self.forecast_saved_variant_request_cost(false);
+        // The exact tag reference plus at most five annotated tag objects.
+        let counted_requests = inventory.counted_requests.saturating_add(6);
+        crate::RequestCostForecast {
+            counted_requests,
+            sign_in_relief_requests: counted_requests,
         }
     }
 
@@ -1513,6 +1679,20 @@ enum GithubSelection<'a> {
     Ordinary,
     ReviewedFallback(&'a ResolvedRelease),
     Saved(&'a ManagedPackageVariant),
+    ExplicitFirst(&'a ManagedPackageVariant),
+}
+
+/// Newest-first GitHub release history, read one page at a time only as far as
+/// a decision needs. Stable and Rolling selection take the first match in
+/// provider order, so a prefix containing one gives the full-history answer;
+/// Beta's stable fallback needs the complete history (see
+/// `decided_github_release_index`). Absence is concluded only once `next_page`
+/// is `None`.
+struct GithubReleaseInventory {
+    repository_url: String,
+    releases: Vec<GithubRelease>,
+    next_page: Option<usize>,
+    deadline: tokio::time::Instant,
 }
 
 struct SavedReleaseAssetRefresh {
@@ -1526,15 +1706,35 @@ impl SavedReleaseAssetRefresh {
     }
 }
 
-impl GithubSelection<'_> {
-    fn asset<'a>(
+impl<'a> GithubSelection<'a> {
+    fn variant(self) -> Option<&'a ManagedPackageVariant> {
+        match self {
+            Self::Saved(variant) | Self::ExplicitFirst(variant) => Some(variant),
+            _ => None,
+        }
+    }
+
+    fn applies(self, port: &PortDefinition, platform: Platform, release: &GithubRelease) -> bool {
+        match self {
+            Self::ExplicitFirst(variant) => {
+                github_tag_in_stream(port, platform, &release.tag_name)
+                    && release
+                        .assets
+                        .iter()
+                        .any(|asset| variant.names_explicit_family(&asset.name))
+            }
+            _ => native_release_applies_to_platform(port, platform, release),
+        }
+    }
+
+    fn asset<'asset>(
         self,
         port: &PortDefinition,
         platform: Platform,
-        release: &'a GithubRelease,
-    ) -> Result<&'a GithubAsset> {
+        release: &'asset GithubRelease,
+    ) -> Result<&'asset GithubAsset> {
         match self {
-            Self::Saved(variant) => choose_asset_for_variant(
+            Self::Saved(variant) | Self::ExplicitFirst(variant) => choose_asset_for_variant(
                 port,
                 platform,
                 &release.assets,
@@ -1554,36 +1754,69 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
-        releases: &mut [GithubRelease],
+        inventory: &mut GithubReleaseInventory,
         refresh: &mut SavedReleaseAssetRefresh,
+        selection: GithubSelection<'_>,
     ) -> Result<()> {
         // Inspect releases in normal channel order until a complete asset
         // inventory establishes the platform candidate. An inline list naming
         // another platform can omit a late upload for this one.
-        let mut release_ids = std::collections::BTreeSet::new();
-        if releases
-            .iter()
-            .filter_map(|release| release.id)
-            .any(|id| !release_ids.insert(id))
-        {
-            return Err(PortcoveError::verification(
-                "the saved package release inventory repeats a provider release identity",
-            ));
-        }
-        while let Some(index) =
-            select_github_release_index(releases, port, channel, platform, |release| {
-                !release.draft
-                    && (refresh.needs(release)
-                        || native_release_applies_to_platform(port, platform, release))
-            })
-        {
-            let release = &mut releases[index];
+        loop {
+            let mut release_ids = std::collections::BTreeSet::new();
+            if inventory
+                .releases
+                .iter()
+                .filter_map(|release| release.id)
+                .any(|id| !release_ids.insert(id))
+            {
+                return Err(PortcoveError::verification(
+                    "the saved package release inventory repeats a provider release identity",
+                ));
+            }
+            let Some(index) = decided_github_release_index(
+                &inventory.releases,
+                inventory.next_page.is_none(),
+                port,
+                channel,
+                platform,
+                |release| {
+                    !release.draft
+                        && (refresh.needs(release) || selection.applies(port, platform, release))
+                },
+            ) else {
+                // The candidate may be older than the history read so far.
+                if self.extend_release_inventory(inventory, scope).await? {
+                    continue;
+                }
+                break;
+            };
+            let release = &mut inventory.releases[index];
             if !refresh.needs(release) {
                 break;
             }
-            release.assets = self
+            let refreshed_assets = self
                 .saved_release_assets(&port.release.repository, release, scope, refresh)
                 .await?;
+            if let Some(variant) = selection
+                .variant()
+                .filter(|variant| variant.explicit_id().is_some())
+                && release.assets.iter().any(|inline| {
+                    variant.names_explicit_family(&inline.name)
+                        && !refreshed_assets.iter().any(|asset| {
+                            inline.id == asset.id
+                                && inline.name == asset.name
+                                && inline.size == asset.size
+                                && inline.browser_download_url == asset.browser_download_url
+                                && (inline.digest.is_none() || inline.digest == asset.digest)
+                        })
+                })
+            {
+                return Err(PortcoveError::verification(
+                    "the selected family changed between the release header and its complete asset inventory",
+                )
+                .detail("saved_package_variant", "inconsistent-inventory"));
+            }
+            release.assets = refreshed_assets;
         }
         Ok(())
     }
@@ -1656,9 +1889,11 @@ impl GithubReleaseProvider {
         }?
         .for_selection(port, platform, channel)?;
         resolved.github_identity = selected.identity;
+        resolved.explicit_tag_commit = selected.explicit_tag_commit;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
-        if let GithubSelection::Saved(variant) = selection {
+        resolved.newer_other_host_releases = selected.newer_other_host_releases;
+        if let Some(variant) = selection.variant() {
             resolved.saved_variant = Some(variant.clone());
         }
         Ok(resolved)
@@ -1672,6 +1907,16 @@ impl GithubReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         selection: GithubSelection<'_>,
     ) -> Result<ResolvedGithub> {
+        if selection
+            .variant()
+            .is_some_and(|variant| variant.explicit_id().is_some())
+            && (scope.is_some()
+                || !crate::acquisition_restriction::definition_restrictions(port).is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "the active acquisition policy does not authorize explicit package selection",
+            ));
+        }
         crate::curated_acquisition::require_runtime_scope(port, scope)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -1785,7 +2030,7 @@ impl GithubReleaseProvider {
                 "GitHub repository stable identity differs from its publisher grant",
             ));
         }
-        if let GithubSelection::Saved(variant) = selection
+        if let Some(variant) = selection.variant()
             && repository.id != Some(variant.repository_id())
         {
             return Err(PortcoveError::verification(
@@ -1829,12 +2074,12 @@ impl GithubReleaseProvider {
             selection.activity = activity;
             return Ok(selection);
         }
-        let mut releases = match scope {
-            Some(scope) => self.releases_scoped(&repository_url, Some(scope)).await?,
-            None => self.releases(&repository_url).await?,
-        };
-        let mut saved_refresh =
-            matches!(selection, GithubSelection::Saved(_)).then(|| SavedReleaseAssetRefresh {
+        let mut inventory = self.release_inventory(&repository_url);
+        self.extend_release_inventory(&mut inventory, scope).await?;
+        let mut saved_refresh = selection
+            .variant()
+            .is_some()
+            .then(|| SavedReleaseAssetRefresh {
                 refreshed: std::collections::BTreeSet::new(),
                 deadline: tokio::time::Instant::now() + self.network_bounds.request,
             });
@@ -1844,8 +2089,9 @@ impl GithubReleaseProvider {
                 channel,
                 platform,
                 scope,
-                &mut releases,
+                &mut inventory,
                 refresh,
+                selection,
             )
             .await?;
         }
@@ -1853,6 +2099,17 @@ impl GithubReleaseProvider {
             // Failover-capable records only: classify an accepted release or asset
             // that is gone as unavailable. Any partial match (a moved tag, a reused
             // name, a changed ID) falls through to the identity refusal below.
+            // Read history until both identities are observed or it is complete.
+            self.extend_release_inventory_until(&mut inventory, scope, |releases| {
+                releases
+                    .iter()
+                    .any(|release| release.id == Some(record.release_id))
+                    && releases
+                        .iter()
+                        .any(|release| release.tag_name == record.tag)
+            })
+            .await?;
+            let releases = &inventory.releases;
             let by_id = releases
                 .iter()
                 .find(|release| release.id == Some(record.release_id));
@@ -1877,32 +2134,37 @@ impl GithubReleaseProvider {
                 .with_upstream(Some(crate::failure::UpstreamObservation::Status(404))));
             }
         }
-        let applies = |release: &GithubRelease| {
-            !release.draft && native_release_applies_to_platform(port, platform, release)
-        };
-        let latest_index = select_github_release_index(&releases, port, channel, platform, applies)
-            .ok_or_else(|| {
-                PortcoveError::not_found(format!(
-                    "no published {channel} release exists for {}",
-                    port.name
-                ))
-            })?;
-        let latest = &releases[latest_index];
+        let applies =
+            |release: &GithubRelease| !release.draft && selection.applies(port, platform, release);
+        while decided_github_release_index(
+            &inventory.releases,
+            inventory.next_page.is_none(),
+            port,
+            channel,
+            platform,
+            applies,
+        )
+        .is_none()
+            && self.extend_release_inventory(&mut inventory, scope).await?
+        {}
+        let latest_index =
+            select_github_release_index(&inventory.releases, port, channel, platform, applies)
+                .ok_or_else(|| {
+                    PortcoveError::not_found(format!(
+                        "no published {channel} release exists for {}",
+                        port.name
+                    ))
+                })?;
+        let latest = &inventory.releases[latest_index].clone();
+        let newer_other_host_releases =
+            newer_other_host_releases(&inventory.releases[..latest_index], port, platform);
         let mut observed_digest = None;
         let mut fallback_reason = None;
         // The continuity decision for the asset finally selected, kept with the build.
         let mut continuity = None;
-        let require_continuing_uploader =
-            |releases: &[GithubRelease], release: &GithubRelease, asset: &GithubAsset| {
-                uploader_continuity::require(
-                    port,
-                    repository.owner.as_ref(),
-                    releases,
-                    &release.tag_name,
-                    asset,
-                )
-            };
-        let hold = port.managed_acquisition_hold.as_ref();
+        let owner = repository.owner.as_ref();
+        let restrictions = EffectiveRestrictions::managed_only(port);
+        let mut exclusion_reason = None;
         let reviewed = if let Some(withheld) = withheld {
             let latest_asset = selection.asset(port, platform, latest)?;
             if latest.tag_name != withheld.version
@@ -1925,21 +2187,36 @@ impl GithubReleaseProvider {
             Some(crate::package_shape::reviewed_release_digests(
                 port, platform,
             ))
-        } else if let Some(hold) = hold
-            && curated.is_none()
-            && !hold.excluded_artifacts.is_empty()
+        } else if curated.is_none() && restrictions.has_artifact_holds(RestrictedOperation::Install)
         {
             let latest_asset = selection.asset(port, platform, latest)?;
-            let latest_continuity =
-                require_continuing_uploader(&releases, latest, latest_asset)?.record(latest_asset);
+            let latest_continuity = self
+                .continuing_uploader(
+                    port,
+                    owner,
+                    &mut inventory,
+                    scope,
+                    &latest.tag_name,
+                    latest_asset,
+                )
+                .await?
+                .record(latest_asset);
             let digest = self
                 .observed_asset_digest(port, latest, latest_asset, scope)
                 .await?;
-            if hold.excludes(&latest.tag_name, &digest) {
-                fallback_reason = Some(hold.reason.clone());
+            if let Some(excluded) = restrictions.artifact_exclusion(
+                RestrictedOperation::Install,
+                &latest.tag_name,
+                &digest,
+            ) {
+                fallback_reason = excluded.explanation();
+                exclusion_reason.clone_from(&fallback_reason);
                 Some(
-                    hold.reviewed_artifacts
-                        .iter()
+                    restrictions
+                        .permitted_artifacts(
+                            RestrictedOperation::Install,
+                            Knowledge::Known(platform),
+                        )
                         .map(|artifact| (artifact.version.as_str(), artifact.sha256.as_str()))
                         .collect::<Vec<_>>(),
                 )
@@ -1958,8 +2235,14 @@ impl GithubReleaseProvider {
                 // A saved choice needs complete evidence only for the next
                 // reviewed fallback in channel order after the latest digest
                 // has actually triggered the hold.
-                let index =
-                    select_github_release_index(&releases, port, channel, platform, |candidate| {
+                let releases = &inventory.releases;
+                let found = decided_github_release_index(
+                    releases,
+                    inventory.next_page.is_none(),
+                    port,
+                    channel,
+                    platform,
+                    |candidate| {
                         candidate.tag_name != latest_tag
                             && !candidate.draft
                             && !checked
@@ -1972,13 +2255,20 @@ impl GithubReleaseProvider {
                                 .as_ref()
                                 .is_some_and(|refresh| refresh.needs(candidate))
                                 || applies(candidate))
-                    })
-                    .ok_or_else(|| match (withheld, hold) {
-                        (None, Some(hold)) => PortcoveError::unsupported(hold.reason.clone()),
+                    },
+                );
+                let Some(index) = found else {
+                    // A reviewed fallback may be older than the history read so far.
+                    if self.extend_release_inventory(&mut inventory, scope).await? {
+                        continue;
+                    }
+                    return Err(match (withheld, &exclusion_reason) {
+                        (None, Some(reason)) => PortcoveError::unsupported(reason.clone()),
                         _ => PortcoveError::not_found("no reviewed fallback release is available"),
-                    })?;
+                    });
+                };
                 checked.push(index);
-                let fallback = &mut releases[index];
+                let fallback = &mut inventory.releases[index];
                 if let Some(refresh) = &mut saved_refresh
                     && refresh.needs(fallback)
                 {
@@ -1986,19 +2276,30 @@ impl GithubReleaseProvider {
                         .saved_release_assets(&port.release.repository, fallback, scope, refresh)
                         .await?;
                 }
-                let fallback = &releases[index];
+                let fallback = &inventory.releases[index].clone();
                 if !applies(fallback) {
                     continue;
                 }
                 let Ok(asset) = selection.asset(port, platform, fallback) else {
                     continue;
                 };
-                let fallback_continuity =
-                    require_continuing_uploader(&releases, fallback, asset)?.record(asset);
+                let fallback_continuity = self
+                    .continuing_uploader(
+                        port,
+                        owner,
+                        &mut inventory,
+                        scope,
+                        &fallback.tag_name,
+                        asset,
+                    )
+                    .await?
+                    .record(asset);
                 let digest = self
                     .observed_asset_digest(port, fallback, asset, scope)
                     .await?;
-                if hold.is_none_or(|hold| !hold.excludes(&fallback.tag_name, &digest))
+                if restrictions
+                    .artifact_exclusion(RestrictedOperation::Install, &fallback.tag_name, &digest)
+                    .is_none()
                     && reviewed.iter().any(|(version, expected)| {
                         *version == fallback.tag_name && expected.eq_ignore_ascii_case(&digest)
                     })
@@ -2011,7 +2312,7 @@ impl GithubReleaseProvider {
         } else {
             latest_index
         };
-        let release = &releases[release_index];
+        let release = &inventory.releases[release_index].clone();
         let asset = selection.asset(port, platform, release)?;
         if let Some(scope) = scope {
             scope.require_current()?;
@@ -2021,10 +2322,61 @@ impl GithubReleaseProvider {
         // every other selection follows upstream and must continue its uploaders.
         // Refuse before any checksum request or caching.
         if curated.is_none() && observed_digest.is_none() {
-            continuity =
-                Some(require_continuing_uploader(&releases, release, asset)?.record(asset));
+            continuity = Some(
+                self.continuing_uploader(
+                    port,
+                    owner,
+                    &mut inventory,
+                    scope,
+                    &release.tag_name,
+                    asset,
+                )
+                .await?
+                .record(asset),
+            );
         }
-        let sha256 = if let Some(record) = curated {
+        let explicit_tag_commit = match selection.variant() {
+            Some(variant) if variant.explicit_id().is_some() => {
+                let refresh = saved_refresh
+                    .as_ref()
+                    .expect("saved selection has a deadline");
+                let commit = tokio::time::timeout_at(
+                    refresh.deadline,
+                    self.github_tag_commit(port, &release.tag_name, None),
+                )
+                .await
+                .map_err(|_| {
+                    PortcoveError::network(
+                        "the package tag proof exceeded the provider request budget",
+                    )
+                })??;
+                variant.require_tag_commit(&release.tag_name, &asset.name, &commit)?;
+                let expected_url = format!(
+                    "{}/{}/releases/download/{}/{}",
+                    self.web_root, port.release.repository, release.tag_name, asset.name,
+                );
+                if asset.browser_download_url != expected_url
+                    && asset.browser_download_url != expected_url.replace('+', "%2B")
+                {
+                    return Err(PortcoveError::verification(
+                        "the selected package URL differs from its exact provider path",
+                    ));
+                }
+                Some(commit)
+            }
+            _ => None,
+        };
+        let sha256 = if explicit_tag_commit.is_some() {
+            asset
+                .digest
+                .as_deref()
+                .and_then(parse_digest)
+                .ok_or_else(|| {
+                    PortcoveError::verification(
+                        "the selected package requires its published SHA-256 digest",
+                    )
+                })?
+        } else if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
             if release.id != Some(record.release_id)
                 || release.tag_name != record.tag
@@ -2078,10 +2430,12 @@ impl GithubReleaseProvider {
                 .await?
         };
         let version = release_version(&release.tag_name);
-        if let Some(hold) = &port.managed_acquisition_hold
-            && hold.excludes(&version, &sha256)
-        {
-            return Err(PortcoveError::unsupported(hold.reason.clone()));
+        if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_exclusion(
+            RestrictedOperation::Install,
+            &version,
+            &sha256,
+        ) {
+            excluded.into_result()?;
         }
         let resolved = ResolvedRelease {
             version,
@@ -2107,9 +2461,7 @@ impl GithubReleaseProvider {
                 identity.validate()?;
                 Some(identity)
             }
-            _ if port.archive_data_compatibility_v1.is_some()
-                || matches!(selection, GithubSelection::Saved(_)) =>
-            {
+            _ if port.archive_data_compatibility_v1.is_some() || selection.variant().is_some() => {
                 return Err(PortcoveError::verification(
                     "GitHub release observation is missing exact repository, release or asset identity",
                 ));
@@ -2122,14 +2474,17 @@ impl GithubReleaseProvider {
                 resolved.clone(),
                 identity.clone(),
                 fallback_reason.clone(),
+                newer_other_host_releases.clone(),
             )
             .await;
         }
         Ok(ResolvedGithub {
             release: resolved,
             identity,
+            explicit_tag_commit,
             activity,
             fallback_reason,
+            newer_other_host_releases,
         })
     }
 }
@@ -2144,10 +2499,12 @@ fn preserved_resolution(
     record: &crate::curated_acquisition::CuratedAcquisitionRecord,
     scope: &crate::DefinitionAcquisitionScope,
 ) -> Result<ResolvedGithub> {
-    if let Some(hold) = &port.managed_acquisition_hold
-        && hold.excludes(&record.tag, &record.sha256)
-    {
-        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_exclusion(
+        RestrictedOperation::Install,
+        &record.tag,
+        &record.sha256,
+    ) {
+        excluded.into_result()?;
     }
     scope.require_current()?;
     scope.require_port(port)?;
@@ -2182,8 +2539,10 @@ fn preserved_resolution(
             uploader_continuity: None,
         },
         identity: Some(identity),
+        explicit_tag_commit: None,
         activity: None,
         fallback_reason: None,
+        newer_other_host_releases: Vec::new(),
     })
 }
 
@@ -2213,42 +2572,45 @@ fn native_release_applies_to_platform(
     if !github_tag_in_stream(port, platform, &release.tag_name) {
         return false;
     }
-    if (port.adapter != AdapterKind::NativePortable && port.archive_data_compatibility_v1.is_none())
-        || port.release.curated.contains_key(&platform)
-    {
+    if port.release.curated.contains_key(&platform) {
         return true;
     }
     let mut other_platform_player = false;
     for asset in &release.assets {
-        let name = asset.name.to_ascii_lowercase();
-        let can_extract = [".zip", ".tar.gz", ".tgz"]
-            .iter()
-            .any(|ext| name.ends_with(ext));
-        let (suitability, _, _) = crate::service::package_selection::assess_package_name(
-            &name,
-            can_extract,
-            platform,
-            &[],
-        );
-        if suitability == "auxiliary" {
-            if name
-                .split(|character: char| !character.is_ascii_alphanumeric())
-                .any(|token| token == "debug")
-            {
+        let suggestion = crate::route_facts::suggest_from_filename(&asset.name);
+        if suggestion.role.is_supporting() || suggestion.debug_build {
+            if suggestion.debug_build {
                 return true;
             }
             continue;
         }
-        if crate::service::package_selection::package_platform_match(&name, platform)
-            != crate::service::package_selection::PackagePlatformMatch::Other
-        {
+        if !suggestion.os.excludes(platform) {
             return true;
         }
-        other_platform_player |= crate::service::package_selection::is_package_filename(&name);
+        other_platform_player |= suggestion.foreign_player(platform);
     }
-    // Only explicit other-OS players are outside this platform's release stream.
-    // Same/unknown OS and source-only releases retain normal refusal semantics.
+    // Only explicit other-host players (desktop, mobile or console) are outside
+    // this platform's release stream. Same/unknown OS and source-only releases
+    // retain normal refusal semantics.
     !other_platform_player
+}
+
+/// Newer in-stream releases a walk passed only because their players are for
+/// another host.
+fn newer_other_host_releases(
+    newer: &[GithubRelease],
+    port: &PortDefinition,
+    platform: Platform,
+) -> Vec<String> {
+    newer
+        .iter()
+        .filter(|release| {
+            !release.draft
+                && github_tag_in_stream(port, platform, &release.tag_name)
+                && !native_release_applies_to_platform(port, platform, release)
+        })
+        .map(|release| release.tag_name.clone())
+        .collect()
 }
 
 pub(crate) fn select_channel_candidate<'a, T>(
@@ -2280,6 +2642,23 @@ pub(crate) fn select_channel_candidate<'a, T>(
         .find(|release| selectable(release) && !beta(release) && !is_rolling(release))
 }
 
+/// The channel candidate when the observed newest-first prefix already decides
+/// it. Stable and Rolling take the first match, which no older page can change.
+/// Beta prefers any prerelease and falls back to a stable one only when none
+/// exists, so a stable fallback is decided only by the complete history.
+fn decided_github_release_index(
+    releases: &[GithubRelease],
+    complete: bool,
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    platform: Platform,
+    selectable: impl Fn(&GithubRelease) -> bool,
+) -> Option<usize> {
+    let index = select_github_release_index(releases, port, channel, platform, selectable)?;
+    (complete || channel != ReleaseChannel::Beta || is_beta_release(&releases[index]))
+        .then_some(index)
+}
+
 fn select_github_release_index(
     releases: &[GithubRelease],
     port: &PortDefinition,
@@ -2306,8 +2685,10 @@ fn release_version(tag: &str) -> String {
     tag.to_string()
 }
 
+/// A publisher digest of a release the managed restrictions permit for
+/// installation and do not exclude.
 fn reviewed_fallback_digest(
-    hold: &crate::ManagedAcquisitionHold,
+    restrictions: &EffectiveRestrictions,
     release: &GithubRelease,
     asset: &GithubAsset,
 ) -> Option<String> {
@@ -2316,7 +2697,21 @@ fn reviewed_fallback_digest(
         .as_deref()
         .and_then(parse_digest)
         .filter(|digest| {
-            !hold.excludes(&release.tag_name, digest) && hold.reviewed(&release.tag_name, digest)
+            restrictions
+                .artifact_exclusion(RestrictedOperation::Install, &release.tag_name, digest)
+                .is_none()
+                && restrictions
+                    .permitted_artifacts(RestrictedOperation::Install, Knowledge::Deferred)
+                    .chain(
+                        restrictions.permitted_artifacts(
+                            RestrictedOperation::Activate,
+                            Knowledge::Deferred,
+                        ),
+                    )
+                    .any(|artifact| {
+                        artifact.version == release.tag_name
+                            && artifact.sha256.eq_ignore_ascii_case(digest)
+                    })
         })
 }
 
@@ -2539,7 +2934,7 @@ struct GithubAnnotatedTag {
     object: GithubTagObject,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 struct GithubRelease {
     #[serde(default)]
     id: Option<u64>,
@@ -2671,14 +3066,42 @@ fn choose_asset_for_variant<'a>(
     assets: &'a [GithubAsset],
     saved: Option<(&ManagedPackageVariant, &str)>,
 ) -> Result<&'a GithubAsset> {
+    let explicit = saved.filter(|(variant, _)| variant.explicit_id().is_some());
+    if let Some((variant, tag)) = explicit {
+        let mut matches = assets
+            .iter()
+            .filter(|asset| variant.names_explicit_family(&asset.name));
+        let first = matches.next().ok_or_else(|| {
+            PortcoveError::conflict(
+                "the current release has no verified package matching the saved choice",
+            )
+            .detail("saved_package_variant", "no-matching-package")
+        })?;
+        if matches.next().is_some() {
+            return Err(PortcoveError::conflict(
+                "the current release has more than one package matching the saved choice",
+            )
+            .detail("saved_package_variant", "ambiguous"));
+        }
+        if !variant.matches(tag, &first.name) {
+            return Err(PortcoveError::verification(
+                "the selected package filename differs from its exact release tag",
+            ));
+        }
+    }
     let requires_tar_xz = port.release.requires_tar_xz(platform);
     let standalone = native_appimage(port, platform);
-    let hints = port
-        .release
-        .asset_hints
-        .get(&platform)
-        .cloned()
-        .unwrap_or_default();
+    let hints = if let Some((variant, _)) = explicit {
+        // The named, checked family replaces the default package preference;
+        // portable suitability, package format and profile restrictions still apply.
+        vec![variant.explicit_archive_hint().to_owned()]
+    } else {
+        port.release
+            .asset_hints
+            .get(&platform)
+            .cloned()
+            .unwrap_or_default()
+    };
     let mut scored: Vec<(i32, &GithubAsset)> = assets
         .iter()
         .filter_map(|asset| {
@@ -2752,7 +3175,11 @@ fn choose_asset_for_variant<'a>(
                 );
                 return score.map(|score| (score as i32, asset));
             }
-            if conflicts_with_platform(&name, platform) {
+            if conflicts_with_platform(&name, platform)
+                || crate::route_facts::suggest_from_filename(&name)
+                    .os
+                    .excludes(platform)
+            {
                 return None;
             }
             if (port.adapter == AdapterKind::PsxRecompManaged
@@ -2978,8 +3405,61 @@ mod tests {
         serve_routed_http,
     };
 
+    mod selection_equivalence;
     mod unchanged_definition;
     mod uploader_progression;
+
+    #[tokio::test]
+    async fn a_newer_other_host_release_is_passed_and_reported_for_a_managed_route() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("cvlod-recomp").unwrap().clone();
+        assert_ne!(port.adapter, AdapterKind::NativePortable);
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let release = |id: u64, version: &str, names: &[&str]| {
+            serde_json::json!({
+                "id": id,
+                "tag_name": version,
+                "draft": false,
+                "prerelease": false,
+                "assets": names.iter().enumerate().map(|(index, name)| serde_json::json!({
+                    "id": id * 10 + index as u64,
+                    "name": format!("LodRecomp-{version}-{name}"),
+                    "size": 42,
+                    "digest": format!("sha256:{}", "a".repeat(64)),
+                    "browser_download_url": format!(
+                        "https://github.com/fliperama86/cvlod_recomp/releases/download/{version}/LodRecomp-{version}-{name}"
+                    ),
+                })).collect::<Vec<_>>(),
+            })
+        };
+        // The newest release's Windows package was withdrawn; only other
+        // hosts' players remain.
+        let (origin, _, server) = serve_http(vec![
+            response(serde_json::json!({"id": 1, "archived": false})),
+            response(serde_json::json!([
+                release(3, "v0.2.27", &["linux-x64.tar.gz", "macos-arm64.zip"]),
+                release(2, "v0.2.26", &["windows-x64.zip", "linux-x64.tar.gz"]),
+            ])),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let resolved = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(resolved.release.version, "v0.2.26");
+        assert_eq!(
+            resolved.release.asset.name,
+            "LodRecomp-v0.2.26-windows-x64.zip"
+        );
+        assert_eq!(resolved.newer_other_host_releases, ["v0.2.27"]);
+        server.join().unwrap();
+    }
 
     #[tokio::test]
     async fn exact_exclusion_uses_reviewed_fallback_and_allows_a_later_release() {
@@ -5335,7 +5815,20 @@ mod tests {
                 ok_json(r#"{"archived":false}"#, "")
             }
         });
-        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let mut provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        // The one-request-per-connection fixture cannot accept a socket
+        // abandoned by the client's pooled connection checkout race.
+        provider.api_transport = reqwest::Client::builder()
+            .no_proxy()
+            .pool_max_idle_per_host(0)
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .user_agent(PROVIDER_USER_AGENT)
+            .connect_timeout(provider.network_bounds.connect)
+            .read_timeout(provider.network_bounds.read_idle)
+            .timeout(provider.network_bounds.request)
+            .build()
+            .unwrap();
         let catalog = crate::Catalog::embedded().unwrap();
         let mut first = catalog.port("re-blue").unwrap().clone();
         first.release.repository = "shared/concurrent".into();
@@ -5356,18 +5849,23 @@ mod tests {
         );
         let first_cached = provider
             .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
-            .await
-            .unwrap();
+            .await;
         let second_cached = provider
             .resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
-            .await
-            .unwrap();
-        server.join().unwrap();
+            .await;
+        // Drain the server before unwrapping client outcomes. Otherwise a
+        // later request can mask the socket error that shut the fixture down.
+        let served = server.join();
+        assert!(
+            served.is_ok(),
+            "fixture failed: {served:?}; requests: {:?}",
+            requests.try_iter().collect::<Vec<_>>()
+        );
 
         assert_eq!(first_result.unwrap().asset.name, "game-first-windows.zip");
         assert_eq!(second_result.unwrap().asset.name, "game-second-windows.zip");
-        assert_eq!(first_cached.asset.name, "game-first-windows.zip");
-        assert_eq!(second_cached.asset.name, "game-second-windows.zip");
+        assert_eq!(first_cached.unwrap().asset.name, "game-first-windows.zip");
+        assert_eq!(second_cached.unwrap().asset.name, "game-second-windows.zip");
         let requests = requests.try_iter().collect::<Vec<_>>();
         assert_eq!(requests.len(), 6);
         assert_eq!(
@@ -6206,25 +6704,131 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn github_release_pagination_stops_at_the_documented_request_bound() {
-        let full_page = (0..PROVIDER_PAGE_SIZE)
-            .map(|index| github_release(&format!("draft-{index}"), true, "game-windows.zip"))
+    /// Releases whose assets the project's own automation uploaded, so uploader
+    /// continuity is decided without reading older history.
+    fn attributed(mut release: serde_json::Value) -> serde_json::Value {
+        release["assets"][0]["uploader"] =
+            serde_json::json!({"id": 41_898_282, "login": "github-actions[bot]", "type": "Bot"});
+        release
+    }
+
+    fn release_page(first: usize, count: usize, draft: bool) -> String {
+        let page = (first..first + count)
+            .map(|index| {
+                attributed(github_release(
+                    &format!("v{index}.0.0"),
+                    draft,
+                    "game-windows.zip",
+                ))
+            })
             .collect::<Vec<_>>();
-        let body = serde_json::to_string(&full_page).unwrap();
-        let responses = (0..GITHUB_MAX_RELEASE_PAGES)
-            .map(|_| ok_json(&body, ""))
-            .collect();
+        ok_json(&serde_json::to_string(&page).unwrap(), "")
+    }
+
+    #[tokio::test]
+    async fn github_release_history_is_not_capped_at_one_thousand_releases() {
+        let mut responses = (0..GITHUB_MAX_RELEASE_PAGES)
+            .map(|page| release_page(page * PROVIDER_PAGE_SIZE, PROVIDER_PAGE_SIZE, true))
+            .collect::<Vec<_>>();
+        responses.push(release_page(1_000, 1, false));
         let (api_root, requests, server) = serve_http(responses);
         let provider = GithubReleaseProvider::with_api_root(api_root.clone()).unwrap();
-        let error = provider
+        let releases = provider
             .releases(&format!("{api_root}/repos/example/project"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(releases.len(), 1_001);
+        assert_eq!(releases[1_000].tag_name, "v1000.0.0");
+        let requests = requests.try_iter().collect::<Vec<_>>();
+        assert_eq!(requests.len(), GITHUB_MAX_RELEASE_PAGES + 1);
+        assert!(requests[GITHUB_MAX_RELEASE_PAGES].contains("page=11"));
+    }
+
+    #[tokio::test]
+    async fn github_resolution_reads_only_the_history_its_selection_needs() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("re-blue").unwrap();
+        // A full first page would continue, but its newest release already
+        // answers first-match channel selection.
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            release_page(1, PROVIDER_PAGE_SIZE, false),
+        ];
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let resolved = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(resolved.version, "v1.0.0");
+        assert_eq!(requests.try_iter().count(), 2);
+    }
+
+    #[tokio::test]
+    async fn github_resolution_finds_a_candidate_after_one_thousand_releases() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("re-blue").unwrap();
+        let mut responses = vec![ok_json(r#"{"archived":false}"#, "")];
+        responses.extend(
+            (0..GITHUB_MAX_RELEASE_PAGES)
+                .map(|page| release_page(page * PROVIDER_PAGE_SIZE, PROVIDER_PAGE_SIZE, true)),
+        );
+        responses.push(release_page(1_000, 1, false));
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let resolved = provider
+            .resolve(port, ReleaseChannel::Stable, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(resolved.version, "v1000.0.0");
+        assert_eq!(requests.try_iter().count(), GITHUB_MAX_RELEASE_PAGES + 2);
+    }
+
+    #[tokio::test]
+    async fn github_beta_reads_past_a_full_stable_page_for_an_older_prerelease() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("re-blue").unwrap().clone();
+        port.channels.push(ReleaseChannel::Beta);
+        let port = &port;
+        let mut prerelease = attributed(github_release("v0.9.0-beta", false, "game-windows.zip"));
+        prerelease["prerelease"] = serde_json::Value::Bool(true);
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            release_page(1, PROVIDER_PAGE_SIZE, false),
+            ok_json(&serde_json::to_string(&vec![prerelease]).unwrap(), ""),
+        ];
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let resolved = provider
+            .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(resolved.version, "v0.9.0-beta");
+        assert_eq!(requests.try_iter().count(), 3);
+    }
+
+    #[tokio::test]
+    async fn github_release_history_budget_exhaustion_is_incomplete_not_absent() {
+        let (api_root, _requests, server) = serve_http(vec![]);
+        let provider = GithubReleaseProvider::with_api_root(api_root.clone()).unwrap();
+        let mut inventory =
+            provider.release_inventory(&format!("{api_root}/repos/example/project"));
+        inventory.deadline = tokio::time::Instant::now();
+        let error = provider
+            .extend_release_inventory(&mut inventory, None)
             .await
             .unwrap_err();
         server.join().unwrap();
-        assert_eq!(error.code, crate::ErrorCode::Verification);
-        assert!(error.message.contains("1000-release bound"));
-        assert_eq!(requests.try_iter().count(), GITHUB_MAX_RELEASE_PAGES);
+        assert!(inventory.releases.is_empty());
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert_eq!(
+            error.details.get("release_inventory").map(String::as_str),
+            Some("incomplete")
+        );
     }
 
     #[tokio::test]

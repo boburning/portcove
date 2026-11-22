@@ -129,6 +129,7 @@ For a GitHub-hosted upstream project:
 portcove setup candidates PORT_ID
 portcove setup candidates PORT_ID --release-id RELEASE_ID
 portcove setup candidates PORT_ID --channel beta
+portcove setup candidates PORT_ID --release-window 60
 portcove setup preview PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract
 portcove setup download PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
 portcove setup pending
@@ -139,6 +140,10 @@ Choose IDs returned by `setup candidates`; Core selects a release by channel and
 assesses its packages for this host. The response includes the selected release,
 recommendation, reasons, alternatives, coverage and a read-only default download
 parent. Explicit release inspection does not require complete older history.
+The release list shows the newest 10 releases by default; `--release-window`
+lists up to 1,000 so an older release can be chosen (Desktop's **Show older
+releases** widens it in steps of 25). A selected GitHub release's asset inventory
+is read in full, up to GitHub's 1,000-asset limit per release.
 Review the actual package name, source, size, checksum evidence
 and new destination. It does not infer that every upstream asset is a playable
 package for this computer. Omit `--extract` for an installer or unsupported
@@ -404,6 +409,19 @@ The CLI API schema version is independent of the Portcove release version.
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
+`listing_delivery_carriers` identifies the independently versioned signed
+directory carriers a client consumes. The `gzip-base64-json-v1` carrier
+authenticates the compressed envelope under the existing delegated policy role.
+The client checks the bounded decoded length and digest and applies the same
+directory revision and replay rules as `json-v1`. It reads the legacy carrier
+when the compact target is absent from the signed repository. A failed compact
+read leaves the existing installation and admitted directory state available
+under their existing validity checks. The listing status digest identifies the
+exact decoded directory. For compact delivery, `transport_target_sha256`
+reports the independently authenticated carrier digest. The optional compact directory record and the
+legacy record share one transaction and authority floor. Older releases with a
+compatible library schema can continue to read and renew their genuine legacy
+record. The higher admitted directory revision governs a capable reader.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -435,8 +453,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 14. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -445,11 +462,28 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
+Listing format 14 adds reviewed bindings from an original edition to an exact
+Core source game, variant and representation. Exports through format 13 omit
+those bindings. A current registered file must pass Core recognition and
+admission under the selected Game contract before Desktop can use a matching
+edition's artwork. The binding leaves the launch requirements unchanged.
+The directory format applies independently of the signed carrier.
+
+Listing format 15 adds typed acquisition restrictions (`restrictions`). Exports
+through format 14 omit them and keep the derived `download_block_reason`, which
+always equals the explanation of the first download hold. See
+[acquisition restrictions](CATALOG.md#acquisition-restrictions).
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–15 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
-and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
+format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
+screenshots, format 14 adds verified source-edition bindings and format 15 adds
+typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -562,6 +596,13 @@ since can differ.
   `listing_download_refusal: "managed-route"`: a fresh library offers Install
   there instead of the upstream listing download. A library's own
   registration, pending setup or definition hold can keep the download.
+- Each listing and operational definition also has a `content_capabilities`
+  row for each requested platform. The row reports reviewed provider coordinates,
+  loader-dependent mod operations, declared original-file profiles and any
+  upstream setup guidance. `requires_reviewed_runtime` means the catalog
+  matches a loader contract for that platform. Package review, installed
+  state and exact-runtime checks still apply. A declared source profile names
+  the recognition route and supplies no compatibility result for local files.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
@@ -1519,7 +1560,7 @@ portcove artwork steamgriddb set-key
 portcove --json --non-interactive artwork steamgriddb set-key --stdin
 portcove --json artwork steamgriddb status
 portcove --json artwork steamgriddb search "<game name>"
-portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover [--page <n>]
 portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
 portcove --json artwork steamgriddb check-listings
 portcove --json artwork steamgriddb clear-key
@@ -1533,8 +1574,9 @@ Core keeps the key in this host's secure credential store and sends it only to t
 fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
 `configured`; the key is never shown.
 
-`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
-or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+`search` returns up to 50 matching games. `candidates` returns one provider page of
+up to 50 static PNG or JPEG images (`--page`, starting at 0; an empty page ends the
+listing) for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
 its CDN URL, size, style and author attribution. Both are suggestions: they choose
 no artwork, establish no game identity, download no image bytes and write nothing
 to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
@@ -1546,8 +1588,11 @@ images), `detail` (hero images) or `landscape` (wide grid images) slot and retur
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
-and the destination handoff. An image no longer on the game's first listing page is
-not-found, and a changed choice revision is a conflict; in both cases the current
+and the destination handoff. Core finds the chosen image by its ID across listing pages,
+so an image that moved to a later page is still confirmed. An image missing from the
+game's complete listing is not-found; if the listing is too long to finish
+confirming, the result is a state error asking you to list the images again. A
+changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
@@ -2127,7 +2172,7 @@ portcove --library <path> --json backup delete <port-id> <backup-id> --yes
 
 `backup create` first collects mutable data from a previously launched active release, then copies the complete canonical user-data root into a private directory and publishes it as `backups/<port-id>/<backup-id>` with an adjacent `backup.json` manifest only after the copy is complete. Every copied file and the manifest are flushed. The same-volume rename gives atomic namespace visibility to running processes. On Linux filesystems that accept directory `fsync`, Portcove additionally synchronizes the staged directory tree and the backup parent before reporting success, covering that supported directory-durability boundary. Other platforms and Linux filesystems that reject directory synchronization do not receive that claim, so a successful backup there does not promise that the final directory entry survives sudden power loss even though partial data is never published during normal execution or process failure. The result reports its stable ID, absolute path, creation timestamp, file count, byte count, and deterministic tree SHA-256. Empty roots fail with `not_found`; a symlink, non-Unicode path, or unsupported filesystem entry fails closed with no published partial backup. `backup list` is local, read-only, network-free, and returns a `BackupInventory`: verified backups remain newest-first while missing, unreadable, malformed, identity-mismatched, unsupported, and recovery-required entries are reported individually. Active private publication staging remains hidden. Damaged unrelated entries do not prevent creation of another backup. All backup commands validate the port against the embedded catalog.
 
-Before an update installs, a staged version is activated, or a rollback runs, Portcove snapshots the game's managed saved data through the same path as `backup create`, so the saves from just before the version changed can be restored. A game whose saves are `external-user-owned` is skipped, and so is a game with no saved data yet; that skip is recorded in Activity. Each snapshot carries an `automatic` label in `backup list` JSON (`operation` of `update`, `activation` or `rollback`, with `from_version` and `to_version`); manual snapshots omit it and the human listing shows a `KIND` column. If the snapshot fails, the version change stops before it modifies anything and reports the failure. Portcove keeps the newest five automatic snapshots per game and removes older automatic ones through the normal backup deletion recovery path; it never removes a manual snapshot. Staging a version without activating it, and an update that is already installed, take no snapshot. The per-library `automatic_snapshots` setting defaults to on and travels with the library. Desktop turns it off or on in Settings, under Library; the CLI has no command for it yet.
+Before an update installs, a staged version is activated, or a rollback runs, Portcove snapshots the game's managed saved data through the same path as `backup create`, so the saves from just before the version changed can be restored. A game whose saves are `external-user-owned` is skipped, and so is a game with no saved data yet; that skip is recorded in Activity. Each snapshot carries an `automatic` label in `backup list` JSON (`operation` of `update`, `activation` or `rollback`, with `from_version` and `to_version`); manual snapshots omit it and the human listing shows a `KIND` column. If the snapshot fails, the version change stops before it modifies anything and reports the failure. Portcove keeps the newest five automatic snapshots per game and removes older automatic ones through the normal backup deletion recovery path; it never removes a manual snapshot. Staging a version without activating it, and an update that is already installed, take no snapshot. The per-library `automatic_snapshots` setting defaults to on and travels with the library. Desktop reads this policy in Saves & backups, Versions & updates, and the activating update review. To change it, go to Settings → Library and storage. Backup history shows completed snapshots. The CLI has no command to change this policy.
 
 `backup restore` is destructive to current persistent data and therefore requires confirmation, or `--yes` for an unattended caller. It copies the selected snapshot into an operation-private staging directory, recomputes and compares its file count, byte count, and tree SHA-256, then creates an automatic safety backup of current non-empty data before replacing the canonical user root with same-volume renames. Those renames and the lifecycle journal prevent another running process from observing a partial staged tree and allow unambiguous process-crash recovery; they are not a cross-platform sudden-power-loss guarantee. A missing, mismatched, symlinked, or tampered backup fails before live data or the backup list changes. The result includes both `restored_backup` and the new `safety_backup`; the latter is absent only when no current files existed. Restore does not modify application versions or original game sources, and the restored data is synchronized into the active release on its next Portcove launch.
 
@@ -2245,10 +2290,12 @@ sync tools are harmless. Portcove never overwrites or deletes files in the
 folder. Temporary files from interrupted copies are ignored; saves files that are
 damaged or do not match their name are ignored and listed under `problems`, and
 a damaged file under this device's own name is kept for inspection and the push
-is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
-game and at most 256 MiB of saves files at once; beyond that `complete` is false,
-`next_step` is `incomplete`, and pulls from the folder are refused until older
-files are moved out (a saves file can still be imported directly).
+is refused. Push history has no saves-file count limit. Each status read newly
+verifies at most 256 MiB of saves files and remembers what it verified, so a
+longer history finishes over later reads: until then `complete` is false and
+`next_step` is `incomplete`. A pull continues reviewing until the history is
+complete. A folder holding more than 65,536 names of any kind is reported as
+incomplete (a saves file can still be imported directly).
 
 `folder-status` is read-only. It lists every saves file with its source version
 and platform, whether it matches this device's qualified game version
@@ -2670,6 +2717,105 @@ backup's enabled entries and recorded order. A matching backup can stay in use
 as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
+
+### Browsing reviewed GitHub mod releases
+
+In Desktop, open the game's Mods view and choose **Browse mods on GitHub**.
+The link opens the reviewed Releases page. The view shows the native ZIP setup
+only when the game's active installed build binds the reviewed loader and has
+a reviewed companion layout for the current platform. A game that is not
+installed, or whose installed build predates the loader, keeps only the link.
+Core decides this from the installed build's retained definition, not from the
+current catalog definition.
+
+Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
+randomizer releases recommended by Zelda64Recomp. With `--json`, the response
+includes the repository, release and asset IDs and the published SHA-256 when
+GitHub provides one.
+
+For Windows x86-64 or Linux x86-64, download the intact ZIP from GitHub and use
+**Install Mods** in a separate Zelda64Recompiled copy before starting the game.
+That installer handles the extra native libraries in the ZIP. This route owns
+its own mod updates and files. Portcove's managed setups still require separate
+review and custody for those libraries. [Randomizer installation instructions](https://github.com/RecompRando/MMRecompRando#mod-installation)
+
+To inspect a ZIP, run
+`portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID [ZIP]`.
+Provide the path to an intact local ZIP, or let Portcove fetch the selected
+GitHub asset privately. The review compares the ZIP with the published SHA-256 and reports the exact
+mods and companion libraries for the selected platform. `native_import_offered`
+is true only when the active installed build admits the platform and its
+runtime meets every mod's minimum runtime version. Use the intact ZIP in
+the upstream installer. The report cannot activate a Portcove setup.
+
+### Browsing upstream-owned mod portals
+
+Open **Mods** on the game page or run `portcove profile setups <port-id>`
+to see the reviewed browser links for the current host. A game can offer these
+links before it has an installed runtime or a managed mod setup. You choose,
+install and update files outside Portcove.
+
+- Daggerfall Unity links to Nexus. Choose the matching game version and operating
+  system. Follow the mod's instructions in a separate Daggerfall Unity copy.
+  Place `.dfmod` files in `StreamingAssets/Mods`. [Daggerfall Workshop setup](https://www.dfworkshop.net/projects/daggerfall-unity/modding/)
+- SM64 Co-op DX links to its community catalog. The game imports a compatible
+  ZIP or Lua file when you drag it onto the game window. [CoopDX FAQ](https://mods.sm64coopdx.com/help/faq/)
+- The UFO Defense and Terror from the Deep OpenXcom ports link to the OpenXcom
+  communities on mod.io and Mod DB. Check the mod's original game and engine
+  requirements before choosing a file. Some listings target a different engine
+  variant. [OpenXcom community](https://github.com/OpenXcom/OpenXcom#mods) ·
+  [OpenXcom on Mod DB](https://www.moddb.com/games/openxcom/mods)
+- vkQuake and Ironwail link to Quaddicted. Check the project's compatibility notes and
+  follow the author's setup in a separate Quake copy. [vkQuake compatibility](https://github.com/Novum/vkQuake)
+
+On supported Windows and Linux routes for vkQuake and Ironwail, use
+`portcove profile quaddicted PORT_ID` to see newest entries, or pass
+`--search SEARCH` and `--page 2` to narrow or continue the results. The
+vkQuake route also offers Arcane Dimensions file notices via
+`portcove profile mod-db-notices quake-vkquake`. These notices can include
+patches and documentation. Use the source page to see its instructions.
+
+The Core binding in `crates/portcove-core/catalog/external-mod-portals.json`
+specifies the exact port ID, original game ID, project URL and host platforms.
+Core also checks the current catalog when it returns a link or authorizes the
+desktop to open it. Browser routes supply no account, download, package trust
+or managed-import capability.
+
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
 
 ### Installing from GameBanana and Thunderstore
 
@@ -3190,6 +3336,14 @@ requires separate setup, Play or explicit update; it cannot become an update
 through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
+
+When a Windows x64 Stable definition offers a reviewed package choice, pass
+the same `--package ID` to `installation plan` and `installation run`. The
+preview records the choice and exact asset. A changed choice or package proof
+requires a new preview. A successful installation keeps the choice for later
+updates. A newer package with a missing or ambiguous saved choice leaves the
+installed copy available for Play. Omitting `--package` uses the ordinary
+selection rules.
 
 ### Shared-directory external runtimes (API 73)
 

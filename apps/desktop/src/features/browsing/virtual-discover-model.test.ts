@@ -2,6 +2,7 @@ import { expect, it } from "vite-plus/test";
 import { portDefinition } from "../../test-fixtures";
 import { groupCatalog } from "./original-game";
 import {
+  collectionAnchorAligned,
   discoverDestinationIndex,
   discoverRows,
   resolvedGridColumns,
@@ -55,4 +56,12 @@ it("resolves Library identity, menu and alternative origins without prefix colli
       discoverDestinationIndex(groups.slice(0, 2), { originKey: `library:${control}:port-14` }),
     ).toBe(-1);
   }
+});
+
+it("accepts the fractional upper scroll edge observed at 200% in Windows", () => {
+  expect(collectionAnchorAligned(2, 115.5, 116)).toBe(true);
+  expect(collectionAnchorAligned(2, 114.75, 116)).toBe(false);
+  expect(collectionAnchorAligned(0.75, 115, 116)).toBe(false);
+  expect(collectionAnchorAligned(0.25, 50, 116)).toBe(true);
+  expect(collectionAnchorAligned(-2, 0, 116)).toBe(true);
 });

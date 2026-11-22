@@ -1146,9 +1146,14 @@ fn expired_and_leftover_entries_are_removed_on_the_next_use() {
         Duration::from_secs(60),
     );
     keep_entry(&partials, 1, 4);
-    let old = filetime::FileTime::from_unix_time(1, 0);
+    let old = std::time::UNIX_EPOCH + Duration::from_secs(1);
     for name in parts(&root) {
-        filetime::set_file_mtime(root.join(name), old).unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(root.join(name))
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(old))
+            .unwrap();
     }
     fs::write(root.join(".portcove-partial-leftover"), b"crash").unwrap();
     fs::write(root.join("unpaired.json"), b"{}").unwrap();
@@ -1168,7 +1173,12 @@ fn expired_and_leftover_entries_are_removed_on_the_next_use() {
     // An expired entry of the same asset is not continued either.
     keep_entry(&partials, 3, 4);
     for name in parts(&root) {
-        filetime::set_file_mtime(root.join(name), old).unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(root.join(name))
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(old))
+            .unwrap();
     }
     let lease = partials.lease(&asset_numbered(3, 1 << 20)).unwrap();
     assert!(lease.resumed().is_none());

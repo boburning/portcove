@@ -41,7 +41,8 @@ export interface DetailActionContext {
   perform: Perform;
   close: () => void;
   reviewInstall?: DetailActions["reviewInstall"];
-  backupsChanged?: () => Promise<void>;
+  backupsChanged?: () => Promise<unknown>;
+  refreshRestoredBackups?: () => Promise<unknown>;
   libraryGeneration: number;
   dismissInstallReview?: DetailActions["dismissInstallReview"];
   onInstallCommitted?: (install: InstallRecord) => void;
@@ -57,6 +58,7 @@ export function detailActions({
   close,
   reviewInstall = () => undefined,
   backupsChanged = () => Promise.resolve(),
+  refreshRestoredBackups = backupsChanged,
   libraryGeneration,
   dismissInstallReview = () => undefined,
   onInstallCommitted,
@@ -171,33 +173,31 @@ export function detailActions({
       const result = await perform(
         "restore backup",
         () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
-        nullableNativeConsent,
+        {
+          ...nullableNativeConsent,
+          propagateFailure: true,
+          readbackAfterSuccess: refreshRestoredBackups,
+        },
       );
       if (result === null) return "cancelled";
-      const completed = Boolean(result);
-      if (completed) await backupsChanged();
-      return completed;
+      return Boolean(result);
     },
-    recoverGhostshipLegacy:
-      port.id === "ghostship"
-        ? async (backup, expectedPlan) => {
-            if (backup.port_id !== port.id)
-              throw new Error("Recovery backup belongs to another game.");
-            const result = await perform(
-              "recover legacy installation and data",
-              () =>
-                desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
-              { cancelledResult: (value) => value === null },
-            );
-            if (result === null) return "cancelled";
-            // Readback failure is separately attributable; it cannot undo committed recovery.
-            await perform("refresh backup history", backupsChanged, {
-              refresh: "none",
-              invalidateDiagnostics: false,
-            });
-            return Boolean(result);
-          }
-        : undefined,
+    recoverGhostshipLegacy: async (backup, expectedPlan) => {
+      if (backup.port_id !== port.id) throw new Error("Recovery backup belongs to another game.");
+      if (backup.recovery_review !== "legacy_install_and_data_v1") return false;
+      const result = await perform(
+        "recover legacy installation and data",
+        () => desktopApi.recoverGhostshipLegacyData(backup.id, expectedPlan, libraryGeneration),
+        { cancelledResult: (value) => value === null },
+      );
+      if (result === null) return "cancelled";
+      // Readback failure is separately attributable; it cannot undo committed recovery.
+      await perform("refresh backup history", backupsChanged, {
+        refresh: "none",
+        invalidateDiagnostics: false,
+      });
+      return Boolean(result);
+    },
     setChannel: (channel) =>
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
     setPolicy: (policy) =>

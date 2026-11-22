@@ -51,6 +51,7 @@ import { fileIdentity } from "../../../scripts/development-evidence.mts";
 
 const backupSectionSelector = '[aria-labelledby="detail-saves-and-storage"]';
 import {
+  currentDegradedBackupActions,
   degradedInventorySelector,
   waitForDegradedInventory,
 } from "./desktop-backup-inventory-observer.mts";
@@ -71,7 +72,12 @@ export async function backupReviewScenario({
     object(await invoke(name, args));
   const readStatus = (portId: string) => transportValue("status", command(["status", portId]));
   const inventory = (portId: string) =>
-    transportValue("backup_inventory", command(["backup", "list", portId]));
+    transportValue(
+      "backup_inventory",
+      // The owned Windows inventory read exceeded the generic 15 s fixture
+      // limit just after preparation (job 136932740784).
+      command(["backup", "list", portId], undefined, { timeoutMs: 30_000 }),
+    );
   await scenario("native-reviewed-backup-restore-and-delete", async () => {
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const { port, install } = await seed("opengoal-jak3", "success");
@@ -81,9 +87,17 @@ export async function backupReviewScenario({
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
     await mkdir(paths.user_data_root, { recursive: true });
     await writeFile(save, "selected snapshot data");
-    const selected = transportValue("backup", command(["backup", "create", port.id]));
+    // The first owned fixture creation reached the generic 15 s timeout in
+    // Windows job 137017525749. Run each fixture write once with a larger budget.
+    const selected = transportValue(
+      "backup",
+      command(["backup", "create", port.id], undefined, { timeoutMs: 45_000 }),
+    );
     await writeFile(save, "other snapshot data");
-    const other = transportValue("backup", command(["backup", "create", port.id]));
+    const other = transportValue(
+      "backup",
+      command(["backup", "create", port.id], undefined, { timeoutMs: 45_000 }),
+    );
     await writeFile(save, "current data before review");
     await open(port);
     await revealDetailSection(browser, "Saves & backups");
@@ -125,10 +139,8 @@ export async function backupReviewScenario({
       });
       artifacts.push(screenshot);
     };
-    // The panel is titled "Backups and updates" (backups.protection.title). It names
-    // installations by role and version, shows the managed folder path, and discloses
-    // the latest backup identifier on request.
-    const protectionSelector = 'section[aria-label="Backups and updates"]';
+    const savesSelector = 'section[aria-labelledby="detail-saves-and-storage"]';
+    const protectionSelector = `${savesSelector} > section[aria-label="Backups and updates"]`;
     const observeProtection = async (name: string) => {
       const currentInventory = inventory(port.id);
       const protection = currentInventory.protection;
@@ -136,12 +148,11 @@ export async function backupReviewScenario({
       assert.equal(protection.port_id, port.id);
       assert.ok(protection.installations.some((item) => item.install_id === install.id));
       const complete = currentInventory.state === "healthy" && !currentInventory.problems.length;
-      const expected = [
-        "Latest backup information",
-        protection.managed_data.path,
-        // Each installation by its role heading, so a missing one is not hidden by
-        // another installation or text that shares its version.
-        ...protection.installations.map(
+      const expectedSummary = ["Latest backup information"];
+      if (!complete) expectedSummary.push("We couldn’t confirm");
+      // Each installation has an exact role/version heading.
+      const expectedHeadings = protection.installations
+        .map(
           (item) =>
             `${
               {
@@ -151,20 +162,43 @@ export async function backupReviewScenario({
                 external: "Installation you maintain",
               }[item.role]
             } · ${item.version}`,
-        ),
-      ];
-      if (protection.latest_completed_backup) expected.push(protection.latest_completed_backup.id);
-      if (!complete) expected.push("We couldn’t confirm");
+        )
+        .sort();
       await browser.wait(
         async () => {
-          const panel = await browser.findElement(By.css(protectionSelector));
-          // The backup identifier is disclosed on request; open it to observe it.
-          for (const summary of await panel.findElements(
-            By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Backup identifier"]'),
-          ))
-            await executeBrowserScript(browser, "arguments[0].click();", summary);
-          const rendered = await panel.getText();
-          return expected.every((value) => rendered.includes(value));
+          const [panel] = await browser.findElements(By.css(protectionSelector));
+          const [details] = await browser.findElements(
+            By.xpath(
+              '//section[@aria-labelledby="detail-saves-and-storage"]/details[summary[normalize-space(.)="Backup check details"]]',
+            ),
+          );
+          if (!panel || !details) return false;
+          const disclosures = [
+            ...(await panel.findElements(
+              By.xpath('.//details[not(@open)]/summary[normalize-space(.)="Backup identifier"]'),
+            )),
+            ...(await details.findElements(By.xpath("self::details[not(@open)]/summary"))),
+          ];
+          for (const disclosure of disclosures)
+            await executeBrowserScript(browser, "arguments[0].click();", disclosure);
+          const summaryText = await panel.getText();
+          const savedFolders = await details.findElements(
+            By.xpath("./div/p[starts-with(normalize-space(.), 'Saved-data folder:')]/code"),
+          );
+          const headings = await Promise.all(
+            (await details.findElements(By.css("h3"))).map((element) => element.getText()),
+          );
+          const [latestId] = await panel.findElements(
+            By.xpath('.//details[summary[normalize-space(.)="Backup identifier"]]/code'),
+          );
+          return (
+            expectedSummary.every((value) => summaryText.includes(value)) &&
+            (!protection.latest_completed_backup ||
+              (await latestId?.getText()) === protection.latest_completed_backup.id) &&
+            savedFolders.length === 1 &&
+            (await savedFolders[0]?.getText()) === protection.managed_data.path &&
+            JSON.stringify(headings.sort()) === JSON.stringify(expectedHeadings)
+          );
         },
         15_000,
         "Backups and updates did not settle on the current Core inventory",
@@ -286,11 +320,24 @@ export async function backupReviewScenario({
     // Native27 observed consecutive 11.032 s and 11.063 s workspace readbacks
     // while this refused apply was still settling; exact promise attribution is
     // unproven. Match the finite confirmed-restore allowance for this UI wait.
-    await browser.wait(until.elementLocated(button("Review again")), 60_000);
+    const refreshRestoreReview = By.xpath(
+      '//*[@aria-labelledby="backup-review-title"]//button[normalize-space(.)="Refresh backup history"]',
+    );
+    await browser.wait(until.elementLocated(refreshRestoreReview), 60_000);
     assert.equal(await readFile(save, "utf8"), "changed after review");
     assert.equal(list().length, 2);
-    await browser.findElement(button("Review again")).click();
+    await browser.wait(
+      until.elementIsEnabled(await browser.findElement(refreshRestoreReview)),
+      60_000,
+    );
+    await browser.findElement(refreshRestoreReview).click();
     await browser.wait(until.elementLocated(button("Restore this backup")), 15_000);
+    const refreshedReview = await browser.findElement(
+      By.css('[aria-labelledby="backup-review-title"]'),
+    );
+    assert.ok((await refreshedReview.getText()).includes(selected.path));
+    assert.equal(await readFile(save, "utf8"), "changed after review");
+    assert.equal(list().length, 2);
     await browser.findElement(button("Restore this backup")).click();
     await confirmNative(
       "Confirm backup restore",
@@ -317,9 +364,17 @@ export async function backupReviewScenario({
       "changed after review",
     );
     await observeProtection("native-protection-after-reviewed-restore");
-    await clickVisible(
-      await (await row(selected.id)).findElement(By.css('button[aria-label^="Delete backup"]')),
+    const deleteTrigger = By.css(
+      `${backupSectionSelector} [data-backup-id="${selected.id}"] button[data-backup-action="delete"]:not(:disabled)`,
     );
+    // Hosted Windows observed a workspace refresh and a capabilities read
+    // after the confirmed restore. Keep waiting for the exact row to settle.
+    const deleteButton = await browser.wait(
+      until.elementLocated(deleteTrigger),
+      30_000,
+      "The selected backup's Delete control did not become enabled after restore",
+    );
+    await clickVisible(deleteButton);
     await browser.wait(until.elementLocated(button("Delete this backup permanently")), 15_000);
     const deleteActionStyles = await assertDestructiveReviewAction(
       browser,
@@ -383,8 +438,8 @@ export async function backupReviewScenario({
     const degraded = inventory(port.id);
     assert.equal(degraded.state, "degraded");
     assert.deepEqual(
-      degraded.backups.map((item) => item.id),
-      [other.id],
+      degraded.backups.map(({ id, sha256 }) => ({ id, sha256 })),
+      [{ id: other.id, sha256: other.sha256 }],
     );
     assert.equal(degraded.problems.length, 1);
     assert.ok(degraded.problems[0]);
@@ -395,14 +450,20 @@ export async function backupReviewScenario({
     assert.ok((await degradedNotice.getText()).includes("What to do next"));
     assert.ok((await degradedNotice.getText()).includes(degraded.problems[0].proposed_action));
     await observeProtection("native-protection-degraded-history");
-    const usableRow = await row(other.id);
-    assert.equal(
-      await usableRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
-      true,
-    );
-    assert.equal(
-      await usableRow.findElement(By.css('button[aria-label^="Delete backup"]')).isEnabled(),
-      true,
+    // Workspace refresh can invalidate history during the protection capture.
+    // Check both actions on the exact current row in one browser observation.
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          currentDegradedBackupActions,
+          degradedInventorySelector,
+          degraded.problems.length,
+          other.id,
+          other.sha256,
+        ),
+      60_000,
+      "Current degraded history must allow Restore and Delete for the exact usable backup",
     );
     await capture("native-degraded-backup-inventory", degradedInventorySelector);
 
@@ -479,20 +540,26 @@ export async function backupReviewScenario({
     const createdInventory = inventory(port.id);
     assert.equal(createdInventory.problems.length, 2);
     assert.equal(createdInventory.state, "degraded");
-    const createdRow = await row(createdFromRetainedData.id);
-    assert.equal(
-      await createdRow.findElement(By.xpath('.//button[normalize-space(.)="Restore"]')).isEnabled(),
-      true,
+    const createdRestore = By.css(
+      `${backupSectionSelector} .backup-history[data-backup-read-state="current"] [data-backup-id="${createdFromRetainedData.id}"] button[data-backup-action="restore"]:not(:disabled)`,
+    );
+    await browser.wait(
+      until.elementLocated(createdRestore),
+      45_000,
+      "Fresh backup history must enable Restore on the newly created retained-data backup",
     );
     await capture("native-retained-data-backup-created", ".backup-history");
 
-    // Controlled retained-record fixture in this harness's private library.
-    // Do not launch CLI after insertion: its startup recovery could mutate it.
+    // Keep all three publication paths present so real recovery must hold this
+    // owned fixture rather than automatically publish a normally recoverable restore.
     const operationId = randomUUID();
     const recoveryRoot = path.join(library, "recovery", operationId);
     const stagedSave = path.join(recoveryRoot, "staged-data/owned-review-save.bin");
+    const previousSave = path.join(recoveryRoot, "previous-data/owned-review-save.bin");
     await mkdir(path.dirname(stagedSave), { recursive: true });
-    await writeFile(stagedSave, await readFile(save), { flag: "wx" });
+    await mkdir(path.dirname(previousSave), { recursive: true });
+    await writeFile(stagedSave, "staged snapshot data", { flag: "wx" });
+    await writeFile(previousSave, "previous snapshot data", { flag: "wx" });
     const databasePath = path.join(library, "portcove.sqlite3");
     const database = new DatabaseSync(databasePath);
     try {
@@ -526,11 +593,35 @@ export async function backupReviewScenario({
         database.close();
       }
     };
-    const journalBefore = readJournal();
+    const initialJournal = readJournal();
+    assert.ok(initialJournal);
     const heldFiles = await Promise.all(
-      [save, stagedSave, path.join(createdFromRetainedData.path, "data/owned-review-save.bin")].map(
-        (file) => fileIdentity(file),
-      ),
+      [
+        save,
+        stagedSave,
+        previousSave,
+        path.join(createdFromRetainedData.path, "data/owned-review-save.bin"),
+      ].map((file) => fileIdentity(file)),
+    );
+    const currentGeneration = transportValue(
+      "desktop_bootstrap_status",
+      (await ipc("get_bootstrap_status")).value,
+    ).generation;
+    const recovery = await ipc("discover_orphaned_operations", { generation: currentGeneration });
+    assert.equal(recovery.ok, true);
+    const journalBefore = readJournal();
+    assert.ok(journalBefore);
+    assert.equal(
+      journalBefore.last_error,
+      "restore publication paths are ambiguous; refusing automatic repair",
+    );
+    assert.deepEqual(
+      {
+        ...journalBefore,
+        last_error: initialJournal.last_error,
+        updated_at: initialJournal.updated_at,
+      },
+      { ...initialJournal },
     );
     const heldInventory = await ipc("get_backups", { portId: port.id });
     assert.equal(heldInventory.ok, true);
@@ -541,10 +632,6 @@ export async function backupReviewScenario({
       reason: "recovery_required",
     });
     assert.equal(heldBackupInventory.state, "degraded");
-    const currentGeneration = transportValue(
-      "desktop_bootstrap_status",
-      (await ipc("get_bootstrap_status")).value,
-    ).generation;
     const rejectedPreview = await ipc("preview_backup_action", {
       portId: port.id,
       backupId: createdFromRetainedData.id,
@@ -560,7 +647,7 @@ export async function backupReviewScenario({
       generation: currentGeneration,
     });
     assert.equal(deletePreview.ok, true);
-    // WebView refresh keeps the same native host; its service adapter is read-only.
+    // Refresh the WebView and let the normal recovery observer see the same held paths.
     await openCatalogPortAfterRefresh(browser, port, port.name);
     await revealDetailSection(browser, "Saves & backups");
     await browser.wait(
@@ -590,8 +677,9 @@ export async function backupReviewScenario({
     assert.deepEqual(readJournal(), journalBefore);
     for (const identity of heldFiles) assert.deepEqual(await fileIdentity(identity.path), identity);
     const restoreAssessmentEvidence = {
-      setup: "private retained Prepared-record fixture; not an observed interruption",
+      setup: "private Prepared-record fixture with three ambiguous publication paths",
       operationId,
+      initialJournal,
       journalBefore,
       journalAfter: readJournal(),
       heldFiles,

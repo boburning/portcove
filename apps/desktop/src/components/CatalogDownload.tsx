@@ -137,6 +137,8 @@ function useDownloadChoices({
     );
   };
   const [checking, setChecking] = useState(autoCheck);
+  /** Releases to list; undefined keeps Core's default window. */
+  const [releaseWindow, setReleaseWindow] = useState<number>();
   const [choosingFolder, setChoosingFolder] = useState(false);
   const [error, setError] = useState<unknown>();
   const [request, setRequest] = useState<CatalogDownloadRequest>();
@@ -155,11 +157,24 @@ function useDownloadChoices({
   );
   const controlsBusy = busy || checking || choosingFolder;
   const loadCandidates = useCallback(
-    (releaseId?: ReleaseReference, selectedChannel = "stable", retainedPackage?: string) => {
+    (
+      releaseId?: ReleaseReference,
+      selectedChannel = "stable",
+      retainedPackage?: string,
+      window?: number,
+    ) => {
       const observation = requests.current.begin();
       return Promise.resolve()
         .then(() =>
-          desktopApi.catalogDownloadCandidates(entry.id, generation, releaseId, selectedChannel),
+          window === undefined
+            ? desktopApi.catalogDownloadCandidates(entry.id, generation, releaseId, selectedChannel)
+            : desktopApi.catalogDownloadCandidates(
+                entry.id,
+                generation,
+                releaseId,
+                selectedChannel,
+                window,
+              ),
         )
         .then((next) => {
           if (!requests.current.isCurrent(observation)) return;
@@ -201,7 +216,36 @@ function useDownloadChoices({
     setError(undefined);
     setResult(undefined);
     setSelectedKey("");
-    return loadCandidates(releaseId, selectedChannel, keepPackage ? packageChoice : undefined);
+    return loadCandidates(
+      releaseId,
+      selectedChannel,
+      keepPackage ? packageChoice : undefined,
+      releaseWindow,
+    );
+  };
+  // Offer older releases only while history continues and the window can still
+  // grow: Core lists at most 1,000, and a provider that keeps its own fixed
+  // window (GitLab) reports a smaller limit than requested.
+  const listedLimit = result?.coverage?.release_limit ?? 0;
+  const canShowOlderReleases =
+    result?.coverage?.release_history_complete === false &&
+    listedLimit < 1000 &&
+    (releaseWindow === undefined || listedLimit >= releaseWindow);
+  /** List 25 more releases, keeping the chosen release and package. */
+  const showOlderReleases = () => {
+    if (controlsBusy || !result) return;
+    // Step from the window Core actually honoured, so a failed request does
+    // not skip releases on the next attempt.
+    const window = (result.coverage?.release_limit ?? 10) + 25;
+    setReleaseWindow(window);
+    setChecking(true);
+    setError(undefined);
+    return loadCandidates(
+      result.selected_release_id ?? undefined,
+      channel,
+      selectedKey || undefined,
+      window,
+    );
   };
   const chooseFolder = async () => {
     if (controlsBusy) return;
@@ -268,6 +312,8 @@ function useDownloadChoices({
     selected,
     controlsBusy,
     check,
+    showOlderReleases,
+    canShowOlderReleases,
     chooseFolder,
   };
 }
@@ -712,6 +758,8 @@ function DownloadOptions({
   | "selected"
   | "controlsBusy"
   | "check"
+  | "showOlderReleases"
+  | "canShowOlderReleases"
   | "chooseFolder"
 > & { result: CatalogDownloadCandidates }) {
   return (
@@ -760,6 +808,15 @@ function DownloadOptions({
               }
             }}
           />
+        )}
+        {model.result.releases.length > 0 && model.canShowOlderReleases && (
+          <Button
+            variant="outline"
+            disabled={model.controlsBusy}
+            onClick={() => void model.showOlderReleases()}
+          >
+            Show older releases
+          </Button>
         )}
         <p role="status">{model.result.recommendation_reason}</p>
         {model.displayed.length > 0 && (

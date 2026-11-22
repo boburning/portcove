@@ -533,7 +533,17 @@ function SettingReview({
             </dl>
           </details>
         )}
-        <ActionReviewFailure error={error} />
+        <ActionReviewFailure
+          error={error}
+          summary={
+            failurePhase === "review" &&
+            failurePresentation(error)?.technical_context.game_settings_access ===
+              "medium_integrity_required"
+              ? t("review.requiresStandardWindowsSession")
+              : undefined
+          }
+          showMutationSummary={failurePhase !== "review"}
+        />
         <DialogFooter>
           <Button type="button" disabled={pending === "apply"} onClick={dismiss}>
             {t("review.cancel")}

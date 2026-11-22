@@ -58,12 +58,11 @@ fn result(root: &Path, arguments: &[&str], expected_command: &str) -> Value {
 }
 
 #[test]
-fn profile_setups_keeps_full_runtime_verification_in_public_json() {
+fn profile_inventory_verifies_adopted_builds_without_granting_loader_authority() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path();
-    // This adapter exists in the ordinary compiled CLI, unlike the Core-only
-    // Starship mod fixture. Reuse the supported-port adoption shape from
-    // host_diagnostics; these owned helper bytes are never game qualification.
+    // Adoption verifies the selected files but cannot establish their upstream
+    // version or grant the catalog's reviewed loader to those bytes.
     let port_id = "zelda64-recomp";
     let catalog = portcove_core::Catalog::embedded().unwrap();
     let port = catalog.port(port_id).unwrap();
@@ -91,19 +90,20 @@ fn profile_setups_keeps_full_runtime_verification_in_public_json() {
         &["--json", "profile", "ensure-default", port_id],
         "profile.ensure-default",
     );
-    let view = result(
+    let setups = result(
         root,
         &["--json", "profile", "setups", port_id],
         "profile.setups",
     );
-    assert_eq!(view["supported"], true, "{view}");
-    assert_eq!(
-        view["inventory"]["profiles"].as_array().unwrap().len(),
-        1,
-        "{view}"
+    assert_eq!(setups["supported"], false, "{setups}");
+    let view = result(
+        root,
+        &["--json", "profile", "list", port_id],
+        "profile.list",
     );
+    assert_eq!(view["profiles"].as_array().unwrap().len(), 1, "{view}");
     assert_eq!(
-        view["inventory"]["profiles"][0]["build_availability"], "verified",
+        view["profiles"][0]["build_availability"], "verified",
         "{view}"
     );
     let installed = Path::new(install["path"].as_str().unwrap())
@@ -113,11 +113,11 @@ fn profile_setups_keeps_full_runtime_verification_in_public_json() {
     fs::write(installed, bytes).unwrap();
     let changed = result(
         root,
-        &["--json", "profile", "setups", port_id],
-        "profile.setups",
+        &["--json", "profile", "list", port_id],
+        "profile.list",
     );
     assert_eq!(
-        changed["inventory"]["profiles"][0]["build_availability"], "changed",
+        changed["profiles"][0]["build_availability"], "changed",
         "{changed}"
     );
     assert!(
@@ -517,4 +517,33 @@ fn capabilities_advertise_reviewed_recipe_commands() {
             "capabilities must advertise {name} once"
         );
     }
+}
+
+#[test]
+fn reviewed_github_mod_outputs_export_machine_schemas() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    let catalog = &schema["data"]["github_mod_catalog"];
+    for field in [
+        "port_id",
+        "platform",
+        "repository_id",
+        "source_url",
+        "native_import_offered",
+        "releases",
+        "complete",
+        "freshness",
+    ] {
+        assert!(catalog["properties"][field].is_object(), "{field}");
+    }
+    let review = &schema["data"]["github_mod_compound_review"];
+    for field in ["repository_id", "release_id", "asset_id", "review"] {
+        assert!(review["properties"][field].is_object(), "{field}");
+    }
+    assert!(review["$defs"]["RecompCompoundReview"]["properties"]["companions"].is_object());
+    assert!(!library.exists());
 }

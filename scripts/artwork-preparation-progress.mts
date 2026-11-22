@@ -48,6 +48,9 @@ interface ItemState {
 }
 const stateBytes = 8 * 1024 * 1024;
 const refreshMs = 28 * 24 * 60 * 60 * 1000;
+const currentLiveObservation = (state: ItemState, now: number) =>
+  state.last_live_observation_at !== null &&
+  now - Date.parse(state.last_live_observation_at) < refreshMs;
 const safeId = (id: string) => /^[a-z0-9][a-z0-9-]{0,127}$/u.test(id);
 function readOwned(root: string, name: string): unknown {
   const filename = join(root, name);
@@ -81,13 +84,20 @@ function replaceOwned(root: string, name: string, value: unknown) {
   writeFileSync(temporary, bytes, { flag: "wx", mode: 0o600 });
   renameSync(temporary, filename);
 }
-function itemStateName(id: string, refresh: boolean) {
-  return refresh ? `artwork-refresh-progress-${id}.json` : `artwork-progress-${id}.json`;
+function itemStateName(id: string, refresh: boolean, maintenance: boolean) {
+  const kind = maintenance ? "maintenance-" : refresh ? "refresh-" : "";
+  return `artwork-${kind}progress-${id}.json`;
 }
 
-function itemState(root: string, id: string, now: number, refresh: boolean): ItemState | null {
+function itemState(
+  root: string,
+  id: string,
+  now: number,
+  refresh: boolean,
+  maintenance: boolean,
+): ItemState | null {
   if (!safeId(id)) throw new Error("Artwork continuation requires a stable port identity");
-  const value = readOwned(root, itemStateName(id, refresh));
+  const value = readOwned(root, itemStateName(id, refresh, maintenance));
   if (value === null) return null;
   if (
     !isRecord(value) ||
@@ -265,12 +275,20 @@ export async function prepareArtworkWorkset(
     selectedPortIds?: readonly string[];
     refreshPortIds?: readonly string[];
     maintenance?: boolean;
+    retainedCoverLimit?: number;
     now?: () => number;
     signal?: AbortSignal;
     onProgress?: (id: string) => void | Promise<void>;
   },
 ) {
   const now = options.now ?? Date.now;
+  const maintenance = options.maintenance === true;
+  const limit = options.retainedCoverLimit;
+  if (
+    limit !== undefined &&
+    (!options.maintenance || !Number.isSafeInteger(limit) || limit < 1 || limit > 400)
+  )
+    throw new Error("Bounded retained artwork maintenance requires a limit from 1 through 400");
   const providerAdmission = readOwned(options.root, "artwork-provider-admission.json");
   if (providerAdmission !== null) {
     if (
@@ -293,7 +311,9 @@ export async function prepareArtworkWorkset(
   }
   const ports = new Map(catalog.ports.map((port) => [port.id, port]));
   const inspectedIds = options.maintenance
-    ? catalog.ports.map((port) => port.id)
+    ? catalog.ports
+        .filter((port) => limit === undefined || mappingImages(port).length > 0)
+        .map((port) => port.id)
     : [...(options.selectedPortIds ?? [])];
   if (
     new Set(inspectedIds).size !== inspectedIds.length ||
@@ -339,6 +359,7 @@ export async function prepareArtworkWorkset(
     return observationHash({
       input,
       refresh,
+      maintenance,
       validator: options.validatorIdentity,
       tool: toolIdentity,
       // A newly verified image can restore an otherwise ambiguous original mapping.
@@ -353,7 +374,7 @@ export async function prepareArtworkWorkset(
     explicitRefresh.has(id) ||
     mappingImages(ports.get(id)!).some((image) => gone.has(image));
   const states = new Map(
-    inspectedIds.map((id) => [id, itemState(options.root, id, now(), refresh(id))]),
+    inspectedIds.map((id) => [id, itemState(options.root, id, now(), refresh(id), maintenance)]),
   );
   const due = (id: string) => {
     const state = states.get(id);
@@ -368,23 +389,22 @@ export async function prepareArtworkWorkset(
       referenced.some((value) => gone.has(value)) ||
       !state ||
       state.input_sha256 !== baseKey(id, true) ||
-      !state.last_live_observation_at ||
-      now() - Date.parse(state.last_live_observation_at) >= refreshMs
+      !currentLiveObservation(state, now())
     );
   };
-  const selected = options.maintenance
-    ? catalog.ports
-        .filter((port) => due(port.id))
-        .map((port) => port.id)
+  const dueIds = options.maintenance
+    ? inspectedIds
+        .filter(due)
         .sort(
           (a, b) =>
             Number(mappingImage(ports.get(a)!) !== null) -
               Number(mappingImage(ports.get(b)!) !== null) ||
-            Date.parse(states.get(a)?.last_live_observation_at ?? "1970-01-01") -
-              Date.parse(states.get(b)?.last_live_observation_at ?? "1970-01-01") ||
+            Date.parse(states.get(a)?.observed_at ?? "1970-01-01") -
+              Date.parse(states.get(b)?.observed_at ?? "1970-01-01") ||
             a.localeCompare(b),
         )
     : [...(options.selectedPortIds ?? [])];
+  const selected = limit === undefined ? dueIds : dueIds.slice(0, limit);
   if (
     new Set(selected).size !== selected.length ||
     selected.some((id) => !ports.has(id)) ||
@@ -402,16 +422,15 @@ export async function prepareArtworkWorkset(
   let cacheHits = 0;
   const carried: string[] = [];
   if (options.maintenance) {
-    const dueIds = new Set(selected);
+    const dueSet = new Set(dueIds);
     for (const id of inspectedIds) {
       const state = states.get(id);
       if (
-        !dueIds.has(id) &&
+        !dueSet.has(id) &&
         state?.input_sha256 === baseKey(id, true) &&
         state.complete &&
         finished(state.result.record, gone) &&
-        state.last_live_observation_at !== null &&
-        now() - Date.parse(state.last_live_observation_at) < refreshMs
+        currentLiveObservation(state, now())
       ) {
         apply(id, state.result);
         carried.push(id);
@@ -425,9 +444,7 @@ export async function prepareArtworkWorkset(
       state?.input_sha256 === baseKey(id, refresh(id)) &&
       state.complete &&
       finished(state.result.record, gone) &&
-      (!options.maintenance ||
-        (state.last_live_observation_at !== null &&
-          now() - Date.parse(state.last_live_observation_at) < refreshMs))
+      (!refresh(id) || currentLiveObservation(state, now()))
     ) {
       apply(id, state.result);
       cacheHits++;
@@ -454,6 +471,7 @@ export async function prepareArtworkWorkset(
       acceptedCatalog: accepted,
       selectedPortIds: batch,
       refreshPortIds: [...refreshing],
+      revalidateAccepted: maintenance,
       identities: isRecord(identities)
         ? Object.fromEntries(batch.map((id) => [id, identities[id]]))
         : undefined,
@@ -500,7 +518,7 @@ export async function prepareArtworkWorkset(
           last_live_observation_at: live ? memo.observationClock(record) : null,
           retry_at: providerStatus?.retry_at ?? null,
         };
-        replaceOwned(options.root, itemStateName(record.port_id, refreshed), state);
+        replaceOwned(options.root, itemStateName(record.port_id, refreshed, maintenance), state);
         apply(record.port_id, value);
         await options.onProgress?.(record.port_id);
       },
@@ -599,7 +617,10 @@ export async function prepareArtworkWorkset(
     continuation: {
       batches,
       completed_cache_hits: cacheHits,
-      complete: selected.every((id) => records.has(id) && finished(records.get(id)!, gone)),
+      ...(limit !== undefined ? { unselected_due_count: dueIds.length - selected.length } : {}),
+      complete:
+        dueIds.length === selected.length &&
+        selected.every((id) => records.has(id) && finished(records.get(id)!, gone)),
       pending_port_ids: selected.filter(
         (id) => !records.has(id) || !finished(records.get(id)!, gone),
       ),

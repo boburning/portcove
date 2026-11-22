@@ -1420,3 +1420,120 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Covers use a shared raised surface while retaining the short Library layout. */
+@layer utilities {
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover) {
+    /* Equals the global 3px focus outline plus its 3px offset, so the ring of a
+       control spanning the card content stays inside the card border. */
+    --cover-card-inset: 0.375rem;
+    /* Narrowest readable status beside Play in the narrowest poster column. */
+    --cover-status-min: 4.5rem;
+    padding: var(--cover-card-inset);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+
+  /* A nearest-edge reveal, such as focus returning to a card taller than the
+     workspace, keeps the control's whole focus ring inside the scroll owner. */
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover)
+    :is(button, a[href], summary) {
+    scroll-margin-block: var(--cover-card-inset);
+  }
+
+  /* Pointer hover and keyboard focus highlight the card; a mouse click that
+     leaves focus on a control does not. The control's own ring stays primary. */
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover):is(
+    :hover,
+    :has(:focus-visible)
+  ),
+  :root[data-input-mode="controller"]
+    :is(
+      .discover-covers .discover-game,
+      .collection-covers:not(.discover-grid) .collection-cover
+    ):focus-within {
+    border-color: var(--color-interactive-border);
+    box-shadow: var(--shadow-raised);
+  }
+
+  @media (forced-colors: active) {
+    :is(
+      .discover-covers .discover-game,
+      .collection-covers:not(.discover-grid) .collection-cover
+    ):is(:hover, :has(:focus-visible)),
+    :root[data-input-mode="controller"]
+      :is(
+        .discover-covers .discover-game,
+        .collection-covers:not(.discover-grid) .collection-cover
+      ):focus-within {
+      outline: 1px solid Highlight;
+      outline-offset: 1px;
+    }
+  }
+
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover)
+    :is(.discover-game-identity, .collection-identity):hover
+    .collection-art {
+    transform: none;
+    box-shadow: none;
+  }
+
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover)
+    .collection-personal-actions {
+    /* The absolute containing block starts inside the card border. */
+    inset-inline-start: var(--cover-card-inset);
+    inset-block-start: calc(var(--cover-card-inset) + var(--space-2));
+    inline-size: calc(100% - 2 * var(--cover-card-inset));
+  }
+
+  .discover-covers .discover-game :is(.collection-title, .collection-project),
+  .collection-covers:not(.discover-grid)
+    .collection-cover
+    :is(.collection-title, .collection-project, .library-entry-chips) {
+    min-block-size: 0;
+  }
+
+  .discover-covers .discover-game .collection-title {
+    margin-block-start: var(--space-3);
+  }
+
+  .discover-covers .discover-game-actions > button:not(.discover-card-action) {
+    padding-inline: 0;
+  }
+
+  /* Roomy poster rows pin every Library footer to the card bottom. A multi-port
+     group keeps its alternatives disclosure below its card. */
+  @media (height > 50rem) and (width > 30rem) {
+    .collection-covers:not(.discover-grid) [data-library-port-ids] {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .collection-covers:not(.discover-grid) [data-library-port-ids] > .collection-cover {
+      flex: 1 1 auto;
+    }
+
+    .collection-covers:not(.discover-grid) .collection-cover .collection-main {
+      flex: 1 1 auto;
+    }
+  }
+
+  /* The status keeps a readable minimum. Play joins it on one row when both
+     fit; a wider action group, such as a release-withdrawal badge with Play,
+     wraps onto its own row instead of compressing the status. */
+  .collection-cover .library-entry-footer .collection-state {
+    flex: 1 1 var(--cover-status-min, 6rem);
+    min-inline-size: min(100%, var(--cover-status-min, 6rem));
+  }
+
+  .collection-cover .library-card-play {
+    white-space: nowrap;
+  }
+
+  @media (height <= 50rem) {
+    .collection-covers:not(.discover-grid) .collection-cover .collection-personal-actions {
+      inline-size: min(calc(40% - 0.8 * var(--cover-card-inset)), var(--collection-art-limit));
+    }
+  }
+}

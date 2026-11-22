@@ -12,7 +12,8 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { ArtworkCache, type ArtworkDisplay } from "./artwork-cache";
+import { ArtworkCache, type ArtworkDisplay, type ArtworkPriority } from "./artwork-cache";
+
 import type {
   ArtworkSlot,
   CatalogDocument,
@@ -20,6 +21,8 @@ import type {
   CatalogMediaAsset,
   IgdbArtwork,
 } from "./types";
+
+const selectedArtwork: ArtworkPriority = () => 2;
 
 const ArtworkContext = createContext<ArtworkCache | undefined>(undefined);
 const unavailable: ArtworkDisplay = { loading: false };
@@ -63,6 +66,7 @@ export function ArtworkProvider({
     () => new ArtworkCache(generation, catalogArtworkKey),
     [generation, catalogArtworkKey],
   );
+  useEffect(() => () => cache.clearRetryTimers(), [cache]);
   const collections = useMemo(() => {
     const result = new Map<string, readonly IgdbArtwork[]>();
     for (const listing of listings?.listings ?? [])
@@ -86,6 +90,7 @@ export function useCollectionCovers(
   portId: string | undefined,
   primary: ArtworkDisplay,
   visible: boolean,
+  priority: ArtworkPriority = selectedArtwork,
 ) {
   const cache = useContext(ArtworkContext);
   const collections = useContext(CollectionCoversContext);
@@ -122,11 +127,11 @@ export function useCollectionCovers(
     let current = true;
     if (visible && !primary.loading && cache && portId && revision !== undefined)
       for (const { key, sha256 } of keys)
-        cache.loadCollectionCover(key, portId, sha256, revision, () => current);
+        cache.loadCollectionCover(key, portId, sha256, revision, () => current, priority);
     return () => {
       current = false;
     };
-  }, [visible, primary.loading, cache, portId, revision, keys]);
+  }, [visible, primary.loading, cache, portId, revision, keys, priority]);
   return displays;
 }
 
@@ -139,7 +144,12 @@ export function useCoverCollection(portId: string) {
   return useContext(CollectionCoversContext).get(portId);
 }
 
-export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
+export function useArtwork(
+  portId: string,
+  slot: ArtworkSlot,
+  visible = true,
+  priority: ArtworkPriority = selectedArtwork,
+) {
   const cache = useContext(ArtworkContext);
   const subscribe = useCallback(
     (listener: () => void) => {
@@ -160,12 +170,18 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
     if (visible) {
       // A loaded, current image is kept; a missing or stale one is read again.
       const shown = cache?.read(portId, slot);
-      void cache?.load(portId, slot, !shown?.image || Boolean(shown.stale), () => current);
+      void cache?.load(
+        portId,
+        slot,
+        !shown?.image || Boolean(shown.stale),
+        () => current,
+        priority,
+      );
     }
     return () => {
       current = false;
     };
-  }, [cache, portId, slot, visible]);
+  }, [cache, portId, slot, visible, priority]);
   return { cache, display };
 }
 
@@ -174,6 +190,7 @@ export function useCompanionCover(
   sha256: string | undefined,
   primary: ArtworkDisplay,
   visible: boolean,
+  priority: ArtworkPriority = selectedArtwork,
 ) {
   const cache = useContext(ArtworkContext);
   const source = primary.state?.resolved_source;
@@ -196,34 +213,63 @@ export function useCompanionCover(
   useEffect(() => {
     let current = true;
     if (visible && key && sha256 && primaryCacheId && revision !== undefined)
-      cache?.loadCompanion(key, portId, primaryCacheId, sha256, revision, () => current);
+      cache?.loadCompanion(key, portId, primaryCacheId, sha256, revision, () => current, priority);
     return () => {
       current = false;
     };
-  }, [cache, key, portId, primaryCacheId, revision, sha256, visible]);
+  }, [cache, key, portId, primaryCacheId, revision, sha256, visible, priority]);
   return display;
 }
 
+let viewportObserver: IntersectionObserver | undefined;
+const viewportListeners = new WeakMap<Element, (visible: boolean) => void>();
+
+function observeArtworkViewport(element: Element, listener: (visible: boolean) => void) {
+  if (!(viewportObserver instanceof IntersectionObserver)) {
+    viewportObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) viewportListeners.get(entry.target)?.(entry.isIntersecting);
+    });
+  }
+  const observer = viewportObserver;
+  viewportListeners.set(element, listener);
+  observer.observe(element);
+  return () => {
+    viewportListeners.delete(element);
+    observer.unobserve(element);
+  };
+}
+
 export function useArtworkVisibility() {
+  const cache = useContext(ArtworkContext);
   const element = useRef<HTMLDivElement>(null);
+  const inViewport = useRef(typeof IntersectionObserver === "undefined");
   const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
+  const priority = useCallback(() => (inViewport.current ? 1 : 0), []);
   useEffect(() => {
-    if (!element.current) return;
-    if (typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(
+    if (!element.current || typeof IntersectionObserver === "undefined") return;
+    const stopViewport = observeArtworkViewport(element.current, (visible) => {
+      inViewport.current = visible;
+      cache?.reprioritize();
+    });
+    const nearby = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
       { rootMargin: "800px 200px" },
     );
-    observer.observe(element.current);
-    return () => observer.disconnect();
-  }, []);
-  return { element, visible };
+    nearby.observe(element.current);
+    return () => {
+      stopViewport();
+      nearby.disconnect();
+      inViewport.current = false;
+    };
+  }, [cache]);
+  return { element, visible, priority };
 }
 
 export function useCatalogMedia(
   portId: string,
   media: CatalogMediaAsset | undefined,
   visible: boolean,
+  priority: ArtworkPriority = selectedArtwork,
 ) {
   const cache = useContext(ArtworkContext);
   const interest = useRef<CatalogMediaAsset | undefined>(undefined);
@@ -240,15 +286,16 @@ export function useCatalogMedia(
   useEffect(() => {
     let current = true;
     interest.current = visible ? media : undefined;
-    if (media && visible) cache?.loadMedia(portId, media, () => current);
+    if (media && visible) cache?.loadMedia(portId, media, () => current, false, priority);
     return () => {
       // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
       current = false;
       interest.current = undefined;
     };
-  }, [cache, portId, media, visible]);
+  }, [cache, portId, media, visible, priority]);
   const retry = () => {
-    if (media && visible) cache?.loadMedia(portId, media, () => interest.current === media, true);
+    if (media && visible)
+      cache?.loadMedia(portId, media, () => interest.current === media, true, priority);
   };
   return { display, retry };
 }
@@ -285,8 +332,8 @@ function useCatalogMediaChain(
     });
   }, [cache, key, candidate]);
   useEffect(() => {
-    if (visible && display.error) reject();
-  }, [visible, display.error, reject]);
+    if (visible && display.error && !display.image && !display.retrying) reject();
+  }, [visible, display.error, display.image, display.retrying, reject]);
   return { candidate, display, reject, exhausted: !candidate };
 }
 

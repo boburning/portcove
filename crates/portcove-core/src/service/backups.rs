@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -925,7 +926,8 @@ impl PortcoveService {
     ) -> Result<BackupInventory> {
         let port = self.catalog.port(port_id)?;
         let status = self.library.status(port_id, super::default_channel(port))?;
-        let history = self.backup_history_with_operations(port_id, operations)?;
+        let mut history = self.backup_history_with_operations(port_id, operations)?;
+        self.project_legacy_backup_reviews(&status, &mut history.backups)?;
         Ok(BackupInventory {
             port_id: port_id.into(),
             protection: Some(self.player_data_protection(port, &status, &history.backups)?),
@@ -1201,6 +1203,7 @@ impl PortcoveService {
             availability,
             reason,
             definition: None,
+            restriction: None,
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id
@@ -1260,6 +1263,7 @@ impl PortcoveService {
             availability,
             reason,
             definition: None,
+            restriction: None,
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id
@@ -1372,6 +1376,31 @@ impl PortcoveService {
         }
     }
 
+    fn restore_target_sha256(&self, port_id: &str) -> Result<String> {
+        let mut connection = self.library.connection()?;
+        let snapshot = connection.transaction()?;
+        let roles: Option<(Option<String>, Option<String>)> = snapshot
+            .query_row(
+                "SELECT active_install_id, previous_install_id FROM port_settings WHERE port_id=?1",
+                [port_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        let mut installs = Library::installs_for_port_from(&snapshot, port_id)?;
+        installs.sort_by(|left, right| left.id.cmp(&right.id));
+        let external = Library::external_runtime_with_port_from(&snapshot, port_id)?
+            .map(|(runtime, _)| runtime);
+        let setup = crate::profile::selection(&snapshot, port_id)?;
+        Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+            port_id,
+            self.library.user_dir(port_id),
+            roles.unwrap_or_default(),
+            installs,
+            external,
+            setup,
+        ))?))
+    }
+
     pub fn preview_backup_action(
         &self,
         port_id: &str,
@@ -1379,6 +1408,7 @@ impl PortcoveService {
         action: BackupAction,
     ) -> Result<BackupActionPreview> {
         self.catalog.port(port_id)?;
+        let mut restore_target_sha256 = None;
         if action == BackupAction::Restore {
             crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             self.require_completed_restore(port_id)?;
@@ -1387,6 +1417,7 @@ impl PortcoveService {
             if self.has_unfinishable_backup_deletion(port_id)? {
                 self.require_completed_backup_deletion(port_id)?;
             }
+            restore_target_sha256 = Some(self.restore_target_sha256(port_id)?);
         }
         let backup = self.load_backup(port_id, backup_id)?;
         if action == BackupAction::Restore {
@@ -1418,12 +1449,19 @@ impl PortcoveService {
         };
         let mut preview_sha256 =
             backup_action_fingerprint(action, &backup, &backup_plan, user_plan.as_ref())?;
-        let collectible = if action == BackupAction::Restore {
+        let collectible = if let Some(target) = &restore_target_sha256 {
             let runtime = self.collectible_data_review(port_id)?;
+            let canonical = self.canonical_data_review(port_id)?;
+            if self.restore_target_sha256(port_id)? != *target {
+                return Err(PortcoveError::conflict(
+                    "the installation or setup changed during backup review",
+                ));
+            }
             preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
                 &preview_sha256,
                 &runtime.sha256,
-                self.canonical_data_review(port_id)?,
+                canonical,
+                target,
             ))?);
             Some(runtime)
         } else {
@@ -1452,6 +1490,7 @@ impl PortcoveService {
             retained_runtime_copy_will_be_deleted: action == BackupAction::Delete
                 && runtime_safety.is_some(),
             preview_sha256,
+            restore_target_sha256,
         })
     }
 
@@ -2175,6 +2214,7 @@ fn require_restorable(backup: &BackupRecord) -> Result<()> {
 
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
     BackupRecord {
+        recovery_review: None,
         automatic: manifest.automatic_v1,
         id: manifest.id,
         port_id: manifest.port_id,

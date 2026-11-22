@@ -20,6 +20,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { activityOutsideCatalog } from "./desktop-catalog-update-test.mts";
 import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
 
 export interface PreparationContext {
@@ -251,39 +252,75 @@ function contrastRatio(foreground: string, background: string) {
   return (required(values[0]) + 0.05) / (required(values[1]) + 0.05);
 }
 
-async function assertActivityLabelSeparation(browser: WebDriver, width: number) {
-  const gap = await executeBrowserScript(
+async function assertActivityLabelSeparation(
+  browser: WebDriver,
+  activityId: string,
+  observationPath: string,
+  artifacts: string[],
+) {
+  const selector = By.css(
+    `[data-record-view="history"] [data-activity-id="${activityId}"]:not([hidden])`,
+  );
+  const row = await browser.wait(
+    until.elementLocated(selector),
+    15_000,
+    "History did not show the exact completed update check",
+  );
+  assert.equal(await row.isDisplayed(), true);
+  const observation = await executeBrowserScript(
     browser,
-    (compact) => {
-      const activity = document.querySelector(".activity-row");
-      const previous = activity?.querySelector(compact ? ".activity-main" : ".activity-time");
-      const status = activity?.querySelector(".activity-status");
-      if (!previous || !status) return null;
-      const textBounds = (element: Element) => {
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-        let left = Infinity;
-        let right = -Infinity;
+    (element) => {
+      element.scrollIntoView({ block: "center" });
+      const textRects = (selector: string) => {
+        const item = element.querySelector(selector);
+        if (!item) return [];
+        const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+        const rectangles = [];
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
           if (!node.textContent?.trim()) continue;
           const range = document.createRange();
           range.selectNodeContents(node);
-          const rect = range.getBoundingClientRect();
-          left = Math.min(left, rect.left);
-          right = Math.max(right, rect.right);
+          for (const rect of range.getClientRects()) {
+            if (rect.width > 0 && rect.height > 0) {
+              rectangles.push({
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
+              });
+            }
+          }
         }
-        return { left, right };
+        return rectangles;
       };
-      const preceding = textBounds(previous);
-      const outcome = textBounds(status);
-      if (!Number.isFinite(preceding.right) || !Number.isFinite(outcome.left)) return null;
-      return outcome.left - preceding.right;
+      return {
+        activityId: element.getAttribute("data-activity-id"),
+        viewport: { width: innerWidth, height: innerHeight },
+        main: textRects(".activity-main"),
+        status: textRects(".activity-status"),
+        time: textRects(".activity-time"),
+      };
     },
-    width === 960,
+    row,
   );
-  assert.ok(
-    gap !== null && gap >= 8,
-    `Activity outcome overlaps preceding content at ${width}px (gap ${gap}px)`,
-  );
+  await writeFile(observationPath, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(observationPath);
+  assert.equal(observation.activityId, activityId);
+  assert.ok(observation.main.length && observation.status.length && observation.time.length);
+  for (const [label, preceding] of [
+    ["game and action", observation.main],
+    ["time", observation.time],
+  ] as const) {
+    for (const status of observation.status) {
+      for (const other of preceding) {
+        // History can stack these labels or put them on one line. The text
+        // needs its horizontal gap only when the actual lines share height.
+        if (status.top >= other.bottom || other.top >= status.bottom) continue;
+        const gap = Math.max(status.left - other.right, other.left - status.right);
+        assert.ok(gap >= 8, `Activity outcome and ${label} share a line with a ${gap}px gap`);
+      }
+    }
+  }
 }
 
 const updateReviewWindows = [
@@ -383,6 +420,38 @@ async function assertIndividualUpdateFailure({
     sources_before: transportValues("source", command(["source", "list"])),
     layouts: [],
   };
+  // Cleanup and evidence run on both paths; only a passing scenario may fail on them.
+  const finishEvidence = async () => {
+    try {
+      observations.probe = await executeBrowserScript(browser, () => {
+        const ownedWindow = window as Window & {
+          __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
+        };
+        const probe = ownedWindow.__portcoveUpdateFailureProbe;
+        if (!probe) return { installed: false, restored: false };
+        window.fetch = probe.original;
+        delete ownedWindow.__portcoveUpdateFailureProbe;
+        return {
+          installed: true,
+          intercepted: probe.intercepted,
+          restored: window.fetch === probe.original,
+        };
+      });
+      const report = path.join(output, "update-check-failure-observations.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      artifacts.push(report);
+      if (observations.failure === undefined) {
+        assert.equal(observations.probe.restored, true);
+        assert.equal(observations.probe.intercepted, 2);
+      }
+    } catch (error) {
+      if (observations.failure === undefined) throw error;
+      console.error("Could not finish the update diagnostic cleanup or write its evidence", error);
+    }
+  };
   try {
     await executeBrowserScript(
       browser,
@@ -432,10 +501,37 @@ async function assertIndividualUpdateFailure({
       );
       await browser.wait(until.elementIsEnabled(check), 5_000);
       await clickVisible(browser, check);
-      const region = await browser.wait(
-        until.elementLocated(By.css(`[data-update-check-failure="${port.id}"]`)),
-        15_000,
+      const expectedRequests = theme === "dark" ? 1 : 2;
+      const rendered = await browser.wait(
+        async () => {
+          const settled = await executeBrowserScript(
+            browser,
+            (button, expected) => {
+              const ownedWindow = window as Window & {
+                __portcoveUpdateFailureProbe?: { intercepted: number };
+              };
+              return (
+                ownedWindow.__portcoveUpdateFailureProbe?.intercepted === expected &&
+                button instanceof HTMLButtonElement &&
+                button.getAttribute("aria-busy") === "false" &&
+                !button.disabled
+              );
+            },
+            check,
+            expectedRequests,
+          );
+          if (!settled) return false;
+          const [diagnostic] = await browser.findElements(
+            By.css(`[data-update-check-failure="${port.id}"]`),
+          );
+          return diagnostic && (await diagnostic.isDisplayed()) ? diagnostic : false;
+        },
+        45_000,
+        "The exact update diagnostic must render after this check and workspace read complete",
       );
+      // browser.wait resolves only with the displayed diagnostic, never with false.
+      assert.ok(rendered);
+      const region = rendered;
       assert.equal(
         await region.getAttribute("aria-label"),
         `Update check failure for ${port.name}`,
@@ -532,31 +628,10 @@ async function assertIndividualUpdateFailure({
     assert.deepEqual(observations.sources_after, observations.sources_before);
   } catch (error) {
     observations.failure = errorMessage(error);
+    await finishEvidence();
     throw error;
-  } finally {
-    observations.probe = await executeBrowserScript(browser, () => {
-      const ownedWindow = window as Window & {
-        __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
-      };
-      const probe = ownedWindow.__portcoveUpdateFailureProbe;
-      if (!probe) return { installed: false, restored: false };
-      window.fetch = probe.original;
-      delete ownedWindow.__portcoveUpdateFailureProbe;
-      return {
-        installed: true,
-        intercepted: probe.intercepted,
-        restored: window.fetch === probe.original,
-      };
-    });
-    const report = path.join(output, "update-check-failure-observations.json");
-    await writeFile(report, JSON.stringify(observations, null, 2), {
-      encoding: "utf8",
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.equal(observations.probe.restored, true);
-    assert.equal(observations.probe.intercepted, 2);
   }
+  await finishEvidence();
 }
 
 function controlledUpdateFailure(mutation: MutationState): FailureReport {
@@ -1036,7 +1111,10 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} ${installed.length === 1 ? "port" : "ports"} in your library`,
+  );
 }
 
 export interface LibraryFooterKeyboardPoint {
@@ -1782,7 +1860,9 @@ export async function preparationScenarios({
           ? current
           : false;
       },
-      15_000,
+      // On hosted Windows the first post-prepare workspace read failed after
+      // 30.5 s and its retry took another 19.5 s (run 44940812838).
+      60_000,
       "Prepared Core state did not reach the rendered trial-launch action",
     );
     assert.ok(trial, "Rendered trial-launch action must be available");
@@ -1857,11 +1937,6 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const filterPanel = await openCatalogFilters(browser);
-    const advanced = await filterPanel.findElement(
-      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-    );
-    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-      await clickVisible(browser, advanced);
     const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
     await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
@@ -1914,7 +1989,7 @@ export async function preparationScenarios({
           (await launch[0]!.getAttribute("aria-busy")) !== "true"
         );
       },
-      15_000,
+      45_000,
       "Library launch must settle before the card composition check",
     );
     const cardActions = await executeBrowserScript(
@@ -2183,8 +2258,26 @@ export async function preparationScenarios({
         await shortcut("0");
         await openUpdateTheme(browser, theme);
         await selectPrimaryNavigation(browser, "Library");
-        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        // Hosted Windows job 136875392709 was still loading the reopened
+        // library after two failed snapshots and an immediate retry.
+        await browser.wait(
+          until.elementLocated(By.css(".collection-entry")),
+          60_000,
+          "The seeded Library entries did not render after startup",
+        );
         const search = await browser.findElement(By.id("port-search"));
+        assert.notEqual(
+          await executeBrowserScript(browser, () => document.activeElement?.id),
+          "port-search",
+        );
+        await shortcut("f");
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the seeded Library search",
+        );
+        assert.equal((await browser.findElements(By.id("command-palette-title"))).length, 0);
+        observations.push({ phase: "library-local-find", theme, focused: "port-search" });
         // WebElement.clear() empties the DOM value without React's input event,
         // so the controlled query kept "Jak" and the next pass typed "JakJak"
         // (hosted run 43646110119). Clear through real key input instead.
@@ -2359,7 +2452,12 @@ export async function preparationScenarios({
               async function checkFocusedResizeAt200() {
                 await browser.manage().window().setRect({ width: 1366, height: 768 });
                 const target = '.collection-entry button[aria-label^="More actions for "]';
-                const more = await browser.findElement(By.css(target));
+                let more = await browser.findElement(By.css(target));
+                const origin = await more.getAttribute("data-detail-origin");
+                assert.ok(origin, "The Library menu must expose its exact return identity");
+                const sameAction = By.css(
+                  target + "[data-detail-origin=" + JSON.stringify(origin) + "]",
+                );
                 const waitForVisibleAction = () =>
                   browser.wait(
                     () =>
@@ -2475,8 +2573,16 @@ export async function preparationScenarios({
                   { width: 960, height: 640 },
                   { width: 1366, height: 768 },
                 ]) {
+                  const priorElement = await more.getId();
                   await browser.manage().window().setRect(requestedWindow);
                   const state = await measure();
+                  // The native viewport may replace the DOM node. Observe the same
+                  // logical action without focusing it or choosing another card.
+                  more = await browser.wait(
+                    until.elementLocated(sameAction),
+                    5_000,
+                    "The same Library menu did not survive resizing",
+                  );
                   const continuity = await executeBrowserScript(
                     browser,
                     launchContinuityPoint,
@@ -2484,29 +2590,39 @@ export async function preparationScenarios({
                   );
                   observations.push({
                     phase: "focused-resize-200",
+                    origin_element_replaced: (await more.getId()) !== priorElement,
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
                     ...state,
                     continuity,
                   });
                   await waitForVisibleAction();
+                  const settled = await measure();
+                  const settledContinuity = await executeBrowserScript(
+                    browser,
+                    launchContinuityPoint,
+                    more,
+                  );
                   observations.push({
                     phase: "settled-focused-resize-200",
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
-                    ...(await measure()),
-                    continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                    ...settled,
+                    continuity: settledContinuity,
                   });
-                  assert.equal(state.zoom, "200");
-                  assert.equal(state.query, "Jak");
-                  assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
-                  assert.equal(state.entries, 2);
-                  assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                  assert.equal(settled.zoom, "200");
+                  assert.equal(settled.query, "Jak");
+                  assert.equal(settled.layout, layout === "Covers" ? "covers" : "rows");
+                  assert.equal(settled.entries, 2);
                   assert.ok(
-                    continuity.originFocused && continuity.originConnected,
-                    JSON.stringify(continuity),
+                    settled.scrollWidth <= settled.contentWidth + 1,
+                    JSON.stringify(settled),
                   );
-                  assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+                  assert.ok(
+                    settledContinuity.originFocused && settledContinuity.originConnected,
+                    JSON.stringify(settledContinuity),
+                  );
+                  assert.ok(settledContinuity.documentFocused, JSON.stringify(settledContinuity));
                 }
                 // One scoped target avoids claiming that the whole scrollable collection
                 // fits above the fold. The screenshot still retains the native viewport.
@@ -2709,6 +2825,7 @@ export async function preparationScenarios({
             "Game files",
             "Saves & backups",
             "Versions & updates",
+            "Game settings",
             "Manage",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
@@ -2811,11 +2928,6 @@ export async function preparationScenarios({
         port.name,
       );
       const filters = await openCatalogFilters(browser);
-      const advanced = await filters.findElement(
-        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-      );
-      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-        await clickVisible(browser, advanced);
       const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );
@@ -3028,7 +3140,18 @@ export async function preparationScenarios({
       0,
     );
     const before = await status(port.id);
-    const activityBefore = (await invoke("get_activities")).value;
+    const gameActivity = async () =>
+      activityOutsideCatalog(await read("activity", "get_activities"));
+    const activityBefore = await gameActivity();
+    const updateCheck = activityBefore.records.filter(
+      (record) =>
+        record.operation === "check_update" &&
+        record.target_kind === "port" &&
+        record.target_id === port.id &&
+        record.status === "succeeded",
+    );
+    assert.equal(updateCheck.length, 1, "The owned game must have one completed update check");
+    const updateCheckId = required(updateCheck[0]).id;
     const trigger = await browser.findElement(button("Update now"));
     await clickVisible(browser, trigger);
     const dialog = By.css("[data-game-update-review]");
@@ -3095,7 +3218,7 @@ export async function preparationScenarios({
     });
     artifacts.push(screenshot);
     assert.deepEqual((await status(port.id)).active, before.active);
-    assert.deepEqual((await invoke("get_activities")).value, activityBefore);
+    assert.deepEqual(await gameActivity(), activityBefore);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(dialog)).length === 0,
@@ -3212,7 +3335,12 @@ export async function preparationScenarios({
           artifacts.push(latestScreenshot);
           if (!wasOpen) await clickVisible(browser, await details.findElement(By.css("summary")));
           await selectActivitySection(browser, "History");
-          await assertActivityLabelSeparation(browser, width);
+          await assertActivityLabelSeparation(
+            browser,
+            updateCheckId,
+            path.join(output, `activity-layout-${theme}-${width}x${height}.json`),
+            artifacts,
+          );
           const historyScreenshot = path.join(
             output,
             `native-task-history-${theme}-${width}x${height}.png`,

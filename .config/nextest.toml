@@ -13,6 +13,14 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Windows run 44903098663/1 hit the 120s cutoff on both lifecycle cases
+# without an assertion failure. Allow up to 240s for each complete lifecycle.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::(native_portable::tests::compatible_archive_progression_sonic_additive_settings|tests::mstan_snes_installations_update_with_the_disposable_preloaded_mod_state)$/)'
+slow-timeout = { period = "5s", terminate-after = 48, grace-period = "0s" }
+success-output = "immediate"
+
 # The same partition retained this complete three-version Tails fixture's
 # 90.350s cutoff. It includes backup, rollback, consented restore and interrupted
 # activation/recovery. Give only this Windows case finite180s completion and

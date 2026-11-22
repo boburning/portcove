@@ -14,6 +14,7 @@ import { workspaceScrollOwner, scrollWorkspaceTo } from "../../workspace-scroll"
 import type { CollectionLayout } from "./use-collection-layout";
 import type { GameGroup } from "./original-game";
 import {
+  collectionAnchorAligned,
   discoverDestinationIndex,
   discoverRows,
   resolvedGridColumns,
@@ -70,6 +71,7 @@ export function VirtualCollectionRows({
     margin: 0,
     gap: 0,
     font: "",
+    measurementEpoch: 0,
     owner: null as HTMLElement | null,
   });
   const [focusedPin, setFocusedPin] = useState<string>();
@@ -99,6 +101,19 @@ export function VirtualCollectionRows({
   const lastAccepted = useRef({ structure, queryKey, generation, layout });
   const regroup = useRef<Anchor | undefined>(undefined);
   const restoringRegroup = useRef<{ anchor: Anchor; token: number } | undefined>(undefined);
+  const measurementPending = useRef(true);
+  const measurementEpoch = useRef(0);
+  // Reflect this owner's existing work for observers that must reveal a target
+  // only after responsive anchor restoration has finished. React does not own
+  // these attributes; publication follows the actual measurement/work tokens.
+  const publishLayoutPending = useCallback(() => {
+    if (root.current)
+      root.current.dataset.collectionLayoutPending = String(
+        measurementPending.current ||
+          regroup.current !== undefined ||
+          restoringRegroup.current !== undefined,
+      );
+  }, []);
   const work = useRef(0);
   const mounting = useRef(0);
   const tabPending = useRef<{ origin: HTMLElement; direction: number } | undefined>(undefined);
@@ -200,6 +215,9 @@ export function VirtualCollectionRows({
     if (!element || !sizing) return;
     mounted.current = true;
     const measure = () => {
+      const epoch = ++measurementEpoch.current;
+      measurementPending.current = true;
+      publishLayoutPending();
       const owner = workspaceScrollOwner(workspace()) ?? document.documentElement;
       const style = getComputedStyle(sizing);
       const columns = layout === "rows" ? 1 : resolvedGridColumns(style.gridTemplateColumns);
@@ -209,6 +227,7 @@ export function VirtualCollectionRows({
           ? 0
           : owner.getBoundingClientRect().top + owner.clientTop;
       const next = {
+        measurementEpoch: epoch,
         columns,
         font: style.fontSize,
         width: rect.width,
@@ -216,6 +235,7 @@ export function VirtualCollectionRows({
         gap: layout === "rows" ? 0 : parseFloat(style.rowGap) || 0,
         margin: rect.top - ownerTop + owner.scrollTop,
       };
+      element.dataset.collectionLayoutWidth = String(next.width);
       setGeometry((previous) => {
         if (
           previous.columns === next.columns &&
@@ -224,8 +244,11 @@ export function VirtualCollectionRows({
           Math.abs(previous.margin - next.margin) < 0.5 &&
           previous.gap === next.gap &&
           previous.font === next.font
-        )
+        ) {
+          if (measurementEpoch.current === epoch) measurementPending.current = false;
+          publishLayoutPending();
           return previous;
+        }
         if (
           previous.width &&
           (previous.columns !== next.columns ||
@@ -263,6 +286,7 @@ export function VirtualCollectionRows({
       latest.current.virtualizer.cancelScroll();
       regroup.current = undefined;
       restoringRegroup.current = undefined;
+      publishLayoutPending();
     };
     const scroll = () => {
       // A responsive owner switch can emit a scroll before the measured rows
@@ -273,6 +297,9 @@ export function VirtualCollectionRows({
     };
     let measurementFrame = 0;
     const observer = new ResizeObserver(() => {
+      measurementEpoch.current++;
+      measurementPending.current = true;
+      publishLayoutPending();
       if (measurementFrame) return;
       measurementFrame = requestAnimationFrame(() => {
         measurementFrame = 0;
@@ -294,6 +321,7 @@ export function VirtualCollectionRows({
       document.addEventListener(name, userIntent, { capture: true, passive: true });
     return () => {
       mounted.current = false;
+      measurementPending.current = false;
       userIntent();
       observer.disconnect();
       cancelAnimationFrame(measurementFrame);
@@ -303,15 +331,16 @@ export function VirtualCollectionRows({
       for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
         document.removeEventListener(name, userIntent, true);
     };
-  }, [layout, capture, retainRegroupAnchor]);
+  }, [layout, capture, retainRegroupAnchor, publishLayoutPending]);
 
   useLayoutEffect(() => {
     intent.current++;
     regroup.current = undefined;
     restoringRegroup.current = undefined;
     reading.current = undefined;
+    publishLayoutPending();
     capture();
-  }, [generation, queryKey, capture]);
+  }, [generation, queryKey, capture, publishLayoutPending]);
 
   // Retain size estimates within the same layout/column identity until each row
   // can be measured at its current geometry. Clearing offscreen measurements
@@ -420,13 +449,10 @@ export function VirtualCollectionRows({
             owner.scrollTo({ top: desired });
             aligned = () => {
               if (!anchor.isConnected || latest.current.geometry.owner !== owner) return false;
-              const delta = anchor.getBoundingClientRect().top - viewportTop;
-              const destination = owner.scrollTop + delta;
-              const limit = Math.max(0, owner.scrollHeight - owner.clientHeight);
-              return (
-                Math.abs(delta) < 0.5 ||
-                (destination < 0 && owner.scrollTop === 0) ||
-                (destination > limit && Math.abs(owner.scrollTop - limit) < 0.5)
+              return collectionAnchorAligned(
+                anchor.getBoundingClientRect().top - viewportTop,
+                owner.scrollTop,
+                Math.max(0, owner.scrollHeight - owner.clientHeight),
               );
             };
           }
@@ -515,8 +541,10 @@ export function VirtualCollectionRows({
   }, [ready, structure, queryKey, generation, layout, retainRegroupAnchor]);
 
   useLayoutEffect(() => {
+    if (geometry.measurementEpoch === measurementEpoch.current) measurementPending.current = false;
     const anchor = regroup.current;
     if (!anchor || !geometry.owner) {
+      publishLayoutPending();
       capture();
       return;
     }
@@ -524,44 +552,50 @@ export function VirtualCollectionRows({
     const epoch = intent.current;
     const restoring = { anchor, token: work.current + 1 };
     restoringRegroup.current = restoring;
+    publishLayoutPending();
     const current = () =>
       restoringRegroup.current === restoring &&
       epoch === intent.current &&
       latest.current.geometry === geometry &&
       (workspaceScrollOwner(workspace()) ?? document.documentElement) === geometry.owner;
-    void mount({ groupKey: anchor.groupKey, viewportTop: anchor.top }, current).then((accepted) => {
-      if (!current() || work.current !== restoring.token) return;
-      restoringRegroup.current = undefined;
-      if (!accepted) return;
-      const card = [
-        ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),
-      ].find((item) => item.dataset.detailReturnGroup === anchor.groupKey);
-      if (!card) return;
-      const focusedCard = [
-        ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),
-      ].find((item) => item.dataset.detailReturnGroup === anchor.focus?.groupKey);
-      // Pending actions can retain DOM focus while refusing activation. Navigation
-      // still excludes them; restoration must preserve that exact existing origin.
-      const controls = focusedCard
-        ? focusableControls(focusedCard, { includeAriaDisabled: true })
-        : [];
-      const control = anchor.focus?.group
-        ? focusedCard
-        : anchor.focus
-          ? (controls.find((item, index) =>
-              anchor.focus!.originKey
-                ? item.dataset.detailOrigin === anchor.focus!.originKey
-                : anchor.focus!.controlKey
-                  ? item.dataset.collectionControl === anchor.focus!.controlKey
-                  : index === anchor.focus!.control,
-            ) ?? controls[0])
-          : undefined;
-      const owner = latest.current.geometry.owner;
-      owner?.scrollTo({ top: owner.scrollTop + card.getBoundingClientRect().top - anchor.top });
-      control?.focus({ preventScroll: true });
-      capture();
-    });
-  }, [geometry, structure, ready, capture, mount]);
+    void mount({ groupKey: anchor.groupKey, viewportTop: anchor.top }, current)
+      .then((accepted) => {
+        if (!current() || work.current !== restoring.token) return;
+        if (!accepted) return;
+        const card = [
+          ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),
+        ].find((item) => item.dataset.detailReturnGroup === anchor.groupKey);
+        if (!card) return;
+        const focusedCard = [
+          ...(root.current?.querySelectorAll<HTMLElement>("[data-detail-return-group]") ?? []),
+        ].find((item) => item.dataset.detailReturnGroup === anchor.focus?.groupKey);
+        // Pending actions can retain DOM focus while refusing activation. Navigation
+        // still excludes them; restoration must preserve that exact existing origin.
+        const controls = focusedCard
+          ? focusableControls(focusedCard, { includeAriaDisabled: true })
+          : [];
+        const control = anchor.focus?.group
+          ? focusedCard
+          : anchor.focus
+            ? (controls.find((item, index) =>
+                anchor.focus!.originKey
+                  ? item.dataset.detailOrigin === anchor.focus!.originKey
+                  : anchor.focus!.controlKey
+                    ? item.dataset.collectionControl === anchor.focus!.controlKey
+                    : index === anchor.focus!.control,
+              ) ?? controls[0])
+            : undefined;
+        const owner = latest.current.geometry.owner;
+        owner?.scrollTo({ top: owner.scrollTop + card.getBoundingClientRect().top - anchor.top });
+        control?.focus({ preventScroll: true });
+        capture();
+      })
+      .finally(() => {
+        if (restoringRegroup.current !== restoring) return;
+        restoringRegroup.current = undefined;
+        publishLayoutPending();
+      });
+  }, [geometry, structure, ready, capture, mount, publishLayoutPending]);
 
   useLayoutEffect(() => {
     const element = root.current;

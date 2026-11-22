@@ -357,21 +357,35 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 size,
                 sha256,
+                predecessor_observation,
             },
     } = &cli.command
     {
         let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
             .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        let observation = predecessor_observation
+            .as_deref()
+            .map(|input| {
+                if input.len() > 2048 {
+                    return Err(portcove_core::PortcoveError::usage(
+                        "package observation exceeds its size bound",
+                    ));
+                }
+                serde_json::from_str::<portcove_core::PackageLayoutObservation>(input)
+                    .map_err(|_| portcove_core::PortcoveError::usage("invalid package observation"))
+            })
+            .transpose()?;
         let catalog = portcove_core::Catalog::embedded()?;
         render_read_success(
             mode,
             "catalog.inspect-package-shape",
-            portcove_core::inspect_package_shape_archive(
+            portcove_core::inspect_package_shape_archive_observed(
                 archive,
                 catalog.port(port)?,
                 platform,
                 *size,
                 sha256,
+                observation.as_ref(),
             )?,
             |inspection| {
                 format!(
@@ -1012,9 +1026,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::Installation {
-            command: InstallationCommand::Plan { port_id },
+            command: InstallationCommand::Plan { port_id, package },
         } => {
-            let review = service.plan_game_install(&port_id).await?;
+            let review = service
+                .plan_game_install_with_package(&port_id, package.as_deref())
+                .await?;
             let text = human::game_install_plan(&review, service.catalog());
             render_read_success(mode, "installation.plan", review, |_| text.clone())?;
         }
@@ -1022,6 +1038,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             command:
                 InstallationCommand::Run {
                     port_id,
+                    package,
                     expected_plan,
                     acknowledge_shared_preferences,
                     yes,
@@ -1033,15 +1050,21 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 cli.non_interactive,
             )?;
             let authorization = service
-                .authorize_game_install_with_shared_preferences_ack(
+                .authorize_game_install_with_package(
                     &port_id,
                     &expected_plan,
                     acknowledge_shared_preferences.then_some(expected_plan.as_str()),
+                    package.as_deref(),
                 )
                 .await?;
             let mut progress = progress_renderer(mode, service.catalog());
             let installed = service
-                .apply_game_install(&port_id, &authorization.token, &mut progress)
+                .apply_game_install_with_package(
+                    &port_id,
+                    &authorization.token,
+                    package.as_deref(),
+                    &mut progress,
+                )
                 .await?;
             render_read_success(mode, "installation.run", installed, |result| {
                 format!(
@@ -5465,7 +5488,14 @@ mod tests {
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
         assert_eq!(capabilities.port_capability_schema, Some(1));
-        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9, 10, 11, 12]);
+        assert_eq!(
+            capabilities.listing_formats,
+            [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        );
+        assert_eq!(
+            capabilities.listing_delivery_carriers,
+            ["json-v1", "gzip-base64-json-v1"]
+        );
         assert!(
             capabilities
                 .commands

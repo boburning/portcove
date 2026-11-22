@@ -1,3 +1,4 @@
+import { failureReport } from "../test-fixtures";
 import { requireCompleteCaptureTarget } from "../../test/capture-target";
 import "../styles/index.css";
 import { captureParityState } from "../../test/parity-capture";
@@ -9,10 +10,13 @@ import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import App from "../App";
+import { initializeLocalization, LocalizationProvider } from "../localization";
 import {
   GameFileScanProvider,
   useGameFileScan,
   useGameFileScanObserver,
+  type ScanResultRequest,
 } from "../features/game-file-discovery/use-game-file-scan";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
 import { SetupReviewSelectionProvider } from "../features/game-file-discovery/setup-review-selection";
@@ -31,6 +35,7 @@ import type {
   SourceRecord,
 } from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
+import { SavedScanFeedback } from "./SavedScanFeedback";
 import { SettingsView, Sidebar } from "./Chrome";
 import { installRecord } from "./rendered-test-fixtures";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
@@ -1607,7 +1612,10 @@ it("reports cancelled source addition while keeping its review and completed sca
   const renderedReview = document.body.querySelector('[aria-label="Source import review"]');
   expect(renderedReview?.textContent).toContain("File check: Edition identified");
   expect(renderedReview?.textContent).toContain("Additional space needed: 0 B");
-  vi.mocked(desktopApi.importSource).mockRejectedValueOnce({ code: "cancelled" });
+  const cancelled = failureReport();
+  cancelled.code = "cancelled";
+  cancelled.presentation.mutation_state = "no_changes";
+  vi.mocked(desktopApi.importSource).mockRejectedValueOnce(cancelled);
   await click("Use current location");
   expect(document.body.textContent).toContain(
     "Adding game files was cancelled. Refresh the workspace to confirm the current state.",
@@ -1685,6 +1693,178 @@ it("retains a progressive scan across selected game details without starting ano
   expect(document.body.textContent).not.toContain("Scanning selected folders…");
   expect(document.body.textContent).toContain(source.path);
   expect(button("Scan saved folders").disabled).toBe(false);
+});
+
+async function openRetainedScanResult(state: "current" | "replaced" | "continued" | "failed") {
+  const finished = storedMatchesSnapshot();
+  const later =
+    state === "current"
+      ? finished
+      : state === "continued"
+        ? { ...finished, completed_at: finished.completed_at + 1 }
+        : {
+            ...finished,
+            matches: { ...finished.matches!, scan_id: "00000000-0000-4000-8000-000000000042" },
+          };
+  let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  function Fixture() {
+    const [showFolders, setShowFolders] = useState(true);
+    const [request, setRequest] = useState<ScanResultRequest>();
+    const scan = useGameFileScanObserver(1);
+    return (
+      <main tabIndex={-1}>
+        <button onClick={() => setShowFolders(false)}>Leave folders</button>
+        <SavedScanFeedback
+          snapshot={scan.scanning ? undefined : scan.receipt?.snapshot}
+          show={!showFolders}
+          open={(identity) => {
+            setRequest({ sequence: 1, expected: identity });
+            setShowFolders(true);
+          }}
+        />
+        {showFolders && (
+          <GameFileLibraries generation={1} ports={[]} profiles={[]} scanRequest={request} />
+        )}
+      </main>
+    );
+  }
+  await root.rerender(
+    <GameFileScanProvider generation={1}>
+      <Fixture />
+    </GameFileScanProvider>,
+  );
+  await click("Scan saved folders");
+  await click("Leave folders");
+  await act(async () => {
+    if (state === "failed")
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockRejectedValue(
+        new Error("Scan read interrupted"),
+      );
+    else vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(later);
+    finish?.(finished);
+  });
+  const result = page.getByRole("group", { name: "Saved folder scan result" });
+  await expect.element(result).toBeVisible();
+  await result.getByRole("button", { name: "Review saved scan" }).click();
+}
+
+it("focuses the exact saved scan from its workspace receipt without rescanning", async () => {
+  await openRetainedScanResult("current");
+  await expect.element(page.getByRole("heading", { name: "Last completed scan" })).toHaveFocus();
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+});
+
+it.each(["replaced", "continued"] as const)(
+  "does not silently substitute a %s saved scan",
+  async (state) => {
+    await openRetainedScanResult(state);
+    await expect.element(page.getByText(/This scan is no longer available/)).toBeVisible();
+    await expect
+      .element(page.getByRole("heading", { name: "Last completed scan" }))
+      .not.toBeInTheDocument();
+    await page.getByRole("button", { name: "Show current folder results" }).click();
+    await expect.element(page.getByRole("heading", { name: "Last completed scan" })).toBeVisible();
+    expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+  },
+);
+
+it("retries a failed receipt read without scanning or displaying another result", async () => {
+  await openRetainedScanResult("failed");
+  await expect.element(page.getByText(/Portcove could not check this scan/)).toBeVisible();
+  await expect
+    .element(page.getByRole("heading", { name: "Last completed scan" }))
+    .not.toBeInTheDocument();
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(storedMatchesSnapshot());
+  await page.getByRole("button", { name: "Retry checking this scan" }).click();
+  await expect.element(page.getByRole("heading", { name: "Last completed scan" })).toHaveFocus();
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+});
+
+it("refuses a match page published by a continuing scan after the result opened", async () => {
+  await openRetainedScanResult("current");
+  const original = storedMatchesSnapshot();
+  const pageRead = vi.spyOn(desktopApi, "gameFileScanMatches").mockImplementation(async () => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
+      ...original,
+      completed_at: original.completed_at + 1,
+    });
+    return {
+      scan_id: original.matches!.scan_id,
+      kind: "exact",
+      offset: original.report.candidates.length,
+      total: original.matches!.exact_matches + 1,
+      candidates: [{ ...savedCandidate, path: "D:/Games/later-match.z64" }],
+      preliminary_selections: [],
+      next_offset: null,
+    };
+  });
+  await page.getByRole("button", { name: "Show more matches" }).click();
+  await expect.element(page.getByText(/This scan is no longer available/)).toBeVisible();
+  await expect
+    .element(page.getByText("D:/Games/later-match.z64", { exact: true }))
+    .not.toBeInTheDocument();
+  expect(pageRead).toHaveBeenCalledOnce();
+});
+
+it("returns from the saved scan to the originating game section and its Discover card", async () => {
+  localStorage.clear();
+  const transport = installInteractiveTransport("comparison", (message) => {
+    throw new Error(message);
+  });
+  try {
+    initializeLocalization(["en"]);
+    let finish: ((value: GameFileScanSnapshot) => void) | undefined;
+    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await root.rerender(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+    );
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "Settings categories" })
+      .getByRole("button", { name: "Game files", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Scan in Add games", exact: true }).click();
+    await page.getByRole("button", { name: "Scan saved folders", exact: true }).click();
+    await page.getByRole("button", { name: "Discover", exact: true }).click();
+    const label = "Harbor Adventure Harbor desktop port. Ready to play. View installation";
+    const initialCard = page.getByRole("button", { name: label, exact: true });
+    await initialCard.click();
+    const files = page.getByRole("tab", { name: "Game files", exact: true });
+    await files.click();
+    await expect.element(files).toHaveAttribute("aria-selected", "true");
+
+    const finished = storedMatchesSnapshot();
+    await act(async () => {
+      vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(finished);
+      finish?.(finished);
+    });
+    const review = page.getByRole("button", { name: "Review saved scan", exact: true });
+    await review.click();
+    await expect.element(page.getByRole("heading", { name: "Last completed scan" })).toHaveFocus();
+    await page.getByRole("button", { name: "Back to game", exact: true }).click();
+    await expect.element(files).toHaveAttribute("aria-selected", "true");
+    const detailBack = document.querySelector<HTMLButtonElement>("[data-detail-back]")!;
+    await act(async () => detailBack.click());
+    await expect.element(page.getByRole("button", { name: label, exact: true })).toHaveFocus();
+    expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
+  } finally {
+    await root.rerender(null);
+    transport.dispose();
+    localStorage.clear();
+  }
 });
 
 it("offers only affected catalog ports after explicit source registration", async () => {
@@ -1933,73 +2113,82 @@ it("retains a scan failure that arrives while selected game details are open", a
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
 });
 
-it("keeps a committed source visible but holds setup until a failed refresh recovers", async () => {
-  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
-  const source = savedCandidate;
-  const plan: SourceImportPlan = {
-    schema_version: 1,
-    profile_id: "game",
-    mode: "use_current_location",
-    source,
-    admission_mode: "exact_identity",
-    destination: source.path,
-    destination_exists: true,
-    existing_registration: null,
-    reuse_existing: false,
-    required_bytes: 0,
-    source_guard_sha256: "b".repeat(64),
-    plan_sha256: "c".repeat(64),
-  };
-  vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
-  vi.mocked(desktopApi.importSource).mockResolvedValue({
-    import_id: "import-1",
-    profile_id: "game",
-    mode: "use_current_location",
-    outcome: "registered_current_location",
-    registered: source,
-    copied: false,
-    original_deleted: false,
-    original_retained: true,
-    retained_original_path: source.path,
-    recovered: false,
-  });
-  const onAdded = vi.fn().mockRejectedValue(new Error("refresh failed after import"));
-  const onOpenPort = vi.fn();
-  function Settings() {
-    const [registeredSources] = useState([source]);
-    const [setupSource, setSetupSource] = useSetupSource(registeredSources);
-    return (
-      <GameFileLibraries
-        generation={1}
-        ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
-        profiles={[]}
-        registeredSources={registeredSources}
-        onAdded={onAdded}
-        onOpenPort={onOpenPort}
-        setupSource={setupSource}
-        setSetupSource={setSetupSource}
-      />
-    );
-  }
-  await root.rerender(<Settings />);
-  await click("Review game files");
-  await click("Use current location");
-  expect(desktopApi.importSource).toHaveBeenCalledOnce();
-  expect(onAdded).toHaveBeenCalledOnce();
-  expect(document.body.textContent).toContain("The view couldn't refresh");
-  expect(document.body.textContent).toContain("the files were already added");
-  expect(document.body.textContent).toContain("before continuing to a game");
-  expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
-  expect(button("Open Game A details").disabled).toBe(true);
-  expect(onOpenPort).not.toHaveBeenCalled();
-  onAdded.mockResolvedValueOnce(undefined);
-  await click("Retry refresh");
-  expect(onAdded).toHaveBeenCalledTimes(2);
-  expect(button("Open Game A details").disabled).toBe(false);
-  await click("Open Game A details");
-  expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
-  expect(desktopApi.importSource).toHaveBeenCalledOnce();
-});
+it.each([false, true])(
+  "holds setup until a committed source refresh recovers (focus moved: %s)",
+  async (focusMoved) => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+    const source = savedCandidate;
+    const plan: SourceImportPlan = {
+      schema_version: 1,
+      profile_id: "game",
+      mode: "use_current_location",
+      source,
+      admission_mode: "exact_identity",
+      destination: source.path,
+      destination_exists: true,
+      existing_registration: null,
+      reuse_existing: false,
+      required_bytes: 0,
+      source_guard_sha256: "b".repeat(64),
+      plan_sha256: "c".repeat(64),
+    };
+    vi.spyOn(desktopApi, "planSourceImport").mockResolvedValue(plan);
+    vi.mocked(desktopApi.importSource).mockResolvedValue({
+      import_id: "import-1",
+      profile_id: "game",
+      mode: "use_current_location",
+      outcome: "registered_current_location",
+      registered: source,
+      copied: false,
+      original_deleted: false,
+      original_retained: true,
+      retained_original_path: source.path,
+      recovered: false,
+    });
+    const onAdded = vi.fn().mockRejectedValue(new Error("refresh failed after import"));
+    const onOpenPort = vi.fn();
+    function Settings() {
+      const [registeredSources] = useState([source]);
+      const [setupSource, setSetupSource] = useSetupSource(registeredSources);
+      return (
+        <GameFileLibraries
+          generation={1}
+          ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
+          profiles={[]}
+          registeredSources={registeredSources}
+          onAdded={onAdded}
+          onOpenPort={onOpenPort}
+          setupSource={setupSource}
+          setSetupSource={setSetupSource}
+        />
+      );
+    }
+    await root.rerender(<Settings />);
+    await click("Review game files");
+    await click("Use current location");
+    expect(desktopApi.importSource).toHaveBeenCalledOnce();
+    expect(onAdded).toHaveBeenCalledOnce();
+    expect(document.body.textContent).toContain("The view couldn't refresh");
+    expect(document.body.textContent).toContain("the files were already added");
+    expect(document.body.textContent).toContain("before continuing to a game");
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(button("Open Game A details").disabled).toBe(true);
+    expect(onOpenPort).not.toHaveBeenCalled();
+    const heading = document.getElementById("game-file-libraries-heading");
+    expect(heading).not.toBeNull();
+    onAdded.mockImplementationOnce(async () => {
+      if (focusMoved) heading?.focus();
+    });
+    button("Retry refresh").focus();
+    await click("Retry refresh");
+    expect(onAdded).toHaveBeenCalledTimes(2);
+    expect(button("Open Game A details").disabled).toBe(false);
+    expect(document.activeElement).toBe(focusMoved ? heading : button("Open Game A details"));
+    await click("Open Game A details");
+    expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
+    expect(desktopApi.importSource).toHaveBeenCalledOnce();
+  },
+);
 
 it("preserves a saved root until removal is confirmed", async () => {
   const remove = vi.spyOn(desktopApi, "removeGameFileRoot").mockResolvedValue(true);

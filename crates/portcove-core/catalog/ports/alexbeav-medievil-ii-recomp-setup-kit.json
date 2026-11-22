@@ -74,7 +74,8 @@
           ]
         }
       ]
-    }
+    },
+    "variant_label": "Build from setup kit"
   },
   "psx_managed_windows_v1": "split-mods",
   "listing_inherit_asset_hints": ["windows-x86-64", "linux-x86-64"],

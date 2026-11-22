@@ -17,6 +17,7 @@ import {
   type PortIdentity,
 } from "../port-identity";
 import { GameHero } from "./GameHero";
+import type { HeroMediaContext } from "../hero-media";
 import { CatalogMediaGallery } from "./CatalogMedia";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../features/identity/identity-style";
@@ -55,10 +56,12 @@ type Identity = PortIdentity & {
   channels?: PortDefinition["channels"] | undefined;
   listing?: CatalogEntry["listing"];
 };
+type DetailRevealControl = string | { focus: string };
+
 export type RevealDetailSection = (
   section: DetailSection,
   targetId?: string,
-  control?: string,
+  control?: DetailRevealControl,
 ) => void;
 
 function platformIdentities(
@@ -82,6 +85,7 @@ export function DetailLayout({
   managementSupplement,
   supplementSection,
   port,
+  mediaContext,
   platforms = port.platforms ?? [],
   upstreamPlatforms = [],
   projectUrl,
@@ -107,6 +111,7 @@ export function DetailLayout({
   /** Where the supplement opens; defaults to the management section. */
   supplementSection?: DetailSection | undefined;
   port: Identity;
+  mediaContext?: HeroMediaContext | undefined;
   /** Targets of the setup or retained installation shown in this detail. */
   platforms?: readonly PortDefinition["platforms"][number][];
   upstreamPlatforms?: readonly PortDefinition["platforms"][number][];
@@ -141,7 +146,7 @@ export function DetailLayout({
   const [pending, setPending] = useState<{
     section: DetailSection;
     targetId?: string | undefined;
-    control?: string | undefined;
+    control?: DetailRevealControl | undefined;
     identity: string;
   }>();
   const focusedOpening = useRef<string | undefined>(undefined);
@@ -172,9 +177,10 @@ export function DetailLayout({
       focusAndReveal(target);
       focusedOpening.current = identity;
       const controlScope = target.matches("h2, h3, span") ? target.parentElement : target;
-      const control = request?.control
-        ? controlScope?.querySelector<HTMLElement>(request.control)
-        : undefined;
+      const destination = request?.control;
+      const activate = typeof destination === "string";
+      const selector = activate ? destination : destination?.focus;
+      const control = selector ? controlScope?.querySelector<HTMLElement>(selector) : undefined;
       if (
         control?.isConnected &&
         !control.matches(":disabled, [aria-disabled=true]") &&
@@ -182,9 +188,11 @@ export function DetailLayout({
         control.getClientRects().length
       ) {
         focusAndReveal(control);
-        if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
-          control.parentElement.open = true;
-        else control.click();
+        if (activate) {
+          if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
+            control.parentElement.open = true;
+          else control.click();
+        }
       }
       if (request) setPending(undefined);
     });
@@ -230,7 +238,13 @@ export function DetailLayout({
       >
         <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
-      <GameHero port={port} variant="detail" className="detail-hero" compact={!overview}>
+      <GameHero
+        port={port}
+        variant="detail"
+        className="detail-hero"
+        compact={!overview}
+        mediaContext={mediaContext}
+      >
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">
           <h1 id="port-detail-title" tabIndex={-1} className="detail-title m-0">
             {gameTitle(port)}
@@ -419,7 +433,13 @@ export function DetailLayout({
               <div className="detail-overview">
                 <div className="detail-overview-main min-w-0">
                   {panels.overview}
-                  <CatalogMediaGallery port={port} />
+                  <CatalogMediaGallery
+                    port={port}
+                    context={mediaContext}
+                    fallbackFocus={() =>
+                      root.current?.querySelector<HTMLElement>("[data-detail-back]")
+                    }
+                  />
                   {overviewActions?.(reveal)}
                   {overviewDetails}
                 </div>

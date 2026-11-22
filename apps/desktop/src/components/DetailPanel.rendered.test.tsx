@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { InstallRecord, PortDefinition, PortStatus, SourceInspectionReport } from "../types";
 import { DetailPanel, InstallationVersionSummary } from "./DetailPanel";
+import { ReleaseWithdrawalBadge, ReleaseWithdrawalNotice } from "./ReleaseWithdrawal";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import {
   port,
@@ -319,7 +320,9 @@ it.each([
         .trim() === "Restore previous version",
   )?.[0];
   expect(button).toBeDefined();
-  expect(html).toContain("Portcove first takes an automatic snapshot of its saves and settings");
+  expect(detailSection(html, "versions")).toContain(
+    "Checking automatic snapshots for this library",
+  );
   expect(button?.includes('disabled=""')).toBe(disabled);
   expect(html.includes("data-rollback-assessment")).toBe(disabled);
   const assessment = html.match(/<p\b[^>]*data-rollback-assessment[^>]*>(.*?)<\/p>/s)?.[1] ?? null;
@@ -1542,11 +1545,11 @@ describe("desktop components", () => {
     expect(installed).toContain("Portcove handles updates for this installation.");
     // Reachable on the page, not just rendered by its own component test.
     expect(buttonLabels).toContain("Report a problem or send feedback");
-    // The restore explanation belongs to the hidden restore control here; the retained
-    // rollback cases assert it when a previous version exists.
-    expect(installed).not.toContain(
-      "Portcove first takes an automatic snapshot of its saves and settings",
+    expect(detailSection(installed, "versions")).toContain(
+      "Checking automatic snapshots for this library",
     );
+    // There is no rollback action for this installation.
+    expect(installed).not.toContain("Saved-data restore is a separate reviewed action");
     expect(buttonLabels).not.toContain("Check update");
     expect(buttonLabels).not.toContain("Verify");
     expect(buttonLabels).not.toContain("Rollback");
@@ -2386,14 +2389,14 @@ it("explains the retained setup and saved-data contract after current metadata c
   expect(coverage).not.toContain("new-catalog-only");
 });
 
-it("separates the active version from a downloaded update without implying it is active", () => {
+it("separates the active version from an update saved for later", () => {
   const active = installRecord({ version: "1.0" });
   const html = renderToStaticMarkup(
     <InstallationVersionSummary
       status={{
         ...portStatus(),
         active,
-        staged: { ...active, id: "downloaded", version: "2.0", staged: true },
+        staged: { ...active, id: "saved", version: "2.0", staged: true },
       }}
       selectedChannel="stable"
     />,
@@ -2407,6 +2410,18 @@ it("separates the active version from a downloaded update without implying it is
   expect(current).not.toContain("<strong>2.0</strong>");
   expect(candidate).toContain("Update saved for later");
   expect(candidate).toContain("<strong>2.0</strong>");
+});
+
+it("distinguishes missing installation status from a known uninstalled game", () => {
+  const unknown = renderToStaticMarkup(<InstallationVersionSummary selectedChannel="stable" />);
+  const uninstalled = renderToStaticMarkup(
+    <InstallationVersionSummary selectedChannel="stable" status={portStatus()} />,
+  );
+  expect(unknown).toContain("Installed version unavailable");
+  expect(unknown).not.toContain("Not installed");
+  expect(unknown).not.toContain("Set up this game");
+  expect(uninstalled).toContain("Not installed");
+  expect(uninstalled).toContain("Set up this game");
 });
 
 it.each(["current", "pending", "failed"] as const)(
@@ -2462,3 +2477,55 @@ it.each([null, "bios"])(
     expect(overview.includes("Required BIOS not specified")).toBe(biosProfile !== null);
   },
 );
+
+it("shows only exact installed and recommended distribution withdrawal", () => {
+  const held = (
+    retained: boolean,
+    reason: NonNullable<PortStatus["definition_operations"]>[number]["eligibility"]["reason"],
+  ) => ({ operation: "install", retained, eligibility: { outcome: "hold", reason } }) as const;
+  const markup = (status: PortStatus) =>
+    renderToStaticMarkup(
+      <>
+        <ReleaseWithdrawalBadge status={status} />
+        <ReleaseWithdrawalNotice status={status} reviewVersions={vi.fn()} />
+      </>,
+    );
+  const installed = {
+    ...portStatus(),
+    active: installRecord(),
+    previous: installRecord(),
+    definition_operations: [held(true, "curated_distribution_withdrawn")],
+    port_actions: [{ action: "rollback", availability: "allowed", reason: "available" }],
+  } satisfies PortStatus;
+  expect(markup(installed)).toContain("Installed release withdrawn");
+  expect(markup(installed)).toContain("withdrawn by the catalog maintainer");
+  expect(markup(installed)).toContain("keep your installed copy and its saves");
+  expect(markup(installed)).toContain("Review rollback");
+  expect(markup({ ...installed, port_actions: [] })).not.toContain("Review rollback");
+  expect(
+    markup({
+      ...installed,
+      definition_operations: [held(true, "curated_artifact_revoked")],
+    }),
+  ).not.toContain("Withdrawn release");
+  expect(markup({ ...installed, active: null })).not.toContain("Withdrawn release");
+  const recommended = markup({
+    ...portStatus(),
+    definition_operations: [held(false, "curated_distribution_withdrawn")],
+  });
+  expect(recommended).toContain("Recommended release withdrawn");
+  expect(recommended).toContain("Wait for a compatible release");
+  expect(recommended).not.toContain("Review rollback");
+  const both = markup({
+    ...installed,
+    definition_operations: [
+      held(true, "curated_distribution_withdrawn"),
+      held(false, "curated_distribution_withdrawn"),
+    ],
+  });
+  expect(both).toContain("Installed release withdrawn");
+  expect(both).toContain("Recommended release withdrawn");
+  expect(both).toContain("keep your installed copy and its saves");
+  expect(both).toContain("Wait for a compatible release");
+  expect(both).toContain("Review rollback");
+});

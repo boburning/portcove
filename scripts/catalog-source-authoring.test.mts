@@ -1,5 +1,11 @@
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import {
+  managedHoldFromRestrictions,
+  restrictionsFromManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
+import type { LegacyManagedHold } from "./catalog-acquisition-restrictions.mts";
+import { compactOpenXPortable, projectOpenXPortable } from "./catalog-openx-portable.mts";
+import {
   compactAlephOnePinnedWindows,
   projectAlephOnePinnedWindows,
 } from "./catalog-alephone-pinned-windows.mts";
@@ -503,7 +509,7 @@ void test("reviewed flat package authoring preserves ordered fingerprints and ex
   const { records } = readCatalogSource(catalogRoot);
   const prior = new Map(fixtureRecords(schema3Fixture.ports).map((entry) => [entry.id, entry]));
   const family = records.filter((record) => record.reviewed_flat_package_layout_v1);
-  assert.equal(family.length, 13);
+  assert.equal(family.length, 12);
   for (const record of family) {
     assert.equal(
       JSON.stringify(projectAuthoredPort(record)),
@@ -531,6 +537,7 @@ void test("reviewed flat package authoring preserves ordered fingerprints and ex
   assert.throws(() => checkedAuthoredPort(duplicate), /already owns reviewed_package_layouts/u);
   for (const id of [
     "mdk-sdl-nemo22",
+    "dethrace-labs-dethrace",
     "blake-stone-aliens-of-gold-bstone",
     "bstoney-yt-mercenaries-2-decompilation",
   ]) {
@@ -637,7 +644,15 @@ void test("shared upstream family facts stay consistent while game and permissio
   for (const { listing } of independent) {
     listing.name += listing.id;
     listing.issue_number = (listing.issue_number ?? 1) + 10000;
-    listing.download_block_reason = `An independently reviewed condition for ${listing.id}.`;
+    listing.restrictions = [
+      {
+        id: "download",
+        effect: "hold",
+        operations: ["download"],
+        reason: "package-facts-unresolved",
+        explanation: `An independently reviewed condition for ${listing.id}.`,
+      },
+    ];
     const guide = fixtureRecord(listing.manual_setup);
     const steps = fixtureRecords(guide.steps);
     requiredFixture(steps[0]).instruction = `Original-file requirements for ${listing.id}.`;
@@ -825,6 +840,14 @@ void test("authored JSON refuses duplicate decoded keys while retaining nested d
 void test("download restrictions project through the versioned directory without managed authority", () => {
   const source = readCatalogSource(catalogRoot);
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const explanation = "Resolve the exact upstream permission.";
+  const hold = {
+    id: "download",
+    effect: "hold",
+    operations: ["download"],
+    reason: "third-party-component-terms",
+    explanation,
+  };
   const record = checkedAuthoredPort({
     format_version: 1,
     listing: {
@@ -832,15 +855,14 @@ void test("download restrictions project through the versioned directory without
       name: "Restricted fixture",
       summary: "An upstream project.",
       project_url: "https://example.org/project",
-      download_block_reason: "Resolve the exact upstream permission.",
+      restrictions: [hold],
     },
   });
   const projection = assembleCatalogRecords(shared, [record]);
-  assert.equal(projection.directory.format_version, 2);
-  assert.equal(
-    projection.directory.listings[0]?.download_block_reason,
-    record.listing.download_block_reason,
-  );
+  assert.equal(projection.directory.format_version, 15);
+  // Older readers keep enforcing the derived legacy string.
+  assert.equal(projection.directory.listings[0]?.download_block_reason, explanation);
+  assert.deepEqual(projection.directory.listings[0]?.restrictions, [hold]);
   assert.equal(projection.catalog.ports.length, 0);
   assert.throws(
     () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
@@ -850,34 +872,167 @@ void test("download restrictions project through the versioned directory without
   assert.ok(prepared);
   const preparedWithHold = checkedAuthoredPort({
     ...prepared,
-    listing: { ...prepared.listing, download_block_reason: record.listing.download_block_reason },
+    listing: { ...prepared.listing, restrictions: [hold] },
   });
   const preparedWithoutHold = structuredClone(preparedWithHold);
-  delete preparedWithoutHold.listing.download_block_reason;
+  delete preparedWithoutHold.listing.restrictions;
   const heldPrepared = assembleCatalogRecords(shared, [preparedWithHold]);
   const unheldPrepared = assembleCatalogRecords(shared, [preparedWithoutHold]);
-  assert.equal(
-    heldPrepared.directory.listings[0]?.download_block_reason,
-    record.listing.download_block_reason,
-  );
+  assert.equal(heldPrepared.directory.listings[0]?.download_block_reason, explanation);
   assert.deepEqual(heldPrepared.catalog.ports, unheldPrepared.catalog.ports);
   assert.partialDeepStrictEqual(heldPrepared.catalog.ports[0], {
     release: { provider: "user-prepared" },
   });
   const legacy = structuredClone(record);
-  delete legacy.listing.download_block_reason;
+  delete legacy.listing.restrictions;
   assert.equal(assembleCatalogRecords(shared, [legacy]).directory.format_version, 1);
-  for (const reason of ["", " trailing ", "line\nbreak", "x".repeat(4097), { allowed: true }]) {
+  // The legacy keys are derived and can no longer be authored.
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...legacy,
+        listing: { ...legacy.listing, download_block_reason: explanation },
+      }),
+    /download_block_reason/,
+  );
+  const withHold = (change: (restriction: Record<string, unknown>) => void, extra = {}) => {
+    const restriction: Record<string, unknown> = structuredClone(hold);
+    change(restriction);
+    return () =>
+      checkedAuthoredPort({
+        ...record,
+        listing: { ...record.listing, ...extra, restrictions: [restriction] },
+      });
+  };
+  for (const [change, pattern] of [
+    [(r: Record<string, unknown>) => (r.explanation = " trailing "), /player copy/],
+    [(r: Record<string, unknown>) => (r.explanation = "x".repeat(4097)), /player copy/],
+    [(r: Record<string, unknown>) => delete r.reason, /reason code/],
+    [(r: Record<string, unknown>) => (r.reason = "legacy-unclassified"), /reason code/],
+    [(r: Record<string, unknown>) => (r.operations = ["install"]), /outside the listing carrier/],
+    [(r: Record<string, unknown>) => (r.operations = ["remove"]), /outside the listing carrier/],
+    [(r: Record<string, unknown>) => (r.grant = true), /unknown field/],
+    [(r: Record<string, unknown>) => (r.scope = {}), /omitted when whole/],
+    [(r: Record<string, unknown>) => (r.scope = { edition: ["x"] }), /unknown dimension/],
+    [(r: Record<string, unknown>) => (r.scope = { platforms: ["amiga"] }), /platforms/],
+    [
+      (r: Record<string, unknown>) =>
+        (r.scope = { artifacts: [{ version: "v1", sha256: "ab".repeat(32) }] }),
+      /release route/,
+    ],
+    [(r: Record<string, unknown>) => (r.tracking_issue = 0), /tracking issue/],
+  ] as const)
+    assert.throws(withHold(change), pattern);
+  assert.throws(
+    withHold((r) => (r.scope = { artifacts: [{ version: "v1", sha256: "AB".repeat(32) }] }), {
+      release_url: "https://example.org/project/releases",
+    }),
+    /lowercase SHA-256/,
+  );
+  const permit = {
+    id: "reviewed",
+    effect: "permit",
+    operations: ["download"],
+    scope: { artifacts: [{ version: "v1", sha256: "ab".repeat(32), asset_name: "game.zip" }] },
+  };
+  const scoped = checkedAuthoredPort({
+    ...record,
+    listing: {
+      ...record.listing,
+      release_url: "https://example.org/project/releases",
+      restrictions: [hold, permit],
+    },
+  });
+  assert.equal(
+    assembleCatalogRecords(shared, [scoped]).directory.listings[0]?.download_block_reason,
+    explanation,
+  );
+  for (const restrictions of [
+    [permit],
+    [hold, { ...permit, operations: ["launch"] }],
+    [hold, { ...permit, scope: undefined }],
+    [hold, { ...permit, reason: "bundled-game-data" }],
+    [hold, { ...hold }],
+    [hold, { ...permit, scope: { inputs: ["source-profile"] } }],
+    [hold, { ...permit, scope: { components: [{ kind: "tool-artifact", id: "tool" }] } }],
+    [{ ...hold, operations: ["launch"] }],
+    [{ ...hold, operations: ["register-external"] }],
+  ])
+    assert.throws(() =>
+      checkedAuthoredPort({
+        ...record,
+        listing: {
+          ...record.listing,
+          release_url: "https://example.org/project/releases",
+          restrictions: structuredClone(restrictions) as never,
+        },
+      }),
+    );
+  assert.ok(source.records.length > 0);
+});
+
+void test("managed restrictions are authored typed and emitted as the unchanged legacy hold", () => {
+  const source = readCatalogSource(catalogRoot);
+  const embedded = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+  const ports = fixtureRecords(embedded.ports);
+  let held = 0;
+  for (const record of source.records) {
+    const typed = record.integration?.acquisition_restrictions;
+    if (typed === undefined) continue;
+    held++;
+    const port = ports.find((candidate) => candidate.id === record.listing.id);
+    const hold = port?.managed_acquisition_hold;
+    assert.ok(hold, record.listing.id);
+    assert.deepEqual(restrictionsFromManagedHold(hold as LegacyManagedHold), typed);
+    assert.deepEqual(managedHoldFromRestrictions(record.listing.id, typed as never), hold);
+  }
+  assert.equal(held, 5);
+  const metroid = source.records.find(({ listing }) => listing.id === "super-metroid-recomp");
+  assert.ok(metroid?.integration);
+  const restrictions = structuredClone(metroid.integration.acquisition_restrictions) as Record<
+    string,
+    unknown
+  >[];
+  const unrepresentable = [
+    (r: Record<string, unknown>[]) => (r[0]!.tracking_issue = 164),
+    (r: Record<string, unknown>[]) => (r[0]!.scope = { platforms: ["windows-x86-64"] }),
+    (r: Record<string, unknown>[]) => (r[2]!.operations = ["install", "activate"]),
+    (r: Record<string, unknown>[]) => r.reverse(),
+  ];
+  for (const change of unrepresentable) {
+    const changed = structuredClone(restrictions);
+    change(changed);
     assert.throws(
       () =>
         checkedAuthoredPort({
-          ...record,
-          listing: { ...record.listing, download_block_reason: reason },
+          ...metroid,
+          integration: { ...metroid.integration, acquisition_restrictions: changed },
         }),
-      /download restriction/,
+      /cannot yet be delivered/,
     );
   }
-  assert.ok(source.records.length > 0);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...metroid,
+        integration: {
+          ...metroid.integration,
+          acquisition_restrictions: [
+            { ...restrictions[0], operations: ["download", "launch"] },
+            ...restrictions.slice(1),
+          ],
+        },
+      }),
+    /outside the integration carrier/,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...metroid,
+        integration: { ...metroid.integration, managed_acquisition_hold: {} },
+      }),
+    /managed_acquisition_hold is derived/,
+  );
 });
 
 void test("authoring split preserves unknown metadata and ordered operational arrays", () => {
@@ -893,6 +1048,63 @@ void test("authoring split preserves unknown metadata and ordered operational ar
   assert.deepEqual(projected.catalog.ports[0], port);
   assert.equal(Object.hasOwn(authored.integration ?? {}, "name"), false);
   assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
+});
+
+void test("typed IGDB scenes project to listing format 13 without changing strict media", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const typed = { id: "igdb", role: "screenshot", igdb: { kind: "screenshot" } };
+  const legacy = { id: "legacy", role: "header" };
+  for (const strict of [[legacy], []]) {
+    const projection = assembleCatalogRecords(shared, [
+      { ...authored, listing: { ...authored.listing, media: [...strict, typed] } },
+    ]);
+    assert.equal(projection.directory.format_version, 13);
+    assert.deepEqual(projection.directory.listings[0]?.media, [...strict, typed]);
+    const presentation = projection.catalog.ports[0]?.presentation as Record<string, unknown>;
+    assert.deepEqual(presentation.media, strict.length ? strict : undefined);
+  }
+});
+
+void test("verified source identities belong only in the format 14 listing", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const binding = {
+    game_id: "source-game",
+    variant_id: "original-retail",
+    representation_id: "original-file",
+  };
+  const edition = {
+    id: "retail",
+    title: "Original retail",
+    evidence_urls: ["https://example.com/original"],
+    verified_sources: [binding],
+  };
+  const listing = {
+    ...authored.listing,
+    original_game: {
+      format_version: 1 as const,
+      id: "original-game",
+      evidence_urls: ["https://example.com/game"],
+      source_editions: [edition],
+    },
+  };
+  const result = assembleCatalogRecords(shared, [{ ...authored, listing }]);
+  const presentation = result.catalog.ports[0]?.presentation as Record<string, unknown>;
+  assert.equal(result.directory.format_version, 14);
+  assert.deepEqual(result.directory.listings[0]?.original_game, listing.original_game);
+  const { verified_sources: _sources, ...legacyEdition } = edition;
+  assert.deepEqual(presentation.original_game, {
+    ...listing.original_game,
+    source_editions: [legacyEdition],
+  });
+  edition.verified_sources.push(binding);
+  assert.throws(
+    () => assembleCatalogRecords(shared, [{ ...authored, listing }]),
+    /Duplicate verified source binding/,
+  );
 });
 
 void test("inherits only reviewed descriptive selectors for the same package scope", () => {
@@ -1024,8 +1236,7 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries implementation descriptions (format 12); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 12);
+  assert.equal(projected.directory.format_version, source.directory.format_version);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -1155,7 +1366,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 12);
+  assert.equal(source.directory.format_version, 15);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -1293,8 +1504,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; implementation descriptions lift the real directory to 12.
-  assert.equal(assembled.directory.format_version, 12);
+  assert.equal(assembled.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -1313,7 +1523,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 12);
+  assert.equal(combined.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -1441,7 +1651,9 @@ void test("PSX managed Windows authoring preserves the embedded contracts", () =
   const { records } = readCatalogSource(catalogRoot);
   const consumers = records.filter(
     (record) =>
-      record.psx_managed_windows_v1 && record.psx_managed_windows_v1 !== "technically-computers",
+      record.psx_managed_windows_v1 &&
+      record.psx_managed_windows_v1 !== "technically-computers" &&
+      record.psx_managed_windows_v1 !== "technically-computers-input-files",
   );
   assert.ok(consumers.length > 0);
   for (const record of consumers) {
@@ -1521,6 +1733,81 @@ void test("TechnicallyComputers PSX persistence preserves the reviewed three-pla
   const tomba = requiredFixture(records.find(({ listing }) => listing.id === "tomba-recompiled"));
   assert.equal(tomba.psx_managed_windows_v1, undefined);
   assert.equal(compactPsxManagedWindows(tomba), tomba);
+});
+
+void test("TechnicallyComputers PSX input files preserve the reviewed kit and raw disc contracts", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const family = records.filter(
+    (record) => record.psx_managed_windows_v1 === "technically-computers-input-files",
+  );
+  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+    "bomberman-party-edition-recompiled",
+    "final-fantasy-vii-recompiled",
+  ]);
+  for (const record of family) {
+    const id = record.listing.id;
+    const projected = projectAuthoredPort(record);
+    assert.ok(projected);
+    assert.equal(JSON.stringify(projected), JSON.stringify(accepted.get(id)), id);
+    assert.deepEqual(projected.persistent_paths, [
+      "saves",
+      "config",
+      "mods",
+      "settings.toml",
+      "game_options.json",
+      "graphics.json",
+      "input.json",
+      "sound.json",
+      "input.ini",
+      "keybinds.ini",
+    ]);
+    assert.equal(record.integration?.runtime_subdirectory, "build-portcove");
+    assert.deepEqual(record.integration?.runtime_mutable_paths, [
+      "bios.cfg",
+      "disc.cfg",
+      "psx_freeze_heartbeat.json",
+      "psx_last_run_report.json",
+    ]);
+
+    const duplicate = structuredClone(record);
+    duplicate.integration!.persistent_paths = [];
+    assert.throws(() => projectPsxManagedWindows(duplicate), /already own the persistent paths/u);
+
+    const downgrade = structuredClone(record);
+    downgrade.psx_managed_windows_v1 = "technically-computers";
+    assert.throws(() => projectPsxManagedWindows(downgrade), /reviewed Windows and macOS/u);
+    downgrade.psx_managed_windows_v1 = true;
+    assert.throws(() => projectPsxManagedWindows(downgrade), /reviewed Windows GitHub kit/u);
+
+    const otherIdentity = structuredClone(record);
+    otherIdentity.listing.id = "other-port";
+    assert.throws(() => projectPsxManagedWindows(otherIdentity), /exact reviewed/u);
+
+    const otherRepository = structuredClone(record);
+    otherRepository.listing.project_url = "https://github.com/TechnicallyComputers/OtherKit";
+    (otherRepository.integration!.release as Record<string, unknown>).repository =
+      "TechnicallyComputers/OtherKit";
+    assert.throws(() => projectPsxManagedWindows(otherRepository), /exact reviewed/u);
+
+    const mismatchedProfile = structuredClone(record);
+    mismatchedProfile.integration!.source_profile = "other-source";
+    assert.throws(() => projectPsxManagedWindows(mismatchedProfile), /exact reviewed/u);
+
+    const unexpectedRoot = structuredClone(record);
+    unexpectedRoot.integration!.runtime_subdirectory = "other-root";
+    assert.throws(() => projectPsxManagedWindows(unexpectedRoot), /exact reviewed/u);
+  }
+  const finalFantasy = requiredFixture(
+    family.find(({ listing }) => listing.id === "final-fantasy-vii-recompiled"),
+  );
+  assert.equal(finalFantasy.integration?.runtime_source_filename, "runtime-discs");
+  assert.equal(finalFantasy.integration?.runtime_source_materialization, "psx-raw-set");
+  assert.deepEqual(finalFantasy.integration?.launch_arguments, ["--no-launcher"]);
+  const wrongDiscSet = projectPsxManagedWindows(structuredClone(finalFantasy));
+  delete wrongDiscSet.psx_managed_windows_v1;
+  wrongDiscSet.integration!.runtime_source_materialization = "copy";
+  assert.equal(compactPsxManagedWindows(wrongDiscSet), wrongDiscSet);
 });
 
 void test("PSX preparation compacts exact layouts and retains explicit writer differences", () => {
@@ -1743,7 +2030,11 @@ void test("N64 recomp persistence compacts exact layouts and preserves explicit 
     differentWrites.integration!.persistent_paths = ["custom-saves"];
     assert.equal(compactN64RecompPersistence(differentWrites), differentWrites);
     assert.throws(
-      () => checkedAuthoredPort({ ...explicit, n64_recomp_persistence_v1: true }),
+      () =>
+        checkedAuthoredPort({
+          ...explicit,
+          n64_recomp_persistence_v1: record.n64_recomp_persistence_v1,
+        }),
       /already own persistent_paths/u,
     );
   }
@@ -1761,6 +2052,63 @@ void test("N64 recomp persistence compacts exact layouts and preserves explicit 
   const unsafe = structuredClone(consumers[0]!);
   unsafe.integration!.runtime_source_filename = "../alias.z64";
   assert.throws(() => checkedAuthoredPort(unsafe), /reviewed root-level GitHub recomp layout/u);
+});
+
+void test("N64 persistence additions preserve the reviewed writer order and refuse other owners", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const dinosaur = records.find((record) => record.listing.id === "dinosaur-planet")!;
+  const donkeyKong = records.find((record) => record.listing.id === "donkey-kong-64-recompiled")!;
+  assert.equal(dinosaur.n64_recomp_persistence_v1, "config-directory");
+  assert.equal(donkeyKong.n64_recomp_persistence_v1, "technical-settings");
+  const dinosaurPaths = projectAuthoredPort(dinosaur)?.persistent_paths;
+  const donkeyKongPaths = projectAuthoredPort(donkeyKong)?.persistent_paths;
+  assert.ok(Array.isArray(dinosaurPaths) && Array.isArray(donkeyKongPaths));
+  assert.deepEqual(dinosaurPaths.slice(0, 5), [
+    "mods",
+    "mod_config",
+    "saves",
+    "config",
+    "mods.json",
+  ]);
+  assert.deepEqual(donkeyKongPaths.slice(-4), [
+    "sound.json.bak",
+    "technical.json",
+    "technical.json.bak",
+    "DK64.z64",
+  ]);
+  for (const [record, additions] of [
+    [dinosaur, ["config"]],
+    [donkeyKong, ["technical.json", "technical.json.bak"]],
+  ] as const) {
+    assert.throws(
+      () => checkedAuthoredPort({ ...record, n64_recomp_persistence_v1: true }),
+      /reviewed root-level GitHub recomp layout/u,
+    );
+    const changed = projectN64RecompPersistence(record);
+    delete changed.n64_recomp_persistence_v1;
+    const paths = changed.integration!.persistent_paths;
+    assert.ok(Array.isArray(paths));
+    changed.integration!.persistent_paths = paths.filter(
+      (path) => !additions.some((addition) => addition === path),
+    );
+    assert.equal(compactN64RecompPersistence(changed), changed);
+  }
+  assert.throws(
+    () => checkedAuthoredPort({ ...dinosaur, n64_recomp_persistence_v1: "technical-settings" }),
+    /reviewed root-level GitHub recomp layout/u,
+  );
+  assert.throws(
+    () => checkedAuthoredPort({ ...donkeyKong, n64_recomp_persistence_v1: ["technical-settings"] }),
+    /reviewed root-level GitHub recomp layout/u,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...donkeyKong,
+        integration: { ...donkeyKong.integration, source_profile: "different-original" },
+      }),
+    /reviewed root-level GitHub recomp layout/u,
+  );
 });
 
 void test("PSX split mods retain player data with explicit dual-platform and retail BIOS facts", () => {
@@ -1956,7 +2304,10 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.adapter, before.adapter);
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
-  assert.equal(source.directory.format_version, 12);
+  const implementationOnly = structuredClone(record);
+  delete implementationOnly.listing.media;
+  const { ports: _ports, ...shared } = source.catalog;
+  assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);
   const dependency = record.listing.implementation.dependencies[0]!;
   for (const invalid of [
     { ...record.listing.implementation, format_version: 999 },
@@ -1987,5 +2338,78 @@ void test("implementation descriptions project without changing source, route or
     });
     assert.deepEqual(projectAuthoredPort(varied)!.release, before.release);
     assert.deepEqual(projectAuthoredPort(varied)!.source_profile, before.source_profile);
+  }
+});
+
+void test("OpenXW and OpenXvT share their exact package selectors and local config path", () => {
+  const { records } = readCatalogSource(catalogRoot);
+  const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
+  const family = records.filter((record) => record.openx_portable_v1);
+  for (const historicalId of [
+    "star-wars-x-wing-openxw",
+    "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+  ]) {
+    const historical = family.find(({ listing }) => listing.id === historicalId);
+    assert.ok(historical);
+    assert.deepEqual(projectAuthoredPort(historical), accepted.get(historicalId));
+  }
+  for (const record of records) {
+    assert.equal(compactOpenXPortable(record), record, record.listing.id);
+  }
+  for (const record of family) {
+    const explicit = projectOpenXPortable(record);
+    assert.deepEqual(compactOpenXPortable(explicit), record);
+    assert.deepEqual(explicit.integration?.persistent_paths, ["config.yaml"]);
+    assert.deepEqual(
+      explicit.integration?.reviewed_package_layouts,
+      record.integration?.reviewed_package_layouts,
+    );
+
+    const another = structuredClone(record);
+    another.listing.id = "compatible-player";
+    another.upstream_lineage!.target_key = "original-game-shared-by-alternatives";
+    another.listing.project_url = "https://github.com/example/compatible-player";
+    another.upstream_lineage!.origin.project_url = another.listing.project_url;
+    another.upstream_lineage!.origin.repository!.id = "12345";
+    another.openx_portable_v1 = "12345";
+    (another.integration!.release as Record<string, unknown>).repository =
+      "example/compatible-player";
+    assert.deepEqual(compactOpenXPortable(projectOpenXPortable(another)), another);
+
+    const otherIdentity = structuredClone(record);
+    otherIdentity.upstream_lineage!.origin.project_url = "https://github.com/example/other";
+    assert.throws(() => checkedAuthoredPort(otherIdentity), /accepted lineage identity/u);
+
+    const missingOrigin = structuredClone(record);
+    Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
+    assert.throws(() => checkedAuthoredPort(missingOrigin), /lineage|upstream/iu);
+
+    const wrongId = structuredClone(record);
+    wrongId.upstream_lineage!.origin.repository!.id = "1";
+    assert.throws(() => checkedAuthoredPort(wrongId), /repository ID differs/u);
+    assert.deepEqual(projectOpenXPortable({ ...record, openx_portable_v1: true }), explicit);
+    assert.throws(
+      () => projectOpenXPortable({ ...wrongId, openx_portable_v1: true }),
+      /historical portable package identity/iu,
+    );
+
+    const wrongLayout = structuredClone(record);
+    const layouts = wrongLayout.integration!.reviewed_package_layouts as Record<string, unknown>;
+    layouts["linux-x86-64"] = { executables: ["unexpected"] };
+    assert.throws(() => checkedAuthoredPort(wrongLayout), /reviewed layouts/u);
+
+    const duplicate = structuredClone(record);
+    duplicate.integration!.persistent_paths = [];
+    assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
+    delete duplicate.integration!.persistent_paths;
+    (duplicate.integration!.release as Record<string, unknown>).linux_tar_xz = false;
+    assert.throws(() => checkedAuthoredPort(duplicate), /already own/u);
+
+    const changedWriter = structuredClone(explicit);
+    changedWriter.integration!.persistent_paths = ["different.yaml"];
+    assert.equal(compactOpenXPortable(changedWriter), changedWriter);
+    const changedArchive = structuredClone(explicit);
+    (changedArchive.integration!.release as Record<string, unknown>).linux_tar_xz = false;
+    assert.equal(compactOpenXPortable(changedArchive), changedArchive);
   }
 });

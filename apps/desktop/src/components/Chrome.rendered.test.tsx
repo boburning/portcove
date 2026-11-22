@@ -144,6 +144,17 @@ describe("desktop components", () => {
     expect(html.match(/>Report a problem or send feedback<\/button>/gu)).toHaveLength(1);
   });
 
+  it.each([0, 1, 2])(
+    "names the %i Library entries as ports independently of game grouping",
+    (count) => {
+      const html = renderToStaticMarkup(
+        <PageHeader view="library" query="" setQuery={vi.fn()} libraryCount={count} />,
+      );
+      expect(html).toContain(`${count} ${count === 1 ? "port" : "ports"} in your library`);
+      expect(html).not.toContain(`${count} games`);
+    },
+  );
+
   it("keeps page introductions concise without losing catalog count or controls", () => {
     const library = renderToStaticMarkup(<PageHeader view="library" query="" setQuery={vi.fn()} />);
     const emptyCatalog = renderToStaticMarkup(

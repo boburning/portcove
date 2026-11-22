@@ -31,10 +31,12 @@ name = "forbidden-memories-launcher-probe"
 required-features = ["qualification-fixtures"]
 
 [dependencies]
+portcove-listing-carrier = { path = "../portcove-listing-carrier" }
 async-trait.workspace = true
 directories.workspace = true
 ed25519-dalek.workspace = true
 crc32fast.workspace = true
+base64 = "0.23.1"
 flate2.workspace = true
 futures-util.workspace = true
 fs4.workspace = true
@@ -50,7 +52,7 @@ rusqlite.workspace = true
 schemars.workspace = true
 same-file.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 sevenz-turbo.workspace = true
 sha1.workspace = true
 sha2.workspace = true
@@ -63,6 +65,7 @@ tough.workspace = true
 tracing.workspace = true
 unicode-normalization.workspace = true
 uuid.workspace = true
+xxhash-rust.workspace = true
 zip.workspace = true
 
 [target.'cfg(unix)'.dependencies]
@@ -78,7 +81,6 @@ sevenz-turbo = { workspace = true, features = ["compress"] }
 aws-lc-rs = "1.19.0"
 jiff = "0.2.39"
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
-filetime.workspace = true
 tempfile.workspace = true
 
 [[example]]

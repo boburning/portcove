@@ -81,10 +81,14 @@ pub(crate) async fn execute(
             let report = tokio::task::block_in_place(|| service.check_steamgriddb_listings())?;
             render_read_success(mode, name, report, listing_report)
         }
-        SteamGridDbCommand::Candidates { game_id, role } => render_read_success(
+        SteamGridDbCommand::Candidates {
+            game_id,
+            role,
+            page,
+        } => render_read_success(
             mode,
             name,
-            blocking(move || steamgriddb_candidates(game_id, role.into())).await?,
+            blocking(move || steamgriddb_candidates(game_id, role.into(), page)).await?,
             |candidates| candidate_results(candidates),
         ),
     }

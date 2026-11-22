@@ -27,6 +27,10 @@
         {
           "title": "Use a separate reviewed Windows v1.8.3 copy",
           "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+        },
+        {
+          "title": "Add your F-Zero v1.8.3 copy to Portcove",
+          "instruction": "After the v1.8.3 game accepts your original, choose Use an existing installation. Select FZeroSNESRecomp.exe and its containing folder. Play is separate from registration. Keep this external copy, your original and its data under your control. Removing the registration leaves the external files in place. If Portcove already manages an F-Zero installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
         }
       ],
       "references": [
@@ -66,16 +70,35 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
     "adapter": "staged-source-portable",
-    "managed_acquisition_hold": {
-      "reason": "The current F-Zero Forever packages have a different launcher and bundled course data. Portcove is checking a compatible replacement. You can keep using your existing installation or prepare a separate reviewed v1.8.3 copy.",
-      "activation_reason": "This staged F-Zero SNES package does not match the reviewed Windows v1.8.3 release. Keep your current installed copy.",
-      "reviewed_artifacts": [
-        {
-          "version": "v1.8.3",
-          "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+    "acquisition_restrictions": [
+      {
+        "id": "acquisition",
+        "effect": "hold",
+        "operations": ["download", "install", "update", "adopt"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "The current F-Zero Forever packages have a different launcher and bundled course data. Portcove is checking a compatible replacement. You can keep using your existing installation or prepare a separate reviewed v1.8.3 copy."
+      },
+      {
+        "id": "activation",
+        "effect": "hold",
+        "operations": ["activate"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "This staged F-Zero SNES package does not match the reviewed Windows v1.8.3 release. Keep your current installed copy."
+      },
+      {
+        "id": "reviewed-1",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.8.3",
+              "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+            }
+          ]
         }
-      ]
-    },
+      }
+    ],
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {

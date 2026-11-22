@@ -144,8 +144,8 @@ export function useLibraryBrowsingContext({
   initial?: LibraryBrowsingContext | undefined;
   returnToSelection?: "switch" | "reset" | undefined;
   remember: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   ready?: boolean;
   installedCount?: number | undefined;
   catalogCount?: number | undefined;
@@ -247,13 +247,13 @@ export function useLibraryBrowsingContext({
         positions: browsingPositions(),
       });
   };
-  const switchLibraryWithContext = async (path: string) => {
+  const switchLibraryWithContext = async (path: string, review?: string) => {
     save();
-    await switchLibrary(path);
+    await (review ? switchLibrary(path, review) : switchLibrary(path));
   };
-  const resetLibraryWithContext = async () => {
+  const resetLibraryWithContext = async (review?: string) => {
     save();
-    await resetLibrary();
+    await (review ? resetLibrary(review) : resetLibrary());
   };
   return {
     ui,

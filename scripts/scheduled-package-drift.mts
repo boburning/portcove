@@ -5,7 +5,7 @@ import { lstat, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:f
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { isDeepStrictEqual, promisify } from "node:util";
 import {
   derivationInputsDigest,
   MANAGED_PORTABLE_ADAPTERS,
@@ -36,6 +36,21 @@ function inspectionTrigger(value: string | undefined): InspectionTrigger {
   throw new Error("An exact observer workflow trigger is required");
 }
 
+interface PredecessorObservation {
+  repository_id: number;
+  release_id: number;
+  asset_id: number;
+  tag: string;
+  channel: "stable" | "beta";
+  url: string;
+}
+
+function predecessorScope(observation: unknown) {
+  return observation === undefined
+    ? undefined
+    : createHash("sha256").update(JSON.stringify(observation)).digest("hex");
+}
+
 export interface DriftTarget {
   portId: string;
   issue?: number;
@@ -44,6 +59,7 @@ export interface DriftTarget {
   definitionSha256: string;
   baselineSha256: string;
   baselineSource?: "reviewed_layout";
+  predecessorObservation?: PredecessorObservation;
   derivationSha256: string;
   shapeVersion: number;
   repositoryId: number;
@@ -68,6 +84,7 @@ interface DriftBaselineGap {
 
 type KnownRoute = Pick<DriftTarget, "issue" | "shapeVersion"> & {
   repository: string;
+  predecessors?: Record<string, unknown>[];
 } & (
     | Pick<DriftTarget, "baselineSha256" | "baselineSource" | "derivationSha256">
     | { noReviewedBaseline: true }
@@ -160,6 +177,9 @@ function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
             ...route,
             baselineSha256: createHash("sha256").update(JSON.stringify(layout)).digest("hex"),
             baselineSource: "reviewed_layout",
+            ...(isRecord(port.reviewed_predecessor_package_layouts_v1)
+              ? { predecessors: records(port.reviewed_predecessor_package_layouts_v1[platform]) }
+              : {}),
             derivationSha256: derivationInputsDigest(port, platform),
           });
         } else routes.set(`${port.id}/${platform}`, { ...route, noReviewedBaseline: true });
@@ -234,6 +254,10 @@ export function collectDriftTargets(
   const candidates = new Map<string, DriftTarget>();
   const gaps = new Map<string, { row: DriftBaselineGap; identity: string }>();
   const conflicts = new Set<string>();
+  const predecessorScopeGaps = new Map<
+    string,
+    { port_id: string; platform: string; channel: string; asset_sha256: string; reason: string }
+  >();
   for (const handoff of handoffs) {
     if (
       !isRecord(handoff) ||
@@ -251,7 +275,6 @@ export function collectDriftTargets(
       if (
         typeof policy.port_id !== "string" ||
         !handoff.source_port_ids.includes(policy.port_id) ||
-        !positiveInteger(policy.repository_id) ||
         typeof policy.catalog_definition_sha256 !== "string" ||
         !digest.test(policy.catalog_definition_sha256) ||
         typeof policy.observed_at !== "string"
@@ -263,30 +286,58 @@ export function collectDriftTargets(
         if (
           typeof projection.platform !== "string" ||
           (projection.channel !== "stable" && projection.channel !== "beta") ||
-          !isRecord(projection.latest_eligible) ||
-          !isRecord(projection.channel_candidate)
+          !isRecord(projection.latest_eligible)
         )
           continue;
         const route = routes.get(`${policy.port_id}/${projection.platform}`);
         const selected = projection.latest_eligible;
+        if (!route || !isRecord(selected.release) || typeof selected.release.version !== "string")
+          continue;
+        const rawAsset = selected.release.asset;
+        const asset = parseAsset(rawAsset, route.repository, selected.release.version);
+        const portId = policy.port_id;
+        const platform = projection.platform;
+        const channel = projection.channel;
+        const key = `${portId}/${platform}/${channel}`;
+        const bytesSha =
+          isRecord(rawAsset) && typeof rawAsset.sha256 === "string" && digest.test(rawAsset.sha256)
+            ? rawAsset.sha256
+            : undefined;
+        const sameBytes =
+          bytesSha && isRecord(rawAsset)
+            ? (route.predecessors?.filter(
+                (row) =>
+                  isRecord(row.artifact) &&
+                  row.artifact.size === rawAsset.size &&
+                  row.artifact.sha256 === bytesSha,
+              ) ?? [])
+            : [];
+        const scopeGap = () => {
+          if (sameBytes.length && bytesSha)
+            predecessorScopeGaps.set(key, {
+              port_id: portId,
+              platform,
+              channel,
+              asset_sha256: bytesSha,
+              reason: "predecessor-provider-scope-unassessed",
+            });
+        };
+        if (!asset) {
+          scopeGap();
+          continue;
+        }
         if (
-          !route ||
+          !positiveInteger(policy.repository_id) ||
           !positiveInteger(selected.release_id) ||
           !positiveInteger(selected.asset_id) ||
+          !isRecord(projection.channel_candidate) ||
           selected.release_id !== projection.channel_candidate.id ||
-          !isRecord(selected.release) ||
-          typeof selected.release.version !== "string" ||
           selected.release.version !== projection.channel_candidate.tag ||
           selected.release.channel !== projection.channel
-        )
+        ) {
+          scopeGap();
           continue;
-        const asset = parseAsset(
-          selected.release.asset,
-          route.repository,
-          selected.release.version,
-        );
-        if (!asset) continue;
-        const key = `${policy.port_id}/${projection.platform}/${projection.channel}`;
+        }
         if ("noReviewedBaseline" in route) {
           const gap: DriftBaselineGap = {
             reason: "no-reviewed-baseline",
@@ -310,13 +361,44 @@ export function collectDriftTargets(
           gaps.set(key, { row: gap, identity });
           continue;
         }
+        const predecessorObservation: PredecessorObservation = {
+          repository_id: policy.repository_id,
+          release_id: selected.release_id,
+          asset_id: selected.asset_id,
+          tag: selected.release.version,
+          channel: projection.channel,
+          url: asset.url,
+        };
+        const predecessor = sameBytes.find(
+          (row) =>
+            row.repository_id === predecessorObservation.repository_id &&
+            row.release_id === predecessorObservation.release_id &&
+            row.asset_id === predecessorObservation.asset_id &&
+            row.tag === predecessorObservation.tag &&
+            row.channel === predecessorObservation.channel &&
+            isRecord(row.artifact) &&
+            row.artifact.asset_name === asset.name &&
+            row.artifact.size === asset.size &&
+            row.artifact.sha256 === asset.sha256 &&
+            isRecord(row.layout),
+        );
+        // Current metadata identifies a candidate but does not independently
+        // authenticate a different provider assignment of the same exact bytes.
+        // Only the existing exact predecessor scope can decide this case here.
+        if (sameBytes.length && !predecessor) {
+          scopeGap();
+          continue;
+        }
         const target: DriftTarget = {
           portId: policy.port_id,
           ...(route.issue === undefined ? {} : { issue: route.issue }),
           platform: projection.platform,
           channel: projection.channel,
           definitionSha256: policy.catalog_definition_sha256,
-          baselineSha256: route.baselineSha256,
+          baselineSha256: predecessor
+            ? createHash("sha256").update(JSON.stringify(predecessor.layout)).digest("hex")
+            : route.baselineSha256,
+          ...(predecessor ? { predecessorObservation } : {}),
           ...(route.baselineSource ? { baselineSource: route.baselineSource } : {}),
           derivationSha256: route.derivationSha256,
           shapeVersion: route.shapeVersion,
@@ -335,13 +417,18 @@ export function collectDriftTargets(
   const generated: DriftTarget[] = [];
   const layouts: DriftTarget[] = [];
   for (const [key, target] of candidates) {
-    if (conflicts.has(key)) continue;
+    if (conflicts.has(key) || predecessorScopeGaps.has(key)) continue;
     (target.baselineSource ? layouts : generated).push(target);
   }
   const gapKeys = [...gaps.keys()].filter((key) => !conflicts.has(key)).sort();
   const retainedGapKeys = gapKeys.slice(0, 1024);
   return {
     targets: [...generated, ...layouts],
+    predecessorScopeGaps: [...predecessorScopeGaps]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(0, 1024)
+      .map(([, row]) => row),
+    predecessorScopeGapsOmitted: Math.max(0, predecessorScopeGaps.size - 1024),
     baselineGaps: {
       rows: retainedGapKeys.map((key) => gaps.get(key)!.row),
       omitted: gapKeys.length - retainedGapKeys.length,
@@ -349,7 +436,7 @@ export function collectDriftTargets(
   };
 }
 
-export function driftTargetKey(target: DriftTarget): string {
+export function driftTargetKey<T extends { issue?: unknown }>(target: T): string {
   const { issue: _issue, ...inspectionInputs } = target;
   return createHash("sha256").update(JSON.stringify(inspectionInputs)).digest("hex");
 }
@@ -360,6 +447,7 @@ interface Inspection {
   derivationSha256: string;
   components: string[];
   layoutMatch?: true;
+  predecessorScopeSha256?: string;
 }
 
 interface DriftObservation {
@@ -427,6 +515,7 @@ export function inspectionFromResponse(value: unknown, target: DriftTarget): Ins
     data.sha256 !== target.asset.sha256 ||
     data.shape_version !== target.shapeVersion ||
     data.derivation_inputs_sha256 !== target.derivationSha256 ||
+    !isDeepStrictEqual(data.predecessor_observation, target.predecessorObservation) ||
     !isRecord(data.verdict)
   )
     throw new Error("Core did not return an inspection bound to the selected package");
@@ -465,6 +554,9 @@ export function inspectionFromResponse(value: unknown, target: DriftTarget): Ins
     derivationSha256: data.derivation_inputs_sha256,
     components: [...new Set(components)].sort(),
     ...(layoutMatch ? { layoutMatch: true } : {}),
+    ...(target.predecessorObservation
+      ? { predecessorScopeSha256: predecessorScope(target.predecessorObservation)! }
+      : {}),
   };
 }
 
@@ -484,6 +576,9 @@ async function inspect(archive: string, target: DriftTarget, cli: string, deadli
       String(target.asset.size),
       "--sha256",
       target.asset.sha256,
+      ...(target.predecessorObservation
+        ? ["--predecessor-observation", JSON.stringify(target.predecessorObservation)]
+        : []),
     ],
     { encoding: "utf8", timeout: callTimeout(180_000, deadline), maxBuffer: subprocessLimit },
   );
@@ -519,6 +614,7 @@ export async function scanDriftTargets(
     if (
       prior?.shapeVersion === target.shapeVersion &&
       prior.derivationSha256 === target.derivationSha256 &&
+      prior.predecessorScopeSha256 === predecessorScope(target.predecessorObservation) &&
       (prior.status !== "unknown" ||
         (target.baselineSource === "reviewed_layout" && prior.layoutMatch === true))
     ) {
@@ -558,6 +654,11 @@ export async function scanDriftTargets(
         ({ key, target }) => key !== resume && target.asset.size <= archiveLimit,
       );
       continuation[tier] = resume === routes[0]?.key ? (next?.key ?? resume) : resume;
+    } else {
+      // A bounded handoff can leave the previous deferred route out of this tier.
+      const prior = priorContinuation[tier];
+      if (prior !== undefined && !routes.some(({ key }) => key === prior))
+        continuation[tier] = prior;
     }
   }
   return { observations, unassessed, attempted_bytes: bytes, continuation };
@@ -580,7 +681,14 @@ export function completedInspections(
   for (const item of records(value.observations)) {
     if (typeof item.key !== "string" || !digest.test(item.key) || !isRecord(item.inspection))
       continue;
-    const { status, shapeVersion, derivationSha256, components, layoutMatch } = item.inspection;
+    const {
+      status,
+      shapeVersion,
+      derivationSha256,
+      components,
+      layoutMatch,
+      predecessorScopeSha256,
+    } = item.inspection;
     if (
       (status !== "compatible" &&
         status !== "drifted" &&
@@ -589,7 +697,9 @@ export function completedInspections(
       typeof derivationSha256 !== "string" ||
       !digest.test(derivationSha256) ||
       !isShapeComponentList(components) ||
-      (status === "unknown" && components.length > 0)
+      (status === "unknown" && components.length > 0) ||
+      (predecessorScopeSha256 !== undefined &&
+        (typeof predecessorScopeSha256 !== "string" || !digest.test(predecessorScopeSha256)))
     )
       continue;
     completed.set(item.key, {
@@ -598,6 +708,7 @@ export function completedInspections(
       derivationSha256,
       components,
       ...(status === "unknown" ? { layoutMatch: true } : {}),
+      ...(typeof predecessorScopeSha256 === "string" ? { predecessorScopeSha256 } : {}),
     });
   }
   return completed;
@@ -647,14 +758,8 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
       handoffs.push(await readBoundedJson(source, 16 * 1024 * 1024));
     }
   }
-  const { targets, baselineGaps } = collectDriftTargets(
-    catalog,
-    listings,
-    shapes,
-    handoffs,
-    run,
-    Date.now(),
-  );
+  const { targets, baselineGaps, predecessorScopeGaps, predecessorScopeGapsOmitted } =
+    collectDriftTargets(catalog, listings, shapes, handoffs, run, Date.now());
   let previous: unknown;
   try {
     previous = await readBoundedJson(checkpoint, 4 * 1024 * 1024);
@@ -694,9 +799,10 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
     inspector_sha256,
     ...result,
     baseline_gaps: baselineGaps,
+    predecessor_scope_gaps: { rows: predecessorScopeGaps, omitted: predecessorScopeGapsOmitted },
   });
   console.log(
-    `Compared ${result.observations.length} packages for ${targets.length} current routes with a baseline. ${result.unassessed.length} were unassessed. ${baselineGaps.rows.length + baselineGaps.omitted} other current routes lack a reviewed baseline.`,
+    `Compared ${result.observations.length} packages for ${targets.length} current routes with a baseline. ${result.unassessed.length + predecessorScopeGaps.length + predecessorScopeGapsOmitted} were unassessed. ${baselineGaps.rows.length + baselineGaps.omitted} other current routes lack a reviewed baseline.`,
   );
 }
 
@@ -750,8 +856,22 @@ export function driftNotices(
       !positiveInteger(target.assetId) ||
       typeof key !== "string" ||
       !digest.test(key) ||
+      inspection.predecessorScopeSha256 !== predecessorScope(target.predecessorObservation) ||
       !isShapeComponentList(inspection.components) ||
       inspection.components.length === 0
+    )
+      continue;
+    if (
+      target.predecessorObservation !== undefined &&
+      (!isDeepStrictEqual(target.predecessorObservation, {
+        repository_id: target.repositoryId,
+        release_id: target.releaseId,
+        asset_id: target.assetId,
+        tag: target.version,
+        channel: target.channel,
+        url: target.asset.url,
+      }) ||
+        key !== driftTargetKey({ ...target, issue: target.issue }))
     )
       continue;
     const line = `- \`${target.portId}\` · ${target.platform} · ${target.channel} · \`${target.version}\` · release ${target.releaseId}, asset ${target.assetId} · SHA-256 \`${target.asset.sha256}\` · ${inspection.components.map((component) => component.replaceAll("_", " ")).join(", ")}`;

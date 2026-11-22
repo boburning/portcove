@@ -1164,6 +1164,13 @@ a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes remain in force; the retry policy is owned by
 [timeout calibration](QUALITY.md#autonomous-test-timeout-calibration).
 
+On schema drift, the Windows transport and full Linux Rust-quality jobs may
+retain a `transport-schema-drift` diagnostic for seven days. It contains the
+differing canonical JSON from the same Rust exporters and a manifest with
+run, attempt, job, checkout commit, tree, byte counts and SHA-256 digests. The
+diagnostic keeps the original parity failure and does not change generated
+files or supply release evidence.
+
 The remaining full-workspace native/Intel and Windows workspace-other qualification
 jobs use `scripts/qualification-nextest.mts` with their original package scope,
 partitions, default profile and archive/remap inputs. It verifies pinned Node and
@@ -2376,7 +2383,11 @@ and a screenshot before reset/resize cleanup; the original assertion still fails
 `native-secondary-panel-presentation` uses a fresh Windows fixture library and
 an owned prepared installation. It inspects DAT editing, metadata export,
 ready notices, mod original-file choice, recipe/provider reviews, retirement,
-file preservation and portable-save feedback in both themes. The retained
+file preservation and portable-save feedback in both themes. The supplied
+provider fixture exercises keyboard Add with an incomplete file list and with
+one eligible file in a complete list. The first opens the chooser. The second
+queues immediately. Both wait for Check files before requesting the exact file
+plan. The retained
 observation identifies supplied replies and controlled refusals. DAT and the
 successful metadata export use actual isolated Core operations. Ordinary
 owned preferences and background setup requests retain their existing paths.
@@ -3079,13 +3090,15 @@ wait error. The original timeout and downstream connection failures remain faile
 evidence; only a fresh exact-source run can establish completion.
 
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
-libraries and saved preferences. Real folder selection and review first commit a
-recognizable SQLite library with a future schema; refusal retains the Core-owned
-summary and exposes the redacted schema reason/version through user-opened technical
-details. It must retain the active workspace, identity, saved choice and fixture
-database/player-marker bytes, with natural trigger focus before disclosure and an
-accessibility capture. A subsequent healthy selection
-and independent host restart must retain the new saved choice. Both process trees
+libraries and saved preferences. A canonical alias of the open saved library
+keeps its generation, identity and preference bytes. The real picker returns
+focus after the player closes the no-change review. A recognizable SQLite
+library with a future schema is then refused. The review retains the Core-owned
+summary, exposes the redacted schema reason and version under technical details,
+and preserves the active workspace, saved choice and fixture bytes. A successful
+switch and independent restart retain the new saved choice. A controlled edit
+to the owned preference file changes the startup choice, and the same open
+library can then be saved explicitly without reopening it. Both process trees
 use the existing identity-bound, root-inclusive positive-exit checks. The scenario
 does not open the real platform-default library, redirect Windows known folders,
 or establish installed-package, physical-input or platform-default-reset evidence.
@@ -3136,9 +3149,13 @@ Default-cover display/cache observations can use repeated `--cover-port-id ID`
 arguments for at most 16 unique accepted mapped ports. Omission retains the full
 mapped-catalog observation. Unknown or unmapped IDs refuse the selection;
 cache observations must include `dkr-r` for the existing missing-cache negative
-control. Selected ports receive detail observations as well as card observations.
-The report records the requested/observed IDs, selection scope and available
-mapped denominator. A focused result is not whole-catalog evidence. This option
+control. The control withholds the accepted original displayed by the DKR-R
+Discover card. Selected ports receive detail observations as well as card
+observations. When a whole-game card displays another port's cover, the report
+records that cover's port and mapping separately from the selected implementation.
+A card without a primary mapping leaves the card sample empty and checks the
+selected implementation in Detail. The report records the request, scope, and
+available mapped denominator. A focused result is not whole-catalog evidence. This option
 requires `native-default-cover-display` or `native-default-cover-cache-conditions`;
 it does not change image acceptance, cache policy or the frozen cohort's fallback
 credit.
@@ -3589,6 +3606,38 @@ CDN scenario is opt-in and excluded from ordinary offline profiles. It proves
 native development-app display and cache behavior, not installed-package updates,
 production content publication, physical devices or human comprehension.
 
+Windows runs retain the native command trace and debug diagnostics. For an
+artwork comparison, keep the source, executable, catalog cohort, viewport and
+network condition with each observation. Count effective catalog resolutions,
+original disk lookups and verification, derivative hits and conversions,
+worker admission and base64 output bytes. Use the cached-restart control to
+distinguish retained derivatives from same-process reuse. The cover report's
+per-card timings are Selenium observations after a search request.
+
+For a focused comparison, repeat `--cover-port-id` for up to 16 accepted
+cover mappings, including `dkr-r` for the offline control. Focused cache
+runs use the same window size and theme for the cold pass, the same-session
+Discover revisit, and the offline restart. The report records the initial
+visible primary-cover IDs from the actual artwork frames and checks them against
+the admitted listing catalog, including representative directory entries. It records
+browser-frame timings from the Discover button click to the first ready image
+and the full measured cohort. Collection and companion artwork are outside this
+timing cohort. An incomplete cohort
+has a null completion time and lists the ready IDs. Individual timing rows
+are also retained in JSON Lines if a later scenario assertion fails. Compare only runs with
+matching catalog, viewport, visible IDs, and cache and network conditions.
+
+On the same Windows Server 2022 runner, WebView2 158.0.4370.33 development builds
+at 1280×800 and 1× pixel ratio showed one visible DKR-R cover in 1,410 ms on the
+empty-cache baseline `adc3e990c5cd` and 956 ms on candidate `191faff3c8e4`.
+Revisits took 94 ms and 101 ms. After an offline restart with a populated
+cache, one visible Banjo-Recomp cover took 5,574 ms and 489 ms. The candidate's
+restarted process logged nine derivative hits, zero downloads and zero image
+conversions. The baseline logged seven conversions. These are single timing
+observations per condition. The candidate passed the four-title cover and
+Detail scenario. The baseline saved its timing rows before the later
+withheld-original traffic control timed out. [Windows evidence](https://github.com/boburning/portcove/actions/runs/44772705180)
+
 `--scenario native-normal-package-webview-boundary` is an opt-in Windows
 ordinary-package case through the existing external Tauri/EdgeDriver route.
 Use low-level `desktop-test.mts --app <retained-installed-executable> --output
@@ -3632,6 +3681,16 @@ of retained installed bytes after the isolated installer route, not current
 installed-context, signed production, minimum-version or all-platform evidence.
 Refused navigation does not prove privileged invocation after remote execution;
 earlier instrumented secondary/queued-reply controls remain separate evidence.
+
+The Windows normal-package case also reads the actual workspace catalog and
+catalog status, checks the reviewed original-game relationships, and retains
+`normal-package-game-first-catalog.json`. That artifact binds the loaded catalog
+digest, definition/listing provenance, independent relationship fixture, package
+and executable to the executing source revision. The fixture and oracle have
+immutable input custody. Existing packages use their own matching source and
+fixture; the verifier refuses a different candidate revision. A relationship
+failure fails the scenario and retains the readback. This read-only observation
+grants no source compatibility, installation permission or gameplay acceptance.
 
 For the distinct current-installed Windows case, use the fixed existing launcher:
 `just desktop-test --current-installed --installer <absolute-nsis> --package-evidence
@@ -3908,6 +3967,18 @@ separate from execution, and times out admission with exit 75. Cancellation is
 130/143. Neither means a completed test. Execution budgets begin after admission;
 outer callers must allow the bounded queue as well as setup and execution.
 
+Each local source-bound checkout scan has a 30-second default budget. Under
+measured filesystem pressure, a local caller can set
+`PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
+480 for one command. During portable-game qualification on Linux, a complete
+checkout scan under disk contention took 338 seconds. Git commands took
+2.4 seconds of that time. The override applies separately to the full
+before-admission and after-admission scans. Allow both scans, the existing
+queue wait, setup and execution in the outer command budget. The override
+leaves the queue and execution budgets unchanged. A scan timeout prevents
+payload launch. After admission, the guard releases the reservation through
+the existing custody checks.
+
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely
 represent independent supervised descendants or remote-engine work. Coordinate a
@@ -4015,6 +4086,9 @@ default. An unconfigured contributor keeps the existing two-slot defaults and
 ordinary Node contract route; this extension adds no setup requirement to it.
 Linux retains a local proxy lease for native identity, nested ownership and output
 checks; Windows retains external custody until Linux cleanup is proven.
+The Linux adapter checks the privacy of its temporary custody directory before
+requesting Windows capacity. If the temporary filesystem cannot enforce
+owner-only access, use a Linux-backed temporary directory and try again.
 
 The Linux hostBridge configuration identifies the Windows Node executable and
 entry script, Linux Node/probe paths, distribution/user and closureSha256. Stage
@@ -4028,7 +4102,9 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. While admission is pending, input EOF or error aborts acquisition while
+custody. If the guard cannot confirm cleanup, it closes its bridge connection
+and exits while retaining both reservations and their original evidence. While
+admission is pending, input EOF or error aborts acquisition while
 preserving buffered protocol bytes. A lease that resolves despite cancellation
 retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the

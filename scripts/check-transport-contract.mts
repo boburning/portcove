@@ -1,4 +1,5 @@
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -183,10 +184,95 @@ function declaredEvent(declarations: ReadonlyMap<string, string>, name: string):
   return value;
 }
 
-export function checkTransportContract(schemas: unknown, sourceText: string) {
-  return sourceText.replaceAll("\r\n", "\n") === renderTransportSchemas(schemas)
-    ? []
-    : ["Generated transport schemas differ from the Rust output contract"];
+type DriftFile =
+  | "transport-schemas.generated.json"
+  | "transport-inputs.generated.json"
+  | `transport-host-${"input" | "output" | "events"}.generated.json`
+  | "desktop-headless.json"
+  | "desktop-native.json";
+
+export function checkTransportContract(
+  schemas: unknown,
+  sourceText: string,
+  onDrift?: (canonical: string) => void,
+) {
+  const canonical = renderTransportSchemas(schemas);
+  if (sourceText.replaceAll("\r\n", "\n") === canonical) return [];
+  onDrift?.(canonical);
+  return ["Generated transport schemas differ from the Rust output contract"];
+}
+
+/** Diagnostics only. A failed capture cannot replace the parity result. */
+export function retainTransportDrift(
+  root: string,
+  drift: ReadonlyMap<DriftFile, string>,
+  environment = process.env,
+) {
+  if (drift.size === 0 || environment.GITHUB_ACTIONS !== "true") return;
+  let temporary: string | undefined;
+  try {
+    const { RUNNER_TEMP, GITHUB_SHA, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, GITHUB_JOB } = environment;
+    if (
+      !RUNNER_TEMP ||
+      !path.isAbsolute(RUNNER_TEMP) ||
+      !/^[a-f0-9]{40}$/u.test(GITHUB_SHA ?? "") ||
+      !/^[1-9][0-9]{0,19}$/u.test(GITHUB_RUN_ID ?? "") ||
+      !/^[1-9][0-9]{0,9}$/u.test(GITHUB_RUN_ATTEMPT ?? "") ||
+      !/^[a-zA-Z0-9_-]{1,100}$/u.test(GITHUB_JOB ?? "")
+    )
+      throw new Error("Hosted transport diagnostic context is incomplete");
+    const base = fs.realpathSync(RUNNER_TEMP);
+    const relative = path.relative(fs.realpathSync(root), base);
+    if (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
+      throw new Error("Hosted transport diagnostic requires runner temp outside the checkout");
+    const git = spawnSync("git", ["rev-parse", "HEAD", "HEAD^{tree}"], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 4096,
+      timeout: 5000,
+      windowsHide: true,
+    });
+    const [commit, tree, extra] = git.stdout?.trim().split(/\r?\n/u) ?? [];
+    if (git.status !== 0 || commit !== GITHUB_SHA || !/^[a-f0-9]{40}$/u.test(tree ?? "") || extra)
+      throw new Error("Hosted transport diagnostic checkout identity differs");
+
+    const files = [...drift].map(([name, canonical]) => ({
+      name,
+      bytes: Buffer.byteLength(canonical),
+      sha256: createHash("sha256").update(canonical).digest("hex"),
+    }));
+    if (files.reduce((total, { bytes }) => total + bytes, 0) > 16 * 1024 * 1024)
+      throw new Error("Hosted transport diagnostic exceeds 16 MiB");
+    temporary = fs.mkdtempSync(path.join(base, "portcove-transport-drift-"));
+    for (const [name, canonical] of drift)
+      fs.writeFileSync(path.join(temporary, name), canonical, { flag: "wx", mode: 0o600 });
+    fs.writeFileSync(
+      path.join(temporary, "manifest.json"),
+      JSON.stringify({
+        format: 1,
+        kind: "transport-schema-drift",
+        run: GITHUB_RUN_ID,
+        attempt: GITHUB_RUN_ATTEMPT,
+        job: GITHUB_JOB,
+        commit,
+        tree,
+        files,
+      }) + "\n",
+      { flag: "wx", mode: 0o600 },
+    );
+    fs.renameSync(temporary, path.join(base, "portcove-transport-drift"));
+    temporary = undefined;
+  } catch (error) {
+    console.error(`Could not retain transport schema diagnostic: ${errorMessage(error)}`);
+  } finally {
+    if (temporary) {
+      try {
+        fs.rmSync(temporary, { recursive: true, force: true });
+      } catch {
+        console.error("Could not clean temporary transport schema diagnostic");
+      }
+    }
+  }
 }
 
 function sortedUnique(values: readonly string[], label: string) {
@@ -719,6 +805,7 @@ export function exportDesktopSchemas(
   exporters: BuiltSchemaExporters,
   verifyNative: boolean,
   platform = process.platform,
+  reportDrift?: (file: DriftFile, canonical: string) => void,
 ) {
   const exportDesktop = (phase: string, executable: string) =>
     exportPhase(phase, () => {
@@ -748,7 +835,11 @@ export function exportDesktopSchemas(
     const native = exportDesktop("desktop-native", nativeExecutable);
     exportPhase("desktop-parity", () => {
       const failures = checkDesktopExporterParity(headless, native);
-      if (failures.length) throw new Error(failures.join("\n"));
+      if (failures.length) {
+        reportDrift?.("desktop-headless.json", renderTransportSchemas(headless));
+        reportDrift?.("desktop-native.json", renderTransportSchemas(native));
+        throw new Error(failures.join("\n"));
+      }
     });
     console.log("Headless Desktop contracts match the compiled native host.");
   }
@@ -780,12 +871,13 @@ export function checkRepositoryDesktopExposure(root: string) {
   return failures;
 }
 
-function main() {
+function main(root: string, drift: Map<DriftFile, string>) {
   const { values } = parseArgs({
     options: {
       write: { type: "boolean", default: false },
       "ipc-only": { type: "boolean", default: false },
       "native-parity": { type: "boolean", default: false },
+      "retain-drift": { type: "boolean", default: false },
       types: { type: "string" },
       "host-types": { type: "string" },
       "host-events": { type: "string" },
@@ -793,7 +885,6 @@ function main() {
   });
   if (values.write && (values.types || values["host-types"] || values["host-events"]))
     throw new Error("--write only updates the repository generated contract");
-  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   if (values["ipc-only"]) {
     if (
       values.write ||
@@ -809,6 +900,18 @@ function main() {
     console.log("Desktop command/event exposure matches Rust.");
     return;
   }
+  const reportDrift =
+    values["retain-drift"] && !values.write
+      ? (file: DriftFile, canonical: string) => {
+          drift.set(file, canonical);
+        }
+      : undefined;
+  const compare = (file: DriftFile, schemas: unknown, snapshot: string) =>
+    checkTransportContract(
+      schemas,
+      snapshot,
+      reportDrift && ((canonical) => reportDrift(file, canonical)),
+    );
   const exporters = buildSchemaExporters(root);
   const schemas = exportSchemas(exporters, "output");
   const typesPath = values.types
@@ -819,7 +922,7 @@ function main() {
   }
   const sourceText = fs.readFileSync(typesPath, "utf8");
 
-  const failures = checkTransportContract(schemas, sourceText);
+  const failures = compare("transport-schemas.generated.json", schemas, sourceText);
   const inputSchemas = exportSchemas(exporters, "input");
   const requests = Object.fromEntries(
     [
@@ -835,21 +938,28 @@ function main() {
   const inputPath = path.join(root, "apps", "desktop", "src", "transport-inputs.generated.json");
   if (values.write) fs.writeFileSync(inputPath, renderTransportSchemas(requests));
   failures.push(
-    ...checkTransportContract(requests, fs.readFileSync(inputPath, "utf8")).map(
+    ...compare("transport-inputs.generated.json", requests, fs.readFileSync(inputPath, "utf8")).map(
       (message) => `Request inputs: ${message}`,
     ),
   );
-  const desktop = exportDesktopSchemas(exporters, values["native-parity"]);
-  for (const contract of ["input", "output"]) {
+  const desktop = exportDesktopSchemas(
+    exporters,
+    values["native-parity"],
+    process.platform,
+    reportDrift,
+  );
+  for (const contract of ["input", "output"] as const) {
     const target =
       contract === "output" && values["host-types"]
         ? path.resolve(values["host-types"])
         : path.join(root, "apps", "desktop", "src", `transport-host-${contract}.generated.json`);
     if (values.write) fs.writeFileSync(target, renderTransportSchemas(desktop[contract]));
     failures.push(
-      ...checkTransportContract(desktop[contract], fs.readFileSync(target, "utf8")).map(
-        (message) => `Desktop ${contract}: ${message}`,
-      ),
+      ...compare(
+        `transport-host-${contract}.generated.json`,
+        desktop[contract],
+        fs.readFileSync(target, "utf8"),
+      ).map((message) => `Desktop ${contract}: ${message}`),
     );
   }
   const eventsPath = values["host-events"]
@@ -857,14 +967,17 @@ function main() {
     : path.join(root, "apps", "desktop", "src", "transport-host-events.generated.json");
   if (values.write) fs.writeFileSync(eventsPath, renderTransportSchemas(desktop.events));
   failures.push(
-    ...checkTransportContract(desktop.events, fs.readFileSync(eventsPath, "utf8")).map(
-      (message) => `Desktop events: ${message}`,
-    ),
+    ...compare(
+      "transport-host-events.generated.json",
+      desktop.events,
+      fs.readFileSync(eventsPath, "utf8"),
+    ).map((message) => `Desktop events: ${message}`),
   );
   failures.push(...checkRepositoryDesktopExposure(root));
   if (failures.length > 0) {
     process.stderr.write(`Transport contract drift:\n- ${failures.join("\n- ")}\n`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   process.stdout.write(
@@ -873,11 +986,15 @@ function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const drift = new Map<DriftFile, string>();
   try {
-    main();
+    main(root, drift);
   } catch (error) {
     if (!(error instanceof SchemaExportError)) throw error;
     console.error(error.message);
     process.exitCode = error.exitCode;
+  } finally {
+    retainTransportDrift(root, drift);
   }
 }

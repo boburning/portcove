@@ -21,6 +21,20 @@ import {
   partialProgressRules,
 } from "./catalog-upstream-observer.mts";
 
+import {
+  inputEvidenceKey,
+  type OriginalSourceProgress,
+  readOriginalSourceProgress,
+  selectOriginalSourceTarget,
+} from "./upstream-original-recognition.mts";
+import { orderedJsonSha256 } from "./json-values.mts";
+import {
+  planN64OriginalBindings,
+  prepareN64OriginalContractAmendment,
+} from "./n64-original-binding-candidates.mts";
+
+import { thunderstoreRegistrySubject } from "./upstream-mod-provider-registry.mts";
+
 const repository = "boburning/portcove";
 const workflowPath = ".github/workflows/configured-upstream-observer.yml";
 const checkpointMember = "catalog/checkpoint.json";
@@ -327,6 +341,11 @@ export function managedReleaseEligibilityWindow(rows: readonly unknown[], now: D
 export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.now()) {
   const state = validateCatalogObserverCheckpoint(checkpoint, now);
   const { sources, held, port_ids: portIds } = catalogObservationSources(catalog);
+  const rawCatalog = isRecord(catalog) ? catalog : {};
+  const definitions = new Map<string, Record<string, unknown>>();
+  for (const port of (Array.isArray(rawCatalog.ports) ? rawCatalog.ports : []) as unknown[]) {
+    if (isRecord(port) && typeof port.id === "string") definitions.set(port.id, port);
+  }
   const heldReasons = new Map<string, string[]>();
   for (const { port_id, reason } of held)
     heldReasons.set(port_id, [...new Set([...(heldReasons.get(port_id) ?? []), reason])].sort());
@@ -402,6 +421,37 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               release: port.release,
             })
           : undefined;
+      const family = port.original_source_family;
+      const evidenceKey = family ? inputEvidenceKey(family) : undefined;
+      const inputEvidence =
+        family && evidenceKey && progress.repository_id !== null
+          ? readOriginalSourceProgress(
+              policy[evidenceKey],
+              { repository: source.repository, repository_id: progress.repository_id },
+              family,
+            )
+          : undefined;
+      const n64Target =
+        family === "n64-recomp" && progress.repository_id !== null && !exceptionKey
+          ? selectOriginalSourceTarget(policy, source.repository, progress.repository_id)
+          : undefined;
+      const bindingPlan =
+        n64Target && inputEvidence?.last_complete?.binding === orderedJsonSha256(n64Target)
+          ? planN64OriginalBindings(
+              definitions.get(port.id),
+              rawCatalog.source_catalog,
+              inputEvidence,
+            )
+          : undefined;
+      const contractAmendment =
+        bindingPlan && inputEvidence
+          ? prepareN64OriginalContractAmendment(
+              definitions.get(port.id),
+              rawCatalog.source_catalog,
+              inputEvidence,
+              [...definitions.values()],
+            )
+          : undefined;
       entries.set(port.id, [
         ...(entries.get(port.id) ?? []),
         {
@@ -420,6 +470,9 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
               ? policy.catalog_definition_sha256
               : null,
           ...(candidates === undefined ? {} : { managed_release_candidates: candidates }),
+          ...(evidenceKey && inputEvidence ? { [evidenceKey]: inputEvidence } : {}),
+          ...(bindingPlan ? { n64_original_binding_plan: bindingPlan } : {}),
+          ...(contractAmendment ? { n64_original_contract_amendment: contractAmendment } : {}),
         },
       ]);
     }
@@ -445,8 +498,23 @@ export function upstreamFacts(checkpoint: unknown, catalog: unknown, now = Date.
   // The observer's catalog mapping partitions every port into a fact or a gap.
   if (facts.size + gaps.size !== portIds.length)
     throw new MaintenanceStoreError("Unsupported observer catalog mapping");
+  const registry = state.mod_provider_registry;
+  if (registry) {
+    const complete = registry.last_complete;
+    if (registry.exception || !complete || Date.parse(complete.expires_at) <= now)
+      gaps.set(thunderstoreRegistrySubject, {
+        subject_key: thunderstoreRegistrySubject,
+        code: registry.exception ?? (complete ? "stale" : "unobserved"),
+        message:
+          "Current Thunderstore registry coverage is unknown. Prior community facts stay current.",
+      });
+    else {
+      const { observed_at: _clock, expires_at: _expiry, ...semantic } = complete;
+      facts.set(thunderstoreRegistrySubject, semantic);
+    }
+  }
   return {
-    expected: portIds.length,
+    expected: portIds.length + Number(registry !== undefined),
     facts,
     gaps: [...gaps.values()].sort((left, right) => (left.subject_key < right.subject_key ? -1 : 1)),
   };
@@ -682,13 +750,24 @@ export async function readUpstreamObservations(
       throw new MaintenanceStoreError("The observer snapshot producer differs from its run");
     // The observer reads the reviewed catalog and listing directory at its own source.
     const parse = (file: string) => {
+      let bytes: Buffer;
       try {
-        return JSON.parse(readCommitted(snapshot.producer.source, file).toString("utf8")) as {
-          listings?: unknown;
-        };
+        bytes = readCommitted(snapshot.producer.source, file);
       } catch (error) {
         if (error instanceof MaintenanceStoreError) throw error;
-        throw new MaintenanceStoreError(`${file} at the producer source is not valid JSON`);
+        const code = error instanceof Error && "code" in error ? error.code : undefined;
+        const reason =
+          code === "ETIMEDOUT" || code === "ENOBUFS" || code === "ENOENT" ? ` (${code})` : "";
+        throw new MaintenanceStoreError(
+          `Could not read ${file} at ${snapshot.producer.source}${reason}`,
+        );
+      }
+      try {
+        return JSON.parse(bytes.toString("utf8")) as {
+          listings?: unknown;
+        };
+      } catch {
+        throw new MaintenanceStoreError(`${file} at ${snapshot.producer.source} is not valid JSON`);
       }
     };
     const operational = parse("crates/portcove-core/catalog/catalog.json");
@@ -717,6 +796,12 @@ export interface UpstreamSourceFact {
   exception_rule: string | null;
   catalog_definition_sha256: string | null;
   managed_release_candidates?: ManagedReleaseCandidate[];
+  original_recognition?: OriginalSourceProgress;
+  n64_game_entries?: OriginalSourceProgress;
+  n64_original_binding_plan?: NonNullable<ReturnType<typeof planN64OriginalBindings>>;
+  n64_original_contract_amendment?: NonNullable<
+    ReturnType<typeof prepareN64OriginalContractAmendment>
+  >;
 }
 
 const storedSources = (payload: unknown) =>

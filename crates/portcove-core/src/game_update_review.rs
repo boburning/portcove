@@ -28,7 +28,7 @@ impl PortcoveService {
     ) -> Result<GameUpdatePlan> {
         self.plan_game_update_with_status(port_id, activate, review_data)
             .await
-            .map(|(plan, _)| plan)
+            .map(|(plan, _, _)| plan)
     }
 
     pub(super) async fn plan_game_update_with_status(
@@ -36,14 +36,21 @@ impl PortcoveService {
         port_id: &str,
         activate: bool,
         review_data: bool,
-    ) -> Result<(GameUpdatePlan, crate::PortStatus)> {
+    ) -> Result<(
+        GameUpdatePlan,
+        crate::PortStatus,
+        crate::ScopedResolvedRelease,
+    )> {
         let status = self.status(port_id)?;
         if status.active.is_none() {
             return Err(PortcoveError::not_found(
                 "install this game before reviewing an update",
             ));
         }
-        let mut plan = self.plan_install(port_id, Some(status.channel)).await?;
+        let (mut plan, resolution) = self
+            .plan_install_resolution(port_id, Some(status.channel), None, None)
+            .await?;
+        let explicit_package_proof_sha256 = resolution.explicit_package_proof_sha256()?;
         let transition = if review_data {
             self.archive_data_transition_review(port_id, &plan.release)?
         } else {
@@ -55,11 +62,17 @@ impl PortcoveService {
             crate::ArchiveDataTransitionReview { preimage_sha256:review.preimage_sha256.clone(), producing_archive_sha256:review.active.artifact.sha256.clone(), retained_installations:review.installs.len() as u32,
                 temporary_space:crate::InstallSpaceRequirement { path:self.library.root().to_path_buf(), required_bytes:review.required_bytes, available_bytes, volume_identity:None, sufficient:available_bytes.map(|available|available>=review.required_bytes) } }
         });
-        let mut plan_sha256 = self.game_release_review_digest(
+        let assessment = game_update_plan_assessment(&plan);
+        let offer_archive = review_data
+            && plan.action == crate::InstallPlanAction::Download
+            && assessment.availability == crate::PortActionAvailability::Allowed
+            && self.require_acquisition_state(&status).is_ok();
+        let (mut plan_sha256, mut archive_only_plan_sha256) = self.game_release_review_digests(
             "Portcove game update review v1",
             &plan,
             &status,
             activate,
+            offer_archive,
         )?;
         // Even a nonmatching archive owns a retained slot; replacing/discarding it invalidates review.
         if let Some(acquisition) = &status.acquisition {
@@ -69,7 +82,23 @@ impl PortcoveService {
                 acquisition,
             ))?);
         }
-        let acquisition = self.acquisition_for_review(&status, &plan)?;
+        let acquisition =
+            self.acquisition_for_review(&status, &plan, explicit_package_proof_sha256.as_deref())?;
+        if let Some(proof) = &explicit_package_proof_sha256 {
+            let bind_package = |digest: &str| {
+                serde_json::to_vec(&(
+                    "Portcove reviewed update explicit package v2",
+                    digest,
+                    proof,
+                ))
+                .map(|bytes| crate::signed_catalog::digest(&bytes))
+            };
+            plan_sha256 = bind_package(&plan_sha256)?;
+            archive_only_plan_sha256 = archive_only_plan_sha256
+                .as_deref()
+                .map(bind_package)
+                .transpose()?;
+        }
         // Informational and outside the digest: edited upstream notes never
         // invalidate a reviewed update. Read from cached metadata only.
         let release_notes = self.update_release_notes(port_id, &plan, &status)?;
@@ -82,15 +111,17 @@ impl PortcoveService {
             ))?);
         }
         let reviewed = GameUpdatePlan {
+            explicit_package_proof_sha256,
             acquisition,
             data_transition,
-            assessment: game_update_plan_assessment(&plan),
+            assessment,
             plan,
             activate,
             plan_sha256,
+            archive_only_plan_sha256,
             release_notes,
         };
-        Ok((reviewed, status))
+        Ok((reviewed, status, resolution))
     }
 
     /// The release list link is kept only when Desktop's reviewed-link check would
@@ -140,6 +171,18 @@ impl PortcoveService {
         status: &crate::PortStatus,
         activate: bool,
     ) -> Result<String> {
+        self.game_release_review_digests(domain, plan, status, activate, false)
+            .map(|(digest, _)| digest)
+    }
+
+    fn game_release_review_digests(
+        &self,
+        domain: &str,
+        plan: &crate::InstallPlan,
+        status: &crate::PortStatus,
+        activate: bool,
+        offer_archive: bool,
+    ) -> Result<(String, Option<String>)> {
         let port = self.catalog.port(&plan.port_id)?;
         let sources = self
             .library
@@ -153,32 +196,41 @@ impl PortcoveService {
         // Free space is checked again at execution, but changing free bytes is
         // not a change to what the user reviewed. Release, destination, source,
         // definition, retained state and execution mode are exact identities.
-        let digest = crate::signed_catalog::digest(&serde_json::to_vec(&(
-            domain,
-            port,
-            &plan.release,
-            plan.channel,
-            plan.platform,
-            &plan.bundled_runtime,
-            plan.action,
-            &plan.output_location,
-            (
-                &status.active,
-                &status.previous,
-                &status.staged,
-                status.update_policy,
-            ),
-            sources,
-            activate,
-        ))?);
-        if let Some(shared) = &plan.shared_preferences {
-            return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
-                "Portcove managed shared preference review v1",
-                digest,
-                shared,
-            ))?));
-        }
-        Ok(digest)
+        let digest = |activate| -> Result<String> {
+            let digest = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                domain,
+                port,
+                &plan.release,
+                plan.channel,
+                plan.platform,
+                &plan.bundled_runtime,
+                plan.action,
+                &plan.output_location,
+                (
+                    &status.active,
+                    &status.previous,
+                    &status.staged,
+                    status.update_policy,
+                ),
+                &sources,
+                activate,
+            ))?);
+            if let Some(shared) = &plan.shared_preferences {
+                return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+                    "Portcove managed shared preference review v1",
+                    digest,
+                    shared,
+                ))?));
+            }
+            Ok(digest)
+        };
+        let reviewed = digest(activate)?;
+        let archive = if offer_archive && activate {
+            Some(digest(false)?)
+        } else {
+            offer_archive.then(|| reviewed.clone())
+        };
+        Ok((reviewed, archive))
     }
 
     pub async fn authorize_game_update(
@@ -239,9 +291,24 @@ impl PortcoveService {
         let mut data_transition_completed = false;
         let result = async {
             let _guard = self.library.try_lock_port(port_id, "reviewed-update")?;
-            let reviewed = operation
-                .interruptible(self.plan_game_update_locked(port_id, activate))
+            let (reviewed, _, mut resolution) = operation
+                .interruptible(self.plan_game_update_with_status(port_id, activate, true))
                 .await?;
+            let port = self.catalog.port(port_id)?;
+            if reviewed.data_transition.is_some()
+                && let Some(verdict) = self.current_package_shape_refusal(
+                    port,
+                    reviewed.plan.platform,
+                    &resolution.release,
+                    Some(&resolution),
+                )?
+            {
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &resolution.release,
+                    &verdict,
+                ));
+            }
             self.library.consume_authorization(
                 authorization,
                 "game-update",
@@ -268,23 +335,38 @@ impl PortcoveService {
             let acquired = self.acquired_inputs(&reviewed, &operation)?;
             let status = self.status(port_id)?;
             operation.observe_release(&reviewed.plan.release.version, None);
-            self.record_update_check(port_id, &status, &reviewed.plan.release, None)?;
+            self.record_update_check_from_selection(port_id, &status, &resolution)?;
+            if resolution.saved_variant.is_none()
+                && reviewed.plan.action == crate::InstallPlanAction::Download
+                && crate::ManagedPackageVariant::can_record(
+                    port,
+                    reviewed.plan.platform,
+                    &resolution.release,
+                )
+            {
+                resolution.saved_variant = crate::ManagedPackageVariant::from_review(
+                    port,
+                    reviewed.plan.platform,
+                    &resolution,
+                );
+            }
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_resolved_release(
-                self.catalog.port(port_id)?,
+            self.apply_scoped_release_with_shared(
+                port,
                 status,
                 InstallOverrides {
                     source: None,
                     bios: None,
                     output_directory: None,
                 },
-                reviewed.plan.release,
+                resolution,
                 ReleaseIntent {
                     activate,
                     acquired,
+                    explicit_package_proof_sha256: reviewed.explicit_package_proof_sha256,
                     shared_preferences: reviewed
                         .plan
                         .shared_preferences
@@ -356,6 +438,7 @@ fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAs
         availability,
         reason,
         definition: None,
+        restriction: None,
     }
 }
 
@@ -495,6 +578,7 @@ mod tests {
         repository: Option<String>,
         entries: Vec<crate::UpdateReleaseNotesEntry>,
         requests: std::sync::Mutex<Vec<(Option<String>, String)>>,
+        selections: std::sync::atomic::AtomicI64,
     }
 
     impl NotesProvider {
@@ -508,6 +592,7 @@ mod tests {
                 repository: repository.map(str::to_owned),
                 entries,
                 requests: Default::default(),
+                selections: Default::default(),
             })
         }
     }
@@ -521,6 +606,27 @@ mod tests {
             platform: crate::Platform,
         ) -> crate::Result<crate::ResolvedRelease> {
             self.inner.resolve(port, channel, platform).await
+        }
+
+        async fn resolve_scoped(
+            &self,
+            port: &crate::PortDefinition,
+            channel: crate::ReleaseChannel,
+            platform: crate::Platform,
+            scope: Option<&crate::DefinitionAcquisitionScope>,
+        ) -> crate::Result<crate::ScopedResolvedRelease> {
+            use std::sync::atomic::Ordering;
+            let mut selection = self
+                .inner
+                .resolve_scoped(port, channel, platform, scope)
+                .await?;
+            selection.upstream_activity = Some(crate::UpstreamActivity {
+                repository: port.release.repository.clone(),
+                observed_at: self.selections.fetch_add(1, Ordering::Relaxed) + 1,
+                archived: false,
+                last_change_at: None,
+            });
+            Ok(selection)
         }
 
         fn cached_release_notes(
@@ -870,6 +976,33 @@ mod tests {
                 service_with_release(Library::open(service.library.root()).unwrap(), "v2");
             assert_eq!(reopened.status(PORT).unwrap().update_policy, policy);
         }
+    }
+
+    #[tokio::test]
+    async fn reviewed_apply_records_the_fresh_selection_and_reuses_it() {
+        use std::sync::atomic::Ordering;
+
+        let (_temporary, service) = fixture();
+        let provider = NotesProvider::new(&service, None, Vec::new());
+        let service = reviewed_repository_service(&service.library, provider.clone());
+        let review = service.plan_game_update(PORT, true).await.unwrap();
+        let grant = service
+            .authorize_game_update(PORT, true, &review.plan_sha256)
+            .await
+            .unwrap();
+        let before = provider.selections.load(Ordering::Relaxed);
+        service
+            .apply_game_update(PORT, true, &grant.token, |_| {})
+            .await
+            .unwrap();
+        assert_eq!(provider.selections.load(Ordering::Relaxed), before + 1);
+        let checked = service.library.update_snapshot(PORT).unwrap().unwrap();
+        assert_eq!(checked.check.release, review.plan.release);
+        assert_eq!(
+            checked.check.upstream_activity.unwrap().observed_at,
+            before + 1
+        );
+        assert_eq!(service.status(PORT).unwrap().active.unwrap().version, "v2");
     }
 
     #[tokio::test]

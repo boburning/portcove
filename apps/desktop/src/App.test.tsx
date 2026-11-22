@@ -103,6 +103,24 @@ describe("Portcove app shell", () => {
     expect(html).not.toContain("Resume move");
   });
 
+  it("routes an unfinished verified bundle restore separately from a manual import", () => {
+    const html = renderToStaticMarkup(
+      <BootstrapRecovery
+        error={{
+          code: "conflict",
+          message: "Bundle restore needs recovery",
+          details: {
+            transfer_id: "bundle-import-id",
+            import_destination: "E:/Restored Library",
+            recovery_action: "resume_library_recovery_restore",
+          },
+        }}
+      />,
+    );
+    expect(html).toContain("Resume bundle restore");
+    expect(html).not.toContain(">Resume restore<");
+  });
+
   it("offers move abort only when the core marks it available", () => {
     const preActivation = renderToStaticMarkup(
       <BootstrapRecovery

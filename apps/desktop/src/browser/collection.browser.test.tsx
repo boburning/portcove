@@ -372,7 +372,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     const entries = [...document.querySelectorAll<HTMLElement>(".collection-entry")];
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
-      "12 in your library",
+      "12 ports in your library",
     );
     const entryFor = (index: number) =>
       entries.find((entry) => entry.querySelector(`[data-detail-game-id="collection-${index}"]`))!;
@@ -633,7 +633,11 @@ it.each(["dark", "light"])(
     await expect.element(navigation).toHaveFocus();
     const order = [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]);
     await inspectDiscoverGroups(order, (card) => {
-      const left = card.getBoundingClientRect().left;
+      const surface = getComputedStyle(card);
+      const left =
+        card.getBoundingClientRect().left +
+        parseFloat(surface.borderLeftWidth) +
+        parseFloat(surface.paddingLeft);
       for (const selector of [
         ".collection-art",
         ".collection-title",

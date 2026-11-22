@@ -22,6 +22,9 @@ export function usePortBackups(
     failure?: FailureDisplay;
   }>(() => ({ selection, status: portId ? "pending" : "idle" }));
   const requestId = useRef(0);
+  const latest = useRef<
+    { selection: typeof selection; read: Promise<BackupInventory | void> } | undefined
+  >(undefined);
   const currentSelection = useRef<typeof selection | undefined>(selection);
   useLayoutEffect(() => {
     currentSelection.current = selection;
@@ -33,13 +36,15 @@ export function usePortBackups(
   const readInventory = useCallback(() => {
     if (!portId || currentSelection.current !== selection) return Promise.resolve();
     const request = ++requestId.current;
-    return Promise.resolve()
+    const read = Promise.resolve()
       .then(() => desktopApi.backups(portId))
       .then((inventory) => {
         if (inventory.port_id !== portId)
           throw new Error("Backup inventory does not match the selected port.");
-        if (request === requestId.current && currentSelection.current === selection)
+        if (request === requestId.current && currentSelection.current === selection) {
           setRead({ selection, inventory, status: "current" });
+          return inventory;
+        }
       })
       .catch((value: unknown) => {
         const failure = failurePresentation(value);
@@ -55,9 +60,11 @@ export function usePortBackups(
           setError?.(errorText(value));
         }
       });
+    latest.current = { selection, read };
+    return read;
   }, [portId, selection, setError]);
-  const refresh = useCallback(async () => {
-    if (!portId || currentSelection.current !== selection) return;
+  const refresh = useCallback(() => {
+    if (!portId || currentSelection.current !== selection) return Promise.resolve();
     setRead((previous) => ({
       selection,
       ...(previous.selection === selection && previous.inventory
@@ -65,8 +72,22 @@ export function usePortBackups(
         : {}),
       status: "pending",
     }));
-    await readInventory();
+    return readInventory();
   }, [portId, selection, readInventory]);
+  const refreshAfterCommit = useCallback(async () => {
+    let observed = refresh();
+    await observed;
+    // Workspace data and native focus can start a newer history read while this
+    // one is pending. Keep the restore's readback tied to the current inventory.
+    while (
+      currentSelection.current === selection &&
+      latest.current?.selection === selection &&
+      latest.current.read !== observed
+    ) {
+      observed = latest.current.read;
+      await observed;
+    }
+  }, [refresh, selection]);
   useEffect(() => {
     void refresh();
     return () => {
@@ -99,5 +120,5 @@ export function usePortBackups(
     hasInventory: Boolean(current?.inventory),
     ...(current?.failure ? { failure: current.failure } : {}),
   };
-  return { backups: inventory.backups, inventory, readState, refresh };
+  return { backups: inventory.backups, inventory, readState, refresh, refreshAfterCommit };
 }

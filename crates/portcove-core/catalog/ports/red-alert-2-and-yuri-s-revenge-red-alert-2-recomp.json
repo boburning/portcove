@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/sp00nznet/redalert2-recomp/releases/latest",
     "setup_url": "https://github.com/sp00nznet/redalert2-recomp#getting-started",
-    "download_block_reason": "The publisher’s installer builds both players from your own game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "The publisher’s installer builds both players from your own game files.",
+        "tracking_issue": 5744
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

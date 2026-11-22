@@ -54,7 +54,7 @@ or dialog keeps that focus.
 ## Library and Discover covers and compact rows
 
 Library and Discover default independently to Covers; Compact rows uses the same entries and authoritative
-local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts entries, including separate ports for one game; the Discover header counts the cards it shows as games, and port counts stay on each game's comparison (#5058 F3).
+local actions. Their profile-local preferences are separate and retain read/write failure feedback. Library defaults to Title A–Z only when no saved sort exists and also offers Catalog order, Title Z–A and Recently played using recorded launch history; Discover defaults to Title A–Z when no sort is saved and offers Catalog order, Title A–Z, Title Z–A and In library first (#5058 F4; a tested-first shelf waits for a native look at the real catalog). With an observed device target, Catalog order is labeled Library & device to describe the existing deterministic library/device ranking; its explanation remains visible. No subjective recommendation or quality score is implied. Library counts port entries, including separate ports for one game, and labels those counts as ports. Discover counts explicitly identified games and ungrouped projects separately; port counts stay on each game's comparison (#5058 F3).
 While Library results are loading, its loading surface owns the pending explanation;
 result counts and unavailable-result copy wait for settlement. A settled unread
 result remains unavailable, and a known empty result remains distinct.
@@ -89,8 +89,8 @@ At effective heights up to 800px, multiple Library covers use a 20rem preferred
 column minimum and place identity beside a contained portrait. Their status and
 primary actions span the card below. This keeps the first row actionable in a
 960×640, 1280×800 and 1366×768 windows while retaining larger artwork than compact Rows.
-Poster cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+Poster cover cards clamp title and project to two lines (the project to one line in desktop windows up to 760px high, expanding on hover and keyboard focus) without reserving empty lines, so chips follow each card's own identity and do not align across a row. In windows taller than 50rem and wider than 30rem each Library cover stretches to its row and pins its status/action footer to the card bottom: footers align across a row of single-port cards, and a multi-port group's footer sits above its alternatives disclosure, offset from single-port neighbors by that disclosure. Both expand on keyboard focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status while the status keeps at least 4.5rem; a wider action group, such as a release-withdrawal badge with Play, wraps onto its own row instead of compressing the status. Neither overlaps the other. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
@@ -190,7 +190,13 @@ history and relaunches that installation; it does not load a save automatically.
 Loaded galleries use contained 4:3 stages, with three columns for exactly three images at
 851px viewport width and above and two columns otherwise. The viewer includes a selectable thumbnail
 filmstrip with an exposed current selection; per-slot attribution,
-errors and lightbox focus remain with the media owner. Forced colors suppress
+errors and lightbox focus remain with the media owner. **Screenshot source**
+offers original releases with reviewed images. The gallery loads these images
+when the player chooses a release. That choice applies only to this gallery.
+Original screenshots show the release title in the thumbnail and viewer.
+When a refresh changes the active screenshot's bytes or admitted subject, the viewer
+closes and focus returns to a surviving control.
+Forced colors suppress
 decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
@@ -380,7 +386,13 @@ Display game release streams as **Stable**, **Preview** and **Rolling**. Use the
 - Every control needs deliberate default, hover, focus, pressed, selected, disabled, and loading treatment where those states apply. Geometry must remain stable across those states, transitions must name intentional properties rather than use `transition-all`, and forced-colors presentation must retain visible system-compatible outlines, borders, and meaning.
 - Icons come from Lucide through the shared `Icon` wrapper. An icon-only control must have an accessible name. Status never relies on icon or color alone.
 - Dialogs trap focus, close with Escape, restore the initiating focus target, use a named heading, and reserve confirmations for destructive or difficult-to-reverse actions.
-- External-installation folder choices and open reviews belong to the selected game, library generation, and registration; a context change discards them, and late or superseded picker results cannot open a new review.
+- External launch drafts retain the program, start folder and arguments when the
+  player leaves and returns to the same details in the current library workspace.
+  Replacing the library or launch target retires the old draft. Returning to an
+  editor requires a fresh review. Ignore late picker results from a retired context.
+- Keep a confirmed external registration result in the workspace after the player
+  leaves the editor. Offer **Open game** only after a current library read confirms
+  the same registration. An older launch action stays unavailable while that read is pending.
 - Empty states explain what the area is, why it is empty, and the best next action. Loading copy names real work and does not invent percentages.
 - Logs use monospace type, severity text plus icon and color, concise primary explanations, expandable technical details, and copy affordances.
 
@@ -404,6 +416,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Browsing query/search/sort inputs also survive restart through versioned optional local view preferences, keyed by the supplied canonical library root with the existing Windows namespace aliases. They contain no selected detail, source/BIOS/adoption inputs, review authorization or DOM focus/scroll. Runtime position continuity retains its existing owner. Unsupported query predicates and legacy identifiers remain unresolved for explicit filter correction; unreadable, future-format or oversized preference documents are retained until the player explicitly saves current choices. Storage failure is visible and does not block ordinary browsing or library switching. This persistence does not provide coherent route/build matching or additional filter controls.
 - Reserve artwork and card geometry; retain useful existing content during refresh; keep loading, missing-artwork, failure, pending, and inline-confirmation states from shifting important controls. First paint uses the selected theme, application/window background, and offline typography without a bright flash or disruptive reflow.
 - When late artwork feedback grows a Library card, retain focus on its current action and reveal it within the actual scrolling pane. Keyboard return from an overflow menu also reveals that exact action. The workspace reflow owner observes the focused card; it does not move focus, override an open overlay, or pull back an action the player intentionally scrolled away from. Leading-workspace feedback keeps its existing continuity behavior.
+- When a resize replaces a virtual row, return focus to the same control. At the bottom of the scroll pane, a fractional native scroll position can be within one CSS pixel of the rounded limit.
 - Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
 - Copying an existing installation distinguishes the native copy or confirmation command from its following workspace readback. After a fulfilled command, including native cancellation, the dialog shows `Refreshing library…` with readable pending feedback until readback settles. One dialog-local status region announces the phase. Dismissal stays blocked during the read, and native cancellation remains a cancellation. Native errors and failed readback keep their existing invocation ownership and review identity guards.
 - The Library navigation count is absent until its authoritative catalog snapshot exists. A loaded empty library shows `0`; background refresh retains the existing count alongside the retained snapshot.
@@ -519,16 +532,19 @@ Use **Activity** for the combined workspace, opening to **Tasks** with
 separate **Game updates** and **History** sections. An available or saved update opens the existing
 fresh Core review directly from its row.
 Play is independent and uses the current version when Core permits launch.
-Reviewing an immediate update defaults to installation; keeping it for later
-requires a new download-only plan and confirmation. Neither choice changes the
-saved update policy. A successful launch activity says **Process exited**, with
+Reviewing an immediate update starts with the installation option. If Core supplies
+a separate archive digest for the release, files and size already displayed,
+**Download archive for later** starts that reviewed download. Without a matching
+digest, Portcove fetches an archive plan for review first. The saved update policy
+applies to future runs. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
 
 For an available game update, **Update now** and **Download for later** select
 the immediate action. A saved policy governs future updates. Review the release
-and its consequences for the selected action. If the player switches actions,
-get a new plan before applying it.
+and its consequences for the selected action. When switching actions, use a digest
+Core provided for that action and the exact displayed candidate. Otherwise, fetch
+a new plan before confirming.
 Details labels matching saved checks as earlier observations, shows their update
 version when available, and makes Check for updates primary when no available or
 saved candidate is known. Manual review remains available as a secondary action.
@@ -664,7 +680,11 @@ leaves the viewport; returning to an alternative mounts and expands that exact
 group before focus restoration. Accepted background reordering retains the logical
 reading anchor and exact focused control within the same query and generation;
 a newer player intent cancels restoration. Pending actions can retain focus while
-refusing activation. Saved membership never implies installation.
+refusing activation. Favorite membership never implies installation.
+A Library overflow menu belongs to the exact port supplying its group's card
+actions. Retire it when that port is no longer the action target in the logical
+results, including after a collection membership change. Returning to an earlier
+view must not reopen the menu or revive its focus return.
 Singleton styling follows the logical result count, including a final partial
 virtual row, and both layouts keep their existing responsive sizing rules.
 
@@ -731,7 +751,7 @@ above, matching the singleton cover's height boundary. This keeps first-row
 identity, readiness and actions together when listing platform chips wrap.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums honor whole-interface enlargement. Poster layouts retain the effective
-24px cover-to-title gap and title/project reservations; horizontal covers use
+24px cover-to-title gap and clamp title/project without reserving empty lines; horizontal covers use
 `--space-3` and let identity determine its height. Unfocused horizontal project labels retain their existing line limit; identity focus reveals the complete label. Port-choice labels wrap as one translated text flow while retaining exact bidirectional names. Artwork uses the raised surface
 and a quiet translucent border. Chips use 11px/500 type and 7px corners;
 wrapped footer rhythm uses an 8px gap while action controls retain 32px height.
@@ -773,16 +793,25 @@ status owns count announcements. Clear filters and Reset view retain distinct
 scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
 22px/1.35 with concise explicit reset scope and natural growth for longer text.
 
-Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Runs on covers the managed definition's platforms plus any the accepted listing declares for its upstream download (that download can still be unavailable); a listing-only platform matches as the listing download and never as a managed setup or installation, and managed actions stay limited to the managed platforms. Other real
-groups remain in Advanced filters, which opens for restored advanced selections.
-The Library panel places heading/help in a compact row and keeps closed Advanced
-controls beside the footer where space allows. Explanations, unknown-context
-recovery and multi-selection semantics stay available. Library search/sort use
-13px text and6px control corners; contrast-qualified borders and the distinct
-3px focus indicator remain. Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
-with OR within a category and AND across categories; route-dependent predicates
-must still match the same observed route. Advanced filters and per-field help retain
-technical semantics. Escape closes the active popover before the containing panel.
+Library keeps quick views and Readiness primary. Game files, installation
+attention and observed updates lead its filter panel. Discover starts with
+device eligibility, Library membership, game files and port alternatives.
+More filters contains named platforms, original systems, release channels, setup
+methods and implementation techniques. Selected chips remain visible when More
+filters is closed. Restored technical selections can reveal their choices.
+
+Available for this device and named platforms use the same platform facet. Runs
+on covers the managed definition's declared targets and any upstream download
+targets the accepted listing declares. Listed targets describe acquisition
+availability. Managed actions continue to require a matching managed platform.
+Checkbox selections use OR within a facet and AND across facets. Route-dependent
+predicates must match the same observed route. Escape closes the active popover
+before the filter panel.
+
+The Library panel places heading and help in a compact row and keeps the closed
+disclosure beside the footer where space allows. Library search and sort use
+13px text and 6px control corners with contrast-qualified borders and a distinct
+3px focus indicator.
 
 Repeated collection Play controls use neutral secondary emphasis. The selected-game
 hero and Continue keep primary emphasis. Detail Back labels follow the captured
@@ -1107,14 +1136,31 @@ port and next review action together. Its three routes are Browse games (Discove
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved
-folders; Settings keeps "Add folder" without scanning. Files are checked against the
-port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+folders; Settings keeps "Add folder" without scanning. The workspace retains the
+last saved scan result through navigation. Review saved scan checks that exact
+snapshot before focusing it in Add games. If a different scan or a later batch
+has replaced it, the player can explicitly choose to see the current results.
+Files are checked against the port chosen on its game page; folder search
+supplies bounded recognition (#5058 F2).
 When setup or install finishes and current readiness, including Core's launch
 assessment, reports the game ready with nothing left to confirm, the completion
 notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
 external runtimes and every other outcome keep the factual "Action · Title:
 finished." notice. A successful launch shows no visible notice; its announcement
-remains. On the game page one Cancel serves running setup: the Game files control
+remains. A registered external installation with a managed route offers the
+separate managed-copy review in Game files, including on the listing detail.
+Creating a Portcove-managed copy retains the exact installed version
+in workspace feedback. If Portcove cannot refresh the library, the player can
+retry the refresh from that feedback. Open game appears when the current
+library confirms the exact installation and its game page is available. If the result is uncertain, the previous launch route stays on hold until a
+fresh read confirms a managed installation or Portcove restarts and resolves the
+workspace state. Saving a game-file or BIOS location retains the exact receipt
+in workspace feedback. View saved location focuses that registration in Game files
+after a fresh library read confirms it. A missing or replaced registration keeps
+the earlier receipt visible without a link to the replacement. A lost source
+import reply retires its review and holds writes for that requirement. The
+player can refresh read-only or restart Portcove to reconcile the import.
+On the game page one Cancel serves running setup: the Game files control
 omits its own when the page's cancellation covers the operation, and the review
 dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
@@ -1134,6 +1180,21 @@ Neighboring Discover cards share identity, metadata, observation and action band
 through a row subgrid; long identity or status text does not shift one card's
 actions into another card's metadata band. Artwork remains contained and bounded
 independently of that text.
+In Covers view each Discover card is one raised surface: the cover sits inside
+a padded, bordered card, pointer hover and keyboard focus within the card highlight
+the card rather than lifting the cover, and the secondary "Why this port?" action
+aligns with the card's text edge. The inset equals the focus outline and its offset,
+so a focused control's ring stays inside the card border at every width. Card
+controls keep the same inset as their block scroll margin, so a nearest-edge reveal,
+such as comparison focus returning to a card taller than the workspace, keeps the
+whole ring inside the scrolling workspace. A mouse
+click does not leave the card highlighted. In forced colors the card highlight is a
+thin `Highlight` outline; the focused control's own ring remains the primary
+indicator. Library covers use the same card surface, inset and highlight. Short or
+narrow cards fit their own content so a neighboring game's alternatives cannot push
+Play below the viewport. Footer alignment and the Play/status rule follow the
+Library cover contract above. Short Library windows keep the horizontal cover
+layout. Rows keeps its own geometry.
 
 ### Game-data preparation review
 
@@ -1199,6 +1260,10 @@ Detail starts with compact identity, state and its current action, followed by
 the installation and requirements. Current update decisions and saves/storage
 precede project background and diagnostics. Catalog identity wraps in full and
 installation version labels explicitly say Installed or External installation.
+In Manage, an external installation links to its matching Game files control.
+Focus moves to the folder or launch-details control when available and to the
+Game actions region when it is unavailable. Opening the section leaves the
+existing registration and any draft in place.
 
 Preparation groups Files used, What changes and During setup. Running preparation,
 managed installation and game-update observation can be left with Continue browsing;
@@ -1209,16 +1274,22 @@ global events cannot assign that identity. Exact terminal Activity readback reti
 late progress, even when it precedes the first channel event.
 
 Game updates expose direct Update now and Download for later entry actions;
-Prepare for later remains an advanced choice. Each action requests the existing
-Core plan before confirmation or execution. Compact mode and future update policy
-do not choose the current action. Initial controls remain mounted while review
-hides them, so cancellation restores the actual initiating control when available;
-a connected contextual region is the fallback. Changing disposition inside review
-re-plans before confirmation; a downloaded update remains
-separate from the current playable installation. Without an observed candidate,
+Prepare for later remains an advanced choice. An entry action requests the Core
+plan before confirmation. Inside review, Core's matching archive digest enables an
+explicit archive download from the release and file details already displayed.
+Core revalidates that digest before downloading. Versions labels a staged
+runtime “Update saved for later” and keeps it distinct from a stored archive.
+An unavailable installation read does not imply an uninstalled game.
+For player-selected launch details, Versions explains external ownership
+without showing the internal registration version. Compact mode and saved policy
+preserve the player's current choice. Initial controls remain mounted while review
+hides them, so cancellation restores the initiating control when available. A
+connected contextual region is the fallback. A downloaded update remains separate
+from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an
-error banner.
+error banner. Archive status describes the stored download through preparation
+and activation. Installed and prepared version records describe the runtime.
 
 Activity groups authoritative attention IDs, running records and recent outcomes.
 Target identity leads each row. Unfinished setup opens a read-only file account;
@@ -1237,8 +1308,16 @@ its uncertainty. Saved-data scope sits beside backup controls; creation checks
 the managed folder. Installed saved-data paths are not exposed
 in this projection: every installed version follows its recorded rules, so
 current catalog paths must not substitute for its installed contract. There is
-no backup-creation review; restore and deletion have their own reviews. External
-saved data remains outside managed backups.
+no backup-creation review. Restore and deletion have their own reviews. A refused
+restore can refresh backup history inside its review. The new review keeps the
+exact snapshot and the same managed save location, installation and setup. A
+removed or replaced snapshot stays unavailable. The player must confirm the
+fresh review before Portcove requests native consent. When the restore result
+is uncertain, the review directs the player to Activity. A confirmed restore
+closes its review while Portcove checks the workspace and backup history. The
+target remains guarded during readback. If a read fails, the player can refresh
+the result without restoring again. External saved data remains outside managed
+backups.
 
 Retained-setup inspection leads with the working object, completeness uncertainty
 and supported next step. Secondary installation/source/saves/backup/log locations

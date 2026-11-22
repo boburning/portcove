@@ -6,10 +6,17 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use super::{GithubRelease, choose_asset, is_beta_release, parse_digest, select_channel_candidate};
+use crate::route_facts::{
+    ArtifactFact, AssetIdentity, Coverage, FactProvenance, ObservedReleaseFacts, RouteHold,
+    assign_role, declared_runtime, runtime_hold, structured_claim, suggest_from_filename,
+};
 use crate::{
     API_SCHEMA_VERSION, AdapterKind, Platform, PortDefinition, PortcoveError, ReleaseAsset,
     ReleaseChannel, ReleaseSource, ResolvedRelease, Result, path::read_bounded_regular,
 };
+
+/// Version of this module's typed fact derivation.
+const OBSERVATION_PARSER_VERSION: u32 = 1;
 
 #[derive(Debug, Serialize, JsonSchema)]
 pub struct UpstreamObservationReport {
@@ -24,6 +31,13 @@ pub struct UpstreamObservationReport {
     pub eligibility_scope: String,
     pub evidence: ObservationEvidence,
     pub projections: Vec<ChannelObservation>,
+    /// Typed role and host facts for each release a projection observed
+    /// (latest observed, channel candidate, reviewed fallback or eligible), in
+    /// provider order. A consumer checks each fact's `source` before treating
+    /// its role as authorized.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub release_facts: Vec<ObservedReleaseFacts>,
+    pub fact_provenance: FactProvenance,
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -55,7 +69,17 @@ pub struct ChannelObservation {
     pub latest_observed: Option<ObservedReleaseIdentity>,
     pub channel_candidate: Option<ObservedReleaseIdentity>,
     pub latest_eligible: Option<ObservedResolution>,
+    /// The reviewed release that replaces an excluded channel candidate. Its
+    /// assets are needed to project it, like the candidate's.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reviewed_fallback: Option<ObservedReleaseIdentity>,
     pub hold_reasons: Vec<String>,
+    /// Typed holds beside the stable `hold_reasons` strings.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub route_holds: Vec<RouteHold>,
+    /// The typed fact for the eligible or role-held artifact.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub selected_artifact: Option<ArtifactFact>,
     /// Exact provider assets required for automatic integrity continuation.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub checksum_sources: Vec<ObservedChecksumSource>,
@@ -360,7 +384,10 @@ fn project_channel(
         latest_observed: latest.map(release_identity),
         channel_candidate: candidate.map(release_identity),
         latest_eligible: None,
+        reviewed_fallback: None,
         hold_reasons: Vec::new(),
+        route_holds: Vec::new(),
+        selected_artifact: None,
         checksum_sources: Vec::new(),
     };
     if !port.channels.contains(&channel) {
@@ -379,6 +406,7 @@ fn project_channel(
         output
             .hold_reasons
             .push("release-asset-observation-incomplete".into());
+        output.route_holds.push(RouteHold::IncompleteCoverage);
         return output;
     }
     let asset = match choose_asset(port, platform, &candidate.provider.assets) {
@@ -433,8 +461,11 @@ fn project_channel(
             .push("authenticated-digest-requires-further-resolution".into());
         return output;
     };
-    let (candidate, asset, sha256) = if let Some(hold) = &port.managed_acquisition_hold
-        && hold.excludes(&candidate.provider.tag_name, &sha256)
+    let restrictions = crate::acquisition_restriction::EffectiveRestrictions::managed_only(port);
+    let install = crate::RestrictedOperation::Install;
+    let (candidate, asset, sha256) = if restrictions
+        .artifact_exclusion(install, &candidate.provider.tag_name, &sha256)
+        .is_some()
     {
         output
             .hold_reasons
@@ -454,12 +485,15 @@ fn project_channel(
                         ) && choose_asset(port, platform, &release.provider.assets)
                             .ok()
                             .is_some_and(|asset| {
-                                hold.reviewed_artifacts
-                                    .iter()
+                                restrictions
+                                    .permitted_artifacts(
+                                        install,
+                                        crate::acquisition_restriction::Knowledge::Known(platform),
+                                    )
                                     .any(|artifact| artifact.version == release.provider.tag_name)
                                     && (asset.digest.as_deref().and_then(parse_digest).is_none()
                                         || super::reviewed_fallback_digest(
-                                            hold,
+                                            &restrictions,
                                             &release.provider,
                                             asset,
                                         )
@@ -473,15 +507,19 @@ fn project_channel(
             output.hold_reasons.push("no-reviewed-fallback".into());
             return output;
         };
+        output.reviewed_fallback = Some(release_identity(fallback));
         if covered_assets.is_some_and(|covered| !covered.contains(&fallback.id)) {
             output
                 .hold_reasons
                 .push("release-asset-observation-incomplete".into());
+            output.route_holds.push(RouteHold::IncompleteCoverage);
             return output;
         }
         let asset = choose_asset(port, platform, &fallback.provider.assets)
             .expect("reviewed fallback has a selected asset");
-        let Some(digest) = super::reviewed_fallback_digest(hold, &fallback.provider, asset) else {
+        let Some(digest) =
+            super::reviewed_fallback_digest(&restrictions, &fallback.provider, asset)
+        else {
             output
                 .hold_reasons
                 .push("reviewed-fallback-checksum-requires-further-resolution".into());
@@ -497,6 +535,18 @@ fn project_channel(
         .iter()
         .find(|raw| raw["id"] == candidate.id)
         .expect("decoded release");
+    let declared = reviewed_selector_matches(port, platform, &asset.name);
+    let fact = artifact_fact(port, asset, Some(&sha256), declared.then_some(platform));
+    // Selection without a matching reviewed selector stays as it is today; its
+    // fact records only non-authorizing provenance and holds nothing yet.
+    if (fact.source.authorizes() || fact.contradictory)
+        && let Some(hold) = runtime_hold(&fact, platform)
+    {
+        output.hold_reasons.push(hold.as_str().into());
+        output.route_holds.push(hold);
+        output.selected_artifact = Some(fact);
+        return output;
+    }
     let asset_id = raw["assets"]
         .as_array()
         .expect("validated assets")
@@ -507,6 +557,7 @@ fn project_channel(
         .expect("decoded asset")["id"]
         .as_u64()
         .expect("validated identity");
+    output.selected_artifact = Some(fact);
     output.latest_eligible = Some(ObservedResolution {
         release_id: candidate.id,
         asset_id,
@@ -524,6 +575,78 @@ fn project_channel(
         },
     });
     output
+}
+
+/// Whether a reviewed selector of this route, not generic filename scoring,
+/// chose the asset: every reviewed asset hint for the platform matched, or the
+/// platform has a curated pin.
+fn reviewed_selector_matches(port: &PortDefinition, platform: Platform, name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    port.release.curated.contains_key(&platform)
+        || port
+            .release
+            .asset_hints
+            .get(&platform)
+            .is_some_and(|hints| {
+                !hints.is_empty()
+                    && hints
+                        .iter()
+                        .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+            })
+}
+
+/// Typed facts for one asset from every source this slice can consult. The
+/// catalog's reviewed selectors are a stable declaration only for the asset
+/// they choose on `declared`.
+fn artifact_fact(
+    port: &PortDefinition,
+    asset: &super::GithubAsset,
+    sha256: Option<&str>,
+    declared: Option<Platform>,
+) -> ArtifactFact {
+    let claims = sha256
+        .and_then(|sha256| structured_claim(port, sha256))
+        .into_iter()
+        .chain(declared.map(declared_runtime))
+        .chain([suggest_from_filename(&asset.name).claim()])
+        .collect::<Vec<_>>();
+    assign_role(
+        AssetIdentity {
+            asset_id: asset.id.expect("validated identity"),
+            name: &asset.name,
+            size: asset.size,
+            sha256,
+        },
+        &claims,
+    )
+}
+
+fn release_facts(
+    port: &PortDefinition,
+    release: &ObservedRelease,
+    covered_assets: Option<&HashSet<u64>>,
+) -> ObservedReleaseFacts {
+    let assets_complete = covered_assets.is_none_or(|covered| covered.contains(&release.id));
+    ObservedReleaseFacts {
+        release_id: release.id,
+        tag: release.provider.tag_name.clone(),
+        published_at: release.provider.published_at.clone(),
+        provider_prerelease: release.provider.prerelease,
+        assets_complete,
+        artifacts: if assets_complete {
+            release
+                .provider
+                .assets
+                .iter()
+                .map(|asset| {
+                    let digest = asset.digest.as_deref().and_then(parse_digest);
+                    artifact_fact(port, asset, digest.as_deref(), None)
+                })
+                .collect()
+        } else {
+            Vec::new()
+        },
+    }
 }
 
 /// Interpret an inert observation using the same channel and asset rules as
@@ -585,6 +708,49 @@ pub fn inspect_upstream_observation(
                 )
             })
         })
+        .collect::<Vec<ChannelObservation>>();
+    // Coverage states provider paging and collection. Core accepts only
+    // observations with complete release-header paging (a scoped observation
+    // must state `complete_release_headers`), so an accepted observation is
+    // complete. Selection-scoped asset gaps stay per-projection
+    // `incomplete-coverage` holds on an otherwise accepted observation.
+    let coverage = Coverage::Complete;
+    let catalog_definition_sha256 = crate::catalog::observation_definition_sha256(port)?;
+    let observed_at: String = document["completed_at"]
+        .as_str()
+        .expect("validated clock")
+        .into();
+    // Facts for the releases a projection observed: each latest observed,
+    // channel candidate and eligible release. This bounds the report by the
+    // projections instead of the whole provider history.
+    let observed = projections
+        .iter()
+        .flat_map(|projection| {
+            [
+                projection
+                    .latest_observed
+                    .as_ref()
+                    .map(|release| release.id),
+                projection
+                    .channel_candidate
+                    .as_ref()
+                    .map(|release| release.id),
+                projection
+                    .reviewed_fallback
+                    .as_ref()
+                    .map(|release| release.id),
+                projection
+                    .latest_eligible
+                    .as_ref()
+                    .map(|resolution| resolution.release_id),
+            ]
+        })
+        .flatten()
+        .collect::<HashSet<_>>();
+    let release_facts = releases
+        .iter()
+        .filter(|release| observed.contains(&release.id))
+        .map(|release| release_facts(port, release, covered_assets.as_ref()))
         .collect();
     Ok(UpstreamObservationReport {
         format: 1,
@@ -592,12 +758,20 @@ pub fn inspect_upstream_observation(
         port_id: port.id.clone(),
         repository_id,
         adapter: port.adapter,
+        fact_provenance: FactProvenance {
+            observed_at: observed_at.clone(),
+            fresh_until: None,
+            coverage,
+            parser: "portcove-core-upstream-observation".into(),
+            parser_version: OBSERVATION_PARSER_VERSION,
+            facts_sha256: digest.clone(),
+            catalog_definition_sha256: catalog_definition_sha256.clone(),
+            last_good: None,
+        },
+        release_facts,
         facts_sha256: digest,
-        catalog_definition_sha256: crate::catalog::observation_definition_sha256(port)?,
-        observed_at: document["completed_at"]
-            .as_str()
-            .expect("validated clock")
-            .into(),
+        catalog_definition_sha256,
+        observed_at,
         eligibility_scope: if covered_assets.is_some() {
             "core-release-metadata-scoped-assets"
         } else {

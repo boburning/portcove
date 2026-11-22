@@ -33,6 +33,7 @@ use crate::{
     ResolvedPackage, Result, TypedOrdering, inspect_asset_archive,
     native_mod_list::{self, LoaderList, NativeList},
     profile,
+    profile_package_files::{profile_package_files, require_managed_custody},
 };
 
 pub(crate) const STORE: &str = ".portcove-profiles";
@@ -40,18 +41,6 @@ const MODS: &str = "mods";
 const OVERRIDE_DOMAIN: &str = "asset-override";
 
 /// Reviewed per-game binding: which archive extensions a loader accepts in `mods`.
-pub(crate) fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str]> {
-    match port_id {
-        "shipwright" => Some(&["o2r", "otr"]),
-        // Recomp runtime packages; only asset mods until running mod code is reviewed.
-        "zelda64-recomp" => Some(&["nrm"]),
-        // The generic fixture port used by tests declares the same asset contract.
-        #[cfg(test)]
-        "starship" => Some(&["o2r", "otr"]),
-        _ => None,
-    }
-}
-
 #[path = "profile_recovery.rs"]
 mod recovery;
 pub use recovery::{ProfileRecoveryPlan, ProfileRecoveryProgress};
@@ -63,6 +52,7 @@ pub(crate) struct Layout {
     /// sits beside the port directories (so it travels with the `user` tree) but
     /// outside them, so per-port backups and restores never carry or replace it.
     store: PathBuf,
+    loader: Option<crate::profile_loader::ReviewedLoader>,
 }
 
 impl Layout {
@@ -84,7 +74,30 @@ impl Layout {
         Self {
             user: user.into(),
             store,
+            loader: None,
         }
+    }
+    pub(crate) fn with_loader(mut self, loader: crate::profile_loader::ReviewedLoader) -> Self {
+        self.loader = Some(loader);
+        self
+    }
+    pub(crate) fn loader_list(&self) -> Option<LoaderList<'_>> {
+        self.loader.as_ref().map(native_mod_list::loader_list)
+    }
+    pub(crate) fn recomp_game(&self) -> Option<&str> {
+        self.loader.as_ref()?.native_game.as_deref()
+    }
+    pub(crate) fn recomp_builtins(&self) -> &'static [&'static str] {
+        self.loader
+            .as_ref()
+            .map(crate::profile_loader::ReviewedLoader::recomp_builtins)
+            .unwrap_or_default()
+    }
+    pub(crate) fn package_extensions(&self) -> &'static [&'static str] {
+        self.loader
+            .as_ref()
+            .map(|loader| loader.engine.package_extensions())
+            .unwrap_or_default()
     }
     pub(crate) fn store(&self) -> PathBuf {
         self.store.clone()
@@ -361,7 +374,8 @@ fn code_not_allowed(recomp: &crate::RecompModInspection) -> PortcoveError {
 /// switch or deployment changes anything, and again inside `deploy`. Packages
 /// whose bytes are neither stored nor live are left to the missing-bytes checks.
 pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
-    let Some(game) = native_mod_list::recomp_game(&layout.port_id()) else {
+    require_managed_custody(revision)?;
+    let Some(game) = layout.recomp_game() else {
         return Ok(());
     };
     // A readable record lets allowed bytes skip inspection; an unreadable one
@@ -439,12 +453,12 @@ pub(crate) enum CodePolicy<'a> {
 /// Reviews a private package copy under the port's loader contract, without
 /// running anything. Recomp packages are named by their manifest mod ID.
 pub(crate) fn inspect_for_port(
-    port_id: &str,
+    layout: &Layout,
     private: PathBuf,
     provider: Option<crate::ProviderPackageRef>,
     code: CodePolicy<'_>,
 ) -> Result<StagedPackage> {
-    let Some(game) = native_mod_list::recomp_game(port_id) else {
+    let Some(game) = layout.recomp_game() else {
         let inspection = inspect_asset_archive(&private)?;
         return Ok(StagedPackage {
             private,
@@ -513,7 +527,7 @@ pub(crate) fn inspect_for_port(
             // version, and built-in mods ship inside the runtime: none is a package.
             .filter(|dependency| {
                 !matches!(dependency.id.as_str(), "." | "*")
-                    && !native_mod_list::recomp_builtins(game).contains(&dependency.id.as_str())
+                    && !layout.recomp_builtins().contains(&dependency.id.as_str())
             })
             .map(|dependency| format!("{}.nrm", dependency.id))
             .collect(),
@@ -538,13 +552,10 @@ fn enabled(revision: &ProfileRevision) -> impl Iterator<Item = &ResolvedPackage>
     revision.packages.iter().filter(|package| package.enabled)
 }
 
-pub(crate) fn is_runtime_mod_marker(port_id: &str, file_name: &str, size: u64) -> bool {
+pub(crate) fn is_runtime_mod_marker(layout: &Layout, file_name: &str, size: u64) -> bool {
     size == 0
         && file_name == "custom_mod_files_go_here.txt"
-        && matches!(
-            native_mod_list::loader_list(port_id),
-            Some(LoaderList::Ship(_))
-        )
+        && matches!(layout.loader_list(), Some(LoaderList::Ship(_)))
 }
 
 /// Classifies live mods files against the revisions that may own them. A file is
@@ -559,14 +570,13 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
     }
     let mut expected: std::collections::BTreeMap<&str, BTreeSet<&str>> = Default::default();
     for owner in owners {
-        for package in enabled(owner) {
-            expected
-                .entry(package.native_id.as_str())
-                .or_default()
-                .insert(package.sha256.as_str());
+        for file in profile_package_files(owner)?
+            .into_iter()
+            .filter(|file| file.enabled)
+        {
+            expected.entry(file.name).or_default().insert(file.sha256);
         }
     }
-    let port_id = layout.port_id();
     for entry in fs::read_dir(&mods)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -579,8 +589,7 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
             }
             // Shipwright 9.3.1 creates this empty file when it creates mods/.
             // It is shared runtime scaffolding and deployment leaves it in place.
-            None if metadata.is_file()
-                && is_runtime_mod_marker(&port_id, &name, metadata.len()) => {}
+            None if metadata.is_file() && is_runtime_mod_marker(layout, &name, metadata.len()) => {}
             _ => observation.unmanaged.push(name),
         }
     }
@@ -619,8 +628,11 @@ fn stage_copy(layout: &Layout, source: &Path, destination: &Path) -> Result<()> 
 fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision) -> Result<()> {
     require_distinct_native_names(layout, to)?;
     require_code_allowed(layout, to)?;
-    let wanted = enabled(to)
-        .map(|package| package.native_id.as_str())
+    let files = profile_package_files(to)?;
+    let wanted = files
+        .iter()
+        .filter(|file| file.enabled)
+        .map(|file| file.name)
         .collect::<BTreeSet<_>>();
     // Exact directory names distinguish a Windows case-only replacement from
     // a target that has already been materialized.
@@ -634,31 +646,33 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     // Verify every destination first so a missing or corrupt stored package fails
     // before any departing file is removed.
     let mut to_place = Vec::new();
-    for package in enabled(to) {
-        let live = live_package_path(layout, &package.native_id)?;
-        if names.contains(std::ffi::OsStr::new(&package.native_id))
+    for file in files.iter().filter(|file| file.enabled) {
+        let live = live_package_path(layout, file.name)?;
+        if names.contains(std::ffi::OsStr::new(file.name))
             && live.try_exists()?
-            && sha256_file(&live)? == package.sha256
+            && sha256_file(&live)? == file.sha256
         {
             continue;
         }
-        let stored = layout.package(&package.sha256, &package.native_id);
-        if !stored.try_exists()? || sha256_file(&stored)? != package.sha256 {
+        let stored = layout.package(file.sha256, file.name);
+        if !stored.try_exists()? || sha256_file(&stored)? != file.sha256 {
             return Err(PortcoveError::verification(
                 "stored package bytes are missing or no longer match their recorded digest; nothing was changed",
             )
-            .detail("package", &package.native_id));
+            .detail("package", file.name));
         }
         to_place.push((stored, live));
     }
     if let Some(from) = from {
-        for package in enabled(from) {
+        require_managed_custody(from)?;
+        for file in profile_package_files(from)?
+            .into_iter()
+            .filter(|file| file.enabled)
+        {
             // Same-name replacements are atomic in stage_copy. If an earlier
             // attempt already placed the target, leave those target bytes in place.
-            if !wanted.contains(package.native_id.as_str())
-                && names.contains(std::ffi::OsStr::new(&package.native_id))
-            {
-                let live = live_package_path(layout, &package.native_id)?;
+            if !wanted.contains(file.name) && names.contains(std::ffi::OsStr::new(file.name)) {
+                let live = live_package_path(layout, file.name)?;
                 if live.try_exists()? {
                     fs::remove_file(live)?;
                 }
@@ -675,8 +689,8 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
 /// packages with the same loader name, or a name its list cannot carry. Checked
 /// when a revision is created and before any change starts, so nothing is parked,
 /// marked or deployed for a revision that would fail part way.
-pub(crate) fn require_projectable(port_id: &str, revision: &ProfileRevision) -> Result<()> {
-    if native_mod_list::loader_list(port_id).is_none() {
+pub(crate) fn require_projectable(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
+    if layout.loader_list().is_none() {
         return Ok(());
     }
     let on = enabled(revision)
@@ -713,7 +727,7 @@ pub(crate) fn require_projectable(port_id: &str, revision: &ProfileRevision) -> 
 }
 
 fn require_distinct_native_names(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
-    require_projectable(&layout.port_id(), revision)
+    require_projectable(layout, revision)
 }
 
 /// The revision's enabled packages in `asset-override` order, as deployed: each
@@ -896,11 +910,15 @@ fn read_live_list(user: &Path, list: LoaderList) -> LiveList {
 }
 
 fn native_status(layout: &Layout, revision: &ProfileRevision) -> NativeModListStatus {
-    native_status_at(&layout.user, &layout.port_id(), revision)
+    native_status_at(&layout.user, layout, revision)
 }
 
-fn native_status_at(user: &Path, port_id: &str, revision: &ProfileRevision) -> NativeModListStatus {
-    let Some(list) = native_mod_list::loader_list(port_id) else {
+fn native_status_at(
+    user: &Path,
+    layout: &Layout,
+    revision: &ProfileRevision,
+) -> NativeModListStatus {
+    let Some(list) = layout.loader_list() else {
         return NativeModListStatus::NotApplicable;
     };
     native_status_from_list(read_live_list(user, list), revision)
@@ -965,19 +983,18 @@ fn restore_projection_hold(revision: &ProfileRevision) -> PortcoveError {
 
 fn require_exact_managed_packages(
     root: &Path,
-    port_id: &str,
+    layout: &Layout,
     revision: &ProfileRevision,
     hold: impl Fn() -> PortcoveError,
 ) -> Result<()> {
-    let mut remaining = enabled(revision)
-        .map(|package| (package.native_id.as_str(), package))
+    let mut remaining = profile_package_files(revision)?
+        .into_iter()
+        .filter(|file| file.enabled)
+        .map(|file| (file.name, file))
         .collect::<std::collections::BTreeMap<_, _>>();
     let mods = root.join(MODS);
     crate::path::refuse_symlink_ancestors(&mods)?;
-    let ship_loader = matches!(
-        native_mod_list::loader_list(port_id),
-        Some(LoaderList::Ship(_))
-    );
+    let ship_loader = matches!(layout.loader_list(), Some(LoaderList::Ship(_)));
     match fs::read_dir(&mods) {
         Ok(entries) => {
             for entry in entries {
@@ -1022,14 +1039,15 @@ impl PortcoveService {
         port_id: &str,
         root: &Path,
     ) -> Result<()> {
-        if native_mod_list::loader_list(port_id).is_none() {
+        self.require_no_switch_journal(port_id)?;
+        crate::profile_file_preservation::require_idle(&self.library, port_id)?;
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(());
-        }
+        };
         let connection = self.library.connection()?;
         let Some((profile_id, number)) = profile::selection(&connection, port_id)? else {
             return Ok(());
         };
-        let layout = Layout::for_user(&self.library.user_dir(port_id));
         let revision = profile::revision_by_number(&connection, &profile_id, number)?;
         let journal = layout.journal();
         crate::path::refuse_symlink_ancestors(&journal)?;
@@ -1038,10 +1056,10 @@ impl PortcoveService {
         {
             return Err(restore_projection_hold(&revision).detail("setup_change_pending", "true"));
         }
-        require_exact_managed_packages(root, port_id, &revision, || {
+        require_exact_managed_packages(root, &layout, &revision, || {
             restore_projection_hold(&revision)
         })?;
-        match native_status_at(root, port_id, &revision) {
+        match native_status_at(root, &layout, &revision) {
             NativeModListStatus::InSync => {}
             NativeModListStatus::NotWritten if enabled(&revision).next().is_none() => {}
             _ => {
@@ -1049,7 +1067,7 @@ impl PortcoveService {
                     .detail("native_list", "differs_or_unreadable"));
             }
         }
-        if let Some(game) = native_mod_list::recomp_game(port_id) {
+        if let Some(game) = layout.recomp_game() {
             let captured = crate::recomp_mod_settings::capture(root, &layout, game, &revision)
                 .map_err(|error| {
                     restore_projection_hold(&revision).detail("mod_settings", error.message)
@@ -1249,11 +1267,11 @@ fn copy_local_package(layout: &Layout, source: &Path) -> Result<(tempfile::TempD
     Ok((staging, private))
 }
 
-fn validate_staged_mod(port_id: &str, inspection: &crate::ModPackageInspection) -> Result<()> {
-    if native_mod_list::loader_list(port_id).is_some() {
+fn validate_staged_mod(layout: &Layout, inspection: &crate::ModPackageInspection) -> Result<()> {
+    if layout.loader_list().is_some() {
         native_mod_list::require_listable(&inspection.file_name)?;
     }
-    let extensions = adapter_extensions(port_id).unwrap_or(&[]);
+    let extensions = layout.package_extensions();
     let extension = inspection
         .file_name
         .rsplit_once('.')
@@ -1283,10 +1301,9 @@ fn plan_local_mod_package(
     recorded_code: &BTreeSet<String>,
 ) -> Result<LocalModPackagePlan> {
     use sha2::{Digest, Sha256};
-    let port_id = &current.build.port_id;
     let inspection = &staged.inspection;
-    validate_staged_mod(port_id, inspection)?;
-    let named_loader = native_mod_list::loader_list(port_id).is_some();
+    validate_staged_mod(layout, inspection)?;
+    let named_loader = layout.loader_list().is_some();
     let replaces = current
         .packages
         .iter()
@@ -1330,9 +1347,7 @@ fn plan_local_mod_package(
             }
         }
     }
-    let builtins = native_mod_list::recomp_game(port_id)
-        .map(native_mod_list::recomp_builtins)
-        .unwrap_or_default();
+    let builtins = layout.recomp_builtins();
     let missing_required_mods: Vec<String> = staged
         .requires
         .iter()
@@ -1377,19 +1392,40 @@ enum RuntimeSynchronization {
 }
 
 impl PortcoveService {
+    pub(crate) fn optional_deploy_layout(&self, port_id: &str) -> Result<Option<Layout>> {
+        let connection = self.library.connection()?;
+        if let Some((id, number)) = profile::selection(&connection, port_id)? {
+            let revision = profile::revision_by_number(&connection, &id, number)?;
+            return self.layout_for_revision(&revision);
+        }
+        let Some(id) = profile::active_install_id(&connection, port_id)? else {
+            return Ok(None);
+        };
+        let install = crate::Library::install_by_id(&connection, Some(&id))?
+            .filter(|install| install.port_id == port_id)
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "the active installation record is missing or out of scope",
+                )
+            })?;
+        self.layout_for_install(&install)
+    }
+
     pub(crate) fn deploy_layout(&self, port_id: &str) -> Result<Layout> {
-        if adapter_extensions(port_id).is_none() {
-            return Err(PortcoveError::unsupported(
-                "this port has no reviewed mod package contract yet",
+        self.optional_deploy_layout(port_id)?.ok_or_else(|| {
+            PortcoveError::unsupported("the selected build has no reviewed mod loader")
+        })
+    }
+
+    pub(crate) fn require_no_switch_journal(&self, port_id: &str) -> Result<()> {
+        let journal = Layout::for_user(&self.library.user_dir(port_id)).journal();
+        crate::path::refuse_symlink_ancestors(&journal)?;
+        if journal.try_exists()? {
+            return Err(PortcoveError::conflict(
+                "a profile switch was interrupted; finish it before using this setup",
             ));
         }
-        let port = self.catalog().port(port_id)?;
-        if !port.persistent_paths.iter().any(|path| path == MODS) {
-            return Err(PortcoveError::unsupported(
-                "this port does not declare a mods root",
-            ));
-        }
-        Ok(Layout::for_user(&self.library.user_dir(port_id)))
+        Ok(())
     }
 
     /// Examines a private copy and binds the facts to the displayed setup revision.
@@ -1422,7 +1458,6 @@ impl PortcoveService {
         expected_revision: u64,
         workspace: bool,
     ) -> Result<LocalModPackagePlan> {
-        let layout = self.deploy_layout(port_id)?;
         let _guard = self
             .library
             .try_read_lock_port(port_id, "plan-local-mod-package")?;
@@ -1432,8 +1467,9 @@ impl PortcoveService {
                 "the setup changed; review this file again",
             ));
         }
+        let layout = self.require_layout_for_revision(&current)?;
         let (_staging, private) = copy_local_package(&layout, source)?;
-        let staged = inspect_for_port(port_id, private, None, CodePolicy::Review)?;
+        let staged = inspect_for_port(&layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
         let plan = plan_local_mod_package(&layout, &current, &staged, &recorded)?;
         if !workspace && let Some(recomp) = &staged.recomp {
@@ -1462,8 +1498,9 @@ impl PortcoveService {
             .try_lock_port(port_id, "apply-local-mod-package")?;
         self.recover_switch_locked(port_id, &layout)?;
         let current = profile_current(&self.library.connection()?, port_id, profile_id)?;
+        let layout = self.require_layout_for_revision(&current)?;
         let (_staging, private) = copy_local_package(&layout, source)?;
-        let staged = inspect_for_port(port_id, private, None, CodePolicy::Review)?;
+        let staged = inspect_for_port(&layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
         let plan = plan_local_mod_package(&layout, &current, &staged, &recorded)?;
         if plan.plan_sha256 != expected_plan_sha256 {
@@ -1497,7 +1534,7 @@ impl PortcoveService {
         allow_code: bool,
     ) -> Result<(tempfile::TempDir, StagedPackage)> {
         let (staging, private) = copy_local_package(layout, &file.path)?;
-        let staged = inspect_for_port(&current.build.port_id, private, None, CodePolicy::Review)?;
+        let staged = inspect_for_port(layout, private, None, CodePolicy::Review)?;
         let recorded = consented_code(layout).unwrap_or_default();
         let plan = plan_local_mod_package(layout, current, &staged, &recorded)?;
         if plan.plan_sha256 != file.expected_plan_sha256 {
@@ -1537,7 +1574,7 @@ impl PortcoveService {
         source: &Path,
     ) -> Result<Option<ModCodeReview>> {
         let layout = self.deploy_layout(port_id)?;
-        let Some(game) = native_mod_list::recomp_game(port_id) else {
+        let Some(game) = layout.recomp_game() else {
             return Ok(None);
         };
         fs::create_dir_all(layout.tmp())?;
@@ -1614,7 +1651,7 @@ impl PortcoveService {
         // An unreadable record allows nothing, and mods without code need none.
         let recorded = consented_code(&layout).unwrap_or_default();
         let staged = inspect_for_port(
-            port_id,
+            &layout,
             private,
             None,
             CodePolicy::Consent {
@@ -1672,7 +1709,7 @@ impl PortcoveService {
             self.reconcile_selected(port_id, &layout, &connection, &current)?;
             require_clean(&observe(&layout, &[&current])?, "installing a package")?;
         }
-        let next = proposed_mod_setup(port_id, &current, &staged, edits)?;
+        let next = proposed_mod_setup(&layout, &current, &staged, edits)?;
         let mut draft_consent = Vec::new();
         for item in staged {
             let inspection = &item.inspection;
@@ -1704,7 +1741,7 @@ impl PortcoveService {
         }
         if edits.is_some() {
             self.require_revision_loader(&next)?;
-            if live && let Some(game) = native_mod_list::recomp_game(port_id) {
+            if live && let Some(game) = layout.recomp_game() {
                 crate::recomp_mod_settings::review_projection(&layout.user, &layout, game, &next)?;
             }
             for sha in draft_consent {
@@ -1839,9 +1876,10 @@ impl PortcoveService {
     /// Makes a profile that already exists the owner of live data. Departing and
     /// arriving progress move whole; mods are reconciled from the exact revision.
     pub fn activate_profile(&self, port_id: &str, profile_id: &str) -> Result<ProfileRevision> {
-        let layout = self.deploy_layout(port_id)?;
+        self.catalog().port(port_id)?;
+        let path_layout = Layout::for_user(&self.library.user_dir(port_id));
         let _guard = self.library.try_lock_port(port_id, "activate-profile")?;
-        self.recover_switch_locked(port_id, &layout)?;
+        self.recover_switch_locked(port_id, &path_layout)?;
         let connection = self.library.connection()?;
         let target = profile_current(&connection, port_id, profile_id)?;
         let Some((current_id, current_revision)) = profile::selection(&connection, port_id)? else {
@@ -1849,11 +1887,20 @@ impl PortcoveService {
                 "the port has no selected profile; create its default profile first",
             ));
         };
+        let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
+        let target_layout = self.layout_for_revision(&target)?;
+        let departing_layout = self.layout_for_revision(&departing)?;
+        if departing_layout.is_none() && target_layout.is_none() {
+            return Err(PortcoveError::unsupported(
+                "neither setup has a reviewed mod loader",
+            ));
+        }
+        let layout = target_layout.as_ref().unwrap_or(&path_layout);
         // Refuse before anything is parked or marked, so a refusal changes nothing.
         self.require_revision_loader(&target)?;
-        require_projectable(port_id, &target)?;
-        require_code_allowed(&layout, &target)?;
-        if let Some(game) = native_mod_list::recomp_game(port_id)
+        require_projectable(layout, &target)?;
+        require_code_allowed(layout, &target)?;
+        if let Some(game) = layout.recomp_game()
             && (current_id != profile_id || current_revision != target.revision)
         {
             let user = if current_id == profile_id {
@@ -1861,24 +1908,21 @@ impl PortcoveService {
             } else {
                 layout.parked(profile_id)
             };
-            crate::recomp_mod_settings::review_projection(&user, &layout, game, &target)?;
+            crate::recomp_mod_settings::review_projection(&user, layout, game, &target)?;
         }
-        let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
-        let latest = if current_id == profile_id {
-            Some(&target)
-        } else {
-            None
-        };
-        let owners = [Some(&departing), latest]
-            .into_iter()
-            .flatten()
-            .collect::<Vec<_>>();
-        require_clean(&observe(&layout, &owners)?, "switching profiles")?;
+        if let Some(observed_layout) = departing_layout.as_ref().or(target_layout.as_ref()) {
+            let latest = (current_id == profile_id).then_some(&target);
+            let owners = [Some(&departing), latest]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>();
+            require_clean(&observe(observed_layout, &owners)?, "switching profiles")?;
+        }
         if current_id == profile_id {
             if current_revision == target.revision {
                 return Ok(target);
             }
-            self.reconcile_selected(port_id, &layout, &connection, &target)?;
+            self.reconcile_selected(port_id, layout, &connection, &target)?;
             return Ok(target);
         }
         // Bring live data up to date from the launched build before parking it,
@@ -1893,7 +1937,7 @@ impl PortcoveService {
         let paths = declared_state_paths(self, port_id)?;
         fs::create_dir_all(layout.store())?;
         write_journal(
-            &layout,
+            layout,
             &current_id,
             profile_id,
             target.revision,
@@ -1902,7 +1946,7 @@ impl PortcoveService {
         )?;
         self.switch_steps(
             port_id,
-            &layout,
+            layout,
             &current_id,
             profile_id,
             &paths,
@@ -1943,15 +1987,22 @@ impl PortcoveService {
         }
         let materialized = profile::revision_by_number(connection, &id, revision)?;
         self.require_revision_loader(current)?;
-        require_projectable(port_id, current)?;
-        require_code_allowed(layout, current)?;
-        require_clean(
-            &observe(layout, &[&materialized, current])?,
-            "finishing an interrupted change",
-        )?;
+        let target_layout = self.layout_for_revision(current)?;
+        let materialized_layout = self.layout_for_revision(&materialized)?;
+        let target = target_layout.as_ref().unwrap_or(layout);
+        require_projectable(target, current)?;
+        require_code_allowed(target, current)?;
+        if let Some(observed_layout) = materialized_layout.as_ref().or(target_layout.as_ref()) {
+            require_clean(
+                &observe(observed_layout, &[&materialized, current])?,
+                "finishing an interrupted change",
+            )?;
+        }
         mark_restore_pending(layout)?;
-        deploy(layout, Some(&materialized), current)?;
-        self.project_native_mod_list(layout, current, Some(&materialized))?;
+        if enabled(&materialized).next().is_some() || enabled(current).next().is_some() {
+            deploy(target, Some(&materialized), current)?;
+        }
+        self.project_native_mod_list(current, Some(&materialized))?;
         profile::set_selection(connection, port_id, &id, current.revision)?;
         Ok(true)
     }
@@ -1975,7 +2026,9 @@ impl PortcoveService {
             write_journal(layout, from, to, target.revision, phase, paths)?;
         }
         if phase == Phase::Parked {
-            deploy(layout, Some(departing), target)?;
+            if enabled(departing).next().is_some() || enabled(target).next().is_some() {
+                deploy(layout, Some(departing), target)?;
+            }
             phase = Phase::Deployed;
             write_journal(layout, from, to, target.revision, phase, paths)?;
         }
@@ -1983,7 +2036,7 @@ impl PortcoveService {
             move_paths(paths, &layout.parked(to), &layout.user)?;
         }
         // The arriving configuration is in place; make its list match the target.
-        self.project_native_mod_list(layout, target, None)?;
+        self.project_native_mod_list(target, None)?;
         let connection = self.library.connection()?;
         profile::set_selection(&connection, port_id, to, target.revision)?;
         fs::remove_file(layout.journal())?;
@@ -1995,7 +2048,10 @@ impl PortcoveService {
     /// records the last completed phase, and each phase is skipped once done, so a
     /// resumed switch never re-parks data that has already arrived.
     pub(crate) fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
-        self.recover_mod_file_locked(port_id, layout)?;
+        if crate::profile_file_preservation::pending(layout)?.is_some() {
+            let exact_layout = self.deploy_layout(port_id)?;
+            self.recover_mod_file_locked(port_id, &exact_layout)?;
+        }
         self.finish_interrupted_switch_locked(port_id, layout)?;
         // Keep supported native menu changes before an explicit setup action
         // rewrites the game's list.
@@ -2004,6 +2060,7 @@ impl PortcoveService {
 
     fn finish_interrupted_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
         let journal = layout.journal();
+        crate::path::refuse_symlink_ancestors(&journal)?;
         if !journal.try_exists()? {
             return Ok(());
         }
@@ -2021,15 +2078,39 @@ impl PortcoveService {
         let (selected, selected_revision) = profile::selection(&connection, port_id)?
             .ok_or_else(|| PortcoveError::state("profile switch has no selection"))?;
         if selected == to && selected_revision == revision {
+            // Selection is the commit point. Only retire the receipt, even if a
+            // former setup or runtime is no longer eligible for another switch.
             fs::remove_file(journal)?;
             return Ok(());
         }
-        let departing = profile::revision_by_number(&connection, &selected, selected_revision)?;
         let target = profile::revision_by_number(&connection, &to, revision)?;
-        require_clean(
-            &observe(layout, &[&departing, &target])?,
-            "resuming an interrupted profile switch",
-        )?;
+        if target.build.port_id != port_id {
+            return Err(PortcoveError::verification(
+                "profile switch target belongs to a different port",
+            ));
+        }
+        let target_layout = self.layout_for_revision(&target)?;
+        if selected != from {
+            return Err(PortcoveError::conflict(
+                "profile switch source is no longer selected",
+            ));
+        }
+        let departing = profile::revision_by_number(&connection, &selected, selected_revision)?;
+        let departing_layout = self.layout_for_revision(&departing)?;
+        if departing_layout.is_none() && target_layout.is_none() {
+            return Err(PortcoveError::unsupported(
+                "neither setup has a reviewed mod loader",
+            ));
+        }
+        if let Some(observed_layout) = departing_layout.as_ref().or(target_layout.as_ref()) {
+            require_clean(
+                &observe(observed_layout, &[&departing, &target])?,
+                "resuming an interrupted profile switch",
+            )?;
+        }
+        let target_layout = target_layout.as_ref().unwrap_or(layout);
+        require_projectable(target_layout, &target)?;
+        require_code_allowed(target_layout, &target)?;
         let paths = declared_state_paths(self, port_id)?;
         if let Some(recorded_paths) = value.get("paths") {
             if recorded_paths != &serde_json::to_value(&paths)? {
@@ -2054,8 +2135,16 @@ impl PortcoveService {
                 }
             }
         }
+        self.require_revision_loader(&target)?;
         self.switch_steps(
-            port_id, layout, &from, &to, &paths, &departing, &target, phase,
+            port_id,
+            target_layout,
+            &from,
+            &to,
+            &paths,
+            &departing,
+            &target,
+            phase,
         )
     }
 
@@ -2068,10 +2157,12 @@ impl PortcoveService {
     }
 
     fn reconcile_native_changes_locked(&self, port_id: &str, capture_settings: bool) -> Result<()> {
-        let Some(list) = native_mod_list::loader_list(port_id) else {
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
             return Ok(());
         };
-        let layout = self.deploy_layout(port_id)?;
+        let Some(list) = layout.loader_list() else {
+            return Ok(());
+        };
         if layout.journal().try_exists()? {
             // Mid-switch, the live configuration may belong to the arriving profile.
             return Ok(());
@@ -2104,9 +2195,7 @@ impl PortcoveService {
         } else {
             None
         };
-        let settings = if let Some(game) =
-            native_mod_list::recomp_game(port_id).filter(|_| capture_settings)
-        {
+        let settings = if let Some(game) = layout.recomp_game().filter(|_| capture_settings) {
             let captured =
                 crate::recomp_mod_settings::capture(&layout.user, &layout, game, &current)?;
             (captured != current.settings).then_some(captured)
@@ -2128,7 +2217,7 @@ impl PortcoveService {
             }
             // Leave an invalid native edit visible. Explicit setup actions can
             // still resolve it without first replaying it.
-            if require_projectable(port_id, &candidate).is_err()
+            if require_projectable(&layout, &candidate).is_err()
                 || require_clean(
                     &observe(&layout, &[&current])?,
                     "recording native mod changes",
@@ -2161,10 +2250,12 @@ impl PortcoveService {
     /// `observe_live_mods`). Returns whether the canonical configuration changed.
     fn project_native_mod_list(
         &self,
-        layout: &Layout,
         revision: &ProfileRevision,
         previous: Option<&ProfileRevision>,
     ) -> Result<bool> {
+        let Some(layout) = self.layout_for_revision(revision)? else {
+            return Ok(false);
+        };
         // A same-setup transition can remove packages. Their old list entries
         // remain owned until this projection drops them. A cross-setup swap
         // restores the incoming setup's config and owns only its own entries.
@@ -2172,7 +2263,7 @@ impl PortcoveService {
         if let Some(previous) = previous {
             managed.extend(managed_names(previous));
         }
-        match native_mod_list::loader_list(&layout.port_id()) {
+        match layout.loader_list() {
             None => Ok(false),
             Some(LoaderList::Ship(contract)) => {
                 let names = match native_mod_list::read(&layout.user, &contract) {
@@ -2194,8 +2285,8 @@ impl PortcoveService {
                     }
                     RecompList::Absent => (wanted.clone(), wanted),
                 };
-                if let Some(game) = native_mod_list::recomp_game(&layout.port_id()) {
-                    crate::recomp_mod_settings::project(&layout.user, layout, game, revision)?;
+                if let Some(game) = layout.recomp_game() {
+                    crate::recomp_mod_settings::project(&layout.user, &layout, game, revision)?;
                 }
                 recomp_mod_list::write(&layout.user, observed, &enabled, &order)
             }
@@ -2206,10 +2297,14 @@ impl PortcoveService {
     /// and project the exact selected revision. The port
     /// lock must be held.
     pub(crate) fn prepare_native_mod_list_locked(&self, port_id: &str) -> Result<()> {
-        let Some(loader) = native_mod_list::loader_list(port_id) else {
+        self.require_no_switch_journal(port_id)?;
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             return Ok(());
         };
-        let layout = self.deploy_layout(port_id)?;
+        let Some(loader) = layout.loader_list() else {
+            return Ok(());
+        };
         self.recover_mod_file_locked(port_id, &layout)?;
         if layout.journal().try_exists()? {
             return Err(PortcoveError::state(
@@ -2231,8 +2326,8 @@ impl PortcoveService {
         let (_, revision) = profile::selection(&connection, port_id)?
             .ok_or_else(|| PortcoveError::state("the port has no selected profile"))?;
         let selected = profile::revision_by_number(&connection, &id, revision)?;
-        require_projectable(port_id, &selected)?;
-        require_exact_managed_packages(&layout.user, port_id, &selected, || {
+        require_projectable(&layout, &selected)?;
+        require_exact_managed_packages(&layout.user, &layout, &selected, || {
             PortcoveError::conflict(
                 "The mods folder does not match the selected setup. Review the mods in Setups and mods before playing.",
             )
@@ -2268,11 +2363,11 @@ impl PortcoveService {
         mark_restore_pending(&layout)?;
         if from_backup
             && status == NativeModListStatus::InSync
-            && let Some(game) = native_mod_list::recomp_game(port_id)
+            && let Some(game) = layout.recomp_game()
         {
             return crate::recomp_mod_settings::project(&layout.user, &layout, game, &selected);
         }
-        self.project_native_mod_list(&layout, &selected, None)?;
+        self.project_native_mod_list(&selected, None)?;
         Ok(())
     }
 
@@ -2428,8 +2523,7 @@ pub struct ModSetupPackageEdit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ModSetupsView {
     pub port_id: String,
-    /// False when the game has no reviewed mod package contract; nothing else is
-    /// offered then.
+    /// False when the game has no reviewed managed mod package contract.
     pub supported: bool,
     /// Package file types the game loads, such as `o2r`.
     pub package_types: Vec<String>,
@@ -2454,6 +2548,17 @@ pub struct ModSetupsView {
     /// Reviewed provider choices when the game offers more than one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
+    /// Reviewed upstream GitHub Releases page for browsing and native setup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_release_url: Option<String>,
+    /// The active installed build admits native companion import for the
+    /// upstream ZIP on this host. Not installed, or installed before the
+    /// reviewed loader, leaves only the releases link.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub github_native_import_offered: bool,
+    /// Reviewed upstream browser routes for this port and host.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_mod_portals: Vec<crate::ExternalModPortal>,
     /// Count from the materialized revision, including disabled mods.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_package_count: Option<usize>,
@@ -2467,6 +2572,34 @@ pub struct ModSetupsView {
     pub progress_copy_supported: bool,
 }
 
+impl ModSetupsView {
+    fn browse_only(
+        port_id: &str,
+        github_release_url: Option<String>,
+        github_native_import_offered: bool,
+        external_mod_portals: Vec<crate::ExternalModPortal>,
+    ) -> Self {
+        Self {
+            port_id: port_id.into(),
+            supported: false,
+            package_types: Vec::new(),
+            later_mods_take_priority: false,
+            inventory: None,
+            live: None,
+            held_updates: Vec::new(),
+            last_automatic_checks: Vec::new(),
+            provider: None,
+            github_release_url,
+            github_native_import_offered,
+            external_mod_portals,
+            providers: Vec::new(),
+            applied_package_count: None,
+            current_install_id: None,
+            progress_copy_supported: false,
+        }
+    }
+}
+
 impl PortcoveService {
     pub fn mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
         self.mod_setups_with_inventory(port_id, |id| self.profile_inventory(id))
@@ -2478,28 +2611,50 @@ impl PortcoveService {
         self.mod_setups_with_inventory(port_id, |id| self.preview_profile_inventory(id))
     }
 
+    /// Public source handoff without reading or changing managed profile state.
+    pub fn preview_mod_handoff(&self, port_id: &str) -> Result<ModSetupsView> {
+        let catalog = self.catalog();
+        let platform = crate::Platform::current().ok();
+        let external_mod_portals = crate::external_mod_portal::portals(catalog, port_id, platform);
+        let (url, native) = match catalog.port(port_id) {
+            Ok(port) => (
+                crate::github_mods::github_mod_release_url(port),
+                self.github_native_import(port, platform)?,
+            ),
+            Err(_) if !external_mod_portals.is_empty() => (None, false),
+            Err(error) => return Err(error),
+        };
+        Ok(ModSetupsView::browse_only(
+            port_id,
+            url,
+            native,
+            external_mod_portals,
+        ))
+    }
+
     fn mod_setups_with_inventory(
         &self,
         port_id: &str,
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
-        let port = self.catalog().port(port_id)?;
-        let Ok(layout) = self.deploy_layout(port_id) else {
-            return Ok(ModSetupsView {
-                port_id: port_id.into(),
-                supported: false,
-                package_types: Vec::new(),
-                later_mods_take_priority: false,
-                inventory: None,
-                live: None,
-                held_updates: Vec::new(),
-                last_automatic_checks: Vec::new(),
-                provider: None,
-                providers: Vec::new(),
-                applied_package_count: None,
-                current_install_id: None,
-                progress_copy_supported: false,
-            });
+        let Ok(port) = self.catalog().port(port_id) else {
+            return self.preview_mod_handoff(port_id);
+        };
+        let github_release_url = crate::github_mods::github_mod_release_url(port);
+        let github_native_import_offered =
+            self.github_native_import(port, crate::Platform::current().ok())?;
+        let external_mod_portals = crate::external_mod_portal::portals(
+            self.catalog(),
+            port_id,
+            crate::Platform::current().ok(),
+        );
+        let Some(layout) = self.optional_deploy_layout(port_id)? else {
+            return Ok(ModSetupsView::browse_only(
+                port_id,
+                github_release_url,
+                github_native_import_offered,
+                external_mod_portals,
+            ));
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
         // leave staging; reading the setups is a regular point to prune it.
@@ -2520,6 +2675,9 @@ impl PortcoveService {
             })
             .transpose()?;
         Ok(ModSetupsView {
+            github_release_url,
+            github_native_import_offered,
+            external_mod_portals,
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_binding::default_binding(port)
@@ -2537,12 +2695,9 @@ impl PortcoveService {
             progress_copy_supported: crate::portable_saves::contract_for(port_id).is_some(),
             port_id: port_id.into(),
             supported: true,
-            later_mods_take_priority: matches!(
-                native_mod_list::loader_list(port_id),
-                Some(LoaderList::Ship(_))
-            ),
-            package_types: adapter_extensions(port_id)
-                .unwrap_or(&[])
+            later_mods_take_priority: matches!(layout.loader_list(), Some(LoaderList::Ship(_))),
+            package_types: layout
+                .package_extensions()
                 .iter()
                 .map(|extension| (*extension).to_owned())
                 .collect(),
@@ -2629,13 +2784,13 @@ fn profile_current(
 
 /// Resolve the exact packages and load order for both preview and deployment.
 pub(crate) fn proposed_mod_setup(
-    port_id: &str,
+    layout: &Layout,
     current: &ProfileRevision,
     staged: &[StagedPackage],
     edits: Option<&ModSetupEdits>,
 ) -> Result<ProfileRevision> {
     if edits.is_some()
-        && native_mod_list::loader_list(port_id).is_some()
+        && layout.loader_list().is_some()
         && let Some((first, second)) = native_mod_list::identity_collision(
             staged.iter().map(|item| item.inspection.file_name.as_str()),
         )
@@ -2646,7 +2801,7 @@ pub(crate) fn proposed_mod_setup(
         );
     }
     for item in staged {
-        validate_staged_mod(port_id, &item.inspection)?;
+        validate_staged_mod(layout, &item.inspection)?;
     }
     let mut packages = current.packages.clone();
     if let Some(edits) = edits {
@@ -2700,7 +2855,7 @@ pub(crate) fn proposed_mod_setup(
         }
         // A package the game loads as the same mod (for example `.otr` replaced
         // by `.o2r`) is replaced and keeps its place in the order.
-        let named = native_mod_list::loader_list(port_id).is_some();
+        let named = layout.loader_list().is_some();
         let same_package = |existing: &&ResolvedPackage| {
             existing.native_id == package.native_id
                 || (named && native_mod_list::same_mod(&existing.native_id, &package.native_id))
@@ -2721,7 +2876,7 @@ pub(crate) fn proposed_mod_setup(
         packages.push(package);
     }
     packages.sort_by(|a, b| a.native_id.cmp(&b.native_id));
-    if native_mod_list::loader_list(port_id).is_some()
+    if layout.loader_list().is_some()
         && let Some((first, second)) = native_mod_list::identity_collision(
             packages.iter().map(|package| package.native_id.as_str()),
         )
@@ -2733,7 +2888,7 @@ pub(crate) fn proposed_mod_setup(
     }
     let mut existing_orderings = current.orderings.clone();
     if let Some(order) = edits.and_then(|edits| edits.order.as_ref()) {
-        if native_mod_list::loader_list(port_id).is_none()
+        if layout.loader_list().is_none()
             || order.len() != current.packages.len()
             || order.iter().collect::<BTreeSet<_>>()
                 != current
@@ -2779,7 +2934,7 @@ pub(crate) fn proposed_mod_setup(
             };
             let project = |member: &&StagedPackage| {
                 member.provider.as_ref().is_some_and(|member| {
-                    crate::provider_binding::same_project(port_id, member, origin)
+                    crate::provider_binding::same_project(&current.build.port_id, member, origin)
                 })
             };
             let mut members = staged.iter().filter(project).peekable();
@@ -2797,7 +2952,7 @@ pub(crate) fn proposed_mod_setup(
             }
         }
         profile::validate_revision(&next)?;
-        require_projectable(port_id, &next)?;
+        require_projectable(layout, &next)?;
     }
     Ok(next)
 }

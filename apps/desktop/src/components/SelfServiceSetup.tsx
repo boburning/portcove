@@ -1,7 +1,11 @@
 import { readablePendingRecord } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { Play } from "lucide-react";
-import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
 import { listingActionAssessment, type CatalogEntry } from "../features/browsing/catalog-entry";
@@ -16,6 +20,7 @@ import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
 import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
+import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { ActionRow, Notice } from "./ui/patterns";
@@ -27,11 +32,11 @@ export interface SelfServiceSetupProps {
   status?: PortStatus | undefined;
   generation: number;
   perform: Perform;
-  onChanged: () => void;
+  onChanged: () => void | Promise<unknown>;
   render?: ((slots: { play: ReactNode; setup: ReactNode }) => ReactNode) | undefined;
 }
 
-/** Non-owning setup only. Managed installation remains in the strict detail pane. */
+/** Non-owning setup and the explicit review of a separate managed copy. */
 export function SelfServiceSetup({
   entry,
   devicePlatform,
@@ -43,6 +48,7 @@ export function SelfServiceSetup({
   render,
 }: SelfServiceSetupProps) {
   const { t } = useAppTranslation("installation");
+  const registerPlay = useContext(CurrentGamePlayControl);
   const updates =
     entry.listing &&
     upstreamUpdatesDestination(entry.listing.project_url, entry.listing.release_url);
@@ -78,10 +84,16 @@ export function SelfServiceSetup({
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const needsRecovery = pending?.state === "attention-required";
   const registered = status?.external_runtime;
+  const managedPort =
+    entry.definition?.adapter === "native-portable" ? entry.definition : undefined;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
   const attach = listingActionAssessment(entry.listingStatus, "attach-existing");
   const operation = presentPortAction(useOperationPresentation(), entry.id, status, "launch");
   const busy = Boolean(operation.busy);
+  const paletteTarget =
+    render && launch.allowed && !busy
+      ? currentGamePlayKey(entry.id, generation, status)
+      : undefined;
   const showEditor = () => {
     setEditorOpen(true);
     window.requestAnimationFrame(() => editorHeading.current?.focus());
@@ -105,6 +117,8 @@ export function SelfServiceSetup({
         data-focusable
         variant="primary"
         size="lg"
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         disabled={!launch.allowed || busy}
         focusableWhenDisabled={launch.allowed && busy}
         aria-busy={launch.allowed && busy}
@@ -192,6 +206,21 @@ export function SelfServiceSetup({
           perform={perform}
         />
       )}
+      {managedPort &&
+        registered?.user_selected &&
+        !pending &&
+        !status?.active &&
+        !operation.managedRouteReadbackRequired && (
+          <ActionRow>
+            <ManagedRouteChangeControl
+              key={JSON.stringify([managedPort.id, generation, registered])}
+              port={managedPort}
+              generation={generation}
+              busy={busy}
+              onChanged={onChanged}
+            />
+          </ActionRow>
+        )}
       {registered?.user_selected && !pending && (
         <details>
           <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">

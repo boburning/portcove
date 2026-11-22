@@ -1,3 +1,4 @@
+import { referenceIdentity } from "../shared/reference-identity";
 import { focusAndReveal } from "../focus";
 import { countMessage, useAppTranslation } from "../localization";
 import {
@@ -73,6 +74,7 @@ import type {
   HostToolStatus,
   LibraryMetadataFile,
   LibrarySelection,
+  LibrarySelectionReview,
   OperationEvent,
   SourceInspectionReport,
   SourceProfile,
@@ -99,7 +101,12 @@ import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings, CatalogUpdatesDialog } from "./CatalogUpdates";
 import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
-import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
+import {
+  invocationFailure,
+  managedRouteReadbackGuidance,
+  sourceImportRecoveryGuidance,
+  type InvocationRecord,
+} from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -108,7 +115,7 @@ import { Tooltip } from "./ui/tooltip";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
-import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
+import { revealSettingsHeading } from "../features/app-shell/focus-settings-target";
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 import { LanguageSettings } from "./LanguageSettings";
 import {
@@ -381,7 +388,7 @@ export function PageHeader({
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
           <p className="mt-2 mb-0 text-sm text-[var(--color-text-secondary)]">
-            {libraryCount} in your library
+            {libraryCount} {libraryCount === 1 ? "port" : "ports"} in your library
           </p>
         )}
         {copy.description && (
@@ -501,6 +508,7 @@ export function StatusLayer({
   operation,
   busy,
   featureNotices,
+  scanResultAnnouncement,
   invocations,
   operationEvents,
   dismissInvocation,
@@ -508,6 +516,8 @@ export function StatusLayer({
   preparationRecovery,
   readyToPlay,
   openInstalledGame,
+  openExternalGame,
+  openSavedSource,
   completedActivityAvailable,
   onActivity = false,
 }: {
@@ -520,6 +530,7 @@ export function StatusLayer({
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   featureNotices?: ReactNode;
+  scanResultAnnouncement?: string | undefined;
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
@@ -528,6 +539,8 @@ export function StatusLayer({
   /** Returns Play only when current readback reports the record's port launchable. */
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
   openInstalledGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openExternalGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openSavedSource?: (record: InvocationRecord) => (() => void) | undefined;
   completedActivityAvailable?: (id: string) => boolean;
 }) {
   const { t } = useAppTranslation("common");
@@ -540,6 +553,8 @@ export function StatusLayer({
         record.phase !== "settled" ||
         record.outcome !== "succeeded" ||
         record.installed ||
+        record.externalRegistration ||
+        record.sourceRegistration ||
         invocationFailure(record) !== undefined ||
         acknowledgedSuccess.current.has(record.id)
       )
@@ -553,6 +568,7 @@ export function StatusLayer({
     <>
       {invocations && (
         <InvocationAnnouncements
+          scanResult={scanResultAnnouncement}
           messages={[...invocations.values()].flatMap((record) => {
             const text = invocationAnnouncement(record, operationEvents, (game) =>
               t("launchRequestAccepted", { game }),
@@ -572,6 +588,8 @@ export function StatusLayer({
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
                 !record.installed &&
+                !record.externalRegistration &&
+                !record.sourceRegistration &&
                 // A successful launch needs no visible message; the game itself is the result.
                 (record.id !== latestSuccess ||
                   (record.context.operation === "launch" && record.outcome === "succeeded"))
@@ -604,6 +622,8 @@ export function StatusLayer({
                   latestSuccess={latestSuccess}
                   readyToPlay={readyToPlay}
                   openInstalledGame={openInstalledGame}
+                  openExternalGame={openExternalGame}
+                  openSavedSource={openSavedSource}
                   completedActivityAvailable={completedActivityAvailable}
                   dismissInvocation={dismissInvocation}
                   openActivity={openActivity}
@@ -719,6 +739,12 @@ function ErrorNotice({
           showMutationSummary={!readbackOnly && !committed}
         />
       )}
+      {invocation?.reviewCurrentState && invocation.context.operation === "import_source" && (
+        <p className="mt-1 text-sm">{sourceImportRecoveryGuidance}</p>
+      )}
+      {invocation?.reviewCurrentState &&
+        invocation.context.operation === "change_managed_route" &&
+        !committed && <p className="mt-1 text-sm">{managedRouteReadbackGuidance}</p>}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
         <p>
           Refreshing the current state also failed: {errorText(invocation.refreshFailure)}. The
@@ -751,16 +777,19 @@ function ErrorNotice({
             {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
-        {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            onClick={() => void reviewCurrentState()}
-          >
-            Refresh library
-          </Button>
-        )}
+        {reviewCurrentState &&
+          (readbackOnly ||
+            invocation?.reviewCurrentState ||
+            presentation?.recovery_actions.includes("review_current_state")) && (
+            <Button
+              data-focusable
+              variant="outline"
+              size="sm"
+              onClick={() => void reviewCurrentState()}
+            >
+              Refresh library
+            </Button>
+          )}
         {reviewPreparation && (
           <Button
             data-focusable
@@ -1237,6 +1266,8 @@ function SourceHealth({
           generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
+          requirementsAvailable={requirementsState === "available"}
+          fallbackFocus={sourceHeading}
           onAdded={onAdded}
         />
       </div>
@@ -1310,6 +1341,7 @@ function SourceHealthRow({
     <div
       className="source-health-row grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-pc-border py-4 last:border-b-0"
       data-source-profile={source.profile_id}
+      data-saved-source-identity={referenceIdentity(source)}
       tabIndex={-1}
     >
       <div className="min-w-0">
@@ -1731,8 +1763,8 @@ type SettingsViewProps = {
   workspaceRefreshFailed?: boolean;
   librarySelection?: LibrarySelection | undefined;
   chooseLibrary?: (currentPath: string) => Promise<string | null>;
-  switchLibrary?: ((path: string) => Promise<void>) | undefined;
-  resetLibrary?: () => Promise<void>;
+  switchLibrary?: ((path: string, review?: string) => Promise<void>) | undefined;
+  resetLibrary?: (review?: string) => Promise<void>;
   sourceNeeds?: SourceRequirement[];
   sourceRequirementsState?: SourceRequirementsState;
   installedCount?: number;
@@ -1872,6 +1904,11 @@ export function SettingsView(props: SettingsViewProps) {
     >
       <LibrarySelectionCard
         selection={librarySelection}
+        inspect={
+          generation <= 0
+            ? undefined
+            : (path) => desktopApi.reviewLibrarySelection(path, generation)
+        }
         busy={busy}
         choose={chooseLibrary}
         switchLibrary={switchLibrary}
@@ -1888,6 +1925,7 @@ export function SettingsView(props: SettingsViewProps) {
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={`recovery-${generation}`}
+        generation={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}
@@ -2191,20 +2229,27 @@ function SettingsSection({
 
 export function LibrarySelectionCard({
   selection,
+  inspect,
   busy,
   choose,
   switchLibrary,
   reset,
 }: {
   selection?: LibrarySelection | undefined;
+  inspect?: ((path: string | null) => Promise<LibrarySelectionReview>) | undefined;
   busy?: string | undefined;
   choose?: ((currentPath: string) => Promise<string | null>) | undefined;
-  switchLibrary?: ((path: string) => Promise<void>) | undefined;
-  reset?: (() => Promise<void>) | undefined;
+  switchLibrary?: ((path: string, review?: string) => Promise<void>) | undefined;
+  reset?: ((review?: string) => Promise<void>) | undefined;
 }) {
   const [error, setError] = useState<unknown>();
   const presentation = failurePresentation(error);
-  const [review, setReview] = useState<{ kind: "switch" | "reset"; path: string }>();
+  const movedDestination = presentation?.technical_context.current_library_root;
+  const [review, setReview] = useState<{
+    kind: "switch" | "reset";
+    path: string;
+    inspection?: LibrarySelectionReview;
+  }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -2215,9 +2260,14 @@ export function LibrarySelectionCard({
     setPending(true);
     try {
       const path = await choose?.(selection?.root ?? "");
-      if (path && path !== selection?.root) {
+      if (path) {
         focusReturn.current = "switch";
-        setReview({ kind: "switch", path });
+        const inspection = await inspect?.(path);
+        setReview({
+          kind: "switch",
+          path: inspection?.path ?? path,
+          ...(inspection && { inspection }),
+        });
       }
     } catch (value) {
       setError(value);
@@ -2232,10 +2282,11 @@ export function LibrarySelectionCard({
     setError(undefined);
     setPending(true);
     try {
-      const path = await desktopApi.defaultLibraryRoot();
+      const inspection = await inspect?.(null);
+      const path = inspection?.path ?? (await desktopApi.defaultLibraryRoot());
       if (!path.trim()) throw new Error("The default library location is unavailable.");
       focusReturn.current = "reset";
-      setReview({ kind: "reset", path });
+      setReview({ kind: "reset", path, ...(inspection && { inspection }) });
     } catch (value) {
       setError(value);
     } finally {
@@ -2247,8 +2298,12 @@ export function LibrarySelectionCard({
     setError(undefined);
     setPending(true);
     try {
-      if (review.kind === "switch") await switchLibrary?.(review.path);
-      else await reset?.();
+      const digest = review.inspection?.review_sha256;
+      if (review.kind === "switch") {
+        await (digest ? switchLibrary?.(review.path, digest) : switchLibrary?.(review.path));
+      } else {
+        await (digest ? reset?.(digest) : reset?.());
+      }
     } catch (value) {
       setError(value);
     } finally {
@@ -2256,6 +2311,19 @@ export function LibrarySelectionCard({
       setReview(undefined);
     }
   };
+  const keepCurrent = review?.inspection?.effect === "keep";
+  const saveCurrent =
+    review?.kind === "switch" &&
+    (review.inspection
+      ? review.inspection.effect === "change_startup"
+      : review.path === selection?.root);
+  const contents = review?.inspection?.contents;
+  const changeDefault = review?.kind === "reset" && review.inspection?.effect === "change_startup";
+  const resetScope = review?.inspection?.resets_preferences
+    ? " This also resets all host preferences, including language, favorites, and tool paths."
+    : review?.inspection
+      ? ""
+      : " If host preferences are damaged or from a newer format, this also resets saved language and tool paths.";
   const source =
     selection?.source === "saved"
       ? "Saved library"
@@ -2321,32 +2389,67 @@ export function LibrarySelectionCard({
             aria-describedby="library-selection-review-description"
           >
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
-              {review.kind === "switch" ? "Switch libraries?" : "Open the default library?"}
+              {keepCurrent
+                ? "This library is already selected"
+                : saveCurrent
+                  ? "Save this library for startup?"
+                  : review.kind === "switch"
+                    ? "Switch libraries?"
+                    : changeDefault
+                      ? "Use this library as the default?"
+                      : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
               className="mb-4 leading-relaxed"
             >
-              {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
-                : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
+              {keepCurrent
+                ? "This library is open and is already the startup library."
+                : saveCurrent
+                  ? "Portcove will keep this library open and save it for future launches. Its files and install locations stay in place."
+                  : review.kind === "switch"
+                    ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
+                    : changeDefault
+                      ? `Portcove will keep this library open and use it as the default for future launches.${resetScope}`
+                      : `Portcove will open the default library shown below and clear the saved library choice.${resetScope} Files in the current library will stay where they are. The default library uses its own game install folder settings.`}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
+            {contents && (
+              <p className="mt-3 text-sm text-pc-muted-foreground">
+                {
+                  {
+                    empty_directory:
+                      "This folder is empty. Portcove will start a new library here.",
+                    new_default_directory: "Portcove will create the default library folder.",
+                    existing_database:
+                      "This folder contains a library database. Portcove checks it when opening.",
+                    recovery_records:
+                      "This folder contains recovery records. Portcove checks them when opening.",
+                  }[contents]
+                }
+              </p>
+            )}
             <DialogFooter className="mt-4">
-              <Button
-                data-focusable
-                variant="primary"
-                disabled={pending}
-                onClick={() => {
-                  void applyReview();
-                }}
-              >
-                {pending
-                  ? "Switching…"
-                  : review.kind === "switch"
-                    ? "Switch library"
-                    : "Open default library"}
-              </Button>
+              {!keepCurrent && (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={pending}
+                  onClick={() => {
+                    void applyReview();
+                  }}
+                >
+                  {saveCurrent
+                    ? pending
+                      ? "Saving…"
+                      : "Save startup choice"
+                    : pending
+                      ? "Switching…"
+                      : review.kind === "switch"
+                        ? "Switch library"
+                        : "Open default library"}
+                </Button>
+              )}
               <Button
                 data-focusable
                 ref={keepLibraryButton}
@@ -2354,7 +2457,7 @@ export function LibrarySelectionCard({
                 disabled={pending}
                 onClick={cancelReview}
               >
-                Keep current library
+                {keepCurrent ? "Done" : "Keep current library"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2362,7 +2465,14 @@ export function LibrarySelectionCard({
       )}
       {error !== undefined && (
         <div role="alert">
-          <p>{errorText(error)}</p>
+          {movedDestination ? (
+            <>
+              <p>This library was moved. Choose its current folder before switching.</p>
+              <code className="block break-all">{movedDestination}</code>
+            </>
+          ) : (
+            <p>{errorText(error)}</p>
+          )}
           {presentation && <FailureDetails presentation={presentation} />}
         </div>
       )}
@@ -2702,32 +2812,6 @@ function StorageCard({
   );
 }
 
-function revealSettingsHeading(targetId: string) {
-  window.requestAnimationFrame(() => {
-    const heading = document.getElementById(targetId);
-    if (!heading || heading.closest("[hidden]")) return;
-    heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
-    const navigation = heading
-      .closest(".settings-grid")
-      ?.querySelector<HTMLElement>(".settings-section-index");
-    const workspace = heading.closest<HTMLElement>('[data-focus-region="workspace"]');
-    if (!navigation || !workspace || getComputedStyle(navigation).position !== "sticky") return;
-    const target = heading.getBoundingClientRect();
-    const strip = navigation.getBoundingClientRect();
-    // Wide category navigation sits beside the heading. Only a sticky strip
-    // above the same reading column can cover its focus outline.
-    if (target.left >= strip.right || target.right <= strip.left) return;
-    const focusStyle = getComputedStyle(heading);
-    const outlineRoom =
-      Math.max(0, Number.parseFloat(focusStyle.outlineWidth)) +
-      Math.max(0, Number.parseFloat(focusStyle.outlineOffset));
-    const covered = strip.bottom + outlineRoom - target.top;
-    if (covered > 0 && strip.top < target.bottom)
-      scrollWorkspaceTo(workspace, workspaceScrollTop(workspace) - covered);
-  });
-}
-
 function sourceInspectionMessage(read: SourceInspectionReadState | undefined) {
   return read?.status === "idle"
     ? "Check this file to see its current identity and compatibility."
@@ -2791,6 +2875,8 @@ function SettledInvocation({
   latestSuccess,
   readyToPlay,
   openInstalledGame,
+  openExternalGame,
+  openSavedSource,
   completedActivityAvailable,
   dismissInvocation,
   openActivity,
@@ -2800,29 +2886,54 @@ function SettledInvocation({
   latestSuccess: number | undefined;
   readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   openInstalledGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openExternalGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openSavedSource: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   completedActivityAvailable: ((id: string) => boolean) | undefined;
   dismissInvocation: ((id: number) => void) | undefined;
   openActivity: ((id?: string, section?: "history") => void) | undefined;
   onActivity: boolean;
 }) {
-  if (record.outcome === "succeeded" && record.installed) {
-    const openGame = openInstalledGame?.(record);
+  const savedSource = record.sourceRegistration?.source;
+  if (
+    record.outcome === "succeeded" &&
+    (record.installed || record.externalRegistration || savedSource)
+  ) {
+    const registration = record.externalRegistration;
+    const openResult = savedSource
+      ? openSavedSource?.(record)
+      : registration
+        ? openExternalGame?.(record)
+        : openInstalledGame?.(record);
+    const origin = (registration ? "external-result:" : "install-result:") + record.id;
     const activityId = record.context.activityId;
     return (
       <Notice intent="success" className="mb-0 items-center">
         <p data-slot="notice-body">
-          Installed {record.context.target.label} · {record.installed.version}
+          {savedSource ? (
+            <>
+              Saved file location for {record.context.target.label} · <bdi>{savedSource.path}</bdi>
+            </>
+          ) : registration ? (
+            "Saved external launch details for " + record.context.target.label
+          ) : (
+            (record.context.operation === "change_managed_route"
+              ? "Created a managed copy of "
+              : "Installed ") +
+            record.context.target.label +
+            " · " +
+            record.installed?.version
+          )}
         </p>
         <div data-slot="notice-actions">
-          {openGame && (
+          {openResult && (
             <Button
               data-focusable
-              data-detail-origin={`install-result:${record.id}`}
+              data-detail-origin={savedSource ? undefined : origin}
               variant="primary"
               size="sm"
-              onClick={openGame}
+              onClick={openResult}
             >
-              Open game
+              {savedSource ? "View saved location" : "Open game"}
             </Button>
           )}
           {activityId && openActivity && (completedActivityAvailable?.(activityId) ?? true) && (

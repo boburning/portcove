@@ -129,6 +129,16 @@ function regularJson(file: string) {
   return JSON.parse(readFileSync(file, "utf8")) as unknown;
 }
 
+function requirePrivateLinuxCustodyDirectory(pathname: string) {
+  const directory = lstatSync(pathname);
+  if (
+    !directory.isDirectory() ||
+    directory.uid !== process.getuid?.() ||
+    (directory.mode & 0o077) !== 0
+  )
+    throw new Error("Linux custody directory ownership differs");
+}
+
 /** The host invokes this in the appointed distro/user; no host PID is interpreted here. */
 export function probeLinuxCustody(
   file: string,
@@ -136,13 +146,7 @@ export function probeLinuxCustody(
   phase: string,
   expected?: unknown,
 ) {
-  const directory = lstatSync(path.dirname(file));
-  if (
-    !directory.isDirectory() ||
-    directory.uid !== process.getuid?.() ||
-    (directory.mode & 0o077) !== 0
-  )
-    throw new Error("Linux custody directory ownership differs");
+  requirePrivateLinuxCustodyDirectory(path.dirname(file));
   const custody = parseCustody(regularJson(file));
   if (custody.invocation !== invocation) throw new Error("Linux invocation differs");
   if (expected !== undefined && JSON.stringify(custody) !== JSON.stringify(parseCustody(expected)))
@@ -509,6 +513,17 @@ export async function acquireBridgedCapacity(
   const waitMs = options.waitMs ?? 900_000;
   const invocation = randomUUID();
   const directory = mkdtempSync(path.join(tmpdir(), "pc-host-"));
+  // Refuse before requesting host capacity if the temporary filesystem did
+  // not honor mkdtemp's private Linux mode. The host uses the same rule.
+  try {
+    requirePrivateLinuxCustodyDirectory(directory);
+  } catch (cause) {
+    // Leave the path alone when this process could not establish custody.
+    throw new Error(
+      "Windows host bridge custody needs a private Linux-backed temporary directory.",
+      { cause },
+    );
+  }
   const custodyFile = path.join(directory, "custody.json");
   const identity = readProcessIdentity(process.pid);
   if (!identity) throw new Error("Cannot identify Linux bridge owner");
@@ -567,6 +582,12 @@ export async function acquireBridgedCapacity(
           input.end();
           throw error;
         }
+      },
+      disconnectRetained: () => {
+        // EOF leaves both reservations and the original custody evidence intact.
+        input.end();
+        child.stdout?.destroy();
+        child.unref();
       },
       release: () =>
         (releasePromise ??= (async () => {

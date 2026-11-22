@@ -16,15 +16,31 @@ pub(crate) async fn catalog_download_candidates(
     generation: u64,
     selected_release_id: Option<portcove_core::CatalogDownloadReleaseId>,
     channel: Option<portcove_core::ReleaseChannel>,
+    release_window: Option<usize>,
 ) -> DesktopResult<CatalogDownloadCandidates> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        tauri::async_runtime::block_on(service.catalog_download_options(
-            &port_id,
-            selected_release_id,
-            channel.unwrap_or(service.catalog_download_channel(&port_id)?),
-        ))
+        let channel = channel.unwrap_or(service.catalog_download_channel(&port_id)?);
+        tauri::async_runtime::block_on(async {
+            match release_window {
+                Some(window) => {
+                    service
+                        .catalog_download_options_window(
+                            &port_id,
+                            selected_release_id,
+                            channel,
+                            window,
+                        )
+                        .await
+                }
+                None => {
+                    service
+                        .catalog_download_options(&port_id, selected_release_id, channel)
+                        .await
+                }
+            }
+        })
         .map_err(Into::into)
     })
     .await

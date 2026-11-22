@@ -29,7 +29,11 @@ mod tests;
 pub(crate) const MAX_PROFILES: usize = 64;
 const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
 const MAX_PACKAGES: usize = 512;
-const MAX_SETTINGS: usize = 64;
+/// Settings per revision, shared by captured mod options and recipes. The
+/// serialized revision byte bound is the binding resource limit; this count only
+/// rejects pathological shapes. It is sized from package capacity so a few
+/// option-rich mods cannot exhaust it (eight options per possible package).
+pub(crate) const MAX_SETTINGS: usize = MAX_PACKAGES * 8;
 const MAX_LIMITS: usize = 64;
 const MAX_TEXT: usize = 1024;
 const MAX_PROFILE_BYTES: usize = 64 * 1024;
@@ -162,6 +166,14 @@ pub struct ProfileRevision {
     pub loader: Option<LoaderContractRef>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub packages: Vec<ResolvedPackage>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::profile_package_files::read_companion_sets"
+    )]
+    /// Reserved on disk behind the custody gate. Publish its machine schema with the writer.
+    #[schemars(skip)]
+    pub recomp_companion_sets_v1: Option<Vec<crate::RecompCompanionSetV1>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub orderings: Vec<TypedOrdering>,
     /// Consequential native settings only; ordinary preferences stay mutable state.
@@ -592,10 +604,12 @@ impl PortcoveService {
         next.loader =
             self.profile_loader_binding(&next.build, next.loader.as_ref(), needs_loader)?;
         // A revision the game could not load unambiguously is never recorded.
-        crate::profile_deploy::require_projectable(port_id, &next)?;
+        if let Some(layout) = self.layout_for_revision(&next)? {
+            crate::profile_deploy::require_projectable(&layout, &next)?;
+        }
         self.require_revision_loader(&next)?;
         // Mod code the player has not allowed is never recorded as a setup to run.
-        if let Ok(layout) = self.deploy_layout(port_id) {
+        if let Some(layout) = self.layout_for_revision(&next)? {
             crate::profile_deploy::require_code_allowed(&layout, &next)?;
         }
         seal(&mut next)?;
@@ -743,6 +757,9 @@ impl PortcoveService {
         base: Option<&ProfileRevision>,
         loader: Option<LoaderContractRef>,
     ) -> Result<Profile> {
+        if let Some(base) = base {
+            crate::profile_package_files::require_managed_custody(base)?;
+        }
         let mut revision = ProfileRevision {
             profile_id: profile.id.clone(),
             revision: 1,
@@ -751,6 +768,7 @@ impl PortcoveService {
             originals,
             loader,
             packages: base.map(|b| b.packages.clone()).unwrap_or_default(),
+            recomp_companion_sets_v1: None,
             orderings: base.map(|b| b.orderings.clone()).unwrap_or_default(),
             settings: base.map(|b| b.settings.clone()).unwrap_or_default(),
             save_group: uuid::Uuid::new_v4().to_string(),
@@ -765,7 +783,9 @@ impl PortcoveService {
         });
         revision.loader =
             self.profile_loader_binding(&revision.build, declared_loader, needs_loader)?;
-        crate::profile_deploy::require_projectable(&profile.port_id, &revision)?;
+        if let Some(layout) = self.layout_for_revision(&revision)? {
+            crate::profile_deploy::require_projectable(&layout, &revision)?;
+        }
         self.require_revision_loader(&revision)?;
         seal(&mut revision)?;
         let mut connection = self.library.connection()?;
@@ -863,6 +883,10 @@ pub(crate) fn follow_active_install(
             "A runtime retained for Default changed in place. Restore its exact runtime or install a separately identified build.",
         ));
     }
+    let needs_loader = next.packages.iter().any(|package| package.enabled);
+    let declared = next.loader.as_ref().filter(|_| needs_loader);
+    next.loader = crate::profile_loader::require_contract(install, &build, declared, needs_loader)?
+        .map(|loader| loader.engine.reference());
     next.build = build;
     next.parent_revision = Some(profile.current_revision);
     next.revision = profile
@@ -1065,6 +1089,7 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
             "profile revision has an invalid or oversized shape",
         ));
     }
+    crate::profile_package_files::require_managed_custody(revision)?;
     text(&revision.save_group, "save group")?;
     let mut native_ids = BTreeSet::new();
     for package in &revision.packages {

@@ -10,6 +10,7 @@ import {
   stopInteractiveScenarios,
 } from "../dev-scenarios/interactive/entry";
 import { recoveryKey } from "../dev-scenarios/interactive/transport";
+import { desktopApi } from "../api";
 import "../styles/index.css";
 import "../dev-scenarios/scenarios.css";
 import scenarioShell from "../../scenarios.html?raw";
@@ -658,6 +659,44 @@ it("exposes the visible Add games titles as names and the supporting copy as des
     runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
   });
   expect(result.violations).toEqual([]);
+});
+
+it("launches only the open ready detail's Play action when chosen explicitly", async () => {
+  const launch = vi.spyOn(desktopApi, "launch");
+  await startParityScene("collection", { theme: "light", width: 960, height: 640 });
+  const search = page.getByRole("button", { name: /Search games and pages/i });
+  const playCommand = page.getByRole("option", { name: /^Play this game/ });
+  const showPlayCommand = async () => {
+    await search.click();
+    await page.getByRole("combobox", { name: "Search commands" }).fill("Play this game");
+  };
+
+  await showPlayCommand();
+  await expect.element(playCommand).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  expect(launch).not.toHaveBeenCalled();
+
+  const blocked = await mountLibraryPort("collection-4");
+  await userEvent.click(
+    blocked.querySelector<HTMLButtonElement>('button[aria-label^="View details for"]')!,
+  );
+  await expect.element(page.getByRole("button", { name: "Back to Library" })).toBeVisible();
+  await showPlayCommand();
+  await expect.element(playCommand).not.toBeInTheDocument();
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: "Back to Library" }).click();
+
+  await mountLibraryPort("collection-0");
+  await page
+    .getByRole("button", { name: /^View details for Super Mario 64/ })
+    .first()
+    .click();
+  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+  await showPlayCommand();
+  await expect.element(playCommand).toBeVisible();
+  expect(launch).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Enter}");
+  await expect.poll(() => launch.mock.calls.map(([portId]) => portId)).toEqual(["collection-0"]);
 });
 
 it("keeps focus inside the command palette at both Tab boundaries", async () => {

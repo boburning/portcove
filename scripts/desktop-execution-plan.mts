@@ -88,6 +88,7 @@ export function planDesktopExecution(
   const acquisitionJourney = selection.selected_scenarios.includes(
     "native-update-acquisition-lifecycle",
   );
+  const managedCopyJourney = selection.selected_scenarios.includes("native-managed-copy-result");
   const registeredSourceReuse = selection.selected_scenarios.includes(
     "native-registered-source-reuse",
   );
@@ -111,6 +112,7 @@ export function planDesktopExecution(
         "native-secondary-panel-presentation",
         "native-collection-artwork-presentation",
         "native-staged-update-composition",
+        "native-managed-copy-result",
         "native-local-artwork-picker-and-recovery",
         "native-artwork-catalog-correction",
         "native-game-first-choice-and-restart",
@@ -264,6 +266,11 @@ export function planDesktopExecution(
     ])
       inputs.push({ kind: "file", path: source });
   for (const source of nativeTransportReceiptSources) inputs.push({ kind: "file", path: source });
+  if (
+    normalPackageSession ||
+    selection.selected_scenarios.includes("native-game-first-choice-and-restart")
+  )
+    inputs.push({ kind: "file", path: "scripts/fixtures/game-first-catalog-relationships.json" });
   inputs.push({ kind: "file", path: "apps/desktop/test/capture-target.ts" });
   inputs.push({ kind: "file", path: "scripts/native-readiness.mts" });
   inputs.push({ kind: "file", path: "scripts/runtime-values.mts" });
@@ -386,6 +393,8 @@ export function planDesktopExecution(
     receiptSource(new URL("desktop-catalog-update-test.mts", harnessUrl)),
     receiptSource(new URL("desktop-default-cover-test.mts", harnessUrl)),
   );
+  if (selection.selected_scenarios.includes("native-reviewed-screenshot-display"))
+    inputs.push(receiptSource(new URL("crates/portcove-core/catalog/listings.json", rootUrl)));
   if (selection.prerequisites.includes("owned-fixture")) {
     if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
       for (const name of [
@@ -486,6 +495,7 @@ export function planDesktopExecution(
           "native-staged-update-composition",
           "native-game-settings-review",
           "native-update-acquisition-lifecycle",
+          "native-managed-copy-result",
         ].includes(id),
       ),
     },
@@ -556,6 +566,7 @@ export function planDesktopExecution(
       ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
       completionJourney,
       ...(acquisitionJourney ? { acquisitionJourney: true } : {}),
+      ...(managedCopyJourney ? { managedCopyJourney: true } : {}),
       ...(updateReviewJourney ? { updateReviewJourney: true } : {}),
       ...(gameSettingsJourney ? { gameSettingsJourney: true } : {}),
       ...(registeredSourceReuse ? { registeredSourceReuse: true } : {}),
@@ -569,6 +580,7 @@ export function planDesktopExecution(
         : sourceJourney ||
             completionJourney ||
             updateReviewJourney ||
+            managedCopyJourney ||
             selection.selected_scenarios.includes("native-host-publication-recovery")
           ? ["portcove-core/qualification-fixtures"]
           : [],

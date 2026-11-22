@@ -125,43 +125,49 @@ void test("view reconciliation reuses matching GraphQL views and creates only mi
   );
 });
 
-void test("active port work is additive and preserves the complete inventory view", () => {
+void test("port work views include open work across all horizons and stages", () => {
   const inventory = config.views.find((view) => view.name === "Port Pipeline");
-  assert.ok(inventory);
-  assert.equal(inventory.filter, "work-type:Port");
   const active = config.views.find((view) => view.name === "Active Port Work");
-  assert.ok(active);
-  assert.equal(active.layout, "TABLE_LAYOUT");
-  assert.equal(
-    active.filter,
-    'work-type:Port status:"In progress",Validating,Blocked horizon:Now,Next -port-stage:Watchlist',
-  );
-  assert.deepEqual(active.fields, [
-    "Title",
-    "Priority",
-    "Horizon",
-    "Status",
-    "Port stage",
-    "Platform",
-    "Assignees",
-  ]);
+  const blocked = config.views.find((view) => view.name === "Blocked Port Work");
+  assert.ok(inventory && active && blocked);
+  assert.equal(inventory.filter, "work-type:Port");
+  assert.equal(active.filter, 'work-type:Port is:open status:"In progress",Validating');
+  assert.equal(blocked.filter, "work-type:Port is:open status:Blocked");
+  for (const view of [active, blocked]) {
+    assert.equal(view.layout, "TABLE_LAYOUT");
+    assert.deepEqual(view.fields, [
+      "Title",
+      "Priority",
+      "Horizon",
+      "Status",
+      "Port stage",
+      "Platform",
+      "Assignees",
+    ]);
+  }
   assert.equal(active.manual_group_by, "Status");
   assert.equal(active.manual_sort_by, "Priority,manual");
   const existing = config.views
-    .filter((view) => view !== active)
-    .map((view, index) => ({
+    .filter((view) => view !== blocked)
+    .map((view) => ({
       ...view,
-      id: `V${index}`,
+      id: `saved-${view.name}`,
+      filter:
+        view === active
+          ? 'work-type:Port status:"In progress",Validating,Blocked horizon:Now,Next -port-stage:Watchlist'
+          : view.filter,
       fields: { nodes: view.fields.map((name) => ({ name })) },
     }));
   const plan = planViewReconciliation(config.views, existing);
   assert.deepEqual(
-    plan.filter((step) => step.action === "create").map((step) => step.desired.name),
-    ["Active Port Work"],
+    plan.filter((step) => step.action !== "keep").map((step) => [step.action, step.desired.name]),
+    [
+      ["update", active.name],
+      ["create", blocked.name],
+    ],
   );
-  const inventoryStep = plan.find((step) => step.desired.name === inventory.name);
-  assert.ok(inventoryStep && inventoryStep.actual);
-  assert.equal(inventoryStep.actual.id, "V2");
+  const activeStep = plan.find((step) => step.desired.name === active.name);
+  assert.equal(activeStep?.actual?.id, "saved-Active Port Work");
 });
 
 void test("next work excludes workstreams, completed items, and Later horizon", () => {

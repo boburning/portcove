@@ -295,6 +295,9 @@ pub struct BackupActionPreview {
     pub safety_backup_will_be_created: bool,
     pub retained_runtime_copy_will_be_deleted: bool,
     pub preview_sha256: String,
+    /// The library, installation scope and materialized setup reviewed for a restore.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_target_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -323,6 +326,8 @@ pub struct PortcoveService {
     pub(crate) cancellation_requested: std::sync::atomic::AtomicBool,
     catalog: Catalog,
     catalog_provenance: crate::CatalogProvenance,
+    artwork_snapshot_reads: bool,
+    pub(crate) remote_artwork: crate::artwork::RemoteArtworkRead,
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
     faults: Arc<dyn LifecycleFaultInjector>,
@@ -354,6 +359,7 @@ struct ReleaseIntent {
     activate: bool,
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     acquired: Option<game_update_acquisition::AcquiredInputs>,
+    explicit_package_proof_sha256: Option<String>,
 }
 
 fn enum_value(value: impl Serialize) -> Result<String> {
@@ -420,6 +426,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -439,20 +447,70 @@ impl PortcoveService {
         releases: Arc<dyn ReleaseProvider>,
     ) -> Result<Self> {
         let (catalog, catalog_provenance) = library.load_catalog()?;
+        Ok(Self::from_catalog(
+            library,
+            releases,
+            catalog,
+            catalog_provenance,
+        ))
+    }
+
+    /// Desktop artwork uses a reusable read-only catalog observation. Choices
+    /// and retained installation/listing relations are still looked up per call.
+    pub fn with_provider_for_artwork(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+    ) -> Result<Self> {
+        let (catalog, catalog_provenance) = library.load_artwork_catalog()?;
+        let mut service = Self::from_catalog(library, releases, catalog, catalog_provenance);
+        service.artwork_snapshot_reads = true;
+        Ok(service)
+    }
+
+    /// Probe already available artwork before waiting on any network budget.
+    #[must_use]
+    pub fn with_artwork_cache_epoch(
+        mut self,
+        epoch: crate::ArtworkCacheEpoch,
+        allow_download: bool,
+    ) -> Self {
+        self.remote_artwork = crate::artwork::RemoteArtworkRead {
+            allow_download,
+            epoch: Some(epoch),
+        };
+        self
+    }
+
+    pub(crate) fn current_artwork_service(&self) -> Result<Option<Self>> {
+        if self.artwork_snapshot_reads {
+            return Self::with_provider_for_artwork(self.library.clone(), self.releases.clone())
+                .map(Some);
+        }
+        Ok(None)
+    }
+
+    fn from_catalog(
+        library: Library,
+        releases: Arc<dyn ReleaseProvider>,
+        catalog: Catalog,
+        catalog_provenance: crate::CatalogProvenance,
+    ) -> Self {
         #[cfg(feature = "qualification-fixtures")]
         let faults = crate::qualification_checkpoint::faults(library.root());
         #[cfg(not(feature = "qualification-fixtures"))]
         let faults = Arc::new(NoLifecycleFaults);
-        Ok(Self {
+        Self {
             cancellation_owner: Uuid::new_v4().to_string(),
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
             store_installs: crate::store_install::default_host(),
-        })
+        }
     }
 
     /// Use other host facts for store install detection (tests and adapters
@@ -487,6 +545,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -506,6 +566,8 @@ impl PortcoveService {
             cancellation_requested: std::sync::atomic::AtomicBool::new(false),
             catalog,
             catalog_provenance,
+            artwork_snapshot_reads: false,
+            remote_artwork: Default::default(),
             library,
             releases,
             faults,
@@ -1111,8 +1173,9 @@ impl PortcoveService {
         let status_catalog = match self.catalog_for_installed_fallback(port_id) {
             Ok(catalog) => catalog,
             Err(error) if error.code == crate::ErrorCode::NotFound => {
-                let status = self.library.status(port_id, ReleaseChannel::Stable)?;
+                let mut status = self.library.status(port_id, ReleaseChannel::Stable)?;
                 if status.acquisition.is_some() {
+                    self.omit_withdrawn_cached_offer(&mut status);
                     return Ok(Self::acquisition_metadata_status(status));
                 }
                 return Err(error);
@@ -1129,9 +1192,10 @@ impl PortcoveService {
             )],
             false,
         )?;
-        let status = statuses
+        let mut status = statuses
             .pop()
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))?;
+        self.omit_withdrawn_cached_offer(&mut status);
         if port.is_none()
             || status
                 .external_runtime
@@ -1279,6 +1343,54 @@ impl PortcoveService {
             .ok_or_else(|| PortcoveError::state("status read model returned no row"))
     }
 
+    fn withdrawn_offer_identity(
+        connection: &rusqlite::Connection,
+        port_id: &str,
+        release: &ResolvedRelease,
+    ) -> Result<Option<(u64, u64)>> {
+        use crate::definition_repository::publisher_policy::{
+            CuratedArtifactOperation, assess_known_artifact_operation,
+        };
+        let Some((repository_id, asset_id)) =
+            crate::curated_acquisition::scoped_identity_for_cached_offer(
+                connection, port_id, release,
+            )?
+        else {
+            return Ok(None);
+        };
+        let eligibility = assess_known_artifact_operation(
+            connection,
+            repository_id,
+            asset_id,
+            &release.asset.sha256,
+            CuratedArtifactOperation::Acquisition,
+        )?;
+        Ok(
+            (eligibility.reason
+                == crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn)
+                .then_some((repository_id, asset_id)),
+        )
+    }
+
+    fn omit_withdrawn_cached_offer(&self, status: &mut PortStatus) {
+        if let Some(snapshot) = &status.last_update_check
+            && snapshot.check.update_available
+            && snapshot.check.port_id == status.port_id
+        {
+            let withdrawn = self.library.connection().and_then(|connection| {
+                Self::withdrawn_offer_identity(
+                    &connection,
+                    &status.port_id,
+                    &snapshot.check.release,
+                )
+            });
+            if withdrawn.is_ok_and(|identity| identity.is_some()) {
+                // The durable check still describes the historical observation.
+                status.last_update_check = None;
+            }
+        }
+    }
+
     /// An archive is display metadata, never a replacement operational definition.
     fn acquisition_metadata_status(mut status: PortStatus) -> PortStatus {
         status.readiness = None;
@@ -1297,6 +1409,7 @@ impl PortcoveService {
             availability: PortActionAvailability::Held,
             reason: PortActionReason::DefinitionIneligible,
             definition: None,
+            restriction: None,
         })
         .collect();
         status
@@ -1316,7 +1429,8 @@ impl PortcoveService {
             .collect::<HashMap<_, _>>();
         statuses
             .into_iter()
-            .map(|status| {
+            .map(|mut status| {
+                self.omit_withdrawn_cached_offer(&mut status);
                 let port = match catalog.port(&status.port_id) {
                     Ok(port) => port,
                     Err(_) if status.acquisition.is_some() => {
@@ -1494,6 +1608,18 @@ impl PortcoveService {
         channel: Option<ReleaseChannel>,
         output_directory: Option<&Path>,
     ) -> Result<InstallPlan> {
+        self.plan_install_resolution(port_id, channel, output_directory, None)
+            .await
+            .map(|(plan, _)| plan)
+    }
+
+    async fn plan_install_resolution(
+        &self,
+        port_id: &str,
+        channel: Option<ReleaseChannel>,
+        output_directory: Option<&Path>,
+        package_id: Option<&str>,
+    ) -> Result<(InstallPlan, crate::ScopedResolvedRelease)> {
         let port = self.catalog.port(port_id)?;
         let status = self.status(port_id)?;
         self.require_definition_operation(
@@ -1529,12 +1655,61 @@ impl PortcoveService {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
-        let resolution = self
-            .resolve_install_selection(port, selected_channel, platform, &status)
-            .await?;
-        let release = resolution.release;
+        let resolution = if let Some(id) = package_id {
+            if !first_managed_install(&status) {
+                return Err(PortcoveError::conflict(
+                    "an explicit package choice requires a first managed installation",
+                ));
+            }
+            let choice =
+                crate::ManagedPackageVariant::explicit(port, platform, selected_channel, id)?;
+            crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
+            if crate::definition_repository::publisher_policy::acquisition_scope(
+                &self.library,
+                &self.catalog,
+                &port.id,
+            )?
+            .is_some()
+            {
+                return Err(PortcoveError::unsupported(
+                    "the active publisher scope does not authorize explicit package selection",
+                ));
+            }
+            let resolution = self
+                .releases
+                .resolve_explicit_first_variant(port, selected_channel, platform, &choice)
+                .await?;
+            resolution.require_selection(port, platform, selected_channel)?;
+            if resolution.saved_variant.as_ref() != Some(&choice)
+                || resolution.explicit_tag_commit.is_none()
+                || resolution.github_identity.is_none()
+            {
+                return Err(PortcoveError::verification(
+                    "the provider did not prove the explicit package choice",
+                ));
+            }
+            Installer::new(self.library.clone())?
+                .require_github_resolution_identity(&port.id, &resolution)?;
+            if let Some(verdict) = self.current_package_shape_refusal(
+                port,
+                platform,
+                &resolution.release,
+                Some(&resolution),
+            )? {
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &resolution.release,
+                    &verdict,
+                ));
+            }
+            resolution
+        } else {
+            self.resolve_install_selection(port, selected_channel, platform, &status)
+                .await?
+        };
+        let release = resolution.release.clone();
         let mut preservation_notices = port.preservation_notices();
-        preservation_notices.extend(resolution.fallback_reason);
+        preservation_notices.extend(resolution.fallback_reason.clone());
         let action = self.install_plan_action_with_variant(
             &status,
             &release,
@@ -1553,6 +1728,14 @@ impl PortcoveService {
                 total.saturating_add(asset.size)
             });
         let temporary_space = if action == InstallPlanAction::Download {
+            crate::runtime_path_policy::check_artifact_destination(
+                port_id,
+                &release.asset.sha256,
+                Some(platform),
+                &output_location
+                    .effective_output_directory
+                    .join(&release.asset.sha256),
+            )?;
             let required_bytes = primary_and_runtime_bytes;
             let capacity = crate::output_root::assess_destination(
                 &self.library,
@@ -1583,22 +1766,25 @@ impl PortcoveService {
         } else {
             None
         };
-        Ok(InstallPlan {
-            port_id: port_id.into(),
-            channel: selected_channel,
-            platform,
-            release,
-            action,
-            source_requirements,
-            bundled_runtime,
-            download_bytes,
-            auxiliary_downloads,
-            temporary_space,
-            storage: self.library.storage_summary()?,
-            output_location,
-            preservation_notices,
-            shared_preferences,
-        })
+        Ok((
+            InstallPlan {
+                port_id: port_id.into(),
+                channel: selected_channel,
+                platform,
+                release,
+                action,
+                source_requirements,
+                bundled_runtime,
+                download_bytes,
+                auxiliary_downloads,
+                temporary_space,
+                storage: self.library.storage_summary()?,
+                output_location,
+                preservation_notices,
+                shared_preferences,
+            },
+            resolution,
+        ))
     }
 
     fn shared_preferences_install_root(
@@ -2039,6 +2225,7 @@ impl PortcoveService {
                     pending_setup: false,
                     preparation_mode: None,
                     required_source_extension: None,
+                    active_game_source_profile: None,
                     source: None,
                     source_folder_unavailable: None,
                     bios: None,
@@ -2057,7 +2244,7 @@ impl PortcoveService {
         {
             blockers.push(blocker);
         }
-        let source = port
+        let mut source = port
             .source_profile
             .as_deref()
             .map(|profile_id| {
@@ -2070,6 +2257,26 @@ impl PortcoveService {
                 )
             })
             .transpose()?;
+        let default_original = port
+            .source_profile
+            .as_ref()
+            .and_then(|profile| registered_sources.get(profile));
+        // Readiness only checks prior instances for availability. Launch verifies the
+        // selected instance against the retained release under the N64 read budget.
+        let migrated_original =
+            retained_catalog.is_some() && self.uses_migrated_n64_original(catalog, port);
+        let recheck_saved_original = installed
+            && migrated_original
+            && self
+                .has_saved_n64_original_to_recheck(
+                    port,
+                    status.active.as_ref().map(|active| active.id.as_str()),
+                    default_original.filter(|_| source == Some(SourceHealth::Current)),
+                )
+                .unwrap_or(false);
+        if recheck_saved_original {
+            source = Some(SourceHealth::NotChecked);
+        }
         let bios = port
             .bios_source_profile
             .as_deref()
@@ -2118,10 +2325,12 @@ impl PortcoveService {
                     .get(&platform)
                     .is_some_and(|runtime| runtime.source_directory_environment)
             });
-        if matches!(
-            source,
-            Some(SourceHealth::Current | SourceHealth::NotChecked)
-        ) && requires_source_directory
+        if !recheck_saved_original
+            && matches!(
+                source,
+                Some(SourceHealth::Current | SourceHealth::NotChecked)
+            )
+            && requires_source_directory
             && port
                 .source_profile
                 .as_ref()
@@ -2130,17 +2339,19 @@ impl PortcoveService {
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
-        if matches!(
-            source,
-            Some(SourceHealth::Current | SourceHealth::NotChecked)
-        ) && required_source_extension
-            .as_deref()
-            .is_some_and(|extension| {
-                port.source_profile
-                    .as_ref()
-                    .and_then(|profile| registered_sources.get(profile))
-                    .is_some_and(|record| !source_path_has_extension(&record.path, extension))
-            })
+        if !recheck_saved_original
+            && matches!(
+                source,
+                Some(SourceHealth::Current | SourceHealth::NotChecked)
+            )
+            && required_source_extension
+                .as_deref()
+                .is_some_and(|extension| {
+                    port.source_profile
+                        .as_ref()
+                        .and_then(|profile| registered_sources.get(profile))
+                        .is_some_and(|record| !source_path_has_extension(&record.path, extension))
+                })
         {
             blockers.push(LaunchBlocker::IncompatibleSource);
         }
@@ -2160,7 +2371,8 @@ impl PortcoveService {
             {
                 blockers.push(LaunchBlocker::MissingRuntime);
             }
-            if (required_source_extension.is_some() || requires_source_directory)
+            if !recheck_saved_original
+                && (required_source_extension.is_some() || requires_source_directory)
                 && port
                     .source_profile
                     .as_ref()
@@ -2184,7 +2396,7 @@ impl PortcoveService {
                     .source_profile
                     .as_ref()
                     .and_then(|profile| registered_sources.get(profile));
-                let source = if self_contained {
+                let source = if self_contained || recheck_saved_original {
                     crate::preparation::ReceiptSource::NotConsulted
                 } else {
                     source.into()
@@ -2291,6 +2503,30 @@ impl PortcoveService {
         } else {
             None
         };
+        let active_game_source_profile = port.source_profile.clone().filter(|profile| {
+            let Some(active) = status.active.as_ref().filter(|active| active.verified) else {
+                return false;
+            };
+            !blockers.contains(&LaunchBlocker::InvalidInstallation)
+                && !blockers.contains(&LaunchBlocker::IncompatibleSource)
+                && !port.optional_game_source
+                && crate::preparation::launch_consumes_original(port)
+                && !release.is_some_and(|release| {
+                    crate::source_inspection::n64_release_input(catalog, &port.id, release)
+                        .is_some()
+                })
+                && Self::artwork_source_scope(catalog, &port.id, profile).is_some_and(|scope| {
+                    Self::artwork_source_scope(current_catalog, &port.id, profile) == Some(scope)
+                })
+                && default_original.is_some_and(|original| {
+                    self.launch_uses_default_original(&port.id, &active.id, original)
+                        && (!migrated_original
+                            || matches!(
+                                self.has_saved_n64_original_to_recheck(port, None, Some(original)),
+                                Ok(false)
+                            ))
+                })
+        });
         status.readiness = Some(LaunchReadiness {
             setup_contract: retained_catalog
                 .as_ref()
@@ -2333,6 +2569,7 @@ impl PortcoveService {
                 .as_ref()
                 .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
+            active_game_source_profile,
             source,
             source_folder_unavailable,
             bios,
@@ -2345,6 +2582,27 @@ impl PortcoveService {
                 .and_then(|_| crate::adapter::managed_psx_selectable_discs(catalog, port)),
         });
         Ok(status)
+    }
+
+    fn artwork_source_scope<'a>(
+        catalog: &'a Catalog,
+        port_id: &str,
+        profile_id: &str,
+    ) -> Option<(
+        &'a crate::SourceIdentityProfile,
+        &'a crate::PortSourceContract,
+    )> {
+        let sources = catalog.source_catalog()?;
+        let profile = sources
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)?;
+        let contract = sources.contracts.iter().find(|contract| {
+            contract.port_id == port_id
+                && contract.profile_id == profile_id
+                && contract.role == crate::PortSourceRole::Game
+        })?;
+        Some((profile, contract))
     }
 
     fn retained_catalog_for_status(&self, status: &PortStatus) -> Result<Option<Catalog>> {
@@ -2524,6 +2782,28 @@ impl PortcoveService {
             return Ok(status);
         };
         let installed_port = installed_catalog.port(&active.port_id)?;
+        if !installed_port.release.curated.is_empty() {
+            // The retained Install decision describes reacquiring this exact
+            // artifact. Current Install and retained Launch keep their own decisions.
+            let distribution = Installer::new(self.library.clone()).and_then(|installer| {
+                installer.assess_curated_operation(
+                    active,
+                    crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
+                )
+            });
+            if let Ok(eligibility) = distribution
+                && eligibility.reason
+                    == crate::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+            {
+                status
+                    .definition_operations
+                    .push(DefinitionOperationAssessment {
+                        operation: DefinitionOperation::Install,
+                        eligibility,
+                        retained: true,
+                    });
+            }
+        }
         if crate::preparation::managed_install(installed_port, active) {
             status
                 .definition_operations
@@ -2594,12 +2874,16 @@ impl PortcoveService {
             availability,
             reason,
             definition,
+            restriction: None,
         };
         let definition = |operation| {
             status
                 .definition_operations
                 .iter()
-                .find(|item| item.operation == operation)
+                .find(|item| {
+                    item.operation == operation
+                        && (operation != DefinitionOperation::Install || !item.retained)
+                })
                 .map(|item| item.eligibility)
                 .filter(|eligibility| eligibility.outcome != DefinitionEligibilityOutcome::Eligible)
         };
@@ -2815,17 +3099,7 @@ impl PortcoveService {
             remove_external,
             update,
         ];
-        if crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, &status.port_id)
-            .is_some()
-        {
-            for assessment in &mut status.port_actions {
-                if crate::managed_runtime_policy::hold_withdraws(assessment.action) {
-                    assessment.availability = Availability::Held;
-                    assessment.reason = Reason::RouteNotOffered;
-                    assessment.definition = None;
-                }
-            }
-        }
+        crate::acquisition_restriction::assess_port_actions(&self.catalog, &mut status);
         let pending: bool = self.library.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&status.port_id],
@@ -2882,6 +3156,7 @@ impl PortcoveService {
             availability,
             reason,
             definition,
+            restriction: None,
         });
         status
     }
@@ -2902,16 +3177,13 @@ impl PortcoveService {
         platform: Platform,
         status: &PortStatus,
     ) -> Result<Option<crate::ManagedPackageVariant>> {
-        if !matches!(
+        let permits_saved = matches!(
             port.adapter,
             crate::AdapterKind::NativePortable | crate::AdapterKind::StagedSourcePortable
-        ) || port.release.provider != ReleaseSource::Github
-            || port.release.curated.contains_key(&platform)
-            || port.release.rolling_tag.is_some()
-        {
-            return Ok(None);
-        }
-        status
+        ) && port.release.provider == ReleaseSource::Github
+            && !port.release.curated.contains_key(&platform)
+            && port.release.rolling_tag.is_none();
+        let retained = status
             .active
             .as_ref()
             .filter(|install| install.channel == channel)
@@ -2922,8 +3194,15 @@ impl PortcoveService {
                     .filter(|install| install.channel == channel)
             })
             .map(crate::install::recorded_package_variant)
-            .transpose()
-            .map(Option::flatten)
+            .transpose()?
+            .flatten();
+        if let Some(variant) = retained
+            .as_ref()
+            .filter(|variant| variant.requires_explicit_proof())
+        {
+            variant.require_contract(port, channel, platform)?;
+        }
+        Ok(if permits_saved { retained } else { None })
     }
 
     async fn resolve_release_for_status(
@@ -2934,8 +3213,11 @@ impl PortcoveService {
         status: &PortStatus,
     ) -> Result<crate::ScopedResolvedRelease> {
         let variant = Self::saved_package_variant(port, channel, platform, status)?;
-        self.resolve_release_with_variant(port, channel, platform, variant.as_ref())
-            .await
+        let resolved = self
+            .resolve_release_with_variant(port, channel, platform, variant.as_ref())
+            .await?;
+        require_no_other_host_downgrade(status, &resolved)?;
+        Ok(resolved)
     }
 
     async fn resolve_release_with_variant(
@@ -2964,11 +3246,8 @@ impl PortcoveService {
                     .await?
             }
         };
-        Installer::new(self.library.clone())?.require_github_artifact_identity(
-            &port.id,
-            &resolved.release,
-            resolved.github_identity.as_ref(),
-        )?;
+        Installer::new(self.library.clone())?
+            .require_github_resolution_identity(&port.id, &resolved)?;
         Ok(resolved)
     }
 
@@ -2983,8 +3262,12 @@ impl PortcoveService {
             .resolve_release_for_status(port, channel, platform, status)
             .await?;
         if first_managed_install(status)
-            && let Some(verdict) =
-                self.current_package_shape_refusal(port, platform, &resolution.release)?
+            && let Some(verdict) = self.current_package_shape_refusal(
+                port,
+                platform,
+                &resolution.release,
+                Some(&resolution),
+            )?
         {
             return self
                 .resolve_shape_fallback(port, platform, &resolution)
@@ -3038,6 +3321,7 @@ impl PortcoveService {
         port: &PortDefinition,
         platform: Platform,
         release: &ResolvedRelease,
+        resolution: Option<&crate::ScopedResolvedRelease>,
     ) -> Result<Option<crate::package_shape::ShapeVerdict>> {
         let Some(capability) =
             crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
@@ -3050,6 +3334,7 @@ impl PortcoveService {
             platform,
             release,
             capability,
+            resolution,
             || {
                 Installer::new(self.library.clone())
                     .and_then(|installer| installer.local_shape_baseline(port, platform))
@@ -3202,12 +3487,7 @@ impl PortcoveService {
                     &status,
                 ))
                 .await?;
-            self.record_update_check(
-                port_id,
-                &status,
-                &release.release,
-                release.upstream_activity.as_ref(),
-            )
+            self.record_update_check_from_selection(port_id, &status, &release)
         }
         .await;
         self.finish_activity(activity, result)
@@ -3270,14 +3550,16 @@ impl PortcoveService {
             .is_some();
             // The individual check reports an invalid retained manifest. That
             // failure should not prevent estimating other games in the batch.
-            let cost = if Self::saved_package_variant(port, status.channel, platform, &status)
-                .is_ok_and(|variant| variant.is_some())
-            {
-                self.releases.forecast_saved_variant_request_cost(scoped)
-            } else {
-                self.releases
-                    .forecast_request_cost(port, platform, scoped)
-                    .await?
+            let cost = match Self::saved_package_variant(port, status.channel, platform, &status) {
+                Ok(Some(variant)) if variant.explicit_id().is_some() && !scoped => {
+                    self.releases.forecast_explicit_variant_request_cost()
+                }
+                Ok(Some(_)) => self.releases.forecast_saved_variant_request_cost(scoped),
+                _ => {
+                    self.releases
+                        .forecast_request_cost(port, platform, scoped)
+                        .await?
+                }
             };
             forecast.games = forecast.games.saturating_add(1);
             forecast.counted_requests = forecast
@@ -3290,12 +3572,39 @@ impl PortcoveService {
         Ok(forecast)
     }
 
-    fn record_update_check(
+    #[cfg(test)]
+    pub(crate) fn record_update_check(
         &self,
         port_id: &str,
         status: &PortStatus,
         release: &ResolvedRelease,
         observed_activity: Option<&crate::UpstreamActivity>,
+    ) -> Result<UpdateCheck> {
+        self.record_update_check_with_resolution(port_id, status, release, observed_activity, None)
+    }
+
+    fn record_update_check_from_selection(
+        &self,
+        port_id: &str,
+        status: &PortStatus,
+        resolution: &crate::ScopedResolvedRelease,
+    ) -> Result<UpdateCheck> {
+        self.record_update_check_with_resolution(
+            port_id,
+            status,
+            &resolution.release,
+            resolution.upstream_activity.as_ref(),
+            Some(resolution),
+        )
+    }
+
+    fn record_update_check_with_resolution(
+        &self,
+        port_id: &str,
+        status: &PortStatus,
+        release: &ResolvedRelease,
+        observed_activity: Option<&crate::UpstreamActivity>,
+        resolution: Option<&crate::ScopedResolvedRelease>,
     ) -> Result<UpdateCheck> {
         let port = self.catalog.port(port_id)?;
         let platform = Platform::current()?;
@@ -3319,7 +3628,8 @@ impl PortcoveService {
             .transpose()?
             .is_none_or(|matches| !matches);
         if update_available
-            && let Some(verdict) = self.current_package_shape_refusal(port, platform, release)?
+            && let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, release, resolution)?
         {
             return Err(crate::package_shape::withheld::refusal(
                 port, release, &verdict,
@@ -3350,7 +3660,24 @@ impl PortcoveService {
                     .filter(|activity| activity.describes(port)),
             },
         };
-        self.library.store_update_snapshot(&check)?;
+        // Serialize the final offer check and snapshot write with authenticated
+        // policy admission. Resolution may have finished before policy changed.
+        let mut connection = self.library.connection()?;
+        let transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        if update_available
+            && let Some((repository_id, asset_id)) =
+                Self::withdrawn_offer_identity(&transaction, port_id, release)?
+        {
+            return Err(
+                PortcoveError::conflict("curated artifact distribution is withdrawn")
+                    .detail("repository_id", repository_id.to_string())
+                    .detail("asset_id", asset_id.to_string())
+                    .detail("sha256", &release.asset.sha256),
+            );
+        }
+        Library::store_update_snapshot_from(&transaction, &check)?;
+        transaction.commit()?;
         Ok(check)
     }
 
@@ -3591,12 +3918,7 @@ impl PortcoveService {
                 ))
                 .await?;
             operation.observe_release(&release.release.version, None);
-            self.record_update_check(
-                port_id,
-                &status,
-                &release.release,
-                release.upstream_activity.as_ref(),
-            )?;
+            self.record_update_check_from_selection(port_id, &status, &release)?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -3702,6 +4024,7 @@ impl PortcoveService {
                 activate,
                 shared_preferences: None,
                 acquired: None,
+                explicit_package_proof_sha256: None,
             },
             reporter,
         )
@@ -3721,10 +4044,18 @@ impl PortcoveService {
         F: FnMut(OperationEvent),
     {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
+        if let Some(expected) = intent.explicit_package_proof_sha256.as_deref()
+            && resolution.explicit_package_proof_sha256()?.as_deref() != Some(expected)
+        {
+            return Err(PortcoveError::conflict(
+                "reviewed package proof changed; obtain a new review before acquisition",
+            ));
+        }
         let ReleaseIntent {
             activate,
             shared_preferences,
             acquired,
+            explicit_package_proof_sha256: _,
         } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
         let platform = Platform::current()?;
@@ -3867,6 +4198,7 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, staged)?;
             }
             let qualification = self.installed_mutability_qualification(staged)?;
+            crate::install::check_retained_launch_destination(staged, &staged.path)?;
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
@@ -3899,8 +4231,14 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, &existing)?;
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
+            crate::install::check_retained_launch_destination(&existing, &existing.path)?;
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&existing, &qualification)?;
+            if activate {
+                self.require_retained_n64_release_input(&existing, &|| {
+                    reporter.operation.checkpoint()
+                })?;
+            }
             if settings_activation {
                 reporter.operation.begin_publication()?;
                 self.library.register_install(&existing, false)?;
@@ -3948,9 +4286,22 @@ impl PortcoveService {
         if !settings_activation {
             self.collect_active_user_data_if_launched(&port.id)?;
         }
-        let source =
-            self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
+        let source = self.validate_and_remember_source(
+            port,
+            overrides.source,
+            (&release.version, &release.asset.sha256),
+            reporter.operation,
+        )?;
         reporter.operation.checkpoint()?;
+        if source.is_none() {
+            crate::source_inspection::verify_n64_release_input(
+                &self.catalog,
+                &port.id,
+                None,
+                (&release.version, &release.asset.sha256),
+                &|| reporter.operation.checkpoint(),
+            )?;
+        }
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
@@ -4071,12 +4422,7 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(
-                    port_id,
-                    &status,
-                    &release.release,
-                    release.upstream_activity.as_ref(),
-                )?;
+                let check = self.record_update_check_from_selection(port_id, &status, &release)?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -4151,6 +4497,7 @@ impl PortcoveService {
         &self,
         port: &PortDefinition,
         source_override: Option<&Path>,
+        release: (&str, &str),
         operation: &OperationCoordinator,
     ) -> Result<Option<SourceRecord>> {
         let Some(profile_id) = &port.source_profile else {
@@ -4161,7 +4508,13 @@ impl PortcoveService {
             let inspection = self.inspect_source(profile_id, path)?;
             let classification = inspection.assessment.classification.clone();
             let source = inspection.require_admitted_record()?;
-            self.require_original_setup_compatibility(port, &classification)?;
+            self.require_original_for_release(
+                port,
+                &source,
+                &classification,
+                Some(release),
+                &|| operation.checkpoint(),
+            )?;
             self.library.register_source(&source)?;
             return Ok(Some(source));
         }
@@ -4175,10 +4528,12 @@ impl PortcoveService {
         {
             return Ok(None);
         }
-        match self.verified_original_for_setup(port) {
+        match self.verified_original_for_setup(port, Some(release), &|| operation.checkpoint()) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), Some(port), operation)
+                .resolve_and_register_inbox_source(
+                    profile_id, Some(&port.id), Some(port), Some(release), operation,
+                )
                 .map(Some)
                 .or_else(|error| {
                     if port.optional_game_source && error.code == crate::ErrorCode::NotFound {
@@ -4233,7 +4588,7 @@ impl PortcoveService {
         match self.verified_source_record(profile_id) {
             Ok(source) => Ok(Some(source)),
             Err(error) if error.code == crate::ErrorCode::NotFound => self
-                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, operation)
+                .resolve_and_register_inbox_source(profile_id, Some(&port.id), None, None, operation)
                 .map(Some)
                 .map_err(|error| {
                     if error.code == crate::ErrorCode::NotFound {
@@ -4256,6 +4611,7 @@ impl PortcoveService {
         profile_id: &str,
         already_locked: Option<&str>,
         setup_port: Option<&PortDefinition>,
+        setup_release: Option<(&str, &str)>,
         operation: &OperationCoordinator,
     ) -> Result<SourceRecord> {
         if setup_port.is_some_and(|port| port.source_profile.as_deref() != Some(profile_id)) {
@@ -4266,7 +4622,8 @@ impl PortcoveService {
         let _guards = self.lock_source_dependents(profile_id, already_locked)?;
         if let Some(registered) = self.library.source(profile_id)? {
             if let Some(port) = setup_port {
-                return self.verified_original_for_setup(port);
+                return self
+                    .verified_original_for_setup(port, setup_release, &|| operation.checkpoint());
             }
             self.verify_source_record(&registered)?;
             return Ok(registered);
@@ -4297,7 +4654,13 @@ impl PortcoveService {
                 let classification = inspection.assessment.classification.clone();
                 let source = inspection.require_admitted_record()?;
                 if let Some(port) = setup_port {
-                    self.require_original_setup_compatibility(port, &classification)?;
+                    self.require_original_for_release(
+                        port,
+                        &source,
+                        &classification,
+                        setup_release,
+                        &|| operation.checkpoint(),
+                    )?;
                 }
                 self.library.register_source(&source)?;
                 Ok(source)
@@ -4452,6 +4815,7 @@ impl PortcoveService {
             let (port, qualification) = self
                 .rollback_target(port_id, &previous, status.active.as_ref(), true)
                 .map_err(|failure| failure.error)?;
+            self.require_retained_n64_release_input(&previous, &|| Ok(()))?;
             self.collect_active_user_data_if_launched(port_id)?;
             if let Some(active) = &status.active {
                 self.require_portable_rollback_transition(active, &previous)?;
@@ -4515,7 +4879,8 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
-        crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        crate::install::check_retained_launch_destination(previous, &previous.path)
+            .map_err(invalid)?;
         self.require_activation_uploader_continuity(previous, None)
             .map_err(|error| RollbackTargetFailure {
                 reason: if error
@@ -4655,6 +5020,7 @@ impl PortcoveService {
         let qualification = self.installed_mutability_qualification(&staged)?;
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
+        crate::install::check_retained_launch_destination(&staged, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
         crate::profile::require_default_recovery_capacity(
             &self.library.connection()?,
@@ -4908,6 +5274,10 @@ impl PortcoveService {
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
             crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
             self.require_definition_adoption(&self.catalog, port)?;
+            crate::managed_runtime_policy::require_fresh_adoption_available(
+                &self.catalog,
+                &port.id,
+            )?;
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
             }
@@ -5001,7 +5371,7 @@ impl PortcoveService {
                 path: payload_root.clone(),
                 ..install.clone()
             };
-            crate::install::check_retained_runtime_paths(&staged_install, &install.path)?;
+            crate::install::check_retained_launch_destination(&staged_install, &install.path)?;
             if !installer.verify(&staged_install)?.valid {
                 return Err(PortcoveError::verification(
                     "adopted payload failed its post-copy manifest verification",
@@ -6602,19 +6972,45 @@ impl PortcoveService {
         let mut arguments = Vec::new();
         let mut source_directory = None;
         if let Some(profile_id) = retained_port.source_profile.as_deref() {
-            let source = if let Some(path) = source_override {
-                crate::source_inspection::inspect_with_checkpoint(
+            let release = (record.version.as_str(), record.archive_sha256.as_str());
+            let checkpoint = || operation.checkpoint();
+            let migrated = self.uses_migrated_n64_original(retained_catalog, retained_port);
+            let source = match (source_override, migrated) {
+                (Some(path), true) => crate::source_inspection::inspect_n64_original(
                     retained_catalog,
                     profile_id,
                     path,
-                    &|| operation.checkpoint(),
+                    &checkpoint,
+                )?,
+                (Some(path), false) => crate::source_inspection::inspect_with_checkpoint(
+                    retained_catalog,
+                    profile_id,
+                    path,
+                    &checkpoint,
                 )?
-                .require_admitted_record()?
-            } else {
-                self.verified_source_record_with_checkpoint(retained_catalog, profile_id, &|| {
-                    operation.checkpoint()
-                })?
+                .require_admitted_record()?,
+                (None, true) => self.resolve_saved_n64_original(
+                    retained_catalog,
+                    &retained_port.id,
+                    profile_id,
+                    release,
+                    &checkpoint,
+                )?,
+                (None, false) => self.verified_source_record_with_checkpoint(
+                    retained_catalog,
+                    profile_id,
+                    &checkpoint,
+                )?,
             };
+            if !migrated {
+                crate::source_inspection::verify_n64_release_input(
+                    retained_catalog,
+                    &retained_port.id,
+                    Some(&source),
+                    release,
+                    &checkpoint,
+                )?;
+            }
             crate::source_inspection::require_launch_source_compatibility(
                 retained_catalog,
                 &retained_port.id,
@@ -6660,9 +7056,17 @@ impl PortcoveService {
                     "external source directory",
                 )?);
             }
-            Self::verify_source_record_with_checkpoint(retained_catalog, &source, &|| {
-                operation.checkpoint()
-            })?;
+            if migrated {
+                crate::source_inspection::verify_saved_n64_original(
+                    retained_catalog,
+                    &retained_port.id,
+                    &source,
+                    release,
+                    &mut crate::source_inspection::n64_input_hash_budget(&checkpoint),
+                )?;
+            } else {
+                Self::verify_source_record_with_checkpoint(retained_catalog, &source, &checkpoint)?;
+            }
         } else if source_override.is_some() {
             return Err(PortcoveError::usage(
                 "this external runtime does not accept a source override",
@@ -6899,7 +7303,8 @@ impl PortcoveService {
             &self.catalog,
             install,
         )?;
-        self.require_activation_uploader_continuity(install, fresh)
+        self.require_activation_uploader_continuity(install, fresh)?;
+        self.require_retained_n64_release_input(install, &|| Ok(()))
     }
 
     /// Uploader continuity for a build about to become active from stored facts
@@ -7406,6 +7811,7 @@ impl PortcoveService {
                 install_root,
                 &persistent_root,
                 &user_root,
+                excluded,
             )?
         {
             return Ok(copied);
@@ -7720,7 +8126,7 @@ fn repair_path_identity(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
-fn default_channel(port: &PortDefinition) -> ReleaseChannel {
+pub(crate) fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     if port.channels.contains(&ReleaseChannel::Stable) {
         ReleaseChannel::Stable
     } else {
@@ -7744,6 +8150,78 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
         .transpose()?
         .unwrap_or_else(|| "<library-default>".into());
     Ok(format!("{port_id}\n{destination}"))
+}
+
+/// The walk may pass newer releases whose players are only for another host.
+/// An installation of such a newer release keeps it: the older release this
+/// host can use is never offered to it as an update.
+fn require_no_other_host_downgrade(
+    status: &PortStatus,
+    resolved: &crate::ScopedResolvedRelease,
+) -> Result<()> {
+    let Some(active) = &status.active else {
+        return Ok(());
+    };
+    if resolved.newer_other_host_releases.contains(&active.version) {
+        return Err(PortcoveError::conflict(
+            "The installed version is newer than the latest release with a package for this computer. Portcove keeps the installed version.",
+        )
+        .detail("update_hold", "installed-release-newer-than-host-candidate")
+        .detail("installed_version", &active.version)
+        .detail("candidate_version", &resolved.release.version));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod other_host_downgrade_tests {
+    use super::*;
+
+    fn status(active: Option<&str>) -> PortStatus {
+        serde_json::from_value(serde_json::json!({
+            "port_id": "fixture", "channel": "stable", "update_policy": "notify",
+            "active": active.map(|version| serde_json::json!({
+                "id": "install", "port_id": "fixture", "version": version,
+                "path": "/fixture", "channel": "stable", "installed_at": 0,
+                "verified": true, "staged": false,
+            })),
+            "previous": null, "staged": null, "port_actions": [],
+        }))
+        .unwrap()
+    }
+
+    fn resolved(newer: &[&str]) -> crate::ScopedResolvedRelease {
+        let mut resolved = crate::ScopedResolvedRelease::legacy(ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "game-windows-x64.zip".into(),
+                url: "https://example.invalid/game-windows-x64.zip".into(),
+                size: 1,
+                sha256: "a".repeat(64),
+            },
+            uploader_continuity: None,
+        });
+        resolved.newer_other_host_releases = newer.iter().map(|tag| (*tag).into()).collect();
+        resolved
+    }
+
+    #[test]
+    fn an_installed_release_newer_than_the_host_candidate_is_held_not_downgraded() {
+        let error = require_no_other_host_downgrade(&status(Some("v2")), &resolved(&["v3", "v2"]))
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            error.details.get("update_hold").map(String::as_str),
+            Some("installed-release-newer-than-host-candidate")
+        );
+        // An older installation still receives the newest release for this host,
+        // and a fresh install takes it too (#8555 defect 1).
+        require_no_other_host_downgrade(&status(Some("v0")), &resolved(&["v2"])).unwrap();
+        require_no_other_host_downgrade(&status(None), &resolved(&["v2"])).unwrap();
+        require_no_other_host_downgrade(&status(Some("v1")), &resolved(&[])).unwrap();
+    }
 }
 
 fn first_managed_install(status: &PortStatus) -> bool {
@@ -8064,7 +8542,7 @@ mod tests {
 
     use std::{
         sync::{
-            Arc, Condvar, Mutex,
+            Arc, Mutex,
             atomic::{AtomicBool, AtomicUsize, Ordering},
             mpsc,
         },
@@ -8117,7 +8595,7 @@ mod tests {
         assert!(!options.allowed);
         assert_eq!(
             options.reason.as_deref(),
-            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, id)
+            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, id).as_deref()
         );
     }
 
@@ -8724,8 +9202,14 @@ mod tests {
             programs: Some(vec!["alternate.exe".into()]),
             ..PackageShape::default()
         };
-        let (verdict, provenance) =
-            crate::package_shape::evaluate(port, platform, &latest.asset.sha256, &shape, None);
+        let (verdict, provenance) = crate::package_shape::evaluate(
+            port,
+            platform,
+            &latest.asset.sha256,
+            &shape,
+            None,
+            None,
+        );
         assert!(matches!(verdict, ShapeVerdict::Drifted { .. }));
         crate::package_shape::withheld::record(
             &library,
@@ -9099,19 +9583,24 @@ mod tests {
         sha256: String,
     }
 
-    #[derive(Clone)]
+    // The first provider call follows real SQLite activity and status reads.
+    const RELEASE_START_TIMEOUT: Duration = Duration::from_secs(90);
+
     struct BlockingReleaseProvider {
         version: String,
-        first_started: mpsc::Sender<ReleaseChannel>,
+        first_call: Mutex<Option<ReleaseRendezvous>>,
         observed_channels: Arc<Mutex<Vec<ReleaseChannel>>>,
-        gate: Arc<(Mutex<bool>, Condvar)>,
-        calls: Arc<AtomicUsize>,
+    }
+
+    struct ReleaseRendezvous {
+        started: tokio::sync::oneshot::Sender<ReleaseChannel>,
+        resume: tokio::sync::oneshot::Receiver<()>,
     }
 
     struct BlockingReleaseHarness {
         provider: Arc<BlockingReleaseProvider>,
-        started: mpsc::Receiver<ReleaseChannel>,
-        gate: Arc<(Mutex<bool>, Condvar)>,
+        started: tokio::sync::oneshot::Receiver<ReleaseChannel>,
+        resume: tokio::sync::oneshot::Sender<()>,
         observed: Arc<Mutex<Vec<ReleaseChannel>>>,
     }
 
@@ -9124,13 +9613,10 @@ mod tests {
             _platform: Platform,
         ) -> Result<ResolvedRelease> {
             self.observed_channels.lock().unwrap().push(channel);
-            if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
-                self.first_started.send(channel).unwrap();
-                let (lock, wake) = &*self.gate;
-                let mut released = lock.lock().unwrap();
-                while !*released {
-                    released = wake.wait(released).unwrap();
-                }
+            let first_call = self.first_call.lock().unwrap().take();
+            if let Some(first_call) = first_call {
+                first_call.started.send(channel).unwrap();
+                first_call.resume.await.unwrap();
             }
             Ok(ResolvedRelease {
                 version: self.version.clone(),
@@ -9148,27 +9634,22 @@ mod tests {
     }
 
     fn release_blocker(version: &str) -> BlockingReleaseHarness {
-        let (started, receiver) = mpsc::channel();
-        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (resume, resume_received) = tokio::sync::oneshot::channel();
         let observed = Arc::new(Mutex::new(Vec::new()));
         BlockingReleaseHarness {
             provider: Arc::new(BlockingReleaseProvider {
                 version: version.into(),
-                first_started: started,
+                first_call: Mutex::new(Some(ReleaseRendezvous {
+                    started,
+                    resume: resume_received,
+                })),
                 observed_channels: observed.clone(),
-                gate: gate.clone(),
-                calls: Arc::new(AtomicUsize::new(0)),
             }),
-            started: receiver,
-            gate,
+            started: ready,
+            resume,
             observed,
         }
-    }
-
-    fn release_blocker_continue(gate: &Arc<(Mutex<bool>, Condvar)>) {
-        let (lock, wake) = &**gate;
-        *lock.lock().unwrap() = true;
-        wake.notify_all();
     }
 
     #[async_trait::async_trait]
@@ -15273,6 +15754,8 @@ fn main() {
         let mut document = service.catalog().authoritative_document();
         let mut port = service.catalog().port("zelda64-recomp").unwrap().clone();
         port.id = "external-source-probe".into();
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
         port.manually_validated_platforms.clear();
@@ -15837,6 +16320,8 @@ fn main() {
             .unwrap()
             .clone();
         port.id = "external-probe".into();
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.name = "External probe".into();
         port.platforms = vec![platform];
         port.automated_tested_platforms.clear();
@@ -20224,7 +20709,11 @@ fn main() {
         assert_eq!(profile.port_id, ID);
         let error = service.activate_profile(ID, &profile.id).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Unsupported);
-        assert!(error.message.contains("no reviewed mod package contract"));
+        assert!(
+            error
+                .message
+                .contains("neither setup has a reviewed mod loader")
+        );
         assert!(!crate::profile_deploy::restore_pending(
             &library.user_dir(ID)
         ));
@@ -22419,24 +22908,23 @@ fn main() {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn reconcile_uses_post_lock_policy_and_staged_state() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", true);
         let blocker = release_blocker("v2");
-        let service =
-            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
-        let task_service = service.clone();
-        let reconcile =
-            tokio::spawn(async move { task_service.reconcile("zelda64-recomp", |_| {}).await });
-        assert_eq!(
-            blocker
-                .started
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap(),
-            ReleaseChannel::Stable
-        );
+        let service = PortcoveService::with_provider(library.clone(), blocker.provider).unwrap();
+        let reconcile = service.reconcile("zelda64-recomp", |_| {});
+        tokio::pin!(reconcile);
+        let deadline = tokio::time::sleep(RELEASE_START_TIMEOUT);
+        let channel = tokio::select! {
+            biased;
+            _ = deadline => panic!("Timed out waiting for reconcile to resolve a release"),
+            channel = blocker.started => channel.unwrap(),
+            premature = &mut reconcile => panic!("Reconcile completed before resolving: {premature:?}"),
+        };
+        assert_eq!(channel, ReleaseChannel::Stable);
 
         register_zelda_install(&library, "v2", false);
         library
@@ -22446,9 +22934,9 @@ fn main() {
                 ReleaseChannel::Stable,
             )
             .unwrap();
-        release_blocker_continue(&blocker.gate);
+        blocker.resume.send(()).unwrap();
 
-        let result = reconcile.await.unwrap().unwrap();
+        let result = reconcile.await.unwrap();
         assert_eq!(result.policy, UpdatePolicy::Automatic);
         assert_eq!(result.action, ReconcileAction::Activated);
         assert_eq!(result.install.unwrap().version, "v2");
@@ -22457,7 +22945,7 @@ fn main() {
         assert!(status.staged.is_none());
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn reconcile_retries_a_changed_channel_before_acting() {
         let platform = Platform::current().unwrap();
         if !Catalog::embedded()
@@ -22479,25 +22967,24 @@ fn main() {
         write_host_test_executable(&path, "g-diffuser");
         register_existing_test_install(&library, "g-diffuser", "v1", &path, true);
         let blocker = release_blocker("v2");
-        let service =
-            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
-        let task_service = service.clone();
-        let reconcile =
-            tokio::spawn(async move { task_service.reconcile("g-diffuser", |_| {}).await });
-        assert_eq!(
-            blocker
-                .started
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap(),
-            ReleaseChannel::Stable
-        );
+        let service = PortcoveService::with_provider(library.clone(), blocker.provider).unwrap();
+        let reconcile = service.reconcile("g-diffuser", |_| {});
+        tokio::pin!(reconcile);
+        let deadline = tokio::time::sleep(RELEASE_START_TIMEOUT);
+        let channel = tokio::select! {
+            biased;
+            _ = deadline => panic!("Timed out waiting for reconcile to resolve a release"),
+            channel = blocker.started => channel.unwrap(),
+            premature = &mut reconcile => panic!("Reconcile completed before resolving: {premature:?}"),
+        };
+        assert_eq!(channel, ReleaseChannel::Stable);
 
         library
             .set_channel("g-diffuser", ReleaseChannel::Beta)
             .unwrap();
-        release_blocker_continue(&blocker.gate);
+        blocker.resume.send(()).unwrap();
 
-        let result = reconcile.await.unwrap().unwrap();
+        let result = reconcile.await.unwrap();
         assert_eq!(result.policy, UpdatePolicy::Notify);
         assert_eq!(result.action, ReconcileAction::Notify);
         assert_eq!(result.check.channel, ReleaseChannel::Beta);

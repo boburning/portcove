@@ -26,6 +26,37 @@ import {
 } from "./fixtures/catalog-generator-fixtures.mts";
 import type { FixtureCatalog } from "./fixtures/catalog-generator-fixtures.mts";
 
+import { checkedAuthoredPort, projectAuthoredPort } from "./catalog-authoring.mts";
+
+void test("generator fixture retains an exact authored unresolved review without publishing it", () => {
+  const id = "alexbeav-kings-field-recomp";
+  const fixture = isolatedGenerator();
+  const original = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", `${id}.json`))),
+    id,
+  );
+  const retained = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(fixture.catalogs, "ports", `${id}.json`))),
+    id,
+  );
+  assert.equal(original.original_game_review?.disposition, "unresolved");
+  assert.equal(original.listing.original_game, undefined);
+  assert.equal(retained.listing.id, original.listing.id);
+  assert.equal(retained.integration?.source_profile, original.integration?.source_profile);
+  assert.deepEqual(retained.original_game_review, original.original_game_review);
+  const projected = requiredFixture(projectAuthoredPort(retained));
+  assert.equal(Object.hasOwn(projected, "original_game_review"), false);
+  assert.equal(projected.presentation?.original_game, undefined);
+  assert.deepEqual(
+    projected,
+    requiredFixture(
+      fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json")))).ports.find(
+        (port) => port.id === id,
+      ),
+    ),
+  );
+});
+
 type EditExpected = { port_ids: string[]; source_profile_ids: string[]; approve?: boolean };
 
 // Each case must fail for its own reason, not an earlier unrelated refusal.
@@ -270,12 +301,22 @@ void test("explicit IGDB hero preparation retains unknown acquisition when its s
   );
   assert.equal(result.status, 0, result.stderr);
   const evidence = fixtureJson(readFileSync(join(output, "artwork-evidence.json"), "utf8"));
-  const media = records(record(evidence.game_media).records);
+  const gameMedia = record(evidence.game_media);
+  const media = records(gameMedia.records);
+  const coverage = records(gameMedia.coverage);
+  assert.ok(coverage.every((item) => item.port_id === "shipwright"));
+  const exactCoverage = coverage.filter((item) => record(item.subject).kind === "port");
+  assert.deepEqual(
+    exactCoverage.map((item) => [item.role, item.provider, item.state]),
+    [
+      ["header", "igdb", "unknown"],
+      ["screenshot", "igdb", "unknown"],
+    ],
+  );
   const exactPort = media.filter((item) => record(item.subject).kind === "port");
-  assert.equal(exactPort.length, 2);
   assert.deepEqual(
     exactPort.map((item) => item.role),
-    ["key_art", "logo"],
+    ["key_art", "logo", "header", "screenshot"],
   );
   assert.ok(
     media.every(
