@@ -1228,6 +1228,99 @@ void test("format 14 edition bindings require both released capabilities and sta
   assert.deepEqual(withdrawn.listings[0]!.original_game, original);
 });
 
+void test("format 15 restrictions require the released reader and never reach older readers weaker", async () => {
+  const { fixtureListing, fixtureDelivery } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery, requireCompactListingReader } =
+    await import("./listing-observation-delivery.mts");
+  const {
+    compactListingCarrier,
+    compactListingDecodedMaximum,
+    encodeCompactListing,
+    decodeRetainedCompactListing,
+  } = await import("./listing-directory-carrier.mts");
+  const release = (listing_formats: number[]) => ({
+    ok: true,
+    command: "capabilities",
+    data: {
+      product: "Portcove",
+      product_version: "fixture",
+      listing_formats,
+      listing_delivery_carriers: [compactListingCarrier],
+    },
+  });
+  assert.throws(
+    () => requireCompactListingReader(release([12, 13, 14]), 15),
+    /gzip-base64-json-v1 and listing format 15/u,
+  );
+  assert.equal(requireCompactListingReader(release([13, 14, 15]), 15), "fixture");
+
+  const reason = "Fresh acquisition remains held for the documented permissions.";
+  const restrictions = [
+    {
+      id: "download",
+      effect: "hold",
+      operations: ["download"],
+      reason: "bundled-game-data",
+      explanation: reason,
+      tracking_issue: 1,
+    },
+  ];
+  // Core exports the legacy string before its typed source; earlier formats
+  // keep only the string (catalog/listings.rs export_format).
+  const legacy = { ...fixtureListing, download_block_reason: reason };
+  const current = { ...legacy, restrictions };
+  const canonical = { format_version: 15, listings: [current] };
+  const old = decodedListingDelivery(fixtureDelivery());
+  const prior14 = Buffer.from(
+    JSON.stringify({ ...old, directory: { format_version: 14, listings: [fixtureListing] } }),
+  );
+  const projected = projectListingDelivery(
+    canonical,
+    [],
+    prior14,
+    0,
+    compactListingDecodedMaximum,
+    canonical,
+    new Set(),
+    0,
+    [],
+    true,
+  );
+  const decoded = decodedListingDelivery(
+    decodeRetainedCompactListing(encodeCompactListing(projected.bytes)),
+  );
+  assert.equal(decoded.directory.format_version, 15);
+  assert.equal(decoded.directory.listings[0]!.download_block_reason, reason);
+  assert.deepEqual(decoded.directory.listings[0]!.restrictions, restrictions);
+
+  const legacyProjection = projectListingDelivery(canonical, [], fixtureDelivery(), 0, undefined, {
+    format_version: 11,
+    listings: [legacy],
+  });
+  const oldDirectory = decodedListingDelivery(legacyProjection.bytes).directory;
+  assert.equal(oldDirectory.format_version, 11);
+  assert.equal(oldDirectory.listings[0]!.download_block_reason, reason);
+  assert.equal(oldDirectory.listings[0]!.restrictions, undefined);
+
+  assert.throws(
+    () =>
+      projectListingDelivery(
+        { format_version: 16, listings: [current] },
+        [],
+        null,
+        0,
+        compactListingDecodedMaximum,
+        undefined,
+        new Set(),
+        0,
+        [],
+        true,
+      ),
+    /supported bounded canonical directory/u,
+  );
+});
+
 void test("complete format-13 compact snapshots keep authored scenes and format-12 explanations", async () => {
   const { fixtureListing, fixtureDelivery } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
