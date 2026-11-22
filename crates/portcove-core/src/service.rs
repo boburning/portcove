@@ -295,6 +295,9 @@ pub struct BackupActionPreview {
     pub safety_backup_will_be_created: bool,
     pub retained_runtime_copy_will_be_deleted: bool,
     pub preview_sha256: String,
+    /// The library, installation scope and materialized setup reviewed for a restore.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_target_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -5198,6 +5201,10 @@ impl PortcoveService {
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
             crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
             self.require_definition_adoption(&self.catalog, port)?;
+            crate::managed_runtime_policy::require_fresh_adoption_available(
+                &self.catalog,
+                &port.id,
+            )?;
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
             }

@@ -72,7 +72,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
+    plan_install_batch review_game_setting review_game_settings_change_set review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),

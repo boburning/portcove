@@ -2618,8 +2618,9 @@ pub struct UploaderContinuityRecord {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
     /// Requests budgeted against the provider's primary rate limit. A saved
-    /// GitHub package choice budgets the bounded fresh inventory even when
-    /// cached conditional responses could lower the actual cost.
+    /// GitHub package choice budgets a typical fresh inventory (three asset
+    /// pages per release); larger releases and cached conditional responses can
+    /// make the actual cost higher or lower. The forecast is advisory.
     pub counted_requests: u32,
     /// The part of `counted_requests` that signing in would move to a higher limit.
     /// A managed-definition port deliberately sends no credential, so it never counts here.

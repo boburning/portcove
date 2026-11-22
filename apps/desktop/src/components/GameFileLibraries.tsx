@@ -1,3 +1,9 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import {
+  applyReviewedSourceImport,
+  sourceImportApplyError,
+  sourceImportCancelledWithoutChanges,
+} from "../features/source-intake/source-registration-receipt";
 import { gameIdentityLabel } from "../port-identity";
 import { countMessage, useAppTranslation } from "../localization";
 import { FolderSetupChoice } from "./FolderSetupChoice";
@@ -216,7 +222,7 @@ function ContinueToGame({
   registeredSource?: SourceRecord | undefined;
   sourceVisible: boolean;
   busy: boolean;
-  retryRefresh?: (() => void) | undefined;
+  retryRefresh?: ((trigger: HTMLButtonElement) => void) | undefined;
   ports: PortDefinition[];
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
 }) {
@@ -236,7 +242,12 @@ function ContinueToGame({
           : "The game files were added, but this view has not refreshed. Use Retry refresh before continuing to a game."}
       </p>
       {!sourceVisible && retryRefresh && (
-        <Button data-focusable variant="outline" disabled={busy} onClick={retryRefresh}>
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={busy}
+          onClick={(event) => retryRefresh(event.currentTarget)}
+        >
           Retry refresh
         </Button>
       )}
@@ -247,6 +258,7 @@ function ContinueToGame({
             data-focusable
             variant="outline"
             disabled={!sourceVisible}
+            data-source-setup-action
             onClick={() => onOpenPort(port.id, setupReturnOrigin)}
           >
             Open {port.name} details
@@ -960,7 +972,9 @@ function useSavedFolderFocus({
   const focusAfterScan = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   const reviewedCandidate = useRef<{ profile_id: string; path: string } | undefined>(undefined);
   const focusAfterReview = useRef(false);
-  const focusToSetup = useRef(false);
+  const focusToSetup = useRef<true | { trigger: HTMLButtonElement; accepts: () => boolean }>(
+    undefined,
+  );
   useEffect(() => {
     if (scanning || viewCompletion !== completion || !focusAfterScan.current) return;
     const candidate = focusAfterScan.current;
@@ -990,13 +1004,22 @@ function useSavedFolderFocus({
     const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
     if (!scope?.getClientRects().length) return;
     focusAfterReview.current = false;
-    if (focusToSetup.current) {
-      focusToSetup.current = false;
+    const setupFocus = focusToSetup.current;
+    focusToSetup.current = undefined;
+    if (setupFocus) {
+      const retry = setupFocus === true ? undefined : setupFocus;
+      const focused = document.activeElement;
+      if (retry && (!retry.accepts() || (focused !== retry.trigger && focused !== document.body)))
+        return;
       const setup = scope.querySelector<HTMLButtonElement>(
-        '[aria-label="Continue to a game"] button:not(:disabled)',
+        "[data-source-setup-action]:not(:disabled)",
       );
       if (setup) {
         setup.focus();
+        return;
+      }
+      if (retry?.trigger.isConnected && !retry.trigger.disabled) {
+        retry.trigger.focus();
         return;
       }
     }
@@ -1027,8 +1050,9 @@ function useSavedFolderFocus({
     restoreReviewFocus: () => {
       focusAfterReview.current = true;
     },
-    focusSetupAfterReview: () => {
-      focusToSetup.current = true;
+    focusSetupAfterReview: (retry?: { trigger: HTMLButtonElement; accepts: () => boolean }) => {
+      focusAfterReview.current = true;
+      focusToSetup.current = retry ?? true;
     },
   };
 }
@@ -1070,6 +1094,7 @@ export function GameFileLibraries({
   onOpenScan?: (() => void) | undefined;
 }) {
   const { t } = useAppTranslation("gameFiles");
+  const perform = useOperationPresentation()?.perform;
   const headingId = `${instanceId}-heading`;
   const returnOrigin = `${instanceId}-setup`;
   const openPort = onOpenPort ? (id: string) => onOpenPort(id, returnOrigin) : undefined;
@@ -1234,12 +1259,7 @@ export function GameFileLibraries({
     refreshConfirmed &&
     !workspaceRefreshFailed &&
     registeredSource &&
-    registeredSources.some(
-      (source) =>
-        source.profile_id === registeredSource.profile_id &&
-        source.path === registeredSource.path &&
-        source.sha256 === registeredSource.sha256,
-    ),
+    registeredSources.some((source) => JSON.stringify(source) === JSON.stringify(registeredSource)),
   );
   const {
     heading,
@@ -1399,14 +1419,20 @@ export function GameFileLibraries({
       "Saving game-file location…",
       async () => {
         if (!plan) return;
-        const result = await desktopApi.importSource(
-          plan.profile_id,
-          plan.source.path,
-          plan.mode,
-          plan.plan_sha256,
+        const { result, refreshFailed } = await applyReviewedSourceImport({
+          perform,
+          plan,
           generation,
-        );
-        if (!accepts()) return;
+          label:
+            profiles.find((profile) => profile.id === plan.profile_id)?.label ?? plan.profile_id,
+          action: "Save game-file location",
+          refresh: onAdded,
+        }).catch((value: unknown) => {
+          if (sourceImportCancelledWithoutChanges(value)) throw value;
+          setPlan(undefined);
+          throw new Error(sourceImportApplyError(value));
+        });
+        if (!accepts() || result === undefined) return;
         if (!result) {
           setNotice(
             "Adding game files was cancelled. Check the current state before trying again.",
@@ -1415,26 +1441,23 @@ export function GameFileLibraries({
         }
         restoreReviewFocus();
         setPlan(undefined);
-        setNotice(sourceImportNotice(result));
-        setRefreshConfirmed(false);
+        setNotice(refreshFailed ? sourceImportRefreshNotice(result) : sourceImportNotice(result));
+        setRefreshConfirmed(!refreshFailed);
         setRegisteredSource(result.registered);
-        try {
-          await onAdded?.();
-          setRefreshConfirmed(true);
-          focusSetupAfterReview();
-        } catch {
-          setNotice(sourceImportRefreshNotice(result));
-        }
+        if (!refreshFailed) focusSetupAfterReview();
       },
       "Adding game files was cancelled. Refresh the workspace to confirm the current state.",
     );
-  const retryRefresh = () =>
+  const retryRefresh = (trigger: HTMLButtonElement) =>
     run("Refreshing library…", async () => {
       try {
         await onAdded?.();
+        if (!accepts()) return;
         setRefreshConfirmed(true);
         setNotice("Library view refreshed. The game files were already added.");
+        focusSetupAfterReview({ trigger, accepts });
       } catch {
+        if (!accepts()) return;
         setNotice(
           "The game files were added, but the view still couldn't refresh. Try again later.",
         );
@@ -1613,7 +1636,7 @@ export function GameFileLibraries({
       registeredSource={registeredSource}
       sourceVisible={sourceVisible}
       busy={Boolean(busy)}
-      retryRefresh={onAdded ? () => void retryRefresh() : undefined}
+      retryRefresh={onAdded ? (trigger) => void retryRefresh(trigger) : undefined}
       ports={ports}
       onOpenPort={openPort}
     />

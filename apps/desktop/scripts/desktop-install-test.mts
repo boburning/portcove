@@ -60,6 +60,7 @@ interface RefreshObservations {
   request?: InstallFixture["requests"][number];
   commands_before_retry?: string[];
   commands_after_retry?: string[];
+  activity_ids_after_retry?: string[];
   retry_commands?: string[];
   retry_did_not_repeat_install?: boolean;
   failure?: string;
@@ -80,7 +81,17 @@ import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import { captureKeyboardTarget } from "./desktop-capture-target.mts";
 import assert from "node:assert/strict";
-import { copyFile, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import {
   revealDetailSection,
@@ -676,6 +687,34 @@ export async function installScenarios({
       assert.equal(required(fixture.requests[requestIndex]).completed, true);
       assert.equal(required(fixture.requests[requestIndex]).bytes_sent, fixture.artifact.length);
 
+      const boot = transportValue(
+        "desktop_bootstrap_status",
+        success(await invoke("get_bootstrap_status")),
+      );
+      const intents = transportValue(
+        "desktop_port_intents",
+        success(await invoke("get_port_intents", { generation: boot.generation })),
+      );
+      assert.equal(
+        intents.some((intent) => intent.mode === "set_up_when_ready"),
+        false,
+        "The isolated retry fixture must have no standing game-install consent",
+      );
+      const roots = transportValue(
+        "desktop_game_file_roots",
+        success(await invoke("get_game_file_roots", { generation: boot.generation })),
+      );
+      assert.deepEqual(roots, [], "The isolated retry fixture must have no standing folder setup");
+      const operationalActivityIds = async () => {
+        const feed = transportValue("activity", success(await invoke("get_activities")));
+        assert.ok(feed.terminal_history_complete && feed.active_and_actionable_complete);
+        return feed.records
+          .filter(({ operation }) => operation !== "update_catalog")
+          .map(({ id }) => id)
+          .sort();
+      };
+      const activityIds = await operationalActivityIds();
+      assert.ok(activityIds.includes(succeeded.id));
       observations.activity_id = succeeded.id;
       observations.installed = installed.active;
       observations.request = required(fixture.requests[requestIndex]);
@@ -714,9 +753,18 @@ export async function installScenarios({
         );
         return buttons.length === 0;
       }, 15_000);
+      // Job 136875392758 still showed an in-flight library refresh at 15 s.
+      // Require the same Ready state on the exact owned game before inspecting replay.
       await browser.wait(
-        until.elementLocated(By.xpath('//*[normalize-space(.)="Ready to play"]')),
-        15_000,
+        until.elementLocated(
+          By.xpath(
+            '//*[@data-detail-port-id="' +
+              port.id +
+              '"]//*[@data-detail-readiness][normalize-space(.)="Ready to play"]',
+          ),
+        ),
+        60_000,
+        "The exact installed game must become Ready to play after the library refresh",
       );
       observations.commands_after_retry = await executeBrowserScript(browser, () => {
         const runtime = window as InstallWindow;
@@ -727,8 +775,14 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
-      // A refreshed workspace lets the detail re-read its views. The independent
-      // scheduled catalog refresh may also run; none may repeat the game install.
+      observations.activity_ids_after_retry = await operationalActivityIds();
+      assert.deepEqual(observations.activity_ids_after_retry, activityIds);
+      const current = (await statuses()).find((item) => item.port_id === port.id);
+      assert.deepEqual(current?.active, installed.active);
+      assert.equal(current?.staged, null);
+      // A catalog refresh can start the normal catch-up pass with no standing
+      // install consent (job 137010297933). Check the resulting Core activity and
+      // installation as well as the renderer commands to rule out setup replay.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
@@ -737,10 +791,14 @@ export async function installScenarios({
         "get_launch_failure",
         "get_runtime_prerequisites",
         "get_port_capabilities",
+        // The reopened game details can read the CLI handoff context.
+        "get_cli_command_context",
+        "get_automatic_snapshots",
         "get_mod_setups",
         "get_backups",
         "get_artwork",
         "refresh_official_catalog_automatically",
+        "run_standing_setup",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(
@@ -978,6 +1036,119 @@ export async function installScenarios({
     artifacts.push(report);
   });
 
+  await scenario("native-managed-copy-result", async () => {
+    const owned = required(fixture);
+    assert.equal(owned.managedCopyJourney, true);
+    const port = owned.port;
+    const release = required(port.release.direct["windows-x86-64"]);
+    const state = async () =>
+      required((await statuses()).find(({ port_id }) => port_id === port.id));
+    const activity = async () => {
+      const feed = transportValue("activity", success(await invoke("get_activities")));
+      assert.ok(feed.active_and_actionable_complete && feed.terminal_history_complete);
+      return feed.records.filter(({ target_id }) => target_id === port.id);
+    };
+    const before = await state();
+    const external = required(before.external_runtime);
+    assert.ok(!before.active && external.user_selected);
+    const externalDirectory = path.join(output, "managed-copy-external");
+    const executable = path.join(externalDirectory, "external-fixture.exe");
+    const existingFiles = [executable, path.join(externalDirectory, "external-save.txt")];
+    assert.equal(await realpath(external.executable), await realpath(executable));
+    const externalRoot = await realpath(external.path);
+    assert.equal(externalRoot, await realpath(externalDirectory));
+    const preserved = await Promise.all(existingFiles.map((file) => fileIdentity(file)));
+    const beforeActivity = await activity();
+    const oldOperations = new Set(beforeActivity.map(({ id }) => id));
+    const oldRequests = owned.requests.length;
+    await openFixture(port, true);
+    await revealDetailSection(browser, "Game files");
+    const trigger = button("Review a Portcove-managed copy…");
+    await clickVisible(browser, await browser.findElement(trigger));
+    const dialog = By.css('[role="dialog"]');
+    const submit = await browser.wait(until.elementLocated(button("Create managed copy")), 60_000);
+    await browser.wait(until.elementIsEnabled(submit), 60_000);
+    const review = await browser.findElement(dialog);
+    const reviewText = await review.getText();
+    assert.ok(reviewText.includes(port.name) && reviewText.includes(release.version));
+    assert.match(reviewText, /external files stay where they are/);
+    assert.deepEqual((await state()).external_runtime, external);
+    assert.ok(!(await state()).active);
+    assert.deepEqual(await activity(), beforeActivity);
+    assert.equal(owned.requests.length, oldRequests);
+    assert.deepEqual(await Promise.all(existingFiles.map((file) => fileIdentity(file))), preserved);
+    const evidence: string[] = [];
+    const capture = async (name: string) => {
+      const screenshot = path.join(output, name + ".png");
+      await writeFile(screenshot, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(screenshot);
+      evidence.push(screenshot);
+    };
+    await capture("native-managed-copy-review");
+    await clickVisible(browser, submit);
+    const receipt = By.xpath(
+      '//section[@data-slot="notice" and .//p[@data-slot="notice-body" and starts-with(normalize-space(.), "Created a managed copy of ")]]',
+    );
+    const first = await browser.wait(until.elementLocated(receipt), 60_000);
+    assert.ok((await first.getText()).includes(release.version));
+    const committed = await state();
+    const active = required(committed.active);
+    assert.equal(active.port_id, port.id);
+    assert.equal(active.version, release.version);
+    assert.equal(active.artifact.sha256, release.sha256);
+    const managedRoot = await realpath(active.path);
+    assert.ok(path.relative(externalRoot, managedRoot).startsWith(".." + path.sep));
+    assert.ok(path.relative(managedRoot, externalRoot).startsWith(".." + path.sep));
+    assert.ok(!committed.external_runtime);
+    assert.equal(owned.requests.length, oldRequests + 1);
+    const transfer = required(owned.requests[oldRequests]);
+    assert.equal(transfer.request_path, new URL(release.url).pathname);
+    assert.equal(transfer.bytes_sent, release.size);
+    assert.equal(transfer.completed, true);
+    assert.deepEqual(await Promise.all(existingFiles.map((file) => fileIdentity(file))), preserved);
+    await selectPrimaryNavigation(browser, "Activity");
+    await browser.wait(
+      until.elementLocated(By.xpath('//main//h1[normalize-space(.)="Activity"]')),
+      15_000,
+    );
+    await selectPrimaryNavigation(browser, "Library");
+    const retained = await browser.wait(until.elementLocated(receipt), 15_000);
+    assert.ok((await retained.getText()).includes(port.name));
+    const openGame = await browser.wait(
+      async () => {
+        const notice = (await browser.findElements(receipt))[0];
+        const action = (
+          await notice?.findElements(By.xpath('.//button[normalize-space(.)="Open game"]'))
+        )?.[0];
+        return action && (await action.isEnabled()) ? action : undefined;
+      },
+      60_000,
+      "The retained receipt must offer Open game after Core confirms the exact installation",
+    );
+    await capture("native-managed-copy-retained-result");
+    await clickVisible(browser, required(openGame));
+    const detail = By.css('[data-detail-workspace][data-detail-port-id="' + port.id + '"]');
+    await browser.wait(until.elementLocated(detail), 15_000);
+    assert.equal(required((await state()).active).id, active.id);
+    assert.equal(owned.requests.length, oldRequests + 1);
+    const newOperations = (await activity()).filter(({ id }) => !oldOperations.has(id));
+    assert.deepEqual(
+      newOperations.map(({ operation, status }) => ({ operation, status })),
+      [{ operation: "install", status: "succeeded" }],
+    );
+    const report = path.join(output, "native-managed-copy-result.json");
+    await writeFile(
+      report,
+      JSON.stringify({ external, active, preserved, newOperations, evidence }),
+      {
+        flag: "wx",
+      },
+    );
+    artifacts.push(report);
+  });
   await scenario("native-update-acquisition-lifecycle", async () => {
     assert.equal(process.platform, "win32");
     assert.equal(path.resolve(library), path.resolve(output, "library"));
@@ -1356,10 +1527,12 @@ export async function installScenarios({
       await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
       observations.command_play = { port_id: active.port_id, install_id: active.id, generation };
     };
-    const play = async (startPlay = async (_active: InstallRecord) => click("Play")) => {
+    const play = async (
+      startPlay = async (_active: InstallRecord) => click("Play"),
+      expectedActive?: InstallRecord,
+    ) => {
       assert.equal(await exists(marker), false, "Each owned launch requires an unreleased marker");
-      const current = await status();
-      const active = required(current.active);
+      const active = expectedActive ?? required((await status()).active);
       const executable = path.resolve(active.path, active.selected_executable);
       const game = {
         executable,
@@ -1524,6 +1697,13 @@ export async function installScenarios({
       published: Awaited<ReturnType<typeof publish>>,
     ) => {
       assertLive("before-release");
+      const archivePath = new URL(published.release.url).pathname;
+      const held = ownedFixture.requests.filter((request) => request.request_path === archivePath);
+      assert.equal(held.length, 1, "Only one exact archive transfer may be held");
+      assert.ok(
+        held[0] && held[0].bytes_sent > 0 && !held[0].completed && !held[0].connection_closed,
+        "The exact archive transfer must still be open when the running game is observed",
+      );
       published.gate.release();
       const acquired = await browser.wait(
         async () => {
@@ -1729,8 +1909,11 @@ export async function installScenarios({
         transfer: transferV2,
       };
       await click("Continue browsing");
-      await play();
-      assertLive("during-acquire-first");
+      // Bind Play to the active executable from the pre-transfer byte baseline.
+      // Release the exact held archive while that game is still running, before
+      // the slower post-launch reads consume the downloader deadline.
+      await play(undefined, required(beforeV2.active));
+      const archiveV2 = await finish(transferV2, v2);
       await assertPreserved(beforeV2);
       const ordinaryWhilePlaying = object(
         await invoke("plan_game_update", {
@@ -1745,8 +1928,6 @@ export async function installScenarios({
         "Playing must still block ordinary exclusive review",
       );
       assert.equal(object(ordinaryWhilePlaying.error).code, "conflict");
-      const archiveV2 = await finish(transferV2, v2);
-      await assertPreserved(beforeV2);
       observations.acquire_then_play = {
         before: beforeV2,
         transfer: transferV2,
@@ -1909,8 +2090,6 @@ export async function installScenarios({
         game: liveGame,
         transfer: transferV3,
       };
-      assertLive("during-playing-first");
-      await assertPreserved(beforeV3);
       await click("Continue browsing");
       const archiveV3 = await finish(transferV3, v3);
       await assertPreserved(beforeV3);

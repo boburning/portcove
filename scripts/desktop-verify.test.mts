@@ -199,7 +199,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
   assert.equal(external.paths.cli, null);
   assert.ok(!external.phases.includes("owned-probe-build"));
   assert.ok(!external.phases.includes("scenario-context-preflight"));
-  assert.equal(external.harness_deadline_ms, 180_000);
+  assert.equal(external.harness_deadline_ms, 420_000);
 
   const installRefresh = buildDesktopVerifyPlan({
     ...common,
@@ -257,7 +257,10 @@ void test("standalone selected setup routes build catalog-aware CLIs", async () 
     assert.deepEqual(selected.cli_features, ["portcove-core/qualification-fixtures"]);
     assert.deepEqual(selected.qualification_features, ["qualification-fixtures"]);
     assert.deepEqual(selected.setup_scenarios, []);
-    assert.equal(selected.harness_deadline_ms, 600_000);
+    assert.equal(
+      selected.harness_deadline_ms,
+      scenario === "native-selected-setup-completion" ? 900_000 : 600_000,
+    );
     assert.ok(selected.paths.cli);
   }
   const ordinary = buildDesktopVerifyPlan({

@@ -37,6 +37,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import { SettingsExportResultsProvider } from "./features/workspace/settings-export-results";
 import {
   sourcesKey,
   useStandingSetupCatchUp,
@@ -50,6 +51,8 @@ import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
 import {
   canOpenExternalRegistration,
+  canOpenInstalledResult,
+  matchingSavedSource,
   targetInvocationContext,
 } from "./features/operations/invocation-state";
 import {
@@ -525,8 +528,8 @@ type WorkspaceProps = {
   bootstrap: BootstrapStatus;
   initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 };
@@ -1291,7 +1294,12 @@ function useWorkspace(props: WorkspaceProps) {
 }
 
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
-  return <WorkspaceView {...useWorkspace(props)} />;
+  const model = useWorkspace(props);
+  return (
+    <SettingsExportResultsProvider key={props.bootstrap.generation}>
+      <WorkspaceView {...model} />
+    </SettingsExportResultsProvider>
+  );
 }
 
 type WorkspaceModel = ReturnType<typeof useWorkspace>;
@@ -1343,6 +1351,8 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       pending={model.operations.pendingOperations}
       unreadInstallPorts={model.operations.unreadInstallPorts}
       unreadExternalPorts={model.operations.unreadExternalPorts}
+      unreadManagedRoutePorts={model.operations.unreadManagedRoutePorts}
+      sourceWriteOnHold={model.operations.sourceWriteOnHold}
       perform={model.operations.perform}
     >
       <ArtworkProvider
@@ -1440,7 +1450,7 @@ type WorkspaceFeedbackModel = Pick<
   | "dismissApplicationUpdateNotice"
   | "renderPreferenceFailure"
 > & {
-  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity">;
+  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity" | "setSettingsCategory">;
   model: Pick<WorkspaceModel["model"], "entries" | "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
@@ -1473,14 +1483,16 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
         }}
         openInstalledGame={(record) => {
-          const { target, libraryGeneration } = record.context;
-          const current = model.model.statusMap.get(target.id)?.active;
+          const { target } = record.context;
           if (
-            libraryGeneration !== model.bootstrap.generation ||
-            model.ui.selectedId === target.id ||
-            model.operations.unreadInstallPorts.has(target.id) ||
-            current?.id !== record.installed?.id ||
-            current?.port_id !== target.id
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenInstalledResult(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadInstallPorts,
+            )
           )
             return undefined;
           return () => model.openPortDetails(target.id, `install-result:${record.id}`);
@@ -1499,6 +1511,24 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           )
             return undefined;
           return () => model.openPortDetails(target.id, "external-result:" + record.id);
+        }}
+        openSavedSource={(record) => {
+          if (model.data.refreshFailure) return undefined;
+          const source = matchingSavedSource(
+            record,
+            model.data.sources,
+            model.bootstrap.generation,
+            model.data.workspaceReadRevision,
+          );
+          if (!source) return undefined;
+          const identity = referenceIdentity(source);
+          return () => {
+            model.ui.setSettingsCategory("game-files");
+            model.setPrimaryView("settings");
+            window.requestAnimationFrame(() =>
+              focusSettingsTarget("saved-source-result", source.profile_id, identity),
+            );
+          };
         }}
         completedActivityAvailable={(id) =>
           model.data.activities.some(
@@ -1833,8 +1863,8 @@ function CurrentView({
   sourceHealth: SourceHealthState;
   appearance: AppearanceState;
   bootstrap: BootstrapStatus;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   gameSourceDropReview: GameSourceDropReview;
   hostToolActions: HostToolActions;
@@ -2096,17 +2126,22 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support report", desktopApi.createSupportBundle, {
-          refresh: "none",
-          invalidateDiagnostics: false,
-        })
+        operations.perform(
+          "support report",
+          () => desktopApi.createSupportBundle(bootstrap.generation),
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            propagateFailure: true,
+          },
+        )
       }
       exportMetadata={() =>
         operations.perform(
           "export library metadata",
           async () => {
             const path = await pickMetadataExportPath();
-            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+            return path ? desktopApi.exportLibraryMetadata(path, bootstrap.generation) : undefined;
           },
           {
             refresh: "none",
@@ -2143,6 +2178,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
       sourceNeeds={model.sourceNeeds}
@@ -2158,6 +2194,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
     />
@@ -2478,6 +2515,7 @@ function SelectedPortPanel({
         close: close,
         reviewInstall: installPlanning.review,
         backupsChanged: backups.refresh,
+        refreshRestoredBackups: backups.refreshAfterCommit,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
         onInstallCommitted: operations.noteInstallCommitted,
@@ -2700,6 +2738,7 @@ function useWorkspaceLibrary({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
     workspaceReadRevision: data.workspaceReadRevision,
+    workspaceStatuses: data.statuses,
     startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(

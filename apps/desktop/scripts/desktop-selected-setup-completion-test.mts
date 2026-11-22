@@ -23,6 +23,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clearCatalogFilters,
+  clickVisible,
   reviewControls,
   selectCatalogPort,
   selectPrimaryNavigation,
@@ -36,7 +37,7 @@ import {
   observeCompletionReturnFocus,
 } from "./desktop-completion-focus.mts";
 
-import type { Locator, WebDriver } from "selenium-webdriver";
+import type { Locator, WebDriver, WebElement } from "selenium-webdriver";
 import type { ReviewClickOptions, WebKitPointerObservation } from "./desktop-review-controls.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
 import type { nativeGameFileFolderPicker } from "./desktop-native-confirmation.mts";
@@ -83,6 +84,7 @@ type CompletionCapture = Awaited<
 >;
 interface CompletionObservations {
   sources: SourceRecord[] | undefined;
+  source_refresh_recovery?: { registration_preserved: true };
   pointer_inputs?: WebKitPointerObservation[];
   completed_sources?: unknown;
   geometry?: Record<string, CompletionCapture["observation"]>;
@@ -102,6 +104,7 @@ interface CompletionObservations {
   plan?: InstallPlan;
   controller_review?: Record<string, unknown>;
   cancelled?: { activity: ActivityRecord; status: PortStatus };
+  cancelled_review_closed?: true;
   installed?: { activity: ActivityRecord; status: PortStatus };
   preparation_wait?: PreparationObservation & { requested_at: string };
   prepared?: { activity: PreparedActivity; status: PortStatus };
@@ -110,6 +113,7 @@ interface CompletionObservations {
     | { tag: string; id: string; text: string | undefined; ariaLabel: string | null };
   return_focus?: ReturnType<typeof observeCompletionReturnFocus>;
   returned_choices?: string[];
+  returned_review_diagnostics?: Partial<Record<"alternative" | "bios" | "restarted-bios", unknown>>;
   returned_alternative_review?: {
     status: PortStatus;
     snapshot: GameFileScanSnapshot;
@@ -537,7 +541,13 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-second",
           extra,
         );
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 2, 5_000);
+        // The GTK helper can report the chosen folder before the dialog reply
+        // reaches the webview and Core publishes the second folder.
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 2,
+          30_000,
+          "The second chosen folder did not appear in Core's folder inventory",
+        );
         const second = required(
           (await read("get_game_file_roots")).find((root) => root.id !== first.id),
         );
@@ -551,12 +561,19 @@ export async function selectedSetupCompletionScenario({
           "game-file-picker-relink",
           replacement,
         );
-        await browser.wait(async () => {
-          const roots = await read("get_game_file_roots");
-          return (
-            roots.length === 2 && roots.find((root) => root.id === second.id)?.path !== second.path
-          );
-        }, 5_000);
+        // Hosted GTK run 44952451526 returned the chosen path while the
+        // selected row was still settling. Wait for the same ID to change.
+        await browser.wait(
+          async () => {
+            const roots = await read("get_game_file_roots");
+            return (
+              roots.length === 2 &&
+              roots.some((root) => root.id === second.id && root.path !== second.path)
+            );
+          },
+          30_000,
+          "Core did not finish relinking the selected folder",
+        );
         const relinked = required(
           (await read("get_game_file_roots")).find((root) => root.id === second.id),
         );
@@ -571,7 +588,13 @@ export async function selectedSetupCompletionScenario({
         assert.equal((await read("get_game_file_roots")).length, 2);
         await click(rootAction("Remove"));
         await click(rootAction("Stop scanning this folder"));
-        await browser.wait(async () => (await read("get_game_file_roots")).length === 1, 5_000);
+        // The 4x pointer reached the confirmation in run 44945214480,
+        // but the workspace was still settling the removal after 6.8 s.
+        await browser.wait(
+          async () => (await read("get_game_file_roots")).length === 1,
+          30_000,
+          "Core did not finish removing the reviewed folder",
+        );
         assert.deepEqual(await read("get_game_file_roots"), [first]);
         for (const directory of [extra, replacement])
           assert.equal(
@@ -714,6 +737,33 @@ export async function selectedSetupCompletionScenario({
       const choices = [fixture.port, fixture.refreshPort, reviewPort]
         .map((item) => `Open ${item.name} details`)
         .sort();
+      const continuationState = await browser.wait(
+        () =>
+          executeBrowserScript(browser, () => {
+            const section = document.querySelector('[aria-label="Continue to a game"]');
+            if (!section || document.querySelector('[aria-label="Source import review"]'))
+              return false;
+            const controls = [...section.querySelectorAll("button")];
+            const retry = controls.find((item) => item.textContent?.trim() === "Retry refresh");
+            if (retry) return retry.disabled ? false : "retry";
+            return controls.some((item) => !item.disabled) ? "ready" : false;
+          }),
+        30_000,
+        "Registration did not expose the port choices or a safe refresh action",
+      );
+      let priorSources: SourceRecord[] | undefined;
+      if (continuationState === "retry") {
+        priorSources = await read("get_sources");
+        assert.equal(priorSources.length, 1);
+        const registered = required(priorSources[0]);
+        assert.equal(registered.profile_id, owned.profiles[0]);
+        assertOwnedSelectedSetupPath(registered.path, owned.gamePath);
+        await click(
+          By.xpath(
+            '//*[@aria-label="Continue to a game"]//button[normalize-space(.)="Retry refresh"]',
+          ),
+        );
+      }
       await browser.wait(
         async () =>
           executeBrowserScript(
@@ -736,6 +786,14 @@ export async function selectedSetupCompletionScenario({
         "Registration must focus the independent port choices",
       );
       report.observations.sources = await read("get_sources");
+      if (priorSources) {
+        assert.deepEqual(
+          report.observations.sources,
+          priorSources,
+          "Retry refresh must preserve the exact Core registration",
+        );
+        report.observations.source_refresh_recovery = { registration_preserved: true };
+      }
       assert.equal(report.observations.sources.length, 1);
       assert.equal(required(report.observations.sources[0]).profile_id, owned.profiles[0]);
       assert.deepEqual(core(["source", "list"]), report.observations.sources);
@@ -761,9 +819,12 @@ export async function selectedSetupCompletionScenario({
         5_000,
         "Selected setup must open the expected game details",
       );
+      // Hosted GTK run 44955127222 reached this exact review's Working state
+      // before the settled installation plan was available for observation.
       await browser.wait(
         until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
-        15_000,
+        45_000,
+        "The first exact queued installation review did not finish checking",
       );
       assert.deepEqual(
         await read("get_statuses"),
@@ -780,9 +841,42 @@ export async function selectedSetupCompletionScenario({
       );
 
       const installDialog = By.css('[aria-labelledby="install-review-title"]');
+      const waitForReturnedInstallReview = async (
+        portName: string,
+        stage: "alternative" | "bios" | "restarted-bios",
+      ) => {
+        try {
+          await browser.wait(
+            until.elementLocated(installDialog),
+            45_000,
+            "The exact install review must open after returning to " + portName,
+          );
+        } catch (error) {
+          try {
+            const diagnostics = await executeBrowserScript(browser, () =>
+              [...document.querySelectorAll('[role="alert"], [role="status"]')]
+                .map((node) => node.textContent?.trim().slice(0, 240))
+                .filter(Boolean)
+                .slice(0, 15),
+            );
+            report.observations.returned_review_diagnostics = { [stage]: diagnostics };
+          } catch (diagnosticError) {
+            console.error("Unable to collect returned install review diagnostics", diagnosticError);
+          }
+          throw error;
+        }
+        // The review occludes the detail title. Read the exact rendered identity.
+        assert.equal(
+          (
+            await browser.findElement(By.id("port-detail-title")).getAttribute("textContent")
+          )?.trim(),
+          portName,
+        );
+      };
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
-      const openInstall = async () => {
-        await click(button("Review installation"));
+      const openInstall = async (trigger?: WebElement) => {
+        if (trigger) await clickVisible(browser, trigger, clickOptions);
+        else await click(button("Review installation"));
         await browser.wait(until.elementLocated(installDialog), 15_000);
         await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
       };
@@ -1027,8 +1121,30 @@ export async function selectedSetupCompletionScenario({
       report.observations.cancelled = { activity: cancelled, status: cancelledStatus };
       await enlargedStage("cancelled-install");
 
-      await browser.wait(until.elementLocated(button("Review installation")), 15_000);
-      await openInstall();
+      await browser.wait(
+        async () => (await browser.findElements(installDialog)).length === 0,
+        60_000,
+        "The cancelled installation review must close before retry",
+      );
+      const exactReviewTrigger = By.xpath(
+        `//*[@data-detail-port-id=${JSON.stringify(port.id)}]//button[normalize-space(.)="Review installation"]`,
+      );
+      const retryTrigger = await browser.wait(
+        async () => {
+          const visible = [];
+          for (const candidate of await browser.findElements(exactReviewTrigger)) {
+            if ((await candidate.isDisplayed()) && (await candidate.isEnabled())) {
+              visible.push(candidate);
+            }
+          }
+          assert.ok(visible.length <= 1, "The selected game must have one enabled review trigger");
+          return visible[0] ?? false;
+        },
+        60_000,
+        "The selected game did not regain a visible installation review after cancellation",
+      );
+      report.observations.cancelled_review_closed = true;
+      await openInstall(required(retryTrigger || undefined));
       if (clickOptions.dispatch === "webkit-window-pointer") await click(install);
       else await browser.findElement(install).click();
       const installedActivity = required(
@@ -1052,7 +1168,23 @@ export async function selectedSetupCompletionScenario({
       report.observations.installed = { activity: installedActivity, status: installed };
       await enlargedStage("installed-next-step");
 
-      await click(setupReviewButton());
+      // Core had committed the exact install in run 44950945177 while
+      // the native detail still had the Finish setup control disabled.
+      const finishSetup = setupReviewButton();
+      await browser.wait(
+        async () => {
+          const [trigger] = await browser.findElements(finishSetup);
+          return Boolean(
+            trigger &&
+            (await trigger.isEnabled()) &&
+            (await trigger.getAttribute("aria-disabled")) !== "true" &&
+            (await trigger.getAttribute("aria-busy")) !== "true",
+          );
+        },
+        60_000,
+        "The installed game did not regain an actionable Finish setup control",
+      );
+      await click(finishSetup);
       const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
       await browser.wait(until.elementLocated(preparationDialog), 15_000);
       await browser.wait(
@@ -1188,16 +1320,7 @@ export async function selectedSetupCompletionScenario({
       };
       const afterCompletion = await read("get_statuses");
       await click(button(`Review ${reviewPort.name} setup`));
-      await browser.wait(
-        until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
-        15_000,
-      );
-      // The open review covers the detail page, so WebDriver reports its title as
-      // not displayed; textContent still identifies which game the review is for.
-      assert.equal(
-        (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
-        reviewPort.name,
-      );
+      await waitForReturnedInstallReview(reviewPort.name, "alternative");
       await click(button("Cancel review"));
       await browser.wait(
         async () =>
@@ -1231,7 +1354,7 @@ export async function selectedSetupCompletionScenario({
           const displayed = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
           return displayed.some(Boolean);
         },
-        15_000,
+        45_000,
         "The explicitly requested source inspection must display its actual result for axe",
       );
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
@@ -1388,13 +1511,7 @@ export async function selectedSetupCompletionScenario({
       const statusesBeforeBiosPlan = await read("get_statuses");
       const acquisitionsBeforeBiosPlan = fixture.requests.length;
       await click(button(`Review ${fixture.refreshPort.name} setup`));
-      await browser.wait(until.elementLocated(installDialog), 15_000);
-      // The install dialog covers the detail title, and getText() omits occluded
-      // text (hosted run 43646110119); read the rendered text content instead.
-      assert.equal(
-        (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
-        fixture.refreshPort.name,
-      );
+      await waitForReturnedInstallReview(fixture.refreshPort.name, "bios");
       const biosPlan = await read("plan_port", {
         portId: fixture.refreshPort.id,
         channel: "stable",
@@ -1498,6 +1615,15 @@ export async function selectedSetupCompletionScenario({
       await selectPrimaryNavigation(browser, "Settings", clickOptions);
       await selectGameFilesSettings(browser, clickOptions);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      // Settings owns saved folders. Its read-only continuation opens the
+      // retained results and their setup choices in Add games.
+      const scanActivityBeforeReturn = await read("get_activities");
+      assert.ok(
+        scanActivityBeforeReturn.active_and_actionable_complete &&
+          scanActivityBeforeReturn.terminal_history_complete,
+      );
+      await restartClick(restartButton("View scan results"));
+      await browser.wait(until.elementLocated(By.id(setupHeading)), 15_000);
       await browser.wait(
         async () => {
           const controls = await browser.findElements(
@@ -1520,11 +1646,24 @@ export async function selectedSetupCompletionScenario({
         "Selection is ephemeral across restart",
       );
       assert.doesNotMatch(await browser.findElement(queue).getText(), /\b3 selected\b/);
+      assert.deepEqual(await read("get_game_file_scan_snapshot"), restoredSnapshot);
+      const scanActivityAfterReturn = await read("get_activities");
+      assert.ok(
+        scanActivityAfterReturn.active_and_actionable_complete &&
+          scanActivityAfterReturn.terminal_history_complete,
+      );
+      assert.deepEqual(
+        scanActivityAfterReturn.records.filter(({ operation }) => operation === "discover_sources"),
+        scanActivityBeforeReturn.records.filter(
+          ({ operation }) => operation === "discover_sources",
+        ),
+        "Opening the saved results must not scan again",
+      );
       await restartClick(
         By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
       );
       await restartClick(restartButton(`Review ${fixture.refreshPort.name} setup`));
-      await browser.wait(until.elementLocated(installDialog), 15_000);
+      await waitForReturnedInstallReview(fixture.refreshPort.name, "restarted-bios");
       const restoredPlan = await read("plan_port", {
         portId: fixture.refreshPort.id,
         channel: "stable",

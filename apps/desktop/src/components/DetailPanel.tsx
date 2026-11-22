@@ -4,6 +4,7 @@ import {
   currentGamePlayKey,
 } from "../features/app-shell/current-game-play";
 import { useAppTranslation } from "../localization";
+import { managedRouteReadbackGuidance } from "../features/operations/invocation-state";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
@@ -189,7 +190,7 @@ interface DetailPanelProps {
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   source?: SourceRecord | undefined;
   sourceInspection?: SourceInspectionReport | undefined;
   sourceProfile?: SourceProfile | undefined;
@@ -290,9 +291,12 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   const state: DetailState = actionState.installReadbackRequired
     ? {
-        title: "Installation finished",
-        description:
-          "The library will show this installation’s current details after it refreshes.",
+        title: actionState.managedRouteReadbackRequired
+          ? "Check the current installation"
+          : "Installation finished",
+        description: actionState.managedRouteReadbackRequired
+          ? managedRouteReadbackGuidance
+          : "The library will show this installation’s current details after it refreshes.",
         tone: "unknown",
         icon: RefreshCw,
       }
@@ -416,6 +420,7 @@ export function DetailPanel(props: DetailPanelProps) {
       sources={sources}
       installed={installed}
       installReadbackRequired={actionState.installReadbackRequired}
+      managedRouteReadbackRequired={actionState.managedRouteReadbackRequired}
       deferSetupChoices={!installed && missingRequirement !== undefined}
       sourceReady={sourceReady}
       biosReady={biosReady}
@@ -527,6 +532,7 @@ function DetailBody(model: {
   sources: SourceControls;
   installed: boolean;
   installReadbackRequired: boolean;
+  managedRouteReadbackRequired: boolean;
   deferSetupChoices: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -543,7 +549,7 @@ function DetailBody(model: {
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
   libraryGeneration: number;
@@ -1305,7 +1311,7 @@ function SavesStorageGroup({
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   libraryGeneration: number;
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
@@ -1493,10 +1499,17 @@ export function InstallationVersionSummary({
   /** Portcove owns runtime replacement for this managed installation. */
   portcoveUpdates?: boolean;
 }) {
+  if (!status) {
+    return (
+      <CurrentStateSummary title="Installed version unavailable">
+        <p>Portcove hasn’t read the current installation.</p>
+      </CurrentStateSummary>
+    );
+  }
   const checked = currentUpdateSnapshot(status)?.check;
   const candidate =
-    status?.staged?.version ?? (checked?.update_available ? checked.release.version : undefined);
-  const channel = status?.active?.channel ?? selectedChannel;
+    status.staged?.version ?? (checked?.update_available ? checked.release.version : undefined);
+  const channel = status.active?.channel ?? selectedChannel;
   const channelChip = (value: ReleaseChannel) => (
     <Chip style={identityStyle(value, true)}>
       <IdentityIcon name={value} channel />
@@ -1508,29 +1521,29 @@ export function InstallationVersionSummary({
       <div className="detail-version-pair">
         <div className="detail-version-current">
           <p className="detail-version-label">
-            {status?.active ? "Installed version" : "No managed installation"}
+            {status.active ? "Installed version" : "No managed installation"}
           </p>
-          <strong>{status?.active?.version ?? "Not installed"}</strong>
-          {status?.active && channelChip(channel)}
+          <strong>{status.active?.version ?? "Not installed"}</strong>
+          {status.active && channelChip(channel)}
         </div>
         {candidate && (
           <>
             <Icon glyph={ArrowRight} className="detail-version-direction" />
             <div className="detail-version-candidate">
               <p className="detail-version-label">
-                {status?.staged ? "Update saved for later" : "Available at last check"}
+                {status.staged ? "Update saved for later" : "Available at last check"}
               </p>
               <strong>{candidate}</strong>
-              {channelChip(status?.staged?.channel ?? selectedChannel)}
+              {channelChip(status.staged?.channel ?? selectedChannel)}
             </div>
           </>
         )}
         {action && <div className="detail-version-action">{action}</div>}
       </div>
-      {status?.staged && (
+      {status.staged && (
         <p className="detail-version-context">
-          Using this checked local copy does not download it again, and keeps the current version
-          for rollback.
+          Using the update saved for later does not download it again.
+          {status.active && " Portcove keeps the current version for rollback."}
         </p>
       )}
       {channel !== selectedChannel && (
@@ -1540,20 +1553,20 @@ export function InstallationVersionSummary({
       )}
       {!candidate && (
         <p className="detail-version-context">
-          {!status?.active
+          {!status.active
             ? "Set up this game before managing its installed versions here."
             : checked
               ? `No update was found at the last check (${checked.release.version}).`
               : "Check for updates to see the latest available version."}
         </p>
       )}
-      {status?.staged && checked?.update_available && !checkedUpdateMatchesStaged(status) && (
+      {status.staged && checked?.update_available && !checkedUpdateMatchesStaged(status) && (
         <p className="detail-version-context">
-          Latest release at last check: {checked.release.version}. The saved update above is a
+          Latest release at last check: {checked.release.version}. The update saved for later is a
           separate candidate.
         </p>
       )}
-      {status?.active && portcoveUpdates && (
+      {status.active && portcoveUpdates && (
         <p className="detail-version-context">
           {/* Ownership stays with Portcove even when the catalog no longer offers updates. */}
           {/* Only lasting withdrawals; temporary holds (stale metadata, pending setup)
@@ -4153,11 +4166,12 @@ function DetailFilesSection({
                 ? "Managed by Portcove"
                 : "Not installed"}
         </p>
-        {(model.status?.active?.path || model.status?.external_runtime?.path) && (
-          <p className="wrap-anywhere select-text">
-            {model.status?.active?.path ?? model.status?.external_runtime?.path}
-          </p>
-        )}
+        {!model.managedRouteReadbackRequired &&
+          (model.status?.active?.path || model.status?.external_runtime?.path) && (
+            <p className="wrap-anywhere select-text">
+              {model.status?.active?.path ?? model.status?.external_runtime?.path}
+            </p>
+          )}
         {model.hasFileObservations && (
           <details className="detail-file-observations">
             <summary data-focusable>File matching details</summary>
@@ -4182,18 +4196,21 @@ function DetailManageSection({
     <>
       <CurrentStateSummary
         title={
-          model.installReadbackRequired
-            ? "Installation finished · awaiting library refresh"
-            : !model.status
-              ? "Installation status unavailable"
-              : model.status.active || model.status.external_runtime
-                ? model.status.external_runtime
-                  ? "External installation"
-                  : "Managed installation"
-                : "No active installation"
+          model.managedRouteReadbackRequired
+            ? "Check the current installation"
+            : model.installReadbackRequired
+              ? "Installation finished · awaiting library refresh"
+              : !model.status
+                ? "Installation status unavailable"
+                : model.status.active || model.status.external_runtime
+                  ? model.status.external_runtime
+                    ? "External installation"
+                    : "Managed installation"
+                  : "No active installation"
         }
       >
-        {model.status?.active && (
+        {model.managedRouteReadbackRequired && <p>{managedRouteReadbackGuidance}</p>}
+        {!model.managedRouteReadbackRequired && model.status?.active && (
           <div className="text-sm wrap-anywhere">
             <p className="my-1 select-text">{model.status.active.path}</p>
             <p className="m-0 text-pc-muted-foreground">
@@ -4201,7 +4218,7 @@ function DetailManageSection({
             </p>
           </div>
         )}
-        {model.status?.external_runtime && (
+        {!model.managedRouteReadbackRequired && model.status?.external_runtime && (
           <div className="text-sm wrap-anywhere">
             <RuntimeLaunchFacts
               executable={model.status.external_runtime.executable}
@@ -4381,7 +4398,15 @@ function DetailVersionsSection({
   return (
     <div className="detail-versions-workspace">
       <div className="detail-version-main">
-        {model.status?.external_runtime ? (
+        {model.installReadbackRequired ? (
+          <CurrentStateSummary
+            title={
+              model.managedRouteReadbackRequired
+                ? "Check the current installation"
+                : "Installed version will appear after the library refreshes"
+            }
+          />
+        ) : model.status?.external_runtime ? (
           <CurrentStateSummary
             title={
               <span className="inline-flex items-center gap-2">
@@ -4391,15 +4416,19 @@ function DetailVersionsSection({
             }
           >
             <p>
-              Registered version {model.status.external_runtime.version}. You or the upstream
-              launcher maintain this installation.
+              {model.status.external_runtime.user_selected ? (
+                "Portcove launches the files you registered."
+              ) : (
+                <>
+                  Registered version <bdi>{model.status.external_runtime.version}</bdi>.
+                </>
+              )}{" "}
+              You or the upstream launcher maintain this installation.
             </p>
             <ProjectLink href={model.port.project_url}>
               Open upstream project <Icon glyph={ArrowRight} />
             </ProjectLink>
           </CurrentStateSummary>
-        ) : model.installReadbackRequired ? (
-          <CurrentStateSummary title="Installed version will appear after the library refreshes" />
         ) : (
           <InstallationVersionSummary
             status={model.status}

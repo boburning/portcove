@@ -34,7 +34,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -2672,6 +2672,7 @@ try {
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
+      managedCopyJourney: Boolean(executionPlan.fixtures.managedCopyJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -2703,6 +2704,41 @@ try {
           output,
           fixture: installFixture,
         });
+    }
+    if (installFixture.managedCopyJourney) {
+      // This CLI registration seeds owned pre-state. The native case observes
+      // the reviewed transition from that registration and never runs it.
+      const directory = path.join(output, "managed-copy-external");
+      await mkdir(directory);
+      const executable = path.join(directory, "external-fixture.exe");
+      const save = path.join(directory, "external-save.txt");
+      await copyFile(required(values["preparation-tool"]), executable);
+      await writeFile(save, "owned external save to preserve", { flag: "wx" });
+      inputs.push(await fileIdentity(executable), await fileIdentity(save));
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      const args = [installFixture.port.id, executable, "--working-directory", directory];
+      const preview = transportValue(
+        "external_runtime_preview",
+        command(["external", "select-preview", ...args]),
+      );
+      const registered = transportValue(
+        "external_runtime_record",
+        command([
+          "external",
+          "select",
+          ...args,
+          "--expected-preview",
+          preview.preview_sha256,
+          "--yes",
+        ]),
+      );
+      assert.equal(registered.port_id, installFixture.port.id);
+      assert.equal(registered.executable, preview.executable);
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     if (
@@ -3549,9 +3585,29 @@ try {
     const browser = driverBrowser();
     const before = await invoke("get_bootstrap_status");
     assert.ok(before.ok);
-    const defaultRoot = await invoke("get_default_library_root");
-    assert.ok(defaultRoot.ok);
-    assert.ok(defaultRoot.value);
+    const generation = before.value.generation;
+    const preferenceReview = async () =>
+      transportValue(
+        "desktop_library_selection_review",
+        success(
+          await invoke("review_library_selection", {
+            path: null,
+            generation: generation,
+          }),
+        ),
+      );
+
+    const expected = await preferenceReview();
+    assert.equal(expected.source, "platform_default");
+    assert.equal(expected.effect, "open");
+    assert.match(expected.review_sha256, /^[0-9a-f]{64}$/);
+    const contents = {
+      empty_directory: "This folder is empty. Portcove will start a new library here.",
+      new_default_directory: "Portcove will create the default library folder.",
+      existing_database:
+        "This folder contains a library database. Portcove checks it when opening.",
+      recovery_records: "This folder contains recovery records. Portcove checks them when opening.",
+    }[expected.contents];
     await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
@@ -3573,7 +3629,8 @@ try {
     );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
-    assert.ok(reviewText.includes(defaultRoot.value));
+    assert.ok(reviewText.includes(expected.path));
+    assert.ok(reviewText.includes(contents));
     assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
       success(await invoke("get_bootstrap_status")).library_root,
@@ -3620,6 +3677,7 @@ try {
       "Library selection review trigger did not regain focus after Escape",
     );
     assert.deepEqual(success(await invoke("get_bootstrap_status")), before.value);
+    assert.deepEqual(await preferenceReview(), expected);
   });
   await scenario("native-library-browsing-context", async () => {
     const browser = driverBrowser();

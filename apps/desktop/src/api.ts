@@ -79,6 +79,7 @@ import type {
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
+  LibrarySelectionReview,
   CapabilityDocument,
   CatalogDocument,
   CatalogDownloadCandidates,
@@ -896,8 +897,18 @@ export const desktopApi = {
 
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
   defaultLibraryRoot: () => invoke<string>("get_default_library_root"),
-  setDefaultLibrary: (path: string) => invoke<BootstrapStatus>("set_default_library", { path }),
-  resetDefaultLibrary: () => invoke<BootstrapStatus>("reset_default_library"),
+  reviewLibrarySelection: (path: string | null, generation: number) =>
+    invoke<LibrarySelectionReview>("review_library_selection", { path, generation }),
+  setDefaultLibrary: (path: string, expectedReview?: string) =>
+    invoke<BootstrapStatus>("set_default_library", {
+      path,
+      ...(expectedReview && { expectedReview }),
+    }),
+  resetDefaultLibrary: (expectedReview?: string) =>
+    invoke<BootstrapStatus>(
+      "reset_default_library",
+      expectedReview ? { expectedReview } : undefined,
+    ),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
   setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),
   logoutGithub: () => invoke<GithubAuthStatus>("logout_github"),
@@ -918,12 +929,14 @@ export const desktopApi = {
     generation: number,
     selectedReleaseId?: NonNullable<CatalogDownloadCandidates["selected_release_id"]>,
     channel = "stable",
+    releaseWindow?: number,
   ) =>
     invoke<CatalogDownloadCandidates>("catalog_download_candidates", {
       portId,
       generation,
       selectedReleaseId,
       channel,
+      ...(releaseWindow === undefined ? {} : { releaseWindow }),
     }),
   discoverSetupLaunchTargets: (portId: string, pendingId: string, generation: number) =>
     invoke<import("./types").SetupLaunchTargets>("discover_setup_launch_targets", {
@@ -1157,8 +1170,8 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  addSource: (profileId: string, path: string, expectedSha256?: string) =>
-    invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  addSource: (profileId: string, path: string, generation: number, expectedSha256?: string) =>
+    invoke<SourceRecord>("add_source", { profileId, path, generation, expectedSha256 }),
   reviewSourceReuse: (profileId: string, generation: number) =>
     invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
@@ -1392,11 +1405,15 @@ export const desktopApi = {
   recheckHostTool: (toolId: string) => invoke<HostToolProbeResult>("recheck_host_tool", { toolId }),
   openHostToolOfficialSite: (toolId: string) =>
     invoke<void>("open_host_tool_official_site", { toolId }),
-  createSupportBundle: () => invoke<DesktopSupportBundleExport>("create_support_bundle"),
+  createSupportBundle: (generation?: number) =>
+    invoke<DesktopSupportBundleExport>(
+      "create_support_bundle",
+      generation === undefined ? undefined : { generation },
+    ),
   openSupportReportFolder: () => invoke<void>("open_support_report_folder"),
   runtimeDiagnosticHealth: () => invoke<string>("get_runtime_diagnostic_health"),
-  exportLibraryMetadata: (path: string) =>
-    invoke<LibraryMetadataFile>("export_library_metadata", { path }),
+  exportLibraryMetadata: (path: string, generation: number) =>
+    invoke<LibraryMetadataFile>("export_library_metadata", { path, generation }),
   planLibraryMove: (destination: string) =>
     invoke<LibraryMovePlan>("plan_library_move", { destination }),
   moveLibrary: (destination: string, expectedPlan: string) =>
