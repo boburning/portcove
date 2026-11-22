@@ -1041,7 +1041,10 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no prepared update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in your library`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} ${installed.length === 1 ? "port" : "ports"} in your library`,
+  );
 }
 
 export interface LibraryFooterKeyboardPoint {
@@ -1863,11 +1866,6 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const filterPanel = await openCatalogFilters(browser);
-    const advanced = await filterPanel.findElement(
-      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-    );
-    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-      await clickVisible(browser, advanced);
     const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
     await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
@@ -2189,8 +2187,26 @@ export async function preparationScenarios({
         await shortcut("0");
         await openUpdateTheme(browser, theme);
         await selectPrimaryNavigation(browser, "Library");
-        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        // Hosted Windows job 136875392709 was still loading the reopened
+        // library after two failed snapshots and an immediate retry.
+        await browser.wait(
+          until.elementLocated(By.css(".collection-entry")),
+          60_000,
+          "The seeded Library entries did not render after startup",
+        );
         const search = await browser.findElement(By.id("port-search"));
+        assert.notEqual(
+          await executeBrowserScript(browser, () => document.activeElement?.id),
+          "port-search",
+        );
+        await shortcut("f");
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the seeded Library search",
+        );
+        assert.equal((await browser.findElements(By.id("command-palette-title"))).length, 0);
+        observations.push({ phase: "library-local-find", theme, focused: "port-search" });
         // WebElement.clear() empties the DOM value without React's input event,
         // so the controlled query kept "Jak" and the next pass typed "JakJak"
         // (hosted run 43646110119). Clear through real key input instead.
@@ -2715,6 +2731,7 @@ export async function preparationScenarios({
             "Game files",
             "Saves & backups",
             "Versions & updates",
+            "Game settings",
             "Manage",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
@@ -2817,11 +2834,6 @@ export async function preparationScenarios({
         port.name,
       );
       const filters = await openCatalogFilters(browser);
-      const advanced = await filters.findElement(
-        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-      );
-      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-        await clickVisible(browser, advanced);
       const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );

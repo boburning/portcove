@@ -16,8 +16,14 @@ export const maximumReleaseSourceCommits = 2048;
 // The first Windows Preview baseline is over 3,080 commits past Alpha 2.
 // Keep the application history bound in sync with semantic-source-git.py.
 export const maximumApplicationSourceCommits = 3200;
-export const maximumApplicationSourceTreeEntries = 6144;
-export const maximumCatalogSourceTreeEntries = 6144;
+// Source trees are bounded by completeness, not by repository size. GitHub
+// marks a recursive tree above 100,000 entries as truncated, which is refused;
+// every returned tree object is rebuilt and hash-checked, and each response is
+// byte-bounded by its reader. A fixed count below that rejected whole trees once
+// the repository grew, including unchanged files.
+export const maximumSourceTreeEntries = 100_000;
+export const maximumApplicationSourceTreeEntries = maximumSourceTreeEntries;
+export const maximumCatalogSourceTreeEntries = maximumSourceTreeEntries;
 const base = "repos/boburning/portcove";
 const byteOrder = (left: string, right: string) =>
   Buffer.compare(Buffer.from(left), Buffer.from(right));
@@ -339,7 +345,7 @@ export function inspectReleaseSourceTree(
     ? maximumApplicationSourceTreeEntries
     : catalogComparison
       ? maximumCatalogSourceTreeEntries
-      : 5000;
+      : maximumSourceTreeEntries;
   oid(id);
   const response = object(raw);
   const objects: ReturnType<typeof inspectRemoteGitObject>[] = [];

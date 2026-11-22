@@ -220,3 +220,52 @@ void test("legacy records and sampled catalogs keep their unknowns visible", () 
     { type: "tracks-port", key: "port:legacy" },
   ]);
 });
+
+void test("canonical game identities remain distinct from retained lineage scopes and port counts", () => {
+  const make = (id: string, gameId?: string) => ({
+    listing: {
+      id,
+      issue_number: id === "first" ? 1 : 2,
+      project_url: `https://github.com/test/${id}`,
+      ...(gameId ? { original_game: { id: gameId } } : {}),
+    },
+    upstream_lineage: lineage("shared-target", `https://github.com/test/${id}`, id),
+  });
+  const partial = buildUniverse({ records: [make("first", "original"), make("second")] });
+  const port = partial.find(({ key }) => key === "port:first")!;
+  assert.equal(port.original_game_id, "original");
+  assert.equal(port.target_key, "shared-target");
+  assert.match(port.grouping_gap ?? "", /Partial original-game mapping/u);
+  assert.equal(
+    partial.find(({ key }) => key === "port:second")?.original_game_id,
+    null,
+    "lineage supplies no automatic game fallback",
+  );
+  assert.equal(
+    universeGroups(partial)
+      .get("target:shared-target")
+      ?.filter(({ kind }) => kind === "port").length,
+    2,
+  );
+  assert.ok(
+    (universeGroups(partial).get("target:shared-target")?.length ?? 0) > 2,
+    "implementation identities must not inflate port coverage",
+  );
+  const conflicts = buildUniverse({
+    records: [make("first", "original"), make("second", "remake")],
+  });
+  assert.ok(
+    conflicts
+      .filter(({ kind }) => kind === "port")
+      .every(({ grouping_gap }) => grouping_gap?.includes("multiple original-game IDs")),
+  );
+  assert.deepEqual(
+    [...universeGroups(conflicts).keys()].sort(),
+    [
+      "target:shared-target",
+      "upstream:repository:github.com:first",
+      "upstream:repository:github.com:second",
+    ],
+    "descriptive evidence preserves the lineage scope and separate upstream repository entries",
+  );
+});

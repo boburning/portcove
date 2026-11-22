@@ -35,7 +35,16 @@
       ]
     },
     "platforms": ["windows-x86-64"],
-    "download_block_reason": "Fresh runtime acquisition remains held under upstream’s explicit native-foundation redistribution/GPL qualification boundary. Reconsider when exact foundation source, combined distribution terms and release artifacts are accepted. The launcher’s own-code license and original-ROM requirement do not alone resolve that boundary.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "third-party-component-terms",
+        "explanation": "Downloads are paused. The Windows package includes a native engine linked with Redux code. The project’s distribution notes say the combined engine still needs its native-engine terms and source obligations resolved. A clarified release or a package without that engine can be reviewed. You can register a permitted existing launcher and keep your own ROM and data folder.",
+        "tracking_issue": 2861
+      }
+    ],
     "artwork": {
       "game_id": 2899,
       "cover_id": 320119,

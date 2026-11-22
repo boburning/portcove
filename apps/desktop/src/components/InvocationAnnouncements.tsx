@@ -3,8 +3,10 @@ import { useAppTranslation } from "../localization";
 /** Prime the live region before work begins; each invocation keeps its own atomic message. */
 export function InvocationAnnouncements({
   messages,
+  scanResult,
 }: {
   messages: readonly { id: number; text: string }[];
+  scanResult?: string | undefined;
 }) {
   const { t } = useAppTranslation("common");
   return (
@@ -17,6 +19,7 @@ export function InvocationAnnouncements({
       aria-relevant="additions text"
       className="sr-only"
     >
+      <p aria-atomic="true">{scanResult}</p>
       {messages.map(({ id, text }) => (
         <p key={id} data-announcement-invocation-id={id} aria-atomic="true">
           {text}

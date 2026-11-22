@@ -145,6 +145,7 @@ fn fixture() -> Fixture {
                     id: "fixture-original".into(),
                     title: "Synthetic original edition".into(),
                     system: Some("nintendo-64".into()),
+                    verified_sources: Vec::new(),
                     evidence_urls: vec!["https://example.com/synthetic-edition".into()],
                 }],
             });

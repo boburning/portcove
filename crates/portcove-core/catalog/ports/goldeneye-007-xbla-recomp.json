@@ -18,7 +18,16 @@
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/SunJaycy/GoldenEye-Recomp",
-    "download_block_reason": "New downloads are unavailable because this targets the cancelled GoldenEye 007 XBLA remaster and no authorized, reproducible setup from your own original files is established. A retail N64 ROM is a different edition. Existing installations retain their contracts. Downloads can resume after the responsible owner accepts a lawful exact-input route.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "no-useful-route",
+        "explanation": "New downloads are unavailable because this targets the cancelled GoldenEye 007 XBLA remaster and no authorized, reproducible setup from your own original files is established. A retail N64 ROM is a different edition. Existing installations retain their contracts. Downloads can resume after the responsible owner accepts a lawful exact-input route.",
+        "tracking_issue": 163
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "goldeneye-007",

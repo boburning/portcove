@@ -113,6 +113,32 @@ void test("desktop verify parser accepts a repeated exact series", () => {
   assert.equal(parsed.json, true);
 });
 
+void test("focused cover IDs stay bound to an explicit artwork scenario", () => {
+  const selection = ["--scenario", "native-default-cover-cache-conditions"];
+  assert.deepEqual(
+    parseDesktopVerifyArgs([
+      ...selection,
+      "--cover-port-id",
+      "dkr-r",
+      "--cover-port-id",
+      "shipwright",
+    ]).coverPortIds,
+    ["dkr-r", "shipwright"],
+  );
+  assert.throws(() => parseDesktopVerifyArgs(["--cover-port-id", "dkr-r"]), /explicit/);
+  assert.throws(
+    () =>
+      parseDesktopVerifyArgs([
+        ...selection,
+        "--cover-port-id",
+        "dkr-r",
+        "--cover-port-id",
+        "dkr-r",
+      ]),
+    /unique/,
+  );
+});
+
 void test("desktop verify parser rejects invalid cycles and JSON execution", () => {
   assert.throws(() => parseDesktopVerifyArgs(["--restart-cycles", "0"]), /1\.\.10/);
   assert.throws(() => parseDesktopVerifyArgs(["--reload-cycles", "26"]), /0\.\.25/);

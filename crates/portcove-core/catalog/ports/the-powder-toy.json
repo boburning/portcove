@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://powdertoy.co.uk/Download/Platforms.html",
     "setup_url": "https://powdertoy.co.uk/Download/Platforms.html",
-    "download_block_reason": "Choose the package for your system from the publisher’s download page.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Choose the package for your system from the publisher’s download page.",
+        "tracking_issue": 6491
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

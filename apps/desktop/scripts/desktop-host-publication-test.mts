@@ -93,6 +93,20 @@ export async function assertPublicationImportReadback(
   assert.ok(samePath(imported, paths.join(importRoot, exportedRelative), paths));
 }
 
+export function checkpointClockReady(marker: Record<string, unknown>, observedAt = Date.now()) {
+  const { entered_unix_ms: entered, deadline_unix_ms: deadline } = marker;
+  assert.ok(
+    typeof entered === "number" && Number.isSafeInteger(entered) && entered >= 0,
+    "Checkpoint entry timestamp is invalid",
+  );
+  assert.ok(
+    typeof deadline === "number" && Number.isSafeInteger(deadline) && deadline > entered,
+    "Checkpoint deadline is invalid",
+  );
+  assert.ok(deadline > observedAt + 30_000, "Checkpoint pause has too little time remaining");
+  return entered <= observedAt;
+}
+
 function journal(library: string, kind: string, portId: string) {
   const database = new DatabaseSync(path.join(library, "portcove.sqlite3"), { readOnly: true });
   try {
@@ -165,7 +179,7 @@ export async function hostPublicationScenario(context: Context) {
     const markerPath = path.join(controlRoot, `entered-${nonce}.json`);
     const result: Record<string, unknown> = { checkpoint, control, control_sha256: sha256 };
     cases.push(result);
-    async function held(application?: CapturedNativeProcess) {
+    async function readMarker(application?: CapturedNativeProcess) {
       const metadata = await stat(markerPath);
       assert.ok(metadata.isFile() && metadata.size <= 16_384);
       const marker = object(JSON.parse(await readFile(markerPath, "utf8")));
@@ -176,21 +190,24 @@ export async function hostPublicationScenario(context: Context) {
       assert.ok(
         typeof marker.library_root === "string" && samePath(marker.library_root, checkpointRoot),
       );
-      assert.ok(typeof marker.entered_unix_ms === "number" && marker.entered_unix_ms <= Date.now());
-      assert.ok(
-        typeof marker.deadline_unix_ms === "number" &&
-          marker.deadline_unix_ms > Date.now() + 30_000,
-      );
       assert.ok(Number.isSafeInteger(marker.process_id) && Number(marker.process_id) > 0);
       if (application) assert.equal(marker.process_id, application.pid);
+      return marker;
+    }
+    async function held(application?: CapturedNativeProcess) {
+      const marker = await readMarker(application);
+      assert.ok(checkpointClockReady(marker), "Checkpoint entry is ahead of the observer clock");
       result.marker = marker;
       return marker;
     }
     async function wait() {
-      await browser.wait(
+      result.marker = await browser.wait(
         async () => {
           try {
-            return await held();
+            const marker = await readMarker();
+            // Publishers and observers can sample different ticks while the marker first appears.
+            // Use the original wait for the observer to catch up before accepting it.
+            return checkpointClockReady(marker) ? marker : false;
           } catch (error) {
             if ((isRecord(error) && error.code === "ENOENT") || error instanceof SyntaxError)
               return false;

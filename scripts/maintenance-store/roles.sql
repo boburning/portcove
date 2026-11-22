@@ -88,3 +88,10 @@ GRANT UPDATE (checkpoint)
   ON portcove_maintenance.discovery_intake_candidates TO portcove_maintenance_executor;
 GRANT SELECT ON portcove_maintenance_meta.discovery_intake_activation
   TO portcove_maintenance_executor;
+
+-- The intake worker reserves and settles its own metered work before touching
+-- the existing checkpoint store. Ownership and data mutation grants stay separate.
+GRANT SELECT, INSERT ON portcove_maintenance_meta.resource_admissions
+  TO portcove_maintenance_executor;
+GRANT UPDATE (outcome, finished_at, estimate_bytes) ON portcove_maintenance_meta.resource_admissions
+  TO portcove_maintenance_executor;
