@@ -459,6 +459,12 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
+the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
+Neither run reported an assertion failure before its cutoff. Each Windows case
+has a 240-second limit with the same assertions, cleanup and retry policy.
+Completion under the new limit still needs a hosted run.
+
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
 checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing
@@ -479,6 +485,17 @@ cases observed no progress animation or dialog opacity transition. Both cases
 now explicitly set the normal-motion media preference they exercise and restore
 the browser default after each case. Their rendering and transition assertions
 remain in place.
+
+Linux `main` job 135397217271 failed the narrow portrait-cards capture while it
+waited for document images under the default one-second poll. The two pending
+images were the App shell's sidebar avatar, a protected 949 KB PNG served by
+the test server, not the fixture covers. Local network throttling to 600 KB/s
+reproduced the same assertion in 30 of 30 runs. The shared
+`settleDocumentImages` helper now waits for each incomplete image's load, error
+or abort event within a six-second harness budget, matching the finite-animation
+and virtual-row mount waits. The same throttled case then passed 30 of 30 runs
+and still passed at 300 KB/s. Interactive-app captures use the same helper.
+Screenshot, layout and containment assertions are unchanged.
 
 Windows owned-backups job 136906004836 reached the 600-second harness deadline
 after verifying restore, deletion and the first degraded-history capture. The

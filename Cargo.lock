@@ -3665,6 +3665,7 @@ dependencies = [
  "keyring",
  "libc",
  "lzma-turbo",
+ "portcove-listing-carrier",
  "proptest",
  "quick-xml",
  "reqwest",
@@ -3751,6 +3752,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "portcove-listing-carrier"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "flate2",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "portcove-release-tools"
 version = "0.1.0"
 dependencies = [
@@ -3758,11 +3772,13 @@ dependencies = [
  "aws-lc-rs",
  "base64 0.23.1",
  "clap",
+ "flate2",
  "futures-util",
  "hex",
  "jiff",
  "minisign",
  "minisign-verify",
+ "portcove-listing-carrier",
  "serde",
  "serde_json",
  "sha2 0.11.1",

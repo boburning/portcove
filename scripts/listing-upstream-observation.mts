@@ -460,11 +460,20 @@ export function listingUpdatesForReport(
 ): (Record<string, unknown> & { upstream_observation: Record<string, unknown> })[] {
   const exception = isRecord(report) && isRecord(report.exception) ? report.exception : undefined;
   const rule = typeof exception?.rule === "string" ? exception.rule : "failed";
-  const status = /budget|incomplete/u.test(rule)
-    ? "incomplete"
-    : /unavailable|rate.limit|backoff/u.test(rule)
-      ? "unavailable"
-      : "failed";
+  // The attempt's stated coverage decides the listing status, so one attempt
+  // has one word: `partial` is the listing's `incomplete`. Reports without a
+  // statement keep the rule-based mapping.
+  const stated = isRecord(exception?.coverage) ? exception.coverage.kind : undefined;
+  const status =
+    stated === "partial"
+      ? "incomplete"
+      : stated === "unavailable" || stated === "failed"
+        ? stated
+        : /budget|incomplete/u.test(rule)
+          ? "incomplete"
+          : /unavailable|rate.limit|backoff|provider-quota/u.test(rule)
+            ? "unavailable"
+            : "failed";
   return source.ports.flatMap((consumer) => {
     if (!consumer.listing) return [];
     const current = structuredClone(consumer.listing);

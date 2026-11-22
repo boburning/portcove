@@ -21,5 +21,26 @@
     "unconfirmed": "لم يتم تأكيد تغيير القناة. تحقق من الاختيار الحالي قبل إعادة المحاولة.",
     "unlisted": "لم تعد قناة التحديث هذه مدرجة. لم يتغير اختيارك المحفوظ.",
     "unrecognized": "قناة التحديث المحفوظة هذه غير معروفة في هذا الإصدار. لم يتغير اختيارك المحفوظ."
+  },
+  "releasePreference": {
+    "cancel": "⟦Cancel release review⟧",
+    "channelCandidate": "⟦The channel offers {{version}}.⟧",
+    "choose": "⟦Choose exact release⟧",
+    "follow": "⟦Follow channel⟧",
+    "followFailed": "⟦Portcove couldn’t confirm the change. Refresh to check the saved choice.⟧",
+    "following": "⟦Following the selected channel.⟧",
+    "heldChannel": "⟦The saved release pin belongs to a different channel, so Portcove won’t check for or install updates for this game. Choose Follow channel to clear it.⟧",
+    "heldUnreadable": "⟦Portcove can’t read the saved release pin, so it won’t check for or install updates for this game. Choose Follow channel to clear it.⟧",
+    "package": "⟦{{version}} · {{filename}} · {{size}}⟧",
+    "pin": "⟦Pin this release⟧",
+    "pinConsequence": "⟦Future installs and update checks use this release, even when the channel offers a newer one.⟧",
+    "pinFailed": "⟦Portcove couldn’t confirm the pin. Review the release again.⟧",
+    "pinned": "⟦Pinned to {{version}}.⟧",
+    "review": "⟦Review release⟧",
+    "reviewFailed": "⟦Portcove couldn’t review this release. Check the tag and try again.⟧",
+    "reviewing": "⟦Reviewing release…⟧",
+    "saveCompatibility": "⟦Check the release’s save compatibility before installing a different version.⟧",
+    "tag": "⟦Release tag or version⟧",
+    "title": "⟦Release selection⟧"
   }
 }

@@ -291,11 +291,15 @@ Unrelated keys and supported INI comments remain intact. Close the game before
 editing; conflicting writers or uncertain interrupted custody refuse edits and
 retain recovery evidence.
 
-Desktop exposes the same Core operation under a managed game's **Saves** section:
-choose **Read game settings**, change a value or review its default, then choose
-**Save setting** in the review. Read and review alone do not modify game files.
-Persisted bytes and fixtures do not establish actual game consumption; the owning
-qualification records that separately for each declared release.
+In Desktop, open the managed game's **Game settings** tab and choose
+**Read game settings**. Edit the values or choose **Use default**. Choose
+**Review changes** for that file, then **Save changes** to confirm the full
+review. Each review covers one file and up to 16 declared settings. A
+materialized setup binds the review to its installed version and revision.
+If the setup or file changes, read the settings again and check your draft
+before proceeding. Reading and reviewing leave the game files untouched.
+Persisted bytes and fixtures do not establish actual game consumption. The
+owning qualification records that separately for each declared release.
 
 ## Path rules
 
@@ -318,6 +322,26 @@ Use `portcove plan PORT_ID --channel preview`, `portcove install PORT_ID --chann
 The legacy `beta` spelling remains accepted on each route. Inputs remain case-sensitive;
 Stable/Rolling spellings, omitted-channel defaults, consent and eligibility checks are unchanged.
 Changing a saved channel does not install or activate a release.
+
+Use `portcove channel review-exact PORT_ID TAG` to review an exact release in the
+current channel and platform. Confirm the displayed package with
+`portcove channel pin PORT_ID TAG --review-sha256 SHA256`. The confirmation
+rechecks the exact provider identity and library preference. Future plans,
+installs, checks, and maintenance use that exact package. When the provider
+removes or changes it, the operation reports the refusal for that pin.
+A check can also report the channel's current candidate as information.
+
+Use `portcove channel follow PORT_ID` to clear the exact choice. Switching to
+another channel also clears it, whether you choose the channel or activate a
+version from another channel. A pin Core cannot read, or one saved for another
+channel, pauses checks and installs for that game only; `portcove status`
+reports it and `portcove channel follow PORT_ID` clears it. A command that names
+a different `--channel` while a pin is saved asks you to follow the channel
+first. Direct manifests can only select the current
+catalog pin. Curated definitions require the separately admitted acquisition
+route. A saved release preference establishes an intended package. Save and
+configuration compatibility still depend on the installed game and its
+reviewed data policy.
 
 ## Automation and integration reference
 
@@ -683,7 +707,9 @@ bundle uses the installer’s bounded reader with file links disabled. This
 applies only to routes whose embedded definition declares that capability.
 The command returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
-`shape_version`, the derived `shape`, its `provenance`, the
+`shape_version`, the derived `shape`, its `player_candidates` (path, header
+machine and SHA-256; [CATALOG](CATALOG.md#package-shape-player-candidates)),
+its `provenance`, the
 `derivation_inputs_sha256` of the embedded catalog facts it derived with
 (absent for a route outside the embedded catalog) and a comparison `verdict`
 against the embedded generated table or explicit fingerprint

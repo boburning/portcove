@@ -170,6 +170,13 @@ type ModSetupDraftEdits = {
   local_files: { path: string; expected_plan_sha256: string }[];
 };
 
+function recoveryBundleEventChannel(onEvent?: (event: OperationEvent) => void) {
+  if (!onEvent) return undefined;
+  const channel = new Channel<OperationEvent>();
+  channel.onmessage = onEvent;
+  return channel;
+}
+
 export const desktopApi = {
   gameSettings: (portId: string, generation: number) =>
     invoke<import("./types").GameSettingsView>("get_game_settings", { portId, generation }),
@@ -195,6 +202,34 @@ export const desktopApi = {
       fileId: review.file_id,
       settingId: review.setting_id,
       change: review.change,
+      reviewSha256: review.review_sha256,
+      generation,
+    }),
+  gameSettingsChangeSetView: (portId: string, generation: number) =>
+    invoke<import("./types").GameSettingsChangeSetView>("get_game_settings_change_set_view", {
+      portId,
+      generation,
+    }),
+  reviewGameSettingsChangeSet: (
+    portId: string,
+    fileId: string,
+    edits: import("./types").GameSettingsEdit[],
+    generation: number,
+  ) =>
+    invoke<import("./types").GameSettingsChangeSetReview>("review_game_settings_change_set", {
+      portId,
+      fileId,
+      edits,
+      generation,
+    }),
+  applyGameSettingsChangeSet: (
+    review: import("./types").GameSettingsChangeSetReview,
+    generation: number,
+  ) =>
+    invoke<import("./types").GameSettingsView>("apply_game_settings_change_set", {
+      portId: review.port_id,
+      fileId: review.file_id,
+      edits: review.edits.map(({ edit }) => edit),
       reviewSha256: review.review_sha256,
       generation,
     }),
@@ -1429,14 +1464,20 @@ export const desktopApi = {
     }),
   planLibraryRecoveryBundle: (destination: string, generation: number) =>
     invoke<LibraryRecoveryBundlePlan>("plan_library_recovery_bundle", { destination, generation }),
-  createLibraryRecoveryBundle: (destination: string, expectedPlan: string, generation: number) =>
+  createLibraryRecoveryBundle: (
+    destination: string,
+    expectedPlan: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
     invoke<LibraryRecoveryBundle>("create_library_recovery_bundle", {
       destination,
       expectedPlan,
       generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
     }),
-  inspectLibraryRecoveryBundle: (path: string) =>
-    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path }),
+  inspectLibraryRecoveryBundle: (path: string, expectedPlan?: string) =>
+    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path, expectedPlan }),
   planLibraryRecoveryRestore: (path: string, destination: string, generation: number) =>
     invoke<LibraryRecoveryRestorePlan>("plan_library_recovery_restore", {
       path,
@@ -1448,17 +1489,39 @@ export const desktopApi = {
     destination: string,
     expectedPlan: string,
     generation: number,
+    onProgress?: (event: OperationEvent) => void,
   ) =>
     invoke<LibraryImportResult>("restore_library_recovery_bundle", {
       path,
       destination,
       expectedPlan,
       generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
     }),
-  resumeLibraryRecoveryBundle: (staging: string, generation: number) =>
-    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", { staging, generation }),
-  resumeLibraryRecoveryRestore: (destination: string, generation: number) =>
-    invoke<LibraryImportResult>("resume_library_recovery_restore", { destination, generation }),
+  readLibraryRecoveryRestore: (destination: string, expectedPlan: string) =>
+    invoke<LibraryImportResult>("read_library_recovery_restore", { destination, expectedPlan }),
+  resumeLibraryRecoveryBundle: (
+    staging: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+  ) =>
+    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", {
+      staging,
+      generation,
+      onEvent: recoveryBundleEventChannel(onProgress),
+    }),
+  resumeLibraryRecoveryRestore: (
+    destination: string,
+    generation: number,
+    onProgress?: (event: OperationEvent) => void,
+    expectedTransferId?: string,
+  ) =>
+    invoke<LibraryImportResult>("resume_library_recovery_restore", {
+      destination,
+      generation,
+      expectedTransferId,
+      onEvent: recoveryBundleEventChannel(onProgress),
+    }),
   reportFrontendError: (report: FrontendFailureReport) =>
     invoke<void>("report_frontend_error", { report }),
   plan: (portId: string, channel: ReleaseChannel) =>
@@ -1468,6 +1531,18 @@ export const desktopApi = {
   openManualSetupFolder: (portId: string, installId: string, generation: number) =>
     invoke<string>("open_manual_setup_folder", { portId, installId, generation }),
   openExternalUrl: (url: string) => invoke<void>("open_external_url", { url }),
+  canReviewExactRelease: (portId: string, generation: number) =>
+    invoke<boolean>("can_review_exact_release", { portId, generation }),
+  reviewExactRelease: (portId: string, version: string, generation: number) =>
+    invoke<import("./types").ExactReleaseReview>("review_exact_release", {
+      portId,
+      version,
+      generation,
+    }),
+  pinExactRelease: (portId: string, version: string, reviewSha256: string, generation: number) =>
+    invoke<PortStatus>("pin_exact_release", { portId, version, reviewSha256, generation }),
+  clearExactRelease: (portId: string, generation: number) =>
+    invoke<PortStatus>("clear_exact_release", { portId, generation }),
   setChannel: (portId: string, channel: ReleaseChannel, generation: number) =>
     invoke<PortStatus>("set_channel", { portId, channel, generation }),
   setPolicy: (portId: string, policy: UpdatePolicy, generation: number) =>

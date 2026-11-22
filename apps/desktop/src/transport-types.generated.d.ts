@@ -89,6 +89,28 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type ExactReleaseIdentity =
+  | {
+      asset_id: number;
+      commit_sha1: string;
+      provider: "github";
+      release_id: number;
+      repository_id: number;
+    }
+  | {
+      commit_sha1: string;
+      link_id: number;
+      package_file_id: number;
+      project_id: number;
+      provider: "gitlab";
+    }
+  | {
+      provider: "direct-manifest";
+    };
+/**
+ * Why Core cannot use a port's saved release pin as written.
+ */
+export type ExactReleaseHoldReason = "unreadable" | "channel-mismatch";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -1436,6 +1458,7 @@ export interface TransportOutputs {
   destination_artwork_bytes: OutputDestinationArtworkBytes;
   destination_artwork_handoff: DestinationArtworkHandoff;
   doctor: OutputDoctor;
+  exact_release_review: OutputExactReleaseReview;
   external_runtime_preview: ExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
@@ -1451,7 +1474,10 @@ export interface TransportOutputs {
   game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
+  game_settings_change_set_review: OutputGameSettingsChangeSetReview;
+  game_settings_change_set_view: OutputGameSettingsChangeSetView;
   game_settings_contract: GameSettingsContract;
+  game_settings_edit: GameSettingsEdit;
   game_settings_view: GameSettingsView;
   game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
@@ -1866,6 +1892,15 @@ export interface PortStatus {
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
    */
   definition_operations?: DefinitionOperationAssessment[];
+  /**
+   * User-selected exact release, when this port does not follow its channel.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * A saved pin Core cannot use. Checks and installs for this port stay held
+   * until the player follows the channel again; other ports are unaffected.
+   */
+  exact_release_hold?: ExactReleaseHold | null;
   external_runtime?: ExternalRuntimeRecord | null;
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
@@ -1974,6 +2009,35 @@ export interface DefinitionEligibility {
   reason: DefinitionEligibilityReason;
   [k: string]: unknown;
 }
+/**
+ * An exact release and package chosen for one port, channel and platform.
+ * Only the configured provider can supply their current metadata and download URL.
+ */
+export interface ExactReleaseSelection {
+  channel: ReleaseChannel;
+  filename: string;
+  identity: ExactReleaseIdentity;
+  platform: Platform;
+  port_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Exact upstream tag or declared direct-manifest version.
+   */
+  version: string;
+}
+/**
+ * A saved release pin Core cannot use. Update checks and installs for this
+ * port stay held instead of silently following the channel; choosing Follow
+ * clears it. Other ports are unaffected.
+ */
+export interface ExactReleaseHold {
+  /**
+   * Technical cause for diagnosis; never player copy.
+   */
+  detail: string;
+  reason: ExactReleaseHoldReason;
+}
 export interface ExternalRuntimeRecord {
   archive_sha256: string;
   executable: string;
@@ -2055,6 +2119,11 @@ export interface UpdateSnapshot {
 }
 export interface UpdateCheck {
   channel: ReleaseChannel;
+  /**
+   * The channel's ordinary candidate when it differs from the exact target.
+   */
+  channel_latest_version?: string | null;
+  exact_release?: ExactReleaseSelection | null;
   installed_artifact: ArtifactIdentity1 | null;
   installed_runtime: RuntimeIdentity | null;
   installed_version: string | null;
@@ -3995,6 +4064,14 @@ export interface JournalRowProblem {
   stage: JournalValidationStage;
   [k: string]: unknown;
 }
+/**
+ * A read-only preview of saving one release as this port's maintenance target.
+ */
+export interface OutputExactReleaseReview {
+  review_sha256: string;
+  selection: ExactReleaseSelection;
+  [k: string]: unknown;
+}
 export interface ExternalRuntimePreview {
   archive_sha256: string;
   executable: string;
@@ -4546,6 +4623,7 @@ export interface InstallPlan {
   bundled_runtime: BundledRuntime | null;
   channel: ReleaseChannel;
   download_bytes: number;
+  exact_release?: ExactReleaseSelection | null;
   output_location: PortOutputLocation;
   platform: Platform;
   port_id: string;
@@ -4608,6 +4686,48 @@ export interface OutputGameSettingReview {
   proposed_value: unknown;
   review_sha256: string;
   setting_id: string;
+  [k: string]: unknown;
+}
+/**
+ * A complete review of one logical managed file and any runtime projection.
+ * A materialized setup is a fence on the view, not a second configuration store.
+ */
+export interface OutputGameSettingsChangeSetReview {
+  configuration_sha256: string;
+  edits: ReviewedGameSettingsEdit[];
+  file_id: string;
+  install_id: string;
+  library_id: string;
+  path: string;
+  port_id: string;
+  review_sha256: string;
+  setup: GameSettingsSetupIdentity | null;
+}
+export interface ReviewedGameSettingsEdit {
+  edit: GameSettingsEdit;
+  label: string;
+  previous_value: unknown;
+  proposed_value: unknown;
+}
+/**
+ * An edit to one declared key within the change-set's single configuration file.
+ */
+export interface GameSettingsEdit {
+  change: GameSettingChange;
+  setting_id: string;
+}
+export interface GameSettingsSetupIdentity {
+  id: string;
+  revision: number;
+}
+/**
+ * Settings observed for the exact installation used by the materialized setup.
+ */
+export interface OutputGameSettingsChangeSetView {
+  installed_version: string | null;
+  settings: GameSettingsView;
+  setup: GameSettingsSetupIdentity | null;
+  setup_name: string | null;
   [k: string]: unknown;
 }
 /**
@@ -5249,6 +5369,16 @@ export interface LibraryMembershipSource {
 export interface LibraryPortSettings {
   active_install_id: string | null;
   channel: ReleaseChannel;
+  /**
+   * Version 13 binds user release preferences without admitting artifacts.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * Version 13: the stored text of a saved pin Core cannot use, carried
+   * unchanged so the destination keeps the same hold instead of silently
+   * following the channel. Following the channel there clears it.
+   */
+  held_exact_release?: string | null;
   output_directory?: string | null;
   port_id: string;
   previous_install_id: string | null;
@@ -7618,8 +7748,11 @@ export interface ArtifactFact {
  */
 export interface PlayerCandidate {
   /**
-   * The PE/ELF/Mach-O machine in the `0x%04x` form package player
-   * observations record; absent when the source recorded only a path.
+   * The machine its PE, ELF or Mach-O header names, for example
+   * `pe-x86-64`, `elf64-x86-64`, `macho-arm64` or
+   * `macho-universal-arm64+x86-64`; an unnamed machine keeps its raw
+   * number, for example `pe-0x01c2`. Absent when the source recorded only
+   * a path.
    */
   machine?: string | null;
   path: string;

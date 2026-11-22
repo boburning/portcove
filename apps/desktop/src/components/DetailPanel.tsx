@@ -146,6 +146,11 @@ import {
   useOperationPresentation,
 } from "../features/operations/operation-presentation";
 
+import {
+  ExactReleasePreference,
+  type ExactReleaseActions,
+} from "../features/game-details/ExactReleasePreference";
+
 export interface DetailActions {
   activate: AsyncAction;
   backup: AsyncAction;
@@ -164,6 +169,7 @@ export interface DetailActions {
   rollback: AsyncAction;
   remove: ApplyRemoval;
   setChannel: (channel: ReleaseChannel) => Promise<PortStatus | undefined>;
+  exactRelease?: ExactReleaseActions;
   setPolicy: (policy: UpdatePolicy) => Promise<PortStatus | undefined>;
   verify: AsyncAction;
 }
@@ -4532,6 +4538,22 @@ function DetailVersionsSection({
           <AutomaticSnapshotsSummary generation={model.libraryGeneration} />
         )}
         {!external && <CarriedFilesSummary record={model.status?.carried_files} />}
+        {!external && model.installed && model.status && model.actions.exactRelease && (
+          <ExactReleasePreference
+            key={JSON.stringify([
+              model.libraryGeneration,
+              model.port.id,
+              model.status.active?.id,
+              model.status.active?.manifest_sha256,
+              model.selectedChannel,
+              model.status.update_policy,
+              model.status.exact_release,
+            ])}
+            actions={model.actions.exactRelease}
+            status={model.status}
+            busy={Boolean(model.busy)}
+          />
+        )}
         {!external && model.port.release.provider !== "user-prepared" && (
           <UpdatesGroup
             perform={model.perform}

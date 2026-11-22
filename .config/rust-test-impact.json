@@ -322,6 +322,14 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/library_recovery_bundle/execution.rs",
+      "test": "a_full_filesystem_leaves_the_exact_recovery_copy_resumable",
+      "reason": "requires a private 80 MiB Linux test filesystem",
+      "package": "portcove-core",
+      "platforms": ["linux"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/github_mods.rs",
       "test": "real_release_successor_retains_numeric_github_identity",
       "reason": "natural-event observation, not ordinary coverage: requires the real retained GitHub release metadata for the reviewed mod source in PORTCOVE_GITHUB_MOD_RELEASES",

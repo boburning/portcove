@@ -386,6 +386,8 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
                 assert!(snapshot.checked_at <= time::OffsetDateTime::now_utc().unix_timestamp());
                 let active = before.active.as_ref().unwrap();
                 let expected_check = crate::UpdateCheck {
+                    exact_release: None,
+                    channel_latest_version: None,
                     port_id: ID.into(),
                     channel: before.channel,
                     installed_version: Some(active.version.clone()),

@@ -307,9 +307,9 @@ pub use game_recommendations::{
 };
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
-    GameSettingView, GameSettingsChangeSetReview, GameSettingsContract, GameSettingsEdit,
-    GameSettingsFile, GameSettingsFileView, GameSettingsFormat, GameSettingsRelease,
-    GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
+    GameSettingView, GameSettingsChangeSetReview, GameSettingsChangeSetView, GameSettingsContract,
+    GameSettingsEdit, GameSettingsFile, GameSettingsFileView, GameSettingsFormat,
+    GameSettingsRelease, GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
     inspect_game_settings_qualification,
 };
 pub use gamebanana::GameBananaClient;
@@ -351,7 +351,7 @@ pub use library_membership::{
 pub use library_move::LibraryMoveResult;
 pub use library_recovery_bundle::{
     LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage,
-    LibraryRecoveryExclusion, LibraryRecoveryRestorePlan,
+    LibraryRecoveryExclusion, LibraryRecoveryProgress, LibraryRecoveryRestorePlan,
 };
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
@@ -440,6 +440,7 @@ pub use recomp_mod::{
 };
 pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
+    ExactReleaseHold, ExactReleaseHoldReason, ExactReleaseIdentity, ExactReleaseSelection,
     GithubReleaseProvider, ManagedPackageVariant, ObservationEvidence, ObservedReleaseIdentity,
     ObservedResolution, ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
     inspect_upstream_observation,
@@ -462,7 +463,7 @@ pub use service::{
     CatalogDownloadAssetId, CatalogDownloadCandidate, CatalogDownloadCandidates,
     CatalogDownloadCoverage, CatalogDownloadPreview, CatalogDownloadRefusal,
     CatalogDownloadRelease, CatalogDownloadReleaseId, CatalogDownloadRequest,
-    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment,
+    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment, ExactReleaseReview,
     GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest,
     InstallBatchCapacity, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,

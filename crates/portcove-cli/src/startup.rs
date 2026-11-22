@@ -270,7 +270,10 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             SchemaCommand::Export { .. } => Recovering,
         },
         Commands::Channel { command } => match command {
-            ChannelCommand::Set { .. } => Recovering,
+            ChannelCommand::ReviewExact { .. } => ReadOnly,
+            ChannelCommand::Set { .. }
+            | ChannelCommand::Pin { .. }
+            | ChannelCommand::Follow { .. } => Recovering,
         },
         Commands::Policy { command } => match command {
             PolicyCommand::Set { .. } => Recovering,

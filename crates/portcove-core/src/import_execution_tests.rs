@@ -1123,13 +1123,21 @@ fn stale_plan_and_existing_data_are_rejected_before_creating_an_import() {
     );
     assert!(!destination.exists());
     fs::create_dir(&destination).unwrap();
-    fs::write(destination.join("unrelated.txt"), b"retain").unwrap();
-    assert!(
-        test_phase("import recovery: plan", || {
-            PortcoveService::plan_library_import(&export, &source, &destination)
-        })
-        .is_err()
+    let existing = destination.join("unrelated.txt");
+    fs::write(&existing, b"retain").unwrap();
+    let occupied = test_phase("import recovery: plan", || {
+        PortcoveService::plan_library_import(&export, &source, &destination)
+    })
+    .unwrap_err();
+    assert_eq!(occupied.code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        occupied
+            .details
+            .get("import_destination_state")
+            .map(String::as_str),
+        Some("occupied")
     );
+    assert_eq!(fs::read(existing).unwrap(), b"retain");
     assert!(!destination.join("locks").exists());
 }
 
