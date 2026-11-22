@@ -246,6 +246,10 @@ const apiRoot = "https://api.github.com";
 export class ObservationFailure extends Error {
   rule: string;
   retryAt: string | null;
+  /** Provider HTTP status behind a status failure; distinguishes an outage from a rejection. */
+  httpStatus: number | null = null;
+  /** Coverage already stated by the producer (for example Core); overrides rule mapping. */
+  statedCoverage?: "partial" | "unavailable" | "failed";
   continuation?: ObservationContinuation;
   restartContinuation?: boolean;
   constructor(rule: string, details: string, retryAt: string | null = null) {
@@ -253,6 +257,12 @@ export class ObservationFailure extends Error {
     this.rule = rule;
     this.retryAt = retryAt;
   }
+}
+/** A provider status failure that keeps the HTTP status for stated coverage. */
+export function providerStatusFailure(status: number) {
+  const failure = new ObservationFailure("provider-status", `provider returned HTTP ${status}`);
+  failure.httpStatus = status;
+  return failure;
 }
 
 function requireFact(condition: unknown, rule: string, details: string): asserts condition {
@@ -1640,10 +1650,7 @@ export async function observeUpstream(
       if (response.status !== 200) {
         await response.body?.cancel();
         if (continuation.asset_redirects?.[url]) delete continuation.asset_redirects[url];
-        const failure = new ObservationFailure(
-          "provider-status",
-          `provider returned HTTP ${response.status}`,
-        );
+        const failure = providerStatusFailure(response.status);
         failure.restartContinuation = true;
         throw failure;
       }
@@ -1743,11 +1750,7 @@ export async function observeUpstream(
         failedReads.delete(url);
         return { url, value: previous };
       }
-      requireFact(
-        response.status === 200,
-        "provider-status",
-        `provider returned HTTP ${response.status}`,
-      );
+      if (response.status !== 200) throw providerStatusFailure(response.status);
       requireFact(
         (response.headers["content-type"] ?? "").includes("application/json"),
         "invalid-metadata",
@@ -1802,8 +1805,7 @@ export async function observeUpstream(
             "invalid-metadata",
             "provider returned malformed UTF-8 JSON",
           );
-        if (error.status !== null)
-          throw new ObservationFailure("provider-status", `provider returned HTTP ${error.status}`);
+        if (error.status !== null) throw providerStatusFailure(error.status);
       }
       throw new ObservationFailure(
         "transport",

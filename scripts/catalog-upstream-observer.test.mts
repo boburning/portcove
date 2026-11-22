@@ -5041,3 +5041,279 @@ void test("the mod-provider registry keeps exact discovery evidence across obser
   assert.equal(h.snapshots.length, written);
   assert.equal(requests, registryRequestsBeforeHold);
 });
+
+// #8569: provider-level outcomes are stated per source; an incomplete source
+// keeps its accepted cursor and last-good facts while other sources advance.
+type CoverageFault =
+  | "truncated-page"
+  | "quota-403"
+  | "retry-after-429"
+  | "outage-503"
+  | "timeout"
+  | "malformed-json";
+function faultySourceHarness() {
+  const h = harness();
+  let fault: CoverageFault | null = null;
+  const faultRequests: string[] = [];
+  const base = h.options.fetch!;
+  h.options.fetch = async (url, init) => {
+    const pathname = new URL(url).pathname;
+    if (fault === null || !pathname.startsWith("/repos/owner/other")) return base(url, init);
+    faultRequests.push(url);
+    const reset = Math.floor((h.options.now!() + 600_000) / 1000);
+    const json = { "content-type": "application/json" };
+    switch (fault) {
+      case "truncated-page":
+        if (!pathname.endsWith("/releases")) return base(url, init);
+        // A nonterminal page that names a next page but holds fewer than 100 items.
+        return new Response(JSON.stringify([release(3), release(2)]), {
+          headers: {
+            ...json,
+            link: `<https://api.github.com${pathname}?per_page=100&page=2>; rel="next"`,
+          },
+        });
+      case "quota-403":
+        return new Response(JSON.stringify({ message: "API rate limit exceeded" }), {
+          status: 403,
+          headers: {
+            ...json,
+            "x-ratelimit-remaining": "0",
+            "x-ratelimit-limit": "5000",
+            "x-ratelimit-reset": String(reset),
+          },
+        });
+      case "retry-after-429":
+        return new Response("{}", { status: 429, headers: { ...json, "retry-after": "120" } });
+      case "outage-503":
+        return new Response("{}", { status: 503, headers: json });
+      case "timeout":
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      case "malformed-json":
+        return new Response("{not json", { headers: json });
+    }
+  };
+  return {
+    h,
+    faultRequests,
+    setFault: (value: CoverageFault | null) => {
+      fault = value;
+    },
+    resetAt: () => new Date(Math.floor((h.options.now!() + 600_000) / 1000) * 1000).toISOString(),
+  };
+}
+const sourceByRepository = (state: CatalogObserverCheckpoint, repository: string) =>
+  Object.values(state.sources).find((source) => source.repository === repository)!;
+const expectedCoverage: Record<CoverageFault, { kind: string; rule: string }> = {
+  "truncated-page": { kind: "partial", rule: "pagination" },
+  "quota-403": { kind: "unavailable", rule: "rate-limit" },
+  "retry-after-429": { kind: "unavailable", rule: "rate-limit" },
+  "outage-503": { kind: "unavailable", rule: "provider-status" },
+  timeout: { kind: "unavailable", rule: "transport" },
+  "malformed-json": { kind: "failed", rule: "invalid-metadata" },
+};
+
+for (const fault of Object.keys(expectedCoverage) as CoverageFault[]) {
+  void test(`stated ${fault} coverage keeps the source's cursor and last-good facts and resumes`, async () => {
+    const { h, setFault, faultRequests } = faultySourceHarness();
+    const baseline = await advanceCatalogObservations(h.input, null, h.options);
+    assert.equal(baseline.report.completed_source_keys.length, 2);
+    assert.ok(baseline.report.source_statuses.every((status) => !("coverage" in status)));
+    const before = sourceByRepository(baseline.checkpoint, "owner/other");
+    const beforeShared = sourceByRepository(baseline.checkpoint, "owner/shared");
+    const otherKey = Object.entries(baseline.checkpoint.sources).find(
+      ([, source]) => source.repository === "owner/other",
+    )![0];
+
+    h.advanceClock(48 * 3600_000);
+    h.bumpRelease();
+    setFault(fault);
+    const failed = await advanceCatalogObservations(h.input, baseline.checkpoint, h.options);
+    const after = sourceByRepository(failed.checkpoint, "owner/other");
+    const expected = expectedCoverage[fault];
+    assert.ok(faultRequests.length > 0, "the fault fixture was exercised");
+    assert.equal(after.coverage?.kind, expected.kind, JSON.stringify(after.coverage));
+    assert.equal(after.coverage?.rule, expected.rule);
+    assert.equal(after.exception_rule, expected.rule);
+    // Unknown is never "no release": last-good facts, policies and scope are retained.
+    assert.equal(after.last_complete_facts_sha256, before.last_complete_facts_sha256);
+    assert.deepEqual(after.last_complete_policies, before.last_complete_policies);
+    assert.equal(after.completed_scope_sha256, before.completed_scope_sha256);
+    assert.equal(after.completed_at, before.completed_at);
+    assert.equal(after.freshness_observed_at, before.freshness_observed_at);
+    assert.ok(!failed.report.completed_source_keys.includes(otherKey));
+    const status = failed.report.source_statuses.find((item) => item.source_key === otherKey)!;
+    assert.deepEqual(status.coverage, after.coverage);
+    assert.equal(status.current_scope_complete, false);
+    const failure = failed.report.failures.find((item) => item.source === otherKey)!;
+    assert.deepEqual(failure.coverage, after.coverage);
+    if (fault === "quota-403" || fault === "retry-after-429") {
+      assert.ok(after.coverage && "retry_at" in after.coverage);
+      const retryAt = Date.parse(after.coverage.retry_at);
+      assert.ok(retryAt >= h.options.now!() + (fault === "quota-403" ? 590_000 : 60_000));
+      assert.equal(after.retry_at, after.coverage.retry_at);
+      assert.equal(failed.checkpoint.provider_retry_at, after.coverage.retry_at);
+      // GitHub quota is shared by the token: a sibling GitHub source waits as
+      // pending work with its own cursor; it is neither failed nor marked incomplete.
+      const shared = sourceByRepository(failed.checkpoint, "owner/shared");
+      assert.equal(shared.coverage, undefined);
+      assert.equal(shared.exception_rule, null);
+      assert.equal(shared.last_complete_facts_sha256, beforeShared.last_complete_facts_sha256);
+    } else {
+      assert.ok(after.coverage && !("retry_at" in after.coverage));
+      // One failing source does not starve the other: it completes and advances.
+      const shared = sourceByRepository(failed.checkpoint, "owner/shared");
+      assert.equal(shared.coverage, undefined);
+      assert.notEqual(shared.last_complete_facts_sha256, beforeShared.last_complete_facts_sha256);
+      assert.equal(failed.report.completed_source_keys.length, 1);
+    }
+    if (after.coverage?.kind === "partial")
+      assert.match(String(after.coverage.next_cursor), /^collect:\d+$/u);
+    // A stated coverage is bounded checkpoint content.
+    assert.ok(Buffer.byteLength(JSON.stringify(after.coverage)) <= 256);
+    assert.ok(
+      failed.report.checkpoint_storage.bytes - baseline.report.checkpoint_storage.bytes < 4096,
+    );
+    const reparsed = validateCatalogObserverCheckpoint(
+      JSON.parse(JSON.stringify(failed.checkpoint)),
+      h.options.now!(),
+    );
+    assert.deepEqual(sourceByRepository(reparsed, "owner/other").coverage, after.coverage);
+
+    // The next run resumes from the retained cursor once the provider recovers.
+    setFault(null);
+    h.advanceClock(3600_000);
+    const resumed = await advanceCatalogObservations(h.input, failed.checkpoint, h.options);
+    const recovered = sourceByRepository(resumed.checkpoint, "owner/other");
+    assert.ok(resumed.report.completed_source_keys.includes(otherKey));
+    assert.equal(recovered.coverage, undefined);
+    assert.equal(recovered.exception_rule, null);
+    assert.notEqual(recovered.last_complete_facts_sha256, before.last_complete_facts_sha256);
+    assert.ok(
+      resumed.report.source_statuses.every((item) => !("coverage" in item)),
+      "complete sources omit coverage",
+    );
+  });
+}
+
+void test("retained checkpoints without stated coverage parse and malformed statements are refused", async () => {
+  const h = harness();
+  const result = await advanceCatalogObservations(h.input, null, h.options);
+  const now = h.options.now!();
+  const plain = JSON.parse(JSON.stringify(result.checkpoint)) as CatalogObserverCheckpoint;
+  assert.ok(Object.values(plain.sources).every((source) => !("coverage" in source)));
+  validateCatalogObserverCheckpoint(plain, now);
+  const key = Object.keys(plain.sources)[0]!;
+  for (const coverage of [
+    { kind: "complete", rule: "budget" },
+    { kind: "partial", rule: "budget" },
+    { kind: "unavailable", rule: "rate-limit", retry_at: "soon" },
+    { kind: "failed", rule: "x".repeat(81) },
+    { kind: "failed", rule: "invalid-metadata", next_cursor: null },
+    { kind: "partial", rule: "budget", next_cursor: "c".repeat(81) },
+  ]) {
+    const changed = structuredClone(plain);
+    (changed.sources[key] as unknown as Record<string, unknown>).coverage = coverage;
+    assert.throws(() => validateCatalogObserverCheckpoint(changed, now), /progress/u);
+  }
+});
+
+void test("GitLab quota, outage, malformed and truncated responses state coverage while GitHub sources complete", async () => {
+  const h = harness();
+  const gitlab = {
+    id: "gitlab-port",
+    channels: ["stable"],
+    release: { provider: "gitlab", repository: "owner/lab" },
+  };
+  const catalog = { ports: [...h.input.ports, gitlab] };
+  type Mode = "ok" | "429" | "503" | "malformed" | "truncated";
+  let mode: Mode = "ok";
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    definitionHash: (id) => observationHash(catalog.ports.find((port) => port.id === id)),
+    providerFetch: async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      const project = url.pathname.endsWith("lab");
+      if (!project && mode === "429")
+        return new Response("{}", { status: 429, headers: { "retry-after": "300" } });
+      if (!project && mode === "503") return new Response("{}", { status: 503 });
+      if (!project && mode === "malformed")
+        return new Response("[{", {
+          headers: { "x-page": "1", "x-per-page": "100", "x-next-page": "" },
+        });
+      return new Response(
+        JSON.stringify(
+          project ? { id: 27, path_with_namespace: "owner/lab", archived: false } : [],
+        ),
+        {
+          headers: {
+            "x-page": url.searchParams.get("page") ?? "1",
+            "x-per-page": "100",
+            // A truncated page names a next page while holding fewer than 100 rows.
+            "x-next-page": !project && mode === "truncated" ? "2" : "",
+          },
+        },
+      );
+    },
+    projectProvider: async (id, observation) => ({
+      format: 2,
+      port_id: id,
+      catalog_definition_sha256: observationHash(catalog.ports.find((port) => port.id === id)),
+      facts_sha256: observation.facts_sha256,
+      projections: [],
+    }),
+    exportProvider: async () => {},
+  };
+  const key = catalogObservationSources(catalog).sources.find(
+    (source) => source.provider === "gitlab",
+  )!.key;
+  const baseline = await advanceCatalogObservations(catalog, null, options);
+  assert.equal(baseline.report.completed_source_keys.length, 3);
+  const expected: Record<Exclude<Mode, "ok">, { kind: string; rule: string; retry?: number }> = {
+    "429": { kind: "unavailable", rule: "provider-quota", retry: 300_000 },
+    "503": { kind: "unavailable", rule: "provider-http" },
+    malformed: { kind: "failed", rule: "provider-metadata" },
+    truncated: { kind: "partial", rule: "provider-pagination" },
+  };
+  let state = baseline.checkpoint;
+  for (const [fault, want] of Object.entries(expected) as [
+    Exclude<Mode, "ok">,
+    typeof expected.malformed,
+  ][]) {
+    h.advanceClock(48 * 3600_000);
+    h.bumpRelease();
+    mode = fault;
+    const lastGood = state.sources[key]!;
+    const failed = await advanceCatalogObservations(catalog, state, options);
+    const progress = failed.checkpoint.sources[key]!;
+    assert.equal(
+      progress.coverage?.kind,
+      want.kind,
+      `${fault}: ${JSON.stringify(progress.coverage)}`,
+    );
+    assert.equal(progress.coverage?.rule, want.rule);
+    assert.equal(progress.last_complete_facts_sha256, lastGood.last_complete_facts_sha256);
+    assert.equal(progress.freshness_observed_at, lastGood.freshness_observed_at);
+    if (want.retry)
+      assert.equal(
+        progress.coverage && "retry_at" in progress.coverage
+          ? Date.parse(progress.coverage.retry_at)
+          : null,
+        h.options.now!() + want.retry,
+      );
+    if (progress.coverage?.kind === "partial")
+      assert.match(String(progress.coverage.next_cursor), /^reads:\d+:validate:\d+$/u);
+    // The GitHub sources are not starved by the failing GitLab source.
+    assert.equal(failed.report.completed_source_keys.length, 2, fault);
+    assert.ok(!failed.report.completed_source_keys.includes(key));
+    assert.deepEqual(
+      failed.report.source_statuses.find((status) => status.source_key === key)!.coverage,
+      progress.coverage,
+    );
+    mode = "ok";
+    h.advanceClock(3600_000);
+    const resumed = await advanceCatalogObservations(catalog, failed.checkpoint, options);
+    assert.ok(resumed.report.completed_source_keys.includes(key), fault);
+    assert.equal(resumed.checkpoint.sources[key]!.coverage, undefined);
+    state = resumed.checkpoint;
+  }
+});

@@ -209,6 +209,68 @@ always states coverage. Retained checkpoints and handoffs drop `release_facts`,
 which are derivable from the retained provider facts, and keep
 `fact_provenance` and each projection's typed fields.
 
+### Stated source coverage in the observer scripts
+
+The observer scripts state, per source, how an attempt that did not complete
+covered its provider. They reuse Core's coverage vocabulary
+(`partial`, `unavailable`, `failed`); a complete attempt states nothing and
+the field is omitted. `statedSourceCoverage` in
+`catalog-observer-continuation.mts` derives the statement from the recorded
+exception rule:
+
+| Provider outcome                                                    | Stated coverage                           | Rule                                |
+| ------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------- |
+| Truncated nonterminal page or missing next page                     | `partial`                                 | `pagination`, `provider-pagination` |
+| Own request, byte or time budget spent; cancellation                | `partial`                                 | `budget`, `cancelled`               |
+| Collection changed during validation                                | `partial` (restarts, `next_cursor: null`) | `concurrent-change`                 |
+| 429, or 403 with `Retry-After` or exhausted `x-ratelimit-remaining` | `unavailable`                             | `rate-limit`, `provider-quota`      |
+| 5xx or 408 after the bounded retries                                | `unavailable`                             | `provider-status`, `provider-http`  |
+| Network failure or timeout                                          | `unavailable`                             | `transport`, `provider-transport`   |
+| Malformed JSON or metadata, other 4xx, identity changes             | `failed`                                  | the recorded rule                   |
+| Core stated `partial`, `unavailable` or `failed`                    | Core's kind                               | `incomplete-coverage`               |
+
+Each statement is `{ "kind", "rule" }`. It adds `retry_at` only when the provider
+or its quota reserve named the earliest retry time (`Retry-After`, or
+`x-ratelimit-reset` / `ratelimit-reset`). A `partial` statement adds
+`next_cursor`: the retained position the next run resumes from. For GitHub
+this is `collect:<retained pages>` or `validate:<validation cursor>`; for
+GitLab and direct manifests it is `reads:<retained reads>:validate:<cursor>`;
+it is `null` when the attempt restarts. Incomplete API coverage is UNKNOWN. It
+never means that a release or asset is absent.
+
+The statement is recorded in three places and omitted when complete:
+
+- `coverage` on the catalog checkpoint's source progress
+- `coverage` on the configured observer's checkpoint and report `exception`
+- `coverage` on the matching report `source_statuses` and `failures` entries
+
+Checkpoints written before this field still parse. A retained statement is
+validated and bounded, so it adds at most a few hundred bytes per source.
+
+**Script cursor rule.** An incomplete attempt never advances that source's
+accepted cursor and never replaces its last-good facts. `completed_scope_sha256`,
+`last_complete_facts_sha256`, `last_complete_policies`, `completed_at` and
+`freshness_observed_at` stay as they were. Collection pages accepted before the
+stop stay in the continuation, and the next admitted run resumes from that
+retained cursor. A source with `retry_at` is not attempted again before that
+time. A later complete attempt removes the statement.
+
+One failing source does not stop the run. Its failure is recorded, it is
+excluded from the remaining bounded batches, and the other sources continue
+within their own budgets. GitHub quota is shared by the token, so a GitHub
+rate limit defers the remaining GitHub sources until `provider_retry_at`. Those
+sources stay pending with their own cursors; they are not marked incomplete.
+GitLab and direct-manifest sources keep their separate reserves and continue.
+
+Exit status keeps the convention the hosted workflow consumes. The coordinator
+exits 0 when every attempted source completed, or when a source stopped with
+only a quiet or repeated condition. It exits 1 once for a new notifying
+exception. Budget and cancellation stops, and GitLab or direct-manifest quota
+stops, never notify; a new GitHub rate-limit or outage exception notifies once.
+The exit status therefore does not separate "all complete" from "some
+incomplete". Read that from the report: a source whose `source_statuses` entry
+carries `coverage` is incomplete.
+
 ## Checkpoints, interruption and exceptions
 
 Run `node scripts/observe-configured-upstream.mts --cli PATH_TO_PORTCOVE` from

@@ -1110,6 +1110,11 @@ void test("stated incomplete Core coverage keeps the cursor and last-good facts"
     });
     assert.equal(held.report.transition, "failed", coverage.kind);
     assert.equal(requiredFixture(held.report.exception).rule, "incomplete-coverage");
+    // The observer restates Core's coverage for this source (#8569).
+    assert.equal(
+      requiredFixture(held.report.exception).coverage?.kind,
+      coverage.kind === "invented" ? "failed" : coverage.kind,
+    );
     assert.deepEqual(held.checkpoint.last_complete, good.checkpoint.last_complete);
     assert.equal(held.checkpoint.completed_runs, good.checkpoint.completed_runs);
     assert.equal(
@@ -3009,4 +3014,108 @@ void test("N64 job evidence joins successful checkout and upload steps without p
     );
     assert.equal(found.matches[0]?.artifact_id, 9);
   }
+});
+
+void test("provider outcomes map to stated partial, unavailable or failed coverage", async () => {
+  const { statedSourceCoverage, validStatedSourceCoverage, continuationCursor } =
+    await import("./catalog-observer-continuation.mts");
+  const { providerStatusFailure } = await import("./upstream-observer.mts");
+  const retryAt = "2026-11-22T12:00:00.000Z";
+  const cases: [unknown, string | null, Record<string, unknown>][] = [
+    [
+      new ObservationFailure("pagination", "short"),
+      "collect:2",
+      { kind: "partial", rule: "pagination", next_cursor: "collect:2" },
+    ],
+    [
+      new ObservationFailure("budget", "spent", retryAt),
+      null,
+      { kind: "partial", rule: "budget", next_cursor: null, retry_at: retryAt },
+    ],
+    [
+      new ObservationFailure("rate-limit", "quota", retryAt),
+      null,
+      { kind: "unavailable", rule: "rate-limit", retry_at: retryAt },
+    ],
+    [
+      new ObservationFailure("transport", "timeout"),
+      null,
+      { kind: "unavailable", rule: "transport" },
+    ],
+    [providerStatusFailure(502), null, { kind: "unavailable", rule: "provider-status" }],
+    [providerStatusFailure(408), null, { kind: "unavailable", rule: "provider-status" }],
+    [providerStatusFailure(404), null, { kind: "failed", rule: "provider-status" }],
+    [
+      new ObservationFailure("invalid-metadata", "bad json"),
+      null,
+      { kind: "failed", rule: "invalid-metadata" },
+    ],
+    [new TypeError("unexpected"), null, { kind: "failed", rule: "source-operation-failed" }],
+    [
+      new ObservationFailure("rate-limit", "bad clock", "not a time"),
+      null,
+      { kind: "unavailable", rule: "rate-limit" },
+    ],
+  ];
+  for (const [error, cursor, expected] of cases) {
+    const stated = statedSourceCoverage(error, cursor);
+    assert.deepEqual(stated, expected);
+    assert.ok(validStatedSourceCoverage(stated));
+  }
+  const core = new ObservationFailure("incomplete-coverage", "core");
+  core.statedCoverage = "unavailable";
+  assert.equal(statedSourceCoverage(core).kind, "unavailable");
+  assert.equal(continuationCursor({ phase: "restart", pages: {}, validation_cursor: 0 }), null);
+  assert.equal(continuationCursor({ phase: "collect", pages: { a: {}, b: {} } }), "collect:2");
+  assert.equal(
+    continuationCursor({ phase: "validate", pages: {}, validation_cursor: 3 }),
+    "validate:3",
+  );
+});
+
+void test("a rate-limited single-port observation states unavailable coverage with its retry time", async () => {
+  const now = Date.parse(time);
+  const good = await advanceObservation(config, null, {
+    fetch: fixture().fetch,
+    project,
+    now: () => now,
+  });
+  const limited = await advanceObservation(config, good.checkpoint, {
+    project,
+    now: () => now + 7 * 3600_000,
+    sleep: async () => {},
+    fetch: fixture({
+      intercept: () => new Response("{}", { status: 429, headers: { "retry-after": "900" } }),
+    }).fetch,
+  });
+  const exception = requiredFixture(limited.report.exception);
+  assert.equal(exception.rule, "rate-limit");
+  assert.deepEqual(exception.coverage, {
+    kind: "unavailable",
+    rule: "rate-limit",
+    retry_at: new Date(now + 7 * 3600_000 + 900_000).toISOString(),
+  });
+  assert.equal(exception.retry_at, exception.coverage?.retry_at);
+  assert.deepEqual(limited.checkpoint.last_complete, good.checkpoint.last_complete);
+  // The retained statement survives a checkpoint round trip; an earlier
+  // checkpoint without it still parses.
+  const roundTrip = await advanceObservation(
+    config,
+    JSON.parse(JSON.stringify(limited.checkpoint)),
+    {
+      project,
+      now: () => now + 7 * 3600_000 + 1000,
+      fetch: fixture().fetch,
+    },
+  );
+  assert.equal(roundTrip.report.transition, "deferred");
+  assert.deepEqual(roundTrip.checkpoint.exception?.coverage, exception.coverage);
+  const legacy = structuredClone(limited.checkpoint);
+  delete requiredFixture(legacy.exception).coverage;
+  const legacyRead = await advanceObservation(config, legacy, {
+    project,
+    now: () => now + 7 * 3600_000 + 1000,
+    fetch: fixture().fetch,
+  });
+  assert.equal(legacyRead.report.transition, "deferred");
 });

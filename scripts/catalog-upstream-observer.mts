@@ -16,6 +16,11 @@ import {
   projectionAssetReleaseIds,
   requireCompleteCoreCoverage,
   retainedCoreProjection,
+  statedSourceCoverage,
+  validStatedSourceCoverage,
+  continuationCursor,
+  providerProgressCursor,
+  type StatedSourceCoverage,
 } from "./catalog-observer-continuation.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
@@ -186,6 +191,9 @@ export interface SourceProgress {
   exception_key: string | null;
   /** Rule behind `exception_key`; absent in checkpoints written before #4779. */
   exception_rule?: string | null;
+  /** Stated partial, unavailable or failed coverage of the last attempt;
+   * omitted when the last attempt completed or none stated it (#8569). */
+  coverage?: StatedSourceCoverage;
   selection_progress: SelectionProgress | null;
   policy_progress: PolicyProgress | null;
   current_config: ObserverConfig | null;
@@ -472,6 +480,7 @@ export function validateCatalogObserverCheckpoint(
         progress.exception_rule !== null &&
         (typeof progress.exception_rule !== "string" ||
           !/^[a-z-]{1,80}$/u.test(progress.exception_rule))) ||
+      (progress.coverage !== undefined && !validStatedSourceCoverage(progress.coverage)) ||
       !Number.isSafeInteger(progress.change_intervals) ||
       Number(progress.change_intervals) < 0 ||
       (progress.mean_change_interval_ms !== null &&
@@ -803,7 +812,13 @@ export async function advanceCatalogObservations(
   };
   const attempted: string[] = [];
   const completed: string[] = [];
-  const failures: { source: string; repository: string; rule: string; details: string }[] = [];
+  const failures: {
+    source: string;
+    repository: string;
+    rule: string;
+    details: string;
+    coverage?: StatedSourceCoverage;
+  }[] = [];
   const isConfigured = (source: (typeof sources)[number]) =>
     source.repository === template.repository &&
     source.ports.some((port) => port.id === template.port_id);
@@ -1274,6 +1289,7 @@ export async function advanceCatalogObservations(
         progress.exception_key = null;
         progress.exception_rule = null;
         progress.retry_at = null;
+        delete progress.coverage;
         progress.policy_progress = null;
         completed.push(source.key);
       } catch (error) {
@@ -1288,11 +1304,16 @@ export async function advanceCatalogObservations(
         progress.exception_key = key;
         progress.exception_rule = rule;
         progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
+        progress.coverage = statedSourceCoverage(
+          error,
+          providerProgressCursor(progress.provider_progress),
+        );
         failures.push({
           source: source.key,
           repository: source.repository,
           rule,
           details: error instanceof Error ? error.message : "Provider operation failed",
+          coverage: progress.coverage,
         });
         if (source.ports.some((port) => port.listing) && options.exportProvider) {
           try {
@@ -1822,6 +1843,16 @@ export async function advanceCatalogObservations(
         progress.exception_key = result.report.exception.key;
         progress.exception_rule = result.report.exception.rule;
         progress.retry_at = result.report.exception.retry_at;
+        progress.coverage = validStatedSourceCoverage(result.report.exception.coverage)
+          ? result.report.exception.coverage
+          : statedSourceCoverage(
+              new ObservationFailure(
+                result.report.exception.rule,
+                "",
+                result.report.exception.retry_at,
+              ),
+              continuationCursor(result.checkpoint.continuation),
+            );
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
           extendProviderDeferral(result.report.exception.retry_at);
@@ -1834,6 +1865,7 @@ export async function advanceCatalogObservations(
             isRecord(result.report.exception) && typeof result.report.exception.details === "string"
               ? result.report.exception.details
               : "Source observation is incomplete; resume only after its recorded condition is satisfied.",
+          coverage: progress.coverage,
         });
       } else {
         const sameScope = progress.completed_scope_sha256 === binding;
@@ -1892,6 +1924,7 @@ export async function advanceCatalogObservations(
         progress.retry_at = null;
         progress.exception_key = null;
         progress.exception_rule = null;
+        delete progress.coverage;
         // Coverage and current Core output can change eligibility without changing provider facts.
         progress.completed_scope_sha256 = binding;
         progress.last_complete_config = config;
@@ -1928,6 +1961,7 @@ export async function advanceCatalogObservations(
         notifyException = true;
       progress.exception_key = key;
       progress.exception_rule = rule;
+      progress.coverage = statedSourceCoverage(error);
       failures.push({
         source: source.key,
         repository: source.repository,
@@ -1936,6 +1970,7 @@ export async function advanceCatalogObservations(
           error instanceof ObservationFailure
             ? error.message
             : "Source operation failed before an observation could be completed; inspect its exact scope and retained execution evidence.",
+        coverage: progress.coverage,
       });
     }
     await commitCheckpoint();
@@ -2007,6 +2042,7 @@ export async function advanceCatalogObservations(
               template.stale_after_hours * 3600000,
           retry_at: progress?.retry_at ?? null,
           next_due_at: progress?.next_due_at ?? null,
+          ...(progress?.coverage ? { coverage: progress.coverage } : {}),
         };
       }),
       attempted_source_keys: attempted,

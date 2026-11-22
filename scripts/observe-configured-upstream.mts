@@ -2,7 +2,11 @@ import { isRecord, errorCode } from "./runtime-values.mts";
 import {
   projectionAssetReleaseIds,
   requireCompleteCoreCoverage,
+  statedSourceCoverage,
+  continuationCursor,
   retainedCoreProjection,
+  validStatedSourceCoverage,
+  type StatedSourceCoverage,
 } from "./catalog-observer-continuation.mts";
 import type {
   ObserverConfig,
@@ -53,6 +57,8 @@ interface CheckpointException {
   first_seen: string;
   last_seen: string;
   retry_at: string | null;
+  /** Stated coverage of the failed attempt; absent in checkpoints written before #8569. */
+  coverage?: StatedSourceCoverage;
 }
 interface Checkpoint {
   format: number;
@@ -166,6 +172,7 @@ function validateCheckpoint(
       (exception.retry_at !== null &&
         (typeof exception.retry_at !== "string" ||
           !Number.isFinite(Date.parse(exception.retry_at)))) ||
+      (exception.coverage !== undefined && !validStatedSourceCoverage(exception.coverage)) ||
       exception.key !==
         observationHash({
           port_id: config.port_id,
@@ -238,6 +245,7 @@ function exceptionFor(
   prior: CheckpointException | null,
   config: ObserverConfig,
   clock: string,
+  nextCursor: string | null,
 ) {
   const rule = error instanceof ObservationFailure ? error.rule : "core-or-observer-failure";
   const key = observationHash({
@@ -261,6 +269,7 @@ function exceptionFor(
         ? error.message
         : `Observation or core policy inspection failed (${unexpectedErrorClass(error)}); inspect this run's retained evidence.`,
     retry_at: error instanceof ObservationFailure ? error.retryAt : null,
+    coverage: statedSourceCoverage(error, nextCursor),
     resume_condition:
       rule === "rate-limit"
         ? "Provider retry clock has elapsed; the next scheduled bounded observation must complete."
@@ -392,7 +401,13 @@ export async function advanceObservation(
         if (priorContinuation === undefined) delete next.continuation;
         else next.continuation = structuredClone(priorContinuation);
       }
-      const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
+      const exception = exceptionFor(
+        error,
+        next.exception,
+        config,
+        new Date(now()).toISOString(),
+        continuationCursor(next.continuation),
+      );
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;
       transition = "failed";

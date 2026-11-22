@@ -248,13 +248,32 @@ export async function observeProviderSource(
         "provider-http",
         "Unexpected not-modified response without a conditional GET",
       );
-    if (![200, 204, 304].includes(response.status) && method === "GET")
-      throw new ObservationFailure(
+    if (![200, 204, 304].includes(response.status) && method === "GET") {
+      const quota = options.capacities[new URL(url).origin];
+      // A quota response is the provider declining for now, not a rejection.
+      if (
+        response.status === 429 ||
+        (response.status === 403 && (quota?.retry_at || quota?.remaining === 0))
+      )
+        throw new ObservationFailure(
+          "provider-quota",
+          `Primary provider returned HTTP ${response.status}`,
+          quota?.retry_at ?? quota?.reset_at ?? null,
+        );
+      const failure = new ObservationFailure(
         "provider-http",
         `Primary provider returned HTTP ${response.status}`,
       );
-    const body: unknown =
-      method === "GET" && response.status !== 304 ? JSON.parse(response.text) : null;
+      failure.httpStatus = response.status;
+      throw failure;
+    }
+    let body: unknown = null;
+    if (method === "GET" && response.status !== 304)
+      try {
+        body = JSON.parse(response.text);
+      } catch {
+        throw new ObservationFailure("provider-metadata", "Provider returned malformed JSON");
+      }
     const rawLength = response.headers["content-length"];
     const contentLength =
       method === "HEAD" &&
