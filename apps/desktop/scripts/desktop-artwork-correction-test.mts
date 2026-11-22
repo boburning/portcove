@@ -180,7 +180,16 @@ export async function artworkCorrectionScenario({
         }
       }
     }
-    const keyPath = path.join(output, "public-test-signing-key.pem");
+    // Keep the full synthetic catalogs private to the run. Retain their
+    // reproducible identities with the native receipts in bounded job evidence.
+    const inputs = path.join(output, "catalog-fixture-inputs");
+    await mkdir(inputs);
+    const retainIdentity = async (name: string, value: object) => {
+      const evidence = path.join(output, `${name}-catalog-fixture-identity.json`);
+      await writeFile(evidence, JSON.stringify(value), { flag: "wx" });
+      artifacts.push(evidence);
+    };
+    const keyPath = path.join(inputs, "public-test-signing-key.pem");
     // Reuse signed_catalog_tests.rs's [7;32] public test seed, never a publisher key.
     const privateKey = createPrivateKey({
       key: Buffer.concat([
@@ -214,9 +223,10 @@ export async function artworkCorrectionScenario({
       const document = structuredClone(catalog);
       object(required(ports(document).find((port) => port.id === portId)).presentation).artwork =
         mapping;
-      const source = path.join(output, `${name}-catalog.json`);
-      const envelope = path.join(output, `${name}-signed.json`);
-      await writeFile(source, JSON.stringify(document), { flag: "wx" });
+      const source = path.join(inputs, `${name}-catalog.json`);
+      const envelope = path.join(inputs, `${name}-signed.json`);
+      const catalogBytes = JSON.stringify(document);
+      await writeFile(source, catalogBytes, { flag: "wx" });
       const now = Math.floor(Date.now() / 1000);
       const result = spawnCommand(
         process.execPath,
@@ -238,13 +248,18 @@ export async function artworkCorrectionScenario({
         { encoding: "utf8", windowsHide: true, timeout: 5000 },
       );
       assert.equal(result.status, 0, result.stderr);
-      artifacts.push(source, envelope);
       const resultValue = jsonObject(result.stdout);
-      return {
-        envelope,
+      const identity = {
         public_key: text(resultValue.public_key),
         key_id: text(resultValue.key_id),
+        sequence,
+        issued_at: now - 60,
+        expires_at: now + 3600,
+        catalog_sha256: digest(catalogBytes),
+        envelope_sha256: digest(await readFile(envelope)),
       };
+      await retainIdentity(name, identity);
+      return { envelope, ...identity };
     };
     const red = await signed(1, required(mappings.get("red")), "red");
     const blue = await signed(2, required(mappings.get("blue")), "blue");
@@ -252,14 +267,18 @@ export async function artworkCorrectionScenario({
       return transportValue("catalog_status", success(await invoke("get_catalog_status")));
     };
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const click = async (locator: Locator) => {
+    const click = async (locator: Locator, enableDeadline = 5_000) => {
       const element = await browser.wait(until.elementLocated(locator), 10000);
       await executeBrowserScript(
         browser,
         (element) => element.scrollIntoView({ block: "center" }),
         element,
       );
-      await browser.wait(until.elementIsEnabled(element), 5000);
+      await browser.wait(
+        until.elementIsEnabled(element),
+        enableDeadline,
+        `The exact control must be enabled before delivery: ${locator}`,
+      );
       await element.click();
     };
     const dialog = By.css('[aria-labelledby="catalog-update-title"]');
@@ -273,7 +292,8 @@ export async function artworkCorrectionScenario({
       await browser.wait(until.elementLocated(By.id("catalog-public-key")), 10000);
     };
     const close = async () => {
-      await click(button("Close"));
+      // After Apply, Close stays disabled until the native workspace refresh settles.
+      await click(button("Close"), 45_000);
       await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5000);
     };
     const review = async (file: string) => {
@@ -448,12 +468,16 @@ export async function artworkCorrectionScenario({
       "Verified cached corrected pixels survive app restart",
     );
     const before = (await status()).state_sha256;
-    const invalid = path.join(output, "invalid-signature.json");
+    const invalid = path.join(inputs, "invalid-signature.json");
     const fresh = await signed(3, required(mappings.get("red")), "fresh-signature");
     const tampered = jsonObject(await readFile(fresh.envelope, "utf8"));
     tampered.signature = "00".repeat(64);
-    await writeFile(invalid, JSON.stringify(tampered), { flag: "wx" });
-    artifacts.push(invalid);
+    const tamperedBytes = JSON.stringify(tampered);
+    await writeFile(invalid, tamperedBytes, { flag: "wx" });
+    await retainIdentity("invalid-signature", {
+      original_envelope_sha256: fresh.envelope_sha256,
+      envelope_sha256: digest(tamperedBytes),
+    });
     await open();
     await review(invalid);
     await browser.wait(
@@ -487,10 +511,12 @@ export async function artworkCorrectionScenario({
     );
     const replacement = await signed(4, required(mappings.get("red")), "replacement");
     const reviewedBytes = await readFile(stale.envelope);
-    const reviewedCopy = path.join(output, "stale-reviewed-envelope.json");
-    await writeFile(reviewedCopy, reviewedBytes, { flag: "wx" });
-    artifacts.push(reviewedCopy);
     await writeFile(stale.envelope, await readFile(replacement.envelope));
+    await retainIdentity("stale-replacement", {
+      reviewed_envelope_sha256: digest(reviewedBytes),
+      replacement_envelope_sha256: digest(await readFile(stale.envelope)),
+      reviewed_path: stale.envelope,
+    });
     await click(button("Apply catalog update"));
     await browser.wait(
       until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
