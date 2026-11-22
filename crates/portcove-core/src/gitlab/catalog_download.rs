@@ -116,8 +116,10 @@ impl GitlabReleaseProvider {
         )
         .is_none()
         {
-            return Err(PortcoveError::unsupported(
-                "the exact GitLab release is not published in this channel",
+            return Err(crate::release::ExactReleaseRefusal::OutsideChannel.attach(
+                PortcoveError::unsupported(
+                    "the exact GitLab release is not published in this channel",
+                ),
             ));
         }
         let mut tag_url = reqwest::Url::parse(&project_url)

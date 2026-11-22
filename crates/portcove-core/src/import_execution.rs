@@ -355,11 +355,10 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
                     .as_deref()
                     .map(|path| crate::path::unicode(path, "port output directory"))
                     .transpose()?,
-                settings
-                    .exact_release
-                    .as_ref()
-                    .map(serde_json::to_string)
-                    .transpose()?,
+                match (&settings.exact_release, &settings.held_exact_release) {
+                    (Some(pin), _) => Some(serde_json::to_string(pin)?),
+                    (None, held) => held.clone(),
+                },
             ],
         )?;
     }

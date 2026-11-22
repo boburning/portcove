@@ -1655,6 +1655,9 @@ impl PortcoveService {
             return Err(crate::cartridge_build::retired_creation());
         }
         let resolution = if let Some(id) = package_id {
+            if let Some(hold) = &status.exact_release_hold {
+                return Err(hold.refusal(&port.id));
+            }
             if status.exact_release.is_some() {
                 return Err(PortcoveError::conflict(
                     "clear the saved exact release before choosing another package",
@@ -3166,6 +3169,22 @@ impl PortcoveService {
         platform: Platform,
         status: &PortStatus,
     ) -> Result<crate::ScopedResolvedRelease> {
+        // An unusable pin never silently becomes channel following.
+        if let Some(hold) = &status.exact_release_hold {
+            return Err(hold.refusal(&port.id));
+        }
+        if let Some(pin) = &status.exact_release
+            && pin.channel != channel
+        {
+            return Err(crate::release::ExactReleaseRefusal::ChannelDiffers.attach(
+                PortcoveError::conflict(
+                    "the saved exact release belongs to a different channel than the requested one",
+                )
+                .detail("port_id", &port.id)
+                .detail("pinned_channel", pin.channel.to_string())
+                .detail("requested_channel", channel.to_string()),
+            ));
+        }
         let variant = Self::saved_package_variant(port, channel, platform, status)?;
         self.resolve_release_with_variant(
             port,
@@ -3201,6 +3220,14 @@ impl PortcoveService {
                     .await?;
                 resolved.require_selection(port, platform, channel)?;
                 pin.require_artifact(&resolved.release)?;
+                // A pinned package held after it was pinned is reported when
+                // checked, not first when installed. Install keeps its own gate.
+                crate::managed_runtime_policy::require_artifact_available(
+                    &self.catalog,
+                    &port.id,
+                    &pin.version,
+                    &pin.sha256,
+                )?;
                 if let Some(variant) = variant {
                     resolved.explicit_tag_commit = pin.require_saved_variant(port, variant)?;
                     resolved.saved_variant = Some(variant.clone());

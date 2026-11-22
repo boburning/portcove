@@ -13,6 +13,9 @@ use crate::{
     PortcoveError, PortcoveService, Result,
 };
 
+/// Bound on a carried unusable pin; a stored pin is a few hundred bytes.
+pub(crate) const MAX_HELD_EXACT_RELEASE_BYTES: usize = 64 * 1024;
+
 /// Match the previously offered Windows policy before verifying a retained
 /// embedded install. This comparison leaves the actual retained contract in use.
 fn validate_retained_embedded_port(
@@ -586,6 +589,19 @@ pub(crate) fn validate_metadata(
                 ));
             }
             pin.require_persisted(&setting.port_id, setting.channel)?;
+        }
+        if let Some(held) = &setting.held_exact_release {
+            // Carried as stored so the destination shows the same hold; it is
+            // never interpreted as a release choice.
+            if metadata.schema_version < 13
+                || setting.exact_release.is_some()
+                || held.is_empty()
+                || held.len() > MAX_HELD_EXACT_RELEASE_BYTES
+            {
+                return Err(PortcoveError::verification(
+                    "metadata has an invalid held exact release preference",
+                ));
+            }
         }
         if let Some(path) = setting.output_directory.as_deref() {
             crate::path::unicode(path, "port output directory")?;

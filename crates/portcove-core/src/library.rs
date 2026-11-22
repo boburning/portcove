@@ -2649,9 +2649,12 @@ impl Library {
         if activate {
             crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
+                // A pin is bound to its channel; activation that changes the
+                // channel ends it, exactly as choosing another channel does.
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
                    active_install_id = ?2,
+                   exact_release_json = CASE WHEN channel = ?3 THEN exact_release_json ELSE NULL END,
                    channel = ?3
                  WHERE port_id = ?1",
                 params![install.port_id, install.id, install.channel.to_string()],
@@ -3485,17 +3488,24 @@ impl Library {
                         outcome: outcome.clone(),
                     })
                 });
+                // One unusable pin holds only its own port.
+                let (exact_release, exact_release_hold) =
+                    match crate::ExactReleaseSelection::decode_or_hold(
+                        port_id,
+                        channel,
+                        stored.and_then(|settings| settings.4.as_deref()),
+                    ) {
+                        Ok(pin) => (pin, None),
+                        Err(hold) => (None, Some(hold)),
+                    };
                 Ok(PortStatus {
                     carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
                     channel,
-                    exact_release: crate::ExactReleaseSelection::decode(
-                        port_id,
-                        channel,
-                        stored.and_then(|settings| settings.4.as_deref()),
-                    )?,
+                    exact_release,
+                    exact_release_hold,
                     update_policy,
                     active,
                     external_runtime: external_runtimes.get(port_id).cloned(),

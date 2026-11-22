@@ -37,6 +37,102 @@ pub enum ExactReleaseIdentity {
     DirectManifest,
 }
 
+/// Why Core cannot use a port's saved release pin as written.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum ExactReleaseHoldReason {
+    /// The saved pin cannot be read or lacks a valid package identity.
+    Unreadable,
+    /// The saved pin was made for a different channel than the port follows.
+    ChannelMismatch,
+}
+
+/// A saved release pin Core cannot use. Update checks and installs for this
+/// port stay held instead of silently following the channel; choosing Follow
+/// clears it. Other ports are unaffected.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExactReleaseHold {
+    pub reason: ExactReleaseHoldReason,
+    /// Technical cause for diagnosis; never player copy.
+    pub detail: String,
+}
+
+impl ExactReleaseHold {
+    pub(crate) fn refusal(&self, port_id: &str) -> PortcoveError {
+        PortcoveError::conflict(format!(
+            "the saved exact release cannot be used: {}",
+            self.detail
+        ))
+        .detail("port_id", port_id)
+        .with_known_cause(crate::failure::KnownFailureCause::ExactRelease(
+            match self.reason {
+                ExactReleaseHoldReason::Unreadable => ExactReleaseRefusal::PinUnreadable,
+                ExactReleaseHoldReason::ChannelMismatch => ExactReleaseRefusal::PinChannelChanged,
+            },
+        ))
+    }
+}
+
+/// Player-facing causes of an exact-release refusal. Core owns the wording.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ExactReleaseRefusal {
+    /// A restriction holds this artifact; carries the restriction's explanation.
+    Held(String),
+    /// The release is not published in the saved channel and platform stream.
+    OutsideChannel,
+    /// The release, library state or pin changed after the review.
+    ReviewChanged,
+    /// The command named a channel other than the one the pin was made for.
+    ChannelDiffers,
+    PinUnreadable,
+    PinChannelChanged,
+}
+
+impl ExactReleaseRefusal {
+    /// Keeps a refusal's technical message and adds the player's reason.
+    pub(crate) fn attach(self, error: PortcoveError) -> PortcoveError {
+        error.with_known_cause(crate::failure::KnownFailureCause::ExactRelease(self))
+    }
+
+    /// A restriction refusal at review, explained with the hold's own text.
+    pub(crate) fn held(error: PortcoveError) -> PortcoveError {
+        let explanation = error.message.clone();
+        Self::Held(explanation).attach(error)
+    }
+
+    pub(crate) fn presentation(&self) -> (&'static str, String) {
+        match self {
+            Self::Held(explanation) => (
+                "exact_release_held",
+                format!(
+                    "Portcove can't pin this release because it is held. {explanation} Choose a different release or keep following the channel."
+                ),
+            ),
+            Self::OutsideChannel => (
+                "exact_release_outside_channel",
+                "This release isn't published in this game's selected channel for this computer. Choose a release from that channel, or change the channel first.".into(),
+            ),
+            Self::ReviewChanged => (
+                "exact_release_review_changed",
+                "The release or this game's saved settings changed after the review. Review the release again before pinning it.".into(),
+            ),
+            Self::ChannelDiffers => (
+                "exact_release_channel_differs",
+                "This game is pinned to a release from its saved channel. Choose Follow channel before using a different channel.".into(),
+            ),
+            Self::PinUnreadable => (
+                "exact_release_unreadable",
+                "Portcove can't read this game's saved release pin, so it won't check for or install updates for this game. Choose Follow channel to clear the pin.".into(),
+            ),
+            Self::PinChannelChanged => (
+                "exact_release_channel_changed",
+                "This game's saved release pin belongs to a different channel, so Portcove won't check for or install updates for this game. Choose Follow channel to clear the pin.".into(),
+            ),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(crate) enum ExactReleaseQuery<'a> {
     Review(&'a str),
@@ -127,9 +223,15 @@ pub(crate) fn require_exact_release_route(
             "this route requires its authorized curated release selection",
         ));
     }
-    if let Some(hold) = &port.managed_acquisition_hold {
-        return Err(PortcoveError::unsupported(hold.reason.clone()));
-    }
+    // Route-wide managed holds stop before any provider request. A hold that
+    // names exact artifacts cannot be decided until the package is known; the
+    // review and every install recheck it with the observed version and digest.
+    crate::acquisition_restriction::EffectiveRestrictions::managed_only(port).require(
+        &crate::acquisition_restriction::RestrictionSubject::deferred(
+            crate::acquisition_restriction::RestrictedOperation::Install,
+        )
+        .on(platform),
+    )?;
     if expected_provider == crate::ReleaseSource::UserPrepared {
         return Err(PortcoveError::unsupported(
             "a user-prepared runtime has no managed release selection",
@@ -263,6 +365,32 @@ impl ExactReleaseSelection {
         .transpose()
     }
 
+    /// Reads one port's stored pin without letting it fail anything else:
+    /// a pin Core cannot use becomes that port's hold.
+    pub(crate) fn decode_or_hold(
+        port_id: &str,
+        channel: ReleaseChannel,
+        json: Option<&str>,
+    ) -> std::result::Result<Option<Self>, ExactReleaseHold> {
+        Self::decode(port_id, channel, json).map_err(|error| {
+            let mismatched = json
+                .and_then(|json| serde_json::from_str::<Self>(json).ok())
+                .is_some_and(|pin| {
+                    pin.port_id == port_id
+                        && pin.channel != channel
+                        && pin.require_persisted(port_id, pin.channel).is_ok()
+                });
+            ExactReleaseHold {
+                reason: if mismatched {
+                    ExactReleaseHoldReason::ChannelMismatch
+                } else {
+                    ExactReleaseHoldReason::Unreadable
+                },
+                detail: crate::failure::redact_diagnostic_text(&error.message),
+            }
+        })
+    }
+
     pub(crate) fn require_saved_variant(
         &self,
         port: &PortDefinition,
@@ -369,7 +497,10 @@ impl GithubReleaseProvider {
         {
             return Err(PortcoveError::unsupported(
                 "the exact GitHub release is not published in this channel and platform stream",
-            ));
+            )
+            .with_known_cause(crate::failure::KnownFailureCause::ExactRelease(
+                ExactReleaseRefusal::OutsideChannel,
+            )));
         }
         let mut refresh = SavedReleaseAssetRefresh {
             refreshed: Default::default(),

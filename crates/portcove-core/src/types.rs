@@ -1600,6 +1600,10 @@ pub struct PortStatus {
     /// User-selected exact release, when this port does not follow its channel.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub exact_release: Option<crate::ExactReleaseSelection>,
+    /// A saved pin Core cannot use. Checks and installs for this port stay held
+    /// until the player follows the channel again; other ports are unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exact_release_hold: Option<crate::ExactReleaseHold>,
     pub update_policy: UpdatePolicy,
     pub active: Option<InstallRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

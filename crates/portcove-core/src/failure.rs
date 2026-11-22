@@ -159,6 +159,9 @@ pub(crate) enum KnownFailureCause {
         path: std::path::PathBuf,
     },
     RecordedUploaderHold,
+    /// An exact release review, pin or saved pin was refused for a reason the
+    /// player can act on.
+    ExactRelease(crate::release::ExactReleaseRefusal),
     PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
@@ -446,6 +449,7 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::ExactRelease(refusal) => return refusal.presentation(),
             Self::MetadataExportExists => (
                 "metadata_export_exists",
                 "Portcove kept the existing file. Choose a new filename to export library information.",
