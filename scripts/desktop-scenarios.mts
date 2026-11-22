@@ -1086,6 +1086,13 @@ export function desktopHarnessDeadlineMs(
   // restart before the 180 s watchdog stopped the driver. Allow time to check
   // the saved preferences after restart and join the owned processes.
   if (selection.selected_scenarios.includes("native-startup-preferences-recovery")) return 360_000;
+  // Job 137029359741 completed both themes' cover and row focus transitions.
+  // Give this standalone run time for its remaining compact checks and cleanup.
+  if (
+    selection.selected_scenarios.length === 1 &&
+    selection.selected_scenarios[0] === "native-library-layout"
+  )
+    return 300_000;
   // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
   if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Six public collection previews, two themes, compact capture and owned native exit.
