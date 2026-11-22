@@ -12,8 +12,17 @@ const SEGMENT_FILE_LIMIT: usize = 2_048;
 const ACTIVE_FILE_LIMIT: usize = 4_096;
 pub(super) const THIN_MAX_FILES: usize = ACTIVE_FILE_LIMIT + 1;
 pub(super) const THIN_MAX_BYTES: u64 = 64 * 1024 * 1024;
+/// Every publication links one segment and one checkpoint to the previous
+/// chain, so roughly 2,048 publications reach this bound. There is no bounded
+/// rebase yet: reaching it stops publication before signing (the last good
+/// publication stays served). This is a documented activation precondition.
 const SEGMENT_CHAIN_LIMIT: usize = 4_096;
 const CHAIN_METADATA_MAX: u64 = 64 * 1024 * 1024;
+const CHAIN_BOUND_REACHED: &str = "catalog history chain reached its verification bound; \
+publication stops before signing and the last good publication stays served until a bounded \
+checkpoint rebase exists";
+const ROOT_ROTATED: &str = "catalog history checkpoint was made under a different trusted root; \
+publication stops before signing until root rotation with checkpointed history is defined";
 const PATH_LIMIT: usize = 256;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -422,8 +431,10 @@ pub(super) fn read_current(
         return invalid("catalog history pointer contradicts the current policy role");
     }
     let active: ActiveCheckpoint = read_object(store, &pointer.active, CHECKPOINT_MAX)?;
+    if active.checkpoint_schema == 1 && active.root_sha256 != root_sha256 {
+        return invalid(ROOT_ROTATED);
+    }
     if active.checkpoint_schema != 1
-        || active.root_sha256 != root_sha256
         || active.delegation_sha256 != delegation_sha256
         || !digest_valid(&active.covered_timestamp_sha256)
         || active.covered_timestamp_version == 0
@@ -495,6 +506,16 @@ impl VerifiedHistory {
     /// Authenticate the archived object chain before keyless publication,
     /// comparing every claimed historical identity with physical SHA-256.
     pub(super) fn verify_archive(&self, store: &Path, actual: &[DefinitionFile]) -> Result<()> {
+        self.verify_archive_within(store, actual, SEGMENT_CHAIN_LIMIT, CHAIN_METADATA_MAX)
+    }
+
+    fn verify_archive_within(
+        &self,
+        store: &Path,
+        actual: &[DefinitionFile],
+        object_limit: usize,
+        byte_limit: u64,
+    ) -> Result<()> {
         let actual: BTreeMap<_, _> = actual
             .iter()
             .map(|file| (file.target.as_str(), file))
@@ -502,13 +523,13 @@ impl VerifiedHistory {
         let mut next = Some(self.active.tip.clone());
         let mut seen = BTreeSet::new();
         let mut maximum_version = self.active.covered_timestamp_version;
-        let mut budget = CHAIN_METADATA_MAX;
+        let mut budget = byte_limit;
         while let Some(object) = next.take() {
-            if seen.len() >= SEGMENT_CHAIN_LIMIT
-                || !seen.insert(object.sha256.clone())
-                || object.bytes > budget
-            {
-                return invalid("catalog history segment chain exceeds its bound");
+            if seen.len() >= object_limit || object.bytes > budget {
+                return invalid(CHAIN_BOUND_REACHED);
+            }
+            if !seen.insert(object.sha256.clone()) {
+                return invalid("catalog history segment chain repeats an object");
             }
             budget -= object.bytes;
             let segment: InventorySegment = read_object(store, &object, SEGMENT_MAX)?;
@@ -532,11 +553,11 @@ impl VerifiedHistory {
         let mut parent = self.active.parent.clone();
         let mut version = self.active.covered_timestamp_version;
         while let Some(object) = parent.take() {
-            if seen.len() >= SEGMENT_CHAIN_LIMIT
-                || !seen.insert(object.sha256.clone())
-                || object.bytes > budget
-            {
-                return invalid("catalog history checkpoint parent chain exceeds its bound");
+            if seen.len() >= object_limit || object.bytes > budget {
+                return invalid(CHAIN_BOUND_REACHED);
+            }
+            if !seen.insert(object.sha256.clone()) {
+                return invalid("catalog history checkpoint parent chain repeats an object");
             }
             budget -= object.bytes;
             let previous: ActiveCheckpoint = read_object(store, &object, CHECKPOINT_MAX)?;
@@ -613,8 +634,10 @@ impl VerifiedHistory {
         next_timestamp: u64,
         next_policy: u64,
     ) -> Result<PreparedHistory> {
+        if self.active.root_sha256 != current.root_sha256 {
+            return invalid(ROOT_ROTATED);
+        }
         if self.active.covered_timestamp_version.checked_add(1) != Some(current.timestamp_version)
-            || self.active.root_sha256 != current.root_sha256
             || self.active.delegation_sha256 != current.delegation_sha256
         {
             return invalid("catalog history checkpoint successor is discontinuous");
@@ -727,6 +750,139 @@ impl VerifiedHistory {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn snapshot_file(version: u64) -> DefinitionFile {
+        DefinitionFile {
+            target: format!("metadata/{version}.snapshot.json"),
+            bytes: 150,
+            sha256: format!("{:064x}", version),
+        }
+    }
+
+    fn chain_input(root: &str, version: u64, active_files: Vec<DefinitionFile>) -> BootstrapInput {
+        BootstrapInput {
+            timestamp_version: version,
+            timestamp_sha256: "c".repeat(64),
+            root_sha256: root.into(),
+            delegation_sha256: "b".repeat(64),
+            definitions: vec![],
+            policies: vec![],
+            legacy_listing: None,
+            compact_listing: None,
+            files: active_files.clone(),
+            active_files,
+        }
+    }
+
+    fn store_objects(store: &Path, prepared: &PreparedHistory) {
+        fs::create_dir_all(store.join("sha256")).unwrap();
+        for (name, body) in &prepared.objects {
+            fs::write(store.join(name), body).unwrap();
+        }
+    }
+
+    /// Bootstraps at timestamp 45 and advances `publications` times, returning
+    /// the current verified checkpoint and every archived immutable file.
+    fn checkpoint_chain(
+        store: &Path,
+        root: &str,
+        publications: u64,
+    ) -> (VerifiedHistory, Vec<DefinitionFile>) {
+        let mut files = vec![snapshot_file(45)];
+        let mut prepared = bootstrap(chain_input(root, 45, files.clone()), 46, 41).unwrap();
+        store_objects(store, &prepared);
+        for step in 0..publications {
+            let version = 46 + step;
+            let verified = read_current(
+                &prepared.pointer_bytes,
+                store,
+                root,
+                &"b".repeat(64),
+                version,
+                41 + step,
+            )
+            .unwrap();
+            files.push(snapshot_file(version));
+            prepared = verified
+                .advance(
+                    chain_input(root, version, files.clone()),
+                    version + 1,
+                    42 + step,
+                )
+                .unwrap();
+            store_objects(store, &prepared);
+        }
+        let verified = read_current(
+            &prepared.pointer_bytes,
+            store,
+            root,
+            &"b".repeat(64),
+            46 + publications,
+            41 + publications,
+        )
+        .unwrap();
+        (verified, files)
+    }
+
+    #[test]
+    fn reaching_the_chain_bound_stops_publication_with_an_explicit_error() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = "a".repeat(64);
+        // Three advances: four segments plus three parent checkpoints.
+        let (verified, files) = checkpoint_chain(directory.path(), &root, 3);
+        verified.verify_archive(directory.path(), &files).unwrap();
+        verified
+            .verify_archive_within(directory.path(), &files, 7, CHAIN_METADATA_MAX)
+            .unwrap();
+        for (objects, bytes) in [(6, CHAIN_METADATA_MAX), (3, CHAIN_METADATA_MAX), (7, 1_024)] {
+            let error = verified
+                .verify_archive_within(directory.path(), &files, objects, bytes)
+                .unwrap_err()
+                .to_string();
+            assert!(error.contains(CHAIN_BOUND_REACHED), "{error}");
+        }
+        // Each publication adds one segment and one parent, so the production
+        // bound admits only a finite number of publications without a rebase.
+        assert_eq!(SEGMENT_CHAIN_LIMIT, 4_096);
+    }
+
+    #[test]
+    fn a_root_rotation_stops_checkpointed_publication_explicitly() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = "a".repeat(64);
+        let rotated = "f".repeat(64);
+        let mut files = vec![snapshot_file(45)];
+        let prepared = bootstrap(chain_input(&root, 45, files.clone()), 46, 41).unwrap();
+        store_objects(directory.path(), &prepared);
+        let error = read_current(
+            &prepared.pointer_bytes,
+            directory.path(),
+            &rotated,
+            &"b".repeat(64),
+            46,
+            41,
+        )
+        .err()
+        .unwrap()
+        .to_string();
+        assert!(error.contains(ROOT_ROTATED), "{error}");
+        let verified = read_current(
+            &prepared.pointer_bytes,
+            directory.path(),
+            &root,
+            &"b".repeat(64),
+            46,
+            41,
+        )
+        .unwrap();
+        files.push(snapshot_file(46));
+        let error = verified
+            .advance(chain_input(&rotated, 46, files), 47, 42)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains(ROOT_ROTATED), "{error}");
+    }
 
     #[test]
     fn bootstrap_binds_a_small_active_index_to_immutable_segment_bytes() {

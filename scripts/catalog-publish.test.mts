@@ -737,6 +737,184 @@ void test("a CI-triggered run also renews a timestamp that expires within the wi
   assert.throws(() => renewalDue(dir, now, 12), /expiry is malformed/u);
 });
 
+function preparePublication(
+  t: test.TestContext,
+  options: { event: string; bootstrap?: boolean; history?: boolean; pointer?: boolean },
+) {
+  const dir = temp(t);
+  const prior = path.join(dir, "site", "catalog");
+  site(
+    prior,
+    options.pointer
+      ? { "policy/official/catalog.history-checkpoint.json": "c".repeat(64) }
+      : { "policy/official/catalog.listings.json": "a".repeat(64) },
+  );
+  if (options.history) put(dir, "site/catalog-history/sha256/x.json", "{}");
+  put(dir, "root.json", "root");
+  put(dir, "offline-targets.json", "offline");
+  put(dir, "bundle/policy/official/catalog.listings.json", "listing");
+  put(
+    dir,
+    "inspection.stdout",
+    JSON.stringify({
+      ok: true,
+      error: null,
+      command: "catalog.inspect-definition-publication",
+      data: { publication_schema: 1 },
+    }),
+  );
+  const work = path.join(dir, "work");
+  const stdout = execFileSync(
+    process.execPath,
+    [
+      path.join(root, "scripts", "catalog-publish.mts"),
+      "prepare",
+      "--work",
+      work,
+      "--root",
+      path.join(dir, "root.json"),
+      "--offline-targets",
+      path.join(dir, "offline-targets.json"),
+      "--bundle",
+      path.join(dir, "bundle"),
+      "--inspection-stdout",
+      path.join(dir, "inspection.stdout"),
+      "--prior",
+      prior,
+      ...(options.bootstrap ? ["--bootstrap-history"] : []),
+    ],
+    {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_EVENT_NAME: options.event },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  const json = (name: string) =>
+    JSON.parse(readFileSync(path.join(work, name), "utf8")) as Record<string, unknown>;
+  return { work, stdout, plan: json("plan.json"), context: json("context.json") };
+}
+
+void test("push and scheduled runs plan the pre-history publication for a pointerless prior", (t) => {
+  for (const event of ["workflow_run", "schedule", "workflow_dispatch"]) {
+    const { work, stdout, plan, context } = preparePublication(t, { event });
+    // Exactly the outputs, plan and signing context publication had before history.
+    assert.match(stdout, /^prior_digest=[a-f0-9]{64}\n$/u, event);
+    assert.deepEqual(
+      plan,
+      planPublication(
+        { definitions: 5, policy: 4, snapshot: 7, timestamp: 9 },
+        new Date(String(plan.planned_at)),
+      ),
+      event,
+    );
+    assert.deepEqual(
+      Object.keys(context),
+      [
+        "schema_version",
+        "initial_root_profile",
+        "generated_at",
+        "trusted_root",
+        "trusted_root_sha256",
+        "offline_targets",
+        "offline_targets_sha256",
+        "prepared_bundle",
+        "inspection",
+        "inspection_sha256",
+        "previous_repository",
+        "versions",
+        "expires",
+      ],
+      event,
+    );
+    assert.ok(!existsSync(path.join(work, "history")), event);
+    // Downstream history commands stay inert without a requested or published history.
+    limitSignerHistory(work);
+    assert.ok(!existsSync(path.join(work, "thin-prior")), event);
+    execFileSync(process.execPath, [
+      path.join(root, "scripts", "catalog-publish.mts"),
+      "assembly-config",
+      "--work",
+      work,
+    ]);
+    assert.deepEqual(
+      JSON.parse(readFileSync(path.join(work, "assembly.json"), "utf8")),
+      assemblyConfig,
+    );
+  }
+});
+
+void test("only an explicit manual owner request bootstraps catalog history", (t) => {
+  const manual = preparePublication(t, { event: "workflow_dispatch", bootstrap: true });
+  assert.equal(manual.plan.history, "bootstrap");
+  assert.equal(manual.context.bootstrap_history, true);
+  assert.match(manual.stdout, /^history_mode=bootstrap$/mu);
+  for (const event of ["workflow_run", "schedule", "push"])
+    assert.throws(
+      () => preparePublication(t, { event, bootstrap: true }),
+      /owner action from a manual run only/u,
+      event,
+    );
+  assert.throws(
+    () => preparePublication(t, { event: "workflow_dispatch", bootstrap: true, history: true }),
+    /objects without an authenticated pointer/u,
+  );
+  // A published pointer continues its archive on every trigger; it is not a new activation.
+  const continued = preparePublication(t, { event: "schedule", pointer: true, history: true });
+  assert.equal(continued.plan.history, "segmented");
+  assert.equal(continued.context.history_store, "history");
+});
+
+void test("the history bootstrap flag is reachable only from the manual dispatch input", () => {
+  const workflow = read("catalog-publish.yml");
+  const source = readFileSync(path.join(workflows, "catalog-publish.yml"), "utf8");
+  assert.deepEqual(workflow.on.workflow_dispatch, {
+    inputs: {
+      bootstrap_history: {
+        description: "Owner activation only - create the first signed catalog history checkpoint",
+        type: "boolean",
+        default: false,
+      },
+    },
+  });
+  assert.equal(source.match(/--bootstrap-history/gu)?.length, 1);
+  assert.equal(source.match(/inputs\.bootstrap_history/gu)?.length, 1);
+  const steps = workflow.jobs.prepare!.steps!;
+  const prepare = steps.find(({ id }) => id === "prepare")!;
+  const gate =
+    "${{ github.event_name == 'workflow_dispatch' && inputs.bootstrap_history == true }}";
+  const requests = steps.filter((step) => step.env?.BOOTSTRAP_HISTORY !== undefined);
+  assert.equal(requests.length, 1);
+  const request = requests[0]!;
+  assert.deepEqual(request.env, { BOOTSTRAP_HISTORY: gate });
+  assert.match(
+    request.run!,
+    /if \[ "\$GITHUB_EVENT_NAME" = workflow_dispatch \] && \[ "\$BOOTSTRAP_HISTORY" = true \]; then\n\s*echo "HISTORY_BOOTSTRAP=requested" >> "\$GITHUB_ENV"\n\s*fi/u,
+  );
+  assert.ok(steps.indexOf(request) < steps.indexOf(prepare));
+  assert.equal(prepare.env, undefined);
+  assert.match(
+    prepare.run!,
+    /history_request=\(\)\n\s*if \[ "\$GITHUB_EVENT_NAME" = workflow_dispatch \] && \[ "\$\{HISTORY_BOOTSTRAP:-\}" = requested \]; then\n\s*history_request=\(--bootstrap-history\)\n\s*fi/u,
+  );
+  assert.match(prepare.run!, /--prior "\$PRIOR" "\$\{history_request\[@\]\}"/u);
+  // Without a history mode no history step runs.
+  assert.match(
+    prepare.run!,
+    /if \[ -n "\$history_mode" \]; then\n[^]*?limit-signer-history[^]*?\n\s*fi/u,
+  );
+  assert.equal(source.match(/HISTORY_BOOTSTRAP=requested/gu)?.length, 1);
+  const publish = workflow.jobs.publish!.steps!.map((step) => step.run ?? "").join("\n");
+  assert.match(
+    publish,
+    /if \[ -n "\$HISTORY_MODE" \]; then\n\s*node scripts\/catalog-publish\.mts stage-history/u,
+  );
+  assert.match(
+    publish,
+    /if \[ -n "\$HISTORY_MODE" \]; then\n\s*history_readback=\$\(node scripts\/catalog-publish\.mts history-readback/u,
+  );
+  assert.match(publish, /if \[ "\$HISTORY_MODE" = segmented \]; then\n\s*\[\[/u);
+});
+
 void test("signing recreates roles/, which artifact uploads drop when empty", (t) => {
   const work = temp(t);
   for (const name of ["root.json", "offline-targets.json", "inspection.json"])

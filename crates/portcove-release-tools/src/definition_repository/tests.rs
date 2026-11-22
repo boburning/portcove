@@ -1433,6 +1433,25 @@ fn select_compact_with_compression(
     retain_tombstone: bool,
     compression: flate2::Compression,
 ) {
+    select_compact_payload(fixture, revision, compression, |payload| {
+        if altered {
+            payload["directory"]["listings"][0]["name"] = json!("alternate equal revision");
+        }
+        if retain_tombstone {
+            payload["withdrawn_ids"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!("compact-only-withdrawal"));
+        }
+    });
+}
+
+fn select_compact_payload(
+    fixture: &Fixture,
+    revision: u64,
+    compression: flate2::Compression,
+    edit: impl FnOnce(&mut serde_json::Value),
+) {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     use flate2::write::GzEncoder;
     use std::io::Write as _;
@@ -1443,15 +1462,7 @@ fn select_compact_with_compression(
     )
     .unwrap();
     payload["revision"] = json!(revision);
-    if altered {
-        payload["directory"]["listings"][0]["name"] = json!("alternate equal revision");
-    }
-    if retain_tombstone {
-        payload["withdrawn_ids"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!("compact-only-withdrawal"));
-    }
+    edit(&mut payload);
     let decoded = serde_json::to_vec(&payload).unwrap();
     let mut gzip = GzEncoder::new(Vec::new(), compression);
     gzip.write_all(&decoded).unwrap();
@@ -1482,6 +1493,39 @@ fn select_compact_with_compression(
     let mut context = fixture.context_value();
     context["inspection_sha256"] = json!(sha(&bytes));
     fixture.set_context(context);
+}
+
+#[tokio::test]
+async fn compact_activation_beside_its_legacy_target_must_bump_the_revision() {
+    let fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("legacy"))
+        .await
+        .unwrap();
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("legacy");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+    }
+    fixture.set_context(context);
+    // A newer compact directory format at the legacy revision is a different
+    // decoded document under one shared revision floor.
+    let compact_format = |payload: &mut serde_json::Value| {
+        payload["directory"]["format_version"] = json!(15);
+    };
+    select_compact_payload(&fixture, 1, flate2::Compression::default(), compact_format);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("listing carrier revision or equivalent decoded identity differs"),
+        "{failure}"
+    );
+    select_compact_payload(&fixture, 2, flate2::Compression::default(), compact_format);
+    load_context(&fixture.context).await.unwrap();
 }
 
 #[tokio::test]

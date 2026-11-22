@@ -210,6 +210,34 @@ function historyObject(identity: unknown, source: string, destination: string, l
   return readJson(file);
 }
 
+/**
+ * Signed history stays inert until the owner activates it. A published pointer
+ * continues the segmented archive; otherwise only an explicit owner bootstrap
+ * request (a manual `workflow_dispatch` input, never push or schedule) may sign
+ * the first checkpoint. Everything else plans exactly the pre-history publication.
+ */
+export function historyMode(input: {
+  site: string | null;
+  versions: Four<number> | null;
+  history: string;
+  bootstrapRequested: boolean;
+  event: string | undefined;
+}): Plan["history"] {
+  const { site, versions, history, bootstrapRequested, event } = input;
+  if (bootstrapRequested && event !== undefined && event !== "workflow_dispatch")
+    throw new Error("catalog history bootstrap is an owner action from a manual run only");
+  if (site && versions && Object.hasOwn(publishedTargets(site), historyTarget)) {
+    if (!existsSync(history)) throw new Error("checkpointed catalog history archive is missing");
+    return "segmented";
+  }
+  if (!bootstrapRequested) return undefined;
+  if (!site || !versions)
+    throw new Error("catalog history bootstrap requires an existing published catalog");
+  if (existsSync(history))
+    throw new Error("catalog history has objects without an authenticated pointer");
+  return "bootstrap";
+}
+
 /** Thin transport for independent signers. Rust reauthenticates every copied
  * role/active target and checks the checkpoint before touching a role key. */
 export function limitSignerHistory(work: string) {
@@ -482,19 +510,22 @@ async function main(argv: string[]) {
     const history = site
       ? path.join(path.dirname(site), "catalog-history")
       : path.join(work, "absent");
-    const checkpoint = site && versions && Object.hasOwn(publishedTargets(site), historyTarget);
-    if (checkpoint) {
-      if (!existsSync(history)) throw new Error("checkpointed catalog history archive is missing");
-      cpSync(history, path.join(work, "history"), { recursive: true });
-      plan.history = "segmented";
-    } else if (site && versions && args.includes("--bootstrap-history")) {
-      if (existsSync(history))
-        throw new Error("catalog history has objects without an authenticated pointer");
-      plan.history = "bootstrap";
-    }
+    const mode = historyMode({
+      site,
+      versions,
+      history,
+      bootstrapRequested: args.includes("--bootstrap-history"),
+      event: process.env.GITHUB_EVENT_NAME,
+    });
+    if (mode === "segmented") cpSync(history, path.join(work, "history"), { recursive: true });
+    if (mode) plan.history = mode;
     write(path.join(work, "plan.json"), plan);
-    console.log(`history_mode=${plan.history ?? "legacy"}`);
-    console.log(`prior_history_digest=${treeDigest(history)}`);
+    // Without a published pointer or an owner bootstrap request the outputs,
+    // plan and signing context stay exactly those of pre-history publication.
+    if (mode) {
+      console.log(`history_mode=${mode}`);
+      console.log(`prior_history_digest=${treeDigest(history)}`);
+    }
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     console.log(`prior_digest=${treeDigest(site ?? path.join(work, "absent"))}`);
     console.error(`Catalog plan: ${JSON.stringify(plan.versions)} (prior site: ${plan.prior})`);
