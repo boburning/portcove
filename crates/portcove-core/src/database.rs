@@ -1712,7 +1712,8 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
                 ("definition_publisher_admission", "launch_assessment_revision") => {
                     format!("{quoted_column}!=0")
                 }
-                (
+                ("port_settings", "exact_release_json")
+                | (
                     "lifecycle_operations",
                     "ghostship_recovery_json"
                     | "backup_deletion_json"
@@ -3520,6 +3521,11 @@ mod tests {
                 "ALTER TABLE installs ADD COLUMN future_payload TEXT;
                  UPDATE installs SET future_payload='retained future payload';",
                 "column installs.future_payload",
+            ),
+            (
+                "INSERT INTO port_settings(port_id,channel,update_policy,active_install_id,exact_release_json)
+                 VALUES('starship','stable','notify','retained-install','{}');",
+                "column port_settings.exact_release_json",
             ),
             (
                 "UPDATE curated_artifact_history SET admission_count=1;",
