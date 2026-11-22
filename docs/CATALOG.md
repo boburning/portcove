@@ -2979,7 +2979,13 @@ bytes recording the successor package integrity and tested lifecycle
 transition. The app-release hosted-native attestation describes Portcove
 itself. It supplies no reviewed game-lifecycle producer or game proof.
 The protected-main appointment is limited to the dedicated game lifecycle
-workflow. Regular application release qualification keeps its own authority.
+workflow. The native job has read-only scope. A separate job verifies original
+native results before using its attestation permission. Empty or held input
+records a no-work receipt without starting the attester. The existing portable
+library import cannot re-establish restricted predecessor or successor grants
+and current replay floors. A hosted pair needs independent admitted custody on
+both sides before the native worker can exercise it.
+Regular application release qualification keeps its own authority.
 Inspect an original game receipt, exact Core preparation bytes and its
 independently reviewed expectation using
 `node scripts/catalog-prepare-publication.mts inspect-game-lifecycle

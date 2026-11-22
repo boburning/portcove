@@ -1407,6 +1407,14 @@
       ]
     },
     {
+      "file": "scripts/game-lifecycle-execution.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5005],
+        ["release-check", 5002]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/game-lifecycle-receipt.test.mts",
       "memberships": [
         ["catalog-full-2", 5004],

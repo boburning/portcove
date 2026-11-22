@@ -106,6 +106,7 @@ export function verifyGameLifecycleJob(
   attempt: unknown,
   job: unknown,
   expected: ExpectedGameLifecycle & { source_commit: string },
+  stage: "attesting" | "consuming" = "consuming",
 ) {
   if (
     !isRecord(attempt) ||
@@ -116,8 +117,9 @@ export function verifyGameLifecycleJob(
     attempt.head_sha !== expected.source_commit ||
     String(attempt.id) !== expected.run_id ||
     attempt.run_attempt !== expected.run_attempt ||
-    attempt.status !== "completed" ||
-    attempt.conclusion !== "success" ||
+    (stage === "consuming"
+      ? attempt.status !== "completed" || attempt.conclusion !== "success"
+      : attempt.status !== "in_progress" || attempt.conclusion !== null) ||
     (attempt.event !== "workflow_dispatch" && attempt.event !== "schedule") ||
     !isRecord(job) ||
     String(job.id) !== expected.job_id ||

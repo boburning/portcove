@@ -1,0 +1,103 @@
+import { createHash } from "node:crypto";
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
+import { gameLifecycleChecks, verifyGameLifecyclePredicate } from "./game-lifecycle-receipt.mts";
+import type { ExpectedGameLifecycle } from "./game-lifecycle-receipt.mts";
+import { isRecord } from "./runtime-values.mts";
+
+const digest = (value: Buffer) => createHash("sha256").update(value).digest("hex");
+const encode = (value: unknown) => Buffer.from(`${JSON.stringify(value)}\n`, "utf8");
+type Check = (typeof gameLifecycleChecks)[number];
+type Job = Pick<ExpectedGameLifecycle, "run_id" | "run_attempt" | "job_id" | "platform">;
+
+interface BoundGameLifecycleWork {
+  /** Exact stdout of the fixed Core preparation command after independent admission. */
+  preparation: Buffer;
+  executable_sha256: string;
+  output: string;
+  /** Unprivileged worker invokes each normal phase and emits bounded redacted evidence. */
+  phases: Record<Check, () => Promise<unknown>>;
+}
+
+/**
+ * Use this only on materialized, independently admitted inputs. It owns
+ * ordered checks and immutable evidence from one unprivileged native job.
+ */
+export async function executeGameLifecycle(
+  job: Job,
+  work: BoundGameLifecycleWork | undefined,
+  now = () => Math.floor(Date.now() / 1000),
+) {
+  if (!work) return { outcome: "no-eligible-input", authority: "none" } as const;
+  if (work.preparation.length < 1 || work.preparation.length > 256 * 1024)
+    throw new Error("Exact Core preparation bytes are missing or exceed the bound");
+  const document: unknown = JSON.parse(work.preparation.toString("utf8"));
+  if (
+    !isRecord(document) ||
+    document.ok !== true ||
+    document.command !== "catalog.prepare-successor-evidence" ||
+    !isRecord(document.data) ||
+    document.data.rule_version !== 1 ||
+    !isRecord(document.data.predecessor) ||
+    !isRecord(document.data.successor) ||
+    document.data.predecessor.platform !== job.platform ||
+    document.data.successor.platform !== job.platform ||
+    typeof document.data.selected_at !== "number" ||
+    !Number.isSafeInteger(document.data.selected_at) ||
+    document.data.selected_at < 1 ||
+    !path.isAbsolute(work.output) ||
+    !/^[a-f0-9]{64}$/u.test(work.executable_sha256)
+  )
+    throw new Error("Verified Core preparation has no exact compatible Windows pair");
+  const started = now();
+  if (document.data.selected_at > started) throw new Error("Core selection clock is in the future");
+  const checkPlan = encode({
+    schema: 1,
+    rule_version: document.data.rule_version,
+    checks: gameLifecycleChecks,
+  });
+  const write = async (name: string, content: Buffer) => {
+    if (content.length > 128 * 1024 && name !== "successor-preparation.json")
+      throw new Error("Lifecycle evidence exceeds the maximum phase size");
+    await writeFile(path.join(work.output, name), content, { flag: "wx", mode: 0o600 });
+  };
+  const bindings = {
+    ...job,
+    preparation_sha256: digest(work.preparation),
+    executable_sha256: work.executable_sha256,
+    check_plan_sha256: digest(checkPlan),
+  };
+  await write("successor-preparation.json", work.preparation);
+  await write("check-plan.json", checkPlan);
+  const checks: Partial<Record<Check, { outcome: "passed"; evidence_sha256: string }>> = {};
+  for (const check of gameLifecycleChecks) {
+    let observation;
+    try {
+      observation = await work.phases[check]();
+      if (!isRecord(observation) || observation.outcome !== "passed")
+        throw new Error("Mandatory phase did not pass");
+      const bytes = encode(observation);
+      await write(`${check}.json`, bytes);
+      checks[check] = { outcome: "passed", evidence_sha256: digest(bytes) };
+    } catch (error) {
+      // Scope and phase only. Keep captured local diagnostics separately.
+      await write("terminal.json", encode({ check, outcome: "failed", authority: "none" }));
+      throw error;
+    }
+  }
+  const completed = now();
+  const statement = {
+    schema: 1,
+    ...bindings,
+    started_at: started,
+    completed_at: completed,
+    checks,
+  };
+  verifyGameLifecyclePredicate(statement, {
+    ...bindings,
+    selected_at: document.data.selected_at,
+    now: completed,
+  });
+  await write("predicate.json", encode(statement));
+  return { outcome: "ready-for-independent-attestation", authority: "none" } as const;
+}

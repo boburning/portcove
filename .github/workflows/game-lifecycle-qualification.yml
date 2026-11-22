@@ -1,0 +1,100 @@
+name: Game lifecycle qualification
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  execute:
+    name: Exact game lifecycle (Windows x64)
+    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' && github.ref_protected
+    runs-on: windows-2022
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      predicate_ready: ${{ steps.native.outputs.predicate_ready }}
+      native_job_id: ${{ steps.native.outputs.native_job_id }}
+      native_artifact_id: ${{ steps.retain.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Capture exact lifecycle evidence or an attributable no-work outcome
+        id: native
+        shell: pwsh
+        run: node scripts/game-lifecycle-workflow.mts execute (Join-Path $env:RUNNER_TEMP 'game-lifecycle')
+      - name: Retain only public lifecycle proof
+        if: steps.native.outputs.predicate_ready == 'true'
+        id: retain
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: game-lifecycle-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/game-lifecycle/successor-preparation.json
+            ${{ runner.temp }}/game-lifecycle/check-plan.json
+            ${{ runner.temp }}/game-lifecycle/acquire-exact-successor.json
+            ${{ runner.temp }}/game-lifecycle/verify-package-and-install.json
+            ${{ runner.temp }}/game-lifecycle/launch-and-close.json
+            ${{ runner.temp }}/game-lifecycle/retain-and-reopen-predecessor.json
+            ${{ runner.temp }}/game-lifecycle/predicate.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+      - name: Retain the no-work outcome
+        if: steps.native.outputs.predicate_ready == 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: game-lifecycle-no-work-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/game-lifecycle/terminal.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+
+  attest:
+    name: Attest exact game lifecycle evidence
+    needs: execute
+    if: >-
+      github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' &&
+      github.ref_protected && needs.execute.outputs.predicate_ready == 'true' &&
+      needs.execute.outputs.native_job_id != '' && needs.execute.outputs.native_artifact_id != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - name: Restore the fixed release verifier dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.execute.outputs.native_artifact_id }}
+          path: ${{ runner.temp }}/game-lifecycle
+      - name: Verify original native job and exact predicate before requesting attestation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GAME_LIFECYCLE_NATIVE_JOB_ID: ${{ needs.execute.outputs.native_job_id }}
+        run: node scripts/game-lifecycle-workflow.mts seal "$RUNNER_TEMP/game-lifecycle"
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ runner.temp }}/game-lifecycle/successor-preparation.json
+          predicate-type: https://github.com/boburning/portcove/attestations/game-lifecycle/v1
+          predicate-path: ${{ runner.temp }}/game-lifecycle/predicate.json
