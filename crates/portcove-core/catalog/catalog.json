@@ -55524,7 +55524,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On Windows x64 use the official SourceForge Windows ZIP and keep gemrb.exe with its companions. On Linux x86-64 use the official GemRB AppImage and provide the host libjack.so.0 library. On Intel or Apple Silicon Mac use the intact Universal 2 GemRB application from Mac Source Ports. Keep a complete working copy of your installed Baldur’s Gate II: Enhanced Edition. Point GamePath at the folder with chitin.key. Set GameType=bg2ee and configure GameLanguagePath for the language you installed, such as lang/en_US. The upstream player reads the prepared data. Set CachePath to an empty folder dedicated to this edition because GemRB clears it. SavePath is the parent that contains save/. Keep saves, settings and mods for the original edition in separate folders. Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. Choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play. The player owns the runtime, working data and profile. Back up the actual configuration, saves and mods before replacing the upstream player. Removing the registration preserves your external files.",
+        "manual_preparation": "On Windows x64 use the official SourceForge Windows ZIP and keep gemrb.exe with its companions. On Linux x86-64 use the official GemRB AppImage and provide the host libjack.so.0 library. On Intel or Apple Silicon Mac use the intact Universal 2 GemRB application from Mac Source Ports. Keep a complete working copy of your installed Baldur’s Gate II: Enhanced Edition. Point GamePath at the folder with chitin.key. Set GameType=bg2ee and configure GameLanguagePath for the language you installed, such as lang/en_US. The upstream player reads the prepared data. Set CachePath to an empty folder dedicated to this edition because GemRB clears it. SavePath is the parent that contains save/. Keep saves, settings and mods for the original edition in separate folders. Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. On Windows, choose the complete GemRB installation folder as the working folder. On Linux and Mac, choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play. The player owns the runtime, working data and profile. Back up the actual configuration, saves and mods before replacing the upstream player. Removing the registration preserves your external files.",
         "original_game_title": "Baldur’s Gate II: Enhanced Edition",
         "original_game": {
           "format_version": 1,
@@ -55561,7 +55561,7 @@
             },
             {
               "title": "Register the player and play",
-              "instruction": "Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. Choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play."
+              "instruction": "Choose gemrb.exe on Windows, the executable AppImage on Linux, or Contents/MacOS/gemrb inside the intact Mac application. On Windows, choose the complete GemRB installation folder as the working folder. On Linux and Mac, choose the private working folder. Enter -c and the absolute configuration path as separate arguments. If the official Linux AppImage cannot mount, add --appimage-extract-and-run before -c. Review and save the selection, then choose Play."
             },
             {
               "title": "Keep your working copy and saves",
@@ -55702,7 +55702,7 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
             }
           ],
           "warnings": [
@@ -55832,7 +55832,7 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
             }
           ],
           "warnings": [
@@ -67071,7 +67071,7 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
             }
           ],
           "warnings": [
@@ -67201,7 +67201,7 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
             }
           ],
           "warnings": [
@@ -73574,7 +73574,7 @@
             },
             {
               "title": "Add the game and manage your files",
-              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+              "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
             }
           ],
           "warnings": [
