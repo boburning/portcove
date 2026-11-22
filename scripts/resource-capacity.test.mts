@@ -1354,7 +1354,7 @@ void test("a local command can extend both checkout scans within a finite bound"
       /must be an integer from 30 to 480/u,
     );
   }
-  assert.deepEqual(logs, []);
+  assert.equal(logs.length, 0);
 
   const occupied = await acquireResourceCapacity("maintenance", {}, options);
   try {
