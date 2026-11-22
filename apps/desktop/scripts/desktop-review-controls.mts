@@ -89,10 +89,16 @@ export async function openCatalogPortAfterRefresh(
   const search = await browser.findElement(By.id("port-search"));
   await replaceKeyboardText(browser, search, query);
   await clearCatalogFilters(browser);
-  await selectCatalogPort(browser, port.id);
+  // A fresh WebView waits for Core to reconstruct the catalog. Use an observer budget
+  // separate from selection within an already loaded Discover result.
+  await selectCatalogPort(browser, port.id, { groupWaitMs: 45_000 });
 }
 
-async function catalogPortGroup(browser: WebDriver, portId: string): Promise<WebElement> {
+async function catalogPortGroup(
+  browser: WebDriver,
+  portId: string,
+  waitMs: number,
+): Promise<WebElement> {
   let selected: WebElement | undefined;
   await browser.wait(
     async () => {
@@ -107,7 +113,7 @@ async function catalogPortGroup(browser: WebDriver, portId: string): Promise<Web
       }
       return false;
     },
-    15_000,
+    waitMs,
     `Discover group for exact port ${portId} did not appear`,
   );
   assert.ok(selected);
@@ -118,7 +124,7 @@ async function catalogPortGroup(browser: WebDriver, portId: string): Promise<Web
 export async function selectCatalogPort(
   browser: WebDriver,
   portId: string,
-  options: ReviewClickOptions = {},
+  options: ReviewClickOptions & { groupWaitMs?: number } = {},
 ) {
   // Search and filter results re-render after input, which can replace the
   // located group between lookup and click. Opening a port's detail is
@@ -137,9 +143,9 @@ export async function selectCatalogPort(
 async function selectCatalogPortOnce(
   browser: WebDriver,
   portId: string,
-  options: ReviewClickOptions,
+  options: ReviewClickOptions & { groupWaitMs?: number },
 ) {
-  const group = await catalogPortGroup(browser, portId);
+  const group = await catalogPortGroup(browser, portId, options.groupWaitMs ?? 15_000);
   const matching = decodeDiscoverPortIds(
     await group.getAttribute("data-discover-matching-port-ids"),
   );
