@@ -1373,6 +1373,18 @@ mod tests {
             unfinished.details["recovery_action"],
             "resume_library_recovery_restore"
         );
+        // A symlinked spelling is a different folder choice, not this restore.
+        #[cfg(unix)]
+        {
+            let alias = workspace.path().join("restored-alias");
+            std::os::unix::fs::symlink(&restored, &alias).unwrap();
+            let aliased =
+                PortcoveService::read_library_recovery_restore(&alias, &restore_plan.plan_sha256)
+                    .unwrap_err();
+            assert_eq!(aliased.failure.mutation_state, MutationState::NoChanges);
+            assert!(!aliased.details.contains_key("recovery_action"));
+            fs::remove_file(&alias).unwrap();
+        }
         assert!(Library::open(&restored).is_err());
         let apply = PortcoveService::restore_library_recovery_bundle(
             &destination,
@@ -1712,9 +1724,11 @@ mod tests {
             journaled.details["recovery_action"],
             "resume_library_recovery_restore"
         );
+        // Core reports the journal's canonical root, the identity Desktop matches
+        // against the restore result and resume target (`\\?\`-prefixed on Windows).
         assert_eq!(
             Path::new(&journaled.details["import_destination"]),
-            restore_root
+            fs::canonicalize(&restore_root).unwrap()
         );
         assert!(restore_root.join(".portcove-import.json").is_file());
 

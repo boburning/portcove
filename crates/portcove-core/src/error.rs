@@ -81,7 +81,10 @@ impl PortcoveError {
 impl From<std::io::Error> for PortcoveError {
     fn from(error: std::io::Error) -> Self {
         // The OS text stays the technical message; the player sees the known cause.
-        let storage_full = error.kind() == std::io::ErrorKind::StorageFull;
+        let storage_full = matches!(
+            error.kind(),
+            std::io::ErrorKind::StorageFull | std::io::ErrorKind::QuotaExceeded
+        );
         let converted = Self::state(error.to_string());
         if storage_full {
             converted.with_known_cause(crate::failure::KnownFailureCause::StorageFull)
@@ -110,5 +113,18 @@ mod tests {
     #[test]
     fn error_values_stay_small_enough_for_result_return_paths() {
         assert!(std::mem::size_of::<PortcoveError>() <= 128);
+    }
+
+    #[test]
+    fn a_full_drive_or_exhausted_quota_reports_the_known_storage_cause() {
+        use std::io::{Error, ErrorKind};
+        for kind in [ErrorKind::StorageFull, ErrorKind::QuotaExceeded] {
+            let technical = Error::from(kind).to_string();
+            let presentation = PortcoveError::from(Error::from(kind)).report().presentation;
+            assert_eq!(presentation.presentation_key, "storage_full");
+            assert_eq!(presentation.technical_message, technical);
+        }
+        let other = PortcoveError::from(Error::from(ErrorKind::PermissionDenied));
+        assert_ne!(other.report().presentation.presentation_key, "storage_full");
     }
 }

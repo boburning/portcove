@@ -56,7 +56,10 @@ impl PortcoveService {
                     "no restore receipt is available at the reviewed destination",
                 )
             })?;
-            if destination != journal.plan.destination_root {
+            // The journal records the canonical root (`\\?\`-prefixed on Windows);
+            // compare the same identity, never a second spelling of the path.
+            crate::path::refuse_symlink_ancestors(&std::path::absolute(destination)?)?;
+            if fs::canonicalize(destination)? != journal.plan.destination_root {
                 return Err(PortcoveError::conflict(
                     "the reviewed restore destination changed",
                 ));
