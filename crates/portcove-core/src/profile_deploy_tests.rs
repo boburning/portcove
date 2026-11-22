@@ -3776,6 +3776,12 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     )
     .unwrap();
     fs::write(user.join("Portable.txt"), []).unwrap();
+    // NativePortable activation collects the departing build and restores the
+    // canonical data into the staged build before it becomes active, so an
+    // active runtime carries the same marker and progress. Portcove never
+    // authors this marker; a player changes it beside the runtime player.
+    let runtime_marker = path.join("Portable.txt");
+    fs::write(&runtime_marker, []).unwrap();
     let runtime_progress = path.join("PortableAppdata/progress");
     fs::create_dir_all(runtime_progress.parent().unwrap()).unwrap();
     fs::write(&runtime_progress, b"keep newer progress").unwrap();
@@ -3897,21 +3903,27 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     let marker = user.join("Portable.txt");
     let manual_backup_path = canonical_mod.parent().unwrap().join("manual/keep.dfmod");
     let backup = service.create_backup(PORT).unwrap();
-    fs::remove_file(&marker).unwrap();
+    // Backups collect the active runtime first, so marker changes made where
+    // the player makes them reach the canonical data and the backup.
+    fs::remove_file(&runtime_marker).unwrap();
     let without_marker = service.create_backup(PORT).unwrap();
+    assert!(!marker.exists());
     assert!(
         service
             .require_restore_profile_projection(PORT, &user)
             .is_err()
     );
-    fs::write(&marker, b"invalid").unwrap();
+    fs::write(&runtime_marker, b"invalid").unwrap();
     let invalid_marker = service.create_backup(PORT).unwrap();
+    assert_eq!(fs::read(&marker).unwrap(), b"invalid");
     assert!(
         service
             .require_restore_profile_projection(PORT, &user)
             .is_err()
     );
-    fs::write(&marker, []).unwrap();
+    fs::write(&runtime_marker, []).unwrap();
+    service.collect_active_user_data_if_launched(PORT).unwrap();
+    assert!(fs::read(&marker).unwrap().is_empty());
     service
         .require_restore_profile_projection(PORT, &user)
         .unwrap();
@@ -3952,7 +3964,9 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
     fs::remove_dir(manual_backup_path.parent().unwrap()).unwrap();
 
     let canonical_progress = user.join("PortableAppdata/progress");
-    fs::write(&canonical_progress, b"current progress").unwrap();
+    fs::write(&runtime_progress, b"current progress").unwrap();
+    service.collect_active_user_data_if_launched(PORT).unwrap();
+    assert_eq!(fs::read(&canonical_progress).unwrap(), b"current progress");
     for (declined, expected) in [
         (&without_marker, "portable_marker"),
         (&invalid_marker, "Portable.txt"),
@@ -3965,7 +3979,9 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
             "{error:?}"
         );
         assert!(fs::read(&marker).unwrap().is_empty());
+        assert!(fs::read(&runtime_marker).unwrap().is_empty());
         assert_eq!(fs::read(&canonical_progress).unwrap(), b"current progress");
+        assert_eq!(fs::read(&runtime_progress).unwrap(), b"current progress");
         assert_eq!(
             fs::read(declined.path.join("backup.json")).unwrap(),
             manifest
@@ -3986,7 +4002,7 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
             Ok(())
         }
     }
-    fs::write(&canonical_progress, b"pre-interruption progress").unwrap();
+    fs::write(&runtime_progress, b"pre-interruption progress").unwrap();
     let interrupted_restore = PortcoveService::with_faults(
         service.library().clone(),
         std::sync::Arc::new(StopAfterRestorePublish),

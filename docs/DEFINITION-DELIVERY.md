@@ -2143,7 +2143,10 @@ persistent paths must include `DaggerfallUnity_Data/StreamingAssets/Mods`,
 `Portable.txt` and `PortableAppdata`, and may add only
 `DaggerfallUnity_Data/StreamingAssets/GameFiles`. The definition declares no
 runtime data policy, file patterns or runtime-mutable paths. Each loader
-platform needs one executable hint and a reviewed package layout.
+platform needs one executable hint, a Windows `.exe` or Linux `.x86_64` player,
+and a reviewed package layout. Portcove does not create `Portable.txt`; the
+player's marker is collected from and restored to the active runtime like the
+other declared paths.
 
 The binding adds three reviewed facts:
 
@@ -2159,8 +2162,9 @@ The binding adds three reviewed facts:
 An installation matching a reviewed artifact exactly uses the loader after its
 retained files verify. Another release identity can reuse the review only when
 its manifest records the same platform, the declared repository and numeric
-repository ID, and the installed tag. Its immutable payload rows must produce
-the reviewed digest. The package's shipped mutable roots must also have the
+repository ID, and the installed tag. The installed release must be in the
+minimum release's major series and no older than the minimum. Its immutable
+payload rows must produce the reviewed digest. The package's shipped mutable roots must also have the
 reviewed shape: no `Portable.txt` or `PortableAppdata`, and only the stock
 `readme.txt` in `Mods` and `GameFiles`. This comparison grants no new download
 or code-execution authority.
