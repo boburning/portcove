@@ -49,6 +49,7 @@ import {
   buildReport,
   canonicalJson,
   capabilityResult,
+  collectionSql,
   collect,
   main,
   readIssueInventory,
@@ -278,6 +279,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "utf8",
   );
   type Step = {
+    if?: string;
     name?: string;
     run?: string;
     uses?: string;
@@ -285,8 +287,10 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     with?: Record<string, unknown>;
   };
   type Job = {
+    uses?: string;
     if?: string;
     permissions?: unknown;
+    secrets?: Record<string, string>;
     "timeout-minutes"?: number;
     steps: Step[];
   };
@@ -312,10 +316,54 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
   assert.deepEqual(workflow.permissions, { contents: "read" });
   const { collect, "restore-proof": restoreProof } = workflow.jobs;
-  assert.deepEqual(Object.keys(workflow.jobs), ["collect", "restore-proof"]);
+  assert.deepEqual(Object.keys(workflow.jobs), [
+    "reconcile-intake-receipts",
+    "collect",
+    "resume-intake-audits",
+    "restore-proof",
+  ]);
+  const resume = workflow.jobs["resume-intake-audits"]!;
+  assert.match(resume.if!, /github.event_name == 'schedule'/u);
+  assert.match(resume.if!, /audit_continuations != '\[\]'/u);
+  assert.deepEqual(resume.permissions, { contents: "read", issues: "write", actions: "read" });
+  assert.equal(
+    resume.secrets?.PORTCOVE_NEON_METER_TOKEN,
+    "${{ secrets.PORTCOVE_NEON_METER_TOKEN }}",
+  );
+  const worker = parse(
+    readFileSync(
+      new URL("../.github/workflows/hosted-discovery-intake.yml", import.meta.url),
+      "utf8",
+    ),
+  ) as { jobs: { intake: Job } };
+  const receiptWorker = workflow.jobs["reconcile-intake-receipts"]!;
+  assert.equal(
+    receiptWorker.uses,
+    undefined,
+    "read-only receipt job has no reusable permission floor",
+  );
+  assert.deepEqual(receiptWorker.permissions, { contents: "read", issues: "read" });
+  assert.equal(receiptWorker.secrets?.PORTCOVE_ROADMAP_TOKEN, undefined);
+  assert.equal(resume.uses, "./.github/workflows/hosted-discovery-intake.yml");
+  assert.deepEqual(resume.permissions, worker.jobs.intake.permissions);
+  assert.doesNotMatch(JSON.stringify(receiptWorker.steps), /secrets.PORTCOVE_ROADMAP_TOKEN/u);
+  assert.match(
+    JSON.stringify(receiptWorker.steps),
+    /"REPOSITORY_TOKEN":"\$\{\{ github.token \}\}"/u,
+  );
+  const jobConcurrency = (job: Job) =>
+    (job as Job & { concurrency: { group: string } }).concurrency.group;
+  assert.notEqual(jobConcurrency(receiptWorker), jobConcurrency(worker.jobs.intake));
+  const checkout = worker.jobs.intake.steps.find((step) =>
+    step.uses?.startsWith("actions/checkout@"),
+  );
+  assert.equal(
+    checkout?.with?.ref,
+    "${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && github.sha || github.event.repository.default_branch }}",
+  );
   assert.equal(
     collect!.if,
-    "github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'",
+    "${{ !cancelled() && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}",
   );
   assert.deepEqual(collect!.permissions, { contents: "read", actions: "read", issues: "read" });
   assert.deepEqual(restoreProof!.permissions, { contents: "read" });
@@ -358,8 +406,21 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   )!;
   assert.equal(collection.env!.PORTCOVE_ROADMAP_GH_TOKEN, "${{ secrets.PORTCOVE_ROADMAP_TOKEN }}");
   assert.equal(collection.env!.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
+  assert.equal(collection.env!.PORTCOVE_DISCOVERY_DATABASE_URL, undefined);
+  assert.doesNotMatch(collection.run!, /--reconcile-intake/u);
   assert.match(collection.run!, /sources=\(--catalog-only\)/u);
   assert.match(collection.run!, /--issues --issues-token-env PORTCOVE_ROADMAP_GH_TOKEN/u);
+  assert.match(
+    collection.run!,
+    /--artwork-health work\/maintenance-report\/cover-artwork-health\.json/u,
+  );
+  const coverHealth = collect!.steps.find(
+    (step) => step.name === "Verify a bounded window of accepted cover references",
+  )!;
+  assert.equal(coverHealth.if, "github.event_name == 'schedule'");
+  assert.equal(coverHealth.env, undefined);
+  assert.match(coverHealth.run!, /env -i PATH=/u);
+  assert.match(coverHealth.run!, /maintenance-artwork-health\.mts target\/debug\/portcove/u);
   for (const flag of [
     "--all",
     "--release-health",
@@ -368,7 +429,7 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
     "--delivery",
     "--upstream",
     "--hosted-intake",
-    "--reconcile-intake",
+    "--intake-receipt-revision",
     "--targets",
     "--reassess changed",
   ])
@@ -379,19 +440,24 @@ void test("the hosted workflow runs daily on main with least privilege and a rea
   assert.equal(render.env, undefined);
   assert.match(render.run!, /--database-env PORTCOVE_MAINTENANCE_LOCAL_URL/u);
 
-  const finalReceiptCheck = collect!.steps.at(-1)!;
-  assert.equal(finalReceiptCheck.name, "Check original intake receipt reconciliation");
-  assert.match(finalReceiptCheck.run!, /hosted_intake.receipts.status/u);
-  assert.ok(
-    collect!.steps
-      .slice(0, -1)
-      .some((step) => step.name === "Retain the backup for independent restore proof"),
+  assert.equal(
+    collect!.steps.at(-1)?.name,
+    "Check that collection kept the reconciled intake fence",
   );
+  assert.match(collect!.steps.at(-1)?.run ?? "", /receipt_fence == "verified"/u);
   assert.ok(
-    collect!.steps
-      .slice(0, -1)
-      .some((step) => step.name === "Retain the report, digest and evidence"),
+    collect!.steps.some((step) => step.name === "Retain the backup for independent restore proof"),
   );
+  assert.ok(collect!.steps.some((step) => step.name === "Retain the report, digest and evidence"));
+  const workerExecute = worker.jobs.intake.steps.find((step) =>
+    step.run?.includes("node scripts/hosted-discovery-intake-runner.mts"),
+  );
+  assert.ok(workerExecute);
+  assert.match(
+    workerExecute.env!.PORTCOVE_DISCOVERY_DATABASE_URL!,
+    /secrets.PORTCOVE_DISCOVERY_DATABASE_URL/u,
+  );
+  assert.match(workerExecute.env!.HOSTED_INTAKE_MODE!, /inputs.mode/u);
   const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
   assert.equal(uploads.length, 3);
   for (const upload of uploads) assert.equal(upload.with!["retention-days"], 30);
@@ -2641,7 +2707,11 @@ void test(
       updated_at: "2026-11-11T00:00:00Z",
       comments_sha256: "c".repeat(64),
     });
-    const collectWith = (requests: HostedRequestStatus[] | Error, platform = "linux-x86-64") => {
+    const collectWith = (
+      requests: HostedRequestStatus[] | Error,
+      platform = "linux-x86-64",
+      intakeReceiptRevision?: string,
+    ) => {
       const previous = JSON.parse(readFileSync(responses, "utf8")) as Record<string, unknown>;
       writeFileSync(responses, JSON.stringify({ ...previous, hostPlatform: platform }));
       return collect({
@@ -2652,6 +2722,7 @@ void test(
           requests instanceof Error
             ? Promise.reject(requests)
             : Promise.resolve({ queue: queue(), requests }),
+        intakeReceiptRevision,
         environment: collector,
         runner: "fixture",
       });
@@ -2951,10 +3022,20 @@ void test(
       });
     const reconcile = (row: HostedRequestStatus) =>
       reconcileIntakeHandoffReceipts(executor, async () => ({ queue: queue(), requests: [row] }));
-    assert.deepEqual(
-      (await reconcile(finish())).completed,
-      [],
-      "missing required durable checkpoint",
+    const missing = await reconcile(finish());
+    assert.deepEqual(missing.completed, [], "missing required durable checkpoint");
+    assert.equal(missing.pending, 1);
+    const changedQueue = await collectWith(
+      [request(10), blocked(20), finish()],
+      "linux-x86-64",
+      "hosted-intake:older-queue",
+    );
+    assert.equal(changedQueue.hosted_intake?.receipt_fence, "deferred");
+    assert.equal(changedQueue.hosted_intake?.coverage, "partial");
+    assert.equal(
+      operations().find(({ id }) => id === plan("hosted-intake-holds", 40, 2))?.state,
+      "planned",
+      "collector must preserve the original plan while the executor lacks the exact receipt",
     );
     const legacy = { ...proof, checkpoint_required: false };
     assert.deepEqual(
@@ -2996,6 +3077,7 @@ void test(
     );
     const agreed = finish({ executor_receipt: { ...proof, body_sha256: receiptDigest } });
     const result = await reconcile(agreed);
+    assert.equal(result.pending, 0);
     assert.deepEqual(result.completed, [
       {
         operation_id: plan("hosted-intake-holds", 40, 2),
@@ -4666,5 +4748,313 @@ void test(
       /fixture\/project/u,
       "opted-out progress does not leak through history rendering",
     );
+  },
+);
+
+void test("scheduled artwork health binds exact current references and keeps unavailable rows out of facts", async () => {
+  const { artworkHealthInventory, artworkHealthProducer, projectArtworkHealth } =
+    await import("./maintenance-artwork-health.mts");
+  const revision = "a".repeat(40);
+  const environment = {
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    GITHUB_WORKFLOW_SHA: revision,
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_SHA: revision,
+    GITHUB_RUN_ID: "10",
+    GITHUB_RUN_ATTEMPT: "1",
+  };
+  const producer = artworkHealthProducer(environment, revision);
+  assert.throws(() =>
+    artworkHealthProducer({ ...environment, GITHUB_EVENT_NAME: "workflow_dispatch" }, revision),
+  );
+  assert.throws(() =>
+    artworkHealthProducer({ ...environment, GITHUB_WORKFLOW_REF: "another-workflow" }, revision),
+  );
+  const artwork = (image_id: string, image_sha256: string) => ({
+    game_id: 12,
+    cover_id: 5,
+    image_id,
+    image_sha256,
+    game_slug: "reviewed-game",
+    match_kind: "port",
+  });
+  const approved = "a".repeat(64);
+  const observed = "b".repeat(64);
+  const inventory = artworkHealthInventory({
+    listings: [
+      { id: "good", artwork: artwork("same", approved) },
+      { id: "different", artwork: artwork("same", observed) },
+      { id: "gone", artwork: artwork("gone", approved) },
+      { id: "unavailable", artwork: artwork("unavailable", approved) },
+      { id: "without-cover" },
+    ],
+  });
+  assert.equal(inventory.rows, 4);
+  assert.equal(inventory.images.size, 3);
+  const now = Date.parse("2026-11-18T05:00:00Z");
+  const context = { inventory, listingsSha256: approved, cliSha256: observed, producer, now };
+  const receipt = {
+    format: 1,
+    authority: "none",
+    producer,
+    listings_sha256: approved,
+    cli_sha256: observed,
+    observed_at: new Date(now).toISOString(),
+    images: [
+      { image_id: "gone", status: "gone" },
+      {
+        image_id: "same",
+        status: "read",
+        content: { sha256: approved, bytes: 10, width: 264, height: 352 },
+      },
+      { image_id: "unavailable", status: "unavailable" },
+    ],
+  };
+  const admitted = projectArtworkHealth(receipt, context);
+  assert.deepEqual(admitted.counts, {
+    unchanged: 1,
+    mismatch: 1,
+    gone: 1,
+    unavailable: 1,
+    deferred: 0,
+  });
+  assert.equal(admitted.complete, false);
+  assert.deepEqual(
+    [...admitted.facts.keys()],
+    ["port:gone@gone", "port:good@same", "port:different@same"],
+  );
+  assert.deepEqual(
+    admitted.gaps.map(({ subject_key }) => subject_key),
+    ["port:unavailable@unavailable"],
+  );
+  assert.throws(() => projectArtworkHealth(receipt, { ...context, now: now + 7_200_001 }));
+  assert.throws(() => projectArtworkHealth({ ...receipt, listings_sha256: observed }, context));
+  assert.throws(() =>
+    projectArtworkHealth({ ...receipt, producer: { ...producer, run: "11" } }, context),
+  );
+  assert.throws(() =>
+    projectArtworkHealth({ ...receipt, images: receipt.images.slice(0, 2) }, context),
+  );
+
+  for (const status of [["gone"], { status: "deferred" }, 0, null, "unknown"]) {
+    const images = [{ ...receipt.images[0], status }, ...receipt.images.slice(1)];
+    assert.throws(
+      () => projectArtworkHealth({ ...receipt, images }, context),
+      /invalid image status/u,
+    );
+  }
+
+  const budgetIds = ["covera", "coverb", "coverc", "coverd", "covere"];
+  const budgetInventory = artworkHealthInventory({
+    listings: [
+      ...budgetIds.map((id) => ({ id, artwork: artwork(id, approved) })),
+      { id: "shared-cover", artwork: artwork("covera", approved) },
+    ],
+  });
+  const budgetContext = { ...context, inventory: budgetInventory };
+  const decodedImage = { sha256: approved, bytes: 16 * 1024 * 1024, width: 264, height: 352 };
+  const boundaryImages = [
+    ...budgetIds
+      .slice(0, 4)
+      .map((image_id) => ({ image_id, status: "read", content: decodedImage })),
+    { image_id: "covere", status: "deferred" },
+  ];
+  assert.equal(
+    projectArtworkHealth({ ...receipt, images: boundaryImages }, budgetContext).counts.unchanged,
+    5,
+  );
+  const overBudgetImages = [
+    ...boundaryImages.slice(0, 4),
+    { image_id: "covere", status: "read", content: { ...decodedImage, bytes: 1 } },
+  ];
+  assert.throws(
+    () => projectArtworkHealth({ ...receipt, images: overBudgetImages }, budgetContext),
+    /exceeds the validated image byte budget/u,
+  );
+
+  const sql = collectionSql({
+    mode: "all",
+    revision,
+    cliSha256: observed,
+    apiSchema: 1,
+    runner: "fixture",
+    startedAt: receipt.observed_at,
+    platform: "linux-x86-64",
+    subjects: [],
+    artworkHealth: admitted,
+    latest: {
+      catalog: new Map(),
+      core: new Map(),
+      artworkHealth: new Map([["port:unavailable@unavailable", approved]]),
+    },
+  });
+  assert.match(sql, /cover-artwork-health/);
+  assert.match(sql, /"status":"gone"/);
+  assert.match(sql, /"status":"mismatch"/);
+  assert.match(sql, /coverage = 'partial'/);
+  assert.doesNotMatch(sql, /VALUES[^\n]*port:unavailable@unavailable/);
+});
+
+void test("credential-free fixed CDN health rotates a complete stable image inventory", async () => {
+  const { artworkHealthInventory, artworkHealthWindow, observeArtworkWindow } =
+    await import("./maintenance-artwork-health.mts");
+  const { createIgdbInspector } = await import("./inspect-igdb-artwork.mts");
+  const inventories = artworkHealthInventory({
+    listings: Array.from({ length: 140 }, (_, index) => ({
+      id: "port-" + index,
+      artwork: {
+        game_id: index + 1,
+        cover_id: index + 1,
+        image_id: "cover" + index,
+        image_sha256: "a".repeat(64),
+        game_slug: "game-" + index,
+        match_kind: "port",
+      },
+    })),
+  });
+  const day = 86_400_000;
+  const windows = [0, 1, 2].map((date) => artworkHealthWindow(inventories, date * day));
+  assert.deepEqual(
+    windows.map((window) => window.ids.length),
+    [64, 64, 12],
+  );
+  assert.equal(new Set(windows.flatMap((window) => window.ids)).size, 140);
+  assert.deepEqual(artworkHealthWindow(inventories, day * 3), windows[0]);
+
+  const inspector = createIgdbInspector(
+    undefined,
+    () => ({
+      format: "jpeg",
+      validator: "portcove-core",
+      width: 264,
+      height: 352,
+    }),
+    async (url) => {
+      assert.match(url, /^https:\/\/images\.igdb\.com\//u);
+      if (url.endsWith("/gone.jpg")) return new Response(null, { status: 410 });
+      if (url.endsWith("/unavailable.jpg")) return new Response(null, { status: 404 });
+      return new Response("jpeg fixture", {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    },
+  );
+  const results = await observeArtworkWindow(
+    ["gone", "unavailable", "read"],
+    inspector,
+    new AbortController().signal,
+  );
+  assert.deepEqual(
+    results.map(({ status }) => status),
+    ["gone", "unavailable", "read"],
+  );
+  assert.equal(inspector.providerMetrics.authentication_requests, 0);
+  assert.equal(inspector.providerMetrics.game_requests, 0);
+  assert.equal(inspector.providerMetrics.image_requests, 3);
+});
+
+void test(
+  "partial CDN windows leave prior good observations intact in the maintenance store",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("artwork-health");
+    migrate(store.owner);
+    const revision = "a".repeat(40);
+    const earlier = { status: "unchanged", artwork: { image_sha256: "b".repeat(64) } };
+    const later = { status: "gone", artwork: { image_sha256: "c".repeat(64) } };
+    const insert = (
+      artworkHealth: NonNullable<Parameters<typeof collectionSql>[0]["artworkHealth"]>,
+      previous = new Map<string, string>(),
+    ) =>
+      runSql(
+        store.owner,
+        collectionSql({
+          mode: "all",
+          revision,
+          cliSha256: revision.padEnd(64, "a"),
+          apiSchema: 1,
+          runner: "fixture",
+          startedAt: new Date().toISOString(),
+          platform: "linux-x86-64",
+          subjects: [],
+          artworkHealth,
+          latest: { catalog: new Map(), core: new Map(), artworkHealth: previous },
+        }),
+      );
+    insert({
+      revision: "scheduled-artwork-health:1-1",
+      complete: false,
+      expected: 2,
+      gaps: [],
+      facts: new Map([["port:first@first", earlier]]),
+    });
+    insert(
+      {
+        revision: "scheduled-artwork-health:2-1",
+        complete: false,
+        expected: 2,
+        facts: new Map([["port:second@second", later]]),
+        gaps: [
+          {
+            subject_key: "port:first@first",
+            code: "unavailable",
+            message: "No admitted image observation",
+          },
+        ],
+      },
+      new Map([
+        ["port:first@first", createHash("sha256").update(canonicalJson(earlier)).digest("hex")],
+      ]),
+    );
+    const restored = {
+      ...later,
+      status: "unchanged",
+      content: { sha256: later.artwork.image_sha256, bytes: 10, width: 264, height: 352 },
+    };
+    insert(
+      {
+        revision: "scheduled-artwork-health:3-1",
+        complete: false,
+        expected: 2,
+        gaps: [],
+        facts: new Map([["port:second@second", restored]]),
+      },
+      new Map([
+        ["port:second@second", createHash("sha256").update(canonicalJson(later)).digest("hex")],
+      ]),
+    );
+    const rows = runSql(
+      store.owner,
+      `
+      SELECT subject_key || ':' || (payload ->> 'status')
+      FROM portcove_maintenance.observations o
+      JOIN portcove_maintenance.collection_runs r USING (run_id)
+      WHERE r.source = 'cover-artwork-health'
+      ORDER BY subject_key, observation_id;
+    `,
+    )
+      .trim()
+      .split("\n");
+    assert.deepEqual(rows, [
+      "port:first@first:unchanged",
+      "port:second@second:gone",
+      "port:second@second:unchanged",
+    ]);
+    const latest = runSql(
+      store.owner,
+      `SELECT m.subject_key || ':' || m.content_sha256
+        FROM portcove_maintenance.run_members(
+          portcove_maintenance.latest_run('cover-artwork-health')
+        ) m
+        ORDER BY m.subject_key;`,
+    ).trim();
+    assert.deepEqual(latest.split("\n"), [
+      "port:first@first:" + createHash("sha256").update(canonicalJson(earlier)).digest("hex"),
+      "port:second@second:" + createHash("sha256").update(canonicalJson(restored)).digest("hex"),
+    ]);
   },
 );

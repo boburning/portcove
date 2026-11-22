@@ -80,6 +80,8 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // Implementation explanations are directory-only too. Keep earlier strict
         // retained-listing readers compatible without changing their launch contract.
         listing.implementation = None;
+        listing.media.retain(|asset| !asset.is_typed_igdb_scene());
+        crate::catalog::listings::strip_verified_sources(&mut listing);
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.collection_covers.is_some() {
@@ -109,9 +111,16 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(
-        &crate::installed_contract::legacy_retained_document(catalog, port_id, None),
-    )?)
+    let mut document = crate::installed_contract::legacy_retained_document(catalog, port_id, None);
+    if let Some(port) = document.ports.iter_mut().find(|port| port.id == port_id)
+        && port
+            .game_settings
+            .as_ref()
+            .is_some_and(crate::GameSettingsContract::package_only)
+    {
+        port.game_settings = None;
+    }
+    Ok(serde_json::to_string(&document)?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -131,6 +140,12 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
             || (retained.format_version == 3 && retained.listing.compatibility.is_none())
             || (retained.format_version < 3 && retained.listing.compatibility.is_some())
             || (retained.format_version == 1 && has_references)
+            || retained
+                .listing
+                .media
+                .iter()
+                .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
+            || crate::catalog::listings::has_verified_source_editions(&retained.listing)
             || retained.listing.id != port_id
         {
             return Err(PortcoveError::verification(
@@ -292,6 +307,7 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -764,6 +780,7 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         })
     }
@@ -777,6 +794,7 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            jakmods: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -1816,12 +1834,20 @@ impl Library {
         .collect()
     }
 
+    #[cfg(test)]
     pub(crate) fn store_update_snapshot(&self, check: &UpdateCheck) -> Result<UpdateSnapshot> {
+        Self::store_update_snapshot_from(&self.connection()?, check)
+    }
+
+    pub(crate) fn store_update_snapshot_from(
+        connection: &Connection,
+        check: &UpdateCheck,
+    ) -> Result<UpdateSnapshot> {
         let snapshot = UpdateSnapshot {
             checked_at: Self::now(),
             check: check.clone(),
         };
-        self.connection()?.execute(
+        connection.execute(
             "INSERT INTO update_snapshots(port_id, check_json, checked_at)
              VALUES (?1, ?2, ?3)
              ON CONFLICT(port_id) DO UPDATE SET

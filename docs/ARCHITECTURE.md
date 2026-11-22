@@ -1761,6 +1761,13 @@ identity; a failed review keeps focus inside the dialog.
 
 ## Backup review presentation
 
+Core includes an optional `recovery_review` in backup inventory. Desktop uses
+it to offer the historical recovery review for the selected snapshot. The
+Windows Ghostship reader looks up the backup and retained install ID in the
+library’s qualification records. The locked plan verifies the complete seal
+and current contents before consent. Ordinary backup records and retained
+plan fingerprints omit the inventory hint.
+
 Core owns backup selection, payload/user-data fingerprints, single-use authorization,
 per-port exclusion and journal recovery. Desktop exposes a generation-bound review
 that combines the existing core preview with its saved-data path. Its custom restore
@@ -2660,6 +2667,12 @@ Core also owns the read-only output-destination preview, capacity/ownership asse
 `HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
 
 Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
+
+Desktop compares existing library roots through Core validation. Reselecting
+the active root keeps the workspace generation and preference bytes when the
+canonical choice and startup source already agree. An explicit change to the
+startup choice still persists, even when the current library stays open.
+Switching to another root still requires the outgoing library to be idle.
 
 Favorites use the compatible `favorites_by_library` extension in that same
 format-1 host preference document. `HostPreferenceStore::favorite_ports` and

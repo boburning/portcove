@@ -474,6 +474,12 @@ pub(crate) fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str)
     {
         inputs["openmohaa_prepared_programs"] = serde_json::Value::Bool(true);
     }
+    // Older shape readers did not normalize this independently owned path.
+    // Observations from those readers cannot establish a new generated baseline.
+    if platform == "linux-x86-64" && !port["linux_portable_data_directory"].is_null() {
+        inputs["verified_optional_empty_portable_data"] =
+            port["linux_portable_data_directory"].clone();
+    }
     // The sole N64 app bundle can prove flat install-root siblings absent.
     // Older CLI builds must not record a partial shape under this input digest.
     if port["adapter"] == "n64-recomp-portable"
@@ -549,6 +555,8 @@ pub(crate) struct ShapeRoots {
     pub persistence: Option<PathBuf>,
     /// A single app owns the whole payload and its parent owns player data.
     sole_n64_mac_bundle: bool,
+    /// A verified optional player data slot at the package root, if declared.
+    optional_top_directory: Option<String>,
 }
 
 pub(crate) fn roots(
@@ -578,10 +586,23 @@ pub(crate) fn roots(
             .as_deref()
             .and_then(Path::parent)
             .is_some_and(|parent| parent == package.join("Contents/MacOS"));
+    let optional_top_directory = if let Some(name) =
+        crate::native_portable_data::directory_name(port, platform)
+    {
+        let executable = executable.as_deref().ok_or_else(|| {
+            PortcoveError::verification("cannot locate the portable Linux player in the package")
+        })?;
+        let directory =
+            crate::native_portable_data::require_pristine_package(payload, executable, name)?;
+        (directory.parent() == Some(package.as_path())).then(|| name.to_ascii_lowercase())
+    } else {
+        None
+    };
     Ok(ShapeRoots {
         package,
         persistence,
         sole_n64_mac_bundle,
+        optional_top_directory,
     })
 }
 
@@ -636,7 +657,9 @@ pub(crate) fn derive(
         .collect::<BTreeSet<_>>();
     let top_directories = directories
         .iter()
-        .filter(|path| !path.contains('/'))
+        .filter(|path| {
+            !path.contains('/') && Some(path.as_str()) != roots.optional_top_directory.as_deref()
+        })
         .cloned()
         .collect::<BTreeSet<_>>();
     let mut shape = PackageShape {

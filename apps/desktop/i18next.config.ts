@@ -82,6 +82,7 @@ export default defineConfig({
       "src/components/CreateCleanModSetup.tsx",
       "src/components/ModSetupRecovery.tsx",
       "src/components/ModSetupRuntimeRetirement.tsx",
+      "src/components/JakModsBrowser.tsx",
       "src/components/ModProviderBrowser.tsx",
       "src/components/ModProviderCatalog.tsx",
       "src/components/ModRecipeControl.tsx",

@@ -58,11 +58,19 @@ pub(crate) fn list(
     connection: &Connection,
     requirement: &str,
 ) -> Result<Vec<(String, SourceRecord)>> {
+    list_limited(connection, requirement, i64::MAX)
+}
+
+pub(crate) fn list_limited(
+    connection: &Connection,
+    requirement: &str,
+    limit: i64,
+) -> Result<Vec<(String, SourceRecord)>> {
     let mut query = connection.prepare(
         "SELECT instance_id, source_json FROM source_instances
-         WHERE requirement_id=?1 ORDER BY instance_id",
+         WHERE requirement_id=?1 ORDER BY instance_id LIMIT ?2",
     )?;
-    let rows = query.query_map([requirement], |row| {
+    let rows = query.query_map(params![requirement, limit], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     rows.map(|row| {

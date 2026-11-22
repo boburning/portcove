@@ -70,6 +70,7 @@ fn validate_subject_safety(
     if let Some(previous) = baseline.iter().find(|port| port.id == selected_port_id)
         && let Some(next) = candidate.iter().find(|port| port.id == selected_port_id)
     {
+        crate::profile_loader::validate_successor(previous, next)?;
         crate::provider_binding::validate_successor(previous, next)?;
     }
     validate_acquisition_hold_transition(baseline, candidate, selected_port_id)?;

@@ -32,7 +32,7 @@ impl ProjectionDocument {
             ));
         }
         for port in catalog.ports() {
-            if port.upstream_active_reviewed && self.contract_schema != 2 {
+            if port.upstream_active_reviewed && self.contract_schema < 2 {
                 return Err(PortcoveError::unsupported(
                     "a reviewed active project requires indexed catalog projection schema 2",
                 ));
@@ -49,7 +49,8 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     let bytes = crate::path::read_bounded_regular(path, limit)?;
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
     let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
-    if !matches!(document.contract_schema, 1 | 2) || document.representation != "catalog_projection"
+    if !matches!(document.contract_schema, 1 | 2 | 3)
+        || document.representation != "catalog_projection"
     {
         return Err(PortcoveError::unsupported(
             "unsupported definition catalog projection contract",
@@ -59,6 +60,11 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     if catalog.ports().len() != 1 {
         return Err(PortcoveError::usage(
             "definition projection preparation requires exactly one port",
+        ));
+    }
+    if catalog.ports()[0].mod_loader.is_some() && document.contract_schema != 3 {
+        return Err(PortcoveError::verification(
+            "native mod loader bindings require catalog projection schema 3",
         ));
     }
     let typed = serde_json::to_value(catalog.authoritative_document())?;
@@ -253,6 +259,8 @@ impl DefinitionCatalogProjection {
         };
         catalog.retain_embedded_file_patterns(baseline, selected)?;
         catalog.retain_unrelated_upstream_reviews(baseline, selected);
+        catalog.retain_unrelated_mod_loaders(baseline, selected);
+        catalog.retain_unrelated_package_settings(baseline, selected);
         crate::definition_loader::validate_definition_transition(baseline, &catalog, selected)?;
         Ok(catalog)
     }
@@ -398,6 +406,28 @@ impl DefinitionContentIndex {
         }
         let mut catalog = document.validated_catalog()?;
         let port = catalog.port(stable_id)?;
+        if let Some(sibling) = catalog
+            .ports()
+            .iter()
+            .find(|sibling| sibling.id != stable_id && sibling.mod_loader.is_some())
+        {
+            return Err(PortcoveError::verification(
+                "native mod loader bindings must belong to the selected definition",
+            )
+            .detail("port_id", &sibling.id));
+        }
+        if let Some(sibling) = catalog.ports().iter().find(|sibling| {
+            sibling.id != stable_id
+                && sibling
+                    .game_settings
+                    .as_ref()
+                    .is_some_and(crate::GameSettingsContract::package_only)
+        }) {
+            return Err(PortcoveError::verification(
+                "package-only settings must belong to the selected definition",
+            )
+            .detail("port_id", &sibling.id));
+        }
         if let Some(sources) = catalog.source_catalog() {
             for contract in sources
                 .contracts
@@ -432,11 +462,15 @@ impl DefinitionContentIndex {
                 .iter()
                 .filter(|contract| !contract.n64_recomp_inputs_v1.is_empty())
             {
+                let minimum = if contract.migrates_n64_legacy_admission() {
+                    crate::definition_capabilities::N64_RECOMP_LEGACY_INPUT_MIGRATION_CAPABILITY
+                } else {
+                    crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY
+                };
                 if contract.port_id != stable_id
                     || !entry.capabilities().checks.iter().any(|check| {
                         check.requirement.template == "n64-recomp-portable"
-                        && check.requirement.minimum_version
-                            >= crate::definition_capabilities::N64_RECOMP_RELEASE_INPUT_CAPABILITY
+                            && check.requirement.minimum_version >= minimum
                     })
                 {
                     return Err(PortcoveError::verification(

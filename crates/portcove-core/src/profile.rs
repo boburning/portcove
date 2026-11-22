@@ -592,10 +592,12 @@ impl PortcoveService {
         next.loader =
             self.profile_loader_binding(&next.build, next.loader.as_ref(), needs_loader)?;
         // A revision the game could not load unambiguously is never recorded.
-        crate::profile_deploy::require_projectable(port_id, &next)?;
+        if let Some(layout) = self.layout_for_revision(&next)? {
+            crate::profile_deploy::require_projectable(&layout, &next)?;
+        }
         self.require_revision_loader(&next)?;
         // Mod code the player has not allowed is never recorded as a setup to run.
-        if let Ok(layout) = self.deploy_layout(port_id) {
+        if let Some(layout) = self.layout_for_revision(&next)? {
             crate::profile_deploy::require_code_allowed(&layout, &next)?;
         }
         seal(&mut next)?;
@@ -765,7 +767,9 @@ impl PortcoveService {
         });
         revision.loader =
             self.profile_loader_binding(&revision.build, declared_loader, needs_loader)?;
-        crate::profile_deploy::require_projectable(&profile.port_id, &revision)?;
+        if let Some(layout) = self.layout_for_revision(&revision)? {
+            crate::profile_deploy::require_projectable(&layout, &revision)?;
+        }
         self.require_revision_loader(&revision)?;
         seal(&mut revision)?;
         let mut connection = self.library.connection()?;
@@ -863,6 +867,10 @@ pub(crate) fn follow_active_install(
             "A runtime retained for Default changed in place. Restore its exact runtime or install a separately identified build.",
         ));
     }
+    let needs_loader = next.packages.iter().any(|package| package.enabled);
+    let declared = next.loader.as_ref().filter(|_| needs_loader);
+    next.loader = crate::profile_loader::require_contract(install, &build, declared, needs_loader)?
+        .map(|loader| loader.engine.reference());
     next.build = build;
     next.parent_revision = Some(profile.current_revision);
     next.revision = profile

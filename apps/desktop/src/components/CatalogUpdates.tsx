@@ -118,15 +118,25 @@ export function CatalogSettings({
 export function CatalogOrigin({ provenance }: { provenance?: CatalogProvenance | undefined }) {
   const { t } = useAppTranslation("catalogUpdates");
   if (!provenance) return <p>{t("custom.loadingInformation")}</p>;
+  let originLabel: string;
+  switch (provenance.origin) {
+    case "embedded":
+      originLabel = t("custom.originBuiltIn");
+      break;
+    case "definition_selected":
+      originLabel = t("custom.originDefinitionSelected");
+      break;
+    case "signed_previous":
+      originLabel = t("custom.originSignedPrevious", { version: String(provenance.sequence) });
+      break;
+    case "signed_active":
+      originLabel = t("custom.originSigned", { version: String(provenance.sequence) });
+      break;
+  }
+
   return (
     <>
-      <p>
-        {provenance.origin === "embedded"
-          ? t("custom.originBuiltIn")
-          : provenance.origin === "signed_previous"
-            ? t("custom.originSignedPrevious", { version: String(provenance.sequence) })
-            : t("custom.originSigned", { version: String(provenance.sequence) })}
-      </p>
+      <p>{originLabel}</p>
       {provenance.expires_at && (
         <p>
           {/* Dates follow the system's regional format, separate from message language. */}
@@ -198,7 +208,10 @@ export function CatalogUpdatesDialog({
     }
   };
   const changed = async (next: CatalogStatus | null, message: CatalogNotice) => {
-    if (!next) return;
+    if (!next) {
+      setNotice("cancelled");
+      return;
+    }
     setStatus(next);
     setNotice(message);
     await onChanged?.();
@@ -451,13 +464,10 @@ function CatalogReview({
         variant="outline"
         disabled={Boolean(busy) || !location.trim()}
         onClick={() => {
+          const source = { kind, value: location.trim() };
+          setPlan(undefined);
           void run("verifyingCatalog", async () => {
-            setPlan(
-              await desktopApi.planCatalogUpdate({
-                kind,
-                value: location.trim(),
-              }),
-            );
+            setPlan(await desktopApi.planCatalogUpdate(source));
           });
         }}
       >

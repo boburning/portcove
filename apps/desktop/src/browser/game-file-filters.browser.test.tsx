@@ -1,6 +1,7 @@
 import {
   filterChoice,
   closeFilterPanel,
+  closeOpenFilterField,
   openAdvancedFilters as openAdvancedPanel,
 } from "../../test/filter-fields";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
@@ -275,6 +276,7 @@ it.each(["dark", "light"])(
       .element(await filterChoice("Compatible complete files available (unavailable)"))
       .toHaveAttribute("aria-disabled", "true");
     expect(desktopApi.refreshGameFileQuery).not.toHaveBeenCalled();
+    await closeOpenFilterField();
     await userEvent.click(button("Check game-file filters"));
     for (const label of [
       "Compatible complete files available",
@@ -482,6 +484,7 @@ it.each([256, 257, bundledDefinitions.ports.length])(
     await expect
       .element(await filterChoice("No files to add in Portcove (unavailable)"))
       .toHaveAttribute("aria-disabled", "true");
+    await closeOpenFilterField();
     await userEvent.click(button("Check game-file filters"));
     await expect.element(await filterChoice("No files to add in Portcove (1)")).toBeEnabled();
     await expect

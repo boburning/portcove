@@ -95,7 +95,7 @@ function parseEntry(tokens: string[], start: number) {
     if (tokens[end] === ",") end++;
   }
   const rom = fields.get("rom_hash");
-  const hash = rom?.length === 1 && /^0x([a-fA-F0-9]{1,16})(?:ULL|ull)$/u.exec(rom[0]!);
+  const hash = rom?.length === 1 && /^0x([a-fA-F0-9]{1,16})(?:ULL|ull)?$/u.exec(rom[0]!);
   if (!hash) return unclear();
   const mod = fields.get("mod_game_id");
   return {
