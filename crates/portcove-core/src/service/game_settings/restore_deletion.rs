@@ -1,6 +1,6 @@
 //! Exact settings deletion evidence from the existing reviewed backup restore.
-//! Only a verified local NativePortable receipt with unchanged directory
-//! evidence can authorize preserving that absence at successor activation.
+//! A verified local settings receipt and unchanged directory evidence
+//! authorize preserving that absence at successor activation.
 
 use super::*;
 use crate::game_settings::observe_player_settings_copy;
@@ -86,9 +86,8 @@ impl PortcoveService {
                 .as_ref()
                 .is_some_and(|policy| policy.shared_paths.contains(&file.path))
         } else {
-            port.adapter == AdapterKind::NativePortable
+            crate::game_settings::admits_mirrored_package_defaults(port)
                 && port.archive_data_compatibility_v1.is_none()
-                && !crate::persistence::requires_restore_receipt(port)
         };
         if !scoped
             || port.runtime_data_policy.is_some()

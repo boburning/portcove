@@ -137,7 +137,7 @@ impl PortcoveService {
             &target,
             setup.is_default,
         ));
-        check(require_projectable(port_id, &target));
+        check(require_projectable(layout, &target));
         if setup.is_default && current.originals != target.originals {
             check(Err(PortcoveError::unsupported(
                 "Default follows the registered original files. Copy the setup to choose an exact original before recovering this revision.",
@@ -158,7 +158,7 @@ impl PortcoveService {
             );
         }
         check(self.require_revision_loader(&target));
-        if let Some(game) = crate::native_mod_list::recomp_game(port_id) {
+        if let Some(game) = layout.recomp_game() {
             check(crate::recomp_mod_settings::review_recovery(
                 layout, game, &current, &target,
             ));

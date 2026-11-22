@@ -39,6 +39,11 @@ const CREDENTIAL_SERVICE: &str = "io.github.portcove.Portcove";
 const CREDENTIAL_USER: &str = "steamgriddb.com";
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_RESULTS: usize = 50;
+/// Pages of 50 a player can list for one game and role, and the pages read
+/// while re-finding a chosen image before import. They match, so any image a
+/// player could list can also be confirmed.
+const MAX_LISTING_PAGES: u32 = 40;
+const MAX_REVALIDATION_PAGES: u32 = MAX_LISTING_PAGES;
 const MAX_SEARCH_TERM_CHARS: usize = 120;
 const MAX_IMAGE_DIMENSION: u32 = 8192;
 
@@ -143,16 +148,29 @@ pub(crate) fn fetch_candidate(
     role: DestinationArtworkRole,
     candidate_id: u64,
 ) -> Result<FetchedCandidate> {
-    // Only the first listing page is consulted; an image that moved off it is
-    // reported as no longer listed and the current artwork is kept.
-    let candidate = role_candidates(transport, key, game_id, role)?
-        .into_iter()
-        .find(|candidate| candidate.id == candidate_id)
-        .ok_or_else(|| {
-            PortcoveError::not_found(
-                "SteamGridDB no longer lists this image for this game and role; list the images again",
-            )
-        })?;
+    // The chosen image is found by its ID, not by its display rank: listing
+    // pages are read until it appears or the listing ends. Only a complete
+    // listing without it means the image is no longer listed.
+    let mut candidate = None;
+    for page in 0..MAX_REVALIDATION_PAGES {
+        let (listed, complete) = role_listing_page(transport, key, game_id, role, page)?;
+        candidate = listed
+            .into_iter()
+            .find(|candidate| candidate.id == candidate_id);
+        if candidate.is_some() || complete {
+            break;
+        }
+        if page + 1 == MAX_REVALIDATION_PAGES {
+            return Err(PortcoveError::state(
+                "SteamGridDB lists too many images to confirm this one now; list the images again",
+            ));
+        }
+    }
+    let candidate = candidate.ok_or_else(|| {
+        PortcoveError::not_found(
+            "SteamGridDB no longer lists this image for this game and role; list the images again",
+        )
+    })?;
     if !is_image_url(&candidate.url) {
         return Err(SteamGridDbFailure::InvalidResponse.into());
     }
@@ -290,12 +308,16 @@ pub fn search_steamgriddb_games(term: &str) -> Result<Vec<SteamGridDbGame>> {
     with_key(|key| search_games(&HttpTransport, key, term))
 }
 
-/// Static candidates for one role of an explicitly chosen SteamGridDB game.
+/// Static candidates for one role of an explicitly chosen SteamGridDB game,
+/// one provider page at a time (page 0 first). An empty page ends the listing.
 pub fn steamgriddb_candidates(
     game_id: u64,
     role: DestinationArtworkRole,
+    page: u32,
 ) -> Result<Vec<SteamGridDbCandidate>> {
-    with_key(|key| role_candidates(&HttpTransport, key, game_id, role))
+    with_key(|key| {
+        role_listing_page(&HttpTransport, key, game_id, role, page).map(|(listed, _)| listed)
+    })
 }
 
 fn with_key<T>(operation: impl FnOnce(&str) -> Result<T>) -> Result<T> {
@@ -349,19 +371,36 @@ fn role_listing(role: DestinationArtworkRole) -> (&'static str, &'static str) {
     }
 }
 
+/// The first listing page, as tests and the live probes read it.
+#[cfg(test)]
 pub(crate) fn role_candidates(
     transport: &impl SteamGridDbTransport,
     key: &str,
     game_id: u64,
     role: DestinationArtworkRole,
 ) -> Result<Vec<SteamGridDbCandidate>> {
+    role_listing_page(transport, key, game_id, role, 0).map(|(listed, _)| listed)
+}
+
+/// One provider page of candidates, and whether it was the last page (fewer
+/// raw results than requested). Filtering never decides completeness.
+pub(crate) fn role_listing_page(
+    transport: &impl SteamGridDbTransport,
+    key: &str,
+    game_id: u64,
+    role: DestinationArtworkRole,
+    page: u32,
+) -> Result<(Vec<SteamGridDbCandidate>, bool)> {
     if game_id == 0 {
         return Err(PortcoveError::usage("choose a SteamGridDB game first"));
+    }
+    if page >= MAX_LISTING_PAGES {
+        return Ok((Vec::new(), true));
     }
     let (collection, dimensions) = role_listing(role);
     let path = format!(
         "/{collection}/game/{game_id}?dimensions={dimensions}&mimes=image/png,image/jpeg\
-         &types=static&nsfw=false&humor=false&epilepsy=false&limit={MAX_RESULTS}&page=0"
+         &types=static&nsfw=false&humor=false&epilepsy=false&limit={MAX_RESULTS}&page={page}"
     );
     #[derive(Deserialize)]
     struct Author {
@@ -389,7 +428,8 @@ pub(crate) fn role_candidates(
         author: Author,
     }
     let images: Vec<Image> = request(transport, key, &path)?;
-    Ok(images
+    let complete = images.len() < MAX_RESULTS;
+    let listed = images
         .into_iter()
         // Requested flag, format and host filters are rechecked; anything unexpected is
         // dropped, not trusted. Responses do not mark animation, so `types=static` relies
@@ -423,7 +463,8 @@ pub(crate) fn role_candidates(
                 }),
             },
         })
-        .collect())
+        .collect();
+    Ok((listed, complete))
 }
 
 fn request<T: for<'de> Deserialize<'de>>(

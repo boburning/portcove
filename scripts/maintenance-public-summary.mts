@@ -85,6 +85,56 @@ function pendingReasonBuckets(raw: unknown, otherCount: unknown, withReason: num
   return `${missing} asset missing or ambiguous, ${excluded} excluded by reviewed artifact policy, and ${other} with other reasons`;
 }
 
+function handoffSummary(raw: unknown, generated: string) {
+  const unavailable = "Open maintenance handoff counts are unknown.";
+  if (!Array.isArray(raw)) return unavailable;
+  const subjects = new Set<string>();
+  let unplanned = 0;
+  let unbound = 0;
+  let oldest = 0;
+  const states = { planned: 0, dispatched: 0, ambiguous: 0 };
+  for (const row of raw) {
+    if (
+      !isRecord(row) ||
+      typeof row.subject_key !== "string" ||
+      !row.subject_key.startsWith("handoff:") ||
+      subjects.has(row.subject_key)
+    )
+      return unavailable;
+    const observed = utc(row.updated_at);
+    const sequence = count(row.sequence);
+    const assessment = count(row.assessment_id);
+    if (!observed || observed > generated || !sequence || !assessment) return unavailable;
+    subjects.add(row.subject_key);
+    oldest = Math.max(oldest, Date.parse(generated) - Date.parse(observed));
+    if (row.operation === null) {
+      unplanned++;
+      continue;
+    }
+    const operation = row.operation;
+    if (
+      !isRecord(operation) ||
+      typeof operation.operation_id !== "string" ||
+      !operation.operation_id ||
+      !count(operation.revision) ||
+      typeof operation.executor !== "string" ||
+      !operation.executor ||
+      !count(operation.fence_sequence) ||
+      (operation.fence_assessment_id !== null && !count(operation.fence_assessment_id))
+    )
+      return unavailable;
+    const state = operation.state;
+    if (state !== "planned" && state !== "dispatched" && state !== "ambiguous") return unavailable;
+    if (operation.fence_sequence !== sequence || operation.fence_assessment_id !== assessment)
+      unbound++;
+    else states[state]++;
+  }
+  const age = subjects.size
+    ? ` The oldest current handoff state was updated ${hours(oldest)} ago.`
+    : "";
+  return `The store records ${subjects.size} open maintenance handoffs: ${unplanned} without an open operation, ${states.planned} planned, ${states.dispatched} dispatched, ${states.ambiguous} ambiguous, and ${unbound} with an operation from a different or unbound assessment.${age} Dispatch counts alone do not establish executor acceptance or completion.`;
+}
+
 /** Only fixed labels, normalized UTC timestamps and numeric aggregates can leave this renderer. */
 export function renderMaintenancePublicSummary(raw: unknown, rawUsage: unknown, digest: string) {
   const report = record(raw);
@@ -217,6 +267,7 @@ export function renderMaintenancePublicSummary(raw: unknown, rawUsage: unknown, 
     `- ${withReason !== null ? `${withReason} pending candidates have a recorded reason and ${reasonless} lack one` : "Pending reasons are unknown"}. Oldest pending age is ${hours(known ? count(window.oldest_pending_age_ms) : null)}. ${known && moved !== null && earlierPending !== null && moved <= earlierPending && earlierPending <= total ? `${moved} of ${earlierPending} candidates observed pending later recorded eligible` : "Pending-to-eligible count is unknown"}.`,
     `- Distinct pending candidates by reason are ${withReason === null ? unknown : pendingReasonBuckets(window.hold_reasons, window.pending_with_other_recorded_hold_reason, withReason)}. One candidate can appear in more than one reason category.`,
     `- Release-to-recorded-eligibility lag ${lagKnown ? `had a median of ${hours(median)}, a maximum of ${hours(maximum)}, and ${samples} samples` : "is unknown"}.`,
+    `- ${handoffSummary(report.handoffs, generated)}`,
     `- The imported observer attempt accounts for ${runnerSeconds} measured runner seconds, ${(usageKnown ? count(usage.unmeasured_jobs) : null) ?? unknown} jobs without a measured duration, and ${(usageKnown ? count(record(usage.checkpoint).bytes) : null) ?? unknown} checkpoint bytes. Fleet resource use and billed cost are unknown.`,
     "- Released-client availability and release-to-availability lag are unknown. The operating target is at least 95% unattended availability over 30 days. Justified holds, false holds, human interventions per 100 candidates and per month, successful local resolutions, and signed automatic repairs are unknown.",
     "",

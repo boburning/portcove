@@ -204,10 +204,9 @@ impl PortcoveService {
         let prior = self.persistence_contract_for_install(previous)?;
         let next = self.persistence_contract_for_install(target)?;
         for policy in [&prior, &next] {
-            if policy.port.adapter != AdapterKind::NativePortable
+            if !crate::game_settings::admits_mirrored_package_defaults(&policy.port)
                 || policy.writes_directly
                 || policy.port.runtime_data_policy.is_some()
-                || crate::persistence::requires_restore_receipt(&policy.port)
                 || !policy
                     .port
                     .persistent_paths

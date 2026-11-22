@@ -3143,7 +3143,31 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
         RetainedCuratedOperation::Status | RetainedCuratedOperation::Launch
     ) {
         let affected = &artifacts[1].0;
-        let transitions = serde_json::json!({"future_acceptance_lost":false,"artifacts":[{"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}]});
+        let mut transition_artifacts = vec![
+            serde_json::json!({"asset_id":affected.asset_id,"sha256":affected.sha256,"status":status}),
+        ];
+        let stale_offer = (status == "distribution_withdrawn"
+            && operation == RetainedCuratedOperation::Status)
+            .then(|| {
+                let previous = &artifacts[0].0;
+                assert_ne!(previous.asset_id, affected.asset_id);
+                transition_artifacts.push(serde_json::json!({
+                    "asset_id":previous.asset_id,"sha256":previous.sha256,"status":status
+                }));
+                serde_json::from_value::<crate::UpdateCheck>(serde_json::json!({
+                    "port_id": ID, "channel": "stable", "update_available": true,
+                    "release": {
+                        "version": previous.tag, "channel": "stable",
+                        "asset": {"name": previous.filename, "url": previous.acquisition_url,
+                            "size": previous.size, "sha256": previous.sha256}
+                    }
+                }))
+                .unwrap()
+            });
+        let transitions = serde_json::json!({
+            "future_acceptance_lost": false,
+            "artifacts": transition_artifacts,
+        });
         let (candidate, admission) =
             publish_curated_transition(&fixture, &key, &root, &catalog, 3, Some(transitions)).await;
         library
@@ -3216,7 +3240,97 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             .apply_definition_launch_assessment(&accepted)
             .unwrap();
         phase("launch baseline admitted");
+        if let Some(stale) = &stale_offer {
+            let mut unrelated = stale.clone();
+            unrelated.release.asset.sha256 = "f".repeat(64);
+            library.store_update_snapshot(&unrelated).unwrap();
+            assert_eq!(
+                service
+                    .status(ID)
+                    .unwrap()
+                    .last_update_check
+                    .unwrap()
+                    .check
+                    .release,
+                unrelated.release
+            );
+            let status = service.status(ID).unwrap();
+            let before = library.update_snapshot(ID).unwrap().unwrap();
+            let refused = service
+                .record_update_check(ID, &status, &stale.release, None)
+                .unwrap_err();
+            assert_eq!(refused.code, crate::ErrorCode::Conflict);
+            assert_eq!(
+                refused.message,
+                "curated artifact distribution is withdrawn"
+            );
+            let after = library.update_snapshot(ID).unwrap().unwrap();
+            assert_eq!(after.checked_at, before.checked_at);
+            assert_eq!(after.check.release, unrelated.release);
+
+            let connection = library.connection().unwrap();
+            let transition_count: i64 = connection
+                .query_row(
+                    "SELECT transition_count FROM curated_artifact_history",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET transition_count=257",
+                    [],
+                )
+                .unwrap();
+            // Intact admission and scope history can rule out this different
+            // digest even while authenticated transition history is unusable.
+            let advised = service
+                .record_update_check(ID, &status, &unrelated.release, None)
+                .unwrap();
+            assert_eq!(advised.release, unrelated.release);
+            let refused = service
+                .record_update_check(ID, &status, &stale.release, None)
+                .unwrap_err();
+            assert!(refused.message.contains("curated transition history"));
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET transition_count=?1, scope_count=scope_count+1",
+                    [transition_count],
+                )
+                .unwrap();
+            // With missing scopes, a plausible GitHub package could have
+            // participated. A download from a different origin cannot have.
+            let refused = service
+                .record_update_check(ID, &status, &unrelated.release, None)
+                .unwrap_err();
+            assert!(refused.message.contains("curated artifact scope history"));
+            let mut outside = unrelated.release.clone();
+            outside.asset.url = "https://downloads.example.org/package.zip".into();
+            let advised = service
+                .record_update_check(ID, &status, &outside, None)
+                .unwrap();
+            assert_eq!(advised.release, outside);
+            assert_eq!(
+                library.update_snapshot(ID).unwrap().unwrap().check.release,
+                outside
+            );
+            connection
+                .execute(
+                    "UPDATE curated_artifact_history SET scope_count=scope_count-1",
+                    [],
+                )
+                .unwrap();
+
+            library.store_update_snapshot(stale).unwrap();
+        }
         let projected = service.status(ID).unwrap();
+        if let Some(stale) = &stale_offer {
+            assert!(projected.last_update_check.is_none());
+            assert_eq!(
+                library.update_snapshot(ID).unwrap().unwrap().check.release,
+                stale.release
+            );
+        }
         let expected_reason = if status == "revoked" {
             crate::DefinitionEligibilityReason::CuratedArtifactRevoked
         } else {
@@ -3269,6 +3383,9 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
                 .unwrap();
             assert_eq!(bulk.definition_operations, projected.definition_operations);
             assert_eq!(bulk.port_actions, projected.port_actions);
+            if stale_offer.is_some() {
+                assert!(bulk.last_update_check.is_none());
+            }
         }
         let rollback = projected
             .port_actions
@@ -4350,7 +4467,92 @@ async fn curated_installer_boundary_fixture(
                     .unwrap_err();
                 assert_eq!(refused.code, crate::ErrorCode::Verification);
                 assert!(refused.message.contains("SHA-256"));
+                let evidence = std::path::PathBuf::from(&refused.details["quarantine_path"]);
+                let cache = library.downloads_dir().join("curated-v1");
+                assert_eq!(evidence.parent(), Some(cache.as_path()));
+                assert!(
+                    evidence
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .starts_with(".partial-")
+                );
+                assert_eq!(std::fs::read(&evidence).unwrap(), changed_bytes);
+                assert!(!cache.join(format!("{}.asset", record.sha256)).exists());
+                let worker = crate::curated_cache::CacheWorker::new(
+                    &scope,
+                    &resolved.release.asset,
+                    &crate::OperationCoordinator::new("verify", None),
+                );
+                let observed = hex::encode(Sha256::digest(&changed_bytes));
+                let duplicate = worker
+                    .quarantine_download(
+                        &evidence,
+                        &observed,
+                        PortcoveError::verification("same refused download"),
+                    )
+                    .await;
+                assert_eq!(
+                    std::path::Path::new(&duplicate.details["quarantine_path"]),
+                    evidence
+                );
+                assert!(!duplicate.details.contains_key("quarantine_error"));
+                let mut collision = observed.clone();
+                collision.replace_range(63.., if observed.ends_with('0') { "1" } else { "0" });
+                let different = worker
+                    .quarantine_download(
+                        &evidence,
+                        &collision,
+                        PortcoveError::verification("different refused download"),
+                    )
+                    .await;
+                assert_eq!(different.message, "different refused download");
+                assert!(different.details.contains_key("quarantine_error"));
+                assert!(!different.details.contains_key("quarantine_path"));
+
+                // The private source can change after the first complete hash.
+                // Refuse the original operation without keeping a different sample.
+                let missing = hex::encode(Sha256::digest(b"a different observed replacement"));
+                let stale_source = worker
+                    .quarantine_download(
+                        &evidence,
+                        &missing,
+                        PortcoveError::verification("original transfer refused"),
+                    )
+                    .await;
+                assert_eq!(stale_source.message, "original transfer refused");
+                assert!(stale_source.details.contains_key("quarantine_error"));
+                assert!(!stale_source.details.contains_key("quarantine_path"));
+                assert_eq!(std::fs::read_dir(&cache).unwrap().count(), 1);
+                assert!(
+                    !worker
+                        .restore(&library.root().join("rejected-must-stay-inactive"))
+                        .await
+                        .unwrap()
+                );
                 assert_eq!(count(&library, "installs"), 0);
+                assert!(server.responses.lock().unwrap().is_empty());
+
+                // A corrected endpoint can supply the originally admitted bytes.
+                server.json(serde_json::json!({"id":scope.repository_id,"archived":false}));
+                server.json(release.clone());
+                server.json(tag.clone());
+                server.bytes(&bytes);
+                let recovered = installer
+                    .install(
+                        request(resolved.clone(), "-original-returned"),
+                        &crate::OperationCoordinator::new("install", None),
+                        |_| {},
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(recovered.artifact.sha256, record.sha256);
+                assert_eq!(
+                    std::fs::read(cache.join(format!("{}.asset", record.sha256))).unwrap(),
+                    bytes
+                );
+                assert_eq!(std::fs::read(&evidence).unwrap(), changed_bytes);
                 assert!(server.responses.lock().unwrap().is_empty());
                 return;
             }
@@ -4811,11 +5013,39 @@ async fn curated_installer_boundary_fixture(
             .await
             .unwrap_err();
             assert!(refusal.message.contains("SHA-256"));
-            assert_eq!(
-                std::fs::read(&cached).unwrap(),
-                corrupted,
-                "failed cache evidence must remain"
+            assert!(!cached.exists());
+            let quarantine = std::path::Path::new(&refusal.details["quarantine_path"]);
+            assert_eq!(std::fs::read(quarantine).unwrap(), corrupted);
+            let retry = crate::curated_cache::CacheWorker::new(
+                &scope,
+                &resolved.release.asset,
+                &crate::operation::OperationCoordinator::new("install", None),
             );
+            assert!(
+                !retry
+                    .restore(&library.root().join("retry.zip"))
+                    .await
+                    .unwrap()
+            );
+            let approved = library.root().join("approved-curated-archive.zip");
+            std::fs::write(&approved, &bytes).unwrap();
+            assert!(retry.retain(&approved).await.unwrap());
+            let restored = library.root().join("approved-retry-copy.zip");
+            assert!(retry.restore(&restored).await.unwrap());
+            assert_eq!(std::fs::read(&restored).unwrap(), bytes);
+            assert_eq!(std::fs::read(quarantine).unwrap(), corrupted);
+            let truncated = &bytes[..bytes.len() - 1];
+            std::fs::write(&cached, truncated).unwrap();
+            let refusal = retry
+                .restore(&library.root().join("short.zip"))
+                .await
+                .unwrap_err();
+            assert_eq!(refusal.code, crate::ErrorCode::Verification);
+            assert_eq!(
+                std::fs::read(&refusal.details["quarantine_path"]).unwrap(),
+                truncated
+            );
+            assert!(!cached.exists());
             phase("corrupted cache restore complete");
             phase("installed verification after corruption begin");
             assert!(installer.verify(&installed).unwrap().valid);

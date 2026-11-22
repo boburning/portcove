@@ -137,3 +137,7 @@ Representative historical starting points include the
 and [September 4 UX audit](archive/2026-09-04-ux-copy-content-interaction-audit.md).
 The [September 25 desktop capability and state inventory](archive/2026-09-25-desktop-capability-state-inventory.md)
 maps the current #206 destinations and names the remaining evidence limits.
+
+The [November 17 original-game catalog review](archive/2026-11-17-game-first-catalog-review.md)
+records the complete audited identity relationships and explicit boundary decisions
+for #8076; current delivery and application acceptance remain on the issue.

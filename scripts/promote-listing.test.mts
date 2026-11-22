@@ -141,8 +141,16 @@ void test("promotion refuses incomplete, ambiguous or inconsistent inputs", () =
   assert.throws(() => promotePort(elsewhere, options), /Name the GitHub repository/);
   // Core refuses both of these after generation; the promotion stops before any write.
   const blocked = listing();
-  (blocked.listing as { download_block_reason?: string }).download_block_reason = "Use the ZIP.";
-  assert.throws(() => promotePort(blocked, options), /download_block_reason/);
+  (blocked.listing as { restrictions?: unknown }).restrictions = [
+    {
+      id: "download",
+      effect: "hold",
+      operations: ["download"],
+      reason: "package-facts-unresolved",
+      explanation: "Use the ZIP.",
+    },
+  ];
+  assert.throws(() => promotePort(blocked, options), /hold Download/);
   const channelSummary = listing();
   channelSummary.listing.summary = "Try the Windows beta with your own game.";
   assert.throws(() => promotePort(channelSummary, options), /summary mentions 'beta'/);

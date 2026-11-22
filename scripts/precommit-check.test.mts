@@ -224,6 +224,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
     [
       "apps/desktop/src/catalog-values.generated.ts",
       "scripts/bounded-summary.mts",
+      "scripts/catalog-acquisition-restrictions.mts",
       "scripts/catalog-advisories.mts",
       "scripts/catalog-alephone-pinned-windows.mts",
       "scripts/catalog-authoring.mts",
@@ -236,6 +237,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/catalog-native-managed-profile.mts",
       "scripts/catalog-opengoal-setup.mts",
       "scripts/catalog-openmohaa-portable.mts",
+      "scripts/catalog-openx-portable.mts",
       "scripts/catalog-portable-reflectionhle.mts",
       "scripts/catalog-psx-managed-windows.mts",
       "scripts/catalog-raze-windows-profile.mts",

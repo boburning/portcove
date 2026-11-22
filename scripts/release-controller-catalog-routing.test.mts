@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { controllerWorkflowAtCurrentNode } from "./fixtures/release-capacity-fixture.mts";
+import {
+  controllerWorkflowAtRetainedNode,
+  retainedCatalogReviewWorkflow,
+} from "./fixtures/release-capacity-fixture.mts";
 import test from "node:test";
 import {
   readFile,
@@ -839,7 +842,7 @@ void test("installed two-purpose workflow remains mutually exclusive under the e
     ].sort((a, b) => String(a).localeCompare(String(b))),
     catalogProtectionEnvironments,
   );
-  const appointed = controllerWorkflowAtCurrentNode(
+  const appointed = controllerWorkflowAtRetainedNode(
     await readFile(
       new URL(
         "../docs/qualification/application-update-production.windows-20261103.proposed.yml",
@@ -852,7 +855,11 @@ void test("installed two-purpose workflow remains mutually exclusive under the e
     hash(Buffer.from(appointed)),
     "a57e277b51e00fd20b42f4e61a712c468cae523dd523930bc37cfc248b418aa4",
   );
-  assert.equal(hash(bytes), retainedCatalogReviewRecoveryResources.workflow_sha256);
+  assert.equal(
+    hash(retainedCatalogReviewWorkflow(bytes)),
+    retainedCatalogReviewRecoveryResources.workflow_sha256,
+  );
+  assert.notEqual(hash(bytes), retainedCatalogReviewRecoveryResources.workflow_sha256);
   assert.ok(isRecord(jobs.coordinator));
   assert.deepEqual(jobs.coordinator.permissions, {
     contents: "write",

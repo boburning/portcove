@@ -282,6 +282,33 @@ pub(crate) fn check_package_paths<'a>(
     Ok(())
 }
 
+/// The stock Windows kit in #435 enumerates its bundled manifests through
+/// legacy Windows paths. Keep the compatibility rule on those immutable bytes,
+/// including installs created before this client learned the restriction.
+pub(crate) fn has_bundled_manifest_path_limit(port_id: &str, sha256: &str) -> bool {
+    port_id == "alexbeav-diablo-recomp"
+        && sha256.eq_ignore_ascii_case(
+            "ea3aa940848e0f5c450d54ab11fea5961ac82f2afbc3c5e5de873e91b7fe063d",
+        )
+}
+
+pub(crate) fn check_artifact_destination(
+    port_id: &str,
+    sha256: &str,
+    platform: Option<Platform>,
+    destination: &Path,
+) -> Result<()> {
+    if platform == Some(Platform::WindowsX86_64) && has_bundled_manifest_path_limit(port_id, sha256)
+    {
+        // Longest bundled manifest in the reviewed archive. Preparation copies
+        // it into build-portcove, the actual working directory at launch.
+        require_relative_windows_path(&destination.join(
+            "build-portcove/mods/bundled/psx.enhancement.internal-resolution/1.0.0/manifest.toml",
+        ))?;
+    }
+    Ok(())
+}
+
 fn require_relative_windows_path(path: &Path) -> Result<()> {
     let text = path.to_str().ok_or_else(relative_path_error)?;
     let ordinary = if let Some(unc) = text.strip_prefix("\\\\?\\UNC\\") {

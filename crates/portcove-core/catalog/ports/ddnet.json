@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://ddnet.org/downloads/",
     "setup_url": "https://ddnet.org/downloads/",
-    "download_block_reason": "Get the package for your device from DDNet’s downloads page. Use the matching package source for updates.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get the package for your device from DDNet’s downloads page. Use the matching package source for updates.",
+        "tracking_issue": 6435
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

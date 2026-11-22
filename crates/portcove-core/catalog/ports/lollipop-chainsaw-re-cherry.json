@@ -43,7 +43,16 @@
         "Use only an actual copy/components you are permitted to use. Preserve the complete creating runtime and every effective original, profile, mod, generated-code/cache and custom root before changes; another selected executable can share data."
       ]
     },
-    "download_block_reason": "The canonical selected-runtime/component use/grant/notices and exact source/runtime/configuration condition remains unresolved. Fresh self-service acquisition resumes after an attributable applicable basis and the exact selected assembly/mapping are reviewed, or a reviewed clean alternative resolves that condition. This supplies no permission for another copy and does not rewrite permitted existing-use contracts.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "The canonical selected-runtime/component use/grant/notices and exact source/runtime/configuration condition remains unresolved. Fresh self-service acquisition resumes after an attributable applicable basis and the exact selected assembly/mapping are reviewed, or a reviewed clean alternative resolves that condition. This supplies no permission for another copy and does not rewrite permitted existing-use contracts.",
+        "tracking_issue": 162
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "lollipop-chainsaw",

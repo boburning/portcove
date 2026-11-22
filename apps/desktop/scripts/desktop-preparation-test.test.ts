@@ -231,7 +231,7 @@ const prepared = {
 };
 
 test("preparation summary accounts for installations from earlier full-profile journeys", () => {
-  assertPreparedLibrarySummary("1 in your library", [prepared], "prepared");
+  assertPreparedLibrarySummary("1 port in your library", [prepared], "prepared");
   const statuses = [
     { ...prepared, port_id: "earlier-install" },
     {
@@ -243,12 +243,12 @@ test("preparation summary accounts for installations from earlier full-profile j
     prepared,
     { port_id: "available", active: null, external_runtime: null },
   ];
-  assertPreparedLibrarySummary("3 in your library", statuses, "prepared");
-  assert.throws(() => assertPreparedLibrarySummary("1 in your library", statuses, "prepared"));
+  assertPreparedLibrarySummary("3 ports in your library", statuses, "prepared");
+  assert.throws(() => assertPreparedLibrarySummary("1 port in your library", statuses, "prepared"));
 });
 
 test("all-ready summary still requires the prepared fixture and native readiness of every entry", () => {
-  assert.throws(() => assertPreparedLibrarySummary("0 in your library", [], "prepared"));
+  assert.throws(() => assertPreparedLibrarySummary("0 ports in your library", [], "prepared"));
   for (const changes of [
     { readiness: { ...prepared.readiness, launchable: false } },
     { readiness: { ...prepared.readiness, pending_setup: true } },
@@ -256,11 +256,13 @@ test("all-ready summary still requires the prepared fixture and native readiness
     { staged: { id: "downloaded" } },
   ]) {
     const statuses = [prepared, { ...prepared, port_id: "earlier-install", ...changes }];
-    assert.throws(() => assertPreparedLibrarySummary("2 in your library", statuses, "prepared"));
+    assert.throws(() =>
+      assertPreparedLibrarySummary("2 ports in your library", statuses, "prepared"),
+    );
   }
   assert.throws(() =>
     assertPreparedLibrarySummary(
-      "1 in your library 0 needs attention All can launch",
+      "1 port in your library 0 needs attention All can launch",
       [prepared],
       "prepared",
     ),

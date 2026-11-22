@@ -4,6 +4,9 @@ import { FolderOpen } from "lucide-react";
 import { gameIdentityLabel } from "../port-identity";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import { targetInvocationContext } from "../features/operations/invocation-state";
+import { useSetupLaunchDrafts } from "../features/browsing/setup-launch-drafts";
 import {
   readSetupChoice,
   writeSetupChoice,
@@ -18,6 +21,7 @@ import { LatestRequestGeneration } from "../shared/concurrency-state";
 import { ChoiceSelect } from "./ChoiceSelect";
 import type {
   ExternalRuntimePreview,
+  ExternalRuntimeRecord,
   PortDefinition,
   PortListingStatus,
   PortStatus,
@@ -55,12 +59,15 @@ type ExternalRuntimeControlProps = {
   status?: PortStatus | undefined;
   generation: number;
   busy: boolean;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
   libraryRoot?: string | undefined;
 };
 
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
+  const owner = useOperationPresentation();
   if (props.status?.active) return null;
+  if (owner?.generation === props.generation && owner.unreadExternalPorts?.has(props.port.id))
+    return <ExternalRegistrationReadback />;
   return (
     <>
       <ExternalRuntimeContext
@@ -73,7 +80,7 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
           port={props.port}
           generation={props.generation}
           busy={props.busy}
-          onChanged={props.onChanged}
+          onChanged={() => void props.onChanged?.()}
         />
       )}
     </>
@@ -191,6 +198,7 @@ function ExternalRuntimeContext({
   generation,
   busy,
   onChanged,
+  libraryRoot,
 }: ExternalRuntimeControlProps) {
   const [review, setReview] = useState<
     { kind: "register" | "relink"; path: string } | { kind: "remove" }
@@ -210,6 +218,7 @@ function ExternalRuntimeContext({
         generation={generation}
         busy={busy}
         onChanged={onChanged}
+        libraryRoot={libraryRoot}
       />
     );
   }
@@ -236,6 +245,7 @@ function ExternalRuntimeContext({
           </div>
           <Button
             data-focusable
+            data-external-runtime-next-action
             variant="outline"
             disabled={busy}
             onClick={() => void select("relink")}
@@ -302,19 +312,20 @@ type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
 };
 
 export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
-  return (
-    <UserSelectedRuntimeEditor
-      key={JSON.stringify([
-        props.port.id,
-        props.generation,
-        props.status?.external_runtime,
-        props.initialDirectory,
-        props.port.pendingSetup?.id,
-        props.libraryRoot,
-      ])}
-      {...props}
-    />
-  );
+  const owner = useOperationPresentation();
+  if (owner?.generation === props.generation && owner.unreadExternalPorts?.has(props.port.id))
+    return <ExternalRegistrationReadback />;
+  const scope = JSON.stringify([
+    props.port.id,
+    props.generation,
+    props.status?.external_runtime,
+    props.initialDirectory,
+    props.port.pendingSetup?.id,
+    props.port.pendingSetup?.state,
+    props.port.listing?.project_url ?? props.port.project_url,
+    props.libraryRoot,
+  ]);
+  return <UserSelectedRuntimeEditor key={scope} {...props} scope={scope} />;
 }
 
 function useUserSelectedRuntimeEditor({
@@ -328,12 +339,24 @@ function useUserSelectedRuntimeEditor({
   initialDirectory,
   libraryRoot,
   openGuide,
-}: UserSelectedRuntimeProps) {
+  scope,
+}: UserSelectedRuntimeProps & { scope: string }) {
   const workingDirectoryId = useId();
   const launchDetailsId = useId();
   const registered = status?.external_runtime;
   const finishingDownload = port.pendingSetup?.state === "downloaded";
-  const [restored] = useState(() => readSetupChoice(libraryRoot, port.id, port.pendingSetup?.id));
+  const workspaceDrafts = useSetupLaunchDrafts();
+  const pendingId = port.pendingSetup?.id;
+  const drafts = pendingId ? undefined : workspaceDrafts;
+  const slot = port.id;
+  const [restored] = useState(() => {
+    const choice = drafts?.read(slot, scope);
+    return choice ? { choice } : readSetupChoice(libraryRoot, port.id, pendingId);
+  });
+  useLayoutEffect(
+    () => workspaceDrafts?.retireOtherTarget(slot, scope),
+    [workspaceDrafts, slot, scope],
+  );
   const [choiceWarning, setChoiceWarning] = useState(restored.warning);
   const defaults = initialRuntimeValues(restored, registered, finishingDownload, initialDirectory);
   const [executable, setExecutable] = useState(defaults.executable);
@@ -343,7 +366,7 @@ function useUserSelectedRuntimeEditor({
   const savedArguments = registered?.user_selected?.arguments ?? [];
   const preserveStructuredArguments =
     !argumentsEdited && savedArguments.some((argument) => !argument || /[\r\n]/u.test(argument));
-  const [editing, setEditing] = useState(finishingDownload);
+  const [editing, setEditing] = useState(finishingDownload || Boolean(drafts && restored.choice));
   const [launchDetailsOpen, setLaunchDetailsOpen] = useState(!finishingDownload);
   const [selected, setSelected] = useState<SelectedLaunch>();
   const [removing, setRemoving] = useState(false);
@@ -352,20 +375,24 @@ function useUserSelectedRuntimeEditor({
   const markTargetEdited = () => {
     targetEdited.current = true;
   };
-  const pendingId = port.pendingSetup?.id;
   const pendingState = port.pendingSetup?.state;
   const hasRegistered = Boolean(registered && !finishingDownload);
   const rememberSetup = (change: Partial<SetupChoice>) => {
-    setChoiceWarning(
-      writeSetupChoice(libraryRoot, port.id, pendingId, {
-        executable,
-        workingDirectory,
-        argumentLines,
-        argumentsEdited,
-        targetEdited: targetEdited.current,
-        ...change,
-      }),
-    );
+    const choice = {
+      executable,
+      workingDirectory,
+      argumentLines,
+      argumentsEdited,
+      targetEdited: targetEdited.current,
+      ...change,
+    };
+    drafts?.write(slot, scope, choice);
+    setChoiceWarning(writeSetupChoice(libraryRoot, port.id, pendingId, choice));
+  };
+  const clearDraft = () => drafts?.clear(slot, scope);
+  const registrationChanged = () => {
+    clearDraft();
+    return onChanged?.();
   };
   const { suggestions, scanning, refreshTargets } = useRuntimeLaunchTargets({
     portId: port.id,
@@ -438,7 +465,8 @@ function useUserSelectedRuntimeEditor({
     port,
     generation,
     busy,
-    onChanged,
+    onChanged: registrationChanged,
+    clearDraft,
     workingDirectoryId,
     launchDetailsId,
     registered,
@@ -564,6 +592,63 @@ export function RuntimeLaunchFacts({
   );
 }
 
+function ExternalRegistrationReadback() {
+  return (
+    <p role="status">
+      Launch details saved. Waiting for the library to confirm the current registration.
+    </p>
+  );
+}
+
+function useExternalRegistration(
+  port: Pick<PortDefinition, "id" | "name">,
+  generation: number,
+  relink: boolean,
+) {
+  const owner = useOperationPresentation();
+  const run = async (
+    apply: () => Promise<ExternalRuntimeRecord | null>,
+    onChanged?: () => void | Promise<unknown>,
+  ) => {
+    const task = async () => {
+      const record = await apply();
+      if (record && (!record.id || record.port_id !== port.id))
+        throw new Error(
+          "Portcove could not confirm the registration for this game. Refresh the library.",
+        );
+      return record;
+    };
+    if (!owner?.perform) {
+      const result = await task();
+      if (result) void onChanged?.();
+      return result;
+    }
+    const action = relink ? "Save external launch details" : "Register external installation";
+    return owner.perform(action, task, {
+      ...(onChanged
+        ? {
+            invalidateDiagnostics: false,
+            refresh: async (record) => {
+              if (record) await onChanged();
+            },
+          }
+        : {}),
+      cancelledResult: (result) => result === null,
+      externalRegistrationResult: (result) => result ?? undefined,
+      context: {
+        ...targetInvocationContext(
+          action,
+          { kind: "port", id: port.id, label: gameIdentityLabel(port) },
+          generation,
+        ),
+        operation: "register_external",
+      },
+      propagateFailure: true,
+    });
+  };
+  return run;
+}
+
 function SelectedRuntimeDialog({
   port,
   generation,
@@ -581,9 +666,10 @@ function SelectedRuntimeDialog({
   inline?: boolean;
   busy?: boolean;
   close: () => void;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const register = useExternalRegistration(port, generation, relink);
   const [finished, setFinished] = useState(false);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([port.id, generation, selected, relink]),
@@ -608,21 +694,23 @@ function SelectedRuntimeDialog({
       );
     },
     apply: async (value) => {
-      const record = await (
-        relink ? desktopApi.relinkUserSelectedRuntime : desktopApi.registerUserSelectedRuntime
-      )(
-        port.id,
-        selected.executable,
-        selected.workingDirectory,
-        selected.arguments,
-        value.preview_sha256,
-        generation,
+      const mutate = relink
+        ? desktopApi.relinkUserSelectedRuntime
+        : desktopApi.registerUserSelectedRuntime;
+      const record = await register(
+        () =>
+          mutate(
+            port.id,
+            selected.executable,
+            selected.workingDirectory,
+            selected.arguments,
+            value.preview_sha256,
+            generation,
+          ),
+        onChanged,
       );
-      if (record) {
-        setFinished(true);
-        onChanged?.();
-      }
-      return record ? true : "cancelled";
+      if (record) setFinished(true);
+      return record ? true : record === null ? "cancelled" : false;
     },
     close,
     failureMessage:
@@ -746,9 +834,10 @@ function RegisterExternalDialog({
   path: string;
   generation: number;
   close: () => void;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const register = useExternalRegistration(port, generation, mode === "relink");
   const { preview, pending, error, failurePhase, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([mode, port.id, path, generation]),
     retainOnCancel: true,
@@ -769,11 +858,13 @@ function RegisterExternalDialog({
     },
     apply: async (preview) => {
       if (preview.shared_preferences) sharedRuntimeDisclosure(preview.shared_preferences);
-      const record = await (
-        mode === "relink" ? desktopApi.relinkExternalRuntime : desktopApi.registerExternalRuntime
-      )(port.id, path, preview.preview_sha256, generation);
-      if (record) onChanged?.();
-      return record ? true : "cancelled";
+      const mutate =
+        mode === "relink" ? desktopApi.relinkExternalRuntime : desktopApi.registerExternalRuntime;
+      const record = await register(
+        () => mutate(port.id, path, preview.preview_sha256, generation),
+        onChanged,
+      );
+      return record ? true : record === null ? "cancelled" : false;
     },
     close,
     failureMessage:
@@ -887,7 +978,7 @@ function RemoveExternalDialog({
   port: Pick<PortDefinition, "id" | "name">;
   generation: number;
   close: () => void;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 }) {
   const cancelButton = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
@@ -899,7 +990,7 @@ function RemoveExternalDialog({
         preview.preview_sha256,
         generation,
       );
-      if (record) onChanged?.();
+      if (record) void onChanged?.();
       return record ? true : "cancelled";
     },
     close,
@@ -1132,6 +1223,7 @@ function RuntimeRegistrationForm({
   | "generation"
   | "busy"
   | "onChanged"
+  | "clearDraft"
   | "workingDirectoryId"
   | "launchDetailsId"
   | "registered"
@@ -1222,6 +1314,7 @@ function RuntimeRegistrationForm({
           variant="ghost"
           onClick={() => {
             model.pickerRequests.current.begin();
+            model.clearDraft();
             model.setExecutable(registered.executable);
             model.setWorkingDirectory(registered.path);
             model.setArgumentLines(registered.user_selected?.arguments.join("\n") ?? "");
@@ -1555,6 +1648,7 @@ function ExistingRuntimeActions({
       <Button
         variant="outline"
         data-focusable
+        data-external-runtime-next-action
         disabled={model.busy || !model.canEdit}
         onClick={() => model.setEditing(true)}
       >

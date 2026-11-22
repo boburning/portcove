@@ -43,7 +43,10 @@ impl PortcoveService {
                 "install this game before reviewing an update",
             ));
         }
-        let mut plan = self.plan_install(port_id, Some(status.channel)).await?;
+        let (mut plan, resolution) = self
+            .plan_install_resolution(port_id, Some(status.channel), None, None)
+            .await?;
+        let explicit_package_proof_sha256 = resolution.explicit_package_proof_sha256()?;
         let transition = if review_data {
             self.archive_data_transition_review(port_id, &plan.release)?
         } else {
@@ -55,11 +58,17 @@ impl PortcoveService {
             crate::ArchiveDataTransitionReview { preimage_sha256:review.preimage_sha256.clone(), producing_archive_sha256:review.active.artifact.sha256.clone(), retained_installations:review.installs.len() as u32,
                 temporary_space:crate::InstallSpaceRequirement { path:self.library.root().to_path_buf(), required_bytes:review.required_bytes, available_bytes, volume_identity:None, sufficient:available_bytes.map(|available|available>=review.required_bytes) } }
         });
-        let mut plan_sha256 = self.game_release_review_digest(
+        let assessment = game_update_plan_assessment(&plan);
+        let offer_archive = review_data
+            && plan.action == crate::InstallPlanAction::Download
+            && assessment.availability == crate::PortActionAvailability::Allowed
+            && self.require_acquisition_state(&status).is_ok();
+        let (mut plan_sha256, mut archive_only_plan_sha256) = self.game_release_review_digests(
             "Portcove game update review v1",
             &plan,
             &status,
             activate,
+            offer_archive,
         )?;
         // Even a nonmatching archive owns a retained slot; replacing/discarding it invalidates review.
         if let Some(acquisition) = &status.acquisition {
@@ -69,7 +78,23 @@ impl PortcoveService {
                 acquisition,
             ))?);
         }
-        let acquisition = self.acquisition_for_review(&status, &plan)?;
+        let acquisition =
+            self.acquisition_for_review(&status, &plan, explicit_package_proof_sha256.as_deref())?;
+        if let Some(proof) = &explicit_package_proof_sha256 {
+            let bind_package = |digest: &str| {
+                serde_json::to_vec(&(
+                    "Portcove reviewed update explicit package v2",
+                    digest,
+                    proof,
+                ))
+                .map(|bytes| crate::signed_catalog::digest(&bytes))
+            };
+            plan_sha256 = bind_package(&plan_sha256)?;
+            archive_only_plan_sha256 = archive_only_plan_sha256
+                .as_deref()
+                .map(bind_package)
+                .transpose()?;
+        }
         // Informational and outside the digest: edited upstream notes never
         // invalidate a reviewed update. Read from cached metadata only.
         let release_notes = self.update_release_notes(port_id, &plan, &status)?;
@@ -82,12 +107,14 @@ impl PortcoveService {
             ))?);
         }
         let reviewed = GameUpdatePlan {
+            explicit_package_proof_sha256,
             acquisition,
             data_transition,
-            assessment: game_update_plan_assessment(&plan),
+            assessment,
             plan,
             activate,
             plan_sha256,
+            archive_only_plan_sha256,
             release_notes,
         };
         Ok((reviewed, status))
@@ -140,6 +167,18 @@ impl PortcoveService {
         status: &crate::PortStatus,
         activate: bool,
     ) -> Result<String> {
+        self.game_release_review_digests(domain, plan, status, activate, false)
+            .map(|(digest, _)| digest)
+    }
+
+    fn game_release_review_digests(
+        &self,
+        domain: &str,
+        plan: &crate::InstallPlan,
+        status: &crate::PortStatus,
+        activate: bool,
+        offer_archive: bool,
+    ) -> Result<(String, Option<String>)> {
         let port = self.catalog.port(&plan.port_id)?;
         let sources = self
             .library
@@ -153,32 +192,41 @@ impl PortcoveService {
         // Free space is checked again at execution, but changing free bytes is
         // not a change to what the user reviewed. Release, destination, source,
         // definition, retained state and execution mode are exact identities.
-        let digest = crate::signed_catalog::digest(&serde_json::to_vec(&(
-            domain,
-            port,
-            &plan.release,
-            plan.channel,
-            plan.platform,
-            &plan.bundled_runtime,
-            plan.action,
-            &plan.output_location,
-            (
-                &status.active,
-                &status.previous,
-                &status.staged,
-                status.update_policy,
-            ),
-            sources,
-            activate,
-        ))?);
-        if let Some(shared) = &plan.shared_preferences {
-            return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
-                "Portcove managed shared preference review v1",
-                digest,
-                shared,
-            ))?));
-        }
-        Ok(digest)
+        let digest = |activate| -> Result<String> {
+            let digest = crate::signed_catalog::digest(&serde_json::to_vec(&(
+                domain,
+                port,
+                &plan.release,
+                plan.channel,
+                plan.platform,
+                &plan.bundled_runtime,
+                plan.action,
+                &plan.output_location,
+                (
+                    &status.active,
+                    &status.previous,
+                    &status.staged,
+                    status.update_policy,
+                ),
+                &sources,
+                activate,
+            ))?);
+            if let Some(shared) = &plan.shared_preferences {
+                return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+                    "Portcove managed shared preference review v1",
+                    digest,
+                    shared,
+                ))?));
+            }
+            Ok(digest)
+        };
+        let reviewed = digest(activate)?;
+        let archive = if offer_archive && activate {
+            Some(digest(false)?)
+        } else {
+            offer_archive.then(|| reviewed.clone())
+        };
+        Ok((reviewed, archive))
     }
 
     pub async fn authorize_game_update(
@@ -285,6 +333,7 @@ impl PortcoveService {
                 ReleaseIntent {
                     activate,
                     acquired,
+                    explicit_package_proof_sha256: reviewed.explicit_package_proof_sha256,
                     shared_preferences: reviewed
                         .plan
                         .shared_preferences
@@ -356,6 +405,7 @@ fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAs
         availability,
         reason,
         definition: None,
+        restriction: None,
     }
 }
 

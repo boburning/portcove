@@ -28,7 +28,10 @@ import {
 } from "./upstream-health-inputs.mts";
 import { assessUpstreamLineage, type UpstreamLineage } from "./upstream-lineage.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import type { OriginalLocationReason } from "./upstream-location-reasons.mts";
+import {
+  reviewedEndpointClassification,
+  type OriginalLocationReason,
+} from "./upstream-location-reasons.mts";
 
 export interface ReviewedPin extends GithubPinScope {
   port_id: string;
@@ -1759,7 +1762,7 @@ export async function collectRepositoryHealth(
         : commitPresent
           ? "provider-reported-commit-present; destination-unknown; bytes-unverified"
           : record.reviewed_condition_sha256 !== null
-            ? "reviewed-endpoint-condition; availability-unknown; lineage-separately-recorded"
+            ? reviewedEndpointClassification
             : knownMaintenance
               ? "catalog-declared-unavailable-original"
               : record.status === "reachable"
