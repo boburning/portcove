@@ -25,6 +25,22 @@ export function requireCompleteCoreCoverage(projection: unknown) {
       `Core reported ${coverage} provider coverage; the accepted cursor and last-good facts are kept`,
     );
 }
+/** Releases whose assets one Core channel projection needs: its channel
+ * candidate and, when that candidate is excluded, its reviewed fallback. */
+export function projectionAssetReleaseIds(projection: unknown): number[] {
+  if (!isRecord(projection)) return [];
+  return [projection.channel_candidate, projection.reviewed_fallback].flatMap((release) =>
+    isRecord(release) && Number.isSafeInteger(release.id) ? [Number(release.id)] : [],
+  );
+}
+/** The Core projection as retained in checkpoints and handoffs. Per-release
+ * typed facts are derivable from the retained provider facts and are not
+ * needed for continuation, so they stay out of bounded checkpoint storage. */
+export function retainedCoreProjection<T>(projection: T): T {
+  if (!isRecord(projection) || !Object.hasOwn(projection, "release_facts")) return projection;
+  const { release_facts: _facts, ...retained } = projection;
+  return retained as T;
+}
 export function acceptedObservationPosition(value: unknown) {
   if (!isRecord(value))
     return { pages: 0, validation: 0, facts: null, coverage: "unstated" as CoreCoverage };

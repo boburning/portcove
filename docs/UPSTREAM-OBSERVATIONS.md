@@ -157,19 +157,27 @@ does not decide whether a user should update or whether bytes are trusted.
 
 ### Typed release facts and coverage
 
-The Core report also carries `release_facts`: one entry per observed release
-with its identity, `assets_complete` and an `ArtifactFact` for each asset. A
-fact records the asset's identity, its typed role (for example
-`desktop-game-runtime`, `installer`, `compiler`, `mobile-package`,
-`source-archive` or `integrity-metadata`), target operating system and
-architecture, and the `FactSource` that established them. `assets_complete:
-false` means the asset list is unknown, never that the release has no player.
-Each channel projection adds `selected_artifact`, the typed fact for the
-eligible or held asset, and `route_holds`, typed holds (`wrong-role`,
-`wrong-host`, `contradictory-role`, `incomplete-coverage`) kept beside the
-stable `hold_reasons` strings. Both are omitted when empty, so earlier fields
-and their values are unchanged. Source precedence and the rules for authorizing
-a runtime are described in [Catalog policy](CATALOG.md#artifact-roles-and-fact-sources).
+The Core report may also carry `release_facts`, omitted when empty. It holds
+one entry per release a projection observed (the latest observed, channel
+candidate, reviewed fallback or eligible release), with its identity,
+`assets_complete` and an `ArtifactFact` for each asset. A fact records the
+asset's identity, its typed role (for example `desktop-game-runtime`,
+`installer`, `compiler`, `mobile-package`, `source-archive` or
+`integrity-metadata`), target operating system and architecture, and the
+`FactSource` that established them. A consumer checks `source` before treating
+a role as authorized: a `filename-suggestion` never authorizes one.
+`assets_complete: false` means the asset list is unknown, never that the
+release has no player.
+
+Each channel projection may add `selected_artifact`, the typed fact for the
+eligible or held asset; `reviewed_fallback`, the reviewed release that replaces
+an excluded candidate; and `route_holds`, typed holds kept beside the stable
+`hold_reasons` strings. All three are omitted when empty, so earlier fields and
+their values are unchanged. In this slice `incomplete-coverage` accompanies
+`release-asset-observation-incomplete`; `wrong-role`, `wrong-host` and
+`contradictory-role` are reserved for authorizing sources that later slices
+add and do not fire for current catalog entries. Source precedence is described
+in [Catalog policy](CATALOG.md#artifact-roles-and-fact-sources).
 
 Channel projection uses the same platform stream as release resolution. A
 release whose complete asset list names players only for other hosts (another
@@ -177,22 +185,29 @@ desktop, Android, iOS or a console) is outside this platform's stream, so a
 newer release for another platform no longer hides an older release for this
 one. A release whose assets were not collected still stops the walk as unknown
 with `release-asset-observation-incomplete` and the typed
-`incomplete-coverage` hold.
+`incomplete-coverage` hold. Asset selection collects the channel candidate's
+and the reviewed fallback's assets.
 
 `fact_provenance` states the observation clock, the parser and its version,
-`facts_sha256`, `catalog_definition_sha256` and `coverage`: `complete`, or
-`partial` when any projection reached an uncollected release. Core interprets
-one observation, so `fresh_until` and `last_good` are empty; the observer owns
-freshness and last-good facts.
+`facts_sha256`, `catalog_definition_sha256` and `coverage`. Coverage describes
+provider paging and collection. Core accepts only observations with complete
+release-header paging, so an accepted observation reports `complete`. A
+selection-scoped asset gap is a projection hold on that accepted observation,
+not partial coverage. Core interprets one observation, so `fresh_until` and
+`last_good` are empty; the observer owns freshness and last-good facts.
 
-**Cursor rule.** A projection whose stated coverage is `partial`,
-`unavailable` or `failed` (or unrecognized) never advances an accepted cursor.
-`observe-configured-upstream.mts` and the catalog coordinator record the
-`incomplete-coverage` exception, keep `last_complete` (the last-good facts and
-projection) and restore the continuation that existed before the attempt.
-Changed facts with a stated incomplete coverage are not accepted progress
-(`acceptedObservationAdvanced`). A projection without `fact_provenance` keeps
-its existing acceptance rules; Core's GitHub report always states coverage.
+**Cursor rule.** Only a final projection is gated: selection probes project
+release headers before their assets are collected. A final projection whose
+stated coverage is `partial`, `unavailable` or `failed` (or unrecognized) never
+advances an accepted cursor. `observe-configured-upstream.mts` and the catalog
+coordinator record the `incomplete-coverage` exception, keep `last_complete`
+(the last-good facts and projection) and restore the continuation that existed
+before the attempt. Changed facts with a stated incomplete coverage are not
+accepted progress (`acceptedObservationAdvanced`). A projection without
+`fact_provenance` keeps its existing acceptance rules; Core's GitHub report
+always states coverage. Retained checkpoints and handoffs drop `release_facts`,
+which are derivable from the retained provider facts, and keep
+`fact_provenance` and each projection's typed fields.
 
 ## Checkpoints, interruption and exceptions
 

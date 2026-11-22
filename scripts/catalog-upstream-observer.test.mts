@@ -2533,6 +2533,122 @@ void test("nonempty asset selection preserves post-asset Core progress across fi
   );
 });
 
+function coveredSelectionHarness(
+  finalCoverage: (covered: boolean) => string,
+  extra: (projection: Record<string, unknown>) => void = () => {},
+) {
+  const h = harness();
+  h.input.ports = [h.input.ports[0]!];
+  h.options.config = validateObserverConfig({
+    ...h.options.config,
+    budget: { ...h.options.config.budget, duration_ms: 15000 },
+  });
+  const fetch = h.options.fetch!;
+  h.options.fetch = async (url, init) => {
+    const match = new URL(url).pathname.match(/\/releases\/(\d+)\/assets$/u);
+    if (match) {
+      h.network.push(url);
+      const tag = match[1] === "1" ? "v1.0.0" : "rolling";
+      return new Response(
+        JSON.stringify([
+          {
+            id: Number(match[1]) * 10,
+            name: "player-windows.zip",
+            size: 16,
+            state: "uploaded",
+            digest: `sha256:${"a".repeat(64)}`,
+            created_at: "2026-09-09T12:00:00Z",
+            updated_at: "2026-09-09T12:00:00Z",
+            browser_download_url: `https://github.com/owner/shared/releases/download/${tag}/player-windows.zip`,
+          },
+        ]),
+        { headers: { "content-type": "application/json" } },
+      );
+    }
+    return fetch(url, init);
+  };
+  const project = h.options.project;
+  const coverages: string[] = [];
+  h.options.project = async (portId, repositoryId, observation) => {
+    const result = (await project(portId, repositoryId, observation)) as Record<string, unknown>;
+    h.tick();
+    // Like Core, a headers-only probe reaches an uncollected candidate.
+    const covered = (observation.coverage?.asset_release_ids ?? []).includes(1);
+    const kind = finalCoverage(covered);
+    coverages.push(kind);
+    for (const projection of result.projections as Record<string, unknown>[]) extra(projection);
+    return { ...result, fact_provenance: { coverage: { kind } }, release_facts: [{}] };
+  };
+  return { h, coverages };
+}
+
+void test("selection probes project uncovered headers and only the final projection gates coverage", async () => {
+  const { h, coverages } = coveredSelectionHarness((covered) => (covered ? "complete" : "partial"));
+  let state: CatalogObserverCheckpoint | null = null;
+  let complete = false;
+  for (let batch = 0; batch < 6; batch++) {
+    const result = await advanceCatalogObservations(h.input, state, h.options);
+    state = result.checkpoint;
+    assert.deepEqual(
+      result.report.failures.filter((failure) => failure.rule !== "budget"),
+      [],
+    );
+    if (result.report.pending_source_keys.length === 0) {
+      complete = true;
+      break;
+    }
+  }
+  assert.ok(complete, "a partial headers-only probe must not fail selection");
+  assert.equal(coverages[0], "partial");
+  assert.equal(coverages.at(-1), "complete");
+  const source = Object.values(state!.sources)[0]!;
+  assert.equal(typeof source.last_complete_facts_sha256, "string");
+  // Retained policies keep provenance but not per-release typed facts.
+  for (const policy of source.last_complete_policies) {
+    assert.ok(isRecord(policy.fact_provenance));
+    assert.equal(Object.hasOwn(policy, "release_facts"), false);
+  }
+});
+
+void test("a stated partial final projection keeps the cursor and last-good facts", async () => {
+  const { h } = coveredSelectionHarness(() => "partial");
+  let state: CatalogObserverCheckpoint | null = null;
+  let failure: unknown = null;
+  for (let batch = 0; batch < 6 && failure === null; batch++) {
+    const result = await advanceCatalogObservations(h.input, state, h.options);
+    state = result.checkpoint;
+    failure = result.report.failures.find((item) => item.rule === "incomplete-coverage") ?? null;
+  }
+  assert.ok(failure, "the final partial projection is refused");
+  const source = Object.values(state!.sources)[0]!;
+  assert.equal(source.last_complete_facts_sha256, null);
+  assert.deepEqual(source.last_complete_policies, []);
+  assert.equal(source.exception_rule, "incomplete-coverage");
+});
+
+void test("selection collects a reviewed fallback's assets as well as the candidate's", async () => {
+  const { h } = coveredSelectionHarness(
+    () => "complete",
+    (projection) => {
+      if (projection.channel === "stable") projection.reviewed_fallback = { id: 2 };
+    },
+  );
+  let state: CatalogObserverCheckpoint | null = null;
+  for (let batch = 0; batch < 6; batch++) {
+    const result = await advanceCatalogObservations(h.input, state, h.options);
+    state = result.checkpoint;
+    if (result.report.pending_source_keys.length === 0) break;
+  }
+  assert.ok(h.network.some((url) => new URL(url).pathname.endsWith("/releases/2/assets")));
+  assert.ok(h.network.some((url) => new URL(url).pathname.endsWith("/releases/1/assets")));
+  const { projectionAssetReleaseIds } = await import("./catalog-observer-continuation.mts");
+  assert.deepEqual(
+    projectionAssetReleaseIds({ channel_candidate: { id: 3 }, reviewed_fallback: { id: 2 } }),
+    [3, 2],
+  );
+  assert.deepEqual(projectionAssetReleaseIds({ channel_candidate: null }), []);
+});
+
 void test("source byte admission includes identity lookups while smaller unrelated sources continue", async () => {
   const h = harness();
   h.options.repositoryId = async (source, transport) => {

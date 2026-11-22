@@ -12,7 +12,11 @@ import {
 } from "./provider-release-observation.mts";
 import type { ProviderCapacity, ProviderProgress } from "./provider-release-observation.mts";
 import { isRecord } from "./runtime-values.mts";
-import { requireCompleteCoreCoverage } from "./catalog-observer-continuation.mts";
+import {
+  projectionAssetReleaseIds,
+  requireCompleteCoreCoverage,
+  retainedCoreProjection,
+} from "./catalog-observer-continuation.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   observationHash,
@@ -963,22 +967,22 @@ export async function advanceCatalogObservations(
         "core-binding",
         "Core projection differs from the exact reviewed catalog definition, port, source or provider facts",
       );
-    if (port.kind !== "listing") requireCompleteCoreCoverage(policy);
     if (options.signal?.aborted)
       throw new ObservationFailure(
         "cancelled",
         "Observation cancelled before retaining Core projection",
       );
+    const retained = retainedCoreProjection(policy);
     return port.kind !== "listing" && port.listing
       ? {
-          ...policy,
+          ...retained,
           listing_update: projectListingObservation(
             port.listing,
             observation,
             template.stale_after_hours,
           ).listing_update,
         }
-      : policy;
+      : retained;
   };
   for (const [index, source] of pending.entries()) {
     if (options.signal?.aborted || now() >= deadline) break;
@@ -1403,9 +1407,15 @@ export async function advanceCatalogObservations(
           );
         for (let index = pendingPolicies.policies.length; index < source.ports.length; index++) {
           const port = source.ports[index]!;
-          pendingPolicies.policies.push(
-            await projectBound(port, config.repository_id, scoped(observation, port.id)),
+          const policy = await projectBound(
+            port,
+            config.repository_id,
+            scoped(observation, port.id),
           );
+          // Only a final projection gates on coverage; selection probes
+          // project headers before their assets are collected.
+          if (port.kind !== "listing") requireCompleteCoreCoverage(policy);
+          pendingPolicies.policies.push(policy);
           pendingPolicies.sha256 = observationHash(pendingPolicies.policies);
           await commitCheckpoint();
           coreProgress++;
@@ -1487,13 +1497,8 @@ export async function advanceCatalogObservations(
           if (port.listing)
             for (const id of listingObservationReleaseIds(headers)) candidates.add(id);
           for (const projection of policy.projections as unknown[]) {
-            if (
-              isRecord(projection) &&
-              port.channels.includes(String(projection.channel)) &&
-              isRecord(projection.channel_candidate) &&
-              Number.isSafeInteger(projection.channel_candidate.id)
-            )
-              candidates.add(Number(projection.channel_candidate.id));
+            if (isRecord(projection) && port.channels.includes(String(projection.channel)))
+              for (const id of projectionAssetReleaseIds(projection)) candidates.add(id);
           }
           selection.checksum_sources = checksumSourcesFromProjections([
             { checksum_sources: selection.checksum_sources },

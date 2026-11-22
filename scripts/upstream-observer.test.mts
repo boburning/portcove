@@ -1069,6 +1069,31 @@ void test("stated incomplete Core coverage keeps the cursor and last-good facts"
     }),
   });
   assert.equal(good.report.transition, "initial-baseline");
+  // A selection-scoped asset gap (for example an uncollected reviewed
+  // fallback) is a projection hold on an accepted, complete observation.
+  const held = await advanceObservation(config, null, {
+    ...options,
+    fetch: fixture().fetch,
+    project: async (observation: { facts_sha256: string }) => {
+      const projected = (await project(observation)) as Record<string, unknown>;
+      return {
+        ...projected,
+        projections: [
+          {
+            channel: "stable",
+            channel_candidate: { id: 1 },
+            reviewed_fallback: { id: 2 },
+            latest_eligible: null,
+            hold_reasons: ["reviewed-artifact-excluded", "release-asset-observation-incomplete"],
+            route_holds: ["incomplete-coverage"],
+          },
+        ],
+        fact_provenance: { coverage: { kind: "complete" } },
+      };
+    },
+  });
+  assert.equal(held.report.transition, "initial-baseline");
+  assert.equal(held.checkpoint.completed_runs, 1);
   for (const coverage of [
     { kind: "partial", next_cursor: null },
     { kind: "failed" },
