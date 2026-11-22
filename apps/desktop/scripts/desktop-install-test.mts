@@ -566,6 +566,9 @@ export async function installScenarios({
 
     await edit("master-volume", "72");
     const staleReview = await review(["Master volume", "84", "72"]);
+    // Core owns this player explanation; Desktop shows it unchanged.
+    const staleSummary =
+      "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes.";
     const outside = JSON.stringify({ ...initial, master: 84, music: 67 });
     for (const file of configPaths) await writeFile(file, outside);
     await clickVisible(browser, await staleReview.findElement(saveChanges));
@@ -581,6 +584,10 @@ export async function installScenarios({
           refusal.message,
           "settings review is stale; read the configuration and review again",
         );
+        assert.ok(
+          (await modal.getText()).includes(staleSummary),
+          "The stale settings review did not show Core's explanation",
+        );
         return true;
       },
       30_000,
@@ -593,7 +600,7 @@ export async function installScenarios({
     await browser.wait(
       until.elementLocated(
         By.xpath(
-          '//*[@role="status" and contains(normalize-space(.),"could not confirm this save")]',
+          `//*[@role="status" and contains(normalize-space(.),"changed after you reviewed it")]`,
         ),
       ),
       30_000,

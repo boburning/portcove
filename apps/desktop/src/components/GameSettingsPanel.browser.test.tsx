@@ -228,6 +228,40 @@ it("retains failed-write consequences and requires a new read before another app
   expect(apply).toHaveBeenCalledTimes(1);
 });
 
+it("shows Core's stale-review explanation after a save it refused before starting", async () => {
+  const summary =
+    "This settings file changed after you reviewed it, so your changes weren’t saved. Read the settings again, then review your changes.";
+  const review = vi.fn(async () => reviewed({ action: "reset" }));
+  const apply = vi.fn(async (): Promise<GameSettingsView> => {
+    throw Object.assign(new Error("settings review is stale"), {
+      code: "conflict",
+      presentation: {
+        summary,
+        tone: "error",
+        mutation_state: "not_started",
+        technical_message: "settings review is stale; read the configuration and review again",
+        technical_context: {},
+        recovery_actions: [],
+      },
+    });
+  });
+  const { changed } = await mount({ review, apply });
+  await click("Use default");
+  await click("Review changes");
+  await click("Save changes");
+  expect(document.querySelector("[role=alert]")?.textContent).toContain(summary);
+  expect(button("Save changes").disabled).toBe(true);
+  await click("Cancel");
+  const statuses = [...document.querySelectorAll("[role=status]")].map(
+    (status) => status.textContent,
+  );
+  expect(statuses).toContain(summary);
+  expect(statuses.join(" ")).not.toContain("could not confirm");
+  expect(button("Review changes").disabled).toBe(true);
+  expect(changed).not.toHaveBeenCalled();
+  expect(apply).toHaveBeenCalledTimes(1);
+});
+
 it("does not publish an old apply response into a newly selected library", async () => {
   let resolve: ((value: GameSettingsView) => void) | undefined;
   const review = vi.fn(async () => reviewed({ action: "reset" }));
