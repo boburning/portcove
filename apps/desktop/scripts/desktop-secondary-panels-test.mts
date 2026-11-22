@@ -105,6 +105,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       portableOutputPath: files.portableOutput,
       metadataPath: files.metadata,
       refusedMetadataPath: files.refusedMetadata,
+      windowsPickerPaths: process.platform === "win32",
     });
     const { button, click } = reviewControls(browser);
     const stages: { name: string; geometry: unknown }[] = [];
@@ -414,13 +415,34 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         false,
         output,
       );
-      await text("Library information was last exported to");
-      assert.ok(isRecord(JSON.parse(await readFile(files.metadata, "utf8"))));
+      const exportReceiptPath = async () => {
+        await text("Library information was last exported to");
+        const receipt = await browser.findElement(
+          By.xpath(
+            '//p[@role="status" and starts-with(normalize-space(.),"Library information was last exported to")]/code',
+          ),
+        );
+        assert.equal(await receipt.isDisplayed(), true);
+        return await receipt.getText();
+      };
+      const displayedPath = await exportReceiptPath();
+      if (process.platform === "win32") {
+        // The Core receipt can retain an ordinary or verbatim local path.
+        const ordinary = (value: string) => value.replace(/^\\\\\?\\/u, "");
+        assert.ok(path.isAbsolute(ordinary(displayedPath)));
+        assert.ok(!displayedPath.split(/[\\/]/u).some((part) => part === "." || part === ".."));
+        assert.equal(path.relative(ordinary(displayedPath), ordinary(files.metadata)), "");
+      } else {
+        assert.equal(displayedPath, files.metadata);
+      }
+      const metadataBytes = await readFile(files.metadata);
+      assert.ok(isRecord(JSON.parse(metadataBytes.toString("utf8"))));
       artifacts.push(files.metadata);
       await capture("metadata-exported", exportMetadata);
       await selectPrimaryNavigation(browser, "Library");
       await settings("library-storage");
-      await text(files.metadata);
+      assert.equal(await exportReceiptPath(), displayedPath);
+      assert.deepEqual(await readFile(files.metadata), metadataBytes);
       exportMetadata = await findButton("Export library information");
       assert.equal(
         (await probe.capture()).trace.filter(({ command }) => command === "export_library_metadata")

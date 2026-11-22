@@ -10,6 +10,7 @@ export interface SecondaryPanelProbeOptions {
   portableOutputPath: string;
   metadataPath: string;
   refusedMetadataPath: string;
+  windowsPickerPaths?: boolean;
 }
 export interface SecondaryPanelTrace {
   command: string;
@@ -221,6 +222,17 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
     mismatches: [...mismatches],
     acknowledged,
   });
+  const drivePath = (value: string) => {
+    const ordinary = value.replace(/^\\\\\?\\/u, "").replaceAll("\\", "/");
+    if (!/^[a-z]:\//iu.test(ordinary)) return null;
+    return ordinary.charAt(0).toUpperCase() + ordinary.slice(1);
+  };
+  const sameMetadataPath = (value: unknown, expected: string) => {
+    if (value === expected) return true;
+    if (typeof value !== "string" || !options.windowsPickerPaths) return false;
+    const expectedDrivePath = drivePath(expected);
+    return expectedDrivePath !== null && drivePath(value) === expectedDrivePath;
+  };
   const replacement: typeof fetch = function (input, init) {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const command = targets.get(url);
@@ -256,11 +268,22 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
     };
     if (args.generation !== options.generation) return deny("generation changed");
     if (command === "export_library_metadata") {
-      if (args.path === options.metadataPath) {
+      if (sameMetadataPath(args.path, options.metadataPath)) {
         observation.outcome = "forwarded";
         return original.call(window, input, init);
       }
-      if (args.path !== options.refusedMetadataPath) return deny("unexpected metadata path");
+      if (!sameMetadataPath(args.path, options.refusedMetadataPath)) {
+        // Save dialogs can return a different path spelling. Keep diagnostics
+        // bounded and retain no unrelated filesystem path from a mismatch.
+        if (typeof args.path !== "string") return deny("metadata path missing");
+        const leaf = args.path.split(/[\\/]/u).at(-1);
+        const expectedLeaf = [options.metadataPath, options.refusedMetadataPath].some(
+          (target) => target.split(/[\\/]/u).at(-1) === leaf,
+        );
+        return deny(
+          expectedLeaf ? "unexpected metadata directory" : "unexpected metadata file name",
+        );
+      }
       observation.outcome = "refused";
       return Promise.resolve(refusal("Owned presentation metadata export refusal."));
     }
