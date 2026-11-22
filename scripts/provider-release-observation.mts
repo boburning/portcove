@@ -105,6 +105,8 @@ export async function observeProviderSource(
       completed_by_port: ReadonlyMap<string, string>;
     };
     bindIdentity?: (identity: number) => Promise<void>;
+    sourcePolicyScope?: string;
+    priorSourcePolicies?: readonly Record<string, unknown>[];
     project: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   },
 ) {
@@ -546,6 +548,7 @@ export async function observeProviderSource(
   }));
   const policies: unknown[] = [];
   const declarations = new Map<string, Awaited<ReturnType<typeof observeDeclaration>>>();
+  let sourceRetryAt: number | null = null;
   async function observeDeclaration(projectId: number, tag: string, commit: unknown) {
     try {
       return {
@@ -556,6 +559,13 @@ export async function observeProviderSource(
       };
     } catch (error) {
       if (options.signal?.aborted) throw error;
+      if (
+        error instanceof ObservationFailure &&
+        ["budget", "provider-quota"].includes(error.rule)
+      ) {
+        const providerReset = error.retryAt ? Date.parse(error.retryAt) : 0;
+        sourceRetryAt = Math.max(now() + 3600000, providerReset || 0);
+      }
       return {
         status: "unassessed",
         reason: error instanceof ObservationFailure ? error.rule : "source-proof-incomplete",
@@ -601,9 +611,15 @@ export async function observeProviderSource(
         tags.add(identity.tag);
       }
     }
+    const sourcePolicyScope = options.sourcePolicyScope ?? source.scope_sha256;
+    const priorPolicy = options.priorSourcePolicies?.find(
+      (previous) =>
+        previous.port_id === observation.port_id &&
+        previous.gitlab_n64_source_scope_sha256 === sourcePolicyScope,
+    );
+    const priorRows = priorPolicy?.gitlab_n64_source_declarations_v1;
     const results = [];
     for (const tag of tags) {
-      if (retained) break;
       const releases = facts.releases.filter((row) => isRecord(row) && row.tag_name === tag);
       const release = releases[0];
       const commit = releases.length === 1 && isRecord(release?.commit) ? release.commit.id : null;
@@ -612,9 +628,31 @@ export async function observeProviderSource(
         result = await observeDeclaration(projectId, tag, commit);
         declarations.set(tag, result);
       }
-      results.push({ tag, ...(result ?? { status: "unassessed", reason: "source-tag-budget" }) });
+      const current = result ?? { status: "unassessed", reason: "source-tag-budget" };
+      const historical = Array.isArray(priorRows)
+        ? priorRows.find((row: unknown) => isRecord(row) && row.tag === tag)
+        : undefined;
+      const earlier = isRecord(historical)
+        ? (historical.declaration ?? historical.historical_declaration)
+        : null;
+      const useHistorical =
+        current.status !== "observed" &&
+        isRecord(earlier) &&
+        earlier.authority === "source-declaration-only" &&
+        earlier.project_id === projectId &&
+        earlier.tag === tag &&
+        earlier.commit_sha === commit;
+      results.push({
+        tag,
+        ...current,
+        ...(useHistorical ? { historical_declaration: earlier } : {}),
+      });
     }
-    policies.push({ ...policy, gitlab_n64_source_declarations_v1: results });
+    policies.push({
+      ...policy,
+      gitlab_n64_source_scope_sha256: sourcePolicyScope,
+      gitlab_n64_source_declarations_v1: results,
+    });
   }
-  return { state, observations, policies, requests, bytes, observed_at: oldest };
+  return { state, observations, policies, requests, bytes, observed_at: oldest, sourceRetryAt };
 }

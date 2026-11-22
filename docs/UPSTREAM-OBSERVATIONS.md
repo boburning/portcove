@@ -1166,8 +1166,11 @@ by the current Core metadata projection. A numeric project, exact release and
 tag commit, complete bounded directory listing and verified Git blob identify
 the source declaration. A second tag read brackets the proof, and incomplete,
 moved or ambiguous source evidence remains unassessed. These requests use the
-existing provider quota and observation deadline. The package and descriptive
-listing projections remain independently available.
+existing provider quota and observation deadline. A budget or quota deferral
+can bring forward the next observation, after the provider reset when known.
+A previous exact declaration may remain in the handoff as historical evidence
+when the current source scope, project, tag and commit still match. The package
+and descriptive listing projections remain independently available.
 
 A source declaration reports what the exact tagged GameEntry table says.
 Player launch and an exact release-specific original-file recommendation need

@@ -445,7 +445,7 @@ void test("normal GitLab observation binds and exports N64 source declarations s
   source.ports[0]!.original_source_family = "n64-recomp";
   options.maximumRequests = 12;
   options.maximumBytes = 24 * 1024 * 1024;
-  const commit = "1".repeat(40);
+  let commit = "1".repeat(40);
   const bytes = Buffer.from(`std::vector<recomp::GameEntry> supported_games = {
     { .rom_hash = 0xafc33da7101fec88, .game_id = u8"fixture.us" },
   };`);
@@ -506,6 +506,7 @@ void test("normal GitLab observation binds and exports N64 source declarations s
     });
   };
   const policy = {
+    port_id: "example",
     eligibility_scope: "core-provider-metadata-only",
     provider_identity: { provider: "gitlab", project_id: 7, repository: source.repository },
     projections: [
@@ -516,11 +517,17 @@ void test("normal GitLab observation binds and exports N64 source declarations s
       },
     ],
   };
-  const preview = async (problem: string | null) => {
+  const preview = async (
+    problem: string | null,
+    prior?: Record<string, unknown>,
+    maximumRequests = options.maximumRequests,
+  ) => {
     fault = problem;
     tagReads = 0;
     const result = await observeProviderSource(source, undefined, {
       ...options,
+      maximumRequests,
+      ...(prior ? { priorSourcePolicies: [prior] } : {}),
       fetch: fetchFixture,
       project: async () => policy,
     });
@@ -531,7 +538,11 @@ void test("normal GitLab observation binds and exports N64 source declarations s
     ];
     assert.deepEqual(handoff.projections, policy.projections);
     assert.equal(handoff.eligibility_scope, policy.eligibility_scope);
-    return handoff.gitlab_n64_source_declarations_v1[0];
+    return {
+      row: handoff.gitlab_n64_source_declarations_v1[0],
+      handoff,
+      retry: result.sourceRetryAt,
+    };
   };
   for (const problem of [
     "alias",
@@ -542,13 +553,13 @@ void test("normal GitLab observation binds and exports N64 source declarations s
     "identity",
     "blob",
   ]) {
-    assert.deepEqual(await preview(problem), {
+    assert.deepEqual((await preview(problem)).row, {
       status: "unassessed",
       reason: "source-proof-incomplete",
       tag: "v1",
     });
   }
-  const recovered = await preview(null);
+  const { row: recovered, handoff } = await preview(null);
   assert.equal(recovered!.status, "observed");
   assert.equal(tagReads, 2);
   assert.deepEqual(recovered!.declaration, {
@@ -562,5 +573,26 @@ void test("normal GitLab observation binds and exports N64 source declarations s
     source_sha256: createHash("sha256").update(bytes).digest("hex"),
     observed_at: new Date(options.now()).toISOString(),
     entries: [{ game_id: "fixture.us", mod_game_id: null, rom_hash_u64: "afc33da7101fec88" }],
+  });
+  const deferred = await preview(null, handoff, 4);
+  assert.deepEqual(deferred.row, {
+    status: "unassessed",
+    reason: "budget",
+    tag: "v1",
+    historical_declaration: recovered!.declaration,
+  });
+  assert.equal(deferred.retry, options.now() + 3600000);
+  const next = await preview(null, deferred.handoff);
+  assert.deepEqual(next.row, recovered);
+  assert.equal(next.retry, null);
+  assert.deepEqual(
+    (await preview("partial", { ...handoff, gitlab_n64_source_scope_sha256: "b".repeat(64) })).row,
+    { status: "unassessed", reason: "source-proof-incomplete", tag: "v1" },
+  );
+  commit = "8".repeat(40);
+  assert.deepEqual((await preview("partial", handoff)).row, {
+    status: "unassessed",
+    reason: "source-proof-incomplete",
+    tag: "v1",
   });
 });
