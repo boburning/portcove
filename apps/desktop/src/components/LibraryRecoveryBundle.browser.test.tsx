@@ -415,10 +415,15 @@ it("verifies a published receipt after a fresh review without copying or resumin
   const verify = dialog.getByRole("button", { name: "Verify published bundle" });
   await expect.element(verify).toBeVisible();
   await expect
-    .element(dialog.getByRole("alert"))
-    .toHaveTextContent(
-      "A previous copy was published to this folder. Check the bundle to verify its contents.",
-    );
+    .element(
+      dialog
+        .getByRole("alert")
+        .getByText(
+          "A previous copy was published to this folder. Check the bundle to verify its contents.",
+          { exact: true },
+        ),
+    )
+    .toBeVisible();
   await expect
     .element(dialog.getByText(/confirm whether anything changed/))
     .not.toBeInTheDocument();
