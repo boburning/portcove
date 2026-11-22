@@ -39,8 +39,18 @@ use crate::{PortcoveError, Result};
 /// Prefix of the temporary files a carry stages beside each destination.
 pub(crate) const STAGING_PREFIX: &str = ".portcove-carry-";
 /// Free space a carry keeps after staging: the larger of this and a fiftieth
-/// of the volume (design section 7, as for backups).
+/// of the volume (design section 7, as for backups), up to `MAX_RESERVE_BYTES`.
 pub(crate) const RESERVE_BYTES: u64 = 1024 * 1024 * 1024;
+/// The reserve keeps room for the next session's saves, journals and backups,
+/// which do not grow with the volume. Owner decision 2026-11-22: cap it so a
+/// small operation on a large volume (a 10 TiB drive asked for 205 GiB) is not
+/// refused. Volumes up to 400 GiB keep exactly the 2% reserve.
+pub(crate) const MAX_RESERVE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+
+/// Bytes kept free after a preservation copy on a volume of `total` bytes.
+pub(crate) fn reserve_bytes(total: u64) -> u64 {
+    RESERVE_BYTES.max(total / 50).min(MAX_RESERVE_BYTES)
+}
 /// Allocation unit assumed when rounding each staged file up.
 pub(crate) const CLUSTER_BYTES: u64 = 4096;
 
@@ -275,7 +285,7 @@ pub(crate) fn required_bytes(
         .filter(|planned| matches!(planned.action, CarryAction::Copy | CarryAction::Replace))
         .map(|planned| sizes.get(&planned.path).copied().unwrap_or(0))
         .map(|size| size.div_ceil(CLUSTER_BYTES).saturating_mul(CLUSTER_BYTES))
-        .fold(RESERVE_BYTES.max(total / 50), u64::saturating_add)
+        .fold(reserve_bytes(total), u64::saturating_add)
 }
 
 /// Create the missing parents of `relative` one folder at a time, refusing to
