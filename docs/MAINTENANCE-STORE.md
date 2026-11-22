@@ -1653,3 +1653,57 @@ older research evidence, while private immutable recovery history remains.
 
 The owning adapter, scope, precision, failure and opt-out contract is
 [Optional research-progress observations](UPSTREAM-OBSERVATIONS.md#optional-research-progress-observations).
+
+## Program cutover view
+
+`node scripts/maintenance-program-view.mts` derives a read-only operator view of
+the dynamic native ports program (#1422). It is a projection, not a backlog or
+status authority: GitHub Projects and the canonical issues keep planning,
+priority and status, and `catalog.json` keeps support. The script reads no
+network, writes no store rows and edits no catalog data. It calls
+`routeFitReport` from `catalog-route-fit.mts` rather than classifying the
+catalog again, reads the handoff registry from `maintenance-handoffs.mts` and
+scans repository code for title-specific authorities. Output is deterministic
+JSON (`--json`, `--output FILE`) or a summary; it carries no timestamps.
+`--check` also verifies that two runs are byte-identical and that the authority
+inventory has not rotted. `--observations FILE` passes listing updates to route
+fit; `--observer-report FILE` reads a catalog upstream observer report.
+
+Each catalog identity is one subject with its product scope (`in-scope`, or
+`deferred-scummvm` when route fit reports `excluded-scummvm`), route-fit
+disposition and reason, family, declared restrictions and held operations, the
+title-specific authority kinds that still serve it, and one remaining action:
+`none`, `retire-title-authority`, `data-enrollment`, `observation`,
+`bytes-worker`, `admission`, `missing-capability`, `upstream-condition` or
+`owner-decision` (deferred product scope).
+
+**Coverage gates.** Each gate is a ratio over a versioned denominator and lists
+the identities failing it. Deferred ScummVM identities are in neither
+denominator.
+
+| Gate                | Denominator (version)                                               | Passing identity                                                      |
+| ------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `fitting`           | in-scope identities (`program-view/in-scope/1`)                     | a determined disposition other than `unobserved`                      |
+| `retired-authority` | in-scope `enrolled` identities (`program-view/in-scope-enrolled/1`) | no title-specific authority kind covers it; behavior is data-declared |
+
+**Authority kinds.** The retired-authority gate is derived from code, not a
+hand list. `authorityKinds` declares each kind of title-specific authority with
+a detector over code shape: catalog generator scripts that select records by a
+literal identity or upstream repository, production Core Rust that names a
+literal identity (test modules excluded), closed per-runtime contract enums
+(`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
+prepared runtime contracts) matched against definition values, the
+`native_external_profile` modules, compiled provider binding tables, the
+`github_mods.rs` source table and `external-mod-portals.json`. Each kind reports
+its count, files and covered identities where derivable, and is `retired` when
+its detector finds nothing. A detector that finds nothing for a kind not
+declared retired, or one that matches a kind declared retired, fails the view
+and its test, so a renamed shape cannot silently drop out of the inventory.
+
+**Metrics.** Counts per disposition and family over all identities
+(`program-view/identities/1`), listing-only GitHub candidates with Windows
+packages, restricted identities and held operations, handoff classes with their
+dispatch state (`program-view/handoff-classes/1`) and, only when a report is
+supplied, observer source coverage by state (`program-view/observer-sources/1`).
+Without a report, observer coverage is `unknown`, never zero. A change in a
+denominator's meaning bumps its version.
