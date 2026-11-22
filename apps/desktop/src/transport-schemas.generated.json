@@ -81061,7 +81061,7 @@
         "description": "One package-relative program that may be the game's player.",
         "properties": {
           "machine": {
-            "description": "The PE/ELF/Mach-O machine in the `0x%04x` form package player\nobservations record; absent when the source recorded only a path.",
+            "description": "The machine its PE, ELF or Mach-O header names, for example\n`pe-x86-64`, `elf64-x86-64`, `macho-arm64` or\n`macho-universal-arm64+x86-64`; an unnamed machine keeps its raw\nnumber, for example `pe-0x01c2`. Absent when the source recorded only\na path.",
             "type": [
               "string",
               "null"
