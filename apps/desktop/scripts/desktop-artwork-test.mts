@@ -313,15 +313,14 @@ export async function artworkScenario({
         await selectCatalogPort(browser, port.id);
         await revealDetailSection(browser, "Manage");
         await openEditor();
-        // The slot controls mount inside the modal; locate before requiring a choice.
+        // A reload can mount the Cover controls before its Core artwork read starts.
         await browser.wait(
-          until.elementIsEnabled(
-            await browser.wait(
-              until.elementLocated(control("cover", "Choose local image")),
-              10_000,
-            ),
-          ),
-          10_000,
+          async () => {
+            const [picker] = await browser.findElements(control("cover", "Choose local image"));
+            return picker !== undefined && (await picker.isDisplayed()) && (await picker.isEnabled());
+          },
+          45_000,
+          "The same Cover editor must finish loading and enable Choose local image",
         );
       };
       await open();
