@@ -1094,10 +1094,9 @@ export function desktopHarnessDeadlineMs(
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
-  // Calibrated from 180 s (#4879): with its waits calibrated for the debug build,
-  // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
-  // 180 s watchdog left no room for failure capture and cleanup. Harness only.
-  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
+  // Linux job 137029418197 had confirmed the exact preparation result when
+  // the 600 s watchdog cut off the remaining readback, restart and cleanup.
+  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 900_000;
   // Saved-source scan, two bounded installs, one fresh-session read and cleanup.
   if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) return 600_000;
   if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))

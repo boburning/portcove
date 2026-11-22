@@ -327,8 +327,11 @@ successful launch, and the backup review's wait to close after a deletion, are c
 from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
 update review after Check for updates and after Update now, and for the ready detail cover
 to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
-includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
-selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+includes the preparation journey gets a 20-minute harness watchdog instead of 10.
+The standalone selected-setup completion journey gets 15 minutes. Linux job 137029418197
+confirmed successful preparation before the 10-minute harness deadline stopped the
+driver during the remaining readback. This budget includes restart and owned cleanup.
+The wait for the
 rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
 diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
 20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
