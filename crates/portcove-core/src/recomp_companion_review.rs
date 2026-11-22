@@ -594,7 +594,8 @@ mod tests {
             linux,
             &LAYOUTS,
         )
-        .unwrap_err();
+        .err()
+        .unwrap();
         assert!(
             error
                 .message
@@ -609,7 +610,8 @@ mod tests {
             linux,
             &LAYOUTS,
         )
-        .unwrap_err();
+        .err()
+        .unwrap();
         assert!(error.message.contains("regular-file or size bound"));
     }
 
