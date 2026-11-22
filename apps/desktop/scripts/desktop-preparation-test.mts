@@ -420,6 +420,38 @@ async function assertIndividualUpdateFailure({
     sources_before: transportValues("source", command(["source", "list"])),
     layouts: [],
   };
+  // Cleanup and evidence run on both paths; only a passing scenario may fail on them.
+  const finishEvidence = async () => {
+    try {
+      observations.probe = await executeBrowserScript(browser, () => {
+        const ownedWindow = window as Window & {
+          __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
+        };
+        const probe = ownedWindow.__portcoveUpdateFailureProbe;
+        if (!probe) return { installed: false, restored: false };
+        window.fetch = probe.original;
+        delete ownedWindow.__portcoveUpdateFailureProbe;
+        return {
+          installed: true,
+          intercepted: probe.intercepted,
+          restored: window.fetch === probe.original,
+        };
+      });
+      const report = path.join(output, "update-check-failure-observations.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      artifacts.push(report);
+      if (observations.failure === undefined) {
+        assert.equal(observations.probe.restored, true);
+        assert.equal(observations.probe.intercepted, 2);
+      }
+    } catch (error) {
+      if (observations.failure === undefined) throw error;
+      console.error("Could not finish the update diagnostic cleanup or write its evidence", error);
+    }
+  };
   try {
     await executeBrowserScript(
       browser,
@@ -470,7 +502,7 @@ async function assertIndividualUpdateFailure({
       await browser.wait(until.elementIsEnabled(check), 5_000);
       await clickVisible(browser, check);
       const expectedRequests = theme === "dark" ? 1 : 2;
-      const region = await browser.wait(
+      const rendered = await browser.wait(
         async () => {
           const settled = await executeBrowserScript(
             browser,
@@ -497,6 +529,9 @@ async function assertIndividualUpdateFailure({
         45_000,
         "The exact update diagnostic must render after this check and workspace read complete",
       );
+      // browser.wait resolves only with the displayed diagnostic, never with false.
+      assert.ok(rendered);
+      const region = rendered;
       assert.equal(
         await region.getAttribute("aria-label"),
         `Update check failure for ${port.name}`,
@@ -593,38 +628,10 @@ async function assertIndividualUpdateFailure({
     assert.deepEqual(observations.sources_after, observations.sources_before);
   } catch (error) {
     observations.failure = errorMessage(error);
+    await finishEvidence();
     throw error;
-  } finally {
-    try {
-      observations.probe = await executeBrowserScript(browser, () => {
-        const ownedWindow = window as Window & {
-          __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
-        };
-        const probe = ownedWindow.__portcoveUpdateFailureProbe;
-        if (!probe) return { installed: false, restored: false };
-        window.fetch = probe.original;
-        delete ownedWindow.__portcoveUpdateFailureProbe;
-        return {
-          installed: true,
-          intercepted: probe.intercepted,
-          restored: window.fetch === probe.original,
-        };
-      });
-      const report = path.join(output, "update-check-failure-observations.json");
-      await writeFile(report, JSON.stringify(observations, null, 2), {
-        encoding: "utf8",
-        flag: "wx",
-      });
-      artifacts.push(report);
-      if (observations.failure === undefined) {
-        assert.equal(observations.probe.restored, true);
-        assert.equal(observations.probe.intercepted, 2);
-      }
-    } catch (error) {
-      if (observations.failure === undefined) throw error;
-      console.error("Could not finish the update diagnostic cleanup or write its evidence", error);
-    }
   }
+  await finishEvidence();
 }
 
 function controlledUpdateFailure(mutation: MutationState): FailureReport {
