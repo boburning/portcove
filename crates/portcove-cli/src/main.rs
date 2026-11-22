@@ -357,21 +357,35 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 size,
                 sha256,
+                predecessor_observation,
             },
     } = &cli.command
     {
         let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
             .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        let observation = predecessor_observation
+            .as_deref()
+            .map(|input| {
+                if input.len() > 2048 {
+                    return Err(portcove_core::PortcoveError::usage(
+                        "package observation exceeds its size bound",
+                    ));
+                }
+                serde_json::from_str::<portcove_core::PackageLayoutObservation>(input)
+                    .map_err(|_| portcove_core::PortcoveError::usage("invalid package observation"))
+            })
+            .transpose()?;
         let catalog = portcove_core::Catalog::embedded()?;
         render_read_success(
             mode,
             "catalog.inspect-package-shape",
-            portcove_core::inspect_package_shape_archive(
+            portcove_core::inspect_package_shape_archive_observed(
                 archive,
                 catalog.port(port)?,
                 platform,
                 *size,
                 sha256,
+                observation.as_ref(),
             )?,
             |inspection| {
                 format!(
@@ -3042,6 +3056,43 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 |result| human::status(result, service.catalog()),
             )?;
         }
+        Commands::Channel {
+            command: ChannelCommand::ReviewExact { port_id, version },
+        } => {
+            render_read_success(
+                mode,
+                "channel.review-exact",
+                service.review_exact_release(&port_id, &version).await?,
+                human::exact_release_review,
+            )?;
+        }
+        Commands::Channel {
+            command:
+                ChannelCommand::Pin {
+                    port_id,
+                    version,
+                    review_sha256,
+                },
+        } => {
+            render_read_success(
+                mode,
+                "channel.pin",
+                service
+                    .pin_exact_release(&port_id, &version, &review_sha256)
+                    .await?,
+                |result| human::status(result, service.catalog()),
+            )?;
+        }
+        Commands::Channel {
+            command: ChannelCommand::Follow { port_id },
+        } => {
+            render_read_success(
+                mode,
+                "channel.follow",
+                service.clear_exact_release(&port_id)?,
+                |result| human::status(result, service.catalog()),
+            )?;
+        }
         Commands::Policy {
             command: PolicyCommand::Set { port_id, policy },
         } => {
@@ -3856,6 +3907,16 @@ fn execute_artwork(
             service.suppress_artwork(&port_id, slot.into(), expected_revision)?,
             |result| human_adapters::artwork_state(result, service.catalog()),
         ),
+        ArtworkCommand::Unhide {
+            port_id,
+            slot,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.unhide_artwork(&port_id, slot.into(), expected_revision)?,
+            |result| human_adapters::artwork_state(result, service.catalog()),
+        ),
         ArtworkCommand::ClearCache => {
             render_read_success(mode, name, service.clear_artwork_cache()?, |result| {
                 format!(
@@ -4129,7 +4190,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Rollback { .. } => "rollback",
         Commands::RemovePreview { .. } => "remove.preview",
         Commands::Remove { .. } => "remove",
-        Commands::Channel { .. } => "channel.set",
+        Commands::Channel { command } => match command {
+            ChannelCommand::Set { .. } => "channel.set",
+            ChannelCommand::ReviewExact { .. } => "channel.review-exact",
+            ChannelCommand::Pin { .. } => "channel.pin",
+            ChannelCommand::Follow { .. } => "channel.follow",
+        },
         Commands::Policy { .. } => "policy.set",
         Commands::Exec(_) => "exec",
         Commands::Capabilities => "capabilities",
@@ -5475,6 +5541,32 @@ mod tests {
             (
                 vec!["portcove", "channel", "set", "lighthouse", "beta"],
                 "channel.set",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "channel",
+                    "review-exact",
+                    "lighthouse",
+                    "v1.2.0",
+                ],
+                "channel.review-exact",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "channel",
+                    "pin",
+                    "lighthouse",
+                    "v1.2.0",
+                    "--review-sha256",
+                    "review",
+                ],
+                "channel.pin",
+            ),
+            (
+                vec!["portcove", "channel", "follow", "lighthouse"],
+                "channel.follow",
             ),
             (
                 vec!["portcove", "policy", "set", "lighthouse", "stage"],

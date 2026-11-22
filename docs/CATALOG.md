@@ -2417,6 +2417,31 @@ bundle.
 
 ### Release selection and maintenance
 
+Core's exact release selector binds one port, platform and channel to a specific
+tag or declared direct-manifest version, filename, size and SHA-256. GitHub
+revalidates the numeric repository, release and asset IDs, published digest and
+tag commit. GitLab revalidates the numeric project, release-link and registry
+file IDs, registry digest and tag commit. The configured direct manifest can
+resolve only its declared stable package.
+
+Exact checks apply the catalog's package, platform and channel rules. They
+revalidate provider metadata independently of the latest-release cache. A
+missing or changed artifact returns a hold for that selection. Curated
+integrations continue to require their separately admitted acquisition route.
+A matching selector describes provider metadata. The installer still verifies
+the downloaded bytes and applicable package layout before activation.
+Review evaluates the port's typed acquisition restrictions for the observed
+version and SHA-256 with the same final artifact gate that install and update
+apply, so a held package is refused at review with the restriction's
+explanation; a permitted package of the same port can still be pinned.
+
+A saved pin that Core cannot decode, or that names a channel the port no longer
+follows, becomes that port's `exact_release_hold`: other ports' status,
+checks and export are unaffected, the held port's checks and installs refuse
+instead of following the channel, and Follow clears it. Library metadata
+carries such a pin's stored text unchanged in `held_exact_release` (schema 13),
+so the destination keeps the same hold.
+
 Release asset hints should identify a stable port, platform, architecture and
 package shape when automatic release selection is offered. A controlled N/N+1
 test supports an automatic-update claim; it is not a prerequisite for a useful
@@ -2432,6 +2457,58 @@ for independently published add-ons or other platform streams with documented
 tag prefixes. Core excludes these tags even before asset collection. Releases
 in the selected stream with incomplete package evidence still hold. Review the
 existing tag history before adding a prefix and retain exact package verification.
+
+#### Artifact roles and fact sources
+
+Core gives every release asset it classifies a typed role, target operating
+system, architecture and fact source (`crates/portcove-core/src/route_facts.rs`).
+Only a `desktop-game-runtime` role may become a launch target. A consumer
+checks a fact's `source` before treating its role as authorized.
+
+Sources are consulted in this fixed precedence; the first with a definite role
+wins:
+
+1. `release-metadata`: machine-readable metadata the release publishes.
+2. `exact-release-structured`: a reviewed observation of the exact archive
+   bytes, such as a [generated package shape](#generated-reviewed-package-shapes).
+   Its player candidates exclude toolchain, installer, server and
+   development-tool programs beside the player. From shape version 2 it names
+   the version and each player's path, header machine and SHA-256 (see
+   [player candidates](#package-shape-player-candidates)); an archive with any
+   version 1 entry keeps the version 1 path-only candidates.
+3. `provider-cross-reference`: another provider's reviewed record.
+4. `family-extractor`: a bounded, versioned extractor for one release family.
+5. `stable-declaration`: a reviewed selector of the route matched the asset,
+   such as every reviewed asset hint for the platform or a curated pin.
+6. `filename-suggestion`: filename tokens, versioned by `rule_version`.
+
+A filename suggestion never authorizes a runtime. Selection by generic
+filename scoring, without a matching reviewed selector, records only a
+filename suggestion and keeps today's selection. Two authorizing sources that
+disagree about the role make the role unknown; when authorizing sources
+disagree about the host, the host is unknown rather than a refusal.
+
+What this release enforces:
+
+- A package named only for another operating system is never selected for this
+  host.
+- A release whose players are all for other hosts (another desktop, Android,
+  iOS or a console) is outside this platform's stream. A fresh install takes the
+  older release this host can use; an installation of the newer release is held
+  with `installed-release-newer-than-host-candidate`, never offered the older
+  one as an update.
+- Server, checksum, signature, symbol, source and license-compliance files keep
+  their existing exclusion from package selection.
+
+Reserved for later slices: refusing an asset whose authorized role is an
+installer, builder, importer, compiler, development tool, original-game input,
+mobile package, console output or documentation. The `wrong-role`,
+`wrong-host` and `contradictory-role` holds only fire when an authorizing
+source makes such a claim. In this slice, a reviewed package shape claims a
+desktop runtime and a matching reviewed selector claims the route's host, so
+none of the three triggers for current catalog entries. Prefer adding
+release-owned or structured facts over adding filename tokens or
+title-specific selectors.
 
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
@@ -2520,6 +2597,18 @@ different layout is refused with a player-facing reason naming the new or missin
 programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
+
+An integration can retain up to four predecessor layouts per platform under
+`reviewed_predecessor_package_layouts_v1`. Each fingerprint applies to the exact
+verified GitHub repository, release, asset, tag, channel, filename, size and
+digest in the normal acquisition. The current full layout applies to other
+eligible packages. Portcove compares one complete layout and keeps the existing
+download rules, player release selection and retained install contracts.
+Signed delivery requires native-portable capability 42. Archive inspection
+reports an unassessed scope when matching predecessor bytes lack exact
+provider attribution. The scheduled metadata handoff supplies context for the
+existing exact predecessor, while a different provider assignment must be
+established by the ordinary acquisition route.
 
 An independently reviewed managed GitHub archive with only the selected root
 executable and no fingerprinted directories can declare
@@ -2781,10 +2870,11 @@ explicit fingerprint's macOS library filter. Core computes that digest, and
 with; `--record` refuses a shape whose digest differs from `catalog.json`, so a
 CLI built before a catalog edit cannot record a stale shape under current
 inputs (rebuild the CLI, then record again). CI runs the offline `--check`:
-canonical bytes, the entries digest, Core's `SHAPE_VERSION`, and that every
-entry still names a managed portable route, one of its platforms, a reviewed
-catalog artifact with the same version and unchanged derivation inputs. Core's
-table-currency test checks the same digests and versions.
+canonical bytes, the entries digest, Core's `SHAPE_VERSION`, each entry's
+`shape_version` and its player candidates, and that every entry still names a
+managed portable route, one of its platforms, a reviewed catalog artifact with
+the same version and unchanged derivation inputs. Core's table-currency test
+checks the same digests and versions.
 
 When a catalog edit makes the table stale, run
 `node scripts/package-shape-baselines.mts --prune`; the failing `--check`
@@ -2797,11 +2887,11 @@ shape, so a dropped route only loses its baseline (`unknown`) until
 table by hand.
 
 Entry order follows catalog review order, so the last entry per route and
-platform is the newest reviewed shape. Changing the derivation rules (the
+platform is the newest reviewed shape. Changing the component rules (the
 program classifier, the configuration extensions, a part or its anchoring)
-bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
-over a fixture fails on any such change until the version and the golden are
-updated together. The N64 macOS archive inspection can additionally prove
+bumps `SHAPE_VERSION` and raises `COMPONENT_RULES_VERSION` to it in the same
+change; a versioned golden-shape Core test over a fixture fails on any such
+change until the version and the golden are updated together. The N64 macOS archive inspection can additionally prove
 flat install-root persistence absent when the whole payload consists of the
 app bundle that contains the resolved executable. It records the previously
 unknown persistence components through a distinct N64 macOS derivation-input
@@ -2809,9 +2899,45 @@ digest and preserves the existing coordinates and known values of other
 components. Earlier records still compare their known parts. The golden
 fixture is a Windows route, so the Unix
 executable-bit and verified macOS library branches of the shared classifier
-are not pinned by it; a change there still requires the version bump. After a bump Core ignores the table and recorded local shapes
-of the older version, and `--prune` empties the table until entries are
-re-derived.
+are not pinned by it; a change there still requires the version bump. After a
+component-rules bump Core ignores table entries and recorded local shapes below
+`COMPONENT_RULES_VERSION`, and `--prune` drops them until they are re-derived.
+
+#### Package shape player candidates
+
+Shape version 2 (#8569) adds `player_candidates` to each generated entry:
+`path`, `machine` and `sha256` of the players the reviewed bytes contain. The
+six components and their rules are unchanged from version 1, so
+`COMPONENT_RULES_VERSION` stays 1. Every table entry records its own
+`shape_version`; a version 1 entry has no players and remains a valid baseline
+with version 1 semantics until `--record` re-derives it. Installation manifests
+and withheld-release observations carry components only, so they are still
+written at version 1 and earlier Portcove builds keep reading them; this build
+reads records of either version. Release selection, install comparison and
+drift verdicts do not read players.
+
+A player is decided by declared facts and package structure, never by a list of
+titles. The candidate is the route's declared launch target, resolved from its
+`executable_hints` and runtime subdirectory exactly as the installer resolves
+it. It must be one of the shape's reviewed programs, no segment of its path may
+name an installer, setup, compiler or toolchain, importer, development tool or
+server (the existing structured-claim rule), and its header must classify as a
+native executable rather than a library, script or text. Bundled compilers such
+as `overlay_toolchain/tcc/tcc.exe`, updaters, crash handlers, setup programs,
+diagnostics collectors and dedicated servers are therefore never players; a
+route whose declared target is not such an executable records no player.
+
+`machine` comes from a bounded header reader, never from a filename:
+`pe-<arch>` for PE (`x86`, `x86-64`, `arm64`, `arm`), `elf32-<arch>` or
+`elf64-<arch>` for ELF (`elf32be-`/`elf64be-` when big-endian), `macho-<arch>`
+for a single-architecture Mach-O and `macho-universal-<arch>+<arch>` for a
+universal binary whose slices are all checked. Other machines keep their raw
+number (`0x%04x`, Mach-O `0x%08x`). Each read is at most 4 KiB and a
+classification makes a bounded number of reads; truncated, inconsistent or
+hostile headers classify as no native image or an unestablished kind and never
+fail the inspection. `sha256` is the digest of the whole player file. A
+reviewed player of a Windows x86-64 route may be a 32-bit `pe-x86` program;
+the machine records that fact and does not refuse the route.
 
 Core compares the active definition's shape inputs with the embedded
 definition that supplied the generated baseline. Changed inputs produce an
@@ -3277,6 +3403,33 @@ scope. The report counts these separately from missing edition facts. Update
 ownership stays with upstream for listing-only records. A same-title match is a
 research lead. Check the implementation's actual input edition against pinned
 upstream evidence before adding a source system.
+
+Run `node scripts/catalog-route-fit.mts` for a read-only route-fit summary of
+every catalog identity. Add `--json` or `--output FILE` for the deterministic
+per-identity report, `--observations FILE` to apply listing observer output
+and `--check` to verify that every identity appears exactly once. Each record
+names its adapter and provider family, whether an operational route exists, its
+observation state, its typed restrictions and one disposition with a reason.
+ScummVM is decided first, by the declared runtime engine rather than the name,
+as `excluded-scummvm`. `enrolled` has an operational definition or generated
+route enrollment. For listing-only records the candidate is the non-owning
+user-selected registration route. `data-only` needs known desktop packages and
+player facts for one of those platforms: an accepted package player
+observation, a reviewed package shape or prepared-player `route_facts_v1`.
+`needs-bytes-worker` has known desktop packages without player facts.
+`unobserved` has unknown availability and no complete observation; it is
+unknown, not absent. `missing-capability` names a host no release provider
+adapter reads or packages without a supported desktop platform.
+`upstream-condition` covers source-only or unavailable upstreams, a complete
+observation without release packages, or restrictions that hold every
+registration operation on every package platform. `needs-admission` is reserved
+for data that declares a Portcove-owned route without an admitted reviewed
+artifact; no listing-only field can declare one, so it stays at zero. Only an
+observation with status `complete`, or a legacy one without a status, is
+evidence. Restrictions use Core's offer-time precedence, with releases and
+artifacts deferred, and name each held operation. A download hold does not
+remove the registration route. The report grants no admission and changes no
+catalog data.
 
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
@@ -4124,17 +4277,24 @@ URLs, the IGDB image CDN and Wikimedia Commons, with no redirects, URL queries o
 credentials. Cached `.image` originals share the existing disposable 64 MiB
 artwork cache and bounded decoding work; local overrides remain separate.
 
-Both game details and Continue resolve foreground identity as verified IGDB key
-art, then a suitable IGDB game logo, then the existing appropriate Cover choice,
-then a text heading. Each role prefers the exact port over an accurately matched
-original/edition. An offered original edition is not a selected edition: every
+Game details and Continue use a suitable admitted logo, then the existing Cover
+choice, then the game title. For automatic hero logos and backgrounds, Desktop tries exact port artwork
+before artwork specific to the verified edition, then uses reviewed
+edition-neutral artwork as a fallback. An offered original edition is not a selected edition: every
 media role requires actual applicable edition context or explicitly reviewed
 `edition_neutral: true`; absence remains unknown. Backgrounds and screenshots
 resolve independently, and a portrait cover is never stretched into a banner.
-Desktop has no validated binding from Core's source game, variant and
-representation IDs to these descriptive original-edition IDs. Automatic
-original media therefore requires reviewed edition neutrality. Players can use
-**Screenshot source** to view reviewed screenshots for an original release.
+Reviewed format-14 bindings connect an original release to the exact source
+game, variant and representation. Continue and game details can check one
+visible registered source within a bounded read and use its current exact
+match. An active installation uses that match only when its effective launch
+can use the exact default registration. A different setup original, a retained
+release that can use another saved original, or an unresolved release-specific
+input uses the neutral fallback. Prepared runtimes without an exact
+installed-source identity use the same fallback. The full
+saved-file check remains available when the bounded read cannot verify a file
+set. Players can use **Screenshot source** to view reviewed screenshots for
+an original release.
 This choice applies only to the gallery. Exact port media and the Cover and
 text fallbacks remain available. Offered editions and similar ID strings do not
 establish a selected source edition.

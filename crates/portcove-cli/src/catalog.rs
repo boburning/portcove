@@ -154,6 +154,9 @@ pub(crate) enum CatalogCommand {
         /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
         #[arg(long)]
         sha256: String,
+        /// Exact provider observation JSON for a reviewed predecessor. Inspection only.
+        #[arg(long)]
+        predecessor_observation: Option<String>,
     },
     /// Probe inert settings samples through Core's document editor without library writes.
     InspectSettingsQualification {

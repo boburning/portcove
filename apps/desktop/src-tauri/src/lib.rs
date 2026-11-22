@@ -792,9 +792,13 @@ async fn get_activity_diagnostic(
 
 #[tauri::command]
 async fn cancel_operation(
+    recovery: tauri::State<'_, library_recovery_bundle::RecoveryCopyOperations>,
     state: tauri::State<'_, DesktopState>,
     operation_id: String,
 ) -> DesktopResult<portcove_core::CancellationState> {
+    if let Some(result) = recovery.request(&operation_id)? {
+        return Ok(result);
+    }
     blocking_service(state.inner().clone(), move |service| {
         service
             .request_cancellation(&operation_id)
@@ -832,8 +836,28 @@ async fn create_backup(
 async fn inspect_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
+    artwork_generation: Option<u64>,
 ) -> DesktopResult<SourceInspectionReport> {
     let state = state.inner().clone();
+    if let Some(generation) = artwork_generation {
+        return blocking_service_at_generation(state, generation, move |service| {
+            let operation = portcove_core::OperationCoordinator::new("artwork-source", None);
+            let limits = portcove_core::RegisteredSourceInspectionLimits {
+                max_file_bytes: 64 * 1024 * 1024,
+                max_hash_bytes: 128 * 1024 * 1024,
+                max_elapsed_ms: 5_000,
+            };
+            let batch =
+                service.inspect_registered_sources_bounded(&[profile_id], &limits, &operation)?;
+            match batch.observations.into_iter().next() {
+                Some(portcove_core::RegisteredSourceObservation::Inspected { report }) => {
+                    Ok(*report)
+                }
+                _ => Err(PortcoveError::not_found("the original is no longer registered").into()),
+            }
+        })
+        .await;
+    }
     let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
         let mut report = inspect_source_with_service(&service, &profile_id)?;
@@ -1074,9 +1098,10 @@ async fn add_source(
     profile_id: String,
     path: PathBuf,
     expected_sha256: Option<String>,
+    generation: u64,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         if let Some(digest) = expected_sha256 {
             service
                 .register_source_with_digest(&profile_id, &path, &digest)
@@ -1676,6 +1701,7 @@ async fn import_source(
             return Err(PortcoveError::conflict(
                 "the source import changed after review; review the move again",
             )
+            .with_mutation_state(portcove_core::MutationState::NoChanges)
             .into());
         }
         if !confirm_destructive(
@@ -1779,6 +1805,73 @@ async fn set_channel(
         service_at_generation(&state, generation)?
             .set_channel(&port_id, channel)
             .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn can_review_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<bool> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .can_review_exact_release(&port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn review_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    version: String,
+    generation: u64,
+) -> DesktopResult<portcove_core::ExactReleaseReview> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .review_exact_release(&port_id, &version)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn pin_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    version: String,
+    review_sha256: String,
+    generation: u64,
+) -> DesktopResult<PortStatus> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .pin_exact_release(&port_id, &version, &review_sha256)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn clear_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<PortStatus> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.clear_exact_release(&port_id).map_err(Into::into)
     })
     .await
 }
@@ -2754,12 +2847,14 @@ fn get_runtime_diagnostic_health(
 async fn create_support_bundle(
     state: tauri::State<'_, DesktopState>,
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
+    generation: Option<u64>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
     let diagnostics = diagnostics.inner().clone();
     // Export is available even when service construction fails. Use the same
     // worker/restart guard as other blocking host work, without requiring ready().
-    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?)).await
+    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?, generation))
+        .await
 }
 
 /// Opens the host-chosen diagnostics directory that support reports are written
@@ -2787,10 +2882,14 @@ fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
 fn support_bundle_for_state(
     state: &DesktopState,
     directory: &Path,
+    expected_generation: Option<u64>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     // Snapshot existing initialization only. Constructing a new service would
     // load catalogs and could recreate a disappeared database before collection.
-    let (initialization, _) = initialization_snapshot(state);
+    let (initialization, generation) = initialization_snapshot(state);
+    if let Some(expected) = expected_generation {
+        require_library_generation(generation, expected)?;
+    }
     diagnostics::create_support_bundle(
         initialization.as_ref().ok().map(|ready| &ready.library),
         initialization.as_ref().err(),
@@ -2803,9 +2902,10 @@ fn support_bundle_for_state(
 async fn export_library_metadata(
     state: tauri::State<'_, DesktopState>,
     path: PathBuf,
+    generation: u64,
 ) -> DesktopResult<LibraryMetadataFile> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         service
             .write_library_metadata_from_picker(&path)
             .map_err(Into::into)
@@ -2878,6 +2978,13 @@ fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard>
 
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
     let library = host_startup::open_library(&selection).map_err(DesktopError::from)?;
+    ready_desktop_selection(selection, library)
+}
+
+fn ready_desktop_selection(
+    selection: LibrarySelection,
+    library: Library,
+) -> DesktopResult<ReadyDesktopState> {
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let workspace_observer = std::sync::Arc::new(std::sync::Mutex::new(
         library.change_observer().map_err(DesktopError::from)?,
@@ -3044,6 +3151,7 @@ pub fn run() -> std::process::ExitCode {
         .manage(frontend_diagnostics::FrontendReports::default())
         .manage(application_update::ApplicationUpdateState::configured())
         .manage(application_runtime)
+        .manage(library_recovery_bundle::RecoveryCopyOperations::default())
         .manage(exit_diagnostics.clone())
         .manage(DesktopState {
             initialization,
@@ -3059,6 +3167,9 @@ pub fn run() -> std::process::ExitCode {
             game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
+            game_settings_commands::get_game_settings_change_set_view,
+            game_settings_commands::review_game_settings_change_set,
+            game_settings_commands::apply_game_settings_change_set,
             mod_original_commands::review_mod_setup_original,
             mod_original_commands::select_mod_setup_original,
             mod_original_commands::relink_mod_setup_original,
@@ -3088,6 +3199,9 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::jakmods_setup_url,
             mod_setup_commands::get_jakmods_catalog,
             mod_setup_commands::open_jakmods_resource,
+            mod_setup_commands::get_quaddicted_catalog,
+            mod_setup_commands::get_moddb_file_notices,
+            mod_setup_commands::open_upstream_mod_notice,
             mod_setup_commands::get_mod_provider_catalog,
             mod_setup_commands::open_provider_mod_project,
             mod_setup_commands::get_provider_project,
@@ -3123,6 +3237,7 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
+            library_selection::review_library_selection,
             library_selection::set_default_library,
             library_selection::reset_default_library,
             get_github_auth_status,
@@ -3188,6 +3303,7 @@ pub fn run() -> std::process::ExitCode {
             artwork::set_background_artwork_framing,
             artwork::reset_artwork,
             artwork::suppress_artwork,
+            artwork::unhide_artwork,
             steamgriddb::get_steamgriddb_key_status,
             steamgriddb::set_steamgriddb_key,
             steamgriddb::clear_steamgriddb_key,
@@ -3250,6 +3366,10 @@ pub fn run() -> std::process::ExitCode {
             source_removal::preview_source_removal,
             source_removal::remove_source,
             set_channel,
+            can_review_exact_release,
+            review_exact_release,
+            pin_exact_release,
+            clear_exact_release,
             set_policy,
             install_port,
             verify_port,
@@ -3313,6 +3433,7 @@ pub fn run() -> std::process::ExitCode {
             library_recovery_bundle::inspect_library_recovery_bundle,
             library_recovery_bundle::plan_library_recovery_restore,
             library_recovery_bundle::restore_library_recovery_bundle,
+            library_recovery_bundle::read_library_recovery_restore,
             library_recovery_bundle::resume_library_recovery_restore,
             library_transfer::plan_library_move,
             library_transfer::plan_library_import,
@@ -4693,7 +4814,7 @@ mod tests {
         assert!(status.library_root.is_none());
         assert!(service(&state).is_err());
         let exported =
-            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics"), None).unwrap();
         assert!(!exported.manifest.library_available);
         assert!(exported.path.is_file());
         assert_eq!(bootstrap_status(&state).error, Some(error));
@@ -4717,8 +4838,11 @@ mod tests {
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         fs::remove_file(&database).unwrap();
-        let exported =
-            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+        let destination = temporary.path().join("diagnostics");
+        let refused = support_bundle_for_state(&state, &destination, Some(0)).unwrap_err();
+        assert_eq!(refused, require_library_generation(1, 0).unwrap_err());
+        assert!(!destination.exists());
+        let exported = support_bundle_for_state(&state, &destination, Some(1)).unwrap();
         assert!(!database.exists());
         assert!(exported.path.is_file());
         assert!(exported.manifest.sections.iter().any(|section| {
@@ -4745,7 +4869,8 @@ mod tests {
         };
         assert!(service(&state).is_err());
         let exported =
-            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics"), Some(1))
+                .unwrap();
         assert!(exported.manifest.sections.iter().any(|section| {
             section.kind == portcove_core::SupportBundleSectionKind::Activities
                 && section.entry.as_deref() == Some("activities.json")

@@ -15,7 +15,7 @@ export type InputCatalogUpdateSource =
 export type ReleaseChannel = "stable" | "beta" | "rolling";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 export type GameFileRouteKind = "managed_install" | "external_registration" | "managed_launch" | "external_launch";
-export type InputGameSettingChange =
+export type GameSettingChange =
   | {
       action: "set";
       value: unknown;
@@ -158,7 +158,8 @@ export interface TransportInputs {
   catalog_update_source: InputCatalogUpdateSource;
   definition_capability_request: InputDefinitionCapabilityRequest;
   game_file_query_request: InputGameFileQueryRequest;
-  game_setting_change: InputGameSettingChange;
+  game_setting_change: GameSettingChange;
+  game_settings_edit: InputGameSettingsEdit;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_request: InputSourceDiscoveryRequest;
   desktop_adoption_batch_items: InputDesktopAdoptionBatchItems;
@@ -211,6 +212,13 @@ export interface GameFileRouteRequest {
   platform: Platform;
   port_id: string;
   route: GameFileRouteKind;
+}
+/**
+ * An edit to one declared key within the change-set's single configuration file.
+ */
+export interface InputGameSettingsEdit {
+  change: GameSettingChange;
+  setting_id: string;
 }
 export interface SourceDiscoveryLimits {
   max_candidates: number;

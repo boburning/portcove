@@ -19,6 +19,7 @@ export function BackgroundFramingEditor({
   port,
   Preview,
   previewActions,
+  mediaContext,
   sourceLabel,
   initialFraming,
   focusHeading,
@@ -31,6 +32,7 @@ export function BackgroundFramingEditor({
   port: BackgroundPreviewProps["port"];
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
+  mediaContext?: BackgroundPreviewProps["mediaContext"];
   sourceLabel?: string | undefined;
   initialFraming: ArtworkFraming | null;
   focusHeading: boolean;
@@ -88,6 +90,7 @@ export function BackgroundFramingEditor({
                   image={image}
                   position={backgroundObjectPosition(point)}
                   actionLabel={previewActions?.[layout]}
+                  mediaContext={mediaContext}
                   onError={() => setImageFailed(true)}
                 />
               )}

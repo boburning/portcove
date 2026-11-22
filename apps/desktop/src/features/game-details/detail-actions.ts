@@ -26,6 +26,8 @@ const actionLabels: Readonly<Record<string, string>> = {
   "recover legacy installation and data": "Recover legacy installation and data",
   "refresh backup history": "Refresh backup history",
   channel: "Change release channel",
+  "pin release": "Pin exact release",
+  "follow channel": "Follow release channel",
   policy: "Save update preferences",
   verify: "Check installed files",
 };
@@ -41,7 +43,8 @@ export interface DetailActionContext {
   perform: Perform;
   close: () => void;
   reviewInstall?: DetailActions["reviewInstall"];
-  backupsChanged?: () => Promise<void>;
+  backupsChanged?: () => Promise<unknown>;
+  refreshRestoredBackups?: () => Promise<unknown>;
   libraryGeneration: number;
   dismissInstallReview?: DetailActions["dismissInstallReview"];
   onInstallCommitted?: (install: InstallRecord) => void;
@@ -57,6 +60,7 @@ export function detailActions({
   close,
   reviewInstall = () => undefined,
   backupsChanged = () => Promise.resolve(),
+  refreshRestoredBackups = backupsChanged,
   libraryGeneration,
   dismissInstallReview = () => undefined,
   onInstallCommitted,
@@ -171,12 +175,14 @@ export function detailActions({
       const result = await perform(
         "restore backup",
         () => desktopApi.restoreBackup(port.id, backup.id, expectedPreview, libraryGeneration),
-        nullableNativeConsent,
+        {
+          ...nullableNativeConsent,
+          propagateFailure: true,
+          readbackAfterSuccess: refreshRestoredBackups,
+        },
       );
       if (result === null) return "cancelled";
-      const completed = Boolean(result);
-      if (completed) await backupsChanged();
-      return completed;
+      return Boolean(result);
     },
     recoverGhostshipLegacy: async (backup, expectedPlan) => {
       if (backup.port_id !== port.id) throw new Error("Recovery backup belongs to another game.");
@@ -196,6 +202,26 @@ export function detailActions({
     },
     setChannel: (channel) =>
       perform("channel", () => desktopApi.setChannel(port.id, channel, libraryGeneration)),
+    exactRelease: {
+      available: () => desktopApi.canReviewExactRelease(port.id, libraryGeneration),
+      review: (version) => desktopApi.reviewExactRelease(port.id, version, libraryGeneration),
+      pin: (review) =>
+        perform(
+          "pin release",
+          () =>
+            desktopApi.pinExactRelease(
+              port.id,
+              review.selection.version,
+              review.review_sha256,
+              libraryGeneration,
+            ),
+          { propagateFailure: true },
+        ),
+      follow: () =>
+        perform("follow channel", () => desktopApi.clearExactRelease(port.id, libraryGeneration), {
+          propagateFailure: true,
+        }),
+    },
     setPolicy: (policy) =>
       perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),
     verify: () => perform("verify", () => desktopApi.verify(port.id, libraryGeneration)),

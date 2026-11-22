@@ -1289,6 +1289,7 @@ impl PortcoveService {
             originals: originals.clone(),
             loader: plan.recipe.loader.clone(),
             packages,
+            recomp_companion_sets_v1: None,
             orderings: plan.recipe.orderings.clone(),
             settings: recomp_mod_settings::import(&plan.recipe.settings)?,
             save_group: String::new(),

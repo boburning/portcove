@@ -236,6 +236,7 @@ type ArtworkControlsProps = {
   previewPort?: BackgroundPreviewProps["port"] | undefined;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
+  mediaContext?: BackgroundPreviewProps["mediaContext"];
 };
 
 export function ArtworkControls(props: ArtworkControlsProps) {
@@ -316,6 +317,7 @@ function ArtworkSheetContents({
   previewPort,
   Preview,
   previewActions,
+  mediaContext,
   isCurrentOpening,
 }: ArtworkControlsProps & { isCurrentOpening: () => boolean }) {
   const [selected, setSelected] = useState<ArtworkSlot>("cover");
@@ -365,6 +367,7 @@ function ArtworkSheetContents({
               active={selected === slot}
               Preview={Preview}
               previewActions={previewActions}
+              mediaContext={mediaContext}
               isCurrentOpening={isCurrentOpening}
             />
           )}
@@ -381,7 +384,7 @@ type ArtworkReviewTarget = {
   revision: number;
 };
 
-type ArtworkVisibilityReview = ArtworkReviewTarget & { action: "hide" | "automatic" };
+type ArtworkVisibilityReview = ArtworkReviewTarget & { action: "hide" | "show" | "automatic" };
 
 type ArtworkImageReview = ArtworkReviewTarget & {
   originalSha256: string;
@@ -407,6 +410,7 @@ function ArtworkSlotControl({
   active,
   Preview,
   previewActions,
+  mediaContext,
   isCurrentOpening,
 }: {
   port: BackgroundPreviewProps["port"];
@@ -416,6 +420,7 @@ function ArtworkSlotControl({
   active: boolean;
   Preview: ComponentType<BackgroundPreviewProps>;
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
+  mediaContext?: BackgroundPreviewProps["mediaContext"];
 }) {
   const [findOpen, setFindOpen] = useState(false);
   const { t } = useAppTranslation("detail");
@@ -572,7 +577,7 @@ function ArtworkSlotControl({
   };
 
   const visibilityTrigger = (action: ArtworkVisibilityReview["action"]) =>
-    action === "hide" ? hideButton.current : resetButton.current;
+    action === "automatic" ? resetButton.current : hideButton.current;
 
   const stageVisibility = (action: ArtworkVisibilityReview["action"]) => {
     if (!canChange || !cache || !display.state || !stillCurrent() || busy.current) return;
@@ -598,7 +603,9 @@ function ArtworkSlotControl({
       const result =
         review.action === "hide"
           ? await cache.suppress(port.id, slot, review.revision, stillCurrent)
-          : await cache.change(port.id, slot, review.revision, null, stillCurrent);
+          : review.action === "show"
+            ? await cache.unhide(port.id, slot, review.revision, stillCurrent)
+            : await cache.change(port.id, slot, review.revision, null, stillCurrent);
       if (!stillInView()) return;
       if (!result) {
         if (currentIdentity.current.cache !== cache) {
@@ -611,10 +618,15 @@ function ArtworkSlotControl({
       if (currentIdentity.current.cache !== cache) await refreshCurrent(result.choice.revision);
       if (!stillInView()) return;
       focusOwner = currentIdentity.current.cache ?? cache;
-      focusTarget = visibilityTrigger(review.action === "hide" ? "automatic" : "hide");
+      // The visibility toggle stays enabled after every outcome and keeps the player's place.
+      focusTarget = hideButton.current;
       setVisibilityReview(undefined);
       setMessage(
-        review.action === "hide" ? "Artwork hidden for this port." : "Automatic artwork restored.",
+        review.action === "hide"
+          ? "Artwork hidden for this port."
+          : review.action === "show"
+            ? "Artwork shown again."
+            : "Automatic artwork restored.",
       );
     } catch (value) {
       if (stillInView()) {
@@ -756,6 +768,7 @@ function ArtworkSlotControl({
   const hasReview = Boolean(draft || visibilityReview);
   const canChange = !pending && !hasReview && Boolean(display.state) && !display.stale;
   const notWide =
+    !hidden &&
     (slot === "detail" || slot === "landscape") &&
     selection != null &&
     selection.width <= selection.height;
@@ -770,7 +783,9 @@ function ArtworkSlotControl({
       <p>{description}</p>
       {hidden && (
         <p className="artwork-notice text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
-          Hidden for this port. Use automatic to show the default again.
+          {selection
+            ? "Hidden for this port. Show artwork to bring back your choice."
+            : "Hidden for this port. Show artwork to use the default again."}
         </p>
       )}
       {slot === "logo" && display.image && (
@@ -813,10 +828,10 @@ function ArtworkSlotControl({
           ref={hideButton}
           data-focusable
           variant="outline"
-          disabled={!canChange || hidden}
-          onClick={() => stageVisibility("hide")}
+          disabled={!canChange}
+          onClick={() => stageVisibility(hidden ? "show" : "hide")}
         >
-          Hide artwork
+          {hidden ? "Show artwork" : "Hide artwork"}
         </Button>
         <Button
           ref={findButton}
@@ -873,7 +888,11 @@ function ArtworkSlotControl({
           </h4>
           <p id={`${visibilityReviewId}-action`} className="m-0">
             {t(
-              visibilityReview.action === "hide" ? "artwork.reviewHide" : "artwork.reviewAutomatic",
+              visibilityReview.action === "hide"
+                ? "artwork.reviewHide"
+                : visibilityReview.action === "show"
+                  ? "artwork.reviewShow"
+                  : "artwork.reviewAutomatic",
             )}
           </p>
           {!pending && !draftIsCurrent(visibilityReview) && (
@@ -914,6 +933,7 @@ function ArtworkSlotControl({
             port={previewPort}
             Preview={Preview}
             previewActions={previewActions}
+            mediaContext={mediaContext}
             sourceLabel={sourceLabel}
             initialFraming={draft.framing}
             focusHeading={!draft.preserveFocus}

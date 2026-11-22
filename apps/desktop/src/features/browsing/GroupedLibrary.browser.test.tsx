@@ -602,6 +602,24 @@ it.each([
     await page.screenshot({
       path: `../../../../../outputs/ui-refinement/grouped-library-${layout}-${theme}-${width}-${zoom}.png`,
     });
+    const summary = page.elementLocator(
+      fixtureValue(
+        document.querySelector<HTMLElement>('summary[data-collection-control="alternatives"]'),
+        "Library alternatives",
+      ),
+    );
+    const disclosure = summary.element().closest("details")!;
+    const row = disclosure.closest("[data-collection-row]")!;
+    const fits = () =>
+      disclosure.getBoundingClientRect().bottom <= row.getBoundingClientRect().bottom + 1;
+    expect(disclosure.open).toBe(false);
+    await expect.poll(fits).toBe(true);
+    await summary.click();
+    await expect.poll(() => disclosure.open).toBe(true);
+    await expect.poll(fits).toBe(true);
+    expect(launch).not.toHaveBeenCalled();
+    await summary.click();
+    await expect.poll(() => disclosure.open).toBe(false);
   },
 );
 

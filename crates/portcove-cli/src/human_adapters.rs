@@ -235,7 +235,11 @@ pub(crate) fn artwork_state(state: &portcove_core::ArtworkState, catalog: &Catal
         state.choice.revision
     );
     if state.choice.suppressed {
-        output.push_str("\nArtwork hidden. Use artwork reset to return to automatic artwork.");
+        output.push_str(if state.selection.is_some() {
+            "\nArtwork hidden. Use artwork unhide to show the kept selection again, or artwork reset to return to automatic artwork."
+        } else {
+            "\nArtwork hidden. Use artwork unhide or artwork reset to return to automatic artwork."
+        });
     }
     if let Some(asset) = &state.selection {
         output.push_str(&format!("\n{}", artwork_asset(asset)));
@@ -597,7 +601,24 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         output.push_str(&format!("\nNext step: {next}"));
         return output;
     }
-    let mut output = human::failure(&error.report(), technical);
+    let report = error.report();
+    let mut output = human::failure(&report, technical);
+    // Core's summary names the remedy; the CLI adds its command form.
+    if matches!(
+        report.presentation.presentation_key.as_str(),
+        "exact_release_channel_differs"
+            | "exact_release_unreadable"
+            | "exact_release_channel_changed"
+    ) && let Some(port_id) = error.details.get("port_id").filter(|id| {
+        !id.is_empty()
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    }) {
+        output.push_str(&format!(
+            "\nTo follow the channel again: portcove channel follow {port_id}"
+        ));
+    }
     if error.code == ErrorCode::Usage {
         // The command comes only from this adapter's fixed command-name map.
         let help = match command {

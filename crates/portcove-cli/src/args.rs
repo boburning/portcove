@@ -767,6 +767,17 @@ pub(crate) enum ArtworkCommand {
         #[arg(long)]
         expected_revision: u64,
     },
+    /// Show hidden artwork again with the selection it kept while hidden.
+    Unhide {
+        /// Catalog port ID.
+        port_id: String,
+        /// Artwork slot to show again.
+        #[arg(long, value_enum, default_value = "cover")]
+        slot: ArtworkSlotArg,
+        /// Require the artwork revision returned by the preceding artwork show.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Remove only regenerable artwork cache files.
     ClearCache,
     /// List imported artwork assets no longer referenced by a port.
@@ -798,6 +809,7 @@ impl ArtworkCommand {
             Self::Import { .. } => "artwork.import",
             Self::Reset { .. } => "artwork.reset",
             Self::Suppress { .. } => "artwork.suppress",
+            Self::Unhide { .. } => "artwork.unhide",
             Self::Steamgriddb { command } => command.name(),
             Self::ClearCache => "artwork.clear-cache",
             Self::Unused => "artwork.unused",
@@ -2047,6 +2059,28 @@ pub(crate) enum ChannelCommand {
         /// Game release channel: stable, preview or rolling; beta remains a compatibility alias for preview.
         #[arg(value_enum)]
         channel: ChannelArg,
+    },
+    /// Review an exact release tag or direct-manifest version for the saved channel.
+    ReviewExact {
+        /// Catalog port ID from `portcove catalog list`.
+        port_id: String,
+        /// Exact upstream release tag or manifest version to review on the saved channel.
+        version: String,
+    },
+    /// Save the exact package identified by a current release review.
+    Pin {
+        /// Catalog port ID from `portcove catalog list`.
+        port_id: String,
+        /// Exact version used in the matching `portcove channel review-exact` review.
+        version: String,
+        /// Review SHA-256 from channel review-exact.
+        #[arg(long)]
+        review_sha256: String,
+    },
+    /// Clear the saved release pin and follow the current channel.
+    Follow {
+        /// Catalog port ID from `portcove catalog list`.
+        port_id: String,
     },
 }
 

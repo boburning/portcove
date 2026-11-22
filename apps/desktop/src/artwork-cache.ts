@@ -781,9 +781,23 @@ export class ArtworkCache {
     });
   }
   suppress(portId: string, slot: ArtworkSlot, revision: number, stillCurrent: () => boolean) {
+    return this.setVisibility(portId, slot, revision, stillCurrent, "hide");
+  }
+  unhide(portId: string, slot: ArtworkSlot, revision: number, stillCurrent: () => boolean) {
+    return this.setVisibility(portId, slot, revision, stillCurrent, "show");
+  }
+  private setVisibility(
+    portId: string,
+    slot: ArtworkSlot,
+    revision: number,
+    stillCurrent: () => boolean,
+    visibility: "hide" | "show",
+  ) {
     return this.schedule(undefined, async () => {
       if (!stillCurrent() || this.read(portId, slot).stale) return undefined;
-      const state = await desktopApi.suppressArtwork(portId, slot, revision, this.generation);
+      const state = await (
+        visibility === "hide" ? desktopApi.suppressArtwork : desktopApi.unhideArtwork
+      )(portId, slot, revision, this.generation);
       await this.display(portId, slot, state, stillCurrent);
       return state;
     });

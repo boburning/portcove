@@ -18,6 +18,7 @@ use std::{
 use tough::schema::{Root, Signed, Targets};
 
 mod bundle;
+mod history_checkpoint;
 mod io;
 mod key_inventory;
 mod policy;
@@ -165,6 +166,10 @@ struct ContextConfig {
     prepared_bundle: String,
     inspection: String,
     inspection_sha256: String,
+    #[serde(default)]
+    bootstrap_history: bool,
+    #[serde(default)]
+    history_store: Option<String>,
     previous_repository: serde_json::Value,
     versions: Four<u64>,
     expires: Four<String>,
@@ -189,11 +194,19 @@ struct Context {
     expires: [Timestamp; 4],
     at: Timestamp,
     inputs: Vec<PathBuf>,
+    thin_history: bool,
+    history_store: Option<PathBuf>,
+    bootstrap_history: bool,
+    history: Option<history_checkpoint::PreparedHistory>,
     prior: public_history::PublicHistory,
     readback: Vec<(PathBuf, u64, String)>,
     trees: Vec<(PathBuf, usize, u64, String)>,
 }
 async fn load_context(path: &Path) -> Result<Context> {
+    load_context_mode(path, false).await
+}
+
+async fn load_context_mode(path: &Path, thin_history: bool) -> Result<Context> {
     let config_raw = io::read(path, CONFIG_MAX)?;
     let config: ContextConfig = serde_json::from_slice(&config_raw)?;
     let online_targets =
@@ -271,6 +284,14 @@ async fn load_context(path: &Path) -> Result<Context> {
         bundle_path,
         inspection_path,
     ];
+    let history_store = config
+        .history_store
+        .as_deref()
+        .map(|value| io::resolve(base, value))
+        .transpose()?;
+    if let Some(store) = &history_store {
+        inputs.push(store.clone());
+    }
     let mut context = Context {
         root_bytes,
         root,
@@ -284,21 +305,50 @@ async fn load_context(path: &Path) -> Result<Context> {
         expires,
         at,
         inputs: vec![],
+        thin_history,
+        history_store,
+        bootstrap_history: config.bootstrap_history,
+        history: None,
         prior: public_history::PublicHistory::default(),
         readback,
         trees: vec![],
     };
     if let Some(previous) = config.previous_repository.as_str() {
         let previous = io::resolve(base, previous)?;
-        context.prior = repository::inspect_prior(&context, &previous).await?;
+        let (prior, history) = repository::inspect_prior(&context, &previous).await?;
+        context.prior = prior;
+        if let Some(prepared) = history {
+            if context
+                .targets
+                .insert(
+                    history_checkpoint::TARGET.into(),
+                    prepared.pointer_bytes.clone(),
+                )
+                .is_some()
+            {
+                return invalid("catalog bundle cannot appoint its own history checkpoint");
+            }
+            context.readback.extend(prepared.readback.iter().cloned());
+            context.history = Some(prepared);
+        }
         repository::check_proposed_target_capacity(&context.prior, &context.targets)?;
+        let (files, bytes) = if context.thin_history && context.history_store.is_some() {
+            (
+                history_checkpoint::THIN_MAX_FILES,
+                history_checkpoint::THIN_MAX_BYTES,
+            )
+        } else {
+            (PUBLIC_REPOSITORY_MAX_FILES, PUBLIC_REPOSITORY_MAX_BYTES)
+        };
         trees.push((
             previous.clone(),
-            PUBLIC_REPOSITORY_MAX_FILES,
-            PUBLIC_REPOSITORY_MAX_BYTES,
+            files,
+            bytes,
             sha(&serde_json::to_vec(&context.prior.identities())?),
         ));
         inputs.push(previous);
+    } else if context.bootstrap_history || context.history_store.is_some() {
+        return invalid("catalog history requires an authenticated predecessor");
     } else if !config.previous_repository.is_null() {
         return invalid("catalog prior repository must be an explicit path or null");
     } else if context.versions.iter().any(|v| v.get() != 1)

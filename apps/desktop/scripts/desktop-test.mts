@@ -34,7 +34,16 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+  lstat,
+  realpath,
+  rename,
+} from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -89,6 +98,7 @@ import {
   prepareBootstrapRecoveryFixture,
 } from "./desktop-bootstrap-recovery-test.mts";
 import { preparationScenarios } from "./desktop-preparation-test.mts";
+import { prepareLibraryRecoveryBundleFixture } from "./desktop-library-handoff-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
 import { setupBatchScenario, largeSetupReviewScenario } from "./desktop-setup-batch-test.mts";
@@ -159,6 +169,8 @@ import { defaultCoverScenario, reviewedScreenshotScenario } from "./desktop-defa
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
+  hostPublicationScenarios,
+  usesHostPublicationHarness,
 } from "../../../scripts/desktop-scenarios.mts";
 import { acquireNativeSessionLock } from "../../../scripts/native-session-lock.mts";
 import { observeStartup } from "./desktop-startup-observation.mts";
@@ -315,9 +327,8 @@ const interruptedPreparationSession =
   selection.selected_scenarios.includes("native-interrupted-preparation-recovery");
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
-const hostPublicationSession = selection.selected_scenarios.includes(
-  "native-host-publication-recovery",
-);
+let bundleRestartUsesSavedSelection = false;
+const hostPublicationSession = usesHostPublicationHarness(selection.selected_scenarios);
 if (selection.prerequisites.includes("owned-fixture") && !values["preparation-cli"])
   throw new Error("Selected fixture scenarios require the owned preparation CLI/tool inputs");
 if (!Number.isInteger(port) || port < 1024 || port > 65533)
@@ -1791,6 +1802,23 @@ async function restartApplication(
   prepareWhileStopped?: () => Promise<void>,
   childEnvironment: NodeJS.ProcessEnv = {},
 ) {
+  if (name === "restored-library-explicitly-opened") {
+    assert.deepEqual(selection.selected_scenarios, ["native-library-recovery-bundle"]);
+    assert.equal(prepareWhileStopped, undefined);
+    const preferences: unknown = JSON.parse(
+      await readFile(path.join(runtimeRoot, "preferences.json"), "utf8"),
+    );
+    assert.ok(
+      typeof preferences === "object" &&
+        preferences &&
+        "library_root" in preferences &&
+        typeof preferences.library_root === "string",
+    );
+    const expected = path.join(output, "restored-library");
+    assert.equal(await realpath(preferences.library_root), await realpath(expected));
+    assert.equal(await realpath(expected), path.join(await realpath(output), "restored-library"));
+    bundleRestartUsesSavedSelection = true;
+  }
   const selectedSetupRestart = name === "selected-setup-inputs";
   if (linuxSelectedSession) {
     assert.equal(name, "selected-setup-inputs");
@@ -2319,7 +2347,9 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     delete environment.CHROME_CONFIG_HOME;
     delete environment.CHROME_USER_DATA_DIR;
   }
-  return savedLibraryRecoverySession ? bootstrapRecoveryEnvironment(environment) : environment;
+  return savedLibraryRecoverySession || bundleRestartUsesSavedSelection
+    ? bootstrapRecoveryEnvironment(environment)
+    : environment;
 }
 
 async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
@@ -2672,6 +2702,7 @@ try {
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
+      managedCopyJourney: Boolean(executionPlan.fixtures.managedCopyJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -2703,6 +2734,41 @@ try {
           output,
           fixture: installFixture,
         });
+    }
+    if (installFixture.managedCopyJourney) {
+      // This CLI registration seeds owned pre-state. The native case observes
+      // the reviewed transition from that registration and never runs it.
+      const directory = path.join(output, "managed-copy-external");
+      await mkdir(directory);
+      const executable = path.join(directory, "external-fixture.exe");
+      const save = path.join(directory, "external-save.txt");
+      await copyFile(required(values["preparation-tool"]), executable);
+      await writeFile(save, "owned external save to preserve", { flag: "wx" });
+      inputs.push(await fileIdentity(executable), await fileIdentity(save));
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      const args = [installFixture.port.id, executable, "--working-directory", directory];
+      const preview = transportValue(
+        "external_runtime_preview",
+        command(["external", "select-preview", ...args]),
+      );
+      const registered = transportValue(
+        "external_runtime_record",
+        command([
+          "external",
+          "select",
+          ...args,
+          "--expected-preview",
+          preview.preview_sha256,
+          "--yes",
+        ]),
+      );
+      assert.equal(registered.port_id, installFixture.port.id);
+      assert.equal(registered.executable, preview.executable);
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     if (
@@ -2844,6 +2910,16 @@ try {
     selection.selected_scenarios[0] === "native-default-cover-cache-conditions"
   )
     firstOfflineCover = await createImageRefusal();
+  const libraryRecoveryBundleFixture = selection.selected_scenarios.includes(
+    "native-library-recovery-bundle",
+  )
+    ? await prepareLibraryRecoveryBundleFixture({
+        library,
+        output,
+        command: ownedFixtureCommand({ cli: required(values["preparation-cli"]), library, output }),
+        tool: required(values["preparation-tool"]),
+      })
+    : undefined;
   await startDriver(firstOfflineCover?.environment);
   await connect();
   if (runnerMetadata.acceptance_bindings) {
@@ -2942,31 +3018,33 @@ try {
     await writeFile(record, JSON.stringify(historyInventory, null, 2), { flag: "wx" });
     artifacts.push(record);
   }
-  await scenario("native-host-publication-recovery", async () => {
-    const fixture = required(installFixture);
-    await hostPublicationScenario({
-      browser: driverBrowser(),
-      output,
-      library,
-      artifacts,
-      fixture,
-      command: ownedFixtureCommand({
-        cli: required(values["preparation-cli"]),
+  for (const publicationScenario of hostPublicationScenarios)
+    await scenario(publicationScenario, async () => {
+      const fixture = required(installFixture);
+      await hostPublicationScenario({
+        browser: driverBrowser(),
+        output,
         library,
-        output,
-        catalogPath: fixture.catalogPath,
-      }),
-      invoke,
-      confirmNative: nativeConfirmation({
-        application,
-        getDriverPid: () => required(required(driver).pid),
-        output,
         artifacts,
-      }),
-      restartApplication,
-      interruptHost: interruptCheckpointHost,
+        fixture,
+        command: ownedFixtureCommand({
+          cli: required(values["preparation-cli"]),
+          library,
+          output,
+          catalogPath: fixture.catalogPath,
+        }),
+        invoke,
+        confirmNative: nativeConfirmation({
+          application,
+          getDriverPid: () => required(required(driver).pid),
+          output,
+          artifacts,
+        }),
+        restartApplication,
+        interruptHost: interruptCheckpointHost,
+        bundleOnly: publicationScenario === "native-library-recovery-interruption",
+      });
     });
-  });
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) {
     await registeredSourceReuseScenario({
       browser: driverBrowser(),
@@ -3549,9 +3627,29 @@ try {
     const browser = driverBrowser();
     const before = await invoke("get_bootstrap_status");
     assert.ok(before.ok);
-    const defaultRoot = await invoke("get_default_library_root");
-    assert.ok(defaultRoot.ok);
-    assert.ok(defaultRoot.value);
+    const generation = before.value.generation;
+    const preferenceReview = async () =>
+      transportValue(
+        "desktop_library_selection_review",
+        success(
+          await invoke("review_library_selection", {
+            path: null,
+            generation: generation,
+          }),
+        ),
+      );
+
+    const expected = await preferenceReview();
+    assert.equal(expected.source, "platform_default");
+    assert.equal(expected.effect, "open");
+    assert.match(expected.review_sha256, /^[0-9a-f]{64}$/);
+    const contents = {
+      empty_directory: "This folder is empty. Portcove will start a new library here.",
+      new_default_directory: "Portcove will create the default library folder.",
+      existing_database:
+        "This folder contains a library database. Portcove checks it when opening.",
+      recovery_records: "This folder contains recovery records. Portcove checks them when opening.",
+    }[expected.contents];
     await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
@@ -3573,7 +3671,8 @@ try {
     );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
-    assert.ok(reviewText.includes(defaultRoot.value));
+    assert.ok(reviewText.includes(expected.path));
+    assert.ok(reviewText.includes(contents));
     assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
       success(await invoke("get_bootstrap_status")).library_root,
@@ -3620,6 +3719,7 @@ try {
       "Library selection review trigger did not regain focus after Escape",
     );
     assert.deepEqual(success(await invoke("get_bootstrap_status")), before.value);
+    assert.deepEqual(await preferenceReview(), expected);
   });
   await scenario("native-library-browsing-context", async () => {
     const browser = driverBrowser();
@@ -5346,6 +5446,7 @@ try {
                     : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
+                ...(libraryRecoveryBundleFixture ? { libraryRecoveryBundleFixture } : {}),
                 ...(executionPlan.fixtures.updateReviewJourney
                   ? { catalogPath: required(installFixture).catalogPath }
                   : {}),

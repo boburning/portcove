@@ -3,7 +3,10 @@ use crate::{
     DesktopResult, DesktopState, blocking_worker, require_library_generation,
     service_at_generation, state_generation,
 };
-use portcove_core::{GameSettingChange, GameSettingReview, GameSettingsView, PortcoveService};
+use portcove_core::{
+    GameSettingChange, GameSettingReview, GameSettingsChangeSetReview, GameSettingsChangeSetView,
+    GameSettingsEdit, GameSettingsView, PortcoveService,
+};
 
 /// Orders settings reads after an in-process settings change instead of letting
 /// them meet its exclusive port lock, which refuses a shared reader at once.
@@ -134,6 +137,56 @@ pub(crate) async fn apply_game_setting(
     blocking_worker(move || {
         at_generation(&state, generation, |service| {
             service.apply_game_setting(&port_id, &file_id, &setting_id, change, &review_sha256)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_game_settings_change_set_view(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<GameSettingsChangeSetView> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.get_game_settings_change_set_view(&port_id)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn review_game_settings_change_set(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    file_id: String,
+    edits: Vec<GameSettingsEdit>,
+) -> DesktopResult<GameSettingsChangeSetReview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        review_at_generation(&state, generation, |service| {
+            service.review_game_settings_change_set(&port_id, &file_id, &edits)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_game_settings_change_set(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    file_id: String,
+    edits: Vec<GameSettingsEdit>,
+    review_sha256: String,
+) -> DesktopResult<GameSettingsView> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        at_generation(&state, generation, |service| {
+            service.apply_game_settings_change_set(&port_id, &file_id, &edits, &review_sha256)
         })
     })
     .await

@@ -771,23 +771,27 @@ specifies request bounds, version semantics, and independent trust checks.
 
 ## Local artwork ownership
 
-Local Logo is an independent choice in library schema 74. It uses the same
+Local Logo is an independent choice in library schema 75. It uses the same
 bounded static image ingest, content store, revision checks and read-only
 thumbnail path as the existing Cover, Detail and Landscape choices. Library
-metadata records a Logo selection or reset revision under schema 13.
+metadata records a Logo selection or reset revision under schema 14.
 
-Library schema 76 records explicit role suppression alongside the choice
-revision. A suppressed slot carries no asset or framing. Core keeps a neutral
-fallback available and withholds automatic Cover, companion and collection
-images. Metadata schema 15 preserves a suppressed choice across export and
-restore. The destination handoff remains schema 4 and reports no local original
-for that role.
+Library schema 77 records explicit role suppression alongside the choice
+revision. Hiding is independent of the selection: a hidden slot keeps its
+selected asset and framing stored but never displays or reads them, and
+unhiding restores exactly that selection (or automatic artwork when none was
+selected). Choosing a new image shows the role; reset clears both. Core keeps a
+neutral fallback available and withholds the retained selection and automatic
+Cover, companion and collection images. Framing cannot change while hidden.
+Metadata schema 16 preserves the hidden state and its retained selection across
+export and restore. The destination handoff remains schema 4 and reports no
+local original for a hidden role.
 
 Core stores versioned wide and narrow focal points with the selected Detail
-asset and its choice revision in library schema 75. Each coordinate is measured
+asset and its choice revision in library schema 76. Each coordinate is measured
 in ten-thousandths of the orientation-corrected image. Replacing the asset or
 returning to automatic artwork clears its framing. Exports that include framing
-require library metadata schema 14 and restore it against the same admitted
+require library metadata schema 15 and restore it against the same admitted
 choice. The destination handoff carries the original asset and its choice
 revision and omits these presentation points.
 
@@ -1533,6 +1537,11 @@ visible alongside new events during the next bounded batch. Fresh scans, stale
 snapshots and restart-required checkpoints do not carry matches into the live
 view. These observations still require ordinary registration and Core plan
 revalidation; continuing a scan grants no additional setup authority.
+The same workspace retains the last completed one-off search for its exact
+folder and file profile. Reviewing it opens the completed report without
+another search. The Inbox and saved folders have separate results. Reopened
+matches require a fresh Core import plan for the same identity before any
+registration. Changing libraries discards the retained one-off report.
 Desktop also keeps an ephemeral selection of up to 512 independent ports (the
 Core batch bound) for setup review within the current library workspace.
 "Select all eligible" adds every currently reviewable port except ports that
@@ -2679,7 +2688,7 @@ existing crate dependency rules remain unchanged.
 
 Before launch, catalog-declared persistent paths are synchronized from `user/<port-id>/` into the active version. They are collected from that exact launched version when the child exits and before update, staged activation, rollback, removal, or backup. Synchronization refuses symlink destinations and ancestors. A per-version marker prevents a fresh release's defaults from replacing established user data while still recovering changes after an abnormal exit. Adapters may also use an upstream storage contract: Libultraship receives `SHIP_HOME`, N64 recomp releases get their upstream-supported `portable.txt` marker, and a reviewed catalog entry can declare a portable marker beside its executable together with a narrowly validated source-import variable and fixed arguments. Mutable paths are resolved against the same working directory the adapter launches, including when a release archive contains a wrapper directory.
 
-Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. Embedded persistent patterns can explicitly match an empty interior. Indexed definitions and disposable runtime patterns keep the existing nonempty interior contract. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
+Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. Embedded persistent patterns can explicitly match an empty interior. Indexed definitions and disposable runtime patterns keep the existing nonempty interior contract. A scan streams the directory and admits at most 1,048,576 entries and 65,536 matching regular files (bounds raised on November 22, 2026 from 4,096 and 1,024); beyond either bound the operation refuses instead of protecting a subset, and links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
 
 Catalog `runtime_mutable_file_patterns` reuses that anchored filename syntax for narrowly reviewed, disposable files created inside the managed runtime working directory. Core projects both pattern classes into the existing manifest `mutable_file_patterns`, with their separately resolved directories, so immutable verification has one fail-closed matching boundary. Only `persistent_file_patterns` participates in enumeration, backup, restore and migration; runtime-only matches never become player-data ownership. Catalog validation refuses unsupported adapters, overlapping declarations, executables, source materialization, Portcove metadata, exact runtime paths and persistent data, while manifest construction and import repeat the resolved executable/runtime checks. An absent field preserves prior catalog serialization and existing manifest schemas require no new authority. External per-user paths remain outside this contract.
 
@@ -2699,7 +2708,15 @@ Desktop compares existing library roots through Core validation. Reselecting
 the active root keeps the workspace generation and preference bytes when the
 canonical choice and startup source already agree. An explicit change to the
 startup choice still persists, even when the current library stays open.
-Switching to another root still requires the outgoing library to be idle.
+The Settings review classifies directory evidence without opening or creating
+a library. It discloses the canonical path, recognized database or recovery
+records and the startup effect. Before acting, Desktop recomputes the review
+against the current generation and preference selection. Core compares the
+reviewed preference change again under the host preference lock. Replacing an
+invalid preference document requires an explicit full-reset review. A retained
+move source prompts the player to pick the current folder, while startup keeps
+following the recorded move. Core still opens and validates the chosen library.
+Switching roots requires the outgoing library to be idle.
 
 Favorites use the compatible `favorites_by_library` extension in that same
 format-1 host preference document. `HostPreferenceStore::favorite_ports` and
@@ -2863,7 +2880,7 @@ grant a file mutation through the disclosure.
 An explicit backup and removal (review and execution) copy every unknown file
 and need only the space for the whole backup (owner decision, November 15,
 2026): when there are unknown files, the library volume must keep the larger
-of 1 GiB and 2% of the volume free after the saves and settings plus the
+of 1 GiB and 2% of the volume, capped at 8 GiB (owner decision, November 22, 2026), free after the saves and settings plus the
 stored unknown files, or they hold instead of truncating. A removal with no
 unknown files takes no backup, and an explicit backup of saves alone, checks
 nothing new. The removal review reports the stored unknown bytes as
@@ -2975,11 +2992,71 @@ and destination own completion of bookkeeping. The player opens the recovered li
 selection operation.
 
 In Desktop, open **Settings**, then **Library and storage**. Select **Create
-recovery bundle** to review coverage and the destination before copying. Select
-**Inspect or restore a bundle** to verify a finished copy and review a separate
-restore. After a restore completes, choose the restored folder through library
+recovery bundle** to review coverage and the destination before copying. After
+a restart, review the same destination from the same library. A matching
+interrupted intent offers **Resume bundle creation**. If a write fails before
+Core can authenticate the journal, the error does not offer a staging resume.
+After authentication, copy failure preserves the journal and copied data for
+another attempt. When the authenticated
+intent matches a publication at that destination, **Verify published bundle**
+reads the exact receipt and checks its contents without replaying the copy.
+Select **Inspect or restore a bundle** to verify a finished copy and review a
+separate restore. If verifying the selected folder fails, Desktop keeps the
+folder available to retry and offers the verification details. An occupied
+restore folder keeps the verified bundle and returns focus to the destination
+field, with a request for a new or empty folder. Core still refuses the occupied
+destination and supplies the technical reason. A fresh review of the same
+bundle and restore folder rediscovers its authenticated transfer. Resume checks an interrupted copy,
+and a completed restore offers a read of its recorded result. After a restore completes, choose the restored folder through library
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
+
+Core reports each failure's outcome at the operation that observed it. The
+read-only commands that inspect a bundle, check a published bundle against its
+review, or read a recorded restore result report that no files changed. A
+restore failure before its journal exists reports that the restore did not
+start: nothing was copied, and the destination holds at most an empty folder
+with its lease file, which a new review accepts. Once the restore journal or the
+authenticated creation intent exists, every failure reports recovery required
+and names the resumable folder. This includes a re-check of the bundle inside a
+restore, a cancel and a full drive. When the operating system reports a full
+drive or quota, Core shows a plain explanation and keeps the operating-system
+text in the technical details. An aborted import that is reviewed again reports
+no changes.
+
+Portcove never deletes a retained creation staging directory or its `work`
+folder. After publication, the staging directory and its `work` folder stay in
+the destination's parent until the player removes them. Retained staging may hold
+the only copy of data the player needs, so automatic cleanup needs its own
+review. No safe cleanup for these directories exists yet; it is an open item.
+
+The opt-in Linux storage-exhaustion test uses an empty 80 MiB tmpfs in
+a private mount namespace. It reserves space after Core writes the authenticated
+intent, observes the kernel's write failure, then frees the reservation and
+resumes the same copy. Run it through the normal resource guard from an
+isolated checkout:
+
+```sh
+node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-command \
+  unshare --user --map-root-user --mount --propagation private bash -eu -c '
+    test_mount=$(mktemp -d "$PORTCOVE_TEMP_DIR/recovery-enospc.XXXXXXXX")
+    cleanup() {
+      if mountpoint -q "$test_mount"; then
+        umount "$test_mount"
+      fi
+      rmdir "$test_mount"
+    }
+    trap cleanup EXIT
+    mount -t tmpfs -o size=80m,mode=0700,nosuid,nodev,noexec tmpfs "$test_mount"
+    export PORTCOVE_RECOVERY_TEST_MOUNT="$test_mount"
+    cargo test --locked -p portcove-core --lib \
+      a_full_filesystem_leaves_the_exact_recovery_copy_resumable -- --ignored
+  '
+```
+
+The test exercises Core copying against a real Linux capacity limit. It
+uses the Core unit test's deterministic authority and does not qualify the
+production secure store, Windows filesystems or the Desktop presentation.
 
 ## Library imports
 
@@ -3181,9 +3258,11 @@ derivation version and a provenance (`reviewed` for an exactly listed artifact,
 `inherited` when every compared part equals a reviewed or inherited baseline's,
 which says nothing about content outside those parts, else `unreviewed`). The
 field is additive, does not change the manifest schema version and grants
-nothing. Core stores it as untyped JSON and parses it only when it is read: a
-record with another derivation version, or with a part, status or reason this
-build does not know, reads as no record and never makes the manifest, its
+nothing. Installs record components only and write derivation version 1 (the
+component rules version), so earlier builds keep reading them; this build reads
+versions 1 and 2. Core stores it as untyped JSON and parses it only when it is
+read: a record with a derivation version outside that range, or with a part,
+status or reason this build does not know, reads as no record and never makes the manifest, its
 verification, launch checks or rollback fail. Manifest rewrites, such as an
 archive-data admission, carry the stored value unchanged. An active
 installation's recorded shape is eligible as a local fallback baseline when the
@@ -3333,6 +3412,12 @@ execution, arbitrary crash or power-loss guarantee follows from this map.
 Adoption uses the same publication state machine and never copies into a final version path directly. Its first step recursively hashes every regular file into a deterministic copy plan, preserves empty directories, and reports symlinks or special entries that will be skipped. The reviewed plan fingerprint is authorized for five minutes and one use; core recomputes it under the port lock and verifies the private copied tree before activation. Persistent data is taken from that verified private copy, never from a source path that can change after copying. Removal runs the publication state machine in reverse: every registered managed version is renamed under `recovery/<operation-id>/` before SQLite metadata is deleted, then quarantine cleanup is retried. Port removal, backup restore, backup deletion, adoption, source-reference removal and retained-preparation cleanup all consume action-, target-, and state-bound core authorizations. Desktop issuance occurs only after a native backend-owned confirmation dialog; renderer state cannot authorize a destructive command. Backup, installed-game removal and retained-preparation cleanup also provide detailed custom reviews before this final confirmation. The Desktop cleanup review distinguishes deletion of unfinished setup's working files from clearing an empty setup record, while showing the recorded path and preserved locations in either case. Core still revalidates the selected action and reviewed state under its operation lock. Startup advances only recorded states whose payload, manifest and path layout are unambiguous. A preparation interrupted before validation remains failed and cannot be resumed. Its exact operation-private tree may be discarded only after an inventory-bound review while the port and original activity are idle. Core records the accepted cleanup before deletion; startup may retry that deletion but cannot reinterpret the original preparation as successful. The action never owns the recorded original installation, source, saved data, backups or logs, and it never deletes an untracked final directory. The read-only doctor repair plan distinguishes retained private preparation from other incomplete journals, cleanup-pending trees, registered paths that are missing and orphaned final directories with proposed review actions.
 
 Staged activation and rollback collect user data from the version being deactivated only when its per-version launch marker proves it has actually run, then change active/previous pointers transactionally. The same guard applies before install, update, removal, and retained-version reuse, so a verified but never-launched release cannot propagate absent files as user-requested deletions. Adoption copies files into a new managed version and leaves the source directory untouched.
+
+Backup restore review binds the library save folder, registered installations and
+their roles, and the materialized setup and revision. Core incorporates that
+binding into the authorization fingerprint along with the reviewed backup and
+saved data. Desktop compares the binding across an explicit history refresh
+before offering fresh consent for the same snapshot.
 
 Backup restore publishes its verified canonical snapshot, then synchronizes the declared persistent paths in every registered version before completing the journal. This also removes files absent from the restored snapshot and clears stale launch markers. Active, previous, staged, and retained versions therefore cannot overwrite a restore at the next launch, rollback, activation, or save collection. This costs a bounded pass over each existing managed version; missing versions remain repair items, and unsafe paths fail without following links. Interrupted synchronization is idempotently retried from the published canonical data. Launch and save collection reject an unfinished prepared or published restore, including when the same service instance remains alive after failure. The automatic safety backup preserves the pre-restore canonical data.
 
@@ -4420,6 +4505,11 @@ host's secure-storage key; ordinary copying does not mint another host's trust.
 The UI reports metadata export only, never a verified backup or a manual checkbox
 as verification. Existing content-bound import checks publication into a new/empty
 destination; Move separately switches authority and retains its original tree.
+The Desktop metadata export checks the starting library generation after the
+save picker returns. A support report from Settings checks the generation of the
+diagnostics snapshot it collects. Settings retains the last confirmed library information
+export and support report while navigating in the same library generation.
+Opening Settings again uses the saved receipt and does not rerun either export.
 Profile/workspace presentation state cannot change these Core guarantees.
 
 The manual-copy guide must also disclose host-local version credentials before

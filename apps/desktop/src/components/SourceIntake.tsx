@@ -1,3 +1,8 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import {
+  applyReviewedSourceImport,
+  sourceImportApplyError,
+} from "../features/source-intake/source-registration-receipt";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
@@ -104,6 +109,7 @@ function useSourceIntakeSession({
   hostTools = [],
   hostToolActions,
 }: SourceIntakeDialogProps) {
+  const perform = useOperationPresentation()?.perform;
   const opener = useRef(typeof document === "undefined" ? null : document.activeElement);
   const copy = sourceIntakeCopy(request.purpose);
   const [result, setResult] = useState<SourceIntakeInspection>();
@@ -113,7 +119,10 @@ function useSourceIntakeSession({
   const [notice, setNotice] = useState<string>();
   const [saved, setSaved] = useState<SourceRecord>();
   const [refreshFailed, setRefreshFailed] = useState(false);
-  const [selectedPaths, setSelectedPaths] = useState(request.paths);
+  // The keyed session owns its initial selection. An equivalent request object
+  // from a parent render must not restart inspection or retire a pending save.
+  const [initialPaths] = useState(request.paths);
+  const [selectedPaths, setSelectedPaths] = useState(initialPaths);
   const [storeOriginals, setStoreOriginals] = useState<StoreGameInstalls["installs"] | undefined>(
     request.setup?.storeOriginals,
   );
@@ -207,10 +216,10 @@ function useSourceIntakeSession({
   }, [request, savedLocationFailed, savedLocations, storeOriginals]);
 
   useEffect(() => {
-    if (request.paths.length > 0) {
+    if (initialPaths.length > 0) {
       const current = ++intent.current;
       void desktopApi
-        .inspectSourceIntake(request.profile.id, request.paths)
+        .inspectSourceIntake(request.profile.id, initialPaths)
         .then((inspection) => {
           if (intent.current === current) setResult(inspection);
         })
@@ -221,10 +230,12 @@ function useSourceIntakeSession({
           if (intent.current === current) setBusy("");
         });
     }
+  }, [initialPaths, request.profile.id]);
+  useLayoutEffect(() => {
     return () => {
       intent.current += 1;
     };
-  }, [request.paths, request.profile.id]);
+  }, []);
 
   const choose = async () => {
     setError(undefined);
@@ -269,31 +280,36 @@ function useSourceIntakeSession({
     setBusy(`${presentation.label}…`);
     setError(undefined);
     try {
-      const imported = await desktopApi.importSource(
-        plan.profile_id,
-        plan.source.path,
-        plan.mode,
-        plan.plan_sha256,
-        request.generation,
-      );
-      if (intent.current !== current) return;
+      const { result: imported, refreshFailed } = await applyReviewedSourceImport({
+        perform,
+        plan,
+        generation: request.generation,
+        label: request.profile.label,
+        action: request.purpose === "bios" ? "Save BIOS file location" : "Save game-file location",
+        // The workspace owner still reads back a commit after this dialog retires.
+        refresh:
+          !perform && onAdded
+            ? async () => {
+                if (intent.current === current) await onAdded();
+              }
+            : onAdded,
+      });
+      if (intent.current !== current || imported === undefined) return;
       setPlan(undefined);
       if (!imported)
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
       else {
         setSaved(imported.registered);
-        setNotice(sourceImportNotice(imported));
-        try {
-          await onAdded?.();
-        } catch {
-          if (intent.current === current) {
-            setRefreshFailed(true);
-            setNotice(sourceImportRefreshNotice(imported));
-          }
-        }
+        setRefreshFailed(refreshFailed);
+        setNotice(
+          refreshFailed ? sourceImportRefreshNotice(imported) : sourceImportNotice(imported),
+        );
       }
     } catch (value) {
-      if (intent.current === current) setError(errorText(value));
+      if (intent.current === current) {
+        setPlan(undefined);
+        setError(sourceImportApplyError(value));
+      }
     } finally {
       if (intent.current === current) setBusy("");
     }

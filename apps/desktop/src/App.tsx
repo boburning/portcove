@@ -1,5 +1,9 @@
 import { SetupLaunchDraftsProvider } from "./features/browsing/setup-launch-drafts";
 import {
+  LibraryRecoveryBundleContinuation,
+  LibraryRecoveryBundleProvider,
+} from "./components/LibraryRecoveryBundle";
+import {
   FavoriteGameButton,
   FavoritePreferenceFailure,
 } from "./features/organization/OrganizationControls";
@@ -37,6 +41,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import { SettingsExportResultsProvider } from "./features/workspace/settings-export-results";
 import {
   sourcesKey,
   useStandingSetupCatchUp,
@@ -50,6 +55,8 @@ import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
 import {
   canOpenExternalRegistration,
+  canOpenInstalledResult,
+  matchingSavedSource,
   targetInvocationContext,
 } from "./features/operations/invocation-state";
 import {
@@ -113,6 +120,7 @@ import {
   type GameSourceDropReview,
   PortBrowser,
   SteamBatchLibraryAction,
+  visibleRecentPort,
 } from "./components/PortBrowser";
 import { ListingDetailPanel } from "./components/ListingDetailPanel";
 import { SelfServiceSetup } from "./components/SelfServiceSetup";
@@ -174,10 +182,13 @@ import {
   type View,
 } from "./view-model";
 import { gameIdentityLabel, gameTitle } from "./port-identity";
+import { AutomaticSnapshotsProvider } from "./components/AutomaticSnapshotsSetting";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
 import { referenceIdentity } from "./shared/reference-identity";
+import { activeSourceHeroMediaContext, canCheckEditionArtwork } from "./hero-media";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
+import { withoutVerbatimPrefix } from "./path-presentation";
 
 export const missingBootstrapError = {
   code: "state",
@@ -190,7 +201,9 @@ export default function App() {
     <TooltipProvider>
       <InterfaceSizeProvider>
         <InvocationOwnerProvider>
-          <PortcoveApp />
+          <LibraryRecoveryBundleProvider>
+            <PortcoveApp />
+          </LibraryRecoveryBundleProvider>
         </InvocationOwnerProvider>
       </InterfaceSizeProvider>
     </TooltipProvider>
@@ -346,6 +359,7 @@ export function BootstrapRecovery({
           presentation={error.presentation}
           code={error.code}
           contextLabel={startupDetailLabel}
+          contextValue={startupDetailValue}
           showMutationSummary={!hasGenericUncertainty}
         />
       ) : (
@@ -491,7 +505,7 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
             <div key={key}>
               <dt className="text-xs text-pc-muted-foreground">{label ?? <code>{key}</code>}</dt>
               <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
-                {value}
+                {startupDetailValue(key, value)}
               </dd>
             </div>
           );
@@ -499,6 +513,19 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
       </dl>
     </details>
   );
+}
+
+const startupPathDetails = new Set([
+  "path",
+  "library_root",
+  "lock_path",
+  "import_destination",
+  "retained_source",
+]);
+
+/** Shows recorded paths as the player knows them; recovery actions keep Core's raw value. */
+function startupDetailValue(key: string, value: string) {
+  return startupPathDetails.has(key) ? withoutVerbatimPrefix(value) : value;
 }
 
 function startupDetailLabel(key: string) {
@@ -525,8 +552,8 @@ type WorkspaceProps = {
   bootstrap: BootstrapStatus;
   initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 };
@@ -598,22 +625,6 @@ function useWorkspace(props: WorkspaceProps) {
   )
     ? undefined
     : data.catalog?.ports.find((port) => port.id === ui.selectedId);
-  const inspectionProfiles = useMemo(
-    () =>
-      ui.view === "settings"
-        ? data.sources.map((source) => source.profile_id)
-        : [selectedPort?.source_profile, selectedPort?.bios_source_profile].filter(
-            (profile): profile is string => Boolean(profile),
-          ),
-    [data.sources, selectedPort?.bios_source_profile, selectedPort?.source_profile, ui.view],
-  );
-  const sourceHealth = useSourceHealth(
-    operations.perform,
-    data.sources,
-    inspectionProfiles,
-    `${bootstrap.generation}|${referenceIdentity(data.catalog?.source_catalog ?? null)}`,
-    data.queryClient,
-  );
   const appearance = useThemePreference();
   const gameFileQuery = useGameFileFilterContext({
     catalog: data.catalog,
@@ -624,6 +635,53 @@ function useWorkspace(props: WorkspaceProps) {
     libraryKey: bootstrap.library_root,
   });
   const model = useAppModel(data, ui, bootstrap.library_root, gameFileQuery);
+  const recentArtworkPort =
+    ui.view === "library" && !ui.selectedId && !favorites.only
+      ? visibleRecentPort(model.recent, organization, model.entries, model.statusMap)?.port
+      : undefined;
+  const artworkPort = selectedPort && model.entry ? model.entry : recentArtworkPort;
+  const artworkStatus = artworkPort && model.statusMap.get(artworkPort.id);
+  const artworkProfile = artworkPort?.source_profile;
+  const artworkSource = data.sources.find(({ profile_id }) => profile_id === artworkProfile);
+  const artworkRead =
+    artworkPort &&
+    artworkProfile &&
+    artworkSource &&
+    !data.refreshFailure &&
+    (artworkStatus?.active
+      ? artworkStatus.readiness?.active_game_source_profile === artworkProfile &&
+        (artworkStatus.readiness.source === "current" ||
+          artworkStatus.readiness.source === "not_checked")
+      : !artworkStatus?.external_runtime) &&
+    (!ui.selectedId || !ui.sourcePath.trim() || ui.sourcePath === artworkSource.path) &&
+    canCheckEditionArtwork(artworkPort, artworkPort.listing?.original_game)
+      ? { profileId: artworkProfile, generation: bootstrap.generation }
+      : undefined;
+  const inspectionProfiles =
+    ui.view === "settings"
+      ? data.sources.map((source) => source.profile_id)
+      : [
+          selectedPort?.source_profile,
+          selectedPort?.bios_source_profile,
+          artworkRead?.profileId,
+        ].filter((profile): profile is string => Boolean(profile));
+  const inspectionScope = [
+    bootstrap.generation,
+    referenceIdentity(data.catalog?.source_catalog ?? null),
+    referenceIdentity(data.listingCatalog ?? null),
+    Boolean(data.refreshFailure),
+    artworkPort?.id,
+    artworkStatus?.active?.id,
+    artworkStatus?.readiness?.source,
+  ].join("|");
+  const sourceHealth = useSourceHealth(
+    operations.perform,
+    data.sources,
+    inspectionProfiles,
+    inspectionScope,
+    data.queryClient,
+    artworkRead,
+  );
   const [groupDrop, setGroupDrop] = useState<{
     request: { gameId: string; paths: string[] };
     generation: number;
@@ -1291,7 +1349,14 @@ function useWorkspace(props: WorkspaceProps) {
 }
 
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
-  return <WorkspaceView {...useWorkspace(props)} />;
+  const model = useWorkspace(props);
+  return (
+    <AutomaticSnapshotsProvider generation={model.bootstrap.generation}>
+      <SettingsExportResultsProvider key={props.bootstrap.generation}>
+        <WorkspaceView {...model} />
+      </SettingsExportResultsProvider>
+    </AutomaticSnapshotsProvider>
+  );
 }
 
 type WorkspaceModel = ReturnType<typeof useWorkspace>;
@@ -1343,6 +1408,8 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       pending={model.operations.pendingOperations}
       unreadInstallPorts={model.operations.unreadInstallPorts}
       unreadExternalPorts={model.operations.unreadExternalPorts}
+      unreadManagedRoutePorts={model.operations.unreadManagedRoutePorts}
+      sourceWriteOnHold={model.operations.sourceWriteOnHold}
       perform={model.operations.perform}
     >
       <ArtworkProvider
@@ -1440,7 +1507,7 @@ type WorkspaceFeedbackModel = Pick<
   | "dismissApplicationUpdateNotice"
   | "renderPreferenceFailure"
 > & {
-  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity">;
+  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity" | "setSettingsCategory">;
   model: Pick<WorkspaceModel["model"], "entries" | "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
@@ -1451,6 +1518,7 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
   const savedScan = scan.scanning ? undefined : scan.receipt?.snapshot;
   return (
     <div className="flow-root min-w-0" data-workspace-feedback>
+      <LibraryRecoveryBundleContinuation />
       <StatusLayer
         scanResultAnnouncement={savedScan ? savedScanSummary(t, savedScan) : undefined}
         invocations={model.operations.invocations}
@@ -1473,14 +1541,16 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
         }}
         openInstalledGame={(record) => {
-          const { target, libraryGeneration } = record.context;
-          const current = model.model.statusMap.get(target.id)?.active;
+          const { target } = record.context;
           if (
-            libraryGeneration !== model.bootstrap.generation ||
-            model.ui.selectedId === target.id ||
-            model.operations.unreadInstallPorts.has(target.id) ||
-            current?.id !== record.installed?.id ||
-            current?.port_id !== target.id
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenInstalledResult(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadInstallPorts,
+            )
           )
             return undefined;
           return () => model.openPortDetails(target.id, `install-result:${record.id}`);
@@ -1499,6 +1569,24 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           )
             return undefined;
           return () => model.openPortDetails(target.id, "external-result:" + record.id);
+        }}
+        openSavedSource={(record) => {
+          if (model.data.refreshFailure) return undefined;
+          const source = matchingSavedSource(
+            record,
+            model.data.sources,
+            model.bootstrap.generation,
+            model.data.workspaceReadRevision,
+          );
+          if (!source) return undefined;
+          const identity = referenceIdentity(source);
+          return () => {
+            model.ui.setSettingsCategory("game-files");
+            model.setPrimaryView("settings");
+            window.requestAnimationFrame(() =>
+              focusSettingsTarget("saved-source-result", source.profile_id, identity),
+            );
+          };
         }}
         completedActivityAvailable={(id) =>
           model.data.activities.some(
@@ -1833,8 +1921,8 @@ function CurrentView({
   sourceHealth: SourceHealthState;
   appearance: AppearanceState;
   bootstrap: BootstrapStatus;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   gameSourceDropReview: GameSourceDropReview;
   hostToolActions: HostToolActions;
@@ -1968,6 +2056,18 @@ function CurrentView({
       overview={model.overview}
       libraryCount={model.libraryCount}
       recent={model.recent}
+      recentArtwork={({ port, status }) => {
+        const profile = port.source_profile;
+        const read = profile && sourceHealth.inspectionReads.get(profile)?.status;
+        if (!profile || (read && read !== "idle" && read !== "current")) return {};
+        return activeSourceHeroMediaContext(
+          port,
+          status,
+          data.sources.find((source) => source.profile_id === profile),
+          sourceHealth.inspections.get(profile),
+          port.listing?.original_game,
+        );
+      }}
       filter={ui.filter}
       query={ui.query}
       setQuery={ui.setQuery}
@@ -2058,6 +2158,7 @@ function CurrentSettingsView({
       ports={data.catalog?.ports ?? []}
       statuses={model.statusMap}
       doctor={data.doctor}
+      libraryRoot={bootstrap.library_root ?? ""}
       storage={data.storage}
       github={github}
       busy={operations.busy}
@@ -2096,17 +2197,22 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support report", desktopApi.createSupportBundle, {
-          refresh: "none",
-          invalidateDiagnostics: false,
-        })
+        operations.perform(
+          "support report",
+          () => desktopApi.createSupportBundle(bootstrap.generation),
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            propagateFailure: true,
+          },
+        )
       }
       exportMetadata={() =>
         operations.perform(
           "export library metadata",
           async () => {
             const path = await pickMetadataExportPath();
-            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+            return path ? desktopApi.exportLibraryMetadata(path, bootstrap.generation) : undefined;
           },
           {
             refresh: "none",
@@ -2143,6 +2249,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
       sourceNeeds={model.sourceNeeds}
@@ -2158,6 +2265,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
     />
@@ -2282,6 +2390,18 @@ function SelectedPortPanel({
     : undefined;
   const port = model.port;
   const status = model.status;
+  const inspectionProfile = port.source_profile ?? undefined;
+  const inspectionRead = inspectionProfile
+    ? sourceHealth.inspectionReads.get(inspectionProfile)
+    : undefined;
+  const inspection = inspectionProfile
+    ? sourceHealth.inspections.get(inspectionProfile)
+    : undefined;
+  const displayPort = model.entry ?? port;
+  const reviewedGame = model.entry?.listing?.original_game;
+  const savedSource =
+    !ui.sourcePath.trim() || ui.sourcePath === model.source?.path ? model.source : undefined;
+
   const managedSetup =
     status &&
     !installReadbackPending &&
@@ -2412,9 +2532,18 @@ function SelectedPortPanel({
       backupReadState={backups.readState}
       retryBackupRead={backups.refresh}
       source={model.source}
-      sourceInspection={
-        model.port.source_profile
-          ? sourceHealth.inspections.get(model.port.source_profile)
+      mediaContext={
+        !inspectionRead || inspectionRead.status === "idle" || inspectionRead.status === "current"
+          ? activeSourceHeroMediaContext(displayPort, status, savedSource, inspection, reviewedGame)
+          : {}
+      }
+      sourceInspection={inspection}
+      savedSourceCheck={
+        inspectionProfile && savedSource && canCheckEditionArtwork(displayPort, reviewedGame)
+          ? {
+              status: inspectionRead?.status ?? "idle",
+              run: () => sourceHealth.inspectSource(inspectionProfile),
+            }
           : undefined
       }
       sourceProfile={model.sourceProfile}
@@ -2478,6 +2607,7 @@ function SelectedPortPanel({
         close: close,
         reviewInstall: installPlanning.review,
         backupsChanged: backups.refresh,
+        refreshRestoredBackups: backups.refreshAfterCommit,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
         onInstallCommitted: operations.noteInstallCommitted,
@@ -2700,6 +2830,7 @@ function useWorkspaceLibrary({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
     workspaceReadRevision: data.workspaceReadRevision,
+    workspaceStatuses: data.statuses,
     startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(

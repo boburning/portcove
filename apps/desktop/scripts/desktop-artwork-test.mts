@@ -586,15 +586,27 @@ export async function artworkScenario({
       await click(reviewApply);
       await browser.wait(async () => (await state("cover")).choice.suppressed === true, 10_000);
       const hidden = await state("cover");
-      assert.equal(hidden.choice.asset_sha256, null);
+      // Hiding keeps the selection stored but unshown.
+      assert.equal(hidden.choice.asset_sha256, cover.choice.asset_sha256);
       assert.equal(hidden.resolved_source.kind, "generated_fallback");
       await expectOverviewTextAndReturn();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
-      await click(control("cover", "Use automatic"));
+      await click(control("cover", "Show artwork"));
       assert.deepEqual(await state("cover"), hidden);
       await click(reviewApply);
       await browser.wait(
         async () => (await state("cover")).choice.revision > hidden.choice.revision,
+        10_000,
+      );
+      const shown = await state("cover");
+      assert.equal(shown.choice.asset_sha256, cover.choice.asset_sha256);
+      assert.notEqual(shown.choice.suppressed, true);
+      assert.deepEqual(shown.resolved_source, cover.resolved_source);
+      await click(control("cover", "Use automatic"));
+      assert.deepEqual(await state("cover"), shown);
+      await click(reviewApply);
+      await browser.wait(
+        async () => (await state("cover")).choice.revision > shown.choice.revision,
         10_000,
       );
       const reset = await state("cover");

@@ -62,12 +62,17 @@ export default interface Resources {
   },
   "backups": {
     "automaticSnapshots": {
+      "checking": "Checking automatic snapshots for this library…",
       "control": "Snapshot saved data before each version change",
+      "coverage": "Before a version change, Portcove can snapshot existing saves and settings it manages. See Backups for completed copies.",
       "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+      "disabled": "Automatic snapshots before version changes are off for this library.",
+      "enabled": "Automatic snapshots before version changes are on for this library.",
       "heading": "Snapshot saved data before version changes",
       "readFailed": "The setting could not be read.",
       "retry": "Try again",
-      "saveFailed": "The setting could not be saved."
+      "saveFailed": "Portcove couldn’t confirm the result of saving this setting.",
+      "unavailable": "Portcove couldn’t check this library’s automatic snapshot setting."
     },
     "details": {
       "catalogId": "Catalog ID: {{id}}",
@@ -226,15 +231,20 @@ export default interface Resources {
     "review": {
       "applyDelete": "Delete this backup permanently",
       "applyRestore": "Restore this backup",
+      "backupUnavailable": "The selected backup is missing or has changed. Close this review to see the current backup list.",
       "cancel": "Cancel",
       "checking": "Checking the backup and current saved data…",
       "deleting": "Deleting backup…",
       "descriptionDelete": "Permanently delete only the selected backup.",
       "descriptionRestore": "Replace this game’s current saved data with this backup.",
       "failure": "The operation did not complete. Review the current backup and data before trying again.",
+      "inventoryUnavailable": "Portcove couldn’t confirm that this backup can be restored. Refresh backup history to check again.",
+      "reconcileRestore": "Check the restore result in Activity before starting another restore.",
+      "reopenRestore": "Portcove couldn’t verify the restore target. Close this review and choose the backup again.",
       "restoring": "Restoring backup…",
       "reviewAgain": "Review again",
-      "selectionChanged": "This review no longer matches the selected backup. Close it and refresh backup history.",
+      "selectionChanged": "Portcove couldn’t confirm that this review matches the selected backup.",
+      "targetChanged": "This game’s installation or setup changed. Close this review and check the current backup history.",
       "titleDelete": "Review backup deletion",
       "titleRestore": "Review backup restore"
     },
@@ -751,6 +761,7 @@ export default interface Resources {
       "reviewLocalImage": "Local image",
       "reviewPreviewChanged": "The image changed. Cancel and choose it again to review the new image.",
       "reviewProviderImage": "SteamGridDB image by {{author}}",
+      "reviewShow": "Show this role again with the artwork it had before it was hidden.",
       "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
       "scopeCurrentPort": "Artwork changes apply only to this port."
     },
@@ -1247,13 +1258,16 @@ export default interface Resources {
       "error": {
         "choose": "Choose one of the listed options.",
         "number": "Enter a number.",
+        "range": "Enter a number within the listed range.",
         "tooLarge": "This number is too large to save accurately.",
         "whole": "Enter a whole number."
       },
+      "pendingDefault": "Will use the default when saved.",
       "rangeNumber": "Numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
       "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
-      "reset": "Reset to default…",
-      "review": "Review change"
+      "reset": "Use default",
+      "review": "Review changes",
+      "undo": "Undo"
     },
     "jakMods": {
       "browse": "Browse JakMods",
@@ -1362,6 +1376,34 @@ export default interface Resources {
       "createFirst": "Create first setup",
       "defaultRefreshRequired": "Default still records an older game version. Refresh it before copying or exporting this setup.",
       "empty": "No mods. The game plays without changes in this setup.",
+      "external": {
+        "cached": "Showing earlier results. The source could not be checked now.",
+        "checked": "Checked {{date}}",
+        "coopDx": "Browse CoopDX Mods",
+        "coopSetup": "Download the compatible ZIP or Lua file. Open SM64 Co-op DX and drag the file onto the game window to import it.",
+        "daggerfallSetup": "Choose the correct Daggerfall Unity version and operating system. Follow the archive’s instructions in a separate copy of Daggerfall Unity. Place .dfmod files in StreamingAssets/Mods.",
+        "empty": "The source returned no results.",
+        "heading": "Community mod websites",
+        "incomplete": "Some entries had unreadable details. The results may be incomplete.",
+        "latest": "Show newest on Quaddicted",
+        "linkUnavailable": "This link is no longer confirmed. Refresh the results before opening it.",
+        "loading": "Checking the source…",
+        "modDb": "View on Mod DB",
+        "modIo": "View on mod.io",
+        "more": "More results",
+        "nexus": "Get on Nexus",
+        "notices": "Show Arcane Dimensions file notices",
+        "openXcomSetup": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+        "otherEngine": "Requires another engine",
+        "owner": "You choose, install and update files outside Portcove.",
+        "previous": "Previous results",
+        "quaddicted": "View on Quaddicted",
+        "quakeSetup": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+        "search": "Search Quaddicted",
+        "searchFilename": "Filename",
+        "unavailable": "Couldn’t read this source. Try again or open its website.",
+        "unverifiedEngine": "Check which engines this file supports."
+      },
       "filePreservation": {
         "adopt": "For a supported mod, use Add mod file and choose this saved file.",
         "details": "File details",
@@ -1376,6 +1418,11 @@ export default interface Resources {
       },
       "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
+      "github": {
+        "browse": "Browse mods on GitHub",
+        "platform": "You can browse releases. Setting up this ZIP needs an installed copy of the game whose build supports it on this platform.",
+        "setup": "Download the intact ZIP. Open a separate copy of the game and use Install Mods to select the ZIP. Update it in that copy when you want a newer release."
+      },
       "heading": "Setups and mods",
       "held": {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",
@@ -1682,10 +1729,15 @@ export default interface Resources {
       }
     },
     "panel": {
+      "discard": "Discard draft",
       "fileUnavailable": "This settings file is unavailable.",
       "heading": "Game settings",
-      "intro": "Review each change before saving. Other preferences stay as they are.",
+      "held": "This setup or file changed. Your draft is held here. Read the settings again or discard this draft to start over.",
+      "installTarget": "Game version {{version}}",
+      "intro": "Edit settings, then review the changes for each file before saving.",
       "label": "Game settings",
+      "limit": "Review up to 16 changes at a time. Undo some edits to continue.",
+      "setupTarget": "Setup {{setup}} · Game version {{version}}",
       "unavailable": "Settings are unavailable for this installation."
     },
     "review": {
@@ -1693,15 +1745,17 @@ export default interface Resources {
       "cancel": "Cancel",
       "current": "Current saved value",
       "default": "Default",
-      "description": "Save this one preference for the installed game. The game may need to restart to use it.",
-      "failure": "The change was not accepted. Refresh settings and review again.",
+      "description": "Check the changes below before saving. The game may need to restart to use them.",
+      "failure": "Portcove could not confirm this save. Read the settings again before trying another save.",
       "installationChanged": "The installation changed. Refresh settings and review again.",
       "new": "New value",
-      "reading": "Reading the current setting…",
-      "save": "Save setting",
-      "setting": "Setting",
+      "reading": "Checking the current settings…",
+      "requiresStandardWindowsSession": "Game settings can’t be reviewed in this Windows session. Open Portcove from the desktop without administrator privileges to edit game settings.",
+      "save": "Save changes",
+      "saved": "Changes saved.",
+      "savedReadback": "Changes saved. Read the settings again to see the current values.",
       "technical": "Technical details",
-      "title": "Review game setting"
+      "title": "Review game settings"
     },
     "value": {
       "notSaved": "Not saved",
@@ -1734,6 +1788,27 @@ export default interface Resources {
       "unconfirmed": "Channel change was not confirmed. Check the current selection before retrying.",
       "unlisted": "This update channel is no longer listed. Your saved choice has not changed.",
       "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
+    },
+    "releasePreference": {
+      "cancel": "Cancel release review",
+      "channelCandidate": "The channel offers {{version}}.",
+      "choose": "Choose exact release",
+      "follow": "Follow channel",
+      "followFailed": "Portcove couldn’t confirm the change. Refresh to check the saved choice.",
+      "following": "Following the selected channel.",
+      "heldChannel": "The saved release pin belongs to a different channel, so Portcove won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "heldUnreadable": "Portcove can’t read the saved release pin, so it won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "package": "{{version}} · {{filename}} · {{size}}",
+      "pin": "Pin this release",
+      "pinConsequence": "Future installs and update checks use this release, even when the channel offers a newer one.",
+      "pinFailed": "Portcove couldn’t confirm the pin. Review the release again.",
+      "pinned": "Pinned to {{version}}.",
+      "review": "Review release",
+      "reviewFailed": "Portcove couldn’t review this release. Check the tag and try again.",
+      "reviewing": "Reviewing release…",
+      "saveCompatibility": "Check the release’s save compatibility before installing a different version.",
+      "tag": "Release tag or version",
+      "title": "Release selection"
     }
   },
   "installation": {

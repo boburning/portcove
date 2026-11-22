@@ -4,6 +4,7 @@ import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickInstallFolder, pickMetadataImportPath } from "../file-picker";
 import { useAppTranslation } from "../localization";
+import { withoutVerbatimPrefix } from "../path-presentation";
 import type { LibraryImportPlan } from "../types";
 import { errorText } from "../view-model";
 import { LibraryCopySummary, transferRecoveryRoot } from "./LibraryMove";
@@ -108,7 +109,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
             components={{
               path: (
                 <bdi dir="ltr">
-                  <code>{libraryRoot}</code>
+                  <code>{withoutVerbatimPrefix(libraryRoot)}</code>
                 </bdi>
               ),
             }}
@@ -284,7 +285,7 @@ export function LibraryImportRecovery({
         <Trans
           t={t}
           i18nKey="libraryRestore.recovery.destination"
-          components={{ path: <bdi dir="ltr">{destination}</bdi> }}
+          components={{ path: <bdi dir="ltr">{withoutVerbatimPrefix(destination)}</bdi> }}
         />
       </p>
       <p>{t(bundle ? "libraryRestore.recovery.bundleIntro" : "libraryRestore.recovery.intro")}</p>

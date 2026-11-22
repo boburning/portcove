@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 76;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 77;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -465,23 +465,44 @@ const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 74,
+        name: "exact release selection writer protocol",
+        apply: migration_74,
+        verify: verify_migration_74,
+    },
+    Migration {
+        version: 75,
         name: "local logo artwork slot",
         apply: crate::artwork_store::migrate_logo_slot,
         verify: crate::artwork_store::verify_logo_slot,
     },
     Migration {
-        version: 75,
+        version: 76,
         name: "artwork background framing",
         apply: crate::artwork_store::migrate_framing,
         verify: crate::artwork_store::verify_framing,
     },
     Migration {
-        version: 76,
+        version: 77,
         name: "explicit artwork suppression",
         apply: crate::artwork_store::migrate_suppression,
         verify: crate::artwork_store::verify_suppression,
     },
 ];
+
+fn migration_74(transaction: &Transaction<'_>) -> Result<()> {
+    // The exclusive library migration keeps writers that would ignore a pin
+    // from automatically replacing its installed runtime.
+    transaction.execute_batch(
+        "ALTER TABLE port_settings ADD COLUMN exact_release_json TEXT
+         CHECK(exact_release_json IS NULL OR (typeof(exact_release_json)='text'
+             AND length(CAST(exact_release_json AS BLOB)) BETWEEN 1 AND 4096));",
+    )?;
+    verify_migration_74(transaction)
+}
+
+fn verify_migration_74(connection: &Connection) -> Result<()> {
+    require_columns(connection, "port_settings", &["exact_release_json"])
+}
 
 fn migration_73(transaction: &Transaction<'_>) -> Result<()> {
     // Keep readers which cannot enforce an explicit package receipt outside
@@ -1709,7 +1730,8 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
                 ("definition_publisher_admission", "launch_assessment_revision") => {
                     format!("{quoted_column}!=0")
                 }
-                (
+                ("port_settings", "exact_release_json")
+                | (
                     "lifecycle_operations",
                     "ghostship_recovery_json"
                     | "backup_deletion_json"
@@ -3519,6 +3541,11 @@ mod tests {
                 "column installs.future_payload",
             ),
             (
+                "INSERT INTO port_settings(port_id,channel,update_policy,active_install_id,exact_release_json)
+                 VALUES('starship','stable','notify','retained-install','{}');",
+                "column port_settings.exact_release_json",
+            ),
+            (
                 "UPDATE curated_artifact_history SET admission_count=1;",
                 "populated table curated_artifact_history",
             ),
@@ -4089,7 +4116,7 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 73).unwrap();
+        migrate_to(root, 74).unwrap();
         let connection = connect(root).unwrap();
         connection
             .execute_batch(
@@ -4104,7 +4131,7 @@ mod tests {
         ).is_err());
         drop(connection);
 
-        migrate_to(root, 74).unwrap();
+        migrate_to(root, 75).unwrap();
         let connection = connect(root).unwrap();
         crate::artwork_store::verify_landscape_slot(&connection).unwrap();
         crate::artwork_store::verify_logo_slot(&connection).unwrap();
@@ -4139,7 +4166,7 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 74).unwrap();
+        migrate_to(root, 75).unwrap();
         let connection = connect(root).unwrap();
         connection
             .execute_batch(
@@ -4151,7 +4178,7 @@ mod tests {
         assert!(crate::artwork_store::verify_framing(&connection).is_err());
         drop(connection);
 
-        migrate_to(root, 75).unwrap();
+        migrate_to(root, 76).unwrap();
         let connection = connect(root).unwrap();
         crate::artwork_store::verify_framing(&connection).unwrap();
         let rows = connection
@@ -4188,7 +4215,7 @@ mod tests {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
-        migrate_to(root, 75).unwrap();
+        migrate_to(root, 76).unwrap();
         let connection = connect(root).unwrap();
         let framing = serde_json::to_string(&crate::ArtworkFraming::V1 {
             wide: crate::ArtworkFocalPoint { x: 0, y: 5000 },
@@ -4210,7 +4237,7 @@ mod tests {
         assert!(crate::artwork_store::verify_suppression(&connection).is_err());
         drop(connection);
 
-        migrate_to(root, 76).unwrap();
+        migrate_to(root, 77).unwrap();
         let connection = connect(root).unwrap();
         crate::artwork_store::verify_suppression(&connection).unwrap();
         let retained: (i64, String, String, i64) = connection
@@ -4534,6 +4561,7 @@ mod tests {
         schema_73: 73,
         schema_74: 74,
         schema_75: 75,
+        schema_76: 76,
     }
 
     #[test]

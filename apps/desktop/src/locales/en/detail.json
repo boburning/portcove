@@ -16,6 +16,7 @@
     "reviewLocalImage": "Local image",
     "reviewPreviewChanged": "The image changed. Cancel and choose it again to review the new image.",
     "reviewProviderImage": "SteamGridDB image by {{author}}",
+    "reviewShow": "Show this role again with the artwork it had before it was hidden.",
     "reviewStale": "This artwork choice changed. Cancel and review the current choice.",
     "scopeCurrentPort": "Artwork changes apply only to this port."
   },

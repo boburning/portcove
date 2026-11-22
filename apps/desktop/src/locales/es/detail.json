@@ -16,6 +16,7 @@
     "reviewLocalImage": "Imagen local",
     "reviewPreviewChanged": "La imagen cambió. Cancela y vuelve a elegirla para revisar la nueva imagen.",
     "reviewProviderImage": "Imagen de SteamGridDB de {{author}}",
+    "reviewShow": "Vuelve a mostrar esta función con la ilustración que tenía antes de ocultarla.",
     "reviewStale": "Esta elección de ilustración cambió. Cancela y revisa la elección actual.",
     "scopeCurrentPort": "Los cambios de ilustración solo se aplican a esta adaptación."
   },

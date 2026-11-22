@@ -1164,6 +1164,13 @@ a measurement target, not a new timeout or permission to omit coverage. Existing
 finite CI envelopes remain in force; the retry policy is owned by
 [timeout calibration](QUALITY.md#autonomous-test-timeout-calibration).
 
+On schema drift, the Windows transport and full Linux Rust-quality jobs may
+retain a `transport-schema-drift` diagnostic for seven days. It contains the
+differing canonical JSON from the same Rust exporters and a manifest with
+run, attempt, job, checkout commit, tree, byte counts and SHA-256 digests. The
+diagnostic keeps the original parity failure and does not change generated
+files or supply release evidence.
+
 The remaining full-workspace native/Intel and Windows workspace-other qualification
 jobs use `scripts/qualification-nextest.mts` with their original package scope,
 partitions, default profile and archive/remap inputs. It verifies pinned Node and
@@ -2341,6 +2348,19 @@ claim, and a ready fixture alone does not satisfy the strict media refusal.
 
 ## Native desktop smoke tests
 
+Run `just desktop-verify --scenario native-library-recovery-bundle --require-clean`
+on Windows to check verified bundle creation, inspection, restore and explicit
+activation in isolated libraries. The scenario also checks source changes after
+creation review, overlapping destinations, and a tampered copy. It records the
+verified receipt, saves, installation and backup identities, and the selected
+library across restart.
+
+Select `native-library-recovery-interruption` for the instrumented Windows
+process-loss check. It stops the owned app after creation has copied files and
+again when restore has recorded its import journal. Resume uses the original
+staging folder or restore destination. The test checks that no unpublished
+bundle verifies, source data stays intact, and the original library stays open.
+
 For the normal Codex and maintainer workflow, start with a non-launching plan and
 then run the smallest useful selection:
 
@@ -2376,7 +2396,11 @@ and a screenshot before reset/resize cleanup; the original assertion still fails
 `native-secondary-panel-presentation` uses a fresh Windows fixture library and
 an owned prepared installation. It inspects DAT editing, metadata export,
 ready notices, mod original-file choice, recipe/provider reviews, retirement,
-file preservation and portable-save feedback in both themes. The retained
+file preservation and portable-save feedback in both themes. The supplied
+provider fixture exercises keyboard Add with an incomplete file list and with
+one eligible file in a complete list. The first opens the chooser. The second
+queues immediately. Both wait for Check files before requesting the exact file
+plan. The retained
 observation identifies supplied replies and controlled refusals. DAT and the
 successful metadata export use actual isolated Core operations. Ordinary
 owned preferences and background setup requests retain their existing paths.
@@ -3079,13 +3103,15 @@ wait error. The original timeout and downstream connection failures remain faile
 evidence; only a fresh exact-source run can establish completion.
 
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
-libraries and saved preferences. Real folder selection and review first commit a
-recognizable SQLite library with a future schema; refusal retains the Core-owned
-summary and exposes the redacted schema reason/version through user-opened technical
-details. It must retain the active workspace, identity, saved choice and fixture
-database/player-marker bytes, with natural trigger focus before disclosure and an
-accessibility capture. A subsequent healthy selection
-and independent host restart must retain the new saved choice. Both process trees
+libraries and saved preferences. A canonical alias of the open saved library
+keeps its generation, identity and preference bytes. The real picker returns
+focus after the player closes the no-change review. A recognizable SQLite
+library with a future schema is then refused. The review retains the Core-owned
+summary, exposes the redacted schema reason and version under technical details,
+and preserves the active workspace, saved choice and fixture bytes. A successful
+switch and independent restart retain the new saved choice. A controlled edit
+to the owned preference file changes the startup choice, and the same open
+library can then be saved explicitly without reopening it. Both process trees
 use the existing identity-bound, root-inclusive positive-exit checks. The scenario
 does not open the real platform-default library, redirect Windows known folders,
 or establish installed-package, physical-input or platform-default-reset evidence.
@@ -3957,11 +3983,14 @@ outer callers must allow the bounded queue as well as setup and execution.
 Each local source-bound checkout scan has a 30-second default budget. Under
 measured filesystem pressure, a local caller can set
 `PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
-120 for one command. The override applies separately to the before-admission
-and after-admission scans. Allow both scans and the existing queue wait in
-the outer command budget. A timeout stops the scan and the payload does not
-start. The existing source identity comparison and reservation limits still
-apply.
+480 for one command. During portable-game qualification on Linux, a complete
+checkout scan under disk contention took 338 seconds. Git commands took
+2.4 seconds of that time. The override applies separately to the full
+before-admission and after-admission scans. Allow both scans, the existing
+queue wait, setup and execution in the outer command budget. The override
+leaves the queue and execution budgets unchanged. A scan timeout prevents
+payload launch. After admission, the guard releases the reservation through
+the existing custody checks.
 
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely
@@ -4086,7 +4115,9 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. While admission is pending, input EOF or error aborts acquisition while
+custody. If the guard cannot confirm cleanup, it closes its bridge connection
+and exits while retaining both reservations and their original evidence. While
+admission is pending, input EOF or error aborts acquisition while
 preserving buffered protocol bytes. A lease that resolves despite cancellation
 retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the

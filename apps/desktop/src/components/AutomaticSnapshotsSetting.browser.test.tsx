@@ -65,6 +65,42 @@ it("disables the control until Core has answered and reports a failed read or sa
   expect(checkbox()?.getAttribute("aria-checked")).toBe("true");
 });
 
+it("clears an uncertain save result when Core confirms the requested value", async () => {
+  const load = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+  const save = vi.fn().mockRejectedValueOnce(new Error("reply was lost"));
+  await show(load, save);
+  await act(async () => checkbox()?.click());
+  expect(load.mock.calls).toEqual([[3], [3]]);
+  expect(save).toHaveBeenCalledExactlyOnceWith(false, 3);
+  expect(checkbox()?.getAttribute("aria-checked")).toBe("false");
+  expect(document.body.querySelector("[role=alert]")).toBeNull();
+});
+
+it("reads the current value after a lost save reply without writing again", async () => {
+  const load = vi
+    .fn()
+    .mockResolvedValueOnce(true)
+    .mockRejectedValueOnce(new Error("read also failed"))
+    .mockResolvedValueOnce(false);
+  const save = vi.fn().mockRejectedValueOnce(new Error("reply was lost"));
+  await show(load, save);
+  expect(checkbox()?.getAttribute("aria-checked")).toBe("true");
+
+  await act(async () => checkbox()?.click());
+  expect(save).toHaveBeenCalledExactlyOnceWith(false, 3);
+  expect(load.mock.calls).toEqual([[3], [3]]);
+  expect(checkbox()?.hasAttribute("data-disabled")).toBe(true);
+  const retry = [...document.querySelectorAll("button")].find(
+    (button) => button.textContent === "Try again",
+  );
+  expect(retry).toBeDefined();
+  await act(async () => retry?.click());
+  expect(load.mock.calls).toEqual([[3], [3], [3]]);
+  expect(checkbox()?.getAttribute("aria-checked")).toBe("false");
+  expect(checkbox()?.hasAttribute("data-disabled")).toBe(false);
+  expect(save).toHaveBeenCalledOnce();
+});
+
 const labelText = "Snapshot saved data before each version change";
 const label = () =>
   [...document.body.querySelectorAll("label")].find((node) =>

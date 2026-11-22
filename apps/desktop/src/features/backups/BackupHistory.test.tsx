@@ -55,8 +55,9 @@ describe("backup history presentation", () => {
     expect(populated).toContain("1 file · 1.0 KiB");
     expect(populated).toContain("Technical details");
     expect(populated).toContain('aria-label="Technical details for backup from ');
-    expect(populated).toMatch(/class="backup-checksum(?: |")/u);
-    expect(populated.indexOf(backup.sha256)).toBeGreaterThan(populated.indexOf("<details"));
+    const [technicalDetails] = populated.match(/<details>[^]*?<\/details>/u) ?? [];
+    expect(technicalDetails).toMatch(/class="backup-checksum(?: |")/u);
+    expect(technicalDetails).toContain(backup.sha256);
     expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });
 

@@ -589,4 +589,28 @@ fn artwork_cli_suppression_is_distinct_from_returning_to_automatic() {
     ]);
     assert_eq!(reset["data"]["choice"]["revision"], 2);
     assert!(reset["data"]["choice"].get("suppressed").is_none());
+    run(&[
+        "--json",
+        "artwork",
+        "suppress",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "2",
+    ]);
+    let unhidden = run(&[
+        "--json",
+        "artwork",
+        "unhide",
+        "zelda64-recomp",
+        "--slot",
+        "logo",
+        "--expected-revision",
+        "3",
+    ]);
+    assert_eq!(unhidden["command"], "artwork.unhide");
+    assert_eq!(unhidden["data"]["choice"]["revision"], 4);
+    assert!(unhidden["data"]["choice"].get("suppressed").is_none());
+    assert!(unhidden["data"]["choice"]["asset_sha256"].is_null());
 }

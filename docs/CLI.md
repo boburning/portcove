@@ -129,6 +129,7 @@ For a GitHub-hosted upstream project:
 portcove setup candidates PORT_ID
 portcove setup candidates PORT_ID --release-id RELEASE_ID
 portcove setup candidates PORT_ID --channel beta
+portcove setup candidates PORT_ID --release-window 60
 portcove setup preview PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract
 portcove setup download PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
 portcove setup pending
@@ -139,6 +140,10 @@ Choose IDs returned by `setup candidates`; Core selects a release by channel and
 assesses its packages for this host. The response includes the selected release,
 recommendation, reasons, alternatives, coverage and a read-only default download
 parent. Explicit release inspection does not require complete older history.
+The release list shows the newest 10 releases by default; `--release-window`
+lists up to 1,000 so an older release can be chosen (Desktop's **Show older
+releases** widens it in steps of 25). A selected GitHub release's asset inventory
+is read in full, up to GitHub's 1,000-asset limit per release.
 Review the actual package name, source, size, checksum evidence
 and new destination. It does not infer that every upstream asset is a playable
 package for this computer. Omit `--extract` for an installer or unsupported
@@ -286,11 +291,15 @@ Unrelated keys and supported INI comments remain intact. Close the game before
 editing; conflicting writers or uncertain interrupted custody refuse edits and
 retain recovery evidence.
 
-Desktop exposes the same Core operation under a managed game's **Saves** section:
-choose **Read game settings**, change a value or review its default, then choose
-**Save setting** in the review. Read and review alone do not modify game files.
-Persisted bytes and fixtures do not establish actual game consumption; the owning
-qualification records that separately for each declared release.
+In Desktop, open the managed game's **Game settings** tab and choose
+**Read game settings**. Edit the values or choose **Use default**. Choose
+**Review changes** for that file, then **Save changes** to confirm the full
+review. Each review covers one file and up to 16 declared settings. A
+materialized setup binds the review to its installed version and revision.
+If the setup or file changes, read the settings again and check your draft
+before proceeding. Reading and reviewing leave the game files untouched.
+Persisted bytes and fixtures do not establish actual game consumption. The
+owning qualification records that separately for each declared release.
 
 ## Path rules
 
@@ -313,6 +322,26 @@ Use `portcove plan PORT_ID --channel preview`, `portcove install PORT_ID --chann
 The legacy `beta` spelling remains accepted on each route. Inputs remain case-sensitive;
 Stable/Rolling spellings, omitted-channel defaults, consent and eligibility checks are unchanged.
 Changing a saved channel does not install or activate a release.
+
+Use `portcove channel review-exact PORT_ID TAG` to review an exact release in the
+current channel and platform. Confirm the displayed package with
+`portcove channel pin PORT_ID TAG --review-sha256 SHA256`. The confirmation
+rechecks the exact provider identity and library preference. Future plans,
+installs, checks, and maintenance use that exact package. When the provider
+removes or changes it, the operation reports the refusal for that pin.
+A check can also report the channel's current candidate as information.
+
+Use `portcove channel follow PORT_ID` to clear the exact choice. Switching to
+another channel also clears it, whether you choose the channel or activate a
+version from another channel. A pin Core cannot read, or one saved for another
+channel, pauses checks and installs for that game only; `portcove status`
+reports it and `portcove channel follow PORT_ID` clears it. A command that names
+a different `--channel` while a pin is saved asks you to follow the channel
+first. Direct manifests can only select the current
+catalog pin. Curated definitions require the separately admitted acquisition
+route. A saved release preference establishes an intended package. Save and
+configuration compatibility still depend on the installed game and its
+reviewed data policy.
 
 ## Automation and integration reference
 
@@ -678,7 +707,9 @@ bundle uses the installer’s bounded reader with file links disabled. This
 applies only to routes whose embedded definition declares that capability.
 The command returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
-`shape_version`, the derived `shape`, its `provenance`, the
+`shape_version`, the derived `shape`, its `player_candidates` (path, header
+machine and SHA-256; [CATALOG](CATALOG.md#package-shape-player-candidates)),
+its `provenance`, the
 `derivation_inputs_sha256` of the embedded catalog facts it derived with
 (absent for a route outside the embedded catalog) and a comparison `verdict`
 against the embedded generated table or explicit fingerprint
@@ -1501,6 +1532,7 @@ under the current generation and lease; Desktop continues to call core directly.
 portcove --json artwork show <port-id> --slot cover
 portcove --json artwork import <port-id> <image.png> --slot cover --expected-revision <revision>
 portcove --json artwork suppress <port-id> --slot cover --expected-revision <revision>
+portcove --json artwork unhide <port-id> --slot cover --expected-revision <revision>
 portcove --json artwork reset <port-id> --slot cover --expected-revision <revision>
 portcove --json artwork clear-cache
 portcove --json artwork unused
@@ -1510,12 +1542,15 @@ portcove --json --non-interactive artwork remove-unused <asset-sha256> --yes
 Slots are `cover` (default), `detail`, `landscape` and `logo`. Each slot has
 its own selection. Steam uses the separate `landscape` wide cover as its library
 capsule. Use `--slot logo` to import or reset a local logo. A library export with
-a logo choice or reset revision requires metadata schema 13.
+a logo choice or reset revision requires metadata schema 14.
 Read the current choice revision before changing it. Omitted `--expected-revision` captures
 the current revision at command execution; interactive clients should pass their
 reviewed revision so stale selections fail explicitly. Suppression requires an
 explicit revision. It hides the selected and automatic artwork for that port and
-slot. Reset returns the slot to automatic artwork. Both retain copied originals.
+slot and keeps the selected image and framing stored while hidden. `unhide` shows
+that same selection again, or automatic artwork when nothing was selected.
+Choosing a new image also shows the role. Reset returns the slot to automatic
+artwork. All of them retain copied originals.
 Removal requires an unused asset and explicit confirmation. External source
 images are never removed.
 
@@ -1597,7 +1632,7 @@ artwork is kept. The copy is library artwork like a local import: `reset` return
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
 check has confirmed a withdrawal. Exports with Logo choices or provider records
-use metadata schema 13.
+use metadata schema 14.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 `check-listings` checks, with your key, whether SteamGridDB still lists each
@@ -2173,7 +2208,7 @@ portcove --library <path> --json backup delete <port-id> <backup-id> --yes
 
 `backup create` first collects mutable data from a previously launched active release, then copies the complete canonical user-data root into a private directory and publishes it as `backups/<port-id>/<backup-id>` with an adjacent `backup.json` manifest only after the copy is complete. Every copied file and the manifest are flushed. The same-volume rename gives atomic namespace visibility to running processes. On Linux filesystems that accept directory `fsync`, Portcove additionally synchronizes the staged directory tree and the backup parent before reporting success, covering that supported directory-durability boundary. Other platforms and Linux filesystems that reject directory synchronization do not receive that claim, so a successful backup there does not promise that the final directory entry survives sudden power loss even though partial data is never published during normal execution or process failure. The result reports its stable ID, absolute path, creation timestamp, file count, byte count, and deterministic tree SHA-256. Empty roots fail with `not_found`; a symlink, non-Unicode path, or unsupported filesystem entry fails closed with no published partial backup. `backup list` is local, read-only, network-free, and returns a `BackupInventory`: verified backups remain newest-first while missing, unreadable, malformed, identity-mismatched, unsupported, and recovery-required entries are reported individually. Active private publication staging remains hidden. Damaged unrelated entries do not prevent creation of another backup. All backup commands validate the port against the embedded catalog.
 
-Before an update installs, a staged version is activated, or a rollback runs, Portcove snapshots the game's managed saved data through the same path as `backup create`, so the saves from just before the version changed can be restored. A game whose saves are `external-user-owned` is skipped, and so is a game with no saved data yet; that skip is recorded in Activity. Each snapshot carries an `automatic` label in `backup list` JSON (`operation` of `update`, `activation` or `rollback`, with `from_version` and `to_version`); manual snapshots omit it and the human listing shows a `KIND` column. If the snapshot fails, the version change stops before it modifies anything and reports the failure. Portcove keeps the newest five automatic snapshots per game and removes older automatic ones through the normal backup deletion recovery path; it never removes a manual snapshot. Staging a version without activating it, and an update that is already installed, take no snapshot. The per-library `automatic_snapshots` setting defaults to on and travels with the library. Desktop turns it off or on in Settings, under Library; the CLI has no command for it yet.
+Before an update installs, a staged version is activated, or a rollback runs, Portcove snapshots the game's managed saved data through the same path as `backup create`, so the saves from just before the version changed can be restored. A game whose saves are `external-user-owned` is skipped, and so is a game with no saved data yet; that skip is recorded in Activity. Each snapshot carries an `automatic` label in `backup list` JSON (`operation` of `update`, `activation` or `rollback`, with `from_version` and `to_version`); manual snapshots omit it and the human listing shows a `KIND` column. If the snapshot fails, the version change stops before it modifies anything and reports the failure. Portcove keeps the newest five automatic snapshots per game and removes older automatic ones through the normal backup deletion recovery path; it never removes a manual snapshot. Staging a version without activating it, and an update that is already installed, take no snapshot. The per-library `automatic_snapshots` setting defaults to on and travels with the library. Desktop reads this policy in Saves & backups, Versions & updates, and the activating update review. To change it, go to Settings → Library and storage. Backup history shows completed snapshots. The CLI has no command to change this policy.
 
 `backup restore` is destructive to current persistent data and therefore requires confirmation, or `--yes` for an unattended caller. It copies the selected snapshot into an operation-private staging directory, recomputes and compares its file count, byte count, and tree SHA-256, then creates an automatic safety backup of current non-empty data before replacing the canonical user root with same-volume renames. Those renames and the lifecycle journal prevent another running process from observing a partial staged tree and allow unambiguous process-crash recovery; they are not a cross-platform sudden-power-loss guarantee. A missing, mismatched, symlinked, or tampered backup fails before live data or the backup list changes. The result includes both `restored_backup` and the new `safety_backup`; the latter is absent only when no current files existed. Restore does not modify application versions or original game sources, and the restored data is synchronized into the active release on its next Portcove launch.
 
@@ -2718,6 +2753,69 @@ backup's enabled entries and recorded order. A matching backup can stay in use
 as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
+
+### Browsing reviewed GitHub mod releases
+
+In Desktop, open the game's Mods view and choose **Browse mods on GitHub**.
+The link opens the reviewed Releases page. The view shows the native ZIP setup
+only when the game's active installed build binds the reviewed loader and has
+a reviewed companion layout for the current platform. A game that is not
+installed, or whose installed build predates the loader, keeps only the link.
+Core decides this from the installed build's retained definition, not from the
+current catalog definition.
+
+Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
+randomizer releases recommended by Zelda64Recomp. With `--json`, the response
+includes the repository, release and asset IDs and the published SHA-256 when
+GitHub provides one.
+
+For Windows x86-64 or Linux x86-64, download the intact ZIP from GitHub and use
+**Install Mods** in a separate Zelda64Recompiled copy before starting the game.
+That installer handles the extra native libraries in the ZIP. This route owns
+its own mod updates and files. Portcove's managed setups still require separate
+review and custody for those libraries. [Randomizer installation instructions](https://github.com/RecompRando/MMRecompRando#mod-installation)
+
+To inspect a ZIP, run
+`portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID [ZIP]`.
+Provide the path to an intact local ZIP, or let Portcove fetch the selected
+GitHub asset privately. The review compares the ZIP with the published SHA-256 and reports the exact
+mods and companion libraries for the selected platform. `native_import_offered`
+is true only when the active installed build admits the platform and its
+runtime meets every mod's minimum runtime version. Use the intact ZIP in
+the upstream installer. The report cannot activate a Portcove setup.
+
+### Browsing upstream-owned mod portals
+
+Open **Mods** on the game page or run `portcove profile setups <port-id>`
+to see the reviewed browser links for the current host. A game can offer these
+links before it has an installed runtime or a managed mod setup. You choose,
+install and update files outside Portcove.
+
+- Daggerfall Unity links to Nexus. Choose the matching game version and operating
+  system. Follow the mod's instructions in a separate Daggerfall Unity copy.
+  Place `.dfmod` files in `StreamingAssets/Mods`. [Daggerfall Workshop setup](https://www.dfworkshop.net/projects/daggerfall-unity/modding/)
+- SM64 Co-op DX links to its community catalog. The game imports a compatible
+  ZIP or Lua file when you drag it onto the game window. [CoopDX FAQ](https://mods.sm64coopdx.com/help/faq/)
+- The UFO Defense and Terror from the Deep OpenXcom ports link to the OpenXcom
+  communities on mod.io and Mod DB. Check the mod's original game and engine
+  requirements before choosing a file. Some listings target a different engine
+  variant. [OpenXcom community](https://github.com/OpenXcom/OpenXcom#mods) ·
+  [OpenXcom on Mod DB](https://www.moddb.com/games/openxcom/mods)
+- vkQuake and Ironwail link to Quaddicted. Check the project's compatibility notes and
+  follow the author's setup in a separate Quake copy. [vkQuake compatibility](https://github.com/Novum/vkQuake)
+
+On supported Windows and Linux routes for vkQuake and Ironwail, use
+`portcove profile quaddicted PORT_ID` to see newest entries, or pass
+`--search SEARCH` and `--page 2` to narrow or continue the results. The
+vkQuake route also offers Arcane Dimensions file notices via
+`portcove profile mod-db-notices quake-vkquake`. These notices can include
+patches and documentation. Use the source page to see its instructions.
+
+The Core binding in `crates/portcove-core/catalog/external-mod-portals.json`
+specifies the exact port ID, original game ID, project URL and host platforms.
+Core also checks the current catalog when it returns a link or authorizes the
+desktop to open it. Browser routes supply no account, download, package trust
+or managed-import capability.
 
 ### Browsing JakMods in OpenGOAL
 

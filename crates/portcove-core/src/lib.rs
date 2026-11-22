@@ -102,16 +102,21 @@ mod target_inspection;
 pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
+mod external_mod_portal;
+pub use external_mod_portal::{ExternalModPortal, ExternalModPortalSource};
 mod gamebanana;
+mod github_mods;
 mod jakmods;
 mod mod_package;
 mod mod_provider;
+mod moddb_feed;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
 mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
+mod profile_package_files;
 mod provider_auto_update;
 mod provider_binding;
 mod provider_browse;
@@ -121,9 +126,12 @@ mod provider_http;
 mod provider_install;
 mod provider_update;
 mod psx;
+mod quaddicted;
+mod quake_mod_browser;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recipe;
+mod recomp_companion_review;
 mod recomp_mod;
 mod recomp_mod_list;
 mod recomp_mod_settings;
@@ -133,6 +141,7 @@ mod release;
 mod release_notes;
 mod retained_build;
 mod rom_patch;
+mod route_facts;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
@@ -298,13 +307,17 @@ pub use game_recommendations::{
 };
 pub use game_settings::{
     GameSetting, GameSettingChange, GameSettingChoice, GameSettingReview, GameSettingType,
-    GameSettingView, GameSettingsChangeSetReview, GameSettingsContract, GameSettingsEdit,
-    GameSettingsFile, GameSettingsFileView, GameSettingsFormat, GameSettingsRelease,
-    GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
+    GameSettingView, GameSettingsChangeSetReview, GameSettingsChangeSetView, GameSettingsContract,
+    GameSettingsEdit, GameSettingsFile, GameSettingsFileView, GameSettingsFormat,
+    GameSettingsRelease, GameSettingsSetupIdentity, GameSettingsView, ReviewedGameSettingsEdit,
     inspect_game_settings_qualification,
 };
 pub use gamebanana::GameBananaClient;
 pub use ghostship_data_store::{GhostshipRecoveryPlan, GhostshipRecoveryResult};
+pub use github_mods::{
+    GithubCompoundConsent, GithubCompoundPlan, GithubModAsset, GithubModCatalog,
+    GithubModCompoundReview, GithubModRelease, has_github_mod_source,
+};
 pub use gitlab::GitlabReleaseProvider;
 pub use host_preferences::{
     CollectionPreference, HostPreferenceStore, HostPreferences, HostToolPreference,
@@ -326,7 +339,8 @@ pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 pub use library::{
-    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
+    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, LibrarySelectionContents,
+    LibrarySelectionTarget, PortOperationGuard,
 };
 pub use library_import::LibraryImportPlan;
 pub use library_membership::{
@@ -337,7 +351,7 @@ pub use library_membership::{
 pub use library_move::LibraryMoveResult;
 pub use library_recovery_bundle::{
     LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage,
-    LibraryRecoveryExclusion, LibraryRecoveryRestorePlan,
+    LibraryRecoveryExclusion, LibraryRecoveryProgress, LibraryRecoveryRestorePlan,
 };
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{
@@ -351,6 +365,7 @@ pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
+pub use package_layout::PackageLayoutObservation;
 pub use package_layout::{
     PackageProgramFilter, inspect_package_archive, inspect_package_archive_with_program_filter,
 };
@@ -358,6 +373,7 @@ pub use package_shape::{
     InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
     PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
     ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
+    inspect_package_shape_archive_observed,
 };
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
@@ -400,6 +416,9 @@ pub use profile_file_preservation::{
     ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
 };
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
+pub use profile_package_files::{
+    RecompCompanionMemberV1, RecompCompanionRole, RecompCompanionSetV1,
+};
 pub use provider_auto_update::{
     HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
 };
@@ -415,11 +434,13 @@ pub use recipe::{
     RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
     RecipeRuntime,
 };
+pub use recomp_companion_review::{RecompCompoundReview, ReviewedRecompCompanion};
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };
 pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
+    ExactReleaseHold, ExactReleaseHoldReason, ExactReleaseIdentity, ExactReleaseSelection,
     GithubReleaseProvider, ManagedPackageVariant, ObservationEvidence, ObservedReleaseIdentity,
     ObservedResolution, ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
     inspect_upstream_observation,
@@ -430,6 +451,10 @@ pub use retained_build::{
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
     RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
 };
+pub use route_facts::{
+    ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,
+    ObservedReleaseFacts, PlayerCandidate, RouteHold, TargetArch, TargetOs,
+};
 pub use service::{
     ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,
     AdoptionBatchPreview, AdoptionBatchResult, AdoptionCopyFile, AdoptionCopyPlan,
@@ -438,7 +463,7 @@ pub use service::{
     CatalogDownloadAssetId, CatalogDownloadCandidate, CatalogDownloadCandidates,
     CatalogDownloadCoverage, CatalogDownloadPreview, CatalogDownloadRefusal,
     CatalogDownloadRelease, CatalogDownloadReleaseId, CatalogDownloadRequest,
-    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment,
+    CatalogForeignAssetId, CatalogForeignReleaseId, CatalogPackageAssessment, ExactReleaseReview,
     GITHUB_LAUNCHER_FORMAT_REVISION, INSTALL_BATCH_FORMAT_VERSION, IdentifiedLaunchRequest,
     InstallBatchCapacity, InstallBatchItem, InstallBatchItemState, InstallBatchRecord,
     InstallBatchRequestItem, InstallBatchReview, InstallBatchReviewItem, InstallBatchSummary,
@@ -557,3 +582,10 @@ pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 pub const LIBRARY_SCHEMA_VERSION: u32 = database::CURRENT_SCHEMA_VERSION as u32;
 /// Cross-process exclusion capability required by application update metadata.
 pub const APPLICATION_UPDATE_LOCK_PROTOCOL: &str = "library-lock-v1";
+
+pub use moddb_feed::FileNotice as ModDbFileNotice;
+pub use quaddicted::{
+    QuaddictedEngineCompatibility, QuaddictedEntry, QuaddictedInstallNotes, QuaddictedPage,
+    QuakeEngine,
+};
+pub use quake_mod_browser::ModDbFileNotices;

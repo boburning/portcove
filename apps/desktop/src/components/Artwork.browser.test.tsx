@@ -115,7 +115,7 @@ async function click(slot: keyof typeof slotLabels, label: string) {
 
 async function confirmVisibility(
   slot: keyof typeof slotLabels,
-  action: "Hide artwork" | "Use automatic",
+  action: "Hide artwork" | "Show artwork" | "Use automatic",
 ) {
   await click(slot, action);
   await click(slot, "Apply");
@@ -625,7 +625,7 @@ describe("local artwork controls", () => {
     expect(automatic).not.toHaveBeenCalled();
   });
 
-  it("restores focus to Use automatic after Hide commits during a catalog refresh", async () => {
+  it("restores focus to the visibility toggle after Hide commits during a catalog refresh", async () => {
     let state = artworkState("sample", "cover");
     vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
       slot === "cover" ? state : artworkState(port, slot),
@@ -643,9 +643,46 @@ describe("local artwork controls", () => {
     state = artworkState("sample", "cover", 1);
     state.choice.suppressed = true;
     await act(async () => finish(state));
-    await expect.element(page.elementLocator(button("cover", "Use automatic"))).toHaveFocus();
-    expect(button("cover", "Hide artwork").disabled).toBe(true);
+    await expect.element(page.elementLocator(button("cover", "Show artwork"))).toHaveFocus();
+    expect(button("cover", "Use automatic").disabled).toBe(false);
     expect(hide).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the hidden selection and Show artwork restores exactly that choice", async () => {
+    const selected = artworkState("sample", "detail", 3, true);
+    let state = structuredClone(selected);
+    state.choice.suppressed = true;
+    state.availability = "fallback";
+    state.resolved_source = { kind: "generated_fallback" };
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      slot === "detail" ? state : artworkState(port, slot),
+    );
+    const show = vi.spyOn(desktopApi, "unhideArtwork").mockImplementation(async () => {
+      state = { ...structuredClone(selected), choice: { ...selected.choice, revision: 4 } };
+      return state;
+    });
+    const reset = vi.spyOn(desktopApi, "resetArtwork");
+    await render("sample", 7, "old-cover");
+    await open();
+    await selectSlot("detail");
+    await expect
+      .element(page.getByText("Hidden for this port. Show artwork to bring back your choice."))
+      .toBeVisible();
+    await click("detail", "Show artwork");
+    const review = page.getByRole("form", { name: "Review artwork change", exact: true });
+    await expect
+      .element(review.getByRole("heading", { name: "Review artwork change" }))
+      .toHaveAccessibleDescription(
+        "Show this role again with the artwork it had before it was hidden.",
+      );
+    expect(show).not.toHaveBeenCalled();
+    await review.getByRole("button", { name: "Apply", exact: true }).click();
+    expect(show).toHaveBeenCalledExactlyOnceWith("sample", "detail", 3, 7);
+    await expect.element(page.elementLocator(button("detail", "Hide artwork"))).toHaveFocus();
+    await expect
+      .element(page.getByText("Hidden for this port. Show artwork to bring back your choice."))
+      .not.toBeInTheDocument();
+    expect(reset).not.toHaveBeenCalled();
   });
 
   it("waits for a pre-commit replacement-cache read and then reads the committed choice", async () => {

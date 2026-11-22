@@ -23,6 +23,7 @@ import { gameProjectLabel, gameTitle } from "../port-identity";
 import {
   backgroundObjectPosition,
   type BackgroundPreviewProps,
+  type HeroMediaContext,
   type HeroMediaPort,
 } from "../hero-media";
 import { Button } from "./ui/button";
@@ -42,6 +43,7 @@ export function GameHero({
   successfulLaunches,
   compact = false,
   preview,
+  mediaContext,
 }: {
   port: HeroMediaPort;
   variant: "detail" | "continue";
@@ -51,6 +53,7 @@ export function GameHero({
   successfulLaunches?: number | undefined;
   compact?: boolean;
   preview?: Pick<BackgroundPreviewProps, "image" | "position" | "onError"> | undefined;
+  mediaContext?: HeroMediaContext | undefined;
 }) {
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
@@ -58,7 +61,7 @@ export function GameHero({
   const { foreground, cover, background } = useGameHeroArtwork(
     port,
     artworkVisible,
-    undefined,
+    mediaContext,
     !preview,
   );
   const backgroundState = background.display.state;
@@ -245,6 +248,7 @@ export function GameHeroFramingPreview({
   image,
   position,
   actionLabel,
+  mediaContext,
   onError,
 }: BackgroundPreviewProps) {
   const { t } = useAppTranslation("browsing");
@@ -266,6 +270,7 @@ export function GameHeroFramingPreview({
         variant={variant}
         className={variant === "detail" ? "detail-hero" : "continue-card"}
         preview={{ image, position, onError }}
+        mediaContext={mediaContext}
       >
         {variant === "detail" ? (
           <div className="detail-identity min-w-0 wrap-anywhere">

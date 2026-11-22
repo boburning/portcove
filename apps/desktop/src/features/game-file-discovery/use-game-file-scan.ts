@@ -1,6 +1,7 @@
 import {
   createContext,
   createElement,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -8,7 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import { desktopApi } from "../../api";
-import type { GameFileRoot, GameFileScanSnapshot, OperationEvent, SourceRecord } from "../../types";
+import type {
+  GameFileRoot,
+  GameFileScanSnapshot,
+  OperationEvent,
+  SourceDiscoveryReport,
+  SourceRecord,
+} from "../../types";
 import { errorText, isCancellation } from "../../view-model";
 
 export const gameFileScanLimits = {
@@ -199,6 +206,17 @@ export type GameFileScan = ReturnType<typeof useGameFileScan>;
 
 const GameFileScanContext = createContext<GameFileScan | undefined>(undefined);
 
+export type OneOffFileSearch = { root: string; profile: string; report: SourceDiscoveryReport };
+
+const OneOffFileSearchContext = createContext<
+  | { result: OneOffFileSearch | undefined; begin: () => (result: OneOffFileSearch) => void }
+  | undefined
+>(undefined);
+
+export function useOneOffFileSearch() {
+  return useContext(OneOffFileSearchContext);
+}
+
 export function GameFileScanProvider({
   children,
   generation,
@@ -207,7 +225,19 @@ export function GameFileScanProvider({
   generation: number;
 }) {
   const scan = useGameFileScan(generation);
-  return createElement(GameFileScanContext.Provider, { value: scan }, children);
+  const [{ result }, setSearch] = useState<{ result?: OneOffFileSearch; pending?: object }>({});
+  const begin = useCallback(() => {
+    const pending = {};
+    setSearch((current) => ({ ...current, pending }));
+    return (completed: OneOffFileSearch) => {
+      setSearch((current) => (current.pending === pending ? { result: completed } : current));
+    };
+  }, []);
+  return createElement(
+    GameFileScanContext.Provider,
+    { value: scan },
+    createElement(OneOffFileSearchContext.Provider, { value: { result, begin } }, children),
+  );
 }
 
 export function useGameFileScanObserver(generation: number) {

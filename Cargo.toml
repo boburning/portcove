@@ -5,6 +5,7 @@ members = [
   "crates/portcove-core",
   "crates/portcove-cli",
   "crates/portcove-diagnostics",
+  "crates/portcove-listing-carrier",
   "crates/portcove-release-tools",
   "tools/rust-portability",
   "apps/desktop/src-tauri",
@@ -20,13 +21,12 @@ rust-version = "1.99"
 
 [workspace.dependencies]
 async-trait = "0.1.92"
-bytes = "1.12.1"
-clap = { version = "4.6.7", features = ["derive", "env"] }
+bytes = "1.12.2"
+clap = { version = "4.6.9", features = ["derive", "env"] }
 directories = "6"
 ed25519-dalek = { version = "3.0.0", default-features = false, features = ["fast"] }
 crc32fast = "1.5.5"
-flate2 = "1.1.10"
-filetime = "0.2.29"
+flate2 = "1.1.11"
 futures-util = "0.3.34"
 fs4 = { version = "1.1.0", default-features = false }
 hex = "0.4.3"
@@ -113,6 +113,12 @@ opt-level = 3
 opt-level = 1
 debug-assertions = true
 overflow-checks = true
+
+# Core reuses this member's shared generic instantiations (serde_json
+# serialization included). Unoptimized, they made catalog-heavy Core tests
+# about nine times slower, so keep them at Core's level.
+[profile.test.package.portcove-listing-carrier]
+opt-level = 1
 
 # Fixed controller helpers are not shipping packages. Bound their cold build
 # without changing the release profile, feature set or production job timeout.

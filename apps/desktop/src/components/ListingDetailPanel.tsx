@@ -1,3 +1,4 @@
+import { ExternalModPortals, useExternalModPortals } from "./ExternalModPortals";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import { releaseKey } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
@@ -166,6 +167,7 @@ export function ListingDetailPanel({
 }) {
   const { t } = useAppTranslation("installation");
   const listing = entry.listing;
+  const modPortals = useExternalModPortals(entry.id, generation);
   const platforms = listing?.platforms ?? (entry.definition ? [] : entry.platforms);
   const updates = listing && upstreamUpdatesDestination(listing.project_url, listing.release_url);
   const registered = status?.external_runtime;
@@ -339,6 +341,17 @@ export function ListingDetailPanel({
           }
         >
           {(reveal) => ({
+            ...(modPortals.length
+              ? {
+                  mods: (
+                    <ExternalModPortals
+                      portals={modPortals}
+                      port={entry.id}
+                      generation={generation}
+                    />
+                  ),
+                }
+              : {}),
             overview: (
               <>
                 <section className="detail-about" aria-label="About this port">

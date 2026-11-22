@@ -3257,7 +3257,7 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             let status = service.status(ID).unwrap();
             let before = library.update_snapshot(ID).unwrap().unwrap();
             let refused = service
-                .record_update_check(ID, &status, &stale.release, None)
+                .record_update_check(ID, &status, &stale.release, None, None)
                 .unwrap_err();
             assert_eq!(refused.code, crate::ErrorCode::Conflict);
             assert_eq!(
@@ -3285,11 +3285,11 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             // Intact admission and scope history can rule out this different
             // digest even while authenticated transition history is unusable.
             let advised = service
-                .record_update_check(ID, &status, &unrelated.release, None)
+                .record_update_check(ID, &status, &unrelated.release, None, None)
                 .unwrap();
             assert_eq!(advised.release, unrelated.release);
             let refused = service
-                .record_update_check(ID, &status, &stale.release, None)
+                .record_update_check(ID, &status, &stale.release, None, None)
                 .unwrap_err();
             assert!(refused.message.contains("curated transition history"));
             connection
@@ -3301,13 +3301,13 @@ async fn curated_retained_rollback_fixture(status: &str, operation: RetainedCura
             // With missing scopes, a plausible GitHub package could have
             // participated. A download from a different origin cannot have.
             let refused = service
-                .record_update_check(ID, &status, &unrelated.release, None)
+                .record_update_check(ID, &status, &unrelated.release, None, None)
                 .unwrap_err();
             assert!(refused.message.contains("curated artifact scope history"));
             let mut outside = unrelated.release.clone();
             outside.asset.url = "https://downloads.example.org/package.zip".into();
             let advised = service
-                .record_update_check(ID, &status, &outside, None)
+                .record_update_check(ID, &status, &outside, None, None)
                 .unwrap();
             assert_eq!(advised.release, outside);
             assert_eq!(

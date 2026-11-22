@@ -99,7 +99,7 @@ pub(crate) fn migrate_landscape_slot(transaction: &Transaction<'_>) -> Result<()
     widen_slots(transaction, "artwork_choices_v56", LANDSCAPE_CHOICES)
 }
 
-/// Library migration 74 admits Logo without changing the existing asset store.
+/// Library migration 75 admits Logo without changing the existing asset store.
 pub(crate) fn migrate_logo_slot(transaction: &Transaction<'_>) -> Result<()> {
     widen_slots(transaction, "artwork_choices_v73", LOGO_CHOICES)
 }
@@ -165,8 +165,9 @@ fn verify_choice_column(connection: &Connection, column: &str) -> Result<()> {
     Ok(())
 }
 
-const SUPPRESSION_COLUMN: &str = "suppressed INTEGER NOT NULL DEFAULT 0 CHECK(
-    suppressed IN (0,1) AND (suppressed=0 OR asset_sha256 IS NULL))";
+/// Library migration 77: hiding a role is independent of its selection, so a
+/// hidden choice keeps its asset and framing and showing it again restores them.
+const SUPPRESSION_COLUMN: &str = "suppressed INTEGER NOT NULL DEFAULT 0 CHECK(suppressed IN (0,1))";
 
 pub(crate) fn migrate_suppression(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(&format!(
@@ -1169,21 +1170,19 @@ pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Resu
 
 pub(crate) enum ChoiceValue<'a> {
     Automatic,
-    Suppressed,
     Image(&'a str, Option<ArtworkFraming>),
+    /// A hidden role, retaining any selected image and framing for when it is shown.
+    Hidden(Option<&'a str>, Option<ArtworkFraming>),
 }
 
 fn choice_value(choice: &ArtworkChoice) -> Result<ChoiceValue<'_>> {
     let id = choice.asset_sha256.as_deref();
     validate_choice_framing(choice.slot, id, choice.framing)?;
-    match (choice.suppressed, id) {
-        (true, None) => Ok(ChoiceValue::Suppressed),
-        (false, None) => Ok(ChoiceValue::Automatic),
-        (false, Some(id)) => Ok(ChoiceValue::Image(id, choice.framing)),
-        (true, Some(_)) => Err(PortcoveError::verification(
-            "suppressed artwork cannot also select an asset",
-        )),
-    }
+    Ok(match (choice.suppressed, id) {
+        (true, id) => ChoiceValue::Hidden(id, choice.framing),
+        (false, None) => ChoiceValue::Automatic,
+        (false, Some(id)) => ChoiceValue::Image(id, choice.framing),
+    })
 }
 
 pub(crate) fn write_choice(
@@ -1195,8 +1194,8 @@ pub(crate) fn write_choice(
 ) -> Result<()> {
     let (id, framing, suppressed) = match value {
         ChoiceValue::Automatic => (None, None, false),
-        ChoiceValue::Suppressed => (None, None, true),
         ChoiceValue::Image(id, framing) => (Some(id), framing, false),
+        ChoiceValue::Hidden(id, framing) => (id, framing, true),
     };
     validate_choice_framing(slot, id, framing)?;
     let framing = framing.as_ref().map(serde_json::to_string).transpose()?;

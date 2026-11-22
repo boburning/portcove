@@ -10,6 +10,7 @@ import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { transportValue } from "./transport-values.mts";
 import {
   installSecondaryPanelProbe,
+  type SecondaryPanelPhase,
   type SecondaryPanelProbeCleanup,
   type SecondaryPanelProbeObservation,
   type SecondaryPanelProbeOptions,
@@ -70,7 +71,7 @@ test.each(schemaCases)(
   },
 );
 
-function installed() {
+function installed(probeOptions = options) {
   const forwarded: { input: unknown; init: unknown }[] = [];
   const original: typeof fetch = (input, init) => {
     forwarded.push({ input, init });
@@ -86,7 +87,7 @@ function installed() {
     },
     __portcoveSecondaryPanelProbe: undefined as
       | {
-          phase(value: "mods" | "preservation"): void;
+          phase(value: SecondaryPanelPhase): void;
           capture(): SecondaryPanelProbeObservation;
           restore(): SecondaryPanelProbeCleanup;
         }
@@ -101,7 +102,7 @@ function installed() {
   const install = (value: SecondaryPanelProbeOptions) => {
     Reflect.apply(serialized, undefined, [value]);
   };
-  install(structuredClone(options));
+  install(structuredClone(probeOptions));
   const probe = window.__portcoveSecondaryPanelProbe;
   assert.ok(probe);
   const call = (command: string, args: Record<string, unknown> = {}) =>
@@ -133,6 +134,28 @@ test("serialized native panel probe supplies fixed views and preserves unrelated
   assert.equal(cleanup.trustworthy, true);
   assert.equal(window.fetch, original);
   assert.equal(window.__portcoveSecondaryPanelProbe, undefined);
+});
+
+test("provider presentation changes readability without changing the eligible identity", async () => {
+  const { call, probe } = installed();
+  const args = { provider: "gamebanana", projectId: "42" };
+  const catalogArgs = { source: "gamebanana" };
+  const incomplete = await responseObject(await call("get_provider_project", args));
+  const incompleteCatalog = await responseObject(
+    await call("get_mod_provider_catalog", catalogArgs),
+  );
+  probe.phase("provider-singleton");
+  const complete = await responseObject(await call("get_provider_project", args));
+  const completeCatalog = await responseObject(await call("get_mod_provider_catalog", catalogArgs));
+  assert.equal(object(incomplete.project).unreadable_files, 1);
+  assert.deepEqual(incomplete.eligible_file_ids, ["10"]);
+  assert.deepEqual(complete, {
+    ...incomplete,
+    project: { ...object(incomplete.project), unreadable_files: 0 },
+  });
+  assert.deepEqual(incompleteCatalog.projects, [incomplete.project]);
+  assert.deepEqual(completeCatalog.projects, [complete.project]);
+  assert.equal(probe.restore().trustworthy, true);
 });
 
 test("every declared secondary mutation is refused without reaching Core", async () => {
@@ -269,6 +292,68 @@ test("only the exact owned successful metadata path reaches Core", async () => {
   assert.equal(mismatch.headers.get("Tauri-Response"), "error");
   assert.equal(forwarded.length, 1);
   assert.equal(probe.restore().trustworthy, false);
+});
+
+test("Windows metadata picker aliases still bind the complete owned file path", async () => {
+  const { call, forwarded, probe } = installed({ ...options, windowsPickerPaths: true });
+  const accepted = await call("export_library_metadata", {
+    path: String.raw`\\?\c:\owned-native-output\metadata.json`,
+  });
+  assert.deepEqual(await accepted.json(), { core: "owned original transport" });
+  const refused = await call("export_library_metadata", {
+    path: String.raw`C:\owned-native-output\metadata-refused.json`,
+  });
+  assert.equal(
+    (await responseObject(refused)).message,
+    "Owned presentation metadata export refusal.",
+  );
+  const outside = await call("export_library_metadata", {
+    path: String.raw`\\?\C:\other\metadata.json`,
+  });
+  assert.equal(outside.headers.get("Tauri-Response"), "error");
+  const traversal = await call("export_library_metadata", {
+    path: String.raw`C:\owned-native-output\..\owned-native-output\metadata.json`,
+  });
+  assert.equal(traversal.headers.get("Tauri-Response"), "error");
+  assert.equal(forwarded.length, 1);
+  const cleanup = probe.restore();
+  assert.deepEqual(
+    [...cleanup.mismatches],
+    [
+      "export_library_metadata: unexpected metadata directory",
+      "export_library_metadata: unexpected metadata directory",
+    ],
+  );
+  assert.equal(cleanup.trustworthy, false);
+});
+
+test("different picker file names remain blocked without recording their returned paths", async () => {
+  const { call, forwarded, probe } = installed({ ...options, windowsPickerPaths: true });
+  const paths = [
+    "C:/unrelated/portcove-library.json",
+    options.metadataPath + ".json",
+    options.metadataPath.slice(0, -5),
+    options.metadataPath + '"',
+    "C:/unrelated/player-private.json",
+  ];
+  for (const path of paths)
+    assert.equal(
+      (await call("export_library_metadata", { path })).headers.get("Tauri-Response"),
+      "error",
+    );
+  assert.deepEqual(forwarded, []);
+  const cleanup = probe.restore();
+  assert.equal(cleanup.trustworthy, false);
+  assert.deepEqual(
+    [...cleanup.mismatches],
+    [
+      "export_library_metadata: metadata picker returned the default file name",
+      "export_library_metadata: metadata picker appended a second JSON extension",
+      "export_library_metadata: metadata picker removed the JSON extension",
+      "export_library_metadata: metadata picker retained a closing quote",
+      "export_library_metadata: unexpected metadata file name",
+    ],
+  );
 });
 
 test("changed identity and malformed targeted requests fail visibly and preserve bounded trace fields", async () => {

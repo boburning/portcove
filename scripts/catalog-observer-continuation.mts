@@ -1,7 +1,136 @@
 import { ObservationFailure } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
+/** Core's typed statement of how completely one observation covered the
+ * provider's pages and assets (`fact_provenance.coverage`). Core's GitHub
+ * observation report always states it; "unstated" is a projection without it. */
+export type CoreCoverage = "complete" | "partial" | "unavailable" | "failed" | "unstated";
+const coreCoverageKinds: readonly string[] = ["complete", "partial", "unavailable", "failed"];
+export function coreProjectionCoverage(projection: unknown): CoreCoverage {
+  const provenance = isRecord(projection) ? projection.fact_provenance : null;
+  const coverage = isRecord(provenance) ? provenance.coverage : null;
+  if (!isRecord(coverage)) return "unstated";
+  return typeof coverage.kind === "string" && coreCoverageKinds.includes(coverage.kind)
+    ? (coverage.kind as CoreCoverage)
+    : "failed";
+}
+/** Stated partial, unavailable or failed coverage never advances an accepted
+ * cursor or replaces last-good facts: the caller keeps both and records
+ * `incomplete-coverage`. A projection without a statement keeps its
+ * existing acceptance rules. */
+export function requireCompleteCoreCoverage(projection: unknown) {
+  const coverage = coreProjectionCoverage(projection);
+  if (coverage !== "complete" && coverage !== "unstated") {
+    const failure = new ObservationFailure(
+      "incomplete-coverage",
+      `Core reported ${coverage} provider coverage; the accepted cursor and last-good facts are kept`,
+    );
+    failure.statedCoverage = coverage;
+    throw failure;
+  }
+}
+/**
+ * The observer's own statement of how one source's attempt covered its
+ * provider, using Core's coverage vocabulary. `rule` is the recorded exception
+ * rule; `retry_at` is present only when the provider (or its quota reserve)
+ * named the earliest retry time; `next_cursor` is the retained continuation
+ * position the next run resumes from (null when the attempt restarts).
+ * Complete coverage is never stated here: a complete source omits the field.
+ */
+export type StatedSourceCoverage =
+  | { kind: "partial"; rule: string; next_cursor: string | null; retry_at?: string }
+  | { kind: "unavailable"; rule: string; retry_at?: string }
+  | { kind: "failed"; rule: string; retry_at?: string };
+/**
+ * Stopped with retained progress: our own budget, cancellation or a changed
+ * collection. A truncated page is stated `partial` by its producer
+ * (`partialObservationFailure`); every other `pagination` or
+ * `provider-pagination` failure (malformed or escaping links, repeated
+ * identities, page mismatches) is an integrity failure and states `failed`.
+ */
+const partialCoverageRules: readonly string[] = ["budget", "cancelled", "concurrent-change"];
+/** The provider declined or could not answer: quota, Retry-After, outage or transport. */
+const unavailableCoverageRules: readonly string[] = [
+  "rate-limit",
+  "provider-quota",
+  "transport",
+  "provider-transport",
+];
+const statusRules: readonly string[] = ["provider-status", "provider-http"];
+export function statedSourceCoverage(
+  error: unknown,
+  nextCursor: string | null = null,
+): StatedSourceCoverage {
+  const failure = error instanceof ObservationFailure ? error : null;
+  const rule = failure?.rule ?? "source-operation-failed";
+  const retry =
+    failure?.retryAt && Number.isFinite(Date.parse(failure.retryAt))
+      ? { retry_at: failure.retryAt }
+      : {};
+  const status = failure?.httpStatus ?? null;
+  const kind =
+    failure?.statedCoverage ??
+    (partialCoverageRules.includes(rule)
+      ? "partial"
+      : unavailableCoverageRules.includes(rule) ||
+          (statusRules.includes(rule) && status !== null && (status >= 500 || status === 408))
+        ? "unavailable"
+        : "failed");
+  return kind === "partial"
+    ? { kind, rule, next_cursor: nextCursor, ...retry }
+    : { kind, rule, ...retry };
+}
+/** Bounded validation for a retained statement; absent means complete or unattempted. */
+export function validStatedSourceCoverage(value: unknown): value is StatedSourceCoverage {
+  if (!isRecord(value)) return false;
+  const allowed =
+    value.kind === "partial"
+      ? ["kind", "rule", "next_cursor", "retry_at"]
+      : ["kind", "rule", "retry_at"];
+  return (
+    ["partial", "unavailable", "failed"].includes(String(value.kind)) &&
+    Object.keys(value).every((key) => allowed.includes(key)) &&
+    typeof value.rule === "string" &&
+    /^[a-z-]{1,80}$/u.test(value.rule) &&
+    (value.kind !== "partial" ||
+      value.next_cursor === null ||
+      (typeof value.next_cursor === "string" && /^[a-z0-9:-]{1,80}$/u.test(value.next_cursor))) &&
+    (value.retry_at === undefined ||
+      (typeof value.retry_at === "string" && Number.isFinite(Date.parse(value.retry_at))))
+  );
+}
+/** Retained resume position of a GitHub observation continuation. */
+export function continuationCursor(continuation: unknown): string | null {
+  if (!isRecord(continuation) || continuation.phase === "restart") return null;
+  if (continuation.phase === "validate" && typeof continuation.validation_cursor === "number")
+    return `validate:${continuation.validation_cursor}`;
+  return continuation.phase === "collect" && isRecord(continuation.pages)
+    ? `collect:${Object.keys(continuation.pages).length}`
+    : null;
+}
+/** Retained resume position of GitLab or direct-manifest provider progress. */
+export function providerProgressCursor(progress: unknown): string | null {
+  if (!isRecord(progress) || !Array.isArray(progress.reads)) return null;
+  return `reads:${progress.reads.length}:validate:${typeof progress.validation_cursor === "number" ? progress.validation_cursor : 0}`;
+}
+/** Releases whose assets one Core channel projection needs: its channel
+ * candidate and, when that candidate is excluded, its reviewed fallback. */
+export function projectionAssetReleaseIds(projection: unknown): number[] {
+  if (!isRecord(projection)) return [];
+  return [projection.channel_candidate, projection.reviewed_fallback].flatMap((release) =>
+    isRecord(release) && Number.isSafeInteger(release.id) ? [Number(release.id)] : [],
+  );
+}
+/** The Core projection as retained in checkpoints and handoffs. Per-release
+ * typed facts are derivable from the retained provider facts and are not
+ * needed for continuation, so they stay out of bounded checkpoint storage. */
+export function retainedCoreProjection<T>(projection: T): T {
+  if (!isRecord(projection) || !Object.hasOwn(projection, "release_facts")) return projection;
+  const { release_facts: _facts, ...retained } = projection;
+  return retained as T;
+}
 export function acceptedObservationPosition(value: unknown) {
-  if (!isRecord(value)) return { pages: 0, validation: 0, facts: null };
+  if (!isRecord(value))
+    return { pages: 0, validation: 0, facts: null, coverage: "unstated" as CoreCoverage };
   const continuation = isRecord(value.continuation) ? value.continuation : null;
   const complete =
     isRecord(value.last_complete) && isRecord(value.last_complete.observation)
@@ -17,6 +146,9 @@ export function acceptedObservationPosition(value: unknown) {
     validation:
       typeof continuation?.validation_cursor === "number" ? continuation.validation_cursor : 0,
     facts: typeof complete?.facts_sha256 === "string" ? complete.facts_sha256 : null,
+    coverage: coreProjectionCoverage(
+      isRecord(value.last_complete) ? value.last_complete.projection : null,
+    ),
   };
 }
 export function acceptedObservationAdvanced(
@@ -25,8 +157,14 @@ export function acceptedObservationAdvanced(
 ) {
   const a = before ?? { pages: 0, validation: 0, facts: null },
     b = after;
+  // Changed last-good facts are never an accepted advance with stated
+  // incomplete coverage.
   return (
-    b.pages > a.pages || b.validation > a.validation || (b.facts !== null && b.facts !== a.facts)
+    b.pages > a.pages ||
+    b.validation > a.validation ||
+    (b.facts !== null &&
+      b.facts !== a.facts &&
+      (b.coverage === "complete" || b.coverage === "unstated"))
   );
 }
 interface Position {
@@ -105,7 +243,13 @@ interface BatchReport {
   pending_source_keys: string[];
   attempted_source_keys: string[];
   completed_source_keys: string[];
-  failures: { source: string; repository: string; rule: string; details: string }[];
+  failures: {
+    source: string;
+    repository: string;
+    rule: string;
+    details: string;
+    coverage?: StatedSourceCoverage;
+  }[];
   requests: number;
   response_bytes_charged: number;
 }

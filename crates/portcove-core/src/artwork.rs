@@ -102,6 +102,13 @@ impl ArtworkChoice {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Visibility {
+    Automatic,
+    Hide,
+    Show,
+}
+
 /// A focal point on the orientation-corrected image, in ten-thousandths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -808,6 +815,12 @@ impl PortcoveService {
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
+            // A hidden role keeps its selection without displaying or reading it.
+            _ if choice.suppressed => (
+                ArtworkAvailability::Fallback,
+                None,
+                ArtworkResolvedSource::GeneratedFallback,
+            ),
             None => match (slot == ArtworkSlot::Cover && choice.is_automatic())
                 .then(|| self.automatic_cover(port))
                 .flatten()
@@ -1543,6 +1556,11 @@ impl PortcoveService {
                 "choose a background image before adjusting its framing",
             ));
         };
+        if current.suppressed {
+            return Err(PortcoveError::conflict(
+                "show the background before adjusting its framing",
+            ));
+        }
         if current.framing != framing {
             crate::artwork_store::write_choice(
                 &transaction,
@@ -1562,16 +1580,28 @@ impl PortcoveService {
         slot: ArtworkSlot,
         expected_revision: u64,
     ) -> Result<ArtworkState> {
-        self.set_artwork_without_image(port_id, slot, expected_revision, false)
+        self.set_artwork_without_image(port_id, slot, expected_revision, Visibility::Automatic)
     }
 
+    /// Hide a role. Its selected image and framing stay stored, unshown, until
+    /// [`Self::unhide_artwork`] restores exactly that selection.
     pub fn suppress_artwork(
         &self,
         port_id: &str,
         slot: ArtworkSlot,
         expected_revision: u64,
     ) -> Result<ArtworkState> {
-        self.set_artwork_without_image(port_id, slot, expected_revision, true)
+        self.set_artwork_without_image(port_id, slot, expected_revision, Visibility::Hide)
+    }
+
+    /// Show a hidden role again with the selection it kept while hidden.
+    pub fn unhide_artwork(
+        &self,
+        port_id: &str,
+        slot: ArtworkSlot,
+        expected_revision: u64,
+    ) -> Result<ArtworkState> {
+        self.set_artwork_without_image(port_id, slot, expected_revision, Visibility::Show)
     }
 
     fn set_artwork_without_image(
@@ -1579,21 +1609,32 @@ impl PortcoveService {
         port_id: &str,
         slot: ArtworkSlot,
         expected_revision: u64,
-        suppressed: bool,
+        visibility: Visibility,
     ) -> Result<ArtworkState> {
         let port = self.artwork_port(port_id)?;
         let _guard = self.library().try_lock_artwork()?;
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;
-        crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
-        let value = if suppressed {
-            crate::artwork_store::ChoiceValue::Suppressed
-        } else {
-            crate::artwork_store::ChoiceValue::Automatic
+        let current =
+            crate::artwork_store::require_revision(&transaction, port_id, slot, expected_revision)?;
+        let id = current.asset_sha256.as_deref();
+        let value = match visibility {
+            Visibility::Hide if current.suppressed => {
+                return Err(PortcoveError::conflict("this artwork is already hidden"));
+            }
+            Visibility::Show if !current.suppressed => {
+                return Err(PortcoveError::conflict("this artwork is not hidden"));
+            }
+            Visibility::Hide => crate::artwork_store::ChoiceValue::Hidden(id, current.framing),
+            Visibility::Show => match id {
+                Some(id) => crate::artwork_store::ChoiceValue::Image(id, current.framing),
+                None => crate::artwork_store::ChoiceValue::Automatic,
+            },
+            Visibility::Automatic => crate::artwork_store::ChoiceValue::Automatic,
         };
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, value)?;
         transaction.commit()?;
-        if !suppressed {
+        if visibility == Visibility::Automatic {
             let _ = crate::artwork_eviction::complete_pending_evictions(
                 self.library(),
                 Some(crate::artwork_eviction::REMOVALS_PER_CHECK),
@@ -1780,6 +1821,9 @@ impl PortcoveService {
         let connection = self.library().connection()?;
         let choice =
             crate::artwork_store::require_revision(&connection, port_id, slot, expected_revision)?;
+        if choice.suppressed {
+            return Err(PortcoveError::not_found("this artwork is hidden"));
+        }
         let id = choice
             .asset_sha256
             .ok_or_else(|| PortcoveError::not_found("this artwork slot uses the fallback"))?;

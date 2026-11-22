@@ -460,6 +460,10 @@ impl PortcoveService {
             let connection = self.library().connection()?;
             let mut choice = crate::artwork_store::choice(&connection, port_id, slot)?;
             let automatic = choice.is_automatic();
+            // A hidden role reports no original; its retained selection stays private.
+            if choice.suppressed {
+                choice.asset_sha256 = None;
+            }
             choice.framing = None;
             choice.suppressed = false;
             if let Some(id) = &choice.asset_sha256 {

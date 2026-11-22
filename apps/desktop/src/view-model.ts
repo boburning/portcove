@@ -195,6 +195,7 @@ function operationPresentation(value: string): OperationPresentation {
     adopt: { label: "Copying existing installation" },
     remove: { label: "Removing managed files" },
     move_library: { label: "Moving library" },
+    copy_recovery_bundle: { label: "Recovery bundle transfer" },
     import_library: { label: "Importing library" },
     import_source: { label: "Copying game files" },
     discover_sources: { label: "Searching for game files" },

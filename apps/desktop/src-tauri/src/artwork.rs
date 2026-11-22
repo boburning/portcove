@@ -510,6 +510,23 @@ pub(crate) async fn suppress_artwork(
 }
 
 #[tauri::command]
+pub(crate) async fn unhide_artwork(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    slot: ArtworkSlot,
+    expected_revision: u64,
+    generation: u64,
+) -> DesktopResult<ArtworkState> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .unhide_artwork(&port_id, slot, expected_revision)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn reset_artwork(
     state: tauri::State<'_, DesktopState>,
     port_id: String,

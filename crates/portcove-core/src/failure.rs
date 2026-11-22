@@ -159,6 +159,9 @@ pub(crate) enum KnownFailureCause {
         path: std::path::PathBuf,
     },
     RecordedUploaderHold,
+    /// An exact release review, pin or saved pin was refused for a reason the
+    /// player can act on.
+    ExactRelease(crate::release::ExactReleaseRefusal),
     PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
@@ -208,6 +211,8 @@ pub(crate) enum KnownFailureCause {
         directory: std::path::PathBuf,
     },
     DestinationCapacity,
+    /// The operating system reported a full drive or quota while writing.
+    StorageFull,
     MetadataExportExists,
     ArchiveLimit,
     UnicodePath,
@@ -446,6 +451,7 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::ExactRelease(refusal) => return refusal.presentation(),
             Self::MetadataExportExists => (
                 "metadata_export_exists",
                 "Portcove kept the existing file. Choose a new filename to export library information.",
@@ -453,6 +459,10 @@ impl KnownFailureCause {
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
+            ),
+            Self::StorageFull => (
+                "storage_full",
+                "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
             ),
             Self::ArchiveLimit => (
                 "archive_safety_limit",

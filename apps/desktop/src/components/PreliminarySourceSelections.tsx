@@ -30,7 +30,7 @@ export function PreliminarySourceSelections({
   selections?: Inspection[] | undefined;
   profiles: SourceProfile[];
   disabled: boolean;
-  onReview: (candidate: Pick<SourceRecord, "profile_id" | "path">) => void;
+  onReview: (candidate: SourceRecord) => void;
   renderActions?: (candidate: SourceRecord) => ReactNode;
   headingLevel?: 3 | 4;
 }) {

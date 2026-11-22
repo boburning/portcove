@@ -1067,7 +1067,54 @@ it.each([
   },
 );
 
-it("routes the saved-update summary action to the existing activation review owner", async () => {
+it.each([
+  {
+    version: "user-managed",
+    userSelected: true,
+    expected: "Portcove launches the files you registered.",
+  },
+  { version: "1.2.3", userSelected: false, expected: "Registered version 1.2.3." },
+])(
+  "describes external version ownership for $version",
+  async ({ version, userSelected, expected }) => {
+    const port = portDefinition();
+    await render(
+      <DetailPanel
+        port={port}
+        status={{
+          ...portStatus(),
+          external_runtime: {
+            id: "versions-external",
+            port_id: port.id,
+            path: "C:/Games/External copy",
+            executable: "C:/Games/External copy/game.exe",
+            version,
+            platform: "windows-x86-64",
+            archive_sha256: userSelected ? "" : "a".repeat(64),
+            immutable_tree_sha256: userSelected ? "" : "b".repeat(64),
+            registered_at: 1,
+            ...(userSelected ? { user_selected: { arguments: [] } } : {}),
+          },
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={detailActions}
+      />,
+    );
+    const versions = page.getByRole("tab", { name: "Versions & updates", exact: true });
+    await versions.click();
+    const panel = page.getByRole("tabpanel", { name: "Versions & updates", exact: true });
+    await expect.element(panel).toBeVisible();
+    await expect.element(panel).toMatchTextContent(expected);
+    await expect
+      .element(panel.getByRole("link", { name: "Open upstream project" }))
+      .toHaveAttribute("href", port.project_url);
+    expect(panel.element().textContent).not.toContain("user-managed");
+    expect(panel.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();
+  },
+);
+
+it("routes the update saved for later to the existing activation review owner", async () => {
   const port = portDefinition();
   const active = installRecord({ port_id: port.id });
   const activate = vi.fn();
@@ -1087,10 +1134,110 @@ it("routes the saved-update summary action to the existing activation review own
   );
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   const summary = page.getByRole("region", { name: "Installation and release versions" });
+  await expect.element(summary.getByText("Update saved for later", { exact: true })).toBeVisible();
   await summary.getByRole("button", { name: "Apply update · 2.0", exact: true }).click();
   expect(activate).toHaveBeenCalledOnce();
   expect(page.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();
   expect(page.getByRole("button", { name: "Download for later", exact: true }).query()).toBeNull();
+});
+
+it.each(["uninstalled", "unsupported", "external"] as const)(
+  "opens the reviewed GitHub Mods tab for a %s runtime",
+  async (runtime) => {
+    await page.viewport(1280, 800);
+    const port = portDefinition();
+    const url = "https://github.com/ReviewOwner/NativeMods/releases";
+    const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+      held_updates: [],
+      inventory: null,
+      later_mods_take_priority: false,
+      live: null,
+      package_types: [],
+      port_id: port.id,
+      provider: null,
+      supported: false,
+      github_release_url: url,
+      github_native_import_offered: true,
+    });
+    const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue(undefined);
+    await render(
+      <DetailPanel
+        port={port}
+        status={{
+          ...portStatus(),
+          port_id: port.id,
+          active: runtime === "unsupported" ? installRecord({ port_id: port.id }) : null,
+          ...(runtime === "external"
+            ? {
+                external_runtime: {
+                  id: "external-fixture",
+                  port_id: port.id,
+                  path: "/games/copy",
+                  executable: "/games/copy/game",
+                  version: "1",
+                  platform: "linux-x86-64" as const,
+                  archive_sha256: "a".repeat(64),
+                  immutable_tree_sha256: "b".repeat(64),
+                  registered_at: 1,
+                },
+              }
+            : {}),
+        }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={detailActions}
+      />,
+    );
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    const browse = page.getByRole("link", { name: "Browse mods on GitHub" });
+    await expect.element(browse).toHaveAttribute("href", url);
+    await browse.click();
+    expect(open).toHaveBeenCalledWith(url);
+    expect(page.getByRole("button", { name: /create.*setup/i }).query()).toBeNull();
+    const browseOnly = runtime === "unsupported" ? [] : [true];
+    expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), ...browseOnly);
+    read.mockRestore();
+    open.mockRestore();
+  },
+);
+
+it("offers CoopDX's own file import on the Mods tab before installation", async () => {
+  await page.viewport(1280, 800);
+  const port = portDefinition();
+  const url = "https://mods.sm64coopdx.com/mods/";
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue({
+    held_updates: [],
+    inventory: null,
+    later_mods_take_priority: false,
+    live: null,
+    provider: null,
+    package_types: [],
+    port_id: port.id,
+    supported: false,
+    external_mod_portals: [{ source: "coop-dx", url }],
+  });
+  const open = vi.spyOn(desktopApi, "openUpstreamModNotice").mockResolvedValue(undefined);
+  try {
+    await render(
+      <DetailPanel
+        port={port}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        sourcePath=""
+        setSourcePath={vi.fn()}
+        actions={detailActions}
+      />,
+    );
+    await page.getByRole("tab", { name: "Mods", exact: true }).click();
+    const browse = page.getByRole("link", { name: "Browse CoopDX Mods" });
+    await browse.click();
+    expect(open).toHaveBeenCalledWith(port.id, expect.any(Number), "coop-dx", url);
+    await expect.element(page.getByText(/drag the file onto the game window/)).toBeVisible();
+    expect(page.getByRole("button", { name: /create.*setup/i }).query()).toBeNull();
+    expect(read).toHaveBeenCalledWith(port.id, expect.any(Number), true);
+  } finally {
+    read.mockRestore();
+    open.mockRestore();
+  }
 });
 
 it.each(["busy", "missing_runtime", "invalid_installation"] as const)(
@@ -1291,7 +1438,7 @@ it("shows the opt-in community Mods tab before installation and alongside local 
     await expect
       .element(tab.getByRole("link", { name: "Set up JakMods in the OpenGOAL Launcher" }))
       .toBeVisible();
-    expect(setups).not.toHaveBeenCalled();
+    expect(setups.mock.calls).toEqual([[props.port.id, 101, true]]);
     expect(catalog).not.toHaveBeenCalled();
     await view.rerender(<DetailPanel {...props} libraryGeneration={102} />);
     await page.getByRole("tab", { name: "Mods", exact: true }).click();
