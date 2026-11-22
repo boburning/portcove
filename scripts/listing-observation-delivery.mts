@@ -355,8 +355,7 @@ export function projectListingDelivery(
       }
       const prior =
         old &&
-        listingDeclarationHash(old) ===
-          listingDeclarationHash(comparable) &&
+        listingDeclarationHash(old) === listingDeclarationHash(comparable) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
           : undefined;
