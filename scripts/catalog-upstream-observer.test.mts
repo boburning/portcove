@@ -1,6 +1,12 @@
 import { upstreamFacts } from "./maintenance-upstream.mts";
 import { createHash } from "node:crypto";
 import { inputEvidenceKey, readOriginalSourceProgress } from "./upstream-original-recognition.mts";
+import {
+  n64AuthoringScope,
+  n64PackagedInputLayout,
+  planN64OriginalBindings,
+  prepareN64OriginalContractAmendment,
+} from "./n64-original-binding-candidates.mts";
 import { n64GameTablePath, parseN64GameTable } from "./upstream-n64-game-entry.mts";
 import { n64RuntimeLinkPath } from "./upstream-n64-runtime-input.mts";
 import type { ProviderObservation } from "./upstream-observer.mts";
@@ -27,6 +33,7 @@ import {
   advanceCatalogObservations,
   catalogObservationSources,
   newCatalogObserverCheckpoint,
+  orderHostedObservationTurns,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import type {
@@ -1059,6 +1066,10 @@ void test("N64 game entries require a single unconditional table and literal ide
     { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
     { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
   ]);
+  assert.deepEqual(
+    parseN64GameTable(gameEntryFixture.replace("0x0123456789ABCDEFULL", "0xafc33da7101fec88"))[0],
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "afc33da7101fec88" },
+  );
   for (const invalid of [
     `#if ENABLED
 ${gameEntryFixture}
@@ -1102,8 +1113,37 @@ ${gameEntryFixture}`,
 for (const family of ["libultraship", "n64-recomp"] as const) {
   void test(`scheduled ${family} original source facts retain exact evidence across refresh and optional failure`, async () => {
     const h = harness();
-    Object.assign(h.input.ports[0]!, { adapter: `${family}-portable`, source_profile: "example" });
+    Object.assign(h.input.ports[0]!, {
+      adapter: `${family}-portable`,
+      source_profile: "example",
+      runtime_source_filename: "user/fixture.us.z64",
+      platforms: ["linux-x86-64", "windows-x86-64"],
+      executable_hints: { "linux-x86-64": ["FixtureRecompiled"] },
+    });
     h.input.ports.push({ ...h.input.ports[0]!, id: "stable-port-second" });
+    const authoringCatalog = {
+      ...h.input,
+      source_catalog: {
+        identities: [
+          {
+            id: "example",
+            kind: "file",
+            variants: [{ representations: [{ kind: "canonical-n64" }] }],
+          },
+        ],
+        evidence: [],
+        contracts: [
+          {
+            id: "example-game",
+            port_id: "stable-port",
+            profile_id: "example",
+            role: "game",
+            admission_mode: "enforced",
+            supported_variant_ids: ["legacy-accepted"],
+          },
+        ],
+      },
+    };
     const baseProject = h.options.project;
     let unavailable: "budget" | "rate-limit" | null = null;
     let additionalPlatform = false;
@@ -1154,6 +1194,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     const requests: string[] = [];
     const runtimeRequests: string[] = [];
     const buildRequests: string[] = [];
+    const jobLogs: [number, number][] = [];
     const run = {
       id: 70,
       repository: { id: 7 },
@@ -1185,6 +1226,37 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       if (endpoint.includes("/actions/runs")) {
         buildRequests.push(endpoint);
         if (endpoint.includes("head_sha=")) return { total_count: 1, workflow_runs: [run] };
+        if (endpoint.includes("/attempts/1/jobs?"))
+          return {
+            total_count: 1,
+            jobs: [
+              {
+                id: 77,
+                run_id: 70,
+                run_attempt: 1,
+                head_sha: run.head_sha,
+                status: "completed",
+                conclusion: "success",
+                steps: [
+                  { number: 2, name: "Checkout", status: "completed", conclusion: "success" },
+                  {
+                    number: 10,
+                    name: "Build FixtureRecompiled",
+                    status: "completed",
+                    conclusion: "success",
+                  },
+                  {
+                    number: 12,
+                    name: "Archive game",
+                    status: "completed",
+                    conclusion: "success",
+                    started_at: "2026-10-26T12:03:00Z",
+                    completed_at: "2026-10-26T12:04:00Z",
+                  },
+                ],
+              },
+            ],
+          };
         if (!endpoint.includes("/artifacts?")) return run;
         return {
           total_count: 1,
@@ -1241,7 +1313,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         family,
       );
     };
-    const initial = await advanceCatalogObservations(h.input, null, h.options);
+    const initial = await advanceCatalogObservations(authoringCatalog, null, h.options);
     let observation = retained(initial.checkpoint);
     assert.equal(observation?.state, "observed");
     const fact = observation?.last_complete?.fact;
@@ -1253,7 +1325,7 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     assert.ok(
       requests.some((endpoint) => endpoint.endsWith(`/contents/${sourcePath}?ref=${tagSha}`)),
     );
-    const stored = upstreamFacts(initial.checkpoint, h.input, h.options.now!()).facts;
+    const stored = upstreamFacts(initial.checkpoint, authoringCatalog, h.options.now!()).facts;
     const port = stored.get("port:stable-port");
     assert.ok(isRecord(port) && Array.isArray(port.sources) && isRecord(port.sources[0]));
     assert.deepEqual(port.sources[0][inputEvidenceKey(family)], observation);
@@ -1261,7 +1333,11 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
 
     h.advanceClock(48 * 3600_000);
     gitlinkResponse = "incomplete";
-    let refreshed = await advanceCatalogObservations(h.input, initial.checkpoint, h.options);
+    let refreshed = await advanceCatalogObservations(
+      authoringCatalog,
+      initial.checkpoint,
+      h.options,
+    );
     let extraTagReads = 0;
     if (family === "n64-recomp") {
       assert.ok(fact?.parser === "n64-recomp-game-entry-v1");
@@ -1269,7 +1345,11 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       assert.deepEqual(retained(refreshed.checkpoint)?.last_complete, observation?.last_complete);
       h.advanceClock(48 * 3600_000);
       gitlinkResponse = "unsupported";
-      refreshed = await advanceCatalogObservations(h.input, refreshed.checkpoint, h.options);
+      refreshed = await advanceCatalogObservations(
+        authoringCatalog,
+        refreshed.checkpoint,
+        h.options,
+      );
       extraTagReads++;
       assert.deepEqual(runtimeRequests, [
         `/repos/owner/shared/contents/${n64RuntimeLinkPath}?ref=${tagSha}`,
@@ -1325,10 +1405,16 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
                   repository: "Cyan4973/xxHash",
                   repository_id: 19330466,
                   revision: "d".repeat(40),
-                  headers: ["xxh3.h", "xxhash.h"].map((source_path) => ({
+                  headers: [
+                    ["xxh3.h", "a927ee0e6e0800835baed52b16bc981ec39f46287271a1a3f77c22cc48634430"],
+                    [
+                      "xxhash.h",
+                      "ccc7934d982bfd4f51624e7fdd93a6c40bc3d5c33f66463b54e70c21932d9129",
+                    ],
+                  ].map(([source_path, source_sha256]) => ({
                     source_path,
                     source_blob_sha1: "e".repeat(40),
-                    source_sha256: "f".repeat(64),
+                    source_sha256,
                   })),
                 },
               },
@@ -1336,8 +1422,39 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
           },
         },
       };
+      h.options.readN64BuildStepLog = async (repository, job, step, account) => {
+        account.admitRequest();
+        jobLogs.push([job, step]);
+        const lines =
+          step === 2
+            ? [
+                "##[group]Run actions/checkout@v4",
+                "Syncing repository: " + repository,
+                "Submodule path 'lib/N64ModernRuntime': checked out '" + "a".repeat(40) + "'",
+                "Submodule path 'lib/N64ModernRuntime/thirdparty/xxHash': checked out '" +
+                  "d".repeat(40) +
+                  "'",
+                run.head_sha,
+              ]
+            : step === 10
+              ? [
+                  "[100/103] Building CXX object lib/N64ModernRuntime/librecomp/CMakeFiles/librecomp.dir/src/recomp.cpp.o",
+                  "[102/103] Linking CXX static library lib/N64ModernRuntime/librecomp/liblibrecomp.a",
+                  "[103/103] Linking CXX executable FixtureRecompiled",
+                ]
+              : [
+                  "##[group]Run actions/upload-artifact@v4",
+                  "SHA256 digest of uploaded artifact zip is " + "a".repeat(64),
+                  "Artifact Build.zip successfully finalized. Artifact ID 72",
+                  "Artifact Build has been successfully uploaded! Final size is 1024 bytes. Artifact ID is 72",
+                ];
+        const bytes = Buffer.from(lines.map((line) => "2026-10-26T12:04:00Z " + line).join("\r\n"));
+        account.consumeResponseBytes(bytes.byteLength);
+        return bytes;
+      };
       h.advanceClock(48 * 3600_000);
-      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      previous = (await advanceCatalogObservations(authoringCatalog, previous, h.options))
+        .checkpoint;
       extraTagReads++;
       observation = retained(previous);
       const built = observation?.last_complete?.fact;
@@ -1347,8 +1464,16 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
         [72],
       );
       assert.equal(built.build_outputs?.search, null);
-      assert.equal(buildRequests.length, 3);
-      const projected = upstreamFacts(previous, h.input, h.options.now!()).facts.get(
+      assert.equal(buildRequests.length, 4);
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+      ]);
+      assert.deepEqual(
+        built.build_jobs?.matches.map((match) => match.job_id),
+        [77],
+      );
+      const projected = upstreamFacts(previous, authoringCatalog, h.options.now!()).facts.get(
         "port:stable-port",
       );
       assert.ok(
@@ -1356,31 +1481,315 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       );
       assert.deepEqual(projected.sources[0][inputEvidenceKey(family)], observation);
 
+      h.advanceClock(48 * 3600_000);
+      previous = (await advanceCatalogObservations(authoringCatalog, previous, h.options))
+        .checkpoint;
+      extraTagReads++;
+      observation = retained(previous);
+      const compiled = observation?.last_complete?.fact;
+      assert.ok(compiled?.parser === "n64-recomp-game-entry-v1");
+      assert.equal(compiled.build_jobs?.matches[0]?.compile?.executable, "FixtureRecompiled");
+      assert.deepEqual(jobLogs, [
+        [77, 12],
+        [77, 2],
+        [77, 10],
+      ]);
+      const readProjectedSource = (catalog: unknown) => {
+        const projectedBinding = upstreamFacts(previous, catalog, h.options.now!()).facts.get(
+          "port:stable-port",
+        );
+        assert.ok(
+          isRecord(projectedBinding) &&
+            Array.isArray(projectedBinding.sources) &&
+            isRecord(projectedBinding.sources[0]),
+        );
+        return projectedBinding.sources[0];
+      };
+      const plan = readProjectedSource(authoringCatalog).n64_original_binding_plan;
+      assert.ok(isRecord(plan));
+      assert.equal(plan.authority, "authoring-input-only");
+      assert.equal(plan.n64_recomp_inputs_v1, undefined);
+      assert.deepEqual(plan.platforms, [
+        {
+          platform: "linux-x86-64",
+          artifact_sha256: "a".repeat(64),
+          build_job_id: 77,
+          state: "legacy-contract-migration-required",
+          proposed_input: {
+            upstream_ref: "v1.0.0",
+            artifact_sha256: "a".repeat(64),
+            game_id: "fixture.us",
+            rom_xxh3_64: "0123456789abcdef",
+          },
+        },
+        { platform: "windows-x86-64", state: "no-current-artifact" },
+      ]);
+      const migratedSources = {
+        ...authoringCatalog.source_catalog,
+        contracts: authoringCatalog.source_catalog.contracts.map((contract) => ({
+          ...contract,
+          n64_recomp_inputs_v1: [
+            {
+              upstream_ref: "older",
+              artifact_sha256: "c".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "1111111111111111",
+            },
+          ],
+        })),
+      };
+      const port = authoringCatalog.ports[0];
+      assert.ok(observation?.last_complete && port);
+      const migratedScope = n64AuthoringScope(port, migratedSources);
+      assert.ok(migratedScope);
+      const migratedPlan = planN64OriginalBindings(port, migratedSources, {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: {
+            ...compiled,
+            authoring_scope_sha256: migratedScope,
+          },
+        },
+      });
+      assert.equal(migratedPlan?.platforms[0]?.state, "awaiting-effective-build-proof");
+      const successorObservation = {
+        ...observation,
+        last_complete: {
+          ...observation.last_complete,
+          fact: { ...compiled, authoring_scope_sha256: migratedScope },
+        },
+      };
+      assert.equal(
+        readProjectedSource(authoringCatalog).n64_original_contract_amendment,
+        undefined,
+      );
+      const runtime =
+        compiled.runtime_source?.state === "observed" ? compiled.runtime_source.source : undefined;
+      const hash = runtime?.hash_source?.state === "observed" ? runtime.hash_source : undefined;
+      const job = compiled.build_jobs?.matches[0];
+      assert.ok(runtime && hash && job?.compile);
+      const receipt = {
+        repository_id: compiled.repository_id,
+        release_id: compiled.release_id,
+        source_commit: compiled.source_commit,
+        source_blob_sha1: compiled.source_blob_sha1,
+        runtime_revision: runtime.revision,
+        hash_revision: hash.revision,
+        game_id: "fixture.us",
+        rom_xxh3_64: "0123456789abcdef",
+        review_url: "https://example.com/package-review",
+        reviewed_at: "2026-10-26",
+        packages: [
+          {
+            platform: "linux-x86-64",
+            layout_sha256: n64PackagedInputLayout(port, "linux-x86-64"),
+            artifact_sha256: "a".repeat(64),
+            job_id: job.job_id,
+            compile_sha256: job.compile.log_sha256,
+            executable_sha256: "e".repeat(64),
+          },
+        ],
+      };
+      const amendment = prepareN64OriginalContractAmendment(
+        port,
+        migratedSources,
+        successorObservation,
+        [port],
+        [receipt],
+      );
+      assert.equal(amendment?.requires_reader, 11);
+      assert.equal(amendment?.contract_id, "example-game");
+      assert.equal(amendment?.upstream_support_evidence.role, "upstream_support");
+      assert.deepEqual(amendment?.n64_recomp_inputs_v1, [
+        ...migratedSources.contracts[0]!.n64_recomp_inputs_v1,
+        {
+          upstream_ref: "v1.0.0",
+          artifact_sha256: "a".repeat(64),
+          game_id: "fixture.us",
+          rom_xxh3_64: "0123456789abcdef",
+        },
+      ]);
+      const sharedPackage = {
+        ...successorObservation,
+        last_complete: {
+          ...successorObservation.last_complete,
+          fact: {
+            ...successorObservation.last_complete.fact,
+            artifacts: [
+              ...compiled.artifacts,
+              { platform: "windows-x86-64", sha256: "a".repeat(64) },
+            ],
+          },
+        },
+      };
+      assert.equal(
+        prepareN64OriginalContractAmendment(
+          port,
+          migratedSources,
+          sharedPackage,
+          [port],
+          [receipt],
+        ),
+        undefined,
+      );
+      assert.equal(
+        prepareN64OriginalContractAmendment(
+          port,
+          migratedSources,
+          successorObservation,
+          [port],
+          [{ ...receipt, rom_xxh3_64: "f".repeat(16) }],
+        ),
+        undefined,
+      );
+
+      const reobservedAmendment = (
+        changedPort: typeof port & Record<string, unknown>,
+        changedSources: typeof migratedSources,
+        consumers: readonly unknown[] = [changedPort],
+      ) =>
+        prepareN64OriginalContractAmendment(
+          changedPort,
+          changedSources,
+          {
+            ...successorObservation,
+            last_complete: {
+              ...successorObservation.last_complete,
+              fact: {
+                ...compiled,
+                authoring_scope_sha256: n64AuthoringScope(changedPort, changedSources)!,
+              },
+            },
+          },
+          consumers,
+          [receipt],
+        );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            executable_hints: { "linux-x86-64": ["Alternate", "FixtureRecompiled"] },
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            runtime_subdirectory: "alternate-root",
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(
+          {
+            ...port,
+            runtime_source_materialization: "copy",
+          },
+          migratedSources,
+        ),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(port, migratedSources, [
+          port,
+          { id: "dependent", bios_source_profile: "example" },
+        ]),
+        undefined,
+      );
+      assert.equal(
+        reobservedAmendment(port, migratedSources, [port, { ...port, id: "dependent" }]),
+        undefined,
+      );
+      const equivalentSources = {
+        ...migratedSources,
+        contracts: migratedSources.contracts.map((contract) => ({
+          ...contract,
+          n64_recomp_inputs_v1: [
+            ...contract.n64_recomp_inputs_v1,
+            {
+              upstream_ref: "v1.0.0",
+              artifact_sha256: "A".repeat(64),
+              game_id: "fixture.us",
+              rom_xxh3_64: "0123456789ABCDEF",
+            },
+          ],
+        })),
+      };
+      assert.equal(reobservedAmendment(port, equivalentSources), undefined);
+      const conflictingSources = structuredClone(equivalentSources);
+      conflictingSources.contracts[0]!.n64_recomp_inputs_v1[1]!.rom_xxh3_64 = "F".repeat(16);
+      assert.equal(reobservedAmendment(port, conflictingSources), undefined);
+      const changedDefinition = {
+        ...authoringCatalog,
+        ports: authoringCatalog.ports.map((port) =>
+          port.id === "stable-port"
+            ? {
+                ...port,
+                release: { ...port.release, asset_hints: { "linux-x86-64": ["new-archive.zip"] } },
+              }
+            : port,
+        ),
+      };
+      const stale = readProjectedSource(changedDefinition);
+      assert.equal(stale.n64_original_binding_plan, undefined);
+      assert.deepEqual(stale[inputEvidenceKey(family)], observation);
+      const changedContract = {
+        ...authoringCatalog,
+        source_catalog: {
+          ...authoringCatalog.source_catalog,
+          contracts: authoringCatalog.source_catalog.contracts.map((contract) => ({
+            ...contract,
+            admission_mode: "informational",
+          })),
+        },
+      };
+      assert.equal(readProjectedSource(changedContract).n64_original_binding_plan, undefined);
+
       additionalPlatform = true;
       outputExpired = true;
       h.advanceClock(48 * 3600_000);
-      previous = (await advanceCatalogObservations(h.input, previous, h.options)).checkpoint;
+      previous = (await advanceCatalogObservations(authoringCatalog, previous, h.options))
+        .checkpoint;
       extraTagReads += 4;
       observation = retained(previous);
       const expanded = observation?.last_complete?.fact;
       assert.ok(expanded?.parser === "n64-recomp-game-entry-v1");
       assert.deepEqual(expanded.build_outputs?.matches, built.build_outputs?.matches);
+      assert.deepEqual(expanded.build_jobs?.matches, compiled.build_jobs?.matches);
+      const expandedPlan = readProjectedSource(authoringCatalog).n64_original_binding_plan;
+      assert.ok(isRecord(expandedPlan) && Array.isArray(expandedPlan.platforms));
+      assert.deepEqual(expandedPlan.platforms[1], {
+        platform: "windows-x86-64",
+        artifact_sha256: "b".repeat(64),
+        state: "awaiting-build",
+      });
       assert.notEqual(expanded.build_outputs?.search, null);
-      assert.equal(buildRequests.length, 5);
+      assert.equal(buildRequests.length, 7);
+      assert.equal(jobLogs.length, 3);
     }
 
     h.advanceClock(48 * 3600_000);
     tagSha = "d".repeat(40);
-    const moved = await advanceCatalogObservations(h.input, previous, h.options);
+    const moved = await advanceCatalogObservations(authoringCatalog, previous, h.options);
     assert.equal(retained(moved.checkpoint)?.state, "source-tag-changed");
     assert.deepEqual(retained(moved.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(requests.length, 6 + extraTagReads);
-    assert.equal(buildRequests.length, family === "n64-recomp" ? 5 : 0);
+    assert.equal(buildRequests.length, family === "n64-recomp" ? 7 : 0);
 
     h.advanceClock(48 * 3600_000);
     h.bumpRelease();
     unavailable = "budget";
-    const deferred = await advanceCatalogObservations(h.input, moved.checkpoint, h.options);
+    const deferred = await advanceCatalogObservations(
+      authoringCatalog,
+      moved.checkpoint,
+      h.options,
+    );
     assert.equal(retained(deferred.checkpoint)?.state, "budget");
     assert.deepEqual(retained(deferred.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(deferred.report.completed_source_keys.length, 2);
@@ -1390,7 +1799,11 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
     unavailable = "rate-limit";
     h.setQuota(100);
     retryAt = new Date(h.options.now!() + 100_000).toISOString();
-    const limited = await advanceCatalogObservations(h.input, deferred.checkpoint, h.options);
+    const limited = await advanceCatalogObservations(
+      authoringCatalog,
+      deferred.checkpoint,
+      h.options,
+    );
     assert.equal(retained(limited.checkpoint)?.state, "rate-limit");
     assert.deepEqual(retained(limited.checkpoint)?.last_complete, observation?.last_complete);
     assert.equal(limited.checkpoint.provider_retry_at, retryAt);
@@ -1408,9 +1821,11 @@ for (const family of ["libultraship", "n64-recomp"] as const) {
       )?.state,
       "budget",
     );
-    const projected = upstreamFacts(limited.checkpoint, h.input, h.options.now!()).facts.get(
-      "port:stable-port",
-    );
+    const projected = upstreamFacts(
+      limited.checkpoint,
+      authoringCatalog,
+      h.options.now!(),
+    ).facts.get("port:stable-port");
     assert.ok(isRecord(projected) && Array.isArray(projected.sources));
     const source: unknown = projected.sources.find(
       (value: unknown) => isRecord(value) && value.repository === "owner/shared",
@@ -1494,6 +1909,60 @@ void test("untouched managed sources are admitted before listing-only sources", 
   assert.ok(listingPositions.every((position) => position > lastManaged));
 });
 
+void test("hosted recovery rotates stale sources through ordinary managed backlog", () => {
+  const hour = 3_600_000;
+  const now = Date.parse("2026-11-21T04:37:34.422Z");
+  const clock = (age: number) => new Date(now - age * hour).toISOString();
+  const turn = (
+    key: string,
+    attemptedSequence: number,
+    freshnessObservedAt: string | null,
+    managed = false,
+    appointment = false,
+  ) => ({ key, attemptedSequence, freshnessObservedAt, managed, appointment });
+  const stale = turn("stale", 7, clock(20));
+  const never = turn("never", -1, null);
+  const recentlyFailed = turn("exception", 21, null);
+  const ordinary = Array.from({ length: 9 }, (_, index) =>
+    turn(`ordinary-${index}`, index, clock(8), true),
+  );
+  const candidates = [
+    ...ordinary,
+    recentlyFailed,
+    stale,
+    never,
+    turn("fresh-listing", 0, clock(8)),
+    turn("critical", 9, clock(11.99), true),
+    turn("appointed", 30, clock(6), false, true),
+  ];
+  const limits = { now, deadline: now + 60_000, freshnessMs: 12 * hour };
+  const order = (turns: typeof candidates) =>
+    orderHostedObservationTurns(turns, limits).map(({ key }) => key);
+  assert.deepEqual(order(candidates), [
+    "appointed",
+    "critical",
+    "never",
+    "ordinary-0",
+    "ordinary-1",
+    "ordinary-2",
+    "stale",
+    "ordinary-3",
+    "ordinary-4",
+    "ordinary-5",
+    "exception",
+    "ordinary-6",
+    "ordinary-7",
+    "ordinary-8",
+    "fresh-listing",
+  ]);
+  assert.deepEqual(
+    order(
+      candidates.map((item) => (item === never ? { ...item, attemptedSequence: 32 } : item)),
+    ).slice(0, 3),
+    ["appointed", "critical", "stale"],
+  );
+});
+
 void test("hosted listing turns protect expiring managed work and reduce purely descriptive debt", async () => {
   const h = harness();
   const input = {
@@ -1575,7 +2044,7 @@ void test("hosted listing turns protect expiring managed work and reduce purely 
 
   const reserved = await advanceCatalogObservations(input, prior, {
     ...displace,
-    reserveExpiredListingTurn: true,
+    rotateStaleSources: true,
   });
   assert.deepEqual(reserved.report.attempted_source_keys, [critical.key, oldest.key, ordinary.key]);
   assert.ok(reserved.report.completed_source_keys.includes(oldest.key));
@@ -1594,7 +2063,7 @@ void test("hosted listing turns protect expiring managed work and reduce purely 
     ...options,
     requestLimit: 0,
     excludedSources: new Set([critical.key, ordinary.key]),
-    reserveExpiredListingTurn: true,
+    rotateStaleSources: true,
   });
   assert.equal(empty.report.requests, 0);
   assert.deepEqual(empty.report.attempted_source_keys, []);
@@ -1603,7 +2072,7 @@ void test("hosted listing turns protect expiring managed work and reduce purely 
   const resumed = await advanceCatalogObservations(input, empty.checkpoint, {
     ...options,
     policyIdentity: displace.policyIdentity,
-    reserveExpiredListingTurn: true,
+    rotateStaleSources: true,
   });
   assert.ok(resumed.report.completed_source_keys.includes(next.key));
   assert.equal(resumed.report.attempted_source_keys[0], critical.key);

@@ -63,6 +63,10 @@ void test("every attention kind has one disabled registry entry with an exact re
     handoffRegistry.filter(({ authority }) => authority === "owner-only").map(({ kind }) => kind),
     ["release-health-relocation", "hosted-intake-blocked", "hosted-intake-holds"],
   );
+  const blocked = handoffEntry("hosted-intake-blocked")!;
+  assert.match(blocked.action, /daily maintenance schedule resumes verified pending final audits/u);
+  assert.match(blocked.resume_condition, /pending receipt and durable checkpoint must agree/u);
+  assert.equal(blocked.dispatch, "disabled");
   assert.ok(!handoffRegistry.some(({ kind }) => kind.includes("publication")));
   assert.deepEqual(
     withoutHandoff.map(([source]) => source),

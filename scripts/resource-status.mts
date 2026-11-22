@@ -3,9 +3,10 @@ function diagnosticText(value: unknown): string {
   return String(value);
 }
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
-import { observeCapacity } from "./resource-capacity.mts";
+import { observeCapacity, readResourceProbe } from "./resource-capacity.mts";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   heavyRustTestLockPath,
@@ -103,6 +104,40 @@ async function observe<T extends { created_at: string; workspace?: unknown; comm
   } catch (error) {
     return { ...base, observation: "unavailable", reason: errorMessage(error).slice(0, 512) };
   }
+}
+
+export async function observeAuditStorage(
+  directories: readonly string[],
+  probe = readResourceProbe,
+) {
+  return Promise.all(
+    [...new Set(directories.map((directory) => path.resolve(directory)))].map(async (directory) => {
+      try {
+        const value = await probe(
+          'import { statfsSync } from "node:fs"; const fs = statfsSync(process.argv[1], { bigint: true }); console.log(JSON.stringify({ available_bytes: String(fs.bavail * fs.bsize), free_inodes: fs.files === 0n ? null : String(fs.ffree) }));',
+          [directory],
+          3000,
+        );
+        if (
+          !isRecord(value) ||
+          typeof value.available_bytes !== "string" ||
+          !/^\d+$/u.test(value.available_bytes) ||
+          (value.free_inodes !== null &&
+            (typeof value.free_inodes !== "string" || !/^\d+$/u.test(value.free_inodes)))
+        )
+          throw new Error("Invalid filesystem observation");
+        return {
+          directory,
+          observation:
+            value.available_bytes === "0" || value.free_inodes === "0" ? "full" : "available",
+          available_bytes: value.available_bytes,
+          free_inodes: value.free_inodes,
+        };
+      } catch (error) {
+        return { directory, observation: "unavailable", reason: errorMessage(error).slice(0, 512) };
+      }
+    }),
+  );
 }
 
 interface ResourceStatusOptions {
@@ -251,17 +286,44 @@ export function capacityOwnerLines(capacity: unknown): string[] {
     });
 }
 
-if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  const args = process.argv.slice(2);
-  let sampleSeconds = 0,
-    asJson = false;
+async function main(args: string[]) {
+  let sampleSeconds = 0;
+  let asJson = false;
+  let storageOnly = false;
+  const directories = [tmpdir()];
+  const usage =
+    "usage: resource-status.mts [--json] [--sample-seconds 0..60] [--storage-path DIRECTORY]... [--storage-only]";
   for (let index = 0; index < args.length; index++) {
     if (args[index] === "--json" && !asJson) asJson = true;
     else if (args[index] === "--sample-seconds" && /^\d+$/u.test(args[index + 1] ?? ""))
       sampleSeconds = Number(args[++index]);
-    else throw new Error("usage: resource-status.mts [--json] [--sample-seconds 0..60]");
+    else if (args[index] === "--storage-only" && !storageOnly) storageOnly = true;
+    else if (
+      args[index] === "--storage-path" &&
+      args[index + 1] &&
+      !args[index + 1]!.startsWith("--") &&
+      directories.length < 9
+    )
+      directories.push(args[++index]!);
+    else throw new Error(usage);
   }
-  const report = await collectResourceStatus({ sampleSeconds });
+  const storageRead = observeAuditStorage(directories);
+  const storageLine = (entry: Awaited<typeof storageRead>[number]) =>
+    `Storage ${entry.directory}: ${entry.observation}; ${entry.available_bytes ?? "unknown"} bytes available ${entry.reason ?? ""}`;
+  if (storageOnly) {
+    if (sampleSeconds) throw new Error(usage);
+    const storage = await storageRead;
+    console.log(
+      asJson
+        ? JSON.stringify({ format_version: 1, storage }, null, 2)
+        : storage.map(storageLine).join("\n"),
+    );
+    return;
+  }
+  const [report, storage] = await Promise.all([
+    collectResourceStatus({ sampleSeconds }),
+    storageRead,
+  ]);
   const host = report.host?.samples.at(-1);
   const hostLines = host
     ? [
@@ -293,7 +355,7 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
   }
   console.log(
     asJson
-      ? JSON.stringify(report, null, 2)
+      ? JSON.stringify({ ...report, storage }, null, 2)
       : renderBoundedSummary(report.limits, [
           ...report.resources.map(
             (entry) =>
@@ -302,7 +364,11 @@ if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
           ...report.resources.flatMap((entry) =>
             entry.resource === "host-capacity" ? capacityOwnerLines(entry) : [],
           ),
+          ...storage.map(storageLine),
           ...hostLines,
         ]).text,
   );
 }
+
+if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url))
+  await main(process.argv.slice(2));

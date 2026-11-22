@@ -3,6 +3,6 @@
   "kind": "catalog-publication",
   "compatibility": {
     "contract": "official-definition-policy-launch-v1",
-    "notes": "Admit the exact upstream GZDoom Windows x86-64 archive for native-portable capability 19 under the independently accepted curated-acquisition record. Keep all previously published definition targets, policy scopes and launch assessments. Rebind their revisions to the common index. Preserve the player-supplied IWAD and the portable profile."
+    "notes": "Correct DUDE Windows and Linux setup and explain upstream-owned, consented mod-library downloads. Preserve package, runtime, inputs, saves, operations and publisher grants throughout."
   }
 }

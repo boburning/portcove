@@ -10,7 +10,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { CatalogStatus, CatalogUpdatePlan, CatalogProvenance, DoctorReport } from "../types";
-import { CatalogSettings } from "./CatalogUpdates";
+import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
 import { SettingsView } from "./Chrome";
 
 it("requires explicit review, invalidates changed candidates and uses core provenance after publication", async () => {
@@ -71,6 +71,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
   const review = vi
     .spyOn(desktopApi, "planCatalogUpdate")
     .mockResolvedValueOnce(plan)
+    .mockRejectedValueOnce({ code: "conflict", message: "Catalog source changed" })
     .mockResolvedValueOnce(zeroChangePlan)
     .mockResolvedValueOnce(manyChangePlan)
     .mockResolvedValue(plan);
@@ -182,6 +183,10 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     }
     await captureRenderedState("catalog-trust-reviewed-fixture");
     await click("Review update");
+    expect(document.body.textContent).toContain("Catalog source changed");
+    expect(button("Apply catalog update")).toBeUndefined();
+    expect(apply).not.toHaveBeenCalled();
+    await click("Review update");
     expect(document.body.textContent).toContain("No port information will change.");
     expect(document.body.querySelector('[aria-label="Affected ports"]')).toBeNull();
     expect(
@@ -208,7 +213,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(document.body.textContent).toContain("Catalog update applied.");
     expect(document.body.textContent).toContain("Signed catalog · version 1");
     expect(button("Use built-in catalog").disabled).toBe(false);
-    const restored = { ...status, can_use_cached: true };
+    const restored = { ...status, highest_sequence: 1, can_use_cached: true };
     const rollback = vi.spyOn(desktopApi, "rollbackCatalog").mockResolvedValue(restored);
     await click("Restore previous catalog");
     expect(rollback).toHaveBeenCalledWith(status.state_sha256);
@@ -223,10 +228,11 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     await click("Use built-in catalog");
     expect(embedded).toHaveBeenCalledWith(status.state_sha256);
     expect(document.body.textContent).toContain("Built-in catalog selected.");
+    const revoked = { ...restored, trusted_keys: [], state_sha256: "b".repeat(64) };
     const revoke = vi
       .spyOn(desktopApi, "revokeCatalogKey")
       .mockRejectedValueOnce({ code: "cancelled", message: "Consent cancelled" })
-      .mockResolvedValue({ ...restored, trusted_keys: [] });
+      .mockResolvedValue(revoked);
     await click("Stop trusting");
     expect(document.body.textContent).toContain("Catalog action cancelled.");
     expect(document.body.textContent).not.toContain("Publisher trust removed.");
@@ -237,7 +243,24 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       status.state_sha256,
     );
     expect(document.body.textContent).toContain("Publisher trust removed.");
-    const trust = vi.spyOn(desktopApi, "trustCatalogKey").mockResolvedValue(restored);
+    const sourceField = document.body.querySelector<HTMLInputElement>("#catalog-update-location")!;
+    const sourceMode = document.body.querySelector<HTMLElement>("#catalog-update-source")!;
+    expect(sourceField.value).toBe(plan.source.value);
+    const sourceModeBefore = sourceMode.textContent;
+    expect(sourceModeBefore).toContain("Local file");
+    const refreshCount = refresh.mock.calls.length;
+    const applyCount = apply.mock.calls.length;
+    review.mockRejectedValueOnce({
+      code: "integrity",
+      message: "Catalog signing key is not trusted",
+    });
+    await click("Review update");
+    expect(review).toHaveBeenLastCalledWith(plan.source);
+    expect(button("Apply catalog update")).toBeUndefined();
+    const trust = vi
+      .spyOn(desktopApi, "trustCatalogKey")
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ ...restored, state_sha256: "c".repeat(64) });
     const key = document.body.querySelector<HTMLInputElement>("#catalog-public-key")!;
     await act(async () => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
@@ -246,11 +269,62 @@ it("requires explicit review, invalidates changed candidates and uses core prove
       );
       key.dispatchEvent(new Event("input", { bubbles: true }));
     });
+    const verificationCount = review.mock.calls.length;
     await click("Trust publisher");
-    expect(trust).toHaveBeenCalledWith(
+    expect(document.body.textContent).toContain("Catalog action cancelled.");
+    expect(page.getByRole("dialog").element().textContent).toContain("Built-in catalog");
+    expect(sourceField.value).toBe(plan.source.value);
+    expect(sourceMode.textContent).toBe(sourceModeBefore);
+    expect(refresh).toHaveBeenCalledTimes(refreshCount);
+    expect(review).toHaveBeenCalledTimes(verificationCount);
+    expect(apply).toHaveBeenCalledTimes(applyCount);
+    expect(button("Apply catalog update")).toBeUndefined();
+
+    await click("Trust publisher");
+    expect(trust).toHaveBeenLastCalledWith(
       fixtureValue(status.trusted_keys[0], "status.trusted_keys[0]").public_key,
     );
     expect(document.body.textContent).toContain("Publisher trusted.");
+    expect(sourceField.value).toBe(plan.source.value);
+    expect(sourceMode.textContent).toBe(sourceModeBefore);
+    expect(refresh).toHaveBeenCalledTimes(refreshCount + 1);
+    expect(review).toHaveBeenCalledTimes(verificationCount);
+    expect(button("Apply catalog update")).toBeUndefined();
+    expect(apply).toHaveBeenCalledTimes(applyCount);
+
+    // A publisher can update the envelope at the same location. The first
+    // publication's sequence remains consumed after returning to the built-in catalog.
+    const verifiedAfterTrust = {
+      ...zeroChangePlan,
+      current: status.provenance,
+      plan_sha256: "c".repeat(64),
+    };
+    review.mockResolvedValueOnce(verifiedAfterTrust);
+    apply.mockResolvedValueOnce({
+      ...restored,
+      highest_sequence: verifiedAfterTrust.sequence,
+      state_sha256: "d".repeat(64),
+      updates_enabled: true,
+      provenance: {
+        ...status.provenance,
+        origin: "signed_active",
+        sequence: verifiedAfterTrust.sequence,
+        expires_at: verifiedAfterTrust.expires_at,
+        key_id: verifiedAfterTrust.key_id,
+      },
+    });
+    await click("Review update");
+    expect(review).toHaveBeenLastCalledWith(plan.source);
+    expect(review).toHaveBeenCalledTimes(verificationCount + 1);
+    expect(apply).toHaveBeenCalledTimes(applyCount);
+    await click("Apply catalog update");
+    expect(apply).toHaveBeenLastCalledWith(
+      verifiedAfterTrust.source,
+      verifiedAfterTrust.plan_sha256,
+      expect.any(Function),
+    );
+    expect(apply).toHaveBeenCalledTimes(applyCount + 1);
+    expect(page.getByRole("dialog").element().textContent).toContain("Signed catalog · version 2");
     await click("Close");
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {
@@ -259,6 +333,26 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   }
+});
+
+it("labels selected definitions separately from a signed catalog version", () => {
+  const expiresAt = 1789706400;
+  const html = renderToStaticMarkup(
+    <CatalogOrigin
+      provenance={{
+        origin: "definition_selected",
+        catalog_sha256: "a".repeat(64),
+        sequence: null,
+        key_id: null,
+        expires_at: expiresAt,
+        fallback_reasons: [],
+      }}
+    />,
+  );
+  expect(html).toContain("Using selected catalog definitions");
+  expect(html).toContain("Valid until");
+  expect(html).toContain(new Date(expiresAt * 1000).toLocaleString());
+  expect(html).not.toContain("Signed catalog");
 });
 
 it("keeps fallback diagnostics in distinct technical disclosures with safe summaries", () => {

@@ -347,19 +347,20 @@ export function BackupHistory({
                 <Icon glyph={RotateCcw} />
                 {t("history.restore")}
               </Button>
-              {backup.port_id === "ghostship" && recoverGhostshipLegacy && (
-                <GhostshipLegacyRecovery
-                  key={`${backup.id}:${generation}`}
-                  backup={backup}
-                  generation={generation}
-                  apply={recoverGhostshipLegacy}
-                  disabled={
-                    Boolean(busy) ||
-                    state === "recovery_required" ||
-                    (readState !== undefined && readState.status !== "current")
-                  }
-                />
-              )}
+              {backup.recovery_review === "legacy_install_and_data_v1" &&
+                recoverGhostshipLegacy && (
+                  <GhostshipLegacyRecovery
+                    key={`${backup.id}:${generation}`}
+                    backup={backup}
+                    generation={generation}
+                    apply={recoverGhostshipLegacy}
+                    disabled={
+                      Boolean(busy) ||
+                      state === "recovery_required" ||
+                      (readState !== undefined && readState.status !== "current")
+                    }
+                  />
+                )}
               <Button
                 data-focusable
                 data-backup-action="delete"
