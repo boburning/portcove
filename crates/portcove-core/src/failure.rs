@@ -458,7 +458,7 @@ impl KnownFailureCause {
             ),
             Self::StorageFull => (
                 "storage_full",
-                "The drive ran out of free space before Portcove finished. Free up space on that drive, then resume or review the action again.",
+                "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again.",
             ),
             Self::ArchiveLimit => (
                 "archive_safety_limit",

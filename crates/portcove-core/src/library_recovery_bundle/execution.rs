@@ -985,7 +985,10 @@ mod tests {
         assert_eq!(error.message, disk_full);
         let presentation = error.report().presentation;
         assert_eq!(presentation.presentation_key, "storage_full");
-        assert!(presentation.summary.contains("ran out of free space"));
+        assert_eq!(
+            presentation.summary,
+            "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again."
+        );
         assert_eq!(presentation.technical_message, disk_full);
         assert_eq!(presentation.mutation_state, MutationState::RecoveryRequired);
         let stage = Path::new(&error.details["recovery_staging"]);

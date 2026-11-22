@@ -26,11 +26,14 @@ export function FailureDetails({
   presentation,
   code,
   contextLabel,
+  contextValue,
   showMutationSummary = true,
 }: {
   presentation: FailureDisplay;
   code?: string | undefined;
   contextLabel?: (key: string) => string | undefined;
+  /** Presentation of a labelled context value; the copied technical record stays raw. */
+  contextValue?: (key: string, value: string) => string;
   showMutationSummary?: boolean;
 }) {
   const { t } = useAppTranslation("common");
@@ -90,7 +93,7 @@ export function FailureDetails({
                     {label ?? <code>{key}</code>}
                   </dt>
                   <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
-                    {value}
+                    {contextValue ? contextValue(key, value) : value}
                   </dd>
                 </div>
               );

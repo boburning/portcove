@@ -188,6 +188,7 @@ import { referenceIdentity } from "./shared/reference-identity";
 import { activeSourceHeroMediaContext, canCheckEditionArtwork } from "./hero-media";
 import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
+import { withoutVerbatimPrefix } from "./path-presentation";
 
 export const missingBootstrapError = {
   code: "state",
@@ -358,6 +359,7 @@ export function BootstrapRecovery({
           presentation={error.presentation}
           code={error.code}
           contextLabel={startupDetailLabel}
+          contextValue={startupDetailValue}
           showMutationSummary={!hasGenericUncertainty}
         />
       ) : (
@@ -503,7 +505,7 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
             <div key={key}>
               <dt className="text-xs text-pc-muted-foreground">{label ?? <code>{key}</code>}</dt>
               <dd className="m-0 min-w-0 font-mono [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
-                {value}
+                {startupDetailValue(key, value)}
               </dd>
             </div>
           );
@@ -511,6 +513,19 @@ function StartupTechnicalDetails({ error }: { error: StartupFailure }) {
       </dl>
     </details>
   );
+}
+
+const startupPathDetails = new Set([
+  "path",
+  "library_root",
+  "lock_path",
+  "import_destination",
+  "retained_source",
+]);
+
+/** Shows recorded paths as the player knows them; recovery actions keep Core's raw value. */
+function startupDetailValue(key: string, value: string) {
+  return startupPathDetails.has(key) ? withoutVerbatimPrefix(value) : value;
 }
 
 function startupDetailLabel(key: string) {

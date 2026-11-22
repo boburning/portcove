@@ -123,6 +123,10 @@ mod tests {
             let presentation = PortcoveError::from(Error::from(kind)).report().presentation;
             assert_eq!(presentation.presentation_key, "storage_full");
             assert_eq!(presentation.technical_message, technical);
+            assert_eq!(
+                presentation.summary,
+                "The drive ran out of free space before Portcove finished. Free up space on that drive, then review the action again."
+            );
         }
         let other = PortcoveError::from(Error::from(ErrorKind::PermissionDenied));
         assert_ne!(other.report().presentation.presentation_key, "storage_full");

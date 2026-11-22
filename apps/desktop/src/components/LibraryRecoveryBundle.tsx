@@ -11,6 +11,7 @@ import {
 } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
+import { withoutVerbatimPrefix } from "../path-presentation";
 import { countMessage } from "../localization";
 import { reloadWorkspace } from "../reload-workspace";
 import type {
@@ -59,6 +60,11 @@ const descriptions = {
   resumeCreation: "Choose the staging folder Portcove recorded when the copy stopped.",
   resumeRestore: "Choose the destination folder from the interrupted restore.",
 } satisfies Record<Operation, string>;
+
+const resumeNextSteps = {
+  resumeCreation: `Files copied so far stay in the staging folder. If the drive is full, free up space first. Then choose ${titles.resumeCreation}.`,
+  resumeRestore: `Files copied so far stay in the restore destination. If the drive is full, free up space first. Then choose ${titles.resumeRestore}.`,
+} satisfies Record<RecoveryStep["operation"], string>;
 
 const bundleAuthority =
   "Keep the original computer and its secure credential store available. Verification and restore both require them.";
@@ -686,12 +692,15 @@ function RecoveryBundleDialog({
           <PathValue label="Recorded restore destination" value={restoreReceipt.destination_root} />
         )}
         {recovery && (
-          <PathValue
-            label={
-              recovery.operation === "resumeCreation" ? "Staging folder" : "Restore destination"
-            }
-            value={recovery.path}
-          />
+          <>
+            <p>{resumeNextSteps[recovery.operation]}</p>
+            <PathValue
+              label={
+                recovery.operation === "resumeCreation" ? "Staging folder" : "Restore destination"
+              }
+              value={recovery.path}
+            />
+          </>
         )}
         <DialogFooter>
           <Button
@@ -895,12 +904,13 @@ function FolderField({
   );
 }
 
+/** Shows a Core value as the player knows it; callers keep the raw value for identity. */
 function PathValue({ label, value }: { label: string; value: string }) {
   return (
     <p className="m-0 grid gap-1 text-sm">
       <span className="font-medium">{label}</span>
       <code dir="ltr" className="wrap-anywhere [unicode-bidi:isolate]">
-        {value}
+        {withoutVerbatimPrefix(value)}
       </code>
     </p>
   );

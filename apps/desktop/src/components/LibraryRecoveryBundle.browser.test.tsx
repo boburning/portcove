@@ -877,3 +877,196 @@ it("opens a restored startup library only after an explicit selection review", a
   await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
   expect(switchLibrary).toHaveBeenCalledExactlyOnceWith(restoreDestination);
 });
+
+// Core reports canonical Windows identities with the verbatim prefix. Players see
+// the plain path; every action and comparison keeps Core's raw value.
+const verbatimStaging = String.raw`\\?\UNC\server\share\Backups\.portcove-recovery-bundle-stage`;
+const plainStaging = String.raw`\\server\share\Backups\.portcove-recovery-bundle-stage`;
+const verbatimRestore = String.raw`\\?\D:\Portcove Recovered Library`;
+const plainRestore = String.raw`D:\Portcove Recovered Library`;
+
+it("shows a verbatim staging folder plainly and resumes creation with Core's value", async () => {
+  vi.spyOn(desktopApi, "createLibraryRecoveryBundle").mockRejectedValue({
+    message: "No space left on device",
+    details: { recovery_staging: verbatimStaging },
+  });
+  vi.spyOn(desktopApi, "bootstrapStatus").mockResolvedValue({
+    ready: true,
+    library_root: source,
+    generation: 8,
+    error: null,
+    selection: null,
+  });
+  const resumed = vi.spyOn(desktopApi, "resumeLibraryRecoveryBundle").mockResolvedValue(bundle);
+  const { dialog } = await openCreationReview();
+  await dialog.getByRole("button", { name: "Copy and verify" }).click();
+  await expect.element(dialog.getByText(plainStaging, { exact: true })).toBeVisible();
+  expect(dialog.getByText(verbatimStaging).query()).toBeNull();
+  await expect
+    .element(
+      dialog.getByText(
+        "Files copied so far stay in the staging folder. If the drive is full, free up space first. Then choose Resume bundle creation.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await dialog.getByRole("button", { name: "Resume bundle creation" }).click();
+  expect(resumed).toHaveBeenCalledExactlyOnceWith(verbatimStaging, 8, expect.any(Function));
+  await expect.element(dialog.getByText("Bundle verified")).toBeVisible();
+});
+
+it("shows verbatim restore destinations plainly and resumes and reads back with Core's value", async () => {
+  vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
+  const restoreReview = {
+    bundle,
+    destination_root: verbatimRestore,
+    required_bytes: plan.required_bytes,
+    available_bytes: plan.available_bytes,
+    plan_sha256: "3".repeat(64),
+  };
+  vi.spyOn(desktopApi, "planLibraryRecoveryRestore").mockResolvedValue(restoreReview);
+  const restore = vi
+    .spyOn(desktopApi, "restoreLibraryRecoveryBundle")
+    .mockRejectedValue(new Error("The desktop reply was interrupted"));
+  const read = vi.spyOn(desktopApi, "readLibraryRecoveryRestore").mockRejectedValue({
+    message: "The reviewed restore has not finished",
+    details: {
+      import_destination: verbatimRestore,
+      recovery_action: "resume_library_recovery_restore",
+      transfer_id: "restore-verbatim",
+    },
+  });
+  vi.spyOn(desktopApi, "bootstrapStatus").mockResolvedValue({
+    ready: true,
+    generation: 8,
+    library_root: source,
+    error: null,
+    selection: null,
+  });
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryRestore").mockResolvedValue({
+    completed: true,
+    destination_root: verbatimRestore,
+    input_retained: true,
+    transfer_id: "restore-verbatim",
+  });
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Inspect or restore a bundle" }).click();
+  const dialog = page.getByRole("dialog", { name: "Inspect or restore a bundle" });
+  await dialog.getByRole("textbox", { name: "Recovery bundle folder" }).fill(destination);
+  await dialog.getByRole("button", { name: "Verify bundle" }).click();
+  await dialog.getByRole("textbox", { name: "Restore destination" }).fill(plainRestore);
+  await dialog.getByRole("button", { name: "Review restore" }).click();
+  const review = dialog.getByRole("region", { name: "Restore review" });
+  await expect.element(review.getByText(plainRestore, { exact: true })).toBeVisible();
+  expect(dialog.getByText(verbatimRestore).query()).toBeNull();
+
+  await dialog.getByRole("button", { name: "Restore library", exact: true }).click();
+  await dialog.getByRole("button", { name: "Check reviewed restore again" }).click();
+  expect(read).toHaveBeenCalledExactlyOnceWith(verbatimRestore, restoreReview.plan_sha256);
+  await expect
+    .element(
+      dialog.getByText(
+        "Files copied so far stay in the restore destination. If the drive is full, free up space first. Then choose Resume bundle restore.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  expect(dialog.getByText(verbatimRestore).query()).toBeNull();
+  await dialog.getByRole("button", { name: "Resume bundle restore" }).click();
+  expect(resume).toHaveBeenCalledExactlyOnceWith(
+    verbatimRestore,
+    8,
+    expect.any(Function),
+    "restore-verbatim",
+  );
+  await expect.element(dialog.getByText("Library restored", { exact: true })).toBeVisible();
+  await expect.element(dialog.getByText(plainRestore, { exact: true })).toBeVisible();
+  expect(dialog.getByText(verbatimRestore).query()).toBeNull();
+  expect(restore).toHaveBeenCalledOnce();
+});
+
+it("shows a verbatim startup restore destination plainly and resumes with Core's value", async () => {
+  const unc = String.raw`\\?\UNC\server\share\Portcove Recovered Library`;
+  const plainUnc = String.raw`\\server\share\Portcove Recovered Library`;
+  vi.spyOn(desktopApi, "bootstrapStatus").mockResolvedValue({
+    ready: false,
+    library_root: null,
+    generation: 8,
+    error: null,
+    selection: null,
+  });
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryRestore").mockResolvedValue({
+    completed: true,
+    destination_root: unc,
+    input_retained: true,
+    transfer_id: "restore-1",
+  });
+  const switchLibrary = vi.fn(async () => {});
+  await render(
+    <BootstrapRecovery
+      error={{
+        code: "conflict",
+        message: "Restore needs recovery",
+        details: {
+          import_destination: unc,
+          recovery_action: "resume_library_recovery_restore",
+          transfer_id: "restore-1",
+        },
+      }}
+      switchLibrary={switchLibrary}
+    />,
+  );
+  const recovery = page.getByRole("region", { name: "Unfinished library change" });
+  await expect.element(recovery.getByText(plainUnc, { exact: true })).toBeVisible();
+  await page.getByText("Technical details", { exact: true }).click();
+  const details = page.getByRole("definition").filter({ hasText: plainUnc });
+  await expect.element(details).toHaveTextContent(plainUnc);
+  expect(page.getByText(unc).query()).toBeNull();
+  await page.getByRole("button", { name: "Resume bundle restore", exact: true }).click();
+  expect(resume).toHaveBeenCalledExactlyOnceWith(unc, 8);
+  await page.getByRole("button", { name: "Open restored library", exact: true }).click();
+  await page.getByRole("button", { name: "Open reviewed library", exact: true }).click();
+  expect(switchLibrary).toHaveBeenCalledExactlyOnceWith(unc);
+});
+
+it("shows a verbatim original library plainly in failure details and recovers with Core's value", async () => {
+  const original = String.raw`\\?\D:\Games\Portcove Library`;
+  const plainOriginal = String.raw`D:\Games\Portcove Library`;
+  const recover = vi
+    .spyOn(desktopApi, "recoverLibraryMove")
+    .mockRejectedValue(new Error("The original library is temporarily unavailable"));
+  await render(
+    <BootstrapRecovery
+      error={{
+        code: "conflict",
+        message: "Library move needs recovery",
+        presentation: {
+          mutation_state: "recovery_required",
+          phase: null,
+          presentation_key: "conflict",
+          recovery_actions: [],
+          summary: "A library location change is unfinished.",
+          technical_context: { transfer_id: "move-1", retained_source: original },
+          technical_message: "The move journal is pending.",
+          tone: "error",
+        },
+        details: { transfer_id: "move-1", retained_source: original },
+      }}
+    />,
+  );
+  await expect
+    .element(page.getByText(`Original library: ${plainOriginal}`, { exact: true }))
+    .toBeVisible();
+  await page.getByText("View technical details", { exact: true }).click();
+  await expect
+    .element(page.getByRole("definition").filter({ hasText: plainOriginal }))
+    .toHaveTextContent(plainOriginal);
+  expect(page.getByRole("definition").filter({ hasText: original }).query()).toBeNull();
+  await page.getByRole("button", { name: "Continue location change", exact: true }).click();
+  expect(recover).toHaveBeenCalledExactlyOnceWith(original, false);
+  await expect
+    .element(page.getByText("The original library is temporarily unavailable"))
+    .toBeVisible();
+});
