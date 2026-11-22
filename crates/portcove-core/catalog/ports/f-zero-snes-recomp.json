@@ -66,16 +66,35 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64"],
     "adapter": "staged-source-portable",
-    "managed_acquisition_hold": {
-      "reason": "The current F-Zero Forever packages have a different launcher and bundled course data. Portcove is checking a compatible replacement. You can keep using your existing installation or prepare a separate reviewed v1.8.3 copy.",
-      "activation_reason": "This staged F-Zero SNES package does not match the reviewed Windows v1.8.3 release. Keep your current installed copy.",
-      "reviewed_artifacts": [
-        {
-          "version": "v1.8.3",
-          "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+    "acquisition_restrictions": [
+      {
+        "id": "acquisition",
+        "effect": "hold",
+        "operations": ["download", "install", "update", "adopt"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "The current F-Zero Forever packages have a different launcher and bundled course data. Portcove is checking a compatible replacement. You can keep using your existing installation or prepare a separate reviewed v1.8.3 copy."
+      },
+      {
+        "id": "activation",
+        "effect": "hold",
+        "operations": ["activate"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "This staged F-Zero SNES package does not match the reviewed Windows v1.8.3 release. Keep your current installed copy."
+      },
+      {
+        "id": "reviewed-1",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.8.3",
+              "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+            }
+          ]
         }
-      ]
-    },
+      }
+    ],
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {

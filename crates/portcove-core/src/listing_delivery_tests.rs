@@ -502,8 +502,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // Embedded typed IGDB scenes require format 13 in the combined directory.
-    assert_eq!(catalog.listing_document().format_version, 13);
+    // Embedded typed acquisition restrictions require format 15 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 15);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -524,8 +524,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format follows the verified source edition format 14.
-    candidate["directory"]["format_version"] = json!(15);
+    // The next unknown format follows the typed acquisition restriction format 15.
+    candidate["directory"]["format_version"] = json!(16);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -583,7 +583,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 13);
+    assert_eq!(catalog.listing_document().format_version, 15);
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
@@ -1015,7 +1015,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     let mut unsupported = current.clone();
     unsupported["carrier"] = json!("unsupported");
     edition_directory["directory"]["format_version"] =
-        json!(crate::catalog::listings::VERIFIED_EDITION_LISTING_FORMAT + 1);
+        json!(crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT + 1);
     let unsupported_format = carrier(&serde_json::to_vec(&edition_directory).unwrap());
     let mut trailing = current.clone();
     let mut concatenated = gzip(&next);

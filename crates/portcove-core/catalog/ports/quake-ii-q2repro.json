@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/Paril/q2repro/releases/tag/nightly",
     "setup_url": "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
-    "download_block_reason": "Use the publisher’s Windows nightly and the matching SDL dependency. For Linux, build from the pinned source.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the publisher’s Windows nightly and the matching SDL dependency. For Linux, build from the pinned source.",
+        "tracking_issue": 6102
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
       "steps": [

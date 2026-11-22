@@ -8,7 +8,16 @@
     "project_url": "https://github.com/snufflyyy/SARPBC-recompiled",
     "platforms": [],
     "availability": "unknown",
-    "download_block_reason": "New downloads and distribution are unavailable because the original project has not chosen a license. An attributable license is required before those offers can resume. Windows and macOS are planned, unvalidated hosts. This entry remains available for information.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads and distribution are unavailable because the original project has not chosen a license. An attributable license is required before those offers can resume. Windows and macOS are planned, unvalidated hosts. This entry remains available for information.",
+        "tracking_issue": 3371
+      }
+    ],
     "issue_number": 3371,
     "listed_at": "2026-10-25",
     "artwork": {

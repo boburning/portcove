@@ -24,7 +24,16 @@
     "download_asset_hints": {
       "windows-x86-64": ["pvzge-", ".zip"]
     },
-    "download_block_reason": "Portcove downloads remain paused while the desktop package's separately owned EA/PopCap and other game-resource permissions are unresolved. The website license and upstream personal-use terms do not establish a grant for those resources. Keep a permitted copy; reconsider when the needed grants or a resource-free package are established.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads remain paused while the desktop package's separately owned EA/PopCap and other game-resource permissions are unresolved. The website license and upstream personal-use terms do not establish a grant for those resources. Keep a permitted copy; reconsider when the needed grants or a resource-free package are established.",
+        "tracking_issue": 1874
+      }
+    ],
     "manual_setup": {
       "help_url": "https://pvzge.com/en/guide/FAQ.html",
       "warnings": [

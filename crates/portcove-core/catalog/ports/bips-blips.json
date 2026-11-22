@@ -19,7 +19,16 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
-    "download_block_reason": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+        "tracking_issue": 6132
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
       "steps": [

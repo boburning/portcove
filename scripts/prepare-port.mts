@@ -1,4 +1,5 @@
 import { originalGamePreparationFeedback } from "./catalog-game-review.mts";
+import { listingDownloadBlockReason } from "./catalog-acquisition-restrictions.mts";
 import {
   acceptPackagePlayerObservation,
   checkPackagePlayerObservationContinuity,
@@ -375,7 +376,7 @@ export function canonicalPreparationFeedback(
           : createHash("sha256").update(specification, "utf8").digest("hex"),
       location: "files.upstream -> observations[facts_endpoint].body.body",
     },
-    authored_acquisition_condition: record.listing.download_block_reason ?? null,
+    authored_acquisition_condition: listingDownloadBlockReason(record.listing) ?? null,
     next:
       specification === undefined
         ? "The canonical specification was not observed in this preparation. Read the owning Roadmap context or prepare with --issue before deciding route, lineage, acquisition conditions or deferrals."
@@ -909,8 +910,8 @@ export async function preparePort(options: PrepareOptions) {
     }
     const base = explicit ?? previous;
     if (
-      previous?.listing.download_block_reason !== undefined &&
-      base?.listing.download_block_reason !== previous.listing.download_block_reason
+      previous?.listing.restrictions !== undefined &&
+      JSON.stringify(base?.listing.restrictions) !== JSON.stringify(previous.listing.restrictions)
     )
       throw new Error(
         "Preparation cannot remove or change an authored download restriction; resolve its canonical condition in a reviewed source edit.",

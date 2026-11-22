@@ -57,20 +57,48 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "native-portable",
-    "managed_acquisition_hold": {
-      "reason": "Blocksphere now uses an upstream installer. Managed Install and Update are on hold while Portcove checks how the new packages handle existing saves and settings.",
-      "activation_reason": "This staged Blocksphere package does not match a reviewed direct-player release. Keep your current installed copy.",
-      "reviewed_artifacts": [
-        {
-          "version": "v1.1.0",
-          "sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
-        },
-        {
-          "version": "v1.1.0",
-          "sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+    "acquisition_restrictions": [
+      {
+        "id": "acquisition",
+        "effect": "hold",
+        "operations": ["download", "install", "update", "adopt"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "Blocksphere now uses an upstream installer. Managed Install and Update are on hold while Portcove checks how the new packages handle existing saves and settings."
+      },
+      {
+        "id": "activation",
+        "effect": "hold",
+        "operations": ["activate"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "This staged Blocksphere package does not match a reviewed direct-player release. Keep your current installed copy."
+      },
+      {
+        "id": "reviewed-1",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.1.0",
+              "sha256": "7d30aacaabf4ef1e878d0a0481363bd46b5a894b21d46ed8486c537826d04c50"
+            }
+          ]
         }
-      ]
-    },
+      },
+      {
+        "id": "reviewed-2",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.1.0",
+              "sha256": "02d1d2d456efd2c7a447a22de1ba417eaa457af4b97b58b3c28c3c7c0a9d2250"
+            }
+          ]
+        }
+      }
+    ],
     "release": {
       "repository": "djultra64/Blocksphere",
       "asset_hints": {

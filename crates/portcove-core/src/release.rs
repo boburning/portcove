@@ -13,6 +13,7 @@ use serde::{Deserialize, de::DeserializeOwned};
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
+use crate::acquisition_restriction::{EffectiveRestrictions, Knowledge, RestrictedOperation};
 use crate::{
     AdapterKind, GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
     GithubDeviceLoginState, GithubRateLimit, Library, Platform, PortDefinition, PortcoveError,
@@ -1779,7 +1780,8 @@ impl GithubReleaseProvider {
         if selection
             .variant()
             .is_some_and(|variant| variant.explicit_id().is_some())
-            && (scope.is_some() || port.managed_acquisition_hold.is_some())
+            && (scope.is_some()
+                || !crate::acquisition_restriction::definition_restrictions(port).is_empty())
         {
             return Err(PortcoveError::unsupported(
                 "the active acquisition policy does not authorize explicit package selection",
@@ -2017,7 +2019,8 @@ impl GithubReleaseProvider {
                     asset,
                 )
             };
-        let hold = port.managed_acquisition_hold.as_ref();
+        let restrictions = EffectiveRestrictions::managed_only(port);
+        let mut exclusion_reason = None;
         let reviewed = if let Some(withheld) = withheld {
             let latest_asset = selection.asset(port, platform, latest)?;
             if latest.tag_name != withheld.version
@@ -2040,9 +2043,7 @@ impl GithubReleaseProvider {
             Some(crate::package_shape::reviewed_release_digests(
                 port, platform,
             ))
-        } else if let Some(hold) = hold
-            && curated.is_none()
-            && !hold.excluded_artifacts.is_empty()
+        } else if curated.is_none() && restrictions.has_artifact_holds(RestrictedOperation::Install)
         {
             let latest_asset = selection.asset(port, platform, latest)?;
             let latest_continuity =
@@ -2050,11 +2051,19 @@ impl GithubReleaseProvider {
             let digest = self
                 .observed_asset_digest(port, latest, latest_asset, scope)
                 .await?;
-            if hold.excludes(&latest.tag_name, &digest) {
-                fallback_reason = Some(hold.reason.clone());
+            if let Some(excluded) = restrictions.artifact_exclusion(
+                RestrictedOperation::Install,
+                &latest.tag_name,
+                &digest,
+            ) {
+                fallback_reason = excluded.explanation();
+                exclusion_reason.clone_from(&fallback_reason);
                 Some(
-                    hold.reviewed_artifacts
-                        .iter()
+                    restrictions
+                        .permitted_artifacts(
+                            RestrictedOperation::Install,
+                            Knowledge::Known(platform),
+                        )
                         .map(|artifact| (artifact.version.as_str(), artifact.sha256.as_str()))
                         .collect::<Vec<_>>(),
                 )
@@ -2088,8 +2097,8 @@ impl GithubReleaseProvider {
                                 .is_some_and(|refresh| refresh.needs(candidate))
                                 || applies(candidate))
                     })
-                    .ok_or_else(|| match (withheld, hold) {
-                        (None, Some(hold)) => PortcoveError::unsupported(hold.reason.clone()),
+                    .ok_or_else(|| match (withheld, &exclusion_reason) {
+                        (None, Some(reason)) => PortcoveError::unsupported(reason.clone()),
                         _ => PortcoveError::not_found("no reviewed fallback release is available"),
                     })?;
                 checked.push(index);
@@ -2113,7 +2122,9 @@ impl GithubReleaseProvider {
                 let digest = self
                     .observed_asset_digest(port, fallback, asset, scope)
                     .await?;
-                if hold.is_none_or(|hold| !hold.excludes(&fallback.tag_name, &digest))
+                if restrictions
+                    .artifact_exclusion(RestrictedOperation::Install, &fallback.tag_name, &digest)
+                    .is_none()
                     && reviewed.iter().any(|(version, expected)| {
                         *version == fallback.tag_name && expected.eq_ignore_ascii_case(&digest)
                     })
@@ -2234,10 +2245,12 @@ impl GithubReleaseProvider {
                 .await?
         };
         let version = release_version(&release.tag_name);
-        if let Some(hold) = &port.managed_acquisition_hold
-            && hold.excludes(&version, &sha256)
-        {
-            return Err(PortcoveError::unsupported(hold.reason.clone()));
+        if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_exclusion(
+            RestrictedOperation::Install,
+            &version,
+            &sha256,
+        ) {
+            excluded.into_result()?;
         }
         let resolved = ResolvedRelease {
             version,
@@ -2299,10 +2312,12 @@ fn preserved_resolution(
     record: &crate::curated_acquisition::CuratedAcquisitionRecord,
     scope: &crate::DefinitionAcquisitionScope,
 ) -> Result<ResolvedGithub> {
-    if let Some(hold) = &port.managed_acquisition_hold
-        && hold.excludes(&record.tag, &record.sha256)
-    {
-        return Err(PortcoveError::unsupported(hold.reason.clone()));
+    if let Some(excluded) = EffectiveRestrictions::managed_only(port).artifact_exclusion(
+        RestrictedOperation::Install,
+        &record.tag,
+        &record.sha256,
+    ) {
+        excluded.into_result()?;
     }
     scope.require_current()?;
     scope.require_port(port)?;
@@ -2462,8 +2477,10 @@ fn release_version(tag: &str) -> String {
     tag.to_string()
 }
 
+/// A publisher digest of a release the managed restrictions permit for
+/// installation and do not exclude.
 fn reviewed_fallback_digest(
-    hold: &crate::ManagedAcquisitionHold,
+    restrictions: &EffectiveRestrictions,
     release: &GithubRelease,
     asset: &GithubAsset,
 ) -> Option<String> {
@@ -2472,7 +2489,21 @@ fn reviewed_fallback_digest(
         .as_deref()
         .and_then(parse_digest)
         .filter(|digest| {
-            !hold.excludes(&release.tag_name, digest) && hold.reviewed(&release.tag_name, digest)
+            restrictions
+                .artifact_exclusion(RestrictedOperation::Install, &release.tag_name, digest)
+                .is_none()
+                && restrictions
+                    .permitted_artifacts(RestrictedOperation::Install, Knowledge::Deferred)
+                    .chain(
+                        restrictions.permitted_artifacts(
+                            RestrictedOperation::Activate,
+                            Knowledge::Deferred,
+                        ),
+                    )
+                    .any(|artifact| {
+                        artifact.version == release.tag_name
+                            && artifact.sha256.eq_ignore_ascii_case(digest)
+                    })
         })
 }
 
