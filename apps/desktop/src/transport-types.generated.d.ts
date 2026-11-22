@@ -7119,7 +7119,8 @@ export interface OutputUpstreamObservationReport {
   port_id: string;
   projections: ChannelObservation[];
   /**
-   * Typed role and host facts for every observed release.
+   * Typed role and host facts for each release a projection observed
+   * (latest observed, channel candidate or eligible), in provider order.
    */
   release_facts: ObservedReleaseFacts[];
   repository_id: number;

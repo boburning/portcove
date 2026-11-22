@@ -80252,7 +80252,7 @@
         "type": "array"
       },
       "release_facts": {
-        "description": "Typed role and host facts for every observed release.",
+        "description": "Typed role and host facts for each release a projection observed\n(latest observed, channel candidate or eligible), in provider order.",
         "items": {
           "$ref": "#/$defs/ObservedReleaseFacts"
         },
