@@ -800,3 +800,833 @@ export function renderHandoffs(handoffs: readonly OpenHandoff[]) {
     )
     .join("\n")}\n`;
 }
+
+/*
+ * Executor contract (#8570).
+ *
+ * A pure, deterministic description of what an executor would need to act on
+ * a handoff: the deciding facts, the operation identity, the generation fence,
+ * the lease and checkpoint, the receipt and the wake condition. It is a model
+ * only: nothing here reads the store, calls the network, uses a credential or
+ * dispatches. Dispatch stays disabled for every kind, and `applyHandoffEvent`
+ * refuses every lease claim under the registry's own policy.
+ *
+ * The store does not yet persist the identity key, source and policy
+ * generation, lease or checkpoint (see docs/MAINTENANCE-STORE.md#executor-handoffs).
+ */
+
+/** Versions the contract shape and the operation identity derivation. */
+export const handoffContractVersion = "maintenance-handoff-contract/1";
+
+/** The store's own identity and receipt limits (migration 0001 `operations` checks). */
+const operationIdPattern = /^[A-Za-z0-9._:-]{1,200}$/u;
+const sha256Pattern = /^[0-9a-f]{64}$/u;
+const receiptReferenceLimit = 500;
+const executorLimit = 200;
+
+export type WakeRule =
+  /** Any return to needs-attention after the completing receipt cleared the subject. */
+  | "reappears-after-clear"
+  /** A needs-attention assessment whose input digest differs from the completed one. */
+  | "input-digest-changed";
+
+export interface ExecutorStep {
+  id: string;
+  does: string;
+  /** Rerunning a completed step changes nothing; required for lease reclaim. */
+  idempotent: true;
+}
+
+export interface RoutineExecutorPlan {
+  mode: "routine";
+  /** Where the job would run: an existing schedule, never a new one. */
+  runs_in: string;
+  steps: readonly ExecutorStep[];
+  permissions: readonly string[];
+  never: readonly string[];
+}
+
+export interface OwnerIntakePlan {
+  mode: "owner-intake";
+  /** Why the handoff stays inert. */
+  reason: string;
+}
+
+export interface HandoffContract {
+  kind: HandoffKind;
+  deciding_facts: {
+    source: HandoffSource;
+    /** The stored facts the condition is derived from. */
+    store_facts: readonly string[];
+    /** The condition fields covered by the assessment input digest. */
+    condition_fields: readonly string[];
+    /** Fields deliberately left out of the digest. */
+    excluded: readonly string[];
+  };
+  wake: { rule: WakeRule; when: string };
+  /** Null for owner-only intake: no executor lease exists. */
+  lease: { ttl_minutes: number } | null;
+  receipt: { reference: string; sha256: string };
+  plan: RoutineExecutorPlan | OwnerIntakePlan;
+}
+
+const routineNever = [
+  "write repository contents, push a branch, or open, approve or merge a pull request",
+  "comment on, open, close or edit an issue, or change a GitHub Project field",
+  "dispatch any workflow, including upstream-relocation-evidence.yml and hosted-discovery-intake.yml",
+  "use the Project credential, a signing key, a publication credential or any owner-delegated token",
+  "publish definitions, releases or catalogs",
+  "call an AI service or decide a remedy; the remedy stays a reviewed change by a person",
+  "read a dispatched or pull-request run as the receipt",
+  "act on a decision whose fence (sequence, assessment, source generation or policy generation) has moved",
+  "re-open a completed operation unless its wake condition holds",
+] as const;
+
+const routineRunsIn =
+  "A step of the existing scheduled maintenance-inventory.yml job on main after collection; no new workflow or schedule.";
+
+const routinePermissions = [
+  "GITHUB_TOKEN contents: read",
+  "GITHUB_TOKEN actions: read (to read the retained receipt run and its artifact)",
+  "The existing maintenance store executor role that `handoffs --record` uses; a role grants table access, so a future store adapter must change rows only through a guarded function that addresses one operation record by its identity and fence",
+] as const;
+
+const routineSteps = (evidence: string, receipt: string): readonly ExecutorStep[] => [
+  {
+    id: "read-handoff",
+    does: "Read the open handoff, its applicable assessment and operation with the report role.",
+    idempotent: true,
+  },
+  {
+    id: "check-fence",
+    does: "Compare the operation's sequence, assessment, source generation and policy generation with the current subject; stop without acting when any has moved.",
+    idempotent: true,
+  },
+  {
+    id: "take-lease",
+    does: "Claim the operation's lease, or reclaim an expired one, and resume after the last completed checkpoint.",
+    idempotent: true,
+  },
+  { id: "gather-evidence", does: evidence, idempotent: true },
+  {
+    id: "publish-evidence",
+    does: "Write the evidence to the job summary and a retained run artifact named by the operation identity; nothing is posted elsewhere.",
+    idempotent: true,
+  },
+  { id: "await-receipt", does: receipt, idempotent: true },
+  {
+    id: "record-receipt",
+    does: "Record the receipt run URL and the SHA-256 of its report against the operation, complete it and release the lease.",
+    idempotent: true,
+  },
+];
+
+export const handoffContracts: Readonly<Record<HandoffKind, HandoffContract>> = {
+  "release-health-relocation": {
+    kind: "release-health-relocation",
+    deciding_facts: {
+      source: "release-health",
+      store_facts: ["release-health observation of the port in a fresh, complete port assessment"],
+      condition_fields: [...releaseConditionFields],
+      excluded: ["clocks", "HTTP status", "conditions outside the GitHub original-location rules"],
+    },
+    wake: {
+      rule: "reappears-after-clear",
+      when: "The port's relocation handoff returns to needs-attention after the scheduled main upstream-health report cleared it.",
+    },
+    lease: null,
+    receipt: {
+      reference:
+        "The scheduled main upstream-health run URL whose report no longer shows the condition.",
+      sha256: "SHA-256 of that report artifact.",
+    },
+    plan: {
+      mode: "owner-intake",
+      reason:
+        "Relocation evidence is owner-dispatched and the rename is a reviewed catalog change; no executor holds this handoff.",
+    },
+  },
+  "release-health-condition": {
+    kind: "release-health-condition",
+    deciding_facts: {
+      source: "release-health",
+      store_facts: ["release-health observation of the port in a fresh, complete port assessment"],
+      condition_fields: [...releaseConditionFields],
+      excluded: ["clocks", "HTTP status", "GitHub original-location relocation conditions"],
+    },
+    wake: {
+      rule: "reappears-after-clear",
+      when: "The port's condition handoff returns to needs-attention after the scheduled main upstream-health report cleared it.",
+    },
+    lease: { ttl_minutes: 30 },
+    receipt: {
+      reference:
+        "The scheduled main upstream-health run URL whose report no longer shows the condition.",
+      sha256: "SHA-256 of that report artifact.",
+    },
+    plan: {
+      mode: "routine",
+      runs_in: routineRunsIn,
+      steps: routineSteps(
+        "From the stored condition only, list each condition key, rule, location and the monitor's recorded resume condition, and whether reviewed accounting already covers it.",
+        "Wait for a later scheduled main upstream-health report; a dispatched or pull-request run never counts.",
+      ),
+      permissions: routinePermissions,
+      never: routineNever,
+    },
+  },
+  "upstream-observer-exception": {
+    kind: "upstream-observer-exception",
+    deciding_facts: {
+      source: "upstream-observations",
+      store_facts: ["upstream observation of the port in a complete observer checkpoint"],
+      condition_fields: ["source_key", "repository", "exception_key", "exception_rule"],
+      excluded: ["partial-progress stops"],
+    },
+    wake: {
+      rule: "reappears-after-clear",
+      when: "The port's observer exception handoff returns to needs-attention after a completed checkpoint snapshot cleared it.",
+    },
+    lease: { ttl_minutes: 30 },
+    receipt: {
+      reference:
+        "The observer run URL of the next completed checkpoint snapshot that no longer records the exception.",
+      sha256: "SHA-256 of that retained snapshot.",
+    },
+    plan: {
+      mode: "routine",
+      runs_in: routineRunsIn,
+      steps: routineSteps(
+        "From the stored condition only, list each excepted source key, repository, exception key and rule.",
+        "Wait for the next completed observer checkpoint snapshot from its own schedule; never dispatch the observer.",
+      ),
+      permissions: routinePermissions,
+      never: routineNever,
+    },
+  },
+  "hosted-intake-blocked": {
+    kind: "hosted-intake-blocked",
+    deciding_facts: {
+      source: "hosted-intake",
+      store_facts: ["hosted-intake request status from a complete native queue read"],
+      condition_fields: ["request_comment", "receipt_comment", "reconciles", "blocker"],
+      excluded: ["clocks", "slot detail of a blocked request"],
+    },
+    wake: {
+      rule: "input-digest-changed",
+      when: "The request's receipt comment, reconciliation or blocker code changes after the bot receipt completed the operation.",
+    },
+    lease: null,
+    receipt: {
+      reference: "The new bot receipt comment URL on #177 for the request or its reconciliation.",
+      sha256: "SHA-256 of the exact receipt body.",
+    },
+    plan: {
+      mode: "owner-intake",
+      reason:
+        "New intake, request edits and process dispatch are owner-only; the existing intake worker resumes only an already authorized final audit with its own checkpoint.",
+    },
+  },
+  "hosted-intake-holds": {
+    kind: "hosted-intake-holds",
+    deciding_facts: {
+      source: "hosted-intake",
+      store_facts: ["hosted-intake request status from a complete native queue read"],
+      condition_fields: [
+        "request_comment",
+        "receipt_comment",
+        "holds.candidate_index",
+        "holds.port_key",
+        "holds.repository_id",
+        "holds.http_status",
+        "holds.resume",
+      ],
+      excluded: ["clocks", "slots without a hold"],
+    },
+    wake: {
+      rule: "input-digest-changed",
+      when: "The request's receipt comment or any held candidate's identity, HTTP status or resume changes after the bot receipt completed the operation.",
+    },
+    lease: null,
+    receipt: {
+      reference: "The new bot receipt comment URL on #177 for the request.",
+      sha256: "SHA-256 of the exact receipt body.",
+    },
+    plan: {
+      mode: "owner-intake",
+      reason: "Process dispatch spends the dedicated Project credential and is owner-only.",
+    },
+  },
+  "release-content-finding": {
+    kind: "release-content-finding",
+    deciding_facts: {
+      source: "release-content",
+      store_facts: ["release-content scan facts of the port from a complete scheduled main scan"],
+      condition_fields: [
+        "findings.platform",
+        "findings.repository",
+        "findings.tag",
+        "findings.asset",
+        "findings.sha256",
+        "findings.rules",
+        "findings.signals",
+        "findings.signal_count",
+        "unscannable.platform",
+        "unscannable.code",
+        "unscannable.provider",
+      ],
+      excluded: ["accounted findings", "coverage notes", "clocks"],
+    },
+    wake: {
+      rule: "reappears-after-clear",
+      when: "The port's release-content handoff returns to needs-attention after a scheduled main scan cleared it.",
+    },
+    lease: { ttl_minutes: 30 },
+    receipt: {
+      reference:
+        "The scheduled main release-content scan run URL whose report no longer reports the finding or package.",
+      sha256: "SHA-256 of that scan report artifact.",
+    },
+    plan: {
+      mode: "routine",
+      runs_in: routineRunsIn,
+      steps: routineSteps(
+        "From the stored condition only, list each flagged package with its asset, SHA-256 and kept signals, and each package the scan could not read with its code and provider, for a person to confirm.",
+        "Wait for a later scheduled main release-content scan; a dispatched scan never counts.",
+      ),
+      permissions: routinePermissions,
+      never: [
+        ...routineNever,
+        "confirm game data, write a download hold or an accounting entry, or start relocation evidence",
+      ],
+    },
+  },
+};
+
+/** The fence a decision was made on; an executor refuses to act when any part moved. */
+export interface GenerationFence {
+  /** The handoff subject's transition sequence. */
+  sequence: number;
+  /** Its applicable assessment. */
+  assessment_id: number;
+  /** The complete collection run that last verified the subject (`verified_run_id`). */
+  source_generation: string;
+  /** The assessment's policy version. */
+  policy_generation: string;
+}
+
+/** The exact store facts a handoff was derived from. */
+export interface DecidingFacts {
+  kind: HandoffKind;
+  subject_key: string;
+  /** The applicable assessment's `input_digest`: kind, source subject and stable condition. */
+  input_digest: string;
+}
+
+export interface HandoffLease {
+  holder: string;
+  /** Epoch milliseconds. */
+  acquired_at: number;
+  expires_at: number;
+  reclaims: number;
+}
+
+export interface HandoffReceipt {
+  reference: string;
+  sha256: string | null;
+  /** Further evidence references (run, artifact or comment URLs). */
+  evidence: readonly string[];
+}
+
+export type ContractState = "planned" | "leased" | "completed" | "abandoned";
+
+export interface ContractOperation {
+  contract_version: typeof handoffContractVersion;
+  /** This record's own identity; every effect addresses it. */
+  operation_id: string;
+  /** The finding it acts on; shared by every record of the same finding. */
+  finding_key: string;
+  deciding: DecidingFacts;
+  fence: GenerationFence;
+  state: ContractState;
+  lease: HandoffLease | null;
+  /** The last completed plan step, or null before the first. */
+  checkpoint: string | null;
+  receipt: HandoffReceipt | null;
+  /** The sequence at which the completing receipt was recorded. */
+  completed_sequence: number | null;
+}
+
+/**
+ * The deterministic finding key: the same kind, subject, deciding input
+ * digest and policy generation always yield the same key, so a replayed
+ * finding is recognized and the records of one finding are related. The
+ * fields are hashed as a JSON array, so no field value can shift into
+ * another. The source generation is a fence, not identity: a later run
+ * verifying the same condition is the same finding.
+ */
+export function handoffFindingKey(deciding: DecidingFacts, policyGeneration: string) {
+  const digest = createHash("sha256")
+    .update(
+      JSON.stringify([
+        handoffContractVersion,
+        deciding.kind,
+        deciding.subject_key,
+        deciding.input_digest,
+        policyGeneration,
+      ]),
+    )
+    .digest("hex")
+    .slice(0, 40);
+  return `handoff.${deciding.kind}.k${digest}`;
+}
+
+/**
+ * One record's operation identity: the finding key for the first record of a
+ * finding, then `.<n>` for the n-th, as `handoffOperationId` numbers a plan
+ * needed again. A finding that wakes or reappears after abandonment gets a new
+ * record, so an effect for the earlier one can never reach it.
+ */
+export const handoffContractOperationId = (findingKey: string, ordinal: number) =>
+  ordinal === 1 ? findingKey : `${findingKey}.${ordinal}`;
+
+/** The ordinal of `operationId` among its finding's records, or null when it is not one of them. */
+export function contractOperationOrdinal(findingKey: string, operationId: string) {
+  if (operationId === findingKey) return 1;
+  const match = /^\.([2-9]|[1-9][0-9]+)$/u.exec(operationId.slice(findingKey.length));
+  return operationId.startsWith(findingKey) && match ? Number(match[1]) : null;
+}
+
+const positiveInteger = (value: unknown) => Number.isSafeInteger(value) && (value as number) >= 1;
+const text = (value: unknown, limit: number) =>
+  typeof value === "string" && value.trim().length > 0 && value.length <= limit;
+
+/**
+ * Schema check of one contract operation against the store's own column
+ * constraints; returns every violation, empty when valid.
+ */
+export function contractOperationErrors(value: unknown): string[] {
+  const errors: string[] = [];
+  if (!isRecord(value)) return ["operation is not an object"];
+  if (value.contract_version !== handoffContractVersion) errors.push("contract_version");
+  const deciding = isRecord(value.deciding) ? value.deciding : null;
+  const kind = typeof deciding?.kind === "string" ? deciding.kind : "";
+  const entry = handoffEntry(kind);
+  if (!deciding || !entry) errors.push("deciding.kind");
+  else {
+    if (
+      typeof deciding.subject_key !== "string" ||
+      parseHandoffSubject(deciding.subject_key)?.kind !== kind
+    )
+      errors.push("deciding.subject_key");
+    if (typeof deciding.input_digest !== "string" || !sha256Pattern.test(deciding.input_digest))
+      errors.push("deciding.input_digest");
+  }
+  const fence = isRecord(value.fence) ? value.fence : null;
+  if (!fence) errors.push("fence");
+  else {
+    if (!positiveInteger(fence.sequence)) errors.push("fence.sequence");
+    if (!positiveInteger(fence.assessment_id)) errors.push("fence.assessment_id");
+    if (!text(fence.source_generation, executorLimit)) errors.push("fence.source_generation");
+    if (!text(fence.policy_generation, executorLimit)) errors.push("fence.policy_generation");
+  }
+  const findingKey = value.finding_key;
+  if (
+    typeof findingKey !== "string" ||
+    (deciding &&
+      entry &&
+      fence &&
+      typeof fence.policy_generation === "string" &&
+      findingKey !==
+        handoffFindingKey(deciding as unknown as DecidingFacts, fence.policy_generation))
+  )
+    errors.push("finding_key");
+  if (
+    typeof value.operation_id !== "string" ||
+    !operationIdPattern.test(value.operation_id) ||
+    (typeof findingKey === "string" &&
+      contractOperationOrdinal(findingKey, value.operation_id) === null)
+  )
+    errors.push("operation_id");
+  const state = value.state;
+  if (!["planned", "leased", "completed", "abandoned"].includes(state as string))
+    errors.push("state");
+  const lease = value.lease;
+  if (lease !== null) {
+    if (!isRecord(lease)) errors.push("lease");
+    else {
+      if (!text(lease.holder, executorLimit)) errors.push("lease.holder");
+      if (
+        !Number.isSafeInteger(lease.acquired_at) ||
+        !Number.isSafeInteger(lease.expires_at) ||
+        (lease.expires_at as number) <= (lease.acquired_at as number)
+      )
+        errors.push("lease.window");
+      if (!Number.isSafeInteger(lease.reclaims) || (lease.reclaims as number) < 0)
+        errors.push("lease.reclaims");
+    }
+    if (entry && handoffContracts[entry.kind].lease === null) errors.push("lease.owner-only");
+  }
+  if (state === "leased" && lease === null) errors.push("lease.required");
+  if (state !== "leased" && lease !== null) errors.push("lease.unexpected");
+  const steps =
+    entry && handoffContracts[entry.kind].plan.mode === "routine"
+      ? (handoffContracts[entry.kind].plan as RoutineExecutorPlan).steps.map(({ id }) => id)
+      : [];
+  if (value.checkpoint !== null && !steps.includes(value.checkpoint as string))
+    errors.push("checkpoint");
+  const receipt = value.receipt;
+  if (receipt !== null) {
+    if (!isRecord(receipt)) errors.push("receipt");
+    else {
+      if (!text(receipt.reference, receiptReferenceLimit)) errors.push("receipt.reference");
+      if (
+        receipt.sha256 !== null &&
+        (typeof receipt.sha256 !== "string" || !sha256Pattern.test(receipt.sha256))
+      )
+        errors.push("receipt.sha256");
+      if (
+        !Array.isArray(receipt.evidence) ||
+        !receipt.evidence.every((reference) => text(reference, receiptReferenceLimit))
+      )
+        errors.push("receipt.evidence");
+    }
+  }
+  // As the store: completed exactly when a receipt exists.
+  if ((state === "completed") !== (receipt !== null)) errors.push("receipt.state");
+  if ((state === "completed") !== positiveInteger(value.completed_sequence))
+    errors.push("completed_sequence");
+  return errors;
+}
+
+/** The current store facts of one handoff subject, as an executor would read them. */
+export interface HandoffObservation {
+  state: "needs-attention" | "clear";
+  deciding: DecidingFacts;
+  fence: GenerationFence;
+}
+
+/** Executor events name the operation record they act on and the fence they read. */
+interface AddressedEvent {
+  operation_id: string;
+  holder: string;
+  now: number;
+  fence: GenerationFence;
+}
+
+export type HandoffEvent = { event_id: string } & (
+  | { type: "observe"; observation: HandoffObservation }
+  | ({ type: "claim" } & AddressedEvent)
+  | ({ type: "checkpoint"; step: string } & AddressedEvent)
+  | ({
+      type: "complete";
+      receipt: HandoffReceipt;
+      /** The clear transition the receipt shows (routine receipts are the subject clearing). */
+      cleared_sequence: number;
+    } & AddressedEvent)
+);
+
+/**
+ * Descriptions of store writes an executor would make; this module performs
+ * none. Each addresses one record by `operation_id` and names its finding.
+ */
+export type HandoffEffect = { operation_id: string; finding_key: string } & (
+  | { type: "record-plan" }
+  | { type: "refence"; fence: GenerationFence }
+  | { type: "abandon" }
+  | { type: "record-lease"; lease: HandoffLease }
+  | { type: "record-checkpoint"; step: string }
+  | { type: "record-receipt"; receipt: HandoffReceipt }
+);
+
+export interface HandoffModel {
+  kind: HandoffKind;
+  /** Newest operation last; earlier ones are retained history. */
+  operations: readonly ContractOperation[];
+  /** Applied event ids, so a replayed event is recognized. */
+  applied: readonly string[];
+}
+
+export type HandoffRefusal =
+  | "dispatch-disabled"
+  | "owner-only"
+  | "no-open-operation"
+  | "superseded-operation"
+  | "stale-fence"
+  | "leased"
+  | "not-holder"
+  | "lease-expired"
+  | "checkpoint-order"
+  | "receipt-immutable"
+  | "kind-mismatch";
+
+export interface HandoffTransition {
+  model: HandoffModel;
+  outcome: "applied" | "duplicate" | "refused" | "unchanged";
+  reason?: HandoffRefusal;
+  effects: readonly HandoffEffect[];
+}
+
+/**
+ * Whether lease events are accepted. The registry's policy is always
+ * `disabled`; `modelled` exists only so pure tests can show the lease rules
+ * and never reaches a dispatch path.
+ */
+export type ExecutorPolicy = { dispatch: "disabled" } | { dispatch: "modelled" };
+
+export const registryExecutorPolicy = (kind: HandoffKind): ExecutorPolicy => ({
+  dispatch: handoffEntry(kind)!.dispatch,
+});
+
+export const emptyHandoffModel = (kind: HandoffKind): HandoffModel => ({
+  kind,
+  operations: [],
+  applied: [],
+});
+
+const sameFence = (left: GenerationFence, right: GenerationFence) =>
+  left.sequence === right.sequence &&
+  left.assessment_id === right.assessment_id &&
+  left.source_generation === right.source_generation &&
+  left.policy_generation === right.policy_generation;
+
+/** Whether a completed operation re-opens on this observation, by its kind's wake rule. */
+export function handoffWakes(completed: ContractOperation, observation: HandoffObservation) {
+  if (observation.state !== "needs-attention" || completed.completed_sequence === null)
+    return false;
+  if (observation.fence.policy_generation !== completed.fence.policy_generation) return true;
+  return handoffContracts[completed.deciding.kind].wake.rule === "reappears-after-clear"
+    ? observation.fence.sequence > completed.completed_sequence
+    : observation.deciding.input_digest !== completed.deciding.input_digest;
+}
+
+/**
+ * A new planned record for the observation: its finding key, and the next
+ * ordinal among the retained records of that finding.
+ */
+const planned = (
+  operations: readonly ContractOperation[],
+  observation: HandoffObservation,
+): ContractOperation => {
+  const findingKey = handoffFindingKey(observation.deciding, observation.fence.policy_generation);
+  const prior = operations.filter(({ finding_key }) => finding_key === findingKey).length;
+  return {
+    contract_version: handoffContractVersion,
+    operation_id: handoffContractOperationId(findingKey, prior + 1),
+    finding_key: findingKey,
+    deciding: observation.deciding,
+    fence: observation.fence,
+    state: "planned",
+    lease: null,
+    checkpoint: null,
+    receipt: null,
+    completed_sequence: null,
+  };
+};
+
+const address = (operation: ContractOperation) => ({
+  operation_id: operation.operation_id,
+  finding_key: operation.finding_key,
+});
+
+/**
+ * The pure reducer: one event against one handoff's model. A replayed event id
+ * is a duplicate with no effect. Executor events are refused unless the policy
+ * is modelled and the kind is routine, refused on any fence mismatch, and
+ * subject to the lease (an expired lease is reclaimable by the next claim).
+ */
+export function applyHandoffEvent(
+  model: HandoffModel,
+  event: HandoffEvent,
+  policy: ExecutorPolicy = registryExecutorPolicy(model.kind),
+): HandoffTransition {
+  if (model.applied.includes(event.event_id)) return { model, outcome: "duplicate", effects: [] };
+  const done = (
+    operations: readonly ContractOperation[],
+    effects: readonly HandoffEffect[],
+  ): HandoffTransition => ({
+    model: { kind: model.kind, operations, applied: [...model.applied, event.event_id] },
+    outcome: effects.length ? "applied" : "unchanged",
+    effects,
+  });
+  const refuse = (reason: HandoffRefusal): HandoffTransition => ({
+    model,
+    outcome: "refused",
+    reason,
+    effects: [],
+  });
+  const operations = model.operations;
+  const latest = operations.at(-1);
+  const replaceLatest = (operation: ContractOperation) => [...operations.slice(0, -1), operation];
+
+  if (event.type === "observe") {
+    const { observation } = event;
+    if (observation.deciding.kind !== model.kind) return refuse("kind-mismatch");
+    const key = handoffFindingKey(observation.deciding, observation.fence.policy_generation);
+    if (!latest || latest.state === "abandoned") {
+      if (observation.state === "clear") return done(operations, []);
+      const next = planned(operations, observation);
+      return done([...operations, next], [{ type: "record-plan", ...address(next) }]);
+    }
+    if (latest.state === "completed") {
+      if (!handoffWakes(latest, observation)) return done(operations, []);
+      // A wake on an unchanged finding keeps its finding key; the reopened plan
+      // is a new record with its own operation identity.
+      const next = planned(operations, observation);
+      return done([...operations, next], [{ type: "record-plan", ...address(next) }]);
+    }
+    // An open operation (planned or leased). The clear an operation awaits is its
+    // receipt's evidence, not an abandonment; the complete event records it.
+    if (observation.state === "clear" && latest.checkpoint === "await-receipt")
+      return done(operations, []);
+    if (observation.state === "clear" || key !== latest.finding_key) {
+      const abandoned: ContractOperation = { ...latest, state: "abandoned", lease: null };
+      const effects: HandoffEffect[] = [{ type: "abandon", ...address(latest) }];
+      if (observation.state === "clear") return done(replaceLatest(abandoned), effects);
+      const next = planned(operations, observation);
+      effects.push({ type: "record-plan", ...address(next) });
+      return done([...replaceLatest(abandoned), next], effects);
+    }
+    if (sameFence(latest.fence, observation.fence)) return done(operations, []);
+    // Same identity, newer verification: the open operation is re-fenced, so a
+    // holder acting on the old fence is refused and must re-read.
+    return done(replaceLatest({ ...latest, fence: observation.fence }), [
+      { type: "refence", ...address(latest), fence: observation.fence },
+    ]);
+  }
+
+  const contract = handoffContracts[model.kind];
+  if (contract.plan.mode !== "routine" || contract.lease === null) return refuse("owner-only");
+  if (policy.dispatch !== "modelled") return refuse("dispatch-disabled");
+  // An event names the record it acts on; one for an earlier record of the
+  // handoff (abandoned, or completed and since reopened) is never applied to
+  // the current one.
+  if (latest && event.operation_id !== latest.operation_id)
+    return refuse(
+      operations.some(({ operation_id }) => operation_id === event.operation_id)
+        ? "superseded-operation"
+        : "no-open-operation",
+    );
+  if (!latest || (latest.state !== "planned" && latest.state !== "leased")) {
+    if (event.type !== "complete" || latest?.state !== "completed")
+      return refuse("no-open-operation");
+    // The same receipt delivered again records nothing; a different one is refused.
+    return JSON.stringify(latest.receipt) === JSON.stringify(event.receipt)
+      ? done(operations, [])
+      : refuse("receipt-immutable");
+  }
+  if (!sameFence(latest.fence, event.fence)) return refuse("stale-fence");
+  const ttl = contract.lease.ttl_minutes * 60_000;
+  const lease = latest.lease;
+  const live = lease !== null && event.now < lease.expires_at;
+
+  if (event.type === "claim") {
+    if (live && lease.holder !== event.holder) return refuse("leased");
+    const next: HandoffLease = {
+      holder: event.holder,
+      acquired_at: event.now,
+      expires_at: event.now + ttl,
+      reclaims: (lease?.reclaims ?? 0) + (lease !== null && !live ? 1 : 0),
+    };
+    // The claim carries a matching fence, so reading and checking it are done.
+    const checkpoint = latest.checkpoint ?? "take-lease";
+    return done(replaceLatest({ ...latest, state: "leased", lease: next, checkpoint }), [
+      { type: "record-lease", ...address(latest), lease: next },
+    ]);
+  }
+  if (!lease || lease.holder !== event.holder) return refuse("not-holder");
+  if (!live) return refuse("lease-expired");
+  const steps = contract.plan.steps.map(({ id }) => id);
+  if (event.type === "checkpoint") {
+    const at = latest.checkpoint === null ? -1 : steps.indexOf(latest.checkpoint);
+    const index = steps.indexOf(event.step);
+    if (index !== -1 && index <= at) return done(operations, []);
+    if (index !== at + 1 || event.step === "record-receipt") return refuse("checkpoint-order");
+    return done(replaceLatest({ ...latest, checkpoint: event.step }), [
+      { type: "record-checkpoint", ...address(latest), step: event.step },
+    ]);
+  }
+  if (latest.checkpoint !== "await-receipt" || event.cleared_sequence <= latest.fence.sequence)
+    return refuse("checkpoint-order");
+  const completed: ContractOperation = {
+    ...latest,
+    state: "completed",
+    lease: null,
+    checkpoint: "record-receipt",
+    receipt: event.receipt,
+    completed_sequence: event.cleared_sequence,
+  };
+  return done(replaceLatest(completed), [
+    { type: "record-receipt", ...address(latest), receipt: event.receipt },
+  ]);
+}
+
+/** The part of one operation record a store adapter guards each effect against. */
+export type StoredContractOperation = Pick<
+  ContractOperation,
+  "operation_id" | "finding_key" | "state" | "receipt"
+>;
+
+export type HandoffEffectRefusal = "unknown-operation" | "operation-closed" | "receipt-immutable";
+
+/**
+ * The addressing guard a store adapter applies to one effect: it acts only on
+ * the record the effect names, and only while that record is open. A delayed
+ * effect for an abandoned or completed record is refused, never applied to a
+ * newer record of the same finding. A replayed plan or identical receipt
+ * changes nothing.
+ */
+export function applyHandoffEffect(
+  records: readonly StoredContractOperation[],
+  effect: HandoffEffect,
+): {
+  records: readonly StoredContractOperation[];
+  outcome: "applied" | "unchanged" | "refused";
+  reason?: HandoffEffectRefusal;
+} {
+  const refuse = (reason: HandoffEffectRefusal) => ({
+    records,
+    outcome: "refused" as const,
+    reason,
+  });
+  const index = records.findIndex(({ operation_id }) => operation_id === effect.operation_id);
+  const record = records[index];
+  if (effect.type === "record-plan") {
+    if (record)
+      return record.finding_key === effect.finding_key
+        ? { records, outcome: "unchanged" }
+        : refuse("unknown-operation");
+    if (contractOperationOrdinal(effect.finding_key, effect.operation_id) === null)
+      return refuse("unknown-operation");
+    const next: StoredContractOperation = {
+      operation_id: effect.operation_id,
+      finding_key: effect.finding_key,
+      state: "planned",
+      receipt: null,
+    };
+    return { records: [...records, next], outcome: "applied" };
+  }
+  if (!record || record.finding_key !== effect.finding_key) return refuse("unknown-operation");
+  const replace = (next: StoredContractOperation) => ({
+    records: records.map((existing, at) => (at === index ? next : existing)),
+    outcome: "applied" as const,
+  });
+  if (record.state === "completed" && effect.type === "record-receipt")
+    return JSON.stringify(record.receipt) === JSON.stringify(effect.receipt)
+      ? { records, outcome: "unchanged" }
+      : refuse("receipt-immutable");
+  if (record.state === "abandoned" && effect.type === "abandon")
+    return { records, outcome: "unchanged" };
+  if (record.state !== "planned" && record.state !== "leased") return refuse("operation-closed");
+  switch (effect.type) {
+    case "abandon":
+      return replace({ ...record, state: "abandoned" });
+    case "record-lease":
+      return replace({ ...record, state: "leased" });
+    case "record-receipt":
+      return replace({ ...record, state: "completed", receipt: effect.receipt });
+    case "refence":
+    case "record-checkpoint":
+      return { records, outcome: "applied" };
+  }
+}
