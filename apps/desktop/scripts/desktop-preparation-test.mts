@@ -2502,23 +2502,32 @@ export async function preparationScenarios({
                     continuity,
                   });
                   await waitForVisibleAction();
+                  const settled = await measure();
+                  const settledContinuity = await executeBrowserScript(
+                    browser,
+                    launchContinuityPoint,
+                    more,
+                  );
                   observations.push({
                     phase: "settled-focused-resize-200",
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
-                    ...(await measure()),
-                    continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                    ...settled,
+                    continuity: settledContinuity,
                   });
-                  assert.equal(state.zoom, "200");
-                  assert.equal(state.query, "Jak");
-                  assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
-                  assert.equal(state.entries, 2);
-                  assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                  assert.equal(settled.zoom, "200");
+                  assert.equal(settled.query, "Jak");
+                  assert.equal(settled.layout, layout === "Covers" ? "covers" : "rows");
+                  assert.equal(settled.entries, 2);
                   assert.ok(
-                    continuity.originFocused && continuity.originConnected,
-                    JSON.stringify(continuity),
+                    settled.scrollWidth <= settled.contentWidth + 1,
+                    JSON.stringify(settled),
                   );
-                  assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+                  assert.ok(
+                    settledContinuity.originFocused && settledContinuity.originConnected,
+                    JSON.stringify(settledContinuity),
+                  );
+                  assert.ok(settledContinuity.documentFocused, JSON.stringify(settledContinuity));
                 }
                 // One scoped target avoids claiming that the whole scrollable collection
                 // fits above the fold. The screenshot still retains the native viewport.
