@@ -1421,6 +1421,7 @@ export interface TransportOutputs {
   steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
   store_game_installs: OutputStoreGameInstalls;
+  successor_evidence_preparation: OutputSuccessorEvidencePreparation;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
   update_check_forecast: OutputUpdateCheckForecast;
@@ -6966,6 +6967,47 @@ export interface StoreGameInstall {
 export interface StoreOriginalFolder {
   path: string;
   profile_id: string;
+  [k: string]: unknown;
+}
+/**
+ * Immutable operands for a future exact lifecycle evidence check. Preparation
+ * has no publication or support authority.
+ */
+export interface OutputSuccessorEvidencePreparation {
+  anchor_observations: SourceEvidence[];
+  predecessor: SuccessorEvidenceSubject;
+  rule_version: number;
+  selected_at: number;
+  successor: SuccessorEvidenceSubject;
+  [k: string]: unknown;
+}
+/**
+ * The custody and operational coordinates of one exact managed package.
+ */
+export interface SuccessorEvidenceSubject {
+  artifact_sha256: string;
+  asset_id: number;
+  channel: ReleaseChannel;
+  contract_id: string;
+  coordinates: SupportCoordinates;
+  definition: DefinitionSelectionIdentity;
+  definition_sha256: string;
+  platform: Platform;
+  policy_sha256: string;
+  release_id: number;
+  repository_id: number;
+  tag: string;
+  trust_anchor_sha256: string;
+  variants: SourceIdentity[];
+  [k: string]: unknown;
+}
+/**
+ * Conservative comparisons derived from complete typed operational coordinates.
+ */
+export interface SupportCoordinates {
+  data: string;
+  launch: string;
+  setup: string;
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
