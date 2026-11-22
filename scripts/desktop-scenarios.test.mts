@@ -1171,7 +1171,7 @@ void test("external runtime qualification is standalone and keeps a source-free 
     "native-dialog",
     "external-runtime-fixture",
   ]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 420_000);
   assert.deepEqual(required(desktopScenarioById.get(id)).platforms, ["win32"]);
   assert.equal(required(desktopScenarioById.get(id)).qualification_only, true);
   for (const platform of ["linux", "darwin"] as const)
@@ -1183,7 +1183,9 @@ void test("external runtime qualification is standalone and keeps a source-free 
   const fixture = await createExternalRuntimeFixture(output);
   const document = object(json(await readFile(fixture.catalogPath, "utf8")));
   const ports = values(document.ports);
-  assert.equal(ports.length, 1);
+  assert.equal(ports.length, 2);
+  assert.deepEqual(ports[1], fixture.selectedPort);
+  assert.equal(fixture.selectedPort.release.user_prepared["windows-x86-64"].trust, "user-selected");
   assert.deepEqual(document.source_catalog, {
     evidence: [],
     identities: [],
@@ -3084,7 +3086,7 @@ void test("isolated reviewed backup chains retain the finite lifecycle allowance
       "native-reviewed-source-reference-removal",
     ],
   ]) {
-    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 600_000);
+    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 1_200_000);
   }
   assert.equal(
     desktopHarnessDeadlineMs(

@@ -184,6 +184,7 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
         platform,
         &release,
         crate::package_shape::enforcement_capability(port.adapter).unwrap(),
+        None,
         || installer.local_shape_baseline(&port, platform).unwrap(),
     )
     .unwrap();

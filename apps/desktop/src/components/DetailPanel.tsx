@@ -3,6 +3,7 @@ import {
   CurrentGamePlayControl,
   currentGamePlayKey,
 } from "../features/app-shell/current-game-play";
+import { AutomaticSnapshotsSummary } from "./AutomaticSnapshotsSetting";
 import { useAppTranslation } from "../localization";
 import { managedRouteReadbackGuidance } from "../features/operations/invocation-state";
 import { Trans } from "react-i18next";
@@ -73,6 +74,8 @@ import {
   Wrench,
 } from "lucide-react";
 import { CliContinuity } from "./CliContinuity";
+import type { HeroMediaContext } from "../hero-media";
+import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
 import type {
   ActivityRecord,
   BackupInventory,
@@ -114,8 +117,9 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import { ExternalModPortals } from "./ExternalModPortals";
 import { JakModsBrowser } from "./JakModsBrowser";
-import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
+import { GithubModHandoff, ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
@@ -190,9 +194,16 @@ interface DetailPanelProps {
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   source?: SourceRecord | undefined;
   sourceInspection?: SourceInspectionReport | undefined;
+  mediaContext?: HeroMediaContext | undefined;
+  savedSourceCheck?:
+    | {
+        status: SourceInspectionReadState["status"];
+        run: () => Promise<void>;
+      }
+    | undefined;
   sourceProfile?: SourceProfile | undefined;
   sourcePath: string;
   setSourcePath: (path: string) => void;
@@ -332,6 +343,7 @@ export function DetailPanel(props: DetailPanelProps) {
     openSourceEvidence: props.openSourceEvidence,
     openHostTool: props.openHostTool,
     inspectSource: props.inspectSource,
+    savedSourceCheck: props.savedSourceCheck,
     sourceHealth: status?.readiness?.source,
     biosHealth: status?.readiness?.bios,
   };
@@ -414,6 +426,7 @@ export function DetailPanel(props: DetailPanelProps) {
       perform={props.perform}
       prepare={props.prepare}
       displayPort={props.displayPort}
+      mediaContext={props.mediaContext}
       port={port}
       status={status}
       stagedVersion={status?.staged?.version}
@@ -527,6 +540,7 @@ function DetailBody(model: {
   prepare?: RunPreparation | undefined;
   port: PortDefinition;
   displayPort?: CatalogEntry | undefined;
+  mediaContext?: HeroMediaContext | undefined;
   status?: PortStatus | undefined;
   stagedVersion?: string | undefined;
   sources: SourceControls;
@@ -549,7 +563,7 @@ function DetailBody(model: {
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
   libraryGeneration: number;
@@ -570,6 +584,10 @@ function DetailBody(model: {
   const [modSupport, setModSupport] = useState<{
     key: string;
     supported: boolean | "unavailable";
+    github?: Pick<
+      import("../types").ModSetupsView,
+      "github_release_url" | "github_native_import_offered" | "external_mod_portals"
+    >;
   }>();
   const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
   const mayHaveCommunitySource = model.port.adapter === "upstream-managed-setup";
@@ -598,22 +616,35 @@ function DetailBody(model: {
       : undefined;
   const [reviewFromPlay, requestModReview] = useState(0);
   useEffect(() => {
-    if (external || !activeInstall) return;
     let current = true;
-    void readModSetupInventory(model.port.id, model.libraryGeneration)
+    const managed = !external && Boolean(activeInstall);
+    const read = managed
+      ? readModSetupInventory(model.port.id, model.libraryGeneration)
+      : desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+    void read
       .then((view) => {
-        if (current) setModSupport({ key: modsKey, supported: view.supported });
+        if (current)
+          setModSupport({ key: modsKey, supported: managed && view.supported, github: view });
       })
-      .catch(() => {
-        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+      .catch(async () => {
+        if (!managed || !current) return;
+        setModSupport({ key: modsKey, supported: "unavailable" });
+        try {
+          const view = await desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+          if (current) setModSupport({ key: modsKey, supported: "unavailable", github: view });
+        } catch {
+          // Keep the managed inventory error and its retry action.
+        }
       });
     return () => {
       current = false;
     };
   }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
-  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  const modState = modSupport?.key === modsKey ? modSupport : undefined;
+  const currentModSupport = modState?.supported;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
-
+  const githubSource = modState?.github;
+  const externalModPortals = githubSource?.external_mod_portals ?? [];
   const routePresentation = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -635,6 +666,7 @@ function DetailBody(model: {
       // Before installation, checking setup availability belongs with setup in Game files.
       supplementSection={model.installed || external ? undefined : "files"}
       port={model.displayPort ?? model.port}
+      mediaContext={model.mediaContext}
       platforms={requirements.platforms}
       upstreamPlatforms={requirements.upstreamPlatforms}
       projectUrl={model.port.project_url}
@@ -774,10 +806,18 @@ function DetailBody(model: {
       {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        ...(modsAvailable || hasCommunitySource
+        ...(modsAvailable ||
+        hasCommunitySource ||
+        githubSource?.github_release_url ||
+        externalModPortals.length > 0
           ? {
               mods: (
                 <>
+                  <ExternalModPortals
+                    portals={externalModPortals}
+                    port={model.port.id}
+                    generation={model.libraryGeneration}
+                  />
                   {hasCommunitySource && (
                     <JakModsBrowser
                       setupUrl={communitySource.url}
@@ -786,7 +826,7 @@ function DetailBody(model: {
                       generation={model.libraryGeneration}
                     />
                   )}
-                  {modsAvailable && (
+                  {modsAvailable ? (
                     <ModSetupsControl
                       key={modsKey}
                       portId={model.port.id}
@@ -799,7 +839,9 @@ function DetailBody(model: {
                       reviewFromPlay={reviewFromPlay}
                       onAppliedFromPlay={() => reveal("overview")}
                     />
-                  )}
+                  ) : githubSource?.github_release_url ? (
+                    <GithubModHandoff view={githubSource} />
+                  ) : null}
                 </>
               ),
             }
@@ -1311,7 +1353,7 @@ function SavesStorageGroup({
   backupCreateAssessment?: BackupInventory["create_assessment"] | undefined;
   backupRestoreAssessment?: BackupInventory["restore_assessment"] | undefined;
   backupReadState?: BackupReadState | undefined;
-  retryBackupRead?: (() => Promise<void>) | undefined;
+  retryBackupRead?: (() => Promise<BackupInventory | void>) | undefined;
   libraryGeneration: number;
   busy?: string | undefined;
   outputExternalBusy?: string | undefined;
@@ -1358,6 +1400,9 @@ function SavesStorageGroup({
           </div>
           <BackupCreateAction busy={busy} actions={actions} presentation={backupPresentation} />
         </header>
+        {status?.active && !status.external_runtime && (
+          <AutomaticSnapshotsSummary generation={libraryGeneration} />
+        )}
         <div className="detail-saved-data-summary">
           <div className="detail-saved-data-fact">
             <Icon glyph={FileArchive} size="lg" />
@@ -1499,10 +1544,17 @@ export function InstallationVersionSummary({
   /** Portcove owns runtime replacement for this managed installation. */
   portcoveUpdates?: boolean;
 }) {
+  if (!status) {
+    return (
+      <CurrentStateSummary title="Installed version unavailable">
+        <p>Portcove hasn’t read the current installation.</p>
+      </CurrentStateSummary>
+    );
+  }
   const checked = currentUpdateSnapshot(status)?.check;
   const candidate =
-    status?.staged?.version ?? (checked?.update_available ? checked.release.version : undefined);
-  const channel = status?.active?.channel ?? selectedChannel;
+    status.staged?.version ?? (checked?.update_available ? checked.release.version : undefined);
+  const channel = status.active?.channel ?? selectedChannel;
   const channelChip = (value: ReleaseChannel) => (
     <Chip style={identityStyle(value, true)}>
       <IdentityIcon name={value} channel />
@@ -1514,29 +1566,29 @@ export function InstallationVersionSummary({
       <div className="detail-version-pair">
         <div className="detail-version-current">
           <p className="detail-version-label">
-            {status?.active ? "Installed version" : "No managed installation"}
+            {status.active ? "Installed version" : "No managed installation"}
           </p>
-          <strong>{status?.active?.version ?? "Not installed"}</strong>
-          {status?.active && channelChip(channel)}
+          <strong>{status.active?.version ?? "Not installed"}</strong>
+          {status.active && channelChip(channel)}
         </div>
         {candidate && (
           <>
             <Icon glyph={ArrowRight} className="detail-version-direction" />
             <div className="detail-version-candidate">
               <p className="detail-version-label">
-                {status?.staged ? "Update saved for later" : "Available at last check"}
+                {status.staged ? "Update saved for later" : "Available at last check"}
               </p>
               <strong>{candidate}</strong>
-              {channelChip(status?.staged?.channel ?? selectedChannel)}
+              {channelChip(status.staged?.channel ?? selectedChannel)}
             </div>
           </>
         )}
         {action && <div className="detail-version-action">{action}</div>}
       </div>
-      {status?.staged && (
+      {status.staged && (
         <p className="detail-version-context">
-          Using this checked local copy does not download it again, and keeps the current version
-          for rollback.
+          Using the update saved for later does not download it again.
+          {status.active && " Portcove keeps the current version for rollback."}
         </p>
       )}
       {channel !== selectedChannel && (
@@ -1546,20 +1598,20 @@ export function InstallationVersionSummary({
       )}
       {!candidate && (
         <p className="detail-version-context">
-          {!status?.active
+          {!status.active
             ? "Set up this game before managing its installed versions here."
             : checked
               ? `No update was found at the last check (${checked.release.version}).`
               : "Check for updates to see the latest available version."}
         </p>
       )}
-      {status?.staged && checked?.update_available && !checkedUpdateMatchesStaged(status) && (
+      {status.staged && checked?.update_available && !checkedUpdateMatchesStaged(status) && (
         <p className="detail-version-context">
-          Latest release at last check: {checked.release.version}. The saved update above is a
+          Latest release at last check: {checked.release.version}. The update saved for later is a
           separate candidate.
         </p>
       )}
-      {status?.active && portcoveUpdates && (
+      {status.active && portcoveUpdates && (
         <p className="detail-version-context">
           {/* Ownership stays with Portcove even when the catalog no longer offers updates. */}
           {/* Only lasting withdrawals; temporary holds (stale metadata, pending setup)
@@ -1930,6 +1982,7 @@ type SourceControls = Pick<
   | "port"
   | "source"
   | "sourceInspection"
+  | "savedSourceCheck"
   | "sourceProfile"
   | "sourcePath"
   | "setSourcePath"
@@ -1962,14 +2015,43 @@ function SourceFields({ controls }: { controls: SourceControls }) {
 }
 
 function SourceIntakeActions({ controls, busy }: { controls: SourceControls; busy: boolean }) {
-  if (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile)) return null;
+  const { t } = useAppTranslation("gameFiles");
+  const savedCheck = controls.savedSourceCheck;
+  const savedCheckStatus =
+    savedCheck?.status === "pending"
+      ? t("query.checking")
+      : savedCheck?.status === "failed"
+        ? t("summary.failed")
+        : savedCheck?.status === "cancelled"
+          ? t("summary.cancelled")
+          : "";
+  if (
+    !savedCheck &&
+    (!controls.inspectSource || (!controls.sourceProfile && !controls.biosProfile))
+  )
+    return null;
   return (
     <div
       className="source-intake-shortcuts m-[var(--space-4)_0] flex flex-wrap gap-2"
       role="group"
       aria-label="Check game files"
     >
-      {controls.sourceProfile && (
+      {savedCheck && (
+        <Button
+          data-focusable
+          variant="outline"
+          type="button"
+          disabled={busy}
+          aria-disabled={savedCheck.status === "pending" || undefined}
+          onClick={() => {
+            if (savedCheck.status !== "pending") void savedCheck.run();
+          }}
+        >
+          <Icon glyph={FileSearch} />
+          {t("reuse.check")}
+        </Button>
+      )}
+      {controls.inspectSource && controls.sourceProfile && (
         <Button
           data-focusable
           variant="outline"
@@ -1981,7 +2063,7 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
           Check game files
         </Button>
       )}
-      {controls.biosProfile && (
+      {controls.inspectSource && controls.biosProfile && (
         <Button
           data-focusable
           variant="outline"
@@ -1992,6 +2074,14 @@ function SourceIntakeActions({ controls, busy }: { controls: SourceControls; bus
           <Icon glyph={FileSearch} />
           Check required BIOS
         </Button>
+      )}
+      {savedCheck && (
+        <span
+          role="status"
+          className={savedCheckStatus ? "basis-full text-sm text-pc-muted-foreground" : "sr-only"}
+        >
+          {savedCheckStatus}
+        </span>
       )}
     </div>
   );
@@ -2940,10 +3030,9 @@ function VersionRollback({
         Restore previous version
       </Button>
       <p className="text-sm text-pc-muted-foreground">
-        This switches game software and keeps current saved data. Unless you turned it off in
-        Settings, or this game has no saves that Portcove manages, Portcove first takes an automatic
-        snapshot of its saves and settings. Older software may not understand newer saves or
-        configuration. Saved-data restore is a separate reviewed action in Saves.
+        This switches game software and keeps current saved data. Older software may not understand
+        newer saves or configuration. Saved-data restore is a separate reviewed action in Saves
+        &amp; backups.
       </p>
       {rollback.blocked && (
         <p role="status" data-rollback-assessment>
@@ -4409,8 +4498,14 @@ function DetailVersionsSection({
             }
           >
             <p>
-              Registered version {model.status.external_runtime.version}. You or the upstream
-              launcher maintain this installation.
+              {model.status.external_runtime.user_selected ? (
+                "Portcove launches the files you registered."
+              ) : (
+                <>
+                  Registered version <bdi>{model.status.external_runtime.version}</bdi>.
+                </>
+              )}{" "}
+              You or the upstream launcher maintain this installation.
             </p>
             <ProjectLink href={model.port.project_url}>
               Open upstream project <Icon glyph={ArrowRight} />
@@ -4432,6 +4527,9 @@ function DetailVersionsSection({
               ) : undefined
             }
           />
+        )}
+        {!external && model.status?.active && (
+          <AutomaticSnapshotsSummary generation={model.libraryGeneration} />
         )}
         {!external && <CarriedFilesSummary record={model.status?.carried_files} />}
         {!external && model.port.release.provider !== "user-prepared" && (

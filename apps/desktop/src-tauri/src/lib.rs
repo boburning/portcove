@@ -836,8 +836,28 @@ async fn create_backup(
 async fn inspect_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
+    artwork_generation: Option<u64>,
 ) -> DesktopResult<SourceInspectionReport> {
     let state = state.inner().clone();
+    if let Some(generation) = artwork_generation {
+        return blocking_service_at_generation(state, generation, move |service| {
+            let operation = portcove_core::OperationCoordinator::new("artwork-source", None);
+            let limits = portcove_core::RegisteredSourceInspectionLimits {
+                max_file_bytes: 64 * 1024 * 1024,
+                max_hash_bytes: 128 * 1024 * 1024,
+                max_elapsed_ms: 5_000,
+            };
+            let batch =
+                service.inspect_registered_sources_bounded(&[profile_id], &limits, &operation)?;
+            match batch.observations.into_iter().next() {
+                Some(portcove_core::RegisteredSourceObservation::Inspected { report }) => {
+                    Ok(*report)
+                }
+                _ => Err(PortcoveError::not_found("the original is no longer registered").into()),
+            }
+        })
+        .await;
+    }
     let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
         let mut report = inspect_source_with_service(&service, &profile_id)?;
@@ -1078,9 +1098,10 @@ async fn add_source(
     profile_id: String,
     path: PathBuf,
     expected_sha256: Option<String>,
+    generation: u64,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         if let Some(digest) = expected_sha256 {
             service
                 .register_source_with_digest(&profile_id, &path, &digest)
@@ -1680,6 +1701,7 @@ async fn import_source(
             return Err(PortcoveError::conflict(
                 "the source import changed after review; review the move again",
             )
+            .with_mutation_state(portcove_core::MutationState::NoChanges)
             .into());
         }
         if !confirm_destructive(
@@ -2889,6 +2911,13 @@ fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard>
 
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
     let library = host_startup::open_library(&selection).map_err(DesktopError::from)?;
+    ready_desktop_selection(selection, library)
+}
+
+fn ready_desktop_selection(
+    selection: LibrarySelection,
+    library: Library,
+) -> DesktopResult<ReadyDesktopState> {
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let workspace_observer = std::sync::Arc::new(std::sync::Mutex::new(
         library.change_observer().map_err(DesktopError::from)?,
@@ -3100,6 +3129,9 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::jakmods_setup_url,
             mod_setup_commands::get_jakmods_catalog,
             mod_setup_commands::open_jakmods_resource,
+            mod_setup_commands::get_quaddicted_catalog,
+            mod_setup_commands::get_moddb_file_notices,
+            mod_setup_commands::open_upstream_mod_notice,
             mod_setup_commands::get_mod_provider_catalog,
             mod_setup_commands::open_provider_mod_project,
             mod_setup_commands::get_provider_project,
@@ -3135,6 +3167,7 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
+            library_selection::review_library_selection,
             library_selection::set_default_library,
             library_selection::reset_default_library,
             get_github_auth_status,

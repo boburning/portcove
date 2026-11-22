@@ -62370,11 +62370,50 @@
         "dethrace.log",
         "DIAGNOST.TXT"
       ],
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "bin",
+            "share"
+          ],
+          "executables": [
+            "bin/dethrace"
+          ]
+        },
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "dethrace.exe"
+          ]
+        }
+      },
+      "reviewed_predecessor_package_layouts_v1": {
+        "linux-x86-64": [
+          {
+            "repository_id": 218399932,
+            "release_id": 289197402,
+            "asset_id": 360374771,
+            "tag": "v0.10.1",
+            "channel": "stable",
+            "artifact": {
+              "asset_name": "dethrace-v0.10.1-linux-x64.tar.gz",
+              "sha256": "a99081ad6f79d2e19cbe69fa4605153ce6e3f396bf01834b925d790bde4c940e",
+              "size": 5497771
+            },
+            "layout": {
+              "directories": [],
+              "executables": [
+                "dethrace"
+              ]
+            }
+          }
+        ]
+      },
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Use a short installation folder on Linux x64. The v0.10.1 player can close during startup from a deeply nested folder. Keep the originals separately and follow upstream’s native dependencies. Back up data from any custom DETHRACE_ROOT_DIR or external preferences folder separately.",
+        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. On Linux x64, the player is in the bin folder: copy DATA and optional MUSIC into bin beside dethrace, where the same declared data and named diagnostics are retained. Use a short installation folder on Linux x64. The v0.10.1 player can close during startup from a deeply nested folder. Keep the originals separately and follow upstream’s native dependencies. Back up data from any custom DETHRACE_ROOT_DIR or external preferences folder separately.",
         "original_game_title": "Carmageddon",
         "original_game": {
           "format_version": 1,
@@ -62422,20 +62461,6 @@
           "image_sha256": "37c005bc0bc73af82a8b2fb6d367c1d639395f6804cb064088773581d2b9264f",
           "game_slug": "carmageddon",
           "match_kind": "underlying-game"
-        }
-      },
-      "reviewed_package_layouts": {
-        "linux-x86-64": {
-          "directories": [],
-          "executables": [
-            "dethrace"
-          ]
-        },
-        "windows-x86-64": {
-          "directories": [],
-          "executables": [
-            "dethrace.exe"
-          ]
         }
       }
     },

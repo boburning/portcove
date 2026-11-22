@@ -716,7 +716,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, None, None, None)
+        self.catalog_download_options_inner(port_id, None, None, None, None)
             .await
     }
 
@@ -734,8 +734,27 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None)
+        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None, None)
             .await
+    }
+
+    /// As `catalog_download_options`, listing the newest `release_window`
+    /// releases (10 to 1,000) so older releases can be chosen in the workflow.
+    pub async fn catalog_download_options_window(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<CatalogDownloadReleaseId>,
+        channel: ReleaseChannel,
+        release_window: usize,
+    ) -> Result<CatalogDownloadCandidates> {
+        self.catalog_download_options_inner(
+            port_id,
+            selected_release_id,
+            Some(channel),
+            None,
+            Some(release_window),
+        )
+        .await
     }
 
     #[cfg(test)]
@@ -752,6 +771,7 @@ impl PortcoveService {
             selected_release_id.map(Into::into),
             channel,
             provider.as_ref(),
+            None,
         )
         .await
     }
@@ -762,6 +782,7 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: Option<ReleaseChannel>,
         provider: Option<&CatalogDownloadProvider>,
+        release_window: Option<usize>,
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
@@ -823,7 +844,9 @@ impl PortcoveService {
         // Shared observations only serve the non-managed browse window. They never
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
-            CatalogDownloadProvider::Github(provider) if self.catalog.port(port_id).is_err() => {
+            CatalogDownloadProvider::Github(provider)
+                if self.catalog.port(port_id).is_err() && release_window.is_none() =>
+            {
                 provider
                     .observed_catalog_download_options(
                         listing,
@@ -849,6 +872,7 @@ impl PortcoveService {
                         channel,
                         rolling_tag,
                         github_other_stream_prefixes,
+                        release_window,
                     )
                     .await?
             }
@@ -866,7 +890,7 @@ impl PortcoveService {
             .or_else(|| listing.download_asset_hints.get(&platform))
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let (packages, recommended) = super::package_selection::recommend_packages(
+        let (packages, recommended, any_suitable) = super::package_selection::recommend_packages(
             &candidates,
             platform,
             hints,
@@ -881,11 +905,7 @@ impl PortcoveService {
                 .into()
         } else if !coverage.candidates_complete {
             "Some upstream files could not be assessed. Review the available downloads or open upstream setup.".into()
-        } else if result
-            .packages
-            .iter()
-            .any(|package| package.suitability == "suitable")
-        {
+        } else if any_suitable {
             "Several plausible packages remain. Choose the build you want from this release.".into()
         } else {
             "No native package could be recommended. Check other downloads or follow upstream setup instructions.".into()

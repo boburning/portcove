@@ -1,3 +1,9 @@
+import { useOperationPresentation } from "../features/operations/operation-presentation";
+import {
+  applyReviewedSourceImport,
+  sourceImportApplyError,
+  sourceImportCancelledWithoutChanges,
+} from "../features/source-intake/source-registration-receipt";
 import { countMessage } from "../localization";
 import { useLayoutEffect, useRef, useState, type Ref, type RefObject } from "react";
 import { desktopApi } from "../api";
@@ -242,12 +248,14 @@ export function sourceImportRefreshNotice(result: SourceImportResult) {
 
 function useSourceDiscoveryWorkflow(
   generation: number,
+  profiles: SourceProfile[],
   profile: string,
   setProfile: (profile: string) => void,
   onAdded: (() => Promise<unknown>) | undefined,
   previous: OneOffFileSearch | undefined,
   beginSearch: (() => (result: OneOffFileSearch) => void) | undefined,
 ) {
+  const perform = useOperationPresentation()?.perform;
   const [root, setRoot] = useState(previous?.root ?? "");
   const [report, setReport] = useState(previous?.report);
   const [inbox, setInbox] = useState<SourceInboxResolution>();
@@ -351,26 +359,27 @@ function useSourceDiscoveryWorkflow(
       return Promise.resolve();
     }
     return run(`${presentation.label}…`, async () => {
-      const result = await desktopApi.importSource(
-        plan.profile_id,
-        plan.source.path,
-        plan.mode,
-        plan.plan_sha256,
+      const { result, refreshFailed } = await applyReviewedSourceImport({
+        perform,
+        plan,
         generation,
-        trackStart,
-      );
-      if (!result) {
+        label: profiles.find((profile) => profile.id === plan.profile_id)?.label ?? plan.profile_id,
+        action: "Save file location",
+        refresh: onAdded,
+        onEvent: trackStart,
+      }).catch((value: unknown) => {
+        if (sourceImportCancelledWithoutChanges(value)) throw value;
+        setPlan(undefined);
+        throw new Error(sourceImportApplyError(value));
+      });
+      if (result === undefined) return;
+      if (result === null) {
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
         return;
       }
       setRegistered(result.registered.path);
       setPlan(undefined);
-      setNotice(sourceImportNotice(result));
-      try {
-        await onAdded?.();
-      } catch {
-        setNotice(sourceImportRefreshNotice(result));
-      }
+      setNotice(refreshFailed ? sourceImportRefreshNotice(result) : sourceImportNotice(result));
     });
   };
   return {
@@ -636,6 +645,7 @@ function SourceDiscoveryDialog({
   const heading = useRef<HTMLHeadingElement>(null);
   const workflow = useSourceDiscoveryWorkflow(
     generation,
+    profiles,
     profile,
     setProfile,
     onAdded,

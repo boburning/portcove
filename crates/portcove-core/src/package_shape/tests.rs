@@ -157,7 +157,7 @@ fn only_the_verified_empty_portable_directory_is_neutral_to_shape() {
     fs::create_dir(root.join("other")).unwrap();
     let unknown = observed().unwrap();
     assert!(matches!(
-        evaluate(port, PLATFORM, SHA, &unknown, None).0,
+        evaluate(port, PLATFORM, SHA, &unknown, None, None).0,
         ShapeVerdict::Drifted { .. }
     ));
 }
@@ -593,8 +593,14 @@ fn generated_baseline_compares_against_active_definition_inputs() {
     for entry in generated_table() {
         let mut port = catalog.port(&entry.port_id).unwrap().clone();
         port.summary = "A revised player-facing summary.".into();
-        let (verdict, provenance) =
-            evaluate(&port, entry.platform, &entry.sha256, &entry.shape, None);
+        let (verdict, provenance) = evaluate(
+            &port,
+            entry.platform,
+            &entry.sha256,
+            &entry.shape,
+            None,
+            None,
+        );
         assert!(
             matches!(verdict, ShapeVerdict::Compatible { .. }),
             "{}",
@@ -603,8 +609,14 @@ fn generated_baseline_compares_against_active_definition_inputs() {
         assert_eq!(provenance, ShapeProvenance::Reviewed);
 
         port.persistent_paths.push("new-save-root".into());
-        let (verdict, provenance) =
-            evaluate(&port, entry.platform, &entry.sha256, &entry.shape, None);
+        let (verdict, provenance) = evaluate(
+            &port,
+            entry.platform,
+            &entry.sha256,
+            &entry.shape,
+            None,
+            None,
+        );
         assert!(
             matches!(
                 verdict,

@@ -21,6 +21,26 @@ use crate::{
     database,
 };
 
+/// The files recognized during a read-only library selection check.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum LibrarySelectionContents {
+    EmptyDirectory,
+    ExistingDatabase,
+    RecoveryRecords,
+    NewDefaultDirectory,
+}
+
+/// Read-only evidence about a candidate. Compatibility is checked when it opens.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LibrarySelectionTarget {
+    pub root: PathBuf,
+    pub contents: LibrarySelectionContents,
+    pub relocated_to: Option<PathBuf>,
+}
+
 struct StoredSourceRow {
     profile_id: String,
     path: String,
@@ -307,6 +327,9 @@ pub struct Library {
     authorizations: AuthorizationStore,
     pub(crate) artwork_catalog:
         std::sync::Arc<std::sync::Mutex<Option<crate::catalog_store::ArtworkCatalogCache>>>,
+    pub(crate) github_mod_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
+    pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) jakmods: crate::jakmods::JakModsProviderState,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
@@ -642,6 +665,12 @@ impl Library {
     /// Empty directories and recognizable Portcove roots are accepted; unrelated
     /// nonempty directories are left untouched.
     pub fn validate_selection_target(root: &Path) -> Result<PathBuf> {
+        Ok(Self::inspect_selection_target(root)?.root)
+    }
+
+    /// Read the same bounded directory evidence used by validation, without
+    /// opening or initializing a library.
+    pub fn inspect_selection_target(root: &Path) -> Result<LibrarySelectionTarget> {
         crate::path::unicode(root, "library root")?;
         if !root.is_absolute() {
             return Err(PortcoveError::usage("library root must be absolute"));
@@ -686,19 +715,29 @@ impl Library {
         let recovery_present = [".portcove-authority.json", ".portcove-import.json"]
             .iter()
             .any(|name| canonical.join(name).exists());
-        let recovery_recognized = if recovery_present {
-            crate::library_authority::open_target(&canonical)?;
-            true
+        let relocated_to = if recovery_present {
+            crate::library_authority::open_target(&canonical)?
         } else {
-            false
+            None
         };
-        if nonempty && !database_recognized && !recovery_recognized {
+        if nonempty && !database_recognized && !recovery_present {
             return Err(PortcoveError::conflict(
                 "selected directory is nonempty and is not a recognizable Portcove library",
             )
             .detail("library_root", canonical.display().to_string()));
         }
-        Ok(canonical)
+        let contents = if recovery_present {
+            LibrarySelectionContents::RecoveryRecords
+        } else if database_recognized {
+            LibrarySelectionContents::ExistingDatabase
+        } else {
+            LibrarySelectionContents::EmptyDirectory
+        };
+        Ok(LibrarySelectionTarget {
+            root: canonical,
+            contents,
+            relocated_to,
+        })
     }
 
     /// After the adapter drops its current state, an exclusive lease proves that
@@ -712,11 +751,30 @@ impl Library {
     }
 
     pub fn open(root: impl Into<PathBuf>) -> Result<Self> {
-        let mut root = root.into();
+        Self::open_with_relocation(root.into(), true)
+    }
+
+    /// Open the selected directory without following a relocation discovered
+    /// after the player reviewed the target.
+    pub fn open_reviewed_selection(root: impl Into<PathBuf>) -> Result<Self> {
+        Self::open_with_relocation(root.into(), false)
+    }
+
+    fn open_with_relocation(mut root: PathBuf, follow_relocation: bool) -> Result<Self> {
+        let target = |root: &Path| -> Result<Option<PathBuf>> {
+            let destination = crate::library_authority::open_target(root)?;
+            if !follow_relocation && let Some(moved) = &destination {
+                return Err(PortcoveError::conflict(
+                    "the selected library moved after review; choose its current folder",
+                )
+                .detail("current_library_root", moved.display().to_string()));
+            }
+            Ok(destination)
+        };
         for _ in 0..8 {
             crate::path::unicode(&root, "library root")?;
             let lease = std::sync::Arc::new(crate::library_access::LibraryLease::acquire(&root)?);
-            if let Some(destination) = crate::library_authority::open_target(&root)? {
+            if let Some(destination) = target(&root)? {
                 root = destination;
             } else if database::requires_migration(&root)? {
                 // A previously opened client holds a shared lease for its whole
@@ -727,7 +785,7 @@ impl Library {
                         &root,
                         crate::library_access::LibraryAccess::Exclusive,
                     )?);
-                if let Some(destination) = crate::library_authority::open_target(&root)? {
+                if let Some(destination) = target(&root)? {
                     root = destination;
                 } else {
                     drop(Self::initialize(root.clone(), exclusive)?);
@@ -780,6 +838,9 @@ impl Library {
             root: root.to_path_buf(),
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
             jakmods: Default::default(),
             _lease: lease,
         })
@@ -794,6 +855,9 @@ impl Library {
             root,
             authorizations: AuthorizationStore::default(),
             artwork_catalog: Default::default(),
+            github_mod_backoff: Default::default(),
+            quaddicted_backoff: Default::default(),
+            moddb_backoff: Default::default(),
             jakmods: Default::default(),
             _lease: lease,
         };
@@ -3560,7 +3624,13 @@ impl Library {
     }
 
     pub(crate) fn installs_for_port(&self, port_id: &str) -> Result<Vec<InstallRecord>> {
-        let connection = self.connection()?;
+        Self::installs_for_port_from(&self.connection()?, port_id)
+    }
+
+    pub(crate) fn installs_for_port_from(
+        connection: &Connection,
+        port_id: &str,
+    ) -> Result<Vec<InstallRecord>> {
         let mut statement = connection.prepare(
             "SELECT id, port_id, version, path, channel, installed_at, verified, staged,
                     artifact_name, artifact_sha256, artifact_size, manifest_sha256,

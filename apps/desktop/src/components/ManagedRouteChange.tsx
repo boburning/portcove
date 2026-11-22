@@ -4,7 +4,7 @@ import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { desktopApi } from "../api";
 import {
-  requiresManagedRouteReadback,
+  mutationNeedsReadback,
   targetInvocationContext,
 } from "../features/operations/invocation-state";
 import { useOperationPresentation } from "../features/operations/operation-presentation";
@@ -96,7 +96,7 @@ function useManagedRouteChangeDialog({
     close,
     failureMessage: t("managedRoute.failure"),
   });
-  const needsReadback = failurePhase === "apply" && requiresManagedRouteReadback(error);
+  const needsReadback = failurePhase === "apply" && mutationNeedsReadback(error);
   const preservesExternalData =
     preview?.external_files_will_be_preserved === true &&
     preview.external_data_will_be_copied === false;

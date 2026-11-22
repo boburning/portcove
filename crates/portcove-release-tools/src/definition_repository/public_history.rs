@@ -46,11 +46,15 @@ impl PublicFile {
 
 impl PublicHistory {
     pub(super) fn read(root: &Path) -> Result<Self> {
-        let entries = io::inventory(
+        Self::read_bounded(
             root,
             PUBLIC_REPOSITORY_MAX_FILES,
             PUBLIC_REPOSITORY_MAX_BYTES,
-        )?;
+        )
+    }
+
+    pub(super) fn read_bounded(root: &Path, files: usize, bytes: u64) -> Result<Self> {
+        let entries = io::inventory(root, files, bytes)?;
         Ok(Self(
             entries
                 .into_iter()

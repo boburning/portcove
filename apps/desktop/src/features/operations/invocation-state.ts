@@ -1,4 +1,4 @@
-import type { ExternalRuntimeRecord, InstallRecord, PortStatus } from "../../types";
+import type { ExternalRuntimeRecord, InstallRecord, PortStatus, SourceRecord } from "../../types";
 import { failurePresentation } from "../../view-model";
 
 /** Presentation identities only. None grants a Core lock or execution authority. */
@@ -13,6 +13,7 @@ export type InvocationContext = {
     | "launch"
     | "register_external"
     | "change_managed_route"
+    | "import_source"
     | undefined;
   /** Only an identity supplied by an owned API/record, never inferred from events. */
   activityId?: string;
@@ -29,14 +30,43 @@ export type InvocationRecord = {
   reviewCurrentState?: true;
   installed?: Pick<InstallRecord, "id" | "port_id" | "version">;
   externalRegistration?: ExternalRuntimeRecord;
+  sourceRegistration?: { source: SourceRecord; afterRead: number | undefined };
 };
 
 export const managedRouteReadbackGuidance =
   "If your previous installation still appears after refreshing, restart Portcove before using it.";
 
-export function requiresManagedRouteReadback(error: unknown) {
+export const sourceImportRecoveryGuidance =
+  "Restart Portcove to check the saved file location and recover any unfinished work before adding it again.";
+
+export function mutationNeedsReadback(error: unknown) {
   const mutation = failurePresentation(error)?.mutation_state;
   return mutation !== "not_started" && mutation !== "no_changes";
+}
+
+export function matchingSavedSource(
+  record: InvocationRecord,
+  sources: readonly SourceRecord[],
+  generation: number,
+  readRevision: number | undefined,
+) {
+  const { target, libraryGeneration } = record.context;
+  const receipt = record.sourceRegistration;
+  if (
+    !receipt ||
+    record.phase !== "settled" ||
+    record.outcome !== "succeeded" ||
+    target.kind !== "source" ||
+    libraryGeneration !== generation ||
+    readRevision === undefined ||
+    receipt.afterRead === undefined ||
+    readRevision <= receipt.afterRead
+  )
+    return undefined;
+  return sources.find(
+    (source) =>
+      source.profile_id === target.id && JSON.stringify(source) === JSON.stringify(receipt.source),
+  );
 }
 
 export function canOpenInstalledResult(

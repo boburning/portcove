@@ -518,3 +518,32 @@ fn capabilities_advertise_reviewed_recipe_commands() {
         );
     }
 }
+
+#[test]
+fn reviewed_github_mod_outputs_export_machine_schemas() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let schema = json_stdout(&portcove(
+        &library,
+        &["--json", "schema", "export", "--contract", "output"],
+    ));
+    let catalog = &schema["data"]["github_mod_catalog"];
+    for field in [
+        "port_id",
+        "platform",
+        "repository_id",
+        "source_url",
+        "native_import_offered",
+        "releases",
+        "complete",
+        "freshness",
+    ] {
+        assert!(catalog["properties"][field].is_object(), "{field}");
+    }
+    let review = &schema["data"]["github_mod_compound_review"];
+    for field in ["repository_id", "release_id", "asset_id", "review"] {
+        assert!(review["properties"][field].is_object(), "{field}");
+    }
+    assert!(review["$defs"]["RecompCompoundReview"]["properties"]["companions"].is_object());
+    assert!(!library.exists());
+}

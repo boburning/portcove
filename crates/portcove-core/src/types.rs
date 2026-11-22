@@ -1128,6 +1128,11 @@ pub struct PortDefinition {
     /// layout is held for review instead of installing as an ordinary update.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub reviewed_package_layouts: BTreeMap<Platform, ReviewedPackageLayout>,
+    /// Alternate full layouts for exact independently resolved GitHub artifacts.
+    /// They never select a package or authorize an acquisition.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reviewed_predecessor_package_layouts_v1:
+        BTreeMap<Platform, Vec<ReviewedPredecessorPackageLayout>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presentation: Option<PortPresentation>,
 }
@@ -1175,6 +1180,18 @@ pub struct ReviewedPackageLayout {
     /// Lowercase package-relative paths (with `/`) of every program or script at
     /// any depth, sorted.
     pub executables: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReviewedPredecessorPackageLayout {
+    pub repository_id: u64,
+    pub release_id: u64,
+    pub asset_id: u64,
+    pub tag: String,
+    pub channel: ReleaseChannel,
+    pub artifact: ArtifactIdentity,
+    pub layout: ReviewedPackageLayout,
 }
 
 /// Holds fresh managed acquisition and adoption for one route. Installed copies
@@ -2526,6 +2543,11 @@ pub struct LaunchReadiness {
     /// definition when an external runtime is registered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_source_extension: Option<String>,
+    /// The effective active installation can use the default game-source registration
+    /// for edition artwork after fresh byte verification. Omitted when launch can
+    /// use different bytes or Core cannot establish the default's eligibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_game_source_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
     /// The saved game-file folder holding this game's missing or unreadable
@@ -2618,8 +2640,9 @@ pub struct UploaderContinuityRecord {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
     /// Requests budgeted against the provider's primary rate limit. A saved
-    /// GitHub package choice budgets the bounded fresh inventory even when
-    /// cached conditional responses could lower the actual cost.
+    /// GitHub package choice budgets a typical fresh inventory (three asset
+    /// pages per release); larger releases and cached conditional responses can
+    /// make the actual cost higher or lower. The forecast is advisory.
     pub counted_requests: u32,
     /// The part of `counted_requests` that signing in would move to a higher limit.
     /// A managed-definition port deliberately sends no credential, so it never counts here.

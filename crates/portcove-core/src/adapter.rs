@@ -6293,6 +6293,15 @@ mod tests {
         assert_eq!(std::fs::read(&destination).unwrap(), content);
     }
 
+    fn set_modified_time(path: &std::path::Path, modified: std::time::SystemTime) {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+    }
+
     #[test]
     fn copied_runtime_sources_are_replaced_when_bytes_change_at_the_same_path_and_timestamp() {
         let temporary = tempfile::tempdir().unwrap();
@@ -6300,8 +6309,7 @@ mod tests {
         let destination = temporary.path().join("runtime/baserom.gba");
         std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
         std::fs::write(&source, b"first source").unwrap();
-        let original_mtime =
-            filetime::FileTime::from_last_modification_time(&std::fs::metadata(&source).unwrap());
+        let original_mtime = std::fs::metadata(&source).unwrap().modified().unwrap();
 
         prepare_runtime_source(
             &source,
@@ -6314,7 +6322,7 @@ mod tests {
         assert_eq!(std::fs::read(&destination).unwrap(), b"first source");
 
         std::fs::write(&source, b"other source").unwrap();
-        filetime::set_file_mtime(&source, original_mtime).unwrap();
+        set_modified_time(&source, original_mtime);
         prepare_runtime_source(
             &source,
             &destination,
@@ -6333,8 +6341,8 @@ mod tests {
             source_storage_identity(&source).unwrap().0
         );
 
-        let reuse_sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, reuse_sentinel).unwrap();
+        let reuse_sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, reuse_sentinel);
         prepare_runtime_source(
             &source,
             &destination,
@@ -6343,9 +6351,7 @@ mod tests {
             &|| Ok(()),
         )
         .unwrap();
-        let reused_mtime = filetime::FileTime::from_last_modification_time(
-            &std::fs::metadata(&destination).unwrap(),
-        );
+        let reused_mtime = std::fs::metadata(&destination).unwrap().modified().unwrap();
         assert_eq!(reused_mtime, reuse_sentinel);
     }
 
@@ -6370,15 +6376,13 @@ mod tests {
         let mut bytes = std::fs::read(&marker).unwrap();
         bytes.resize(16 * 1024 + 1, b' ');
         std::fs::write(&marker, bytes).unwrap();
-        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, sentinel).unwrap();
+        let sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, sentinel);
 
         prepare().unwrap();
 
         assert_ne!(
-            filetime::FileTime::from_last_modification_time(
-                &std::fs::metadata(&destination).unwrap()
-            ),
+            std::fs::metadata(&destination).unwrap().modified().unwrap(),
             sentinel
         );
         assert!(std::fs::metadata(marker).unwrap().len() < 16 * 1024);
@@ -6408,15 +6412,13 @@ mod tests {
         std::fs::rename(&marker, &external_marker).unwrap();
         let original = std::fs::read(&external_marker).unwrap();
         std::os::unix::fs::symlink(&external_marker, &marker).unwrap();
-        let sentinel = filetime::FileTime::from_unix_time(1_700_000_000, 0);
-        filetime::set_file_mtime(&destination, sentinel).unwrap();
+        let sentinel = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
+        set_modified_time(&destination, sentinel);
 
         prepare().unwrap();
 
         assert_ne!(
-            filetime::FileTime::from_last_modification_time(
-                &std::fs::metadata(&destination).unwrap()
-            ),
+            std::fs::metadata(&destination).unwrap().modified().unwrap(),
             sentinel
         );
         assert_eq!(std::fs::read(external_marker).unwrap(), original);

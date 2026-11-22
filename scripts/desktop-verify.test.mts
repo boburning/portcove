@@ -199,7 +199,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
   assert.equal(external.paths.cli, null);
   assert.ok(!external.phases.includes("owned-probe-build"));
   assert.ok(!external.phases.includes("scenario-context-preflight"));
-  assert.equal(external.harness_deadline_ms, 180_000);
+  assert.equal(external.harness_deadline_ms, 420_000);
 
   const installRefresh = buildDesktopVerifyPlan({
     ...common,

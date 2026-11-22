@@ -648,3 +648,59 @@ fn official_catalog_automatic_updates_default_on_and_persist_an_explicit_off() {
     // A malformed choice does not block unrelated preferences.
     assert_eq!(restarted.locale_preference().unwrap(), None);
 }
+
+#[test]
+fn reviewed_startup_choice_never_expands_to_a_full_reset() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let selected = temp.path().join("selected");
+    fs::create_dir(&selected).unwrap();
+    store.set_library(&selected).unwrap();
+    store.set_locale_preference(Some("fr")).unwrap();
+    let previous = store.load().unwrap().library_root.unwrap();
+
+    let invalid = b"{unfinished preference document";
+    fs::write(&path, invalid).unwrap();
+    assert_eq!(
+        store
+            .clear_reviewed_library(Some(Some(&previous)))
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(fs::read(&path).unwrap(), invalid);
+    store.clear_reviewed_library(None).unwrap();
+    assert_eq!(store.load().unwrap().library_root, None);
+
+    store.set_library(&selected).unwrap();
+    store.set_locale_preference(Some("fr")).unwrap();
+    assert_eq!(
+        store.clear_reviewed_library(None).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+    store.clear_reviewed_library(Some(Some(&previous))).unwrap();
+    assert_eq!(store.load().unwrap().library_root, None);
+    assert_eq!(store.locale_preference().unwrap().as_deref(), Some("fr"));
+}
+
+#[test]
+fn reviewed_saved_choice_refuses_to_overwrite_a_concurrent_selection() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("preferences.json");
+    let store = HostPreferenceStore::new(path.clone()).unwrap();
+    let selected = temp.path().join("selected");
+    let other = temp.path().join("other");
+    fs::create_dir(&selected).unwrap();
+    fs::create_dir(&other).unwrap();
+    store.set_library(&other).unwrap();
+    let before = fs::read(&path).unwrap();
+    assert_eq!(
+        store
+            .set_reviewed_library(&selected, None)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(fs::read(&path).unwrap(), before);
+}

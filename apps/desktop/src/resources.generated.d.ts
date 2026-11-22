@@ -62,12 +62,17 @@ export default interface Resources {
   },
   "backups": {
     "automaticSnapshots": {
+      "checking": "Checking automatic snapshots for this library…",
       "control": "Snapshot saved data before each version change",
+      "coverage": "Before a version change, Portcove can snapshot existing saves and settings it manages. See Backups for completed copies.",
       "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+      "disabled": "Automatic snapshots before version changes are off for this library.",
+      "enabled": "Automatic snapshots before version changes are on for this library.",
       "heading": "Snapshot saved data before version changes",
       "readFailed": "The setting could not be read.",
       "retry": "Try again",
-      "saveFailed": "The setting could not be saved."
+      "saveFailed": "Portcove couldn’t confirm the result of saving this setting.",
+      "unavailable": "Portcove couldn’t check this library’s automatic snapshot setting."
     },
     "details": {
       "catalogId": "Catalog ID: {{id}}",
@@ -226,15 +231,20 @@ export default interface Resources {
     "review": {
       "applyDelete": "Delete this backup permanently",
       "applyRestore": "Restore this backup",
+      "backupUnavailable": "The selected backup is missing or has changed. Close this review to see the current backup list.",
       "cancel": "Cancel",
       "checking": "Checking the backup and current saved data…",
       "deleting": "Deleting backup…",
       "descriptionDelete": "Permanently delete only the selected backup.",
       "descriptionRestore": "Replace this game’s current saved data with this backup.",
       "failure": "The operation did not complete. Review the current backup and data before trying again.",
+      "inventoryUnavailable": "Portcove couldn’t confirm that this backup can be restored. Refresh backup history to check again.",
+      "reconcileRestore": "Check the restore result in Activity before starting another restore.",
+      "reopenRestore": "Portcove couldn’t verify the restore target. Close this review and choose the backup again.",
       "restoring": "Restoring backup…",
       "reviewAgain": "Review again",
-      "selectionChanged": "This review no longer matches the selected backup. Close it and refresh backup history.",
+      "selectionChanged": "Portcove couldn’t confirm that this review matches the selected backup.",
+      "targetChanged": "This game’s installation or setup changed. Close this review and check the current backup history.",
       "titleDelete": "Review backup deletion",
       "titleRestore": "Review backup restore"
     },
@@ -1347,6 +1357,34 @@ export default interface Resources {
       "createFirst": "Create first setup",
       "defaultRefreshRequired": "Default still records an older game version. Refresh it before copying or exporting this setup.",
       "empty": "No mods. The game plays without changes in this setup.",
+      "external": {
+        "cached": "Showing earlier results. The source could not be checked now.",
+        "checked": "Checked {{date}}",
+        "coopDx": "Browse CoopDX Mods",
+        "coopSetup": "Download the compatible ZIP or Lua file. Open SM64 Co-op DX and drag the file onto the game window to import it.",
+        "daggerfallSetup": "Choose the correct Daggerfall Unity version and operating system. Follow the archive’s instructions in a separate copy of Daggerfall Unity. Place .dfmod files in StreamingAssets/Mods.",
+        "empty": "The source returned no results.",
+        "heading": "Community mod websites",
+        "incomplete": "Some entries had unreadable details. The results may be incomplete.",
+        "latest": "Show newest on Quaddicted",
+        "linkUnavailable": "This link is no longer confirmed. Refresh the results before opening it.",
+        "loading": "Checking the source…",
+        "modDb": "View on Mod DB",
+        "modIo": "View on mod.io",
+        "more": "More results",
+        "nexus": "Get on Nexus",
+        "notices": "Show Arcane Dimensions file notices",
+        "openXcomSetup": "Check the mod’s base game and engine requirements. Only use files that list your OpenXcom engine and game.",
+        "otherEngine": "Requires another engine",
+        "owner": "You choose, install and update files outside Portcove.",
+        "previous": "Previous results",
+        "quaddicted": "View on Quaddicted",
+        "quakeSetup": "Check that the package supports your Quake engine. Follow the author’s setup in a separate Quake copy.",
+        "search": "Search Quaddicted",
+        "searchFilename": "Filename",
+        "unavailable": "Couldn’t read this source. Try again or open its website.",
+        "unverifiedEngine": "Check which engines this file supports."
+      },
       "filePreservation": {
         "adopt": "For a supported mod, use Add mod file and choose this saved file.",
         "details": "File details",
@@ -1361,6 +1399,11 @@ export default interface Resources {
       },
       "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
+      "github": {
+        "browse": "Browse mods on GitHub",
+        "platform": "You can browse releases. Setting up this ZIP needs an installed copy of the game whose build supports it on this platform.",
+        "setup": "Download the intact ZIP. Open a separate copy of the game and use Install Mods to select the ZIP. Update it in that copy when you want a newer release."
+      },
       "heading": "Setups and mods",
       "held": {
         "intro_one": "Portcove kept the current version of a mod because its update needs your review:",

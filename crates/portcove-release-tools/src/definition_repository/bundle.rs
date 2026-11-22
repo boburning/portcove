@@ -64,6 +64,161 @@ fn content_path(value: &str) -> bool {
             .bytes()
             .all(|v| v.is_ascii_digit() || (b'a'..=b'f').contains(&v))
 }
+#[derive(Debug, PartialEq, Eq)]
+pub(super) struct ListingRevision {
+    pub revision: u64,
+    pub decoded_sha256: String,
+    listing_count: usize,
+    pub withdrawn_ids: BTreeSet<String>,
+}
+
+pub(super) fn listing_revision(target: &str, raw: &[u8]) -> Result<ListingRevision> {
+    if !portcove_listing_carrier::is_listing_target(target)
+        || raw.is_empty()
+        || raw.len() > portcove_listing_carrier::MAX_BYTES
+    {
+        return invalid("listing target outside its byte bound");
+    }
+    if target == portcove_listing_carrier::COMPACT_TARGET {
+        let (decoded, decoded_sha256) = portcove_listing_carrier::decode(raw)
+            .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+        let summary: CompactListingSummary<'_> = serde_json::from_slice(&decoded)?;
+        if summary.listing_delivery_schema != 1
+            || !(1..=9_007_199_254_740_991).contains(&summary.revision)
+            || summary
+                .directory
+                .listings
+                .iter()
+                .any(|row| row.get().len() > portcove_listing_carrier::MAX_COMPACT_RECORD_BYTES)
+        {
+            return invalid("compact listing summary differs");
+        }
+        return Ok(ListingRevision {
+            revision: summary.revision,
+            decoded_sha256,
+            listing_count: summary.directory.listings.len(),
+            withdrawn_ids: collect_listing_withdrawals(
+                summary.withdrawn_ids.iter().map(|id| Some(id.as_str())),
+            )?,
+        });
+    }
+    let document: serde_json::Value = serde_json::from_slice(raw)?;
+    let revision = document["revision"]
+        .as_u64()
+        .filter(|n| (1..=9_007_199_254_740_991).contains(n));
+    let listing_count = document["directory"]["listings"]
+        .as_array()
+        .map(Vec::len)
+        .filter(|n| *n <= 10000);
+    let withdrawn_ids = listing_withdrawals(&document)?;
+    match (
+        document["listing_delivery_schema"].as_u64(),
+        revision,
+        listing_count,
+    ) {
+        (Some(1), Some(revision), Some(listing_count)) => Ok(ListingRevision {
+            revision,
+            decoded_sha256: sha(raw),
+            listing_count,
+            withdrawn_ids,
+        }),
+        _ => invalid("listing summary differs"),
+    }
+}
+
+#[derive(Deserialize)]
+struct CompactListingSummary<'a> {
+    listing_delivery_schema: u32,
+    revision: u64,
+    #[serde(deserialize_with = "portcove_listing_carrier::bounded_entries")]
+    withdrawn_ids: Vec<String>,
+    #[serde(borrow)]
+    directory: CompactListingSummaryDirectory<'a>,
+}
+
+#[derive(Deserialize)]
+struct CompactListingSummaryDirectory<'a> {
+    #[serde(borrow, deserialize_with = "portcove_listing_carrier::bounded_entries")]
+    listings: Vec<&'a serde_json::value::RawValue>,
+}
+
+fn listing_withdrawals(document: &serde_json::Value) -> Result<BTreeSet<String>> {
+    let Some(list) = document["withdrawn_ids"]
+        .as_array()
+        .filter(|ids| ids.len() <= 10000)
+    else {
+        return invalid("listing withdrawal inventory differs");
+    };
+    collect_listing_withdrawals(list.iter().map(serde_json::Value::as_str))
+}
+
+fn collect_listing_withdrawals<'a>(
+    entries: impl IntoIterator<Item = Option<&'a str>>,
+) -> Result<BTreeSet<String>> {
+    let mut ids = BTreeSet::new();
+    for id in entries {
+        let Some(id) = id.filter(|value| !value.is_empty() && value.len() <= 128) else {
+            return invalid("listing withdrawal identity differs");
+        };
+        if !ids.insert(id.to_owned()) {
+            return invalid("listing withdrawal identity repeats");
+        }
+    }
+    Ok(ids)
+}
+
+/// An older reader remains on its verified directory. A new safety withdrawal
+/// may remove only the listed identities, without replacing other legacy facts.
+pub(super) fn check_legacy_withdrawal(prior: &[u8], proposal: &[u8]) -> Result<()> {
+    let mut expected: serde_json::Value = serde_json::from_slice(prior)?;
+    let proposal: serde_json::Value = serde_json::from_slice(proposal)?;
+    let prior_ids = listing_withdrawals(&expected)?;
+    let next_ids = listing_withdrawals(&proposal)?;
+    if !prior_ids.is_subset(&next_ids) || prior_ids == next_ids {
+        return invalid("legacy listing replacement must add a safety withdrawal");
+    }
+    let Some(listings) = expected["directory"]["listings"].as_array_mut() else {
+        return invalid("legacy listing withdrawal directory differs");
+    };
+    listings.retain(|row| !row["id"].as_str().is_some_and(|id| next_ids.contains(id)));
+    expected["withdrawn_ids"] = proposal["withdrawn_ids"].clone();
+    expected["revision"] = proposal["revision"].clone();
+    if expected != proposal {
+        return invalid("legacy listing withdrawal changes other facts");
+    }
+    Ok(())
+}
+
+pub(super) struct ListingTargets {
+    pub legacy: Option<ListingRevision>,
+    pub compact: Option<ListingRevision>,
+}
+
+pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {
+    let inspect = |name: &str| {
+        files
+            .get(name)
+            .map(|raw| listing_revision(name, raw))
+            .transpose()
+    };
+    let legacy = inspect(portcove_listing_carrier::LEGACY_TARGET)?;
+    let compact = inspect(portcove_listing_carrier::COMPACT_TARGET)?;
+    if let Some(compact) = &compact {
+        let prior = legacy.as_ref().ok_or_else(|| {
+            TufRepositoryError::Invalid(
+                "compact listing requires its retained legacy target".into(),
+            )
+        })?;
+        if compact.revision < prior.revision
+            || (compact.revision == prior.revision && compact != prior)
+            || !prior.withdrawn_ids.is_subset(&compact.withdrawn_ids)
+        {
+            return invalid("listing carrier revision or equivalent decoded identity differs");
+        }
+    }
+    Ok(ListingTargets { legacy, compact })
+}
+
 pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
     let report: Inspection = serde_json::from_slice(manifest)?;
     if !matches!(
@@ -102,37 +257,26 @@ pub(super) fn inspect(root: &Path, manifest: &[u8]) -> Result<(Files, String)> {
         return invalid("catalog index/inspection definition inventory differs");
     }
     let mut allowed = BTreeSet::from(["definitions/index.json".to_owned()]);
-    if let Some(listings) = &report.listings {
-        let target = "policy/official/catalog.listings.json";
-        let bytes = files
-            .get(target)
-            .ok_or_else(|| TufRepositoryError::Invalid("listing target absent".into()))?;
-        if bytes.len() > 8 * 1024 * 1024
-            || listings.target != target
-            || listings.sha256 != sha(bytes)
-        {
-            return invalid("listing target/inspection identity differs");
-        }
-        // Core supplies semantic inspection; signing rebinds every reported summary to these bytes.
-        let document: serde_json::Value = serde_json::from_slice(bytes)?;
-        let directory = document
-            .get("directory")
-            .ok_or_else(|| TufRepositoryError::Invalid("listing directory absent".into()))?;
-        let withdrawals = document
-            .get("withdrawn_ids")
-            .ok_or_else(|| TufRepositoryError::Invalid("listing withdrawals absent".into()))?;
-        if document["listing_delivery_schema"] != serde_json::json!(1)
-            || document["revision"].as_u64() != Some(listings.revision)
-            || listings.revision == 0
-            || listings.revision > 9_007_199_254_740_991
-            || directory["listings"].as_array().map(Vec::len) != Some(listings.listing_count)
-            || withdrawals.as_array().map(Vec::len) != Some(listings.withdrawn_count)
-            || listings.listing_count > 10000
-            || listings.withdrawn_count > 10000
-        {
-            return invalid("listing summary differs");
-        }
-        allowed.insert(target.into());
+    let listing_targets = listing_targets(&files)?;
+    let active_listings = if let Some(compact) = &listing_targets.compact {
+        allowed.insert(portcove_listing_carrier::COMPACT_TARGET.into());
+        allowed.insert(portcove_listing_carrier::LEGACY_TARGET.into());
+        Some((portcove_listing_carrier::COMPACT_TARGET, compact))
+    } else {
+        listing_targets.legacy.as_ref().map(|legacy| {
+            allowed.insert(portcove_listing_carrier::LEGACY_TARGET.into());
+            (portcove_listing_carrier::LEGACY_TARGET, legacy)
+        })
+    };
+    match (&report.listings, active_listings) {
+        (None, None) => {}
+        (Some(listings), Some((target, active)))
+            if listings.target == target
+                && listings.sha256 == sha(&files[target])
+                && listings.revision == active.revision
+                && listings.listing_count == active.listing_count
+                && listings.withdrawn_count == active.withdrawn_ids.len() => {}
+        _ => return invalid("listing target/inspection identity differs"),
     }
     let mut content = BTreeMap::new();
     for c in &index.contents {

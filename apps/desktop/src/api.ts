@@ -79,6 +79,7 @@ import type {
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
+  LibrarySelectionReview,
   CapabilityDocument,
   CatalogDocument,
   CatalogDownloadCandidates,
@@ -345,8 +346,12 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
-  modSetups: (portId: string, generation: number) =>
-    invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  modSetups: (portId: string, generation: number, browseOnly?: true) =>
+    invoke<import("./types").ModSetupsView>("get_mod_setups", {
+      portId,
+      generation,
+      ...(browseOnly ? { browseOnly } : {}),
+    }),
   reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
     invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
   selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
@@ -574,6 +579,21 @@ export const desktopApi = {
     expectedUrl: string,
     projectId?: string,
   ) => invoke<void>("open_jakmods_resource", { portId, generation, projectId, expectedUrl }),
+  quaddictedCatalog: (portId: string, generation: number, page: number, filenameSearch?: string) =>
+    invoke<import("./types").QuaddictedCatalog>("get_quaddicted_catalog", {
+      portId,
+      generation,
+      page,
+      filenameSearch,
+    }),
+  modDbFileNotices: (portId: string, generation: number) =>
+    invoke<import("./types").ModDbFileNotices>("get_moddb_file_notices", { portId, generation }),
+  openUpstreamModNotice: (
+    portId: string,
+    generation: number,
+    source: NonNullable<import("./types").ModSetupsView["external_mod_portals"]>[number]["source"],
+    pageUrl: string,
+  ) => invoke<void>("open_upstream_mod_notice", { portId, generation, source, pageUrl }),
   modProviderCatalog: (portId: string, source: string, generation: number, startPage = 1) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,
@@ -875,8 +895,18 @@ export const desktopApi = {
 
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
   defaultLibraryRoot: () => invoke<string>("get_default_library_root"),
-  setDefaultLibrary: (path: string) => invoke<BootstrapStatus>("set_default_library", { path }),
-  resetDefaultLibrary: () => invoke<BootstrapStatus>("reset_default_library"),
+  reviewLibrarySelection: (path: string | null, generation: number) =>
+    invoke<LibrarySelectionReview>("review_library_selection", { path, generation }),
+  setDefaultLibrary: (path: string, expectedReview?: string) =>
+    invoke<BootstrapStatus>("set_default_library", {
+      path,
+      ...(expectedReview && { expectedReview }),
+    }),
+  resetDefaultLibrary: (expectedReview?: string) =>
+    invoke<BootstrapStatus>(
+      "reset_default_library",
+      expectedReview ? { expectedReview } : undefined,
+    ),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
   setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),
   logoutGithub: () => invoke<GithubAuthStatus>("logout_github"),
@@ -897,12 +927,14 @@ export const desktopApi = {
     generation: number,
     selectedReleaseId?: NonNullable<CatalogDownloadCandidates["selected_release_id"]>,
     channel = "stable",
+    releaseWindow?: number,
   ) =>
     invoke<CatalogDownloadCandidates>("catalog_download_candidates", {
       portId,
       generation,
       selectedReleaseId,
       channel,
+      ...(releaseWindow === undefined ? {} : { releaseWindow }),
     }),
   discoverSetupLaunchTargets: (portId: string, pendingId: string, generation: number) =>
     invoke<import("./types").SetupLaunchTargets>("discover_setup_launch_targets", {
@@ -1136,8 +1168,8 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
-  addSource: (profileId: string, path: string, expectedSha256?: string) =>
-    invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
+  addSource: (profileId: string, path: string, generation: number, expectedSha256?: string) =>
+    invoke<SourceRecord>("add_source", { profileId, path, generation, expectedSha256 }),
   reviewSourceReuse: (profileId: string, generation: number) =>
     invoke<import("./types").SourceReuseReview>("review_source_reuse", { profileId, generation }),
   gameFileRoots: (generation: number) =>
@@ -1337,8 +1369,11 @@ export const desktopApi = {
       generation,
     }),
   verifySources: () => invoke<SourceVerificationOutcome[]>("verify_sources"),
-  inspectSource: (profileId: string) =>
-    invoke<SourceInspectionReport>("inspect_source", { profileId }),
+  inspectSource: (profileId: string, artworkGeneration?: number) =>
+    invoke<SourceInspectionReport>("inspect_source", {
+      profileId,
+      ...(artworkGeneration === undefined ? {} : { artworkGeneration }),
+    }),
   inspectSourceIntake: (profileId: string, paths: string[]) =>
     invoke<SourceIntakeInspection>("inspect_source_intake", {
       profileId,

@@ -12,6 +12,7 @@ export async function replaceRegisteredSource(
   perform: Perform,
   setError: ReportError,
   libraryGeneration: number,
+  refresh?: () => Promise<unknown>,
 ) {
   const context = targetInvocationContext(
     purpose === "bios" ? "Update BIOS location" : "Update game-file location",
@@ -36,10 +37,16 @@ export async function replaceRegisteredSource(
         "update game-file location",
         async () => {
           const plan = await desktopApi.planSourceRelink(profile.id, path, libraryGeneration);
+          if (JSON.stringify(plan.original) !== JSON.stringify(source))
+            throw new Error(
+              "The saved location changed. Refresh the library before choosing a replacement.",
+            );
           return desktopApi.relinkSource(profile.id, path, plan.preview_sha256, libraryGeneration);
         },
         {
           context,
+          sourceRegistrationResult: (source) => source,
+          ...(refresh ? { refresh, invalidateDiagnostics: false } : {}),
         },
       );
   } catch (value) {
@@ -54,6 +61,7 @@ export async function addRequiredSource(
   perform: Perform,
   setError: ReportError,
   libraryGeneration: number,
+  refresh?: () => Promise<unknown>,
 ) {
   const context = targetInvocationContext(
     purpose === "bios" ? "Add BIOS file" : "Add game files",
@@ -66,9 +74,15 @@ export async function addRequiredSource(
       ? pickSourceArchivePath("", purpose)
       : pickSourcePath(profile, "", purpose));
     if (path)
-      await perform("add game files", () => desktopApi.addSource(profile.id, path), {
-        context,
-      });
+      await perform(
+        "add game files",
+        () => desktopApi.addSource(profile.id, path, libraryGeneration),
+        {
+          context,
+          sourceRegistrationResult: (source) => source,
+          ...(refresh ? { refresh, invalidateDiagnostics: false } : {}),
+        },
+      );
   } catch (value) {
     setError(errorText(value), context);
   }

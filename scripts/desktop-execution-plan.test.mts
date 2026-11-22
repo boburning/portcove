@@ -986,7 +986,7 @@ void test("backup review requires identity-bound Windows cleanup within its life
     const plan = planDesktopExecution(selection, { platform });
     assert.equal(plan.session.identityBoundSession, platform === "win32");
     assert.equal(plan.session.cleanupName, platform === "win32" ? "backup-review" : "backup-focus");
-    assert.equal(desktopHarnessDeadlineMs(selection), 600000);
+    assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
   }
 });
 

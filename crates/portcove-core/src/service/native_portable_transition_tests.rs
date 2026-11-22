@@ -4,10 +4,9 @@ fn transition_fixture_catalogs(
     original: &[u8],
     predecessor: &ResolvedRelease,
 ) -> (Catalog, Catalog) {
-    let target = compatible_archive_fixture_catalog(
-        Catalog::embedded().unwrap().port(id).unwrap().clone(),
-        original,
-    );
+    let embedded = Catalog::embedded().unwrap();
+    let target =
+        compatible_archive_fixture_catalog(&embedded, embedded.port(id).unwrap().clone(), original);
     let mut old = crate::test_fixture::v26_diagnostic_port(id);
     old.runtime_source_hashes = target.port(id).unwrap().runtime_source_hashes.clone();
     let direct = old

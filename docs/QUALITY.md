@@ -459,6 +459,12 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
+the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
+Neither run reported an assertion failure before its cutoff. Each Windows case
+has a 240-second limit with the same assertions, cleanup and retry policy.
+Completion under the new limit still needs a hosted run.
+
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
 checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing
@@ -479,6 +485,13 @@ cases observed no progress animation or dialog opacity transition. Both cases
 now explicitly set the normal-motion media preference they exercise and restore
 the browser default after each case. Their rendering and transition assertions
 remain in place.
+
+Windows owned-backups job 136906004836 reached the 600-second harness deadline
+after verifying restore, deletion and the first degraded-history capture. The
+backup chain has a 1,200-second allowance to finish the remaining checks and
+join its owned processes. The degraded-history action check waits up to 60
+seconds for the exact usable row and both enabled actions on the same current
+inventory. The app still disables Restore while history refreshes.
 
 The November 18 Native27 Windows run at `eaae775d` (output
 `2026-11-18T12-56-04-004Z-K6Cg8V`, preparation live by 13:05 UTC) retained a
