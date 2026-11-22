@@ -3048,14 +3048,21 @@ fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
     let (_temporary, service, _) = embedded_service();
     let host = Platform::current().unwrap();
     let managed = Some(CatalogDownloadRefusal::ManagedRoute);
-    let windows = (host == Platform::WindowsX86_64)
-        .then_some(managed)
-        .flatten();
     let refusal = |id: &str| service.listing_download_refusal(id).unwrap();
-    // Managed only on Windows; every other host keeps the upstream download.
-    assert_eq!(refusal("wave-race-64-recomp"), windows);
-    assert_eq!(refusal("diddy-kong-racing-golden-balloon"), windows);
-    assert_eq!(refusal("road-rash-64-recompiled"), windows);
+    // Operational declarations own managed host coverage; descriptive listings may cover more.
+    for id in [
+        "wave-race-64-recomp",
+        "diddy-kong-racing-golden-balloon",
+        "road-rash-64-recompiled",
+    ] {
+        let port = service.catalog.port(id).expect("managed fixture port");
+        let expected = if port.platforms.contains(&host) {
+            managed
+        } else {
+            None
+        };
+        assert_eq!(refusal(id), expected, "{id} on {host:?}");
+    }
     // Managed on every desktop platform.
     assert_eq!(refusal("sssv-recompiled"), managed);
     // A prepared-player integration offers no Install, so it keeps the download.
