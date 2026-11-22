@@ -86,6 +86,7 @@ import {
   revealDetailSection,
   reviewGameUpdateDisposition,
   clickVisible,
+  replaceKeyboardText,
   selectCatalogPort,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
@@ -1313,7 +1314,49 @@ export async function installScenarios({
       liveGame = undefined;
       pendingGame = undefined;
     };
-    const play = async () => {
+    const playFromPalette = async (active: InstallRecord) => {
+      const generation = (await bootstrap()).generation;
+      const key = JSON.stringify([generation, active.port_id, active.id, null]);
+      const target = By.css("section[data-detail-workspace] button[data-current-game-play]");
+      await browser.wait(
+        async () => {
+          const [control] = await browser.findElements(target);
+          return (
+            control &&
+            (await control.isDisplayed()) &&
+            (await control.isEnabled()) &&
+            (await control.getAttribute("data-current-game-play")) === key &&
+            (await control.getAttribute("aria-disabled")) !== "true"
+          );
+        },
+        acquisitionScriptBudgetMs,
+        "The exact installed game's confirmed Play action did not register",
+      );
+      const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+      await browser.actions().keyDown(modifier).sendKeys("k").keyUp(modifier).perform();
+      const palette = By.css('[aria-labelledby="command-palette-title"]');
+      const panel = await browser.wait(until.elementLocated(palette), 5_000);
+      const search = await panel.findElement(By.css('[role="combobox"]'));
+      await replaceKeyboardText(browser, search, "Play this game");
+      const commandId = "command-current-game-play";
+      const command = await browser.wait(until.elementLocated(By.id(commandId)), 5_000);
+      assert.equal(await command.findElement(By.css("strong")).getText(), "Play this game");
+      assert.equal(await command.findElement(By.css("small")).getText(), gameIdentityLabel(port));
+      await browser.wait(
+        async () => (await search.getAttribute("aria-activedescendant")) === commandId,
+        5_000,
+      );
+      await snapshotEvidence("native-command-palette-confirmed-play", command);
+      assert.equal(
+        await exists(path.join(active.path, ".portcove-launched")),
+        false,
+        "Opening and filtering the palette must not record a launch",
+      );
+      await search.sendKeys(Key.ENTER);
+      await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+      observations.command_play = { port_id: active.port_id, install_id: active.id, generation };
+    };
+    const play = async (startPlay = async (_active: InstallRecord) => click("Play")) => {
       assert.equal(await exists(marker), false, "Each owned launch requires an unreleased marker");
       const current = await status();
       const active = required(current.active);
@@ -1323,7 +1366,7 @@ export async function installScenarios({
         installation: { id: active.id, port_id: active.port_id, path: active.path },
       };
       pendingGame = game;
-      await click("Play");
+      await startPlay(active);
       const captured = await browser.wait(
         () => observer.capture(game, evidenceName("live-game")),
         60_000,
@@ -1673,7 +1716,7 @@ export async function installScenarios({
       const v2 = await publish("2.0.0-acquisition", 0x43b9a607);
       // A first launch records Core's .portcove-launched bookkeeping. Establish
       // that real pre-state before testing byte preservation during acquisition.
-      await play();
+      await play(playFromPalette);
       await stopGame();
       await rm(marker);
       const beforeV2 = await preserve();

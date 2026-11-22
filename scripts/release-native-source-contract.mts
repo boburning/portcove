@@ -8,13 +8,41 @@ export const nativeCompatibilitySourcePaths = Object.freeze([
   "crates/portcove-core/catalog/catalog.json",
 ] as const);
 
+// Must equal Core's signed_catalog::MAX_CATALOG_BYTES, the supported bound for
+// the generated catalog. Release tools run without reading Core sources;
+// release-native-source-contract.test.mts reads Core's constant and checks it.
+export const nativeCatalogDeclarationByteLimit = 16 * 1024 * 1024;
+
 export function nativeSourceDeclarationByteLimit(
   pathname: (typeof nativeCompatibilitySourcePaths)[number],
 ) {
-  // Match the existing catalog signing/health input envelope. Rust source
-  // declarations retain their narrower limit as the catalog grows.
-  return pathname === nativeCompatibilitySourcePaths[2] ? 4 * 1024 * 1024 : 1024 * 1024;
+  // The generated catalog shares the supported generated-catalog bound. Rust
+  // source declarations retain their narrower limit as the catalog grows.
+  return pathname === nativeCompatibilitySourcePaths[2]
+    ? nativeCatalogDeclarationByteLimit
+    : 1024 * 1024;
 }
+
+// Fixed JSON fields of a Git blob response around its content: sha, node_id,
+// size, url and encoding. Generous against the few hundred bytes they use.
+const nativeSourceBlobEnvelopeBytes = 64 * 1024;
+
+/** Largest Git blob API response for a declaration at its byte limit. The
+ * content is base64 (4 bytes per 3, padded), wrapped every 60 characters, and
+ * each newline is JSON-escaped as two bytes; the envelope adds fixed fields. */
+export function nativeSourceBlobResponseByteLimit(
+  pathname: (typeof nativeCompatibilitySourcePaths)[number],
+) {
+  const base64 = 4 * Math.ceil(nativeSourceDeclarationByteLimit(pathname) / 3);
+  return base64 + 2 * Math.ceil(base64 / 60) + nativeSourceBlobEnvelopeBytes;
+}
+
+/** Response bound for a reader dedicated to declaration blobs: the largest
+ * declaration's blob. Every release reader of declaration blobs uses this, and
+ * keeps its other reads on their own bounds. */
+export const nativeSourceBlobReadByteLimit = Math.max(
+  ...nativeCompatibilitySourcePaths.map(nativeSourceBlobResponseByteLimit),
+);
 
 export function readCliApiDeclaration(source: string): number {
   const matches = [

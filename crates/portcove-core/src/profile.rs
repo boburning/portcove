@@ -29,7 +29,11 @@ mod tests;
 pub(crate) const MAX_PROFILES: usize = 64;
 const MAX_PROFILES_PER_PORT: usize = MAX_PROFILES;
 const MAX_PACKAGES: usize = 512;
-const MAX_SETTINGS: usize = 64;
+/// Settings per revision, shared by captured mod options and recipes. The
+/// serialized revision byte bound is the binding resource limit; this count only
+/// rejects pathological shapes. It is sized from package capacity so a few
+/// option-rich mods cannot exhaust it (eight options per possible package).
+pub(crate) const MAX_SETTINGS: usize = MAX_PACKAGES * 8;
 const MAX_LIMITS: usize = 64;
 const MAX_TEXT: usize = 1024;
 const MAX_PROFILE_BYTES: usize = 64 * 1024;

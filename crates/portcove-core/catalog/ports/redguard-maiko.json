@@ -33,7 +33,16 @@
         "The release assets are preparation tools and runtime kits. Portcove does not create a player, replace it or back up the external game profile."
       ]
     },
-    "download_block_reason": "Upstream publishes build tools and runtime kits. Use its build guide to create a player from your own Redguard files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Upstream publishes build tools and runtime kits. Use its build guide to create a player from your own Redguard files.",
+        "tracking_issue": 6668
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "the-elder-scrolls-adventures-redguard",

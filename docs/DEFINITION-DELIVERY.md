@@ -1810,8 +1810,10 @@ the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
 the accepted catalog baseline and current component/site identities. The catalog
-source readers reconstruct at most 6,144 entries per complete Git tree and refuse
-truncated or mismatched trees. Its neutral
+source readers reconstruct every entry of a complete Git tree and refuse
+truncated or mismatched trees. The count bound is GitHub's 100,000-entry
+recursive-tree completeness limit; in practice each reader's response byte
+bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
@@ -2001,6 +2003,25 @@ keeps bundled bindings only for the same project and original description.
 A format-14 replacement can remove those bindings. Carrier support and format
 support are advertised separately, so compact transport alone does not
 establish format-14 compatibility.
+
+Listing format 15 carries typed [acquisition restrictions](CATALOG.md#acquisition-restrictions).
+Its `download_block_reason` must equal the projection of those restrictions, so
+a format-14 reader keeps enforcing at least the same download hold, and exports
+up to format 14 omit `restrictions` and keep that string. Signed listing
+delivery stays at format 11: the observer's projection accepts the format-15
+canonical directory as input and still publishes Core's format-11 export. A
+delivered listing that repeats the current string for the same project and
+game keeps the reader's typed restrictions; any other delivered value replaces
+them with a whole-listing download hold, or clears them. Publishing a format-15
+signed target is a later, separately gated change.
+
+Managed acquisition holds keep their delivered `managed_acquisition_hold`
+form; Core normalizes it to typed decisions when it loads, and the definition
+loader accepts a selected definition only when it keeps or adds restriction. A
+typed definition field is not deliverable yet. It needs a reader gate that
+older applications refuse, planned as a named definition feature under
+definition schema 4 once [#8496](https://github.com/boburning/portcove/pull/8496)
+lands; until then authoring emits only the legacy hold.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at

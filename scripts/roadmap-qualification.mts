@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import type { PortDefinition } from "../apps/desktop/src/transport-types.generated.d.ts";
 import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { orderedJsonSha256 as observationHash } from "./json-values.mts";
@@ -11,6 +12,7 @@ import {
   portKeyMarkers,
   normalizePortKey,
   normalizedPortTitle,
+  normalizedUpstream,
   issueNumber,
   discoveredPortIssues,
   portIdentity,
@@ -171,6 +173,89 @@ const historicalStages = [
   "Manual qualification",
 ] as const;
 type DerivedPortStage = (typeof derivedStages)[number];
+
+export function requireAssignablePortStage(field: string, value: unknown) {
+  if (field !== "Port stage" || value === undefined) return;
+  if (historicalStages.some((stage) => stage === value))
+    throw new Error(`Historical Port stage cannot be assigned: ${diagnosticText(value)}`);
+  if (![...manualStages, ...derivedStages].some((stage) => stage === value))
+    throw new Error("Unsupported Port stage assignment");
+}
+
+export function isDerivedPortStageAssignment(field: string, value: unknown) {
+  return field === "Port stage" && derivedStages.some((stage) => stage === value);
+}
+
+export function readRoadmapPortStageListings(): readonly unknown[] {
+  const directory: unknown = JSON.parse(
+    readFileSync(new URL("../crates/portcove-core/catalog/listings.json", import.meta.url), "utf8"),
+  );
+  if (!isRecord(directory) || !Array.isArray(directory.listings))
+    throw new Error("Catalog listings require a listing array");
+  return directory.listings;
+}
+
+export function requireAvailableListingOwner(
+  listings: readonly unknown[],
+  catalogId: string,
+  issue: number | null,
+) {
+  const matching = listings.filter((entry) => qualificationField(entry, "id") === catalogId);
+  if (matching.length > 1)
+    throw new Error("Catalog ID has multiple listing declarations: " + catalogId);
+  const owner = qualificationField(matching[0], "issue_number");
+  if (owner != null && owner !== issue)
+    throw new Error("Catalog listing " + catalogId + " belongs to issue #" + diagnosticText(owner));
+}
+
+export function requireDerivedPortStage(
+  item: RoadmapIssueItem,
+  stage: string,
+  catalog: QualificationCatalogObservation,
+  listings: readonly unknown[],
+) {
+  const body = itemBody(item);
+  const catalogs = portCatalogMarkers(body);
+  const upstreams = portUpstreamMarkers(body);
+  const catalogId = catalogs[0];
+  const upstream = upstreams[0];
+  const issue = issueNumber(item);
+  const claims = listings.filter((entry) => isRecord(entry) && entry.issue_number === issue);
+
+  if (
+    item.content?.__typename !== "Issue" ||
+    item.isArchived !== false ||
+    !issue ||
+    !body.includes(portMarker) ||
+    catalogs.length !== 1 ||
+    upstreams.length !== 1 ||
+    !catalogId ||
+    !upstream ||
+    claims.length !== 1 ||
+    qualificationField(claims[0], "id") !== catalogId ||
+    initialPortStage(catalog, catalogId, upstream) !== stage
+  )
+    throw new Error(
+      "Port stage assignment requires the exact catalog-derived stage for its canonical issue",
+    );
+  requireAvailableListingOwner(listings, catalogId, issue);
+}
+
+export function initialPortStage(
+  catalog: QualificationCatalogObservation,
+  catalogId: string,
+  upstream: string,
+) {
+  const ports = (catalog.ports ?? []).filter((port) => port.id === catalogId);
+  const port = ports[0];
+  if (
+    ports.length !== 1 ||
+    !port ||
+    normalizedUpstream(port.project_url) !== normalizedUpstream(upstream)
+  )
+    return "Watchlist";
+  return catalogStage(port, catalog.source_catalog?.qualification ?? []).stage;
+}
 
 function catalogStage(port: QualificationPortObservation, records: readonly unknown[]) {
   const automated = automatedPlatforms(port, records);

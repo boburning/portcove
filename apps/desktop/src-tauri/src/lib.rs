@@ -24,6 +24,7 @@ mod game_settings_commands;
 mod game_updates;
 mod ghostship_recovery;
 mod host_startup;
+mod library_recovery_bundle;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
@@ -3305,6 +3306,13 @@ pub fn run() -> std::process::ExitCode {
             create_support_bundle,
             open_support_report_folder,
             export_library_metadata,
+            library_recovery_bundle::plan_library_recovery_bundle,
+            library_recovery_bundle::create_library_recovery_bundle,
+            library_recovery_bundle::resume_library_recovery_bundle,
+            library_recovery_bundle::inspect_library_recovery_bundle,
+            library_recovery_bundle::plan_library_recovery_restore,
+            library_recovery_bundle::restore_library_recovery_bundle,
+            library_recovery_bundle::resume_library_recovery_restore,
             library_transfer::plan_library_move,
             library_transfer::plan_library_import,
             library_transfer::import_library,

@@ -122,6 +122,7 @@ import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
+import { ReleaseWithdrawalNotice } from "./ReleaseWithdrawal";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -4002,6 +4003,7 @@ function DetailOverviewActions({
 }) {
   return (
     <>
+      <ReleaseWithdrawalNotice status={model.status} reviewVersions={() => reveal("versions")} />
       {!model.installReadbackRequired &&
         model.displayPort &&
         setupRoutePresentation(model.displayPort, model.status).promoteAlternative && (
