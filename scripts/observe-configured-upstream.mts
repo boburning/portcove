@@ -1,4 +1,5 @@
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { requireCompleteCoreCoverage } from "./catalog-observer-continuation.mts";
 import type {
   ObserverConfig,
   ObserveOptions,
@@ -358,6 +359,7 @@ export async function advanceObservation(
           "core-binding",
           "core policy output is not bound to the exact observed facts",
         );
+      requireCompleteCoreCoverage(projection);
       transition = !next.last_complete
         ? "initial-baseline"
         : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256

@@ -1,5 +1,6 @@
 use super::*;
 use crate::release::GithubAsset;
+use crate::{ArtifactRole, TargetArch, TargetOs};
 use serde_json::json;
 
 const REPOSITORY_ID: u64 = 472575717;
@@ -180,6 +181,30 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
             report.projections[0].latest_observed.as_ref().unwrap().tag,
             "v0.2.27"
         );
+        if matches!(defect, "missing" | "wrong-platform") {
+            // A complete asset list naming players only for other hosts puts
+            // the release outside the Windows stream (#8555). It no longer
+            // hides the preceding Windows release.
+            let projection = &report.projections[0];
+            assert_eq!(
+                projection.channel_candidate.as_ref().unwrap().tag,
+                "v0.2.26",
+                "{defect}"
+            );
+            assert_eq!(
+                projection
+                    .latest_eligible
+                    .as_ref()
+                    .unwrap()
+                    .release
+                    .asset
+                    .name,
+                "LodRecomp-v0.2.26-windows-x64.zip",
+                "{defect}"
+            );
+            assert!(projection.hold_reasons.is_empty(), "{defect}");
+            continue;
+        }
         assert!(report.projections[0].latest_eligible.is_none(), "{defect}");
         assert_eq!(
             report.projections[0].hold_reasons,
@@ -1166,5 +1191,183 @@ fn dk64_windows_selector_covers_both_release_name_forms() -> Result<()> {
             expected
         );
     }
+    Ok(())
+}
+
+fn release_with_assets(id: u64, tag: &str, names: &[&str]) -> Value {
+    let mut release = release(id, tag);
+    release["assets"] = json!(
+        names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| json!({
+                "id": id * 10 + index as u64, "name": name, "state": "uploaded",
+                "size": 16, "digest": format!("sha256:{}", "a".repeat(64)),
+                "created_at": CLOCK, "updated_at": CLOCK,
+                "browser_download_url": format!("https://github.com/HarbourMasters/Shipwright/releases/download/{tag}/{name}")
+            }))
+            .collect::<Vec<_>>()
+    );
+    release
+}
+
+fn generic_desktop_port() -> Result<PortDefinition> {
+    let mut port = crate::Catalog::embedded()?.port("shipwright")?.clone();
+    port.platforms = vec![Platform::WindowsX86_64, Platform::LinuxX86_64];
+    port.release.asset_hints.clear();
+    port.release.curated.clear();
+    port.release.github_other_stream_tag_prefixes.clear();
+    Ok(port)
+}
+
+#[test]
+fn a_newest_foreign_only_release_does_not_hide_an_older_desktop_release() -> Result<()> {
+    let port = generic_desktop_port()?;
+    for newest in [
+        &["game-3.0.apk"][..],
+        &["game-3.0-android-arm64.zip", "game-3.0-ios.ipa"][..],
+        &["game-3.0-portmaster.zip", "game-3.0-switch.nro"][..],
+    ] {
+        let document = envelope(vec![
+            release_with_assets(3, "3.0.0", newest),
+            release_with_assets(2, "2.0.0", &["game-windows-x64.zip"]),
+        ])?;
+        let report = inspect(&port, &document)?;
+        let windows = &report.projections[0];
+        assert_eq!(windows.platform, Platform::WindowsX86_64);
+        assert_eq!(windows.latest_observed.as_ref().unwrap().id, 3);
+        assert_eq!(
+            windows.channel_candidate.as_ref().unwrap().id,
+            2,
+            "{newest:?}"
+        );
+        let eligible = windows.latest_eligible.as_ref().unwrap();
+        assert_eq!(
+            (eligible.release_id, eligible.release.asset.name.as_str()),
+            (2, "game-windows-x64.zip")
+        );
+        let fact = windows.selected_artifact.as_ref().unwrap();
+        assert_eq!(
+            (fact.role, fact.os, fact.arch),
+            (
+                ArtifactRole::DesktopGameRuntime,
+                TargetOs::Windows,
+                TargetArch::X86_64
+            )
+        );
+        assert_eq!(fact.source, crate::FactSource::StableDeclaration);
+        assert!(windows.route_holds.is_empty());
+
+        // The Windows package is outside the Linux stream: Linux selects no
+        // candidate instead of offering another host's package.
+        let linux = &report.projections[3];
+        assert_eq!(linux.platform, Platform::LinuxX86_64);
+        assert!(linux.channel_candidate.is_none());
+        assert!(linux.latest_eligible.is_none());
+        assert_eq!(linux.hold_reasons, ["no-published-channel-candidate"]);
+
+        let facts = &report.release_facts[0];
+        assert!(facts.assets_complete);
+        assert!(facts.artifacts.iter().all(|fact| {
+            matches!(
+                fact.role,
+                ArtifactRole::MobilePackage | ArtifactRole::ConsoleOutput
+            ) && !fact.source.authorizes()
+        }));
+        assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
+        assert_eq!(report.fact_provenance.facts_sha256, report.facts_sha256);
+    }
+    Ok(())
+}
+
+#[test]
+fn one_desktop_host_never_selects_another_hosts_package() -> Result<()> {
+    let port = generic_desktop_port()?;
+    // Only the classifier names `osx` and `win32`; the older selector's
+    // conflict tokens did not, so these packages tied or crossed hosts.
+    let document = envelope(vec![release_with_assets(
+        2,
+        "2.0.0",
+        &["game-osx.zip", "game-win.zip", "game-win32-linux.tar.gz"],
+    )])?;
+    let report = inspect(&port, &document)?;
+    let windows = report.projections[0].latest_eligible.as_ref().unwrap();
+    assert_eq!(windows.release.asset.name, "game-win.zip");
+    let document = envelope(vec![release_with_assets(2, "2.0.0", &["game-win32.zip"])])?;
+    let report = inspect(&port, &document)?;
+    let linux = &report.projections[3];
+    assert!(linux.channel_candidate.is_none());
+    assert!(linux.latest_eligible.is_none());
+    Ok(())
+}
+
+#[test]
+fn incomplete_asset_coverage_stops_the_walk_with_a_typed_hold() -> Result<()> {
+    let port = generic_desktop_port()?;
+    let mut document = envelope(vec![
+        release_with_assets(3, "3.0.0", &["game-3.0.apk"]),
+        release_with_assets(2, "2.0.0", &["game-windows-x64.zip"]),
+    ])?;
+    document["format"] = json!(2);
+    document["coverage"] = json!({"kind":"channel-candidate-assets", "complete_release_headers":true, "asset_release_ids":[2]});
+    document["facts"]["releases"][0]["assets"] = json!([]);
+    document["facts_sha256"] = json!(json_digest(&document["facts"])?);
+    let report = inspect(&port, &document)?;
+    let windows = &report.projections[0];
+    // The uncollected newest release is UNKNOWN, never "no player".
+    assert_eq!(windows.channel_candidate.as_ref().unwrap().id, 3);
+    assert!(windows.latest_eligible.is_none());
+    assert_eq!(
+        windows.hold_reasons,
+        ["release-asset-observation-incomplete"]
+    );
+    assert_eq!(windows.route_holds, [RouteHold::IncompleteCoverage]);
+    assert!(!report.release_facts[0].assets_complete);
+    assert!(report.release_facts[0].artifacts.is_empty());
+    assert!(report.release_facts[1].assets_complete);
+    assert_eq!(
+        report.fact_provenance.coverage,
+        crate::Coverage::Partial { next_cursor: None }
+    );
+    Ok(())
+}
+
+#[test]
+fn typed_report_fields_are_additive_to_existing_projection_fields() -> Result<()> {
+    let port = generic_desktop_port()?;
+    let document = envelope(vec![release_with_assets(
+        2,
+        "2.0.0",
+        &["game-windows-x64.zip", "game-linux-x64.tar.gz"],
+    )])?;
+    let report = serde_json::to_value(inspect(&port, &document)?)?;
+    let windows = report["projections"][0].as_object().unwrap();
+    let mut keys = windows.keys().map(String::as_str).collect::<Vec<_>>();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        [
+            "channel",
+            "channel_candidate",
+            "hold_reasons",
+            "latest_eligible",
+            "latest_observed",
+            "platform",
+            "selected_artifact"
+        ]
+    );
+    // A held projection keeps the previous field set exactly.
+    let held = report["projections"][1].as_object().unwrap();
+    assert!(!held.contains_key("selected_artifact"));
+    assert!(!held.contains_key("route_holds"));
+    assert_eq!(
+        report["fact_provenance"]["coverage"],
+        json!({"kind": "complete"})
+    );
+    assert_eq!(report["fact_provenance"]["parser_version"], 1);
+    assert_eq!(
+        report["release_facts"][0]["artifacts"][1]["source"],
+        json!({"kind": "filename-suggestion", "rule_version": 1})
+    );
     Ok(())
 }

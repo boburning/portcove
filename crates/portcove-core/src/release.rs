@@ -2369,41 +2369,26 @@ fn native_release_applies_to_platform(
     if !github_tag_in_stream(port, platform, &release.tag_name) {
         return false;
     }
-    if (port.adapter != AdapterKind::NativePortable && port.archive_data_compatibility_v1.is_none())
-        || port.release.curated.contains_key(&platform)
-    {
+    if port.release.curated.contains_key(&platform) {
         return true;
     }
     let mut other_platform_player = false;
     for asset in &release.assets {
-        let name = asset.name.to_ascii_lowercase();
-        let can_extract = [".zip", ".tar.gz", ".tgz"]
-            .iter()
-            .any(|ext| name.ends_with(ext));
-        let (suitability, _, _) = crate::service::package_selection::assess_package_name(
-            &name,
-            can_extract,
-            platform,
-            &[],
-        );
-        if suitability == "auxiliary" {
-            if name
-                .split(|character: char| !character.is_ascii_alphanumeric())
-                .any(|token| token == "debug")
-            {
+        let suggestion = crate::route_facts::suggest_from_filename(&asset.name);
+        if suggestion.role.is_supporting() || suggestion.debug_build {
+            if suggestion.debug_build {
                 return true;
             }
             continue;
         }
-        if crate::service::package_selection::package_platform_match(&name, platform)
-            != crate::service::package_selection::PackagePlatformMatch::Other
-        {
+        if !suggestion.os.excludes(platform) {
             return true;
         }
-        other_platform_player |= crate::service::package_selection::is_package_filename(&name);
+        other_platform_player |= suggestion.foreign_player(platform);
     }
-    // Only explicit other-OS players are outside this platform's release stream.
-    // Same/unknown OS and source-only releases retain normal refusal semantics.
+    // Only explicit other-host players (desktop, mobile or console) are outside
+    // this platform's release stream. Same/unknown OS and source-only releases
+    // retain normal refusal semantics.
     !other_platform_player
 }
 
@@ -2936,7 +2921,11 @@ fn choose_asset_for_variant<'a>(
                 );
                 return score.map(|score| (score as i32, asset));
             }
-            if conflicts_with_platform(&name, platform) {
+            if conflicts_with_platform(&name, platform)
+                || crate::route_facts::suggest_from_filename(&name)
+                    .os
+                    .excludes(platform)
+            {
                 return None;
             }
             if (port.adapter == AdapterKind::PsxRecompManaged
@@ -3162,6 +3151,7 @@ mod tests {
         serve_routed_http,
     };
 
+    mod selection_equivalence;
     mod unchanged_definition;
     mod uploader_progression;
 

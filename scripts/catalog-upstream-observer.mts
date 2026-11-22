@@ -12,6 +12,7 @@ import {
 } from "./provider-release-observation.mts";
 import type { ProviderCapacity, ProviderProgress } from "./provider-release-observation.mts";
 import { isRecord } from "./runtime-values.mts";
+import { requireCompleteCoreCoverage } from "./catalog-observer-continuation.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   observationHash,
@@ -962,6 +963,7 @@ export async function advanceCatalogObservations(
         "core-binding",
         "Core projection differs from the exact reviewed catalog definition, port, source or provider facts",
       );
+    if (port.kind !== "listing") requireCompleteCoreCoverage(policy);
     if (options.signal?.aborted)
       throw new ObservationFailure(
         "cancelled",
