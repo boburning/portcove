@@ -9439,6 +9439,66 @@
   },
   "pending_setup_record": {
     "$defs": {
+      "AcquisitionRestriction": {
+        "additionalProperties": false,
+        "properties": {
+          "effect": {
+            "$ref": "#/$defs/RestrictionEffect"
+          },
+          "explanation": {
+            "description": "Player-facing explanation; required for a hold and refused for a permit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Stable within its carrier; the key for review and transition checks.",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/$defs/RestrictedOperation"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RestrictionReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive; required for a hold and refused for a permit."
+          },
+          "reconsider_when": {
+            "items": {
+              "$ref": "#/$defs/ReconsiderCondition"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/$defs/RestrictionScope"
+          },
+          "tracking_issue": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "effect",
+          "operations"
+        ],
+        "type": "object"
+      },
       "CatalogDownloadAssetId": {
         "anyOf": [
           {
@@ -10219,7 +10279,7 @@
             "type": "object"
           },
           "download_block_reason": {
-            "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
+            "description": "Legacy projection of `restrictions` for older readers: the explanation\nof the first hold naming Download. It grants nothing.",
             "type": [
               "string",
               "null"
@@ -10329,6 +10389,13 @@
               "null"
             ]
           },
+          "restrictions": {
+            "description": "Typed acquisition restrictions. Requires listing format 14.",
+            "items": {
+              "$ref": "#/$defs/AcquisitionRestriction"
+            },
+            "type": "array"
+          },
           "setup_url": {
             "type": [
               "string",
@@ -10366,6 +10433,19 @@
         ],
         "type": "object"
       },
+      "ReconsiderCondition": {
+        "description": "Descriptive condition for reconsidering a decision. Never evaluated.",
+        "enum": [
+          "attributable-grant",
+          "clean-upstream-package",
+          "owned-input-preparation",
+          "publisher-checksum",
+          "reviewed-successor-release",
+          "upstream-route-change",
+          "owner-review"
+        ],
+        "type": "string"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -10373,6 +10453,151 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "RestrictedArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "RestrictedComponent": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "bundled-runtime",
+                "type": "string"
+              },
+              "platform": {
+                "$ref": "#/$defs/Platform"
+              }
+            },
+            "required": [
+              "kind",
+              "platform"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "tool-artifact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RestrictedOperation": {
+        "description": "Removal, rollback and backup are deliberately absent: a restriction never\nblocks removing or recovering the player's own state.",
+        "enum": [
+          "download",
+          "install",
+          "update",
+          "adopt",
+          "activate",
+          "prepare",
+          "register-external",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "RestrictionEffect": {
+        "enum": [
+          "hold",
+          "permit"
+        ],
+        "type": "string"
+      },
+      "RestrictionReason": {
+        "description": "Descriptive classification of why a hold exists. Never evaluated.",
+        "oneOf": [
+          {
+            "enum": [
+              "bundled-game-data",
+              "upstream-owned-route",
+              "package-facts-unresolved",
+              "legacy-rights-review",
+              "no-useful-route",
+              "upstream-prohibition",
+              "safety-evidence-mismatch",
+              "third-party-component-terms",
+              "known-defective-artifact",
+              "upstream-transition-unreviewed"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "legacy-unclassified",
+            "description": "Reader-only normalization of an untyped legacy restriction.",
+            "type": "string"
+          }
+        ]
+      },
+      "RestrictionScope": {
+        "additionalProperties": false,
+        "description": "Each empty list leaves that dimension unconstrained.",
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/$defs/RestrictedArtifact"
+            },
+            "type": "array"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/RestrictedComponent"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "description": "Source catalog identity or profile ids.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "releases": {
+            "description": "Exact release versions or tags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
       },
       "SourceEdition": {
         "additionalProperties": false,
@@ -20191,6 +20416,66 @@
         ],
         "type": "object"
       },
+      "AcquisitionRestriction": {
+        "additionalProperties": false,
+        "properties": {
+          "effect": {
+            "$ref": "#/$defs/RestrictionEffect"
+          },
+          "explanation": {
+            "description": "Player-facing explanation; required for a hold and refused for a permit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Stable within its carrier; the key for review and transition checks.",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "$ref": "#/$defs/RestrictedOperation"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RestrictionReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Descriptive; required for a hold and refused for a permit."
+          },
+          "reconsider_when": {
+            "items": {
+              "$ref": "#/$defs/ReconsiderCondition"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/$defs/RestrictionScope"
+          },
+          "tracking_issue": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "effect",
+          "operations"
+        ],
+        "type": "object"
+      },
       "ActivityFeed": {
         "description": "A complete view of current and actionable work plus a bounded terminal window.\n\n`records` is deterministically ordered and contains each durable activity at\nmost once even when it belongs to several protected sets. The three ID lists\nare complete for the same SQLite snapshot. Failed attention remains complete\nwithin the durable 1,000-terminal-record retention policy; older terminal\nrecords are retired. Only the ordinary terminal-history presentation is\nwindowed further.",
         "properties": {
@@ -24026,6 +24311,17 @@
           },
           "reason": {
             "$ref": "#/$defs/PortActionReason"
+          },
+          "restriction": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RestrictionReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The descriptive reason of the acquisition restriction that holds this action."
           }
         },
         "required": [
@@ -24922,7 +25218,7 @@
             "type": "object"
           },
           "download_block_reason": {
-            "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
+            "description": "Legacy projection of `restrictions` for older readers: the explanation\nof the first hold naming Download. It grants nothing.",
             "type": [
               "string",
               "null"
@@ -25031,6 +25327,13 @@
               "string",
               "null"
             ]
+          },
+          "restrictions": {
+            "description": "Typed acquisition restrictions. Requires listing format 14.",
+            "items": {
+              "$ref": "#/$defs/AcquisitionRestriction"
+            },
+            "type": "array"
           },
           "setup_url": {
             "type": [
@@ -25793,6 +26096,19 @@
         ],
         "type": "object"
       },
+      "ReconsiderCondition": {
+        "description": "Descriptive condition for reconsidering a decision. Never evaluated.",
+        "enum": [
+          "attributable-grant",
+          "clean-upstream-package",
+          "owned-input-preparation",
+          "publisher-checksum",
+          "reviewed-successor-release",
+          "upstream-route-change",
+          "owner-review"
+        ],
+        "type": "string"
+      },
       "RecoveryAction": {
         "enum": [
           "review_current_state",
@@ -26106,6 +26422,151 @@
           "published_at",
           "asset"
         ],
+        "type": "object"
+      },
+      "RestrictedArtifact": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "RestrictedComponent": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "bundled-runtime",
+                "type": "string"
+              },
+              "platform": {
+                "$ref": "#/$defs/Platform"
+              }
+            },
+            "required": [
+              "kind",
+              "platform"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "tool-artifact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RestrictedOperation": {
+        "description": "Removal, rollback and backup are deliberately absent: a restriction never\nblocks removing or recovering the player's own state.",
+        "enum": [
+          "download",
+          "install",
+          "update",
+          "adopt",
+          "activate",
+          "prepare",
+          "register-external",
+          "launch"
+        ],
+        "type": "string"
+      },
+      "RestrictionEffect": {
+        "enum": [
+          "hold",
+          "permit"
+        ],
+        "type": "string"
+      },
+      "RestrictionReason": {
+        "description": "Descriptive classification of why a hold exists. Never evaluated.",
+        "oneOf": [
+          {
+            "enum": [
+              "bundled-game-data",
+              "upstream-owned-route",
+              "package-facts-unresolved",
+              "legacy-rights-review",
+              "no-useful-route",
+              "upstream-prohibition",
+              "safety-evidence-mismatch",
+              "third-party-component-terms",
+              "known-defective-artifact",
+              "upstream-transition-unreviewed"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "legacy-unclassified",
+            "description": "Reader-only normalization of an untyped legacy restriction.",
+            "type": "string"
+          }
+        ]
+      },
+      "RestrictionScope": {
+        "additionalProperties": false,
+        "description": "Each empty list leaves that dimension unconstrained.",
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/$defs/RestrictedArtifact"
+            },
+            "type": "array"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/RestrictedComponent"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "description": "Source catalog identity or profile ids.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "releases": {
+            "description": "Exact release versions or tags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "ReviewedHoldArtifact": {

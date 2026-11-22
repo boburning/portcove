@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/releases/tag/v1.4.0.6103",
     "setup_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
-    "download_block_reason": "Open the publisher’s release and choose the Linux x86-64 AppImage. The upstream launcher prepares and maintains the game folder.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Open the publisher’s release and choose the Linux x86-64 AppImage. The upstream launcher prepares and maintains the game folder.",
+        "tracking_issue": 6110
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
       "steps": [

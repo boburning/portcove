@@ -236,6 +236,8 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     assert!(expected.insert(("native-portable", 38)));
     assert!(expected.insert(("native-portable", 39)));
     assert!(expected.insert(("native-portable", 40)));
+    // Daggerfall Unity local mod bundles require a reader newer than packaged Linux libraries.
+    assert!(expected.insert(("native-portable", 41)));
     for retired in [6, 7, 9, 13, 14] {
         assert!(!pairs.contains(&("staged-source-portable", retired)));
     }
@@ -525,6 +527,11 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
     let core = portcove_core::Library::open(&library).unwrap();
     let before = core.review_definition_authority().unwrap();
     let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    // Format 15 carries typed acquisition restrictions; signed delivery stays older.
+    assert_eq!(
+        capabilities["data"]["listing_formats"],
+        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    );
     let commands = capabilities["data"]["commands"].as_array().unwrap();
     assert!(
         commands

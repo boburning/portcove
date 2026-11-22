@@ -19,7 +19,16 @@
     "platforms": ["linux-x86-64"],
     "availability": "source-only",
     "setup_url": "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
-    "download_block_reason": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",
+        "tracking_issue": 5913
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

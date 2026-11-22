@@ -53,7 +53,16 @@
         }
       ]
     },
-    "download_block_reason": "The bundled original game title screens need a redistribution record. Use the upstream project or your distribution package."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The bundled original game title screens need a redistribution record. Use the upstream project or your distribution package.",
+        "tracking_issue": 5689
+      }
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,

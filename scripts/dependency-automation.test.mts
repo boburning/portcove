@@ -218,7 +218,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "yaml",
   ]);
   assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
-  assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.4");
+  assert.equal(repositoryPackage.devDependencies["es-module-lexer"], "3.0.5");
   assert.equal(repositoryPackage.devDependencies.semver, desktopPackage.devDependencies.semver);
   for (const name of [
     "@vitest/browser-playwright",

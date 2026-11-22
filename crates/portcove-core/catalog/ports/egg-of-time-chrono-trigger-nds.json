@@ -21,7 +21,16 @@
     "availability": "packages",
     "release_url": "https://github.com/power-pudu/egg-of-time/releases",
     "setup_url": "https://github.com/power-pudu/egg-of-time#readme",
-    "download_block_reason": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Portcove downloads are paused while the first-start build tools and recovery are being reviewed. The guide covers a copy you already trust and are permitted to use.",
+        "tracking_issue": 3740
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

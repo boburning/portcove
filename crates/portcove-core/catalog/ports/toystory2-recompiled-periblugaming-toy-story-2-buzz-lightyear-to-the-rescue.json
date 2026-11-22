@@ -17,7 +17,16 @@
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64", "macos-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "New downloads are unavailable while the committed/distributed translated game C and package provenance remain unresolved. Gameplay completion is unconfirmed. Information about the standalone own-disc route and optional RetComM integration is retained; these do not clear the generated-code acquisition condition.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are unavailable while the committed/distributed translated game C and package provenance remain unresolved. Gameplay completion is unconfirmed. Information about the standalone own-disc route and optional RetComM integration is retained; these do not clear the generated-code acquisition condition.",
+        "tracking_issue": 3401
+      }
+    ],
     "issue_number": 3401,
     "original_game": {
       "format_version": 1,

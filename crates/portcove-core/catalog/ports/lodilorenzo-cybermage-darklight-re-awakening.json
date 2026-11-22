@@ -33,7 +33,16 @@
       ]
     },
     "platforms": ["windows-x86-64"],
-    "download_block_reason": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the executable embeds cockpit art derived from the game’s own artwork. They can resume when upstream publishes a package without that art or one that creates it from your own game files.",
+        "tracking_issue": 2836
+      }
+    ],
     "artwork": {
       "game_id": 18998,
       "cover_id": 137555,

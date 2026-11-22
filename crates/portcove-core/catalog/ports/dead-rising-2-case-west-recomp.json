@@ -53,7 +53,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the package includes shader pre-warm data recorded from the game and recipes for patching the game’s own shaders. They can resume when upstream publishes a package that creates them from your own game files.",
+        "tracking_issue": 1122
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "dead-rising-2-case-west",

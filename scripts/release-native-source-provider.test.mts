@@ -8,6 +8,7 @@ import { disposableDirectory } from "./fixtures/disposable-directory.mts";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import {
   nativeCompatibilitySourcePaths,
+  nativeSourceBlobResponseByteLimit,
   nativeSourceDeclarationByteLimit,
 } from "./release-native-source-contract.mts";
 
@@ -182,4 +183,64 @@ void test("non-inline contents resolve only their exact immutable blob within th
     ),
   );
   assert.equal(blobReads, 0, "oversized metadata refuses before another source read");
+});
+
+void test("an at-limit generated catalog blob fits its derived transport bound and one byte more is refused", async (t) => {
+  const read = await provider();
+  const pathname = nativeCompatibilitySourcePaths[2];
+  const limit = nativeSourceDeclarationByteLimit(pathname);
+  const original = Buffer.from((await read(pathname)).content, "base64");
+  const identity = (bytes: Buffer) =>
+    createHash("sha1")
+      .update(Buffer.from(`blob ${bytes.length}\0`))
+      .update(bytes)
+      .digest("hex");
+  // Valid generated catalog bytes padded with insignificant whitespace.
+  const catalogOf = (length: number) =>
+    Buffer.concat([original, Buffer.alloc(length - original.length, 32)]);
+  // GitHub's Git blob response wraps base64 every 60 characters.
+  const blobResponse = (bytes: Buffer) => {
+    const sha = identity(bytes);
+    return JSON.stringify({
+      sha,
+      node_id: `B_kwDO${"A".repeat(40)}`,
+      size: bytes.length,
+      url: `https://api.github.com/repos/boburning/portcove/git/blobs/${sha}`,
+      content: bytes.toString("base64").replace(/.{60}/gu, "$&\n"),
+      encoding: "base64",
+    });
+  };
+  const atLimit = catalogOf(limit);
+  const responseBytes = Buffer.byteLength(blobResponse(atLimit));
+  const transport = nativeSourceBlobResponseByteLimit(pathname);
+  assert.ok(responseBytes <= transport, `${responseBytes} response bytes exceed ${transport}`);
+  assert.equal(
+    Math.max(...nativeCompatibilitySourcePaths.map(nativeSourceBlobResponseByteLimit)),
+    transport,
+    "the shared declaration blob reader is bounded by the catalog declaration",
+  );
+  const resolve = (bytes: Buffer, directory: string) => {
+    const sha = identity(bytes);
+    const metadata = { type: "file", path: pathname, encoding: "none", content: "", sha };
+    return retainNativeSourceDeclarations(
+      directory,
+      async (name) => (name === pathname ? { ...metadata, size: bytes.length } : read(name)),
+      async (requested) => {
+        assert.equal(requested, sha);
+        return JSON.parse(blobResponse(bytes)) as unknown;
+      },
+    );
+  };
+  const result = await resolve(
+    atLimit,
+    disposableDirectory(t, path.join(os.tmpdir(), "native-source-blob-limit-")),
+  );
+  assert.equal(result.files.find((file) => file.path === pathname)?.bytes, limit);
+  await assert.rejects(
+    resolve(
+      catalogOf(limit + 1),
+      disposableDirectory(t, path.join(os.tmpdir(), "native-source-blob-over-")),
+    ),
+    /provider declaration is incomplete/,
+  );
 });

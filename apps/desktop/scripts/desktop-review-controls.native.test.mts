@@ -350,7 +350,13 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
         async isEnabled() { calls.push("enabled"); return enabled; },
         async click() { throw Error("Element Click is forbidden in explicit GTK mode"); },
       };
+      let sheetReads = 0;
       const document = {
+        querySelectorAll(selector) {
+          assert.equal(selector, ".navigation-sheet");
+          sheetReads++;
+          return sheetReads === 1 ? [element] : [];
+        },
         elementFromPoint(x,y) { hits.push({x,y}); return obscured ? null : element; },
       };
       const browser = {
@@ -365,11 +371,16 @@ void test("Linux GTK pointers convert page zoom once and refuse a misdelivered m
         },
         async wait(condition, timeout, message) {
           if (condition?.using) return element;
-          const result = await (typeof condition === "function" ? condition() : condition.fn());
+          const check = () => typeof condition === "function" ? condition() : condition.fn();
+          let result = await check();
+          if (!result && message?.includes("navigation sheet must close")) result = await check();
           assert.ok(result, message ?? "Every GTK gate must pass");
           return result;
         },
-        async findElements(locator) { return locator.value === ".navigation-sheet" ? [] : [element]; },
+        async findElements(locator) {
+          assert.notEqual(locator.value, ".navigation-sheet", "Sheet visibility must be one DOM read");
+          return [element];
+        },
         actions() {
           const queued = [];
           return {
