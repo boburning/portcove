@@ -176,7 +176,7 @@ it("lets players browse reviewed releases without an applicable installed editio
       name: /Enlarge screenshot 1: North American/,
     });
     await expect.element(automaticallyMatched).toBeEnabled();
-    await expect.element(picker).toHaveTextContent("Available screenshots");
+    await expect.element(picker).toHaveAccessibleName("Screenshot source Available screenshots");
     await galleryView.rerender(view(media));
     await expect.element(automaticallyMatched).not.toBeInTheDocument();
     await picker.click();
