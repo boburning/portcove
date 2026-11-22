@@ -1091,6 +1091,9 @@ export function desktopHarnessDeadlineMs(
   // Six public collection previews, two themes, compact capture and owned native exit.
   if (selection.selected_scenarios.includes("native-collection-artwork-presentation"))
     return 600_000;
+  // Prepared-folder registration and relink plus separate draft validation and
+  // fresh launch review. Keep the extra time within this Windows-only fixture.
+  if (selection.selected_scenarios.includes("native-external-runtime-review")) return 420_000;
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;

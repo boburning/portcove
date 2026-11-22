@@ -118,13 +118,38 @@ export async function createExternalRuntimeFixture(output: string) {
     executable_hints: { "windows-x86-64": ["game.exe"] },
     persistent_paths: [],
   };
+  const selectedPort = {
+    id: "portcove-external-launch-draft-fixture",
+    name: "Portcove External Launch Draft Fixture",
+    summary: "Private inert user-selected runtime for native launch review.",
+    project_url: port.project_url,
+    support_tier: port.support_tier,
+    channels: port.channels,
+    platforms: port.platforms,
+    adapter: "staged-source-portable",
+    release: {
+      provider: "user-prepared",
+      user_prepared: {
+        "windows-x86-64": {
+          trust: "user-selected",
+          version: "user-managed",
+          archive_name: "",
+          archive_size: 0,
+          archive_sha256: "",
+          executable: "",
+          immutable_tree_sha256: "",
+          mutable_paths: [],
+        },
+      },
+    },
+  };
   const catalogPath = path.join(output, "external-runtime-qualification-catalog.json");
   await writeFile(
     catalogPath,
     JSON.stringify({
       schema_version: 2,
       source_catalog: { evidence: [], identities: [], contracts: [], validators: [] },
-      ports: [port],
+      ports: [port, selectedPort],
     }),
     { flag: "wx" },
   );
@@ -133,7 +158,7 @@ export async function createExternalRuntimeFixture(output: string) {
       fileIdentity(path.join(directory, name)),
     ),
   );
-  return { directory, port, catalogPath, identities };
+  return { directory, port, selectedPort, catalogPath, identities };
 }
 
 export async function externalRuntimePickerObservation({
@@ -161,6 +186,173 @@ export async function externalRuntimePickerObservation({
   }
   assert.equal(await browser.findElement(choose).isEnabled(), true);
   return observation;
+}
+
+async function verifyExternalLaunchDraft({
+  browser,
+  fixture,
+  confirmNative,
+  invoke,
+  output,
+  artifacts,
+  By,
+  until,
+}: ReviewContext) {
+  const { clickVisible, selectCatalogPort, replaceKeyboardText, revealDetailSection } =
+    await import("./desktop-review-controls.mts");
+  const { transportValues } = await import("./transport-values.mts");
+  const port = fixture.selectedPort;
+  const executable = path.join(fixture.directory, "game.exe");
+  const missingFolder = path.join(output, "missing-owned-start-folder");
+  const argumentsText = "--fullscreen\n\nOwned level with spaces";
+  const review = By.css('[role="dialog"][aria-describedby="selected-runtime-description"]');
+  const directory = By.css('input[aria-label="Start in folder"]');
+  const argumentsField = By.xpath('//label[contains(., "Launch options (advanced)")]/textarea');
+  const chooseExecutable = By.xpath('//button[normalize-space(.)="Choose game executable…"]');
+  const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
+  const inReview = (label: string) => By.xpath(`.//button[normalize-space(.)="${label}"]`);
+  const samePath = (observed: string, expected: string) =>
+    path.relative(observed.replace(/^\\\\\?\\/u, ""), expected) === "";
+  const click = async (locator: import("selenium-webdriver").Locator) =>
+    clickVisible(browser, await browser.wait(until.elementLocated(locator), 30_000));
+  const assertUnregistered = async () => {
+    const statuses = transportValues("status", success(await invoke("get_statuses")));
+    const status = statuses.find((entry) => entry.port_id === port.id);
+    assert.ok(status);
+    assert.equal(status.active, null);
+    assert.ok(!status.external_runtime);
+  };
+  const findEditor = async () => {
+    await revealDetailSection(browser, "Game files");
+    await browser.wait(until.elementLocated(chooseExecutable), 30_000);
+  };
+  const showArguments = async () => {
+    const disclosure = await browser.findElement(
+      By.xpath('//summary[normalize-space(.)="Advanced launch options"]'),
+    );
+    if (!(await browser.findElement(argumentsField).isDisplayed()))
+      await clickVisible(browser, disclosure);
+    return browser.findElement(argumentsField);
+  };
+  const closeReview = async () => {
+    const dialog = await browser.findElement(review);
+    await clickVisible(browser, await dialog.findElement(inReview("Cancel")));
+    await browser.wait(async () => (await browser.findElements(review)).length === 0, 15_000);
+  };
+  const openReview = async () => {
+    await click(button("Review launch details"));
+    return browser.wait(until.elementLocated(review), 30_000);
+  };
+  const selectTarget = async () => {
+    const search = await browser.findElement(By.id("port-search"));
+    await replaceKeyboardText(browser, search, port.name);
+    await selectCatalogPort(browser, port.id);
+    await findEditor();
+  };
+
+  await click(By.xpath('//nav//button[contains(., "Discover")]'));
+  await selectTarget();
+  await assertUnregistered();
+  await click(chooseExecutable);
+  await confirmNative(
+    "Locate game executable",
+    "Open",
+    "File name:",
+    "external-launch-draft-picker",
+    executable,
+  );
+  await browser.wait(
+    async () =>
+      samePath(
+        await (await browser.findElement(directory)).getAttribute("value"),
+        fixture.directory,
+      ),
+    30_000,
+    "The exact selected program must set its own start folder",
+  );
+  await replaceKeyboardText(browser, await browser.findElement(directory), missingFolder);
+  await replaceKeyboardText(browser, await showArguments(), argumentsText);
+  const refused = await openReview();
+  await browser.wait(
+    async () => {
+      const retry = await refused.findElement(inReview("Check again"));
+      return (
+        (await retry.isEnabled()) &&
+        (await refused.findElements(By.css(".failure-details"))).length === 1 &&
+        (await refused.findElements(inReview("Use this installation"))).length === 0
+      );
+    },
+    45_000,
+    "A nonexistent start folder must settle as a refused review",
+  );
+  assert.ok((await refused.getText()).includes("Empty argument"));
+  await assertUnregistered();
+  await closeReview();
+
+  await click(By.css("[data-detail-back]"));
+  await selectTarget();
+  const retainedDirectory = await browser.findElement(directory);
+  assert.equal(await retainedDirectory.getAttribute("value"), missingFolder);
+  const retainedArguments = await showArguments();
+  assert.equal(await retainedArguments.getAttribute("value"), argumentsText);
+  const retainedProgram = await browser.findElement(
+    By.xpath('//p[contains(normalize-space(.),"Game program:")]/code'),
+  );
+  assert.ok(samePath(await retainedProgram.getText(), executable));
+  assert.equal((await browser.findElements(review)).length, 0);
+
+  await replaceKeyboardText(browser, retainedDirectory, fixture.directory);
+  const checked = await openReview();
+  const use = await browser.wait(
+    until.elementLocated(
+      By.xpath(
+        '//*[@role="dialog" and @aria-describedby="selected-runtime-description"]//button[normalize-space(.)="Use this installation"]',
+      ),
+    ),
+    45_000,
+    "The corrected launch target must receive fresh Core review",
+  );
+  assert.equal(await use.isEnabled(), true);
+  const fact = (label: string) =>
+    checked.findElement(By.xpath(`.//dt[normalize-space(.)="${label}"]/following-sibling::dd[1]`));
+  const reviewedProgram = await fact("Game program");
+  const reviewedFolder = await fact("Start in folder");
+  assert.equal(await reviewedProgram.isDisplayed(), true);
+  assert.equal(await reviewedFolder.isDisplayed(), true);
+  assert.ok(samePath(await reviewedProgram.getAttribute("textContent"), executable));
+  assert.ok(samePath(await reviewedFolder.getAttribute("textContent"), fixture.directory));
+  const reviewedArgs = await (
+    await fact("Launch options (advanced)")
+  ).findElements(By.xpath("./div"));
+  assert.deepEqual(
+    await Promise.all(
+      reviewedArgs.map((argument) =>
+        argument.findElement(By.xpath("./*[last()]")).then((value) => value.getText()),
+      ),
+    ),
+    ["--fullscreen", "Empty argument", "Owned level with spaces"],
+  );
+  assert.ok(
+    (await checked.getText()).includes("Portcove has not authenticated it as an official package."),
+  );
+  await assertUnregistered();
+  await closeReview();
+
+  const receipt = path.join(output, "external-launch-draft-result.json");
+  await writeFile(
+    receipt,
+    JSON.stringify({
+      port_id: port.id,
+      executable,
+      refused_working_directory: missingFolder,
+      reviewed_working_directory: fixture.directory,
+      retained_arguments: argumentsText.split("\n"),
+      fresh_review_required: true,
+      registration_created: false,
+    }),
+    { flag: "wx" },
+  );
+  artifacts.push(receipt);
 }
 
 export async function externalRuntimeReviewScenario(context: ReviewContext) {
@@ -515,6 +707,9 @@ export async function externalRuntimeReviewScenario(context: ReviewContext) {
     await retainFiles(protectedFiles);
     report.steps.push("non-owning-removal-retains-all-original-and-new-unknown-save-files");
     await screenshot("external-runtime-after-removal");
+    await verifyExternalLaunchDraft(context);
+    await retainFiles(protectedFiles);
+    report.steps.push("selected-launch-draft-survived-validation-and-return-without-registration");
   } catch (error) {
     report.error = String(error);
     throw error;
