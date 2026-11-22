@@ -572,11 +572,14 @@ fn fixture_release_lists() -> Vec<(String, Vec<GithubRelease>)> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Defect {
-    /// The legacy candidate published only players for another host (desktop,
-    /// mobile or console) and hid an older release for this host.
+    /// Judged by the frozen legacy token rules: the legacy candidate's
+    /// non-supporting assets all name another platform, legacy selection
+    /// found no package or chose another host's package or a supporting file,
+    /// and an older release now becomes the candidate.
     ForeignOnlyReleaseHidesOlderRelease,
-    /// Legacy selection chose, or tied with, a package the classifier names
-    /// for another host.
+    /// Legacy selection chose a package the frozen token rules name for
+    /// another host, or tied with one: removing those packages yields the
+    /// typed choice.
     WrongHostPackage,
 }
 
@@ -596,13 +599,61 @@ fn own_fixture(port: &PortDefinition, list: &[GithubRelease]) -> bool {
     })
 }
 
-fn names_other_host(release: &GithubRelease, platform: Platform) -> bool {
-    release.assets.iter().any(|asset| {
-        crate::route_facts::suggest_from_filename(&asset.name)
-            .os
-            .excludes(platform)
-    })
+/// Frozen legacy token rules for "names another platform".
+fn legacy_other_host(name: &str, platform: Platform) -> bool {
+    legacy_package_platform_match(&name.to_ascii_lowercase(), platform)
+        == PackagePlatformMatch::Other
 }
+
+fn legacy_supporting(name: &str, platform: Platform) -> bool {
+    let name = name.to_ascii_lowercase();
+    let can_extract = [".zip", ".tar.gz", ".tgz"]
+        .iter()
+        .any(|extension| name.ends_with(extension));
+    legacy_assess_package_name(&name, can_extract, platform, &[]).0 == "auxiliary"
+}
+
+/// Every non-supporting asset names another platform by the frozen legacy
+/// token rules, and at least one does.
+fn legacy_foreign_only(release: &GithubRelease, platform: Platform) -> bool {
+    let mut foreign = false;
+    for asset in &release.assets {
+        let name = asset.name.to_ascii_lowercase();
+        if legacy_supporting(&name, platform) {
+            if name
+                .split(|character: char| !character.is_ascii_alphanumeric())
+                .any(|token| token == "debug")
+            {
+                return false;
+            }
+            continue;
+        }
+        if !legacy_other_host(&name, platform) {
+            return false;
+        }
+        foreign = true;
+    }
+    foreign
+}
+
+/// Exceptions keyed by port, platform, fixture, release, channel (`asset` for
+/// a single-release asset selection) and defect. Each one is a cross-applied
+/// replay: no fixture here belongs to the port it changes.
+const EXCEPTIONS_PATH: &str = "src/release/tests/selection_equivalence_exceptions.txt";
+
+/// Ports per adapter with at least one release fixture from their own
+/// repository. Adapters absent here have no own-fixture coverage.
+/// Uncovered: `referenced-disc` (0 of 1 ports) and `upstream-managed-setup`
+/// (0 of 4). Their release facts are not recorded in any fixture, and a
+/// fixture built from authored selectors would invent upstream facts.
+const OWN_FIXTURE_COVERAGE: &[(&str, usize)] = &[
+    ("generated-cache", 2),
+    ("libultraship-portable", 2),
+    ("n64-recomp-portable", 3),
+    ("native-portable", 49),
+    ("psx-recomp-managed", 71),
+    ("staged-source-portable", 7),
+];
 
 #[test]
 fn typed_selection_matches_legacy_selection_except_named_defects() {
@@ -615,60 +666,81 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
     );
     let mut exceptions = BTreeSet::new();
     let mut unexplained = Vec::new();
+    let mut own_exceptions = Vec::new();
     let (mut assets_compared, mut candidates_compared) = (0usize, 0usize);
     let mut own_pairs = BTreeSet::new();
+    let mut adapters = std::collections::BTreeMap::<String, (BTreeSet<&str>, usize)>::new();
     for port in catalog
         .ports()
         .iter()
         .filter(|port| port.release.provider == crate::ReleaseSource::Github)
     {
+        let adapter = serde_json::to_value(port.adapter)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_owned();
+        adapters.entry(adapter.clone()).or_default().1 += 1;
         for &platform in &port.platforms {
             let mut seen = BTreeSet::new();
             for (fixture, list) in &lists {
                 let own = own_fixture(port, list);
                 if own {
                     own_pairs.insert((port.id.as_str(), fixture.as_str()));
+                    adapters
+                        .get_mut(&adapter)
+                        .unwrap()
+                        .0
+                        .insert(port.id.as_str());
                 }
+                let mut record =
+                    |tag: &str, channel: String, defect: Option<Defect>, detail: String| {
+                        let row = format!("{} {platform:?} {fixture} {tag} {channel}", port.id);
+                        match defect {
+                            Some(_) if own => own_exceptions.push(format!("{row} {detail}")),
+                            Some(defect) => {
+                                exceptions.insert(format!("{row} {defect:?}"));
+                            }
+                            None => unexplained.push(format!("{row} {detail}")),
+                        }
+                    };
                 for release in list {
                     if !seen.insert((fixture.as_str(), release.tag_name.as_str())) {
                         continue;
                     }
                     assets_compared += 1;
-                    let old = legacy_choose_asset(port, platform, &release.assets)
-                        .ok()
-                        .map(|asset| asset.name.as_str());
+                    let old = legacy_choose_asset(port, platform, &release.assets);
                     let new = choose_asset(port, platform, &release.assets)
                         .ok()
                         .map(|asset| asset.name.as_str());
-                    if old == new {
+                    let old_name = old.as_ref().ok().map(|asset| asset.name.as_str());
+                    if old_name == new {
                         continue;
                     }
-                    let wrong_host_old = old.is_some_and(|name| {
-                        crate::route_facts::suggest_from_filename(name)
-                            .os
-                            .excludes(platform)
-                    });
-                    let new_is_host = new.is_none_or(|name| {
-                        !crate::route_facts::suggest_from_filename(name)
-                            .os
-                            .excludes(platform)
-                    });
-                    if new_is_host && (wrong_host_old || names_other_host(release, platform)) {
-                        exceptions.insert((
-                            own,
-                            port.id.clone(),
-                            platform,
-                            fixture.clone(),
-                            release.tag_name.clone(),
-                            None,
-                            Defect::WrongHostPackage,
-                        ));
-                    } else {
-                        unexplained.push(format!(
-                            "asset {} {platform:?} {fixture} {}: {old:?} -> {new:?}",
-                            port.id, release.tag_name
-                        ));
-                    }
+                    let wrong_host_choice =
+                        old_name.is_some_and(|name| legacy_other_host(name, platform));
+                    let host_assets = release
+                        .assets
+                        .iter()
+                        .filter(|asset| !legacy_other_host(&asset.name, platform))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let resolved_tie = old
+                        .as_ref()
+                        .is_err_and(|error| error.code == crate::ErrorCode::Conflict)
+                        && legacy_choose_asset(port, platform, &host_assets)
+                            .ok()
+                            .map(|asset| asset.name.as_str())
+                            == new;
+                    let new_is_host = new.is_none_or(|name| !legacy_other_host(name, platform));
+                    let defect = (new_is_host && (wrong_host_choice || resolved_tie))
+                        .then_some(Defect::WrongHostPackage);
+                    record(
+                        &release.tag_name,
+                        "asset".into(),
+                        defect,
+                        format!("{old_name:?} -> {new:?}"),
+                    );
                 }
                 for channel in [
                     ReleaseChannel::Stable,
@@ -697,510 +769,80 @@ fn typed_selection_matches_legacy_selection_except_named_defects() {
                         continue;
                     }
                     let old = old.expect("typed stream membership only narrows");
-                    let old_offer = legacy_choose_asset(port, platform, &old.assets).ok();
-                    // The hidden candidate's only players were for another
-                    // host, and legacy selection offered nothing for this host,
-                    // another host's package or a supporting file (source
-                    // archive or metadata) instead of a game.
-                    let defect = !native_release_applies_to_platform(port, platform, old)
-                        && old_offer.is_none_or(|asset| {
-                            let suggestion = crate::route_facts::suggest_from_filename(&asset.name);
-                            suggestion.os.excludes(platform) || suggestion.role.is_supporting()
-                        });
-                    if defect {
-                        exceptions.insert((
-                            own,
-                            port.id.clone(),
-                            platform,
-                            fixture.clone(),
-                            old.tag_name.clone(),
-                            Some(format!("{channel:?}")),
-                            Defect::ForeignOnlyReleaseHidesOlderRelease,
-                        ));
-                    } else {
-                        unexplained.push(format!(
-                            "candidate {} {platform:?} {channel:?} {fixture}: {} -> {:?}",
-                            port.id,
-                            old.tag_name,
-                            new.map(|release| &release.tag_name)
-                        ));
-                    }
+                    // An ambiguity error alone does not qualify: legacy found
+                    // no package, another host's package or a supporting file.
+                    let offered_nothing_for_host =
+                        match legacy_choose_asset(port, platform, &old.assets) {
+                            Err(error) => error.code == crate::ErrorCode::NotFound,
+                            Ok(asset) => {
+                                legacy_other_host(&asset.name, platform)
+                                    || legacy_supporting(&asset.name, platform)
+                            }
+                        };
+                    let defect = (legacy_foreign_only(old, platform) && offered_nothing_for_host)
+                        .then_some(Defect::ForeignOnlyReleaseHidesOlderRelease);
+                    record(
+                        &old.tag_name,
+                        format!("{channel:?}"),
+                        defect,
+                        format!("-> {:?}", new.map(|release| &release.tag_name)),
+                    );
                 }
             }
         }
     }
-    assert!(assets_compared > 10_000 && candidates_compared > 10_000);
-    assert!(
-        own_pairs.len() >= 100,
-        "own-repository fixture coverage shrank: {}",
-        own_pairs.len()
+    let coverage = adapters
+        .iter()
+        .map(|(adapter, (own, total))| format!("{adapter}: {}/{total}", own.len()))
+        .collect::<Vec<_>>();
+    eprintln!(
+        "selection equivalence: {assets_compared} asset and {candidates_compared} candidate \
+         selections; {} own port/fixture pairs; {} cross-applied exceptions\n\
+         own-fixture coverage by adapter (ports with an own fixture/ports):\n  {}",
+        own_pairs.len(),
+        exceptions.len(),
+        coverage.join("\n  ")
     );
+    assert!(assets_compared > 10_000 && candidates_compared > 10_000);
     assert!(
         unexplained.is_empty(),
         "unexplained selection changes:\n{}",
         unexplained.join("\n")
     );
     // Recorded fixtures replayed against their own port: no selection changed.
-    let own = exceptions
+    assert!(
+        own_exceptions.is_empty(),
+        "own-port exceptions:\n{}",
+        own_exceptions.join("\n")
+    );
+    let own_coverage = adapters
         .iter()
-        .filter(|exception| exception.0)
-        .map(|(_, port, platform, fixture, tag, _, defect)| {
-            format!("{port} {platform:?} {fixture} {tag} {defect:?}")
-        })
+        .filter(|(_, (own, _))| !own.is_empty())
+        .map(|(adapter, (own, _))| (adapter.as_str(), own.len()))
         .collect::<Vec<_>>();
-    assert!(own.is_empty(), "own-port exceptions:\n{}", own.join("\n"));
-    // Fixtures replayed against other ports, grouped by the changed release.
-    let grouped = exceptions
+    assert_eq!(
+        own_coverage, OWN_FIXTURE_COVERAGE,
+        "own-fixture coverage changed"
+    );
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(EXCEPTIONS_PATH);
+    let actual = exceptions.iter().cloned().collect::<Vec<_>>().join("\n") + "\n";
+    if std::env::var_os("PORTCOVE_WRITE_SELECTION_EQUIVALENCE").is_some() {
+        std::fs::write(&path, &actual).unwrap();
+    }
+    let expected = std::fs::read_to_string(&path).unwrap();
+    let expected = expected.lines().collect::<BTreeSet<_>>();
+    let actual = exceptions
         .iter()
-        .map(|(_, _, platform, fixture, tag, _, defect)| {
-            (*defect, fixture.as_str(), tag.as_str(), *platform)
-        })
-        .collect::<BTreeSet<_>>();
-    let expected = CROSS_APPLIED_EXCEPTIONS
-        .iter()
-        .copied()
+        .map(String::as_str)
         .collect::<BTreeSet<_>>();
     assert_eq!(
-        grouped.difference(&expected).collect::<Vec<_>>(),
-        Vec::<&(Defect, &str, &str, Platform)>::new(),
+        actual.difference(&expected).collect::<Vec<_>>(),
+        Vec::<&&str>::new(),
         "new exceptions"
     );
     assert_eq!(
-        expected.difference(&grouped).collect::<Vec<_>>(),
-        Vec::<&(Defect, &str, &str, Platform)>::new(),
+        expected.difference(&actual).collect::<Vec<_>>(),
+        Vec::<&&str>::new(),
         "listed exceptions no longer occur"
     );
 }
-
-use Defect::{ForeignOnlyReleaseHidesOlderRelease, WrongHostPackage};
-
-/// Every selection change, all from fixtures replayed against ports that do
-/// not publish them. `ForeignOnlyReleaseHidesOlderRelease`: the release's only
-/// players are for another host; legacy selection offered nothing, another
-/// host's package or a supporting file (source archive) for this host, and an
-/// older release now becomes the candidate. `WrongHostPackage`: legacy asset
-/// selection chose or tied with a package the classifier names for another
-/// host (`osx`, `win32`, `win` and similar tokens absent from the legacy
-/// conflict list).
-const CROSS_APPLIED_EXCEPTIONS: &[(Defect, &str, &str, Platform)] = &[
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "blast-corps-release-selection-2026-10-31.json",
-        "v0.84",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "blast-corps-release-selection-2026-10-31.json",
-        "v0.84",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "crispy-release-selection-2026-10-29.json",
-        "crispy-doom-7.2",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "crispy-release-selection-2026-10-29.json",
-        "crispy-doom-7.2",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "crispy-release-selection-2026-10-29.json",
-        "crispy-doom-7.2",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "historical-selector-replay.json",
-        "linux-v0.1.0-beta",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "historical-selector-replay.json",
-        "linux-v0.1.0-beta",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "historical-selector-replay.json",
-        "linux-v0.1.0-beta",
-        Platform::WindowsX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "historical-selector-replay.json",
-        "v0.2.0",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "historical-selector-replay.json",
-        "v0.2.0",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "historical-selector-replay.json",
-        "v0.2.0",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "native-engine-adoption-2026-11-02.json",
-        "1.1.7",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "native-engine-adoption-2026-11-02.json",
-        "1.1.7",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "native-engine-adoption-2026-11-02.json",
-        "1.1.7",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "native-engine-adoption-2026-11-02.json",
-        "v0.1.0",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "native-engine-adoption-2026-11-02.json",
-        "v0.1.0",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "native-engine-adoption-2026-11-02.json",
-        "v0.1.0",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "rollout-release-selection-2026-10-26.json",
-        "bfm-r55-ba90b87ad",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "rollout-release-selection-2026-10-26.json",
-        "bfm-r55-ba90b87ad",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "rollout-release-selection-2026-10-26.json",
-        "bfm-r55-ba90b87ad",
-        Platform::WindowsX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "rollout-release-selection-2026-10-26.json",
-        "v0.6.0",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "rollout-release-selection-2026-10-26.json",
-        "v0.6.0",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.1.7",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.1.7",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.1.7",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.3.3",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.3.3",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.36.0",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "1.36.0",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.0.6",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.0.6",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.0.6",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.0.8",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.0.8",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.0.8",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.1.0",
-        Platform::LinuxX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.1.0",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.1.0",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.3.2-1",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.3.2-1",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.8.1",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.8.1",
-        Platform::MacosX86_64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.84",
-        Platform::MacosAarch64,
-    ),
-    (
-        ForeignOnlyReleaseHidesOlderRelease,
-        "windows-archive-release-selection.json",
-        "v0.84",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-adoption-2026-11-02.json",
-        "1.5.5",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-adoption-2026-11-02.json",
-        "1.5.5",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-adoption-2026-11-02.json",
-        "v3.0.2025.0616",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-adoption-2026-11-02.json",
-        "v3.0.2025.0616",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-release-scenarios.json",
-        "1.5.6",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-release-scenarios.json",
-        "1.5.6",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-release-scenarios.json",
-        "v3.0.2025.0617",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "native-engine-release-scenarios.json",
-        "v3.0.2025.0617",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.3.3",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.3.3",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.3.4",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.3.4",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.5.5",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.5.5",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.5.6",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "1.5.6",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "synthetic-preview-successor",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "synthetic-preview-successor",
-        Platform::WindowsX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v0.8.1",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v0.8.1",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v0.8.2",
-        Platform::MacosAarch64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v0.8.2",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v0.92",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v0.92",
-        Platform::WindowsX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v1.2.6",
-        Platform::MacosX86_64,
-    ),
-    (
-        WrongHostPackage,
-        "windows-archive-release-selection.json",
-        "v1.2.7",
-        Platform::MacosX86_64,
-    ),
-];

@@ -292,6 +292,7 @@ struct CachedRelease {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
     fallback_reason: Option<String>,
+    newer_other_host_releases: Vec<String>,
 }
 
 struct ResolvedGithub {
@@ -300,6 +301,7 @@ struct ResolvedGithub {
     explicit_tag_commit: Option<String>,
     activity: Option<crate::UpstreamActivity>,
     fallback_reason: Option<String>,
+    newer_other_host_releases: Vec<String>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -884,12 +886,14 @@ impl GithubReleaseProvider {
             explicit_tag_commit: None,
             activity: None,
             fallback_reason: entry.fallback_reason.clone(),
+            newer_other_host_releases: entry.newer_other_host_releases.clone(),
         })
     }
 
     #[cfg(test)]
     async fn store_release(&self, key: ReleaseSelectionCacheKey, release: ResolvedRelease) {
-        self.store_selection(key, release, None, None).await;
+        self.store_selection(key, release, None, None, Vec::new())
+            .await;
     }
 
     async fn store_selection(
@@ -898,6 +902,7 @@ impl GithubReleaseProvider {
         release: ResolvedRelease,
         identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
         fallback_reason: Option<String>,
+        newer_other_host_releases: Vec<String>,
     ) {
         let mut cache = self.cache.write().await;
         cache.retain(|_, entry| entry.stored_at.elapsed() < RELEASE_CACHE_TTL);
@@ -917,6 +922,7 @@ impl GithubReleaseProvider {
                 release,
                 identity,
                 fallback_reason,
+                newer_other_host_releases,
             },
         );
     }
@@ -1763,6 +1769,7 @@ impl GithubReleaseProvider {
         resolved.explicit_tag_commit = selected.explicit_tag_commit;
         resolved.upstream_activity = selected.activity;
         resolved.fallback_reason = selected.fallback_reason;
+        resolved.newer_other_host_releases = selected.newer_other_host_releases;
         if let Some(variant) = selection.variant() {
             resolved.saved_variant = Some(variant.clone());
         }
@@ -2005,6 +2012,8 @@ impl GithubReleaseProvider {
                 ))
             })?;
         let latest = &releases[latest_index];
+        let newer_other_host_releases =
+            newer_other_host_releases(&releases[..latest_index], port, platform);
         let mut observed_digest = None;
         let mut fallback_reason = None;
         // The continuity decision for the asset finally selected, kept with the build.
@@ -2289,6 +2298,7 @@ impl GithubReleaseProvider {
                 resolved.clone(),
                 identity.clone(),
                 fallback_reason.clone(),
+                newer_other_host_releases.clone(),
             )
             .await;
         }
@@ -2298,6 +2308,7 @@ impl GithubReleaseProvider {
             explicit_tag_commit,
             activity,
             fallback_reason,
+            newer_other_host_releases,
         })
     }
 }
@@ -2355,6 +2366,7 @@ fn preserved_resolution(
         explicit_tag_commit: None,
         activity: None,
         fallback_reason: None,
+        newer_other_host_releases: Vec::new(),
     })
 }
 
@@ -2405,6 +2417,24 @@ fn native_release_applies_to_platform(
     // this platform's release stream. Same/unknown OS and source-only releases
     // retain normal refusal semantics.
     !other_platform_player
+}
+
+/// Newer in-stream releases a walk passed only because their players are for
+/// another host.
+fn newer_other_host_releases(
+    newer: &[GithubRelease],
+    port: &PortDefinition,
+    platform: Platform,
+) -> Vec<String> {
+    newer
+        .iter()
+        .filter(|release| {
+            !release.draft
+                && github_tag_in_stream(port, platform, &release.tag_name)
+                && !native_release_applies_to_platform(port, platform, release)
+        })
+        .map(|release| release.tag_name.clone())
+        .collect()
 }
 
 pub(crate) fn select_channel_candidate<'a, T>(
@@ -3185,6 +3215,58 @@ mod tests {
     mod selection_equivalence;
     mod unchanged_definition;
     mod uploader_progression;
+
+    #[tokio::test]
+    async fn a_newer_other_host_release_is_passed_and_reported_for_a_managed_route() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("cvlod-recomp").unwrap().clone();
+        assert_ne!(port.adapter, AdapterKind::NativePortable);
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let release = |id: u64, version: &str, names: &[&str]| {
+            serde_json::json!({
+                "id": id,
+                "tag_name": version,
+                "draft": false,
+                "prerelease": false,
+                "assets": names.iter().enumerate().map(|(index, name)| serde_json::json!({
+                    "id": id * 10 + index as u64,
+                    "name": format!("LodRecomp-{version}-{name}"),
+                    "size": 42,
+                    "digest": format!("sha256:{}", "a".repeat(64)),
+                    "browser_download_url": format!(
+                        "https://github.com/fliperama86/cvlod_recomp/releases/download/{version}/LodRecomp-{version}-{name}"
+                    ),
+                })).collect::<Vec<_>>(),
+            })
+        };
+        // The newest release's Windows package was withdrawn; only other
+        // hosts' players remain.
+        let (origin, _, server) = serve_http(vec![
+            response(serde_json::json!({"id": 1, "archived": false})),
+            response(serde_json::json!([
+                release(3, "v0.2.27", &["linux-x64.tar.gz", "macos-arm64.zip"]),
+                release(2, "v0.2.26", &["windows-x64.zip", "linux-x64.tar.gz"]),
+            ])),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let resolved = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(resolved.release.version, "v0.2.26");
+        assert_eq!(
+            resolved.release.asset.name,
+            "LodRecomp-v0.2.26-windows-x64.zip"
+        );
+        assert_eq!(resolved.newer_other_host_releases, ["v0.2.27"]);
+        server.join().unwrap();
+    }
 
     #[tokio::test]
     async fn exact_exclusion_uses_reviewed_fallback_and_allows_a_later_release() {

@@ -144,9 +144,10 @@ fn cvlod_windows_successor_preserves_exact_versioned_selection() -> Result<()> {
 }
 
 #[test]
-fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() -> Result<()> {
+fn cvlod_windows_successor_with_ambiguous_or_unhashed_package_holds_without_older_fallback()
+-> Result<()> {
     let original = cvlod_facts()?;
-    for defect in ["missing", "ambiguous", "unhashed", "wrong-platform"] {
+    for defect in ["ambiguous", "unhashed"] {
         let mut facts = original.clone();
         let assets = facts["releases"][0]["assets"].as_array_mut().unwrap();
         let windows = assets
@@ -154,9 +155,6 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
             .position(|asset| asset["name"] == "LodRecomp-v0.2.27-windows-x64.zip")
             .unwrap();
         match defect {
-            "missing" => {
-                assets.remove(windows);
-            }
             "ambiguous" => {
                 let mut duplicate = assets[windows].clone();
                 duplicate["id"] = json!(999_999_999);
@@ -166,14 +164,8 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
                 );
                 assets.push(duplicate);
             }
-            "unhashed" => {
-                assets[windows]["digest"] = Value::Null;
-            }
             _ => {
-                assets[windows]["name"] = json!("LodRecomp-v0.2.27-linux-x64-alternate.zip");
-                assets[windows]["browser_download_url"] = json!(
-                    "https://github.com/fliperama86/cvlod_recomp/releases/download/v0.2.27/LodRecomp-v0.2.27-linux-x64-alternate.zip"
-                );
+                assets[windows]["digest"] = Value::Null;
             }
         }
         let report = inspect_cvlod(facts)?;
@@ -181,30 +173,6 @@ fn cvlod_windows_successor_holds_incomplete_metadata_without_older_fallback() ->
             report.projections[0].latest_observed.as_ref().unwrap().tag,
             "v0.2.27"
         );
-        if matches!(defect, "missing" | "wrong-platform") {
-            // A complete asset list naming players only for other hosts puts
-            // the release outside the Windows stream (#8555). It no longer
-            // hides the preceding Windows release.
-            let projection = &report.projections[0];
-            assert_eq!(
-                projection.channel_candidate.as_ref().unwrap().tag,
-                "v0.2.26",
-                "{defect}"
-            );
-            assert_eq!(
-                projection
-                    .latest_eligible
-                    .as_ref()
-                    .unwrap()
-                    .release
-                    .asset
-                    .name,
-                "LodRecomp-v0.2.26-windows-x64.zip",
-                "{defect}"
-            );
-            assert!(projection.hold_reasons.is_empty(), "{defect}");
-            continue;
-        }
         assert!(report.projections[0].latest_eligible.is_none(), "{defect}");
         assert_eq!(
             report.projections[0].hold_reasons,
@@ -238,6 +206,132 @@ fn inspect_persona(facts: Value) -> Result<UpstreamObservationReport> {
     let path = directory.path().join("persona-observation.json");
     std::fs::write(&path, serde_json::to_vec(&document)?)?;
     inspect_upstream_observation(&port, repository_id, &path)
+}
+
+#[test]
+fn cvlod_withdrawn_windows_package_moves_the_windows_stream_to_the_preceding_release() -> Result<()>
+{
+    // The newest release keeps only other hosts' players when its Windows
+    // package is withdrawn or renamed for another host (#8555 defect 1). Its
+    // complete asset list puts it outside the Windows stream.
+    let original = cvlod_facts()?;
+    for defect in ["withdrawn", "renamed-for-linux"] {
+        let mut facts = original.clone();
+        let assets = facts["releases"][0]["assets"].as_array_mut().unwrap();
+        let windows = assets
+            .iter()
+            .position(|asset| asset["name"] == "LodRecomp-v0.2.27-windows-x64.zip")
+            .unwrap();
+        if defect == "withdrawn" {
+            assets.remove(windows);
+        } else {
+            assets[windows]["name"] = json!("LodRecomp-v0.2.27-linux-x64-alternate.zip");
+            assets[windows]["browser_download_url"] = json!(
+                "https://github.com/fliperama86/cvlod_recomp/releases/download/v0.2.27/LodRecomp-v0.2.27-linux-x64-alternate.zip"
+            );
+        }
+        let report = inspect_cvlod(facts)?;
+        let projection = &report.projections[0];
+        assert_eq!(projection.latest_observed.as_ref().unwrap().tag, "v0.2.27");
+        assert_eq!(
+            projection.channel_candidate.as_ref().unwrap().tag,
+            "v0.2.26",
+            "{defect}"
+        );
+        assert_eq!(
+            projection
+                .latest_eligible
+                .as_ref()
+                .unwrap()
+                .release
+                .asset
+                .name,
+            "LodRecomp-v0.2.26-windows-x64.zip",
+            "{defect}"
+        );
+        assert!(projection.hold_reasons.is_empty(), "{defect}");
+        // An installation of v0.2.27 is held instead of offered v0.2.26; see
+        // `release::tests::a_newer_other_host_release_is_passed_and_reported_for_a_managed_route`
+        // and `service::other_host_downgrade_tests`.
+    }
+    Ok(())
+}
+
+#[test]
+fn a_reviewed_fallback_is_named_for_asset_selection_and_coverage_stays_complete() -> Result<()> {
+    let facts = cvlod_facts()?;
+    let artifact = |index: usize| {
+        let release = &facts["releases"][index];
+        let asset = release["assets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|asset| {
+                asset["name"]
+                    .as_str()
+                    .unwrap()
+                    .ends_with("-windows-x64.zip")
+            })
+            .unwrap();
+        crate::ReviewedHoldArtifact {
+            version: release["tag_name"].as_str().unwrap().into(),
+            sha256: parse_digest(asset["digest"].as_str().unwrap()).unwrap(),
+        }
+    };
+    let mut port = crate::Catalog::embedded()?.port("cvlod-recomp")?.clone();
+    port.platforms = vec![Platform::WindowsX86_64];
+    port.managed_acquisition_hold = Some(crate::ManagedAcquisitionHold {
+        reason: "Excluded exact artifact".into(),
+        activation_reason: "Excluded staged artifact".into(),
+        excluded_artifacts: vec![artifact(0)],
+        reviewed_artifacts: vec![artifact(1)],
+    });
+    let latest = facts["releases"][0]["id"].as_u64().unwrap();
+    let fallback = facts["releases"][1]["id"].as_u64().unwrap();
+    let scoped = |covered: &[u64]| -> Result<UpstreamObservationReport> {
+        let mut facts = facts.clone();
+        for release in facts["releases"].as_array_mut().unwrap() {
+            if !covered.contains(&release["id"].as_u64().unwrap()) {
+                release["assets"] = json!([]);
+            }
+        }
+        let document = json!({ "format": 2, "authority": "provider-observation-only",
+            "port_id": port.id, "started_at": "2026-10-13T00:00:00Z",
+            "completed_at": "2026-10-13T00:00:00Z", "facts_sha256": json_digest(&facts)?,
+            "coverage": {"kind": "channel-candidate-assets", "complete_release_headers": true,
+                "asset_release_ids": covered},
+            "facts": facts });
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("cvlod-observation.json");
+        std::fs::write(&path, serde_json::to_vec(&document)?)?;
+        inspect_upstream_observation(&port, facts["repository"]["id"].as_u64().unwrap(), &path)
+    };
+    // Only the excluded candidate's assets were collected: the fallback is
+    // named so selection can collect it, the projection holds, and the
+    // accepted observation still states complete provider coverage.
+    let report = scoped(&[latest])?;
+    let projection = &report.projections[0];
+    assert_eq!(projection.reviewed_fallback.as_ref().unwrap().id, fallback);
+    assert!(projection.latest_eligible.is_none());
+    assert_eq!(
+        projection.hold_reasons,
+        [
+            "reviewed-artifact-excluded",
+            "release-asset-observation-incomplete"
+        ]
+    );
+    assert_eq!(projection.route_holds, [RouteHold::IncompleteCoverage]);
+    assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
+    // Once the fallback's assets are collected it is eligible.
+    let report = scoped(&[latest, fallback])?;
+    let projection = &report.projections[0];
+    assert_eq!(
+        projection.latest_eligible.as_ref().unwrap().release_id,
+        fallback
+    );
+    assert_eq!(projection.reviewed_fallback.as_ref().unwrap().id, fallback);
+    assert!(projection.route_holds.is_empty());
+    Ok(())
 }
 
 #[test]
@@ -1255,7 +1349,13 @@ fn a_newest_foreign_only_release_does_not_hide_an_older_desktop_release() -> Res
                 TargetArch::X86_64
             )
         );
-        assert_eq!(fact.source, crate::FactSource::StableDeclaration);
+        // No reviewed selector matched (the test port has no asset hints):
+        // generic scoring keeps today's selection and records only a
+        // non-authorizing filename suggestion, without a hold.
+        assert_eq!(
+            fact.source,
+            crate::FactSource::FilenameSuggestion { rule_version: 1 }
+        );
         assert!(windows.route_holds.is_empty());
 
         // The Windows package is outside the Linux stream: Linux selects no
@@ -1277,6 +1377,26 @@ fn a_newest_foreign_only_release_does_not_hide_an_older_desktop_release() -> Res
         assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
         assert_eq!(report.fact_provenance.facts_sha256, report.facts_sha256);
     }
+    Ok(())
+}
+
+#[test]
+fn a_matching_reviewed_hint_is_a_stable_declaration() -> Result<()> {
+    let mut port = generic_desktop_port()?;
+    port.release
+        .asset_hints
+        .insert(Platform::WindowsX86_64, vec!["windows-x64".into()]);
+    let document = envelope(vec![release_with_assets(
+        2,
+        "2.0.0",
+        &["game-windows-x64.zip", "game-linux-x64.tar.gz"],
+    )])?;
+    let report = inspect(&port, &document)?;
+    let windows = report.projections[0].selected_artifact.as_ref().unwrap();
+    assert_eq!(windows.source, crate::FactSource::StableDeclaration);
+    // Linux has no reviewed hint: its fact stays a filename suggestion.
+    let linux = report.projections[3].selected_artifact.as_ref().unwrap();
+    assert!(!linux.source.authorizes());
     Ok(())
 }
 
@@ -1328,10 +1448,9 @@ fn incomplete_asset_coverage_stops_the_walk_with_a_typed_hold() -> Result<()> {
     assert_eq!(report.release_facts[0].release_id, 3);
     assert!(!report.release_facts[0].assets_complete);
     assert!(report.release_facts[0].artifacts.is_empty());
-    assert_eq!(
-        report.fact_provenance.coverage,
-        crate::Coverage::Partial { next_cursor: None }
-    );
+    // A selection-scoped asset gap is a projection hold, not partial provider
+    // coverage: the observation itself is accepted.
+    assert_eq!(report.fact_provenance.coverage, crate::Coverage::Complete);
     Ok(())
 }
 

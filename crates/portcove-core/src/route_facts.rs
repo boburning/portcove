@@ -595,7 +595,12 @@ pub(crate) fn suggest_from_filename(name: &str) -> FilenameSuggestion {
     let name = name.to_ascii_lowercase();
     let tokens = tokens(&name);
     let systems = named_systems(&name);
-    let os = systems.os();
+    // A mobile package form names its device class even without a token.
+    let os = match systems.os() {
+        TargetOs::Unknown if systems.count() == 0 && name.ends_with(".ipa") => TargetOs::Ios,
+        TargetOs::Unknown if systems.count() == 0 && name.ends_with(".aab") => TargetOs::Android,
+        os => os,
+    };
     let processors = named_processors(&name, os == TargetOs::Macos);
     let arch = if processors.universal {
         TargetArch::Universal
@@ -614,7 +619,7 @@ pub(crate) fn suggest_from_filename(name: &str) -> FilenameSuggestion {
         .any(|extension| name.ends_with(extension));
     let role = if let Some(role) = supporting_role(&name, &tokens) {
         role
-    } else if (systems.android || systems.ios)
+    } else if matches!(os, TargetOs::Android | TargetOs::Ios)
         && (package_form || MOBILE_FORMS.iter().any(|ext| name.ends_with(ext)))
     {
         ArtifactRole::MobilePackage

@@ -78,6 +78,18 @@ fn filename_suggestions_classify_role_host_and_processor() {
             TargetArch::Unknown,
         ),
         (
+            "game-1.0.ipa",
+            ArtifactRole::MobilePackage,
+            TargetOs::Ios,
+            TargetArch::Unknown,
+        ),
+        (
+            "game-1.0.aab",
+            ArtifactRole::MobilePackage,
+            TargetOs::Android,
+            TargetArch::Unknown,
+        ),
+        (
             "game-portmaster.zip",
             ArtifactRole::ConsoleOutput,
             TargetOs::Console,
@@ -177,6 +189,7 @@ fn filename_suggestions_classify_role_host_and_processor() {
 fn foreign_players_are_named_only_for_another_host() {
     let windows = Platform::WindowsX86_64;
     assert!(suggest_from_filename("game.apk").foreign_player(windows));
+    assert!(suggest_from_filename("game.ipa").foreign_player(windows));
     assert!(suggest_from_filename("game-switch.nro").foreign_player(windows));
     assert!(suggest_from_filename("game-linux.tar.gz").foreign_player(windows));
     assert!(!suggest_from_filename("game-windows.zip").foreign_player(windows));

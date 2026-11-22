@@ -32,7 +32,10 @@ pub struct UpstreamObservationReport {
     pub evidence: ObservationEvidence,
     pub projections: Vec<ChannelObservation>,
     /// Typed role and host facts for each release a projection observed
-    /// (latest observed, channel candidate or eligible), in provider order.
+    /// (latest observed, channel candidate, reviewed fallback or eligible), in
+    /// provider order. A consumer checks each fact's `source` before treating
+    /// its role as authorized.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub release_facts: Vec<ObservedReleaseFacts>,
     pub fact_provenance: FactProvenance,
 }
@@ -66,6 +69,10 @@ pub struct ChannelObservation {
     pub latest_observed: Option<ObservedReleaseIdentity>,
     pub channel_candidate: Option<ObservedReleaseIdentity>,
     pub latest_eligible: Option<ObservedResolution>,
+    /// The reviewed release that replaces an excluded channel candidate. Its
+    /// assets are needed to project it, like the candidate's.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reviewed_fallback: Option<ObservedReleaseIdentity>,
     pub hold_reasons: Vec<String>,
     /// Typed holds beside the stable `hold_reasons` strings.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -377,6 +384,7 @@ fn project_channel(
         latest_observed: latest.map(release_identity),
         channel_candidate: candidate.map(release_identity),
         latest_eligible: None,
+        reviewed_fallback: None,
         hold_reasons: Vec::new(),
         route_holds: Vec::new(),
         selected_artifact: None,
@@ -499,6 +507,7 @@ fn project_channel(
             output.hold_reasons.push("no-reviewed-fallback".into());
             return output;
         };
+        output.reviewed_fallback = Some(release_identity(fallback));
         if covered_assets.is_some_and(|covered| !covered.contains(&fallback.id)) {
             output
                 .hold_reasons
@@ -526,8 +535,13 @@ fn project_channel(
         .iter()
         .find(|raw| raw["id"] == candidate.id)
         .expect("decoded release");
-    let fact = artifact_fact(port, asset, Some(&sha256), Some(platform));
-    if let Some(hold) = runtime_hold(&fact, platform) {
+    let declared = reviewed_selector_matches(port, platform, &asset.name);
+    let fact = artifact_fact(port, asset, Some(&sha256), declared.then_some(platform));
+    // Selection without a matching reviewed selector stays as it is today; its
+    // fact records only non-authorizing provenance and holds nothing yet.
+    if (fact.source.authorizes() || fact.contradictory)
+        && let Some(hold) = runtime_hold(&fact, platform)
+    {
         output.hold_reasons.push(hold.as_str().into());
         output.route_holds.push(hold);
         output.selected_artifact = Some(fact);
@@ -561,6 +575,24 @@ fn project_channel(
         },
     });
     output
+}
+
+/// Whether a reviewed selector of this route, not generic filename scoring,
+/// chose the asset: every reviewed asset hint for the platform matched, or the
+/// platform has a curated pin.
+fn reviewed_selector_matches(port: &PortDefinition, platform: Platform, name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    port.release.curated.contains_key(&platform)
+        || port
+            .release
+            .asset_hints
+            .get(&platform)
+            .is_some_and(|hints| {
+                !hints.is_empty()
+                    && hints
+                        .iter()
+                        .all(|hint| name.contains(&hint.to_ascii_lowercase()))
+            })
 }
 
 /// Typed facts for one asset from every source this slice can consult. The
@@ -677,15 +709,12 @@ pub fn inspect_upstream_observation(
             })
         })
         .collect::<Vec<ChannelObservation>>();
-    let coverage = if projections.iter().any(|projection| {
-        projection
-            .route_holds
-            .contains(&RouteHold::IncompleteCoverage)
-    }) {
-        Coverage::Partial { next_cursor: None }
-    } else {
-        Coverage::Complete
-    };
+    // Coverage states provider paging and collection. Core accepts only
+    // observations with complete release-header paging (a scoped observation
+    // must state `complete_release_headers`), so an accepted observation is
+    // complete. Selection-scoped asset gaps stay per-projection
+    // `incomplete-coverage` holds on an otherwise accepted observation.
+    let coverage = Coverage::Complete;
     let catalog_definition_sha256 = crate::catalog::observation_definition_sha256(port)?;
     let observed_at: String = document["completed_at"]
         .as_str()
@@ -704,6 +733,10 @@ pub fn inspect_upstream_observation(
                     .map(|release| release.id),
                 projection
                     .channel_candidate
+                    .as_ref()
+                    .map(|release| release.id),
+                projection
+                    .reviewed_fallback
                     .as_ref()
                     .map(|release| release.id),
                 projection
