@@ -6248,11 +6248,20 @@ export interface OutputProviderCatalog {
    * False when additional or unreadable records may exist.
    */
   complete: boolean;
+  /**
+   * Records the provider reports for the whole listing, when it reports one.
+   */
+  expected_total?: number | null;
   freshness: ProviderFreshness;
   /**
    * Scope of older unscoped package references, when they belong to this catalog.
    */
   legacy_game_id?: string | null;
+  /**
+   * Provider page to continue from when this read stopped at its request
+   * bound. Absent when the listing ended or could not be read consistently.
+   */
+  next_page?: number | null;
   observed_at: number;
   projects: ProviderProject[];
   [k: string]: unknown;
