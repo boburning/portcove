@@ -37,6 +37,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import { SettingsExportResultsProvider } from "./features/workspace/settings-export-results";
 import {
   sourcesKey,
   useStandingSetupCatchUp,
@@ -1291,7 +1292,12 @@ function useWorkspace(props: WorkspaceProps) {
 }
 
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
-  return <WorkspaceView {...useWorkspace(props)} />;
+  const model = useWorkspace(props);
+  return (
+    <SettingsExportResultsProvider key={props.bootstrap.generation}>
+      <WorkspaceView {...model} />
+    </SettingsExportResultsProvider>
+  );
 }
 
 type WorkspaceModel = ReturnType<typeof useWorkspace>;
@@ -2096,17 +2102,22 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support report", desktopApi.createSupportBundle, {
-          refresh: "none",
-          invalidateDiagnostics: false,
-        })
+        operations.perform(
+          "support report",
+          () => desktopApi.createSupportBundle(bootstrap.generation),
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            propagateFailure: true,
+          },
+        )
       }
       exportMetadata={() =>
         operations.perform(
           "export library metadata",
           async () => {
             const path = await pickMetadataExportPath();
-            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+            return path ? desktopApi.exportLibraryMetadata(path, bootstrap.generation) : undefined;
           },
           {
             refresh: "none",
