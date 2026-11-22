@@ -890,12 +890,14 @@ export const desktopApi = {
     generation: number,
     selectedReleaseId?: NonNullable<CatalogDownloadCandidates["selected_release_id"]>,
     channel = "stable",
+    releaseWindow?: number,
   ) =>
     invoke<CatalogDownloadCandidates>("catalog_download_candidates", {
       portId,
       generation,
       selectedReleaseId,
       channel,
+      ...(releaseWindow === undefined ? {} : { releaseWindow }),
     }),
   discoverSetupLaunchTargets: (portId: string, pendingId: string, generation: number) =>
     invoke<import("./types").SetupLaunchTargets>("discover_setup_launch_targets", {
