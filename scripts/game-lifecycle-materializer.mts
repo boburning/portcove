@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { lstat, mkdtemp, open, realpath } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual, promisify } from "node:util";
+import { preparePayloadSigningEnvironment } from "./release-payload-signing.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -27,7 +28,7 @@ export interface ReviewedGameLifecycleCase {
   predecessor_executable: FileIdentity;
   successor_executable: FileIdentity;
 }
-type RunCli = (cli: string, args: string[], cwd: string) => Promise<string>;
+type RunCli = (cli: string, args: string[], cwd: string, env: NodeJS.ProcessEnv) => Promise<string>;
 interface MaterializerOptions {
   cli: { path: string; sha256: string };
   scratchRoot: string;
@@ -109,9 +110,10 @@ async function requireFile(file: string, sha256: string) {
   }
 }
 
-async function runCli(cli: string, args: string[], cwd: string) {
+async function runCli(cli: string, args: string[], cwd: string, env: NodeJS.ProcessEnv) {
   const { stdout } = await exec(cli, args, {
     cwd,
+    env,
     timeout: 120_000,
     maxBuffer: 8 * 1024 * 1024,
     windowsHide: true,
@@ -201,12 +203,14 @@ export async function materializeGameLifecycleLibraries(options: MaterializerOpt
       if (!path.isAbsolute(cli.path) || !samePath(await realpath(cli.path), cli.path))
         throw new Error("Lifecycle CLI must be an exact canonical executable");
       const scope = await mkdtemp(path.join(scratchRoot, "pcg-"));
+      const environment = await preparePayloadSigningEnvironment(scope);
       const command = async (library: string, name: string, args: string[]) => {
         await requireFile(cli.path, cli.sha256);
         const raw = await invoke(
           cli.path,
           ["--library", library, "--json", "--non-interactive", ...args],
           scope,
+          environment,
         );
         const envelope: unknown = JSON.parse(raw);
         if (!isRecord(envelope) || envelope.ok !== true || envelope.command !== name)

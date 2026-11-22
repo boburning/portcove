@@ -84,8 +84,10 @@ async function fixture(t: TestContext) {
     wrongRuntime: false,
   };
   const commands: string[] = [];
+  const environments: NodeJS.ProcessEnv[] = [];
   const emit = (command: string, data: unknown) => JSON.stringify({ command, ok: true, data });
-  const invoke = async (_cli: string, args: string[]) => {
+  const invoke = async (_cli: string, args: string[], _cwd: string, env: NodeJS.ProcessEnv) => {
+    environments.push(env);
     const library = args[1]!;
     const name = args[4]!;
     commands.push(args.slice(4, 6).join(" "));
@@ -130,6 +132,7 @@ async function fixture(t: TestContext) {
   return {
     item,
     commands,
+    environments,
     outcomes,
     run: (overrides = {}) =>
       materializeGameLifecycleLibraries({
@@ -191,4 +194,52 @@ void test("never verifies an external original or prepares unrelated installed p
   f.outcomes.wrongRuntime = true;
   assert.equal((await f.run()).work.length, 0);
   assert.equal(f.commands.includes("verify exact-port"), false);
+});
+
+void test("Core receives only isolated transport essentials and no ambient credentials", async (t) => {
+  const f = await fixture(t);
+  for (const key of [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "ACTIONS_RUNTIME_TOKEN",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+    "PORTCOVE_SIGNING_SECRET",
+    "https_proxy",
+    "NODE_OPTIONS",
+  ]) {
+    const previous = process.env[key];
+    process.env[key] = "ambient-fixture";
+    t.after(() => {
+      if (previous === undefined) delete process.env[key];
+      else process.env[key] = previous;
+    });
+  }
+  assert.equal((await f.run()).work.length, 1);
+  const env = f.environments[0]!;
+  assert.ok(
+    Object.keys(env).every((key) =>
+      [
+        "SystemRoot",
+        "WINDIR",
+        "HOME",
+        "USERPROFILE",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "XDG_CONFIG_HOME",
+        "XDG_CACHE_HOME",
+        "XDG_DATA_HOME",
+        "XDG_STATE_HOME",
+        "XDG_RUNTIME_DIR",
+      ].includes(key),
+    ),
+  );
+  assert.ok(env.HOME?.includes("pcg-"));
+  assert.notEqual(env.APPDATA, process.env.APPDATA);
+  assert.equal(
+    f.environments.every((value) => value === env),
+    true,
+  );
 });
