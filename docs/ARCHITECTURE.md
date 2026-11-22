@@ -4374,6 +4374,11 @@ host's secure-storage key; ordinary copying does not mint another host's trust.
 The UI reports metadata export only, never a verified backup or a manual checkbox
 as verification. Existing content-bound import checks publication into a new/empty
 destination; Move separately switches authority and retains its original tree.
+The Desktop metadata export checks the starting library generation after the
+save picker returns. A support report from Settings checks the generation of the
+diagnostics snapshot it collects. Settings retains the last confirmed library information
+export and support report while navigating in the same library generation.
+Opening Settings again uses the saved receipt and does not rerun either export.
 Profile/workspace presentation state cannot change these Core guarantees.
 
 The manual-copy guide must also disclose host-local version credentials before
