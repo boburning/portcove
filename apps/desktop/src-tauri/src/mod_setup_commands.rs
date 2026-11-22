@@ -47,11 +47,16 @@ pub(crate) async fn get_mod_setups(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     port_id: String,
+    browse_only: Option<bool>,
 ) -> DesktopResult<ModSetupsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            service.preview_mod_setups(&port_id)
+            if browse_only == Some(true) {
+                service.preview_mod_handoff(&port_id)
+            } else {
+                service.preview_mod_setups(&port_id)
+            }
         })
     })
     .await
@@ -923,3 +928,69 @@ mod tests {
 #[cfg(test)]
 #[path = "mod_recipe_review_tests.rs"]
 mod mod_recipe_review_tests;
+
+#[tauri::command]
+pub(crate) async fn get_quaddicted_catalog(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    filename_search: Option<String>,
+    page: u32,
+) -> DesktopResult<portcove_core::Observed<portcove_core::QuaddictedPage>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            Ok(service
+                .quaddicted_catalog(
+                    &port_id,
+                    portcove_core::Platform::current()?,
+                    filename_search.as_deref(),
+                    page,
+                )
+                .await?)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn get_moddb_file_notices(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+) -> DesktopResult<portcove_core::Observed<portcove_core::ModDbFileNotices>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            Ok(service
+                .moddb_file_notices(&port_id, portcove_core::Platform::current()?)
+                .await?)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn open_upstream_mod_notice(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    source: portcove_core::ExternalModPortalSource,
+    page_url: String,
+) -> DesktopResult<()> {
+    let selection = state.inner().clone();
+    crate::blocking_async_service_at_generation(
+        selection.clone(),
+        generation,
+        move |service| async move {
+            let reviewed = service
+                .review_external_mod_source_page(&port_id, source, &page_url)
+                .await?;
+            crate::require_library_generation(crate::state_generation(&selection), generation)?;
+            crate::open_host_target(std::ffi::OsStr::new(&reviewed))
+        },
+    )
+    .await
+}

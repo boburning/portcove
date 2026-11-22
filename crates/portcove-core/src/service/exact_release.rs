@@ -297,9 +297,14 @@ mod tests {
             scope: Option<&crate::DefinitionAcquisitionScope>,
             pin: &ExactReleaseSelection,
         ) -> Result<crate::ScopedResolvedRelease> {
-            self.0
+            // The exact resolution reports the same newer other-host release,
+            // so only the pin rule (not an empty list) keeps the guard away.
+            let mut resolved = self
+                .0
                 .resolve_exact(port, channel, platform, scope, pin)
-                .await
+                .await?;
+            resolved.newer_other_host_releases = vec!["v3.0.0".into()];
+            Ok(resolved)
         }
     }
 

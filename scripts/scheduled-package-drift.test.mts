@@ -103,7 +103,10 @@ const layoutPort = {
 };
 const layoutListings = { listings: [...listings.listings, { id: "layout" }] };
 
-function collectWithLayout(port = layoutPort, shapes = table) {
+function collectWithLayout(
+  port: typeof layoutPort & Record<string, unknown> = layoutPort,
+  shapes = table,
+) {
   return collectDriftTargets(
     { ports: [...catalog.ports, port] },
     layoutListings,
@@ -197,6 +200,8 @@ void test("reports one exact current missing-baseline row without inspection or 
   const selected = select([snapshot, structuredClone(snapshot)]);
   assert.deepEqual(selected, {
     targets: [],
+    predecessorScopeGaps: [],
+    predecessorScopeGapsOmitted: 0,
     baselineGaps: {
       rows: [
         {
@@ -323,6 +328,108 @@ void test("a reviewed layout supplies an issue-free baseline only without a gene
     collectWithLayout({ ...layoutPort, adapter: "manual-setup" }),
     collect([observation()]),
   );
+});
+
+void test("exact predecessor observations bind the inspector and cached verdict to the selected release", async () => {
+  const [, current] = collectWithLayout();
+  assert.ok(current);
+  const record = {
+    repository_id: current.repositoryId,
+    release_id: current.releaseId,
+    asset_id: current.assetId,
+    tag: current.version,
+    channel: current.channel,
+    artifact: {
+      asset_name: current.asset.name,
+      size: current.asset.size,
+      sha256: current.asset.sha256,
+    },
+    layout: { directories: [], executables: ["example.exe"] },
+  };
+  const [, target] = collectWithLayout({
+    ...layoutPort,
+    reviewed_predecessor_package_layouts_v1: { [platform]: [record] },
+  });
+  assert.ok(target?.predecessorObservation);
+  assert.notEqual(driftTargetKey(target), driftTargetKey(current));
+  assert.notEqual(target.baselineSha256, current.baselineSha256);
+  const response = coreResponse(target, comparedLayout);
+  assert.throws(() => inspectionFromResponse(response, target), /bound to the selected package/u);
+  const observed = inspectionFromResponse(
+    {
+      ...response,
+      data: { ...response.data, predecessor_observation: target.predecessorObservation },
+    },
+    target,
+  );
+  assert.equal(observed.layoutMatch, true);
+  assert.ok(observed.predecessorScopeSha256);
+  const mismatched = { ...observed, predecessorScopeSha256: "a".repeat(64) };
+  const stale = new Map([[driftTargetKey(target), mismatched]]);
+  let inspections = 0;
+  const dependencies = {
+    async download() {},
+    async inspect() {
+      inspections++;
+      return observed;
+    },
+    now: () => 1,
+  };
+  const rerun = await scanDriftTargets([target], stale, 1000, dependencies);
+  assert.equal(inspections, 1);
+  assert.equal(
+    rerun.observations[0]?.inspection.predecessorScopeSha256,
+    observed.predecessorScopeSha256,
+  );
+  const valid = new Map([[driftTargetKey(target), observed]]);
+  const reused = await scanDriftTargets([target], valid, 1000, dependencies);
+  assert.equal(inspections, 1);
+  assert.equal(
+    reused.observations[0]?.inspection.predecessorScopeSha256,
+    observed.predecessorScopeSha256,
+  );
+  const scopedPort = {
+    ...layoutPort,
+    reviewed_predecessor_package_layouts_v1: { [platform]: [record] },
+  };
+  const classify = (handoff: ReturnType<typeof observation>) =>
+    collectDriftTargets({ ports: [scopedPort] }, layoutListings, table, [handoff], source, now);
+  const missing = observation("layout");
+  const missingSelected = missing.catalog_policies[0]!.projections[0]!.latest_eligible;
+  missingSelected.asset_id = 0;
+  const mismatchedProvider = observation("layout");
+  mismatchedProvider.catalog_policies[0]!.repository_id += 1;
+  const reposted = observation("layout");
+  const repostedProjection = reposted.catalog_policies[0]!.projections[0]!;
+  repostedProjection.channel_candidate = { id: 4, tag: "v3" };
+  repostedProjection.latest_eligible.release_id = 4;
+  repostedProjection.latest_eligible.asset_id = 5;
+  repostedProjection.latest_eligible.release.version = "v3";
+  repostedProjection.latest_eligible.release.asset.url =
+    "https://github.com/owner/repo/releases/download/v3/example.zip";
+  const invalidTransport = observation("layout");
+  invalidTransport.catalog_policies[0]!.projections[0]!.latest_eligible.release.asset.url =
+    "https://example.invalid/redirected.zip";
+  for (const handoff of [missing, mismatchedProvider, reposted, invalidTransport]) {
+    const report = classify(handoff);
+    assert.deepEqual(report.targets, []);
+    assert.equal(report.predecessorScopeGaps[0]?.reason, "predecessor-provider-scope-unassessed");
+    const inspected = await scanDriftTargets(report.targets, valid, 1000, dependencies);
+    assert.deepEqual(inspected.observations, []);
+    assert.deepEqual(
+      driftNotices(
+        { format: 1, run: { ...source, event_name: "schedule" }, ...inspected },
+        layoutListings,
+        { ...source, event_name: "schedule" },
+      ),
+      [],
+    );
+  }
+  repostedProjection.latest_eligible.release.asset.sha256 = "2".repeat(64);
+  const fresh = classify(reposted);
+  assert.equal(fresh.targets.length, 1);
+  assert.equal(fresh.targets[0]?.predecessorObservation, undefined);
+  assert.deepEqual(fresh.predecessorScopeGaps, []);
 });
 
 void test("Core must report the bound explicit layout and only its two known components", () => {

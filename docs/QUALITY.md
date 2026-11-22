@@ -459,6 +459,12 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
+the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
+Neither run reported an assertion failure before its cutoff. Each Windows case
+has a 240-second limit with the same assertions, cleanup and retry policy.
+Completion under the new limit still needs a hosted run.
+
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
 checkout at `36703f2c4ddd` then completed in 87.516 seconds under the existing

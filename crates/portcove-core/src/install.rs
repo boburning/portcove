@@ -1580,6 +1580,11 @@ impl Installer {
                     platform,
                     &payload_root,
                     None,
+                    request
+                        .qualification
+                        .acquisition
+                        .as_ref()
+                        .map(|proof| (proof, &artifact)),
                 )?;
             }
             if port.release.grant_declared_executable && !grant_before_layout {
@@ -1595,12 +1600,8 @@ impl Installer {
                 &payload_root,
             )?;
             // Compare the upstream package before an adapter adds content.
-            let shape = self.package_shape_record(
-                port,
-                &request.qualification,
-                &payload_root,
-                &artifact.sha256,
-            );
+            let shape =
+                self.package_shape_record(port, &request.qualification, &payload_root, &artifact);
             if crate::package_shape::withholds_release(&shape.verdict)
                 && let Some(capability) =
                     crate::package_shape::selected_enforcement_capability(&catalog, port)?
@@ -1657,6 +1658,11 @@ impl Installer {
                     platform,
                     &payload_root,
                     None,
+                    request
+                        .qualification
+                        .acquisition
+                        .as_ref()
+                        .map(|proof| (proof, &artifact)),
                 )?;
             }
             if crate::native_external_profile::archive_siblings::requires_archive(
@@ -1783,6 +1789,11 @@ impl Installer {
                     platform,
                     &payload_root,
                     Some(&data),
+                    request
+                        .qualification
+                        .acquisition
+                        .as_ref()
+                        .map(|proof| (proof, &artifact)),
                 )?;
             }
         }
@@ -4199,7 +4210,7 @@ impl Installer {
         port: &PortDefinition,
         qualification: &InstallQualification,
         payload_root: &Path,
-        sha256: &str,
+        artifact: &ArtifactIdentity,
     ) -> crate::package_shape::PackageShapeRecord {
         let local = self
             .local_shape_baseline(port, qualification.platform)
@@ -4210,8 +4221,16 @@ impl Installer {
             qualification,
             qualification.platform,
             payload_root,
-            sha256,
+            &artifact.sha256,
             local.as_ref(),
+            crate::package_layout::layout_for_acquisition(
+                port,
+                qualification.platform,
+                qualification
+                    .acquisition
+                    .as_ref()
+                    .map(|proof| (proof, artifact)),
+            ),
         )
     }
 
