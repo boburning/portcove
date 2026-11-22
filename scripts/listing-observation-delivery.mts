@@ -1,15 +1,7 @@
 /** Existing observer facts -> the existing signed descriptive target. No executable authority. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -96,16 +88,58 @@ const withoutHold = (row: Record<string, unknown>) => {
   const { [legacyHold]: _, ...rest } = row;
   return rest;
 };
+/** A legacy successor never carries observations; they stay compact facts. */
+const legacyRow = (row: Record<string, unknown>) => {
+  const { upstream_observation: _, ...rest } = row;
+  return rest;
+};
+function uniqueRows(document: Delivery) {
+  const rows = new Map<string, Record<string, unknown>>();
+  for (const row of document.directory.listings) {
+    const id = String(row.id);
+    if (rows.has(id))
+      throw new Error("Reviewed legacy listing replacement repeats a listing identity");
+    rows.set(id, row);
+  }
+  return rows;
+}
+
+/** The facts a legacy hold is bound to: Core's format-11 export of the current
+ * canonical directory and the identities the compact target withdraws. */
+interface LegacyHoldBinding {
+  legacy: unknown;
+  compactWithdrawn: readonly string[];
+}
+function boundRows(binding: LegacyHoldBinding) {
+  const legacy = directory(binding.legacy);
+  if (legacy.format_version !== legacyListingFormat)
+    throw new Error("Legacy hold binding requires Core's format-11 export");
+  const withdrawn = new Set(binding.compactWithdrawn);
+  const rows = new Map(
+    legacy.listings
+      .filter((row) => !withdrawn.has(String(row.id)))
+      .map((row) => [String(row.id), legacyRow(row)]),
+  );
+  return (id: string) => {
+    const row = rows.get(id);
+    if (!row) throw new Error("Reviewed legacy listing hold has no unwithdrawn compact row");
+    return row;
+  };
+}
 
 /** Once compact delivery is active the legacy target stays fixed for format-11
  * readers. A successor may add safety withdrawals and may add or keep a legacy
- * download hold, including a held row the target did not carry. It never drops
- * or clears a hold, resurrects a withdrawal or changes other legacy facts. The
- * signer enforces the same rule (release-tools `check_legacy_successor`). */
+ * download hold. A hold it adds or retells carries Core's current format-11
+ * hold text, and a row it adds is exactly Core's format-11 export of that
+ * unwithdrawn compact listing. It never drops or clears a hold, resurrects a
+ * withdrawal or changes other legacy facts. The signer enforces the same rule
+ * against the same publication's compact row (release-tools
+ * `check_legacy_successor`). */
 export function reviewedLegacySuccessor(
   prior: Buffer,
   authored: Buffer,
   activeRevision: number,
+  binding: LegacyHoldBinding,
 ): Delivery {
   const original = delivery(parseCatalogSource(prior.toString("utf8")));
   const desired = delivery(parseCatalogSource(authored.toString("utf8")));
@@ -120,8 +154,9 @@ export function reviewedLegacySuccessor(
     throw new Error("Reviewed legacy listing replacement must advance the listing revision");
   if (original.withdrawn_ids.some((id) => !ids.has(id)))
     throw new Error("Reviewed legacy listing replacement removed a safety withdrawal");
-  const before = new Map(original.directory.listings.map((row) => [String(row.id), row]));
-  const after = new Map(desired.directory.listings.map((row) => [String(row.id), row]));
+  const current = boundRows(binding);
+  const before = uniqueRows(original);
+  const after = uniqueRows(desired);
   let tightened = false;
   for (const [id, row] of after) {
     const old = before.get(id);
@@ -135,6 +170,11 @@ export function reviewedLegacySuccessor(
           ? "Reviewed legacy listing replacement may not clear a download hold"
           : "Reviewed legacy listing replacement may add only a held row",
       );
+    if (old) {
+      if (current(id)[legacyHold] !== row[legacyHold])
+        throw new Error("Reviewed legacy listing hold differs from Core's format-11 listing");
+    } else if (observationHash(current(id)) !== observationHash(row))
+      throw new Error("Reviewed legacy listing added row differs from Core's format-11 listing");
     tightened = true;
   }
   for (const [id, old] of before)
@@ -159,45 +199,79 @@ export function reviewedLegacySuccessor(
   return desired;
 }
 
-/** After compact activation, carry Core's current format-11 download hold for
- * every row the fixed legacy target already delivers. Only adds or replaces a
- * hold string; a hold the current catalog no longer has stays in place. */
+/** After compact activation, carry Core's current format-11 download hold to
+ * format-11 readers. A delivered row receives the current hold text. A row the
+ * target does not deliver is added, as Core's exact format-11 export, when its
+ * hold is new or changed since the active compact publication (`activeCompact`);
+ * its delivered values then replace the reader's bundled row. A hold that
+ * predates activation on an undelivered row stays with the reader's bundled
+ * row, as before activation. Only adds or retells a hold; a hold the current
+ * catalog no longer has stays in place. Identities withdrawn by either carrier
+ * are left to the withdrawal route. */
 export function legacyHoldSuccessor(
   signed: Buffer,
-  legacyProjection: unknown,
+  binding: LegacyHoldBinding,
   revision: number,
-): { bytes: Buffer; held: string[] } | null {
+  activeCompact: { listings: readonly Record<string, unknown>[] },
+): { bytes: Buffer; held: string[]; added: string[] } | null {
   const document = delivery(parseCatalogSource(signed.toString("utf8")));
-  const current = new Map(directory(legacyProjection).listings.map((row) => [row.id, row]));
+  const projection = directory(binding.legacy);
+  if (projection.format_version !== legacyListingFormat)
+    throw new Error("Legacy hold binding requires Core's format-11 export");
+  const excluded = new Set([...document.withdrawn_ids, ...binding.compactWithdrawn]);
+  const current = new Map(projection.listings.map((row) => [String(row.id), row]));
   const changed: string[] = [];
   const listings = document.directory.listings.map((row) => {
-    const reason = current.get(row.id)?.[legacyHold];
-    if (typeof reason !== "string" || !reason.length || row[legacyHold] === reason) return row;
+    const reason = current.get(String(row.id))?.[legacyHold];
+    if (
+      excluded.has(String(row.id)) ||
+      typeof reason !== "string" ||
+      !reason.length ||
+      row[legacyHold] === reason
+    )
+      return row;
     changed.push(String(row.id));
     return { ...row, [legacyHold]: reason };
   });
-  if (!changed.length) return null;
-  return {
-    bytes: Buffer.from(
-      JSON.stringify({ ...document, revision, directory: { ...document.directory, listings } }),
-    ),
-    held: changed,
-  };
+  const delivered = new Set(listings.map((row) => String(row.id)));
+  const previous = new Map(activeCompact.listings.map((row) => [String(row.id), row]));
+  const added: string[] = [];
+  for (const row of projection.listings) {
+    const id = String(row.id);
+    if (
+      delivered.has(id) ||
+      excluded.has(id) ||
+      !held(row) ||
+      previous.get(id)?.[legacyHold] === row[legacyHold]
+    )
+      continue;
+    listings.push(legacyRow(row));
+    added.push(id);
+  }
+  if (!changed.length && !added.length) return null;
+  listings.sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
+  const bytes = Buffer.from(
+    JSON.stringify({ ...document, revision, directory: { ...document.directory, listings } }),
+  );
+  if (bytes.length > maximum)
+    throw new Error("Legacy hold successor exceeds the legacy listing byte bound");
+  return { bytes, held: changed, added };
 }
 
-/** Optional observer enrichment never blocks publication. When the complete
- * candidate set fails Core validation, isolate the failing candidates within a
- * bounded number of validations, then validate the admitted set once more. */
-export function isolateValidEnrichment<T>(
+/** Optional observer enrichment never blocks compact publication. When the
+ * complete candidate set fails Core validation, isolate the failing candidates
+ * within a bounded number of validations, then validate the admitted set once
+ * more. Legacy preparation keeps its all-or-nothing fallback instead. */
+export async function isolateValidEnrichment<T>(
   candidates: readonly T[],
-  accepts: (subset: readonly T[]) => boolean,
+  accepts: (subset: readonly T[]) => boolean | Promise<boolean>,
   budget = 24,
-): { admitted: T[]; excluded: T[]; validations: number } {
+): Promise<{ admitted: T[]; excluded: T[]; validations: number }> {
   let validations = 1;
-  if (accepts(candidates)) return { admitted: [...candidates], excluded: [], validations };
+  if (await accepts(candidates)) return { admitted: [...candidates], excluded: [], validations };
   const admitted: T[] = [];
   const excluded: T[] = [];
-  const visit = (group: readonly T[]) => {
+  const visit = async (group: readonly T[]) => {
     if (!group.length) return;
     if (group.length === 1 || validations >= budget) {
       excluded.push(...group);
@@ -211,14 +285,14 @@ export function isolateValidEnrichment<T>(
         continue;
       }
       validations++;
-      if (accepts([...admitted, ...half])) admitted.push(...half);
-      else visit(half);
+      if (await accepts([...admitted, ...half])) admitted.push(...half);
+      else await visit(half);
     }
   };
-  visit(candidates);
+  await visit(candidates);
   if (admitted.length) {
     validations++;
-    if (!accepts(admitted)) {
+    if (!(await accepts(admitted))) {
       excluded.push(...admitted);
       admitted.length = 0;
     }
@@ -813,8 +887,31 @@ export async function prepareObservationBundle(options: {
     throw new Error("Compact listing publication requires a retained legacy listing");
   if (authoredLegacy && (!priorCompact || !retainedLegacy))
     throw new Error("Reviewed legacy withdrawal requires existing compact and legacy targets");
+  const exportFormat = (version: number) => {
+    const baseline: unknown = JSON.parse(
+      cli([
+        "--json",
+        "catalog",
+        "inspect-listings",
+        "--path",
+        canonicalPath,
+        "--format-version",
+        String(version),
+      ]),
+    );
+    if (!isRecord(baseline) || baseline.ok !== true)
+      throw new Error("Core could not export the exact canonical directory for format " + version);
+    return directory(baseline.data);
+  };
+  let legacyExported: Directory | undefined;
+  const legacyExport = () => (legacyExported ??= exportFormat(legacyListingFormat));
   signedLegacy = retainedLegacy;
   const activeDocument = previous ? delivery(parseCatalogSource(previous.toString("utf8"))) : null;
+  // A legacy hold binds to Core's format-11 export and the compact withdrawals.
+  const legacyBinding = (): LegacyHoldBinding => ({
+    legacy: legacyExport(),
+    compactWithdrawn: activeDocument?.withdrawn_ids ?? [],
+  });
   // Reviewed recovery: the next publication returns to legacy-only delivery
   // above every compact reader's replay floor, keeping every compact withdrawal.
   const returning = options.returnToLegacy === true;
@@ -831,7 +928,12 @@ export async function prepareObservationBundle(options: {
     if (renewal) {
       diagnostics.push("Deferred the authored withdrawal until the exact signed prior is current");
     } else if (activeDocument) {
-      successor = reviewedLegacySuccessor(retainedLegacy, authoredLegacy, activeDocument.revision);
+      successor = reviewedLegacySuccessor(
+        retainedLegacy,
+        authoredLegacy,
+        activeDocument.revision,
+        legacyBinding(),
+      );
       retainedLegacy = authoredLegacy;
     }
   }
@@ -875,37 +977,33 @@ export async function prepareObservationBundle(options: {
       sha256: digest,
     };
   }
-  const exportFormat = (version: number) => {
-    const baseline: unknown = JSON.parse(
-      cli([
-        "--json",
-        "catalog",
-        "inspect-listings",
-        "--path",
-        canonicalPath,
-        "--format-version",
-        String(version),
-      ]),
-    );
-    if (!isRecord(baseline) || baseline.ok !== true)
-      throw new Error("Core could not export the exact canonical directory for format " + version);
-    return directory(baseline.data);
-  };
   let compatible: Directory | undefined;
   if (!renewal) compatible = exportFormat(format);
-  // After activation the fixed legacy target still receives Core's current
-  // format-11 hold for each row it delivers. A hold is never removed there.
+  // After activation the fixed legacy target receives Core's current format-11
+  // hold for each delivered row and each held row it does not deliver. A hold
+  // is never removed there.
   let automaticHolds: string[] = [];
+  let automaticRows: string[] = [];
   if (!renewal && useCompact && priorCompact && retainedLegacy && activeDocument) {
-    const held = legacyHoldSuccessor(
+    const automatic = legacyHoldSuccessor(
       retainedLegacy,
-      format === legacyListingFormat ? compatible : exportFormat(legacyListingFormat),
+      {
+        legacy: legacyExport(),
+        compactWithdrawn: [...activeDocument.withdrawn_ids, ...(successor?.withdrawn_ids ?? [])],
+      },
       successor?.revision ?? activeDocument.revision + 1,
+      activeDocument.directory,
     );
-    if (held) {
-      successor = reviewedLegacySuccessor(signedLegacy!, held.bytes, activeDocument.revision);
-      retainedLegacy = held.bytes;
-      automaticHolds = held.held;
+    if (automatic) {
+      successor = reviewedLegacySuccessor(
+        signedLegacy!,
+        automatic.bytes,
+        activeDocument.revision,
+        legacyBinding(),
+      );
+      retainedLegacy = automatic.bytes;
+      automaticHolds = automatic.held;
+      automaticRows = automatic.added;
     }
   }
   if (!isRecord(current) || !Array.isArray(current.ports))
@@ -960,10 +1058,9 @@ export async function prepareObservationBundle(options: {
     writeFileSync(candidate, bytes);
     return cli(["--json", "catalog", "inspect-listings", "--path", candidate]);
   };
-  let validationRun = 0;
-  // Stage the complete authenticated representation for validation and output.
-  // Compact validation uses the normal publication inspector on these exact bytes.
-  const stage = (projected: ReturnType<typeof project>, destinationRoot: string) => {
+  // Stage the complete authenticated representation for output. Compact
+  // validation uses the normal publication inspector on these exact bytes.
+  const stage = async (projected: ReturnType<typeof project>, destinationRoot: string) => {
     const compactWire = useCompact
       ? previousWire && priorCompact && !projected.changed
         ? previousWire
@@ -973,50 +1070,56 @@ export async function prepareObservationBundle(options: {
     const destination = path.join(destinationRoot, listingDeliveryTarget);
     mkdirSync(path.dirname(destination), { recursive: true });
     if (authoredLegacy) {
-      if (!readFileSync(destination).equals(authoredLegacy))
+      const copied = await readControllerToolFile(destination, maximum);
+      if (!copied.equals(authoredLegacy))
         throw new Error("Reviewed legacy listing input changed during projection");
       unlinkSync(destination);
     }
-    writeFileSync(destination, (useCompact ? retainedLegacy : null) ?? projected.bytes, {
-      flag: "wx",
-    });
+    writeFileSync(destination, retainedLegacy ?? projected.bytes, { flag: "wx" });
     if (compactWire) {
       writeFileSync(path.join(destinationRoot, compactListingDeliveryTarget), compactWire, {
         flag: "wx",
       });
       cli(["--json", "catalog", "inspect-definition-publication", destinationRoot]);
-    } else {
+    }
+    return compactWire;
+  };
+  let projected = renewal ?? project(candidates);
+  let excludedCandidates: string[] = [];
+  if (!useCompact) {
+    // Legacy publication keeps its existing optional-enrichment fallback.
+    try {
+      inspect(
+        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
+      );
+    } catch (error) {
+      if (renewal) throw error;
+      diagnostics.push(
+        "observer candidates failed Core validation; retaining prior applicable observations",
+      );
+      projected = project([]);
       inspect(
         Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
       );
     }
-    return compactWire;
-  };
-  const accepts = (observations: readonly Record<string, unknown>[]) => {
-    const scratch = path.join(workspace, `validation-${++validationRun}`);
-    try {
+  } else if (!renewal && candidates.length) {
+    // Compact publication isolates invalid optional enrichment. Projection
+    // failures, including capacity exhaustion, still fail preparation; only a
+    // Core validation refusal of the staged publication excludes candidates.
+    let validationRun = 0;
+    const accepts = async (observations: readonly Record<string, unknown>[]) => {
       const candidate = project(observations);
-      // Legacy validation needs only the directory; compact validation stages
-      // the complete publication for its normal inspector.
-      if (useCompact) stage(candidate, scratch);
-      else
-        inspect(
-          Buffer.from(JSON.stringify(delivery(JSON.parse(candidate.bytes.toString())).directory)),
-        );
-      return true;
-    } catch {
-      return false;
-    } finally {
-      rmSync(scratch, { recursive: true, force: true });
-    }
-  };
-  let projected = renewal ?? project(candidates);
-  let excludedCandidates: string[] = [];
-  if (!renewal && candidates.length) {
-    // Optional enrichment never stalls publication in either carrier. Invalid
-    // candidates are excluded and reported; the final staging below still runs
-    // the complete validation on the exact admitted bytes.
-    const isolated = isolateValidEnrichment(candidates, accepts);
+      const scratch = path.join(workspace, `validation-${++validationRun}`);
+      try {
+        await stage(candidate, scratch);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        rmSync(scratch, { recursive: true, force: true });
+      }
+    };
+    const isolated = await isolateValidEnrichment(candidates, accepts);
     if (isolated.excluded.length) {
       excludedCandidates = isolated.excluded.map((candidate) => String(candidate.id));
       diagnostics.push(
@@ -1031,7 +1134,7 @@ export async function prepareObservationBundle(options: {
   )
     throw new Error("Canonical inputs changed during observation projection");
   const bundle = path.join(options.output, "bundle");
-  const compactWire = stage(projected, bundle);
+  const compactWire = await stage(projected, bundle);
   const report = {
     bundle,
     revision: projected.revision,
@@ -1060,6 +1163,7 @@ export async function prepareObservationBundle(options: {
                 reviewed_legacy_revision: successor.revision,
                 legacy_sha256: hash(retainedLegacy!),
                 automatic_legacy_holds: automaticHolds,
+                automatic_legacy_rows: automaticRows,
               }
             : {}),
         }
@@ -1072,7 +1176,7 @@ export async function prepareObservationBundle(options: {
           },
         }
       : {}),
-    excluded_candidates: excludedCandidates,
+    ...(useCompact ? { excluded_candidates: excludedCandidates } : {}),
     projection_scope: renewal
       ? "Exact prior signed listing directory for signer-verified renewal."
       : useCompact

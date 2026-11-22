@@ -1565,9 +1565,10 @@ the legacy target follows the [legacy-hold policy](SIGNED-CATALOG.md#legacy-hold
 it changes only to add a safety withdrawal or a download hold, advances above
 the current revision and preserves the other signed legacy rows. The compact
 successor carries the same withdrawals, preserves its other rows and prior
-withdrawals, and publishes above the legacy successor. In either carrier, an
-observer candidate that fails Core validation is excluded and reported; the
-definitions and the remaining candidates still publish.
+withdrawals, and publishes above the legacy successor. Compact preparation
+excludes and reports an observer candidate that fails Core validation; the
+definitions and the remaining candidates still publish. Legacy preparation
+keeps its fallback and publishes none of the candidates in that case.
 If prior metadata has expired, the publisher first renews the exact known
 targets through historical signature verification.
 

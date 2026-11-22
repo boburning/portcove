@@ -228,44 +228,73 @@ but publication stays stopped until the cause is repaired.
    checkpoint was made under a different trusted root`. Bootstrap cannot
    recover it, because an existing pointer always selects segmented history.
    Rotation needs a defined checkpoint successor before history is activated.
-3. **Rollback after history bootstrap.** A reviewed return to legacy-only
+3. **Fixed legacy listing.** After compact activation the legacy target's
+   bytes are fixed, except for safety withdrawals and download holds (see
+   [Legacy holds after compact activation](#legacy-holds-after-compact-activation)).
+   _Partly satisfied by this repository's code and tests:_ a hold added or
+   retold in the catalog after activation now reaches format-11 readers
+   without withdrawing the row. Still open: format-11 readers cannot receive a
+   typed restriction's permit, scope, second hold, non-download operation,
+   `reason` or `tracking_issue`. A hold that predates activation on a discovery
+   row the legacy target does not deliver stays with the reader's bundled row,
+   as it does before activation.
+4. **No enrichment fallback.** Legacy preparation drops all optional observer
+   enrichment when Core refuses the candidate set and keeps publishing.
+   _Satisfied by this repository's code and tests for compact preparation:_
+   it excludes and reports only the candidates Core refuses, and each excluded
+   row keeps its prior signed observation. Legacy preparation keeps its
+   all-or-nothing fallback unchanged. A projection failure, including capacity
+   exhaustion, still fails compact preparation.
+5. **Rollback after history bootstrap.** A reviewed return to legacy-only
    delivery is available before history bootstrap (see
    [Returning to legacy-only delivery](#returning-to-legacy-only-delivery)).
    Once a checkpoint names a compact floor, the checkpoint refuses a successor
    without the compact carrier with `catalog history checkpoint listing requires
    its authenticated retained carriers`. Activating both makes compact delivery
    one-way until a compact retirement checkpoint is defined.
-4. **Revision bump.** Compact activation must use a revision above the legacy
+6. **Revision bump.** Compact activation must use a revision above the legacy
    target. A format-15 compact target beside a format-11 legacy target at the
    same revision decodes differently, and the release tools refuse it.
 
 ### Rehearsing compact activation
 
-`node scripts/listing-compact-activation-rehearsal.mts --cli PATH` runs the
-production gate, projection and successor functions against the committed
-catalog. `PATH` is a locally built `portcove` CLI, used only to export Core's
-format-11 projection; `--released-reader PATH` also evaluates that reader's
-capabilities. A fresh legacy projection stands in for the last signed legacy
-target. The rehearsal signs, publishes and activates nothing, and reads no key,
-release or Pages content. `scripts/listing-compact-activation-rehearsal.test.mts`
-runs the same checks on fixtures. Each check stops the rehearsal when its
-property fails:
+`node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
+runs the production preparation entry point, `prepareObservationBundle`, once per
+step against the committed catalog and the committed publication bundle. `PATH`
+is a locally built `portcove` CLI. It exports, validates and inspects every
+publication, and it stands in for the reviewed released reader unless
+`--released-reader PATH` names one. `DIR` must be an empty directory; each
+step's bundle and report stay there.
 
-- **Released-reader gate.** Activation is refused unless the reader reports the
-  `gzip-base64-json-v1` carrier and listing format 15, and the candidate is
-  format 15.
-- **Revision bump.** The first compact target publishes above the legacy
-  revision. A same-revision pair is refused.
-- **Legacy holds.** The legacy target is byte-identical across activation. The
-  report counts holds delivered by the legacy target, holds that legacy readers
-  take from their bundled directory and any legacy row missing a current hold.
-  It lists the typed restriction detail format-11 readers cannot receive.
-- **Enrichment.** A synthetic invalid observer candidate fails the complete
-  candidate set. Isolation excludes and reports only that candidate, and the
-  directory still publishes.
-- **Rollback.** A legacy-only return publishes above the compact revision and
-  keeps its withdrawals. Both compact and legacy readers admit it. A return at
-  the legacy revision would be refused by every compact reader.
+The prior repository of each step is a fixture: its metadata names the
+previous step's listing targets, and the verification report is that
+repository's file inventory. Nothing is signed or verified against a key, and
+nothing is published or activated. The release-tools tests cover the signer's
+admission of these proposals. `scripts/listing-compact-activation-rehearsal.test.mts`
+runs the same steps with a stand-in CLI whose one validation rule mirrors
+Core's refusal of an unknown observation field. Each step stops the rehearsal
+when its property fails:
+
+- **Released-reader gate.** Preparation refuses activation when the reader
+  lacks the `gzip-base64-json-v1` carrier, lacks the candidate's listing
+  format, or differs from its reviewed SHA-256. The candidate format is the
+  canonical directory's format, 15 for the committed catalog; the gate does
+  not pin format 15 itself.
+- **Activation.** The first compact target is format 15 and publishes above the
+  legacy revision. Preparation keeps the signed legacy bytes it read from the
+  prior repository.
+- **Holds after activation.** A hold added to a delivered row, and one added to
+  a discovery row the legacy target does not deliver, both reach the legacy
+  target automatically. The added row equals Core's format-11 export, each hold
+  equals the compact row's hold, and no other legacy row changes. Removing the
+  holds from the catalog again leaves the legacy target unchanged.
+- **Enrichment.** Two observer candidates are prepared, one with a field Core's
+  observation schema refuses. Compact preparation excludes and reports only
+  that candidate; its row keeps the prior signed observation. Legacy
+  preparation drops both, as on `main`.
+- **Rollback.** A legacy-only return publishes a format-11 target above the
+  compact revision, keeps every compact withdrawal and removes the compact
+  target. Preparation refuses a return without a current compact target.
 
 On November 22, 2026 the committed catalog had 152 typed listing restrictions.
 Each is a whole-listing download hold whose explanation is the legacy
@@ -274,23 +303,34 @@ receive each restriction's `reason` code and `tracking_issue`; no committed
 restriction uses a permit, a scope, a second hold or an operation other than
 download. A fresh legacy projection delivers 5 of the held listings. The other
 147 are discovery rows outside the legacy target, so legacy readers keep their
-bundled row, as they do before activation.
+bundled row, as they do before activation. The rehearsal passed every step with
+a locally built CLI on that date.
 
 ### Legacy holds after compact activation
 
 After activation the legacy target stays fixed for format-11 readers. It
-changes only to keep them at least as safe as compact readers:
+changes only to keep them at least as safe as compact readers. A hold may be
+added or tightened without withdrawing the row; it is never loosened or
+dropped.
 
 - A legacy successor may add safety withdrawals, add a `download_block_reason`
-  to a delivered row, replace that hold's text, or add a row that carries a
-  hold. It must advance above the current listing revision.
+  to a delivered row, replace that hold's text, or add a held row. It must
+  advance above the current listing revision.
+- Each hold it adds or retells equals the hold of the same publication's
+  compact row. Each row it adds equals that compact row's format-11
+  projection exactly, without observations, and the compact target must
+  deliver that row unwithdrawn. Preparation checks this against Core's
+  format-11 export; the signer checks it against the compact row.
 - It never drops or clears a hold, removes a withdrawal, removes an unwithdrawn
-  row or changes any other legacy fact. The signer enforces the same rule.
-- Each publication carries Core's current format-11 hold for every delivered
-  legacy row automatically. A hold the current catalog no longer has stays in
-  the legacy target.
+  row or changes any other legacy fact.
+- The first compact publication keeps the legacy bytes exactly. From the next
+  compact publication, preparation adds a successor automatically when Core's
+  current format-11 export holds a delivered row with different or missing
+  text, or holds an undelivered row whose hold is new or changed since the
+  active compact target. A catalog hold that is later removed stays in the
+  legacy target. Renewal of an expired prior publishes no successor.
 - A reviewed exact legacy target in the publication bundle remains the route
-  for withdrawals and for adding a held row the target does not deliver.
+  for withdrawals, under the same rules.
 - The compact successor carries the same withdrawals and publishes above the
   legacy successor.
 

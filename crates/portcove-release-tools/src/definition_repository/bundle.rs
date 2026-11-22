@@ -170,13 +170,19 @@ fn collect_listing_withdrawals<'a>(
 /// An older reader remains on its verified directory. A reviewed successor may
 /// withdraw identities and may add or keep a legacy download hold. It never
 /// drops or clears a hold, resurrects a withdrawal or replaces other legacy facts.
-/// A row it adds must carry a hold, so it can only make a download stricter.
-pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8]) -> Result<()> {
+/// A hold it adds or retells, and a row it adds, are bound to the same
+/// proposal's compact directory: the hold text equals that compact row's legacy
+/// `download_block_reason`, and an added row equals the compact row's format-11
+/// projection exactly. It can therefore only make a download stricter, using
+/// facts the compact readers receive in the same publication.
+pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8], compact: &[u8]) -> Result<()> {
     const HOLD: &str = "download_block_reason";
     let prior: serde_json::Value = serde_json::from_slice(prior)?;
     let proposal: serde_json::Value = serde_json::from_slice(proposal)?;
+    let compact: serde_json::Value = serde_json::from_slice(compact)?;
     let prior_ids = listing_withdrawals(&prior)?;
     let next_ids = listing_withdrawals(&proposal)?;
+    let compact_ids = listing_withdrawals(&compact)?;
     if !prior_ids.is_subset(&next_ids) {
         return invalid("legacy listing replacement removed a safety withdrawal");
     }
@@ -197,7 +203,18 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8]) -> Result<()
     };
     let held =
         |row: &serde_json::Value| row[HOLD].as_str().is_some_and(|reason| !reason.is_empty());
-    let (before, after) = (rows(&prior)?, rows(&proposal)?);
+    let (before, after, current) = (rows(&prior)?, rows(&proposal)?, rows(&compact)?);
+    // The compact row this publication delivers for an unwithdrawn identity.
+    let current_row = |id: &str| {
+        current
+            .get(id)
+            .filter(|_| !compact_ids.contains(id))
+            .ok_or_else(|| {
+                TufRepositoryError::Invalid(
+                    "legacy listing hold has no unwithdrawn compact row".into(),
+                )
+            })
+    };
     let mut tightened = false;
     for (id, row) in &after {
         if next_ids.contains(id) {
@@ -218,9 +235,19 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8]) -> Result<()
                 if !held(row) {
                     return invalid("legacy listing replacement may not clear a download hold");
                 }
+                if current_row(id)?[HOLD] != row[HOLD] {
+                    return invalid("legacy listing hold differs from the compact listing");
+                }
                 tightened = true;
             }
-            None if held(row) => tightened = true,
+            None if held(row) => {
+                if row.get("upstream_observation").is_some()
+                    || legacy_projection(current_row(id)?) != *row
+                {
+                    return invalid("legacy listing added row differs from the compact listing");
+                }
+                tightened = true;
+            }
             None => return invalid("legacy listing replacement may add only a held row"),
         }
     }
@@ -252,6 +279,43 @@ pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8]) -> Result<()
 pub(super) struct ListingTargets {
     pub legacy: Option<ListingRevision>,
     pub compact: Option<ListingRevision>,
+}
+
+/// Core's format-11 export of a compact listing row, as JSON: typed
+/// restrictions, implementation, verified edition sources and typed IGDB scenes
+/// are format-12+ facts, and observations are never copied into a legacy row.
+fn legacy_projection(row: &serde_json::Value) -> serde_json::Value {
+    let mut row = row.clone();
+    let Some(fields) = row.as_object_mut() else {
+        return row;
+    };
+    for field in ["restrictions", "implementation", "upstream_observation"] {
+        fields.remove(field);
+    }
+    if let Some(media) = fields
+        .get_mut("media")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        media.retain(|asset| {
+            !(asset.get("igdb").is_some_and(|igdb| !igdb.is_null())
+                && matches!(asset["role"].as_str(), Some("header" | "screenshot")))
+        });
+        if media.is_empty() {
+            fields.remove("media");
+        }
+    }
+    if let Some(editions) = fields
+        .get_mut("original_game")
+        .and_then(|game| game.get_mut("source_editions"))
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for edition in editions {
+            if let Some(edition) = edition.as_object_mut() {
+                edition.remove("verified_sources");
+            }
+        }
+    }
+    row
 }
 
 pub(super) fn listing_targets(files: &Files) -> Result<ListingTargets> {

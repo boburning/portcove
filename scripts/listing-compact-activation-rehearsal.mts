@@ -1,28 +1,33 @@
-/** Rehearse compact format-15 listing activation without signing or publishing.
- * Uses the production projection, gate and successor functions on fixtures or
- * the committed catalog. Nothing here reads a key, Pages or a release. */
+/** Rehearse compact format-15 listing activation through the production
+ * preparation entry point (`prepareObservationBundle`) without signing or
+ * publishing. Each step runs the real preparation code against a fixture prior
+ * repository; the Core CLI it is given projects, exports and validates. Nothing
+ * here reads a key, Pages or a release. The release-tools signer rules are
+ * exercised separately by the release-tools tests. */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { isRecord } from "./runtime-values.mts";
+import { observationHash } from "./upstream-observer.mts";
 import {
   compactListingCarrier,
-  compactListingDecodedMaximum,
+  compactListingDeliveryTarget,
   decodeRetainedCompactListing,
-  encodeCompactListing,
-  listingDeliveryMaximum,
+  listingDeliveryTarget,
 } from "./listing-directory-carrier.mts";
-import {
-  isolateValidEnrichment,
-  legacyHoldSuccessor,
-  projectListingDelivery,
-  publishedAbove,
-  requireCompactListingReader,
-  reviewedLegacySuccessor,
-} from "./listing-observation-delivery.mts";
+import { prepareObservationBundle } from "./listing-observation-delivery.mts";
+import type { UpstreamInput } from "./maintenance-upstream.mts";
+import { fixtureListing, fixturePolicy } from "./fixtures/listing-observation-delivery-fixture.mts";
+import { checkpoint, keyOf, progress } from "./fixtures/upstream-checkpoint-fixture.mts";
 
 export const compactActivationFormat = 15;
 const legacyFormat = 11;
@@ -40,45 +45,7 @@ interface Delivery {
 }
 const read = (bytes: Buffer) => JSON.parse(bytes.toString("utf8")) as Delivery;
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
-function refused(action: () => unknown) {
-  try {
-    action();
-  } catch (error) {
-    return message(error);
-  }
-  throw new Error("Rehearsal expected a refusal");
-}
-
-/** First activation requires a reviewed released reader with the compact
- * carrier and exactly the format it will receive. */
-export function requireCompactActivationReader(report: unknown, candidateFormat: number) {
-  if (candidateFormat !== compactActivationFormat)
-    throw new Error(
-      `Compact activation is reviewed for listing format ${compactActivationFormat}; the candidate is format ${candidateFormat}`,
-    );
-  return requireCompactListingReader(report, compactActivationFormat);
-}
-
-/** Mirror of release-tools `listing_targets`: both carriers share one revision. */
-export function listingCarrierPairAdmissible(legacy: Buffer, compactDecoded: Buffer) {
-  const old = read(legacy);
-  const next = read(compactDecoded);
-  return (
-    (next.revision > old.revision ||
-      (next.revision === old.revision && hash(legacy) === hash(compactDecoded))) &&
-    old.withdrawn_ids.every((id) => next.withdrawn_ids.includes(id))
-  );
-}
-
-/** Mirror of Core `admit_listings`: a reader refuses a replay or equivocation. */
-export function readerAdmits(floor: Buffer | null, candidate: Buffer) {
-  if (!floor) return true;
-  const old = read(floor);
-  const next = read(candidate);
-  return (
-    next.revision > old.revision || (next.revision === old.revision && floor.equals(candidate))
-  );
-}
+const rows = (bytes: Buffer) => new Map(read(bytes).directory.listings.map((row) => [row.id, row]));
 
 interface Restriction {
   id: string;
@@ -123,424 +90,442 @@ export function restrictionsNotExpressibleToLegacy(canonical: Directory) {
   return { entries, summary, hold_semantics_lost: holdLost.map((entry) => entry.listing) };
 }
 
-/** Which canonical download holds the fixed legacy target delivers. */
-export function legacyHoldCoverage(legacyProjection: Directory, legacy: Buffer) {
-  const document = read(legacy);
-  const rows = new Map(document.directory.listings.map((row) => [row.id, row]));
-  const withdrawn = new Set(document.withdrawn_ids);
-  const coverage = {
-    held_in_legacy_target: [] as string[],
-    missing_from_legacy_row: [] as string[],
-    bundled_fallback: [] as string[],
-    withdrawn: [] as string[],
-  };
-  for (const row of legacyProjection.listings) {
-    const reason = row.download_block_reason;
-    if (typeof reason !== "string" || !reason.length) continue;
-    const delivered = rows.get(row.id);
-    if (withdrawn.has(row.id)) coverage.withdrawn.push(row.id);
-    else if (!delivered) coverage.bundled_fallback.push(row.id);
-    else if (delivered.download_block_reason === reason)
-      coverage.held_in_legacy_target.push(row.id);
-    else coverage.missing_from_legacy_row.push(row.id);
-  }
-  return coverage;
+/** A Node executable script, run by the absolute path of this Node binary. */
+function executable(file: string, body: string) {
+  writeFileSync(file, `#!${process.execPath}\n${body}\n`);
+  chmodSync(file, 0o755);
+  return file;
 }
 
-const capabilities = (formats: number[], carriers: string[]) => ({
-  ok: true,
-  command: "capabilities",
-  data: {
-    product: "Portcove",
-    product_version: "rehearsal",
-    listing_formats: formats,
-    listing_delivery_carriers: carriers,
-  },
-});
-
-function withHold(directory: Directory, id: string, reason: string, typed: boolean): Directory {
-  return {
-    ...directory,
-    listings: directory.listings.map((row) =>
-      row.id !== id
-        ? row
-        : {
-            ...row,
-            download_block_reason: reason,
-            ...(typed
-              ? {
-                  restrictions: [
-                    {
-                      id: "rehearsal-hold",
-                      effect: "hold",
-                      operations: ["download"],
-                      reason: "known-defective-artifact",
-                      explanation: reason,
-                      tracking_issue: 1422,
-                    },
-                  ],
-                }
-              : {}),
-          },
-    ),
-  };
-}
-
-export interface RehearsalInput {
-  /** Complete canonical directory at the compact activation format. */
-  canonical: Directory;
-  /** Core's format-11 export of the same canonical directory. */
-  legacyProjection: Directory;
-  operationalIds: ReadonlySet<string>;
-  /** Last signed legacy target. A fresh legacy projection stands in when absent. */
-  priorLegacy?: Buffer;
-  /** An actual `--json capabilities` report to evaluate, when available. */
-  releasedReader?: unknown;
-  now?: number;
-}
-
-export function rehearseCompactActivation(input: RehearsalInput) {
-  const now = input.now ?? Date.now();
-  const { canonical, legacyProjection, operationalIds } = input;
-  if (canonical.format_version !== compactActivationFormat)
-    throw new Error(`Rehearsal requires the canonical format-${compactActivationFormat} directory`);
-  if (legacyProjection.format_version !== legacyFormat)
-    throw new Error("Rehearsal requires Core's format-11 projection");
-  const blocking: string[] = [];
-
-  // (1) Released-reader gate.
-  const gate = {
-    refused: {
-      without_compact_carrier: refused(() =>
-        requireCompactActivationReader(capabilities([13, 14, 15], ["json-v1"]), 15),
-      ),
-      format_14_reader: refused(() =>
-        requireCompactActivationReader(capabilities([13, 14], [compactListingCarrier]), 15),
-      ),
-      format_16_candidate: refused(() =>
-        requireCompactActivationReader(capabilities([15, 16], [compactListingCarrier]), 16),
-      ),
-    },
-    accepted: requireCompactActivationReader(
-      capabilities([13, 14, 15], [compactListingCarrier]),
-      15,
-    ),
-    ...(input.releasedReader === undefined
-      ? {}
-      : (() => {
-          try {
-            return {
-              released_reader: {
-                accepted: true,
-                version: requireCompactActivationReader(input.releasedReader, 15),
-              },
-            };
-          } catch (error) {
-            return { released_reader: { accepted: false, refusal: message(error) } };
-          }
-        })()),
-  };
-
-  // The last legacy publication before activation.
-  const priorLegacy =
-    input.priorLegacy ??
-    projectListingDelivery(
-      canonical,
-      [],
-      null,
-      0,
-      listingDeliveryMaximum,
-      legacyProjection,
-      operationalIds,
-      now,
-    ).bytes;
-  const legacy = read(priorLegacy);
-  if (legacy.directory.format_version !== legacyFormat)
-    throw new Error("Rehearsal prior legacy target must be format 11");
-
-  // (2) First compact publication bumps the shared revision.
-  const project = (
-    source: Directory,
-    previous: Buffer,
-    floor: number,
-    withdrawals: readonly string[] = [],
-    candidates: readonly Record<string, unknown>[] = [],
-  ) =>
-    publishedAbove(
-      projectListingDelivery(
-        source,
-        candidates,
-        previous,
-        floor,
-        compactListingDecodedMaximum,
-        source,
-        operationalIds,
-        now,
-        withdrawals,
-        true,
-      ),
-      floor,
-    );
-  const activated = project(canonical, priorLegacy, 0);
-  const compact = read(activated.bytes);
-  if (compact.directory.format_version !== compactActivationFormat)
-    throw new Error("Rehearsal compact activation format differs");
-  if (!decodeRetainedCompactListing(encodeCompactListing(activated.bytes)).equals(activated.bytes))
-    throw new Error("Rehearsal compact carrier does not round-trip");
-  const sameRevision = Buffer.from(JSON.stringify({ ...compact, revision: legacy.revision }));
-  if (
-    compact.revision <= legacy.revision ||
-    !listingCarrierPairAdmissible(priorLegacy, activated.bytes) ||
-    listingCarrierPairAdmissible(priorLegacy, sameRevision)
-  )
-    throw new Error("Compact activation must publish above the legacy revision");
-  const revision = {
-    legacy: legacy.revision,
-    compact: compact.revision,
-    same_revision_refused: true,
-    format_15_legacy_reader_admits: readerAdmits(priorLegacy, activated.bytes),
-  };
-
-  // (3) Legacy readers keep their exact target and every hold it carries.
-  const legacyAfterActivation = priorLegacy;
-  const coverage = legacyHoldCoverage(legacyProjection, legacyAfterActivation);
-  if (coverage.missing_from_legacy_row.length)
-    blocking.push(
-      `The legacy target lacks the current hold for ${coverage.missing_from_legacy_row.join(", ")}; the first compact successor carries it`,
-    );
-  const notExpressible = restrictionsNotExpressibleToLegacy(canonical);
-  if (notExpressible.hold_semantics_lost.length)
-    blocking.push(
-      `Format-11 readers cannot receive these holds: ${notExpressible.hold_semantics_lost.join(", ")}`,
-    );
-
-  // A new hold after activation reaches format-11 readers as its legacy string.
-  const presentUnheld = legacy.directory.listings.find(
-    (row) => typeof row.download_block_reason !== "string",
-  );
-  let newHold: Record<string, unknown> = {
-    skipped: "every delivered legacy row already carries a hold",
-  };
-  if (presentUnheld) {
-    const reason = "Rehearsal: fresh acquisition is held after compact activation.";
-    const heldCanonical = withHold(canonical, presentUnheld.id, reason, true);
-    const heldLegacy = withHold(legacyProjection, presentUnheld.id, reason, false);
-    const successor = legacyHoldSuccessor(priorLegacy, heldLegacy, compact.revision + 1);
-    if (!successor || !successor.held.includes(presentUnheld.id))
-      throw new Error("A new hold did not reach the legacy target");
-    const accepted = reviewedLegacySuccessor(priorLegacy, successor.bytes, compact.revision);
-    const next = project(heldCanonical, activated.bytes, accepted.revision, accepted.withdrawn_ids);
-    const delivered = read(successor.bytes).directory.listings.find(
-      (row) => row.id === presentUnheld.id,
-    );
-    if (
-      delivered?.download_block_reason !== reason ||
-      !listingCarrierPairAdmissible(successor.bytes, next.bytes) ||
-      !readerAdmits(priorLegacy, successor.bytes) ||
-      !readerAdmits(activated.bytes, next.bytes)
-    )
-      throw new Error("A new legacy hold successor is not admissible");
-    const nextRevision = read(next.bytes).revision;
-    const loosened = Buffer.from(
+/** A `--json capabilities` reader that reports exactly these capabilities. */
+function capabilityReader(file: string, formats: number[], carriers: string[]) {
+  return executable(
+    file,
+    `process.stdout.write(${JSON.stringify(
       JSON.stringify({
-        ...read(successor.bytes),
-        revision: nextRevision + 1,
-        directory: {
-          ...accepted.directory,
-          listings: accepted.directory.listings.map((row) => {
-            if (row.id !== presentUnheld.id) return row;
-            const { download_block_reason: _, ...rest } = row;
-            return rest;
-          }),
+        ok: true,
+        command: "capabilities",
+        data: {
+          product: "Portcove",
+          product_version: "rehearsal-reader",
+          listing_formats: formats,
+          listing_delivery_carriers: carriers,
         },
       }),
-    );
-    const loosening = refused(() =>
-      reviewedLegacySuccessor(successor.bytes, loosened, nextRevision),
-    );
-    if (!loosening.includes("may not clear a download hold"))
-      throw new Error("A legacy hold was not protected: " + loosening);
-    newHold = {
-      listing: presentUnheld.id,
-      legacy_revision: accepted.revision,
-      compact_revision: nextRevision,
-      legacy_row_held: true,
-      other_legacy_rows_unchanged: true,
-      loosening_refused: loosening,
-      canonical_drop_keeps_legacy_hold:
-        legacyHoldSuccessor(successor.bytes, legacyProjection, accepted.revision + 1) === null,
-    };
-  }
-  const absent = coverage.bundled_fallback[0];
-  const absentRow = absent ? legacyProjection.listings.find((row) => row.id === absent) : undefined;
-  const absentHold = absentRow
-    ? (() => {
-        const added = Buffer.from(
-          JSON.stringify({
-            ...legacy,
-            revision: compact.revision + 1,
-            directory: {
-              ...legacy.directory,
-              listings: [...legacy.directory.listings, absentRow].sort((a, b) =>
-                a.id.localeCompare(b.id, "en"),
-              ),
-            },
-          }),
-        );
-        reviewedLegacySuccessor(priorLegacy, added, compact.revision);
-        return {
-          listing: absent,
-          reviewed_held_row_addition_accepted: true,
-          unheld_row_addition_refused: refused(() =>
-            reviewedLegacySuccessor(
-              priorLegacy,
-              Buffer.from(
-                JSON.stringify({
-                  ...read(added),
-                  directory: {
-                    ...legacy.directory,
-                    listings: [
-                      ...legacy.directory.listings,
-                      { ...absentRow, download_block_reason: undefined },
-                    ],
-                  },
-                }),
-              ),
-              compact.revision,
-            ),
-          ),
-        };
-      })()
-    : { skipped: "every held listing is delivered by the legacy target" };
+    )});`,
+  );
+}
 
-  // (4) Bad optional enrichment cannot stall publication.
-  const [goodRow, badRow] = canonical.listings;
-  if (!goodRow || !badRow) throw new Error("Rehearsal needs at least two canonical listings");
-  const observation = (repository: unknown) => ({
-    provider: "github",
-    repository,
-    status: "complete",
-    attempted_at: new Date(now - 1000).toISOString(),
-    observed_at: new Date(now - 2000).toISOString(),
-    fresh_until: new Date(now + 3_600_000).toISOString(),
-    releases: [],
+/** Stands in for `portcove-release-tools verify-definition-repository`: it
+ * reports the fixture prior repository's file inventory. No signature exists
+ * to verify; the signer's own history checks are covered by release-tools. */
+export function fixtureVerifier(file: string) {
+  return executable(
+    file,
+    `const { createHash } = require("node:crypto");
+const fs = require("node:fs"), path = require("node:path");
+const config = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+const files = [];
+const walk = (dir) => { for (const name of fs.readdirSync(dir).sort()) {
+  const full = path.join(dir, name);
+  if (fs.statSync(full).isDirectory()) walk(full);
+  else { const bytes = fs.readFileSync(full);
+    files.push({ target: path.relative(config.repository, full).split(path.sep).join("/"),
+      sha256: createHash("sha256").update(bytes).digest("hex"), bytes: bytes.length }); } } };
+walk(config.repository);
+process.stdout.write(JSON.stringify({ schema_version: 1, authority: "none", files }));`,
+  );
+}
+
+/** A prior repository layout with these listing targets in its policy role. */
+export function writePriorRepository(root: string, targets: Record<string, Buffer>) {
+  const metadata = path.join(root, "metadata");
+  mkdirSync(metadata, { recursive: true });
+  const write = (name: string, value: unknown) =>
+    writeFileSync(path.join(metadata, name), JSON.stringify(value));
+  write("timestamp.json", { signed: { version: 1, meta: { "snapshot.json": { version: 1 } } } });
+  write("1.snapshot.json", {
+    signed: {
+      meta: { "official-definitions.json": { version: 1 }, "official-policy.json": { version: 1 } },
+    },
   });
-  const candidates = [
-    { ...goodRow, upstream_observation: observation("owner/good") },
-    { ...badRow, upstream_observation: observation(42) },
-  ];
-  // Stands in for Core validation: a non-string repository is invalid.
-  const valid = (bytes: Buffer) =>
-    read(bytes).directory.listings.every(
-      (row) =>
-        !isRecord(row.upstream_observation) ||
-        typeof row.upstream_observation.repository === "string",
-    );
-  const accepts = (subset: readonly Record<string, unknown>[]) =>
-    valid(project(canonical, activated.bytes, 0, [], subset).bytes);
-  const withoutFallback = valid(project(canonical, activated.bytes, 0, [], candidates).bytes);
-  const isolated = isolateValidEnrichment(candidates, accepts);
-  const published = project(canonical, activated.bytes, 0, [], isolated.admitted);
-  if (
-    withoutFallback ||
-    !valid(published.bytes) ||
-    isolated.excluded.map((row) => row.id).join() !== badRow.id ||
-    isolated.admitted.map((row) => row.id).join() !== goodRow.id
-  )
-    throw new Error("Invalid optional enrichment was not isolated");
-  const enrichment = {
-    without_fallback: "the complete candidate set fails validation; the prepare step would stop",
-    excluded: isolated.excluded.map((row) => row.id),
-    admitted: isolated.admitted.map((row) => row.id),
-    validations: isolated.validations,
-    published_revision: published.revision,
+  write("1.official-definitions.json", { signed: { targets: {} } });
+  const policy: Record<string, unknown> = {};
+  for (const [name, bytes] of Object.entries(targets)) {
+    const digest = hash(bytes);
+    policy[name] = { hashes: { sha256: digest }, length: bytes.length };
+    const file = path.join(root, "targets", `${digest}.${name}`);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, bytes);
+  }
+  write("1.official-policy.json", { signed: { targets: policy } });
+  return root;
+}
+
+/** Two discovery rows on one observed source, for the enrichment step. */
+export function enrichmentFixture(invalidField = "unexpected_field") {
+  const valid = { ...fixtureListing, id: "rehearsal-valid-observation" };
+  const invalid = { ...fixtureListing, id: "rehearsal-invalid-observation" };
+  const policies = [fixturePolicy(valid), fixturePolicy(invalid)];
+  const corrupt = structuredClone(policies[1]!);
+  // Core's observation schema refuses unknown fields.
+  corrupt.listing_update.upstream_observation[invalidField] = true;
+  const input = (candidates: typeof policies): UpstreamInput => ({
+    revision: "rehearsal-observer-run",
+    config_sha256: "a".repeat(64),
+    checkpoint: checkpoint({
+      [keyOf("owner/game")]: progress("owner/game", [], {
+        repository_id: 42,
+        last_complete_facts_sha256: candidates[0]!.facts_sha256,
+        last_complete_policies: candidates,
+      }),
+    }),
+    catalog: { ports: [], listings: [valid, invalid] },
+  });
+  return {
+    rows: [valid, invalid] as Row[],
+    policies,
+    valid: valid.id,
+    invalid: invalid.id,
+    validInput: input(policies),
+    mixedInput: input([policies[0]!, corrupt]),
+  };
+}
+
+export interface RehearsalOptions {
+  /** Core CLI that exports and validates (a locally built `portcove`). */
+  cli: string;
+  /** The publication bundle preparation copies (definitions and policies). */
+  bundle: string;
+  /** Canonical listings.json at the compact activation format. */
+  canonical: string;
+  catalog: string;
+  /** Empty scratch directory for fixtures and every preparation output. */
+  workspace: string;
+  /** The reviewed released reader; the `cli` reports its own capabilities otherwise. */
+  releasedReader?: string;
+}
+
+export async function rehearseCompactActivation(options: RehearsalOptions) {
+  const { workspace } = options;
+  mkdirSync(workspace, { recursive: true });
+  if (readdirSync(workspace).length) throw new Error("Rehearsal workspace must be empty");
+  const fixtures = path.join(workspace, "fixtures");
+  mkdirSync(fixtures);
+  const tools = fixtureVerifier(path.join(fixtures, "verify-definition-repository"));
+  const root = path.join(fixtures, "root.json");
+  const offlineTargets = path.join(fixtures, "offline-targets.json");
+  writeFileSync(root, "{}");
+  writeFileSync(offlineTargets, "{}");
+  const canonicalBytes = readFileSync(options.canonical);
+  const canonical = JSON.parse(canonicalBytes.toString("utf8")) as Directory;
+  if (canonical.format_version !== compactActivationFormat)
+    throw new Error(`Rehearsal requires the canonical format-${compactActivationFormat} directory`);
+  const readerPath = options.releasedReader ?? options.cli;
+  const releasedReader = { cli: readerPath, sha256: hash(readFileSync(readerPath)) };
+  const canonicalFile = (name: string, directory: Directory) => {
+    const file = path.join(fixtures, `${name}.listings.json`);
+    writeFileSync(file, JSON.stringify(directory));
+    return file;
+  };
+  const run = async (
+    name: string,
+    step: {
+      prior: string | null;
+      canonical?: string;
+      compact?: boolean;
+      returnToLegacy?: boolean;
+      reader?: { cli: string; sha256: string };
+      observation?: UpstreamInput;
+    },
+  ) => {
+    const output = path.join(workspace, name);
+    await prepareObservationBundle({
+      bundle: options.bundle,
+      canonical: step.canonical ?? options.canonical,
+      catalog: options.catalog,
+      prior: step.prior,
+      output,
+      cli: options.cli,
+      tools,
+      root,
+      offlineTargets,
+      observe: step.observation !== undefined,
+      ...(step.observation ? { readObservation: () => Promise.resolve(step.observation!) } : {}),
+      compact: step.compact === true,
+      returnToLegacy: step.returnToLegacy === true,
+      releasedReader: step.reader ?? releasedReader,
+    });
+    const bundle = path.join(output, "bundle");
+    const compactPath = path.join(bundle, compactListingDeliveryTarget);
+    const compactWire = existsSync(compactPath) ? readFileSync(compactPath) : null;
+    return {
+      legacy: readFileSync(path.join(bundle, listingDeliveryTarget)),
+      compactWire,
+      compact: compactWire ? decodeRetainedCompactListing(compactWire) : null,
+      report: JSON.parse(readFileSync(path.join(output, "report.json"), "utf8")) as Record<
+        string,
+        unknown
+      >,
+    };
+  };
+  const repository = (name: string, result: { legacy: Buffer; compactWire: Buffer | null }) =>
+    writePriorRepository(path.join(workspace, `${name}-repository`), {
+      [listingDeliveryTarget]: result.legacy,
+      ...(result.compactWire ? { [compactListingDeliveryTarget]: result.compactWire } : {}),
+    });
+  const refusal = async (action: () => Promise<unknown>) => {
+    try {
+      await action();
+    } catch (error) {
+      return message(error);
+    }
+    throw new Error("Rehearsal expected preparation to refuse");
+  };
+  const coreExport = (file: string) => {
+    const result = JSON.parse(
+      execFileSync(
+        options.cli,
+        ["--json", "catalog", "inspect-listings", "--path", file, "--format-version", "11"],
+        { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+      ),
+    ) as { ok: boolean; data: Directory };
+    if (!result.ok) throw new Error("Core could not export the format-11 projection");
+    return new Map(result.data.listings.map((row) => [row.id, row]));
   };
 
-  // (5) Return to legacy-only delivery without losing reader freshness.
-  const withdrawn = [...compact.withdrawn_ids];
-  const returned = publishedAbove(
-    projectListingDelivery(
-      canonical,
-      [],
-      priorLegacy,
-      compact.revision,
-      listingDeliveryMaximum,
-      legacyProjection,
-      operationalIds,
-      now,
-      withdrawn,
+  // (0) The last legacy-only publication before activation.
+  const baseline = await run("legacy", { prior: null });
+  const priorLegacy = baseline.legacy;
+  const legacy = read(priorLegacy);
+  if (baseline.compact || legacy.directory.format_version !== legacyFormat)
+    throw new Error("Rehearsal baseline must be a format-11 legacy publication");
+  const legacyRepository = repository("legacy", baseline);
+
+  // (1) Released-reader gate, through preparation.
+  const reader = (name: string, formats: number[], carriers: string[]) => {
+    const cli = capabilityReader(path.join(fixtures, name), formats, carriers);
+    return { cli, sha256: hash(readFileSync(cli)) };
+  };
+  const gate = {
+    refused: {
+      without_compact_carrier: await refusal(() =>
+        run("gate-carrier", {
+          prior: legacyRepository,
+          compact: true,
+          reader: reader("reader-json", [11, 12, 13, 14, 15], ["json-v1"]),
+        }),
+      ),
+      without_candidate_format: await refusal(() =>
+        run("gate-format", {
+          prior: legacyRepository,
+          compact: true,
+          reader: reader("reader-format-14", [11, 12, 13, 14], [compactListingCarrier]),
+        }),
+      ),
+      wrong_reader_digest: await refusal(() =>
+        run("gate-digest", {
+          prior: legacyRepository,
+          compact: true,
+          reader: { cli: releasedReader.cli, sha256: "0".repeat(64) },
+        }),
+      ),
+    },
+  };
+
+  // (2) Activation: the first compact publication.
+  const activated = await run("activation", { prior: legacyRepository, compact: true });
+  if (!activated.compact) throw new Error("Activation published no compact target");
+  const compact = read(activated.compact);
+  if (compact.directory.format_version !== compactActivationFormat)
+    throw new Error("Rehearsal compact activation format differs");
+  if (compact.revision <= legacy.revision)
+    throw new Error("Compact activation must publish above the legacy revision");
+  const activation = {
+    legacy_revision: legacy.revision,
+    compact_revision: compact.revision,
+    compact_format: compact.directory.format_version,
+    compact_rows: compact.directory.listings.length,
+    legacy_rows: legacy.directory.listings.length,
+    // Preparation retained the signed legacy bytes it read from the prior.
+    legacy_target_retained: activated.legacy.equals(priorLegacy),
+    legacy_sha256: hash(activated.legacy),
+    released_reader: activated.report.released_reader ?? null,
+  };
+  if (!activation.legacy_target_retained)
+    throw new Error("Activation changed the signed legacy target");
+  const activeRepository = repository("activation", activated);
+  const notExpressible = restrictionsNotExpressibleToLegacy(canonical);
+
+  // (3) A hold added after activation reaches format-11 readers.
+  const legacyRows = rows(priorLegacy);
+  const isHeld = (row: Row | undefined) =>
+    typeof row?.download_block_reason === "string" && row.download_block_reason.length > 0;
+  const deliveredOpen = legacy.directory.listings.find((row) => !isHeld(row));
+  const bundledOpen = canonical.listings.find((row) => !legacyRows.has(row.id) && !isHeld(row));
+  const reason = "Rehearsal: fresh acquisition is held after compact activation.";
+  const holdIds = [deliveredOpen?.id, bundledOpen?.id].filter((id): id is string => !!id);
+  const heldCanonical: Directory = {
+    ...canonical,
+    listings: canonical.listings.map((row) =>
+      holdIds.includes(row.id)
+        ? {
+            ...row,
+            download_block_reason: reason,
+            restrictions: [
+              ...(Array.isArray(row.restrictions) ? (row.restrictions as unknown[]) : []),
+              {
+                id: "rehearsal-hold",
+                effect: "hold",
+                operations: ["download"],
+                reason: "known-defective-artifact",
+                explanation: reason,
+              },
+            ],
+          }
+        : row,
     ),
-    compact.revision,
-  );
-  const naive = publishedAbove(
-    projectListingDelivery(
-      canonical,
-      [],
-      priorLegacy,
-      legacy.revision,
-      listingDeliveryMaximum,
-      legacyProjection,
-      operationalIds,
-      now,
-      withdrawn,
+  };
+  // Core orders a row's restrictions; the legacy string is the first download hold's text.
+  const heldFile = canonicalFile("held", heldCanonical);
+  const held = await run("hold", { prior: activeRepository, canonical: heldFile });
+  const heldLegacy = rows(held.legacy);
+  const heldCompact = held.compact ? rows(held.compact) : new Map<string, Row>();
+  const compactHeld = (id: string) => heldCompact.get(id)?.download_block_reason;
+  const newHold = {
+    delivered_row: deliveredOpen?.id ?? null,
+    bundled_row: bundledOpen?.id ?? null,
+    automatic_legacy_holds: held.report.automatic_legacy_holds as string[],
+    automatic_legacy_rows: held.report.automatic_legacy_rows as string[],
+    legacy_revision: read(held.legacy).revision,
+    compact_revision: held.compact ? read(held.compact).revision : null,
+    // Each legacy hold is the compact row's legacy hold of the same publication.
+    legacy_holds_match_compact: holdIds.every(
+      (id) =>
+        typeof heldLegacy.get(id)?.download_block_reason === "string" &&
+        heldLegacy.get(id)?.download_block_reason === compactHeld(id),
     ),
-    legacy.revision,
+    // An added row is Core's exact format-11 export of that listing.
+    added_rows_equal_core_export: (() => {
+      const exported = coreExport(heldFile);
+      return [...heldLegacy].every(
+        ([id, row]) =>
+          legacyRows.has(id) || observationHash(exported.get(id)) === observationHash(row),
+      );
+    })(),
+    other_legacy_rows_unchanged: [...legacyRows].every(
+      ([id, row]) =>
+        holdIds.includes(id) || observationHash(heldLegacy.get(id)) === observationHash(row),
+    ),
+  };
+  if (
+    observationHash(newHold.automatic_legacy_holds) !==
+      observationHash(deliveredOpen ? [deliveredOpen.id] : []) ||
+    observationHash(newHold.automatic_legacy_rows) !==
+      observationHash(bundledOpen ? [bundledOpen.id] : []) ||
+    !newHold.legacy_holds_match_compact ||
+    !newHold.added_rows_equal_core_export ||
+    !newHold.other_legacy_rows_unchanged
+  )
+    throw new Error("A hold added after activation did not reach the legacy target");
+  // Releasing the hold in the catalog never loosens the legacy target.
+  const released = await run("hold-released", { prior: repository("hold", held) });
+  const releasedLegacy = rows(released.legacy);
+  const holdKept = holdIds.every(
+    (id) =>
+      releasedLegacy.get(id)?.download_block_reason === heldLegacy.get(id)?.download_block_reason,
   );
-  const returnedDocument = read(returned.bytes);
+  if (!holdKept) throw new Error("A released catalog hold loosened the legacy target");
+
+  // (4) Invalid optional enrichment: Core validation, compact isolation and
+  // the legacy all-or-nothing fallback.
+  const enrichment = enrichmentFixture();
+  const enriched = canonicalFile("enriched", {
+    ...canonical,
+    listings: [...canonical.listings, ...enrichment.rows],
+  });
+  const observed = (bytes: Buffer, id: string) => rows(bytes).get(id)?.upstream_observation;
+  const first = await run("enrichment-valid", {
+    prior: activeRepository,
+    canonical: enriched,
+    observation: enrichment.validInput,
+  });
+  const second = await run("enrichment-mixed", {
+    prior: repository("enrichment-valid", first),
+    canonical: enriched,
+    observation: enrichment.mixedInput,
+  });
+  const legacyMixed = await run("enrichment-legacy", {
+    prior: legacyRepository,
+    canonical: enriched,
+    observation: enrichment.mixedInput,
+  });
+  const enrichmentResult = {
+    compact_excluded: second.report.excluded_candidates,
+    compact_valid_observed: observed(second.compact!, enrichment.valid) !== undefined,
+    compact_invalid_keeps_prior_observation:
+      observationHash(observed(second.compact!, enrichment.invalid)) ===
+        observationHash(observed(first.compact!, enrichment.invalid)) &&
+      observed(first.compact!, enrichment.invalid) !== undefined,
+    legacy_fallback_diagnostic: (legacyMixed.report.diagnostics as string[]).find((line) =>
+      line.includes("observer candidates failed Core validation"),
+    ),
+    legacy_publishes_neither_candidate:
+      observed(legacyMixed.legacy, enrichment.valid) === undefined &&
+      observed(legacyMixed.legacy, enrichment.invalid) === undefined,
+  };
+  if (
+    observationHash(enrichmentResult.compact_excluded) !== observationHash([enrichment.invalid]) ||
+    !enrichmentResult.compact_valid_observed ||
+    !enrichmentResult.compact_invalid_keeps_prior_observation ||
+    !enrichmentResult.legacy_fallback_diagnostic ||
+    !enrichmentResult.legacy_publishes_neither_candidate
+  )
+    throw new Error(
+      "Invalid optional enrichment was not handled: " + JSON.stringify(enrichmentResult),
+    );
+
+  // (5) Reviewed return to legacy-only delivery.
+  const returned = await run("return", { prior: activeRepository, returnToLegacy: true });
+  const returnedDocument = read(returned.legacy);
   const rollback = {
     compact_revision: compact.revision,
     legacy_revision: legacy.revision,
     return_revision: returnedDocument.revision,
     return_format: returnedDocument.directory.format_version,
-    compact_reader_admits: readerAdmits(activated.bytes, returned.bytes),
-    legacy_reader_admits: readerAdmits(priorLegacy, returned.bytes),
-    withdrawals_kept: withdrawn.every((id) => returnedDocument.withdrawn_ids.includes(id)),
-    return_at_legacy_revision_refused_by_compact_readers:
-      naive.revision <= compact.revision && !readerAdmits(activated.bytes, naive.bytes),
-    holds_after_return: legacyHoldCoverage(legacyProjection, returned.bytes),
+    compact_target_removed: returned.compactWire === null,
+    withdrawals_kept: compact.withdrawn_ids.every((id) =>
+      returnedDocument.withdrawn_ids.includes(id),
+    ),
+    compact_requires_reviewed_input: await refusal(() =>
+      run("return-with-compact", { prior: activeRepository, returnToLegacy: true, compact: true }),
+    ),
+    legacy_only_prior_refused: await refusal(() =>
+      run("return-without-compact", { prior: legacyRepository, returnToLegacy: true }),
+    ),
   };
   if (
-    !rollback.compact_reader_admits ||
-    !rollback.legacy_reader_admits ||
-    !rollback.withdrawals_kept ||
-    !rollback.return_at_legacy_revision_refused_by_compact_readers ||
-    rollback.return_format !== legacyFormat
+    !rollback.compact_target_removed ||
+    rollback.return_revision <= rollback.compact_revision ||
+    rollback.return_format !== legacyFormat ||
+    !rollback.withdrawals_kept
   )
     throw new Error("Legacy-only return would lose reader freshness");
-  blocking.push(
-    "After history bootstrap the checkpoint still refuses a legacy-only return; recovery then needs a defined compact retirement",
-  );
 
   return {
-    scope: "rehearsal only; nothing is signed, published or activated",
+    scope:
+      "rehearsal through prepareObservationBundle; nothing is signed, published or activated. The prior repository is a fixture whose verification report is its file inventory.",
     activation_format: compactActivationFormat,
     reader_gate: gate,
-    revision,
-    legacy_target: {
-      byte_identical_across_activation: legacyAfterActivation.equals(priorLegacy),
-      sha256: hash(priorLegacy),
-      revision: legacy.revision,
-      rows: legacy.directory.listings.length,
-    },
-    legacy_holds_at_activation: {
-      held_in_legacy_target: coverage.held_in_legacy_target.length,
-      bundled_fallback: coverage.bundled_fallback.length,
-      withdrawn: coverage.withdrawn.length,
-      missing_from_legacy_row: coverage.missing_from_legacy_row,
-    },
+    activation,
     not_expressible_to_format_11: notExpressible,
-    new_hold_after_activation: newHold,
-    new_hold_on_absent_row: absentHold,
-    enrichment,
-    rollback: {
-      ...rollback,
-      holds_after_return: {
-        held_in_legacy_target: rollback.holds_after_return.held_in_legacy_target.length,
-        bundled_fallback: rollback.holds_after_return.bundled_fallback.length,
-        missing_from_legacy_row: rollback.holds_after_return.missing_from_legacy_row,
-      },
-    },
-    blocking,
+    new_hold_after_activation: { ...newHold, released_catalog_hold_kept: holdKept },
+    enrichment: enrichmentResult,
+    rollback,
+    remaining: [
+      "Signer admission of these proposals is covered by release-tools tests, not by this rehearsal.",
+      "After history bootstrap the checkpoint still refuses a legacy-only return.",
+    ],
   };
 }
 
@@ -548,39 +533,23 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const { values } = parseArgs({
     options: {
       cli: { type: "string" },
+      workspace: { type: "string" },
+      bundle: { type: "string", default: "release/catalog-publication/bundle" },
       catalog: { type: "string", default: "crates/portcove-core/catalog" },
       "released-reader": { type: "string" },
     },
   });
   if (!values.cli) throw new Error("--cli PATH (a locally built portcove CLI) is required");
+  if (!values.workspace) throw new Error("--workspace PATH (an empty directory) is required");
   const directory = path.resolve(values.catalog);
-  const listings = path.join(directory, "listings.json");
-  const run = (cli: string, args: string[]) =>
-    JSON.parse(execFileSync(cli, args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })) as {
-      ok: boolean;
-      data: unknown;
-    };
-  const exported = run(path.resolve(values.cli), [
-    "--json",
-    "catalog",
-    "inspect-listings",
-    "--path",
-    listings,
-    "--format-version",
-    String(legacyFormat),
-  ]);
-  if (!exported.ok) throw new Error("Core could not export the format-11 projection");
-  const catalog = JSON.parse(readFileSync(path.join(directory, "catalog.json"), "utf8")) as {
-    ports: { id: string }[];
-  };
-  const report = rehearseCompactActivation({
-    canonical: JSON.parse(readFileSync(listings, "utf8")) as Directory,
-    legacyProjection: exported.data as Directory,
-    operationalIds: new Set(catalog.ports.map((port) => port.id)),
+  const report = await rehearseCompactActivation({
+    cli: path.resolve(values.cli),
+    bundle: path.resolve(values.bundle),
+    canonical: path.join(directory, "listings.json"),
+    catalog: path.join(directory, "catalog.json"),
+    workspace: path.resolve(values.workspace),
     ...(values["released-reader"]
-      ? {
-          releasedReader: run(path.resolve(values["released-reader"]), ["--json", "capabilities"]),
-        }
+      ? { releasedReader: path.resolve(values["released-reader"]) }
       : {}),
   });
   console.log(JSON.stringify(report, null, 2));

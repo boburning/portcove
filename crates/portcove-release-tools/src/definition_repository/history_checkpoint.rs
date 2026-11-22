@@ -70,7 +70,7 @@ pub(super) fn check_listings(
     prior_legacy: Option<(&ListingFloor, &[u8])>,
     prior_compact: Option<&ListingFloor>,
 ) -> Result<()> {
-    use portcove_listing_carrier::LEGACY_TARGET;
+    use portcove_listing_carrier::{COMPACT_TARGET, LEGACY_TARGET};
 
     let next = super::bundle::listing_targets(proposal)?;
     // After a reviewed return to legacy-only delivery the retained legacy floor
@@ -117,7 +117,9 @@ pub(super) fn check_listings(
                     "catalog compact publication must preserve its last legacy listing bytes",
                 );
             }
-            super::bundle::check_legacy_successor(prior, &proposal[LEGACY_TARGET])?;
+            let (compact, _) = portcove_listing_carrier::decode(&proposal[COMPACT_TARGET])
+                .map_err(|error| TufRepositoryError::Invalid(error.to_string()))?;
+            super::bundle::check_legacy_successor(prior, &proposal[LEGACY_TARGET], &compact)?;
         }
     }
     if let Some(floor) = floor
