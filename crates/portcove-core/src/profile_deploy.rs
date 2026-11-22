@@ -137,7 +137,7 @@ impl Layout {
         self.store().join("tmp")
     }
     pub(crate) fn mods(&self) -> PathBuf {
-        self.user.join(self.mods_relative())
+        crate::path::join_relative(&self.user, self.mods_relative())
     }
     pub(crate) fn journal(&self) -> PathBuf {
         self.store().join("switch.json")
@@ -238,7 +238,7 @@ pub(crate) fn copy_supported_progress(
                 "the installed runtimes and setup switch do not agree on the save location",
             ));
         }
-        let path = staging.path().join(relative);
+        let path = crate::path::join_relative(staging.path(), &relative);
         fs::create_dir_all(path.parent().expect("a staged save parent"))?;
         crate::durability::write_bytes_atomically(&path, &bytes, false)?;
     }
@@ -1168,7 +1168,7 @@ fn require_exact_managed_packages(
         .filter(|file| file.enabled)
         .map(|file| (file.name, file))
         .collect::<std::collections::BTreeMap<_, _>>();
-    let mods = root.join(layout.mods_relative());
+    let mods = crate::path::join_relative(root, layout.mods_relative());
     crate::path::refuse_symlink_ancestors(&mods)?;
     let ship_loader = matches!(layout.loader_list(), Some(LoaderList::Ship(_)));
     match fs::read_dir(&mods) {
@@ -1357,12 +1357,12 @@ pub(crate) fn live_package_path(layout: &Layout, native_id: &str) -> Result<Path
 /// switch can run again. Refuses to merge into an existing destination.
 fn move_paths(paths: &[String], from: &Path, to: &Path) -> Result<()> {
     for relative in paths {
-        let source = from.join(relative);
+        let source = crate::path::join_relative(from, relative);
         if !source.try_exists()? {
             continue;
         }
         crate::path::refuse_symlink_ancestors(&source)?;
-        let destination = to.join(relative);
+        let destination = crate::path::join_relative(to, relative);
         if destination.try_exists()? {
             return Err(PortcoveError::conflict(
                 "a profile's parked data already exists at the destination; nothing was merged",

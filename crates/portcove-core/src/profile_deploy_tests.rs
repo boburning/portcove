@@ -4317,3 +4317,32 @@ fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() 
     assert!(require_dfu_metadata(&rows).is_err());
     assert_eq!(MAX_DFU_OBSERVED_FILES, 2 * MAX_DFU_PACKAGES);
 }
+
+#[test]
+fn dfu_mods_root_is_composed_from_native_components() {
+    use std::path::{Component, MAIN_SEPARATOR};
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("interkarma-daggerfall-unity").unwrap();
+    let loader = crate::profile_loader::configured_loader(port).unwrap();
+    // A literal extended-namespace Windows user root, as atomic publication uses.
+    let user = Path::new(r"\\?\D:\a\_temp\library\user").join("interkarma-daggerfall-unity");
+    let layout = Layout::for_user(&user)
+        .with_loader(loader)
+        .for_dfu_platform(crate::Platform::WindowsX86_64);
+    let mods = layout.mods();
+    let added = mods
+        .strip_prefix(&user)
+        .unwrap()
+        .components()
+        .map(|component| match component {
+            Component::Normal(name) => name.to_str().unwrap().to_owned(),
+            other => panic!("unexpected mods root component {other:?}"),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(added, ["DaggerfallUnity_Data", "StreamingAssets", "Mods"]);
+    let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
+    let suffix = mods.strip_prefix(&user).unwrap().to_str().unwrap();
+    assert!(!suffix.contains(foreign), "{suffix}");
+    let live = live_package_path(&layout, "wandererhud - pointycursor.dfmod").unwrap();
+    assert_eq!(live.parent(), Some(mods.as_path()));
+}

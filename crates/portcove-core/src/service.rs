@@ -7595,7 +7595,14 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Vec<(PathBuf, PersistenceContract)>> {
-        let fallback = self.catalog.port(port_id)?;
+        self.retained_persistence_contracts_for(self.catalog.port(port_id)?)
+    }
+
+    fn retained_persistence_contracts_for(
+        &self,
+        fallback: &PortDefinition,
+    ) -> Result<Vec<(PathBuf, PersistenceContract)>> {
+        let port_id = fallback.id.as_str();
         let mut contracts = Vec::new();
         for path in self.library.port_install_paths(port_id)? {
             refuse_symlink_ancestors(&path)?;
@@ -7709,7 +7716,10 @@ impl PortcoveService {
     }
 
     fn preflight_dfu_runtime_ownership(&self, port_id: &str) -> Result<bool> {
-        let port = self.catalog.port(port_id)?;
+        // Collection and removal stay available for an installed port that
+        // today's catalog no longer lists, so read its installed contract.
+        let catalog = self.catalog_for_installed_fallback(port_id)?;
+        let port = catalog.port(port_id)?;
         if !port
             .persistent_paths
             .iter()
@@ -7718,7 +7728,7 @@ impl PortcoveService {
         {
             return Ok(false);
         }
-        for (root, contract) in self.retained_persistence_contracts(port_id)? {
+        for (root, contract) in self.retained_persistence_contracts_for(port)? {
             if contract
                 .port
                 .persistent_paths

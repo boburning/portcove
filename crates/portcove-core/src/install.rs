@@ -3910,7 +3910,12 @@ mod reviewed_loader_payload_tests {
         let dir = tempfile::tempdir().unwrap();
         let library = Library::open(dir.path().join("library")).unwrap();
         let installer = Installer::new(library.clone()).unwrap();
-        let platform = Platform::LinuxX86_64;
+        // Installs qualify the host platform: a Windows manifest cannot record
+        // the Unix executable bit a Linux package manifest requires.
+        let platform = Platform::current().unwrap();
+        if !matches!(platform, Platform::LinuxX86_64 | Platform::WindowsX86_64) {
+            return;
+        }
         let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
         let port = document
             .ports

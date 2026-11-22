@@ -364,7 +364,7 @@ pub(crate) fn dfu_package_has_only_shipped_scaffolds(root: &Path) -> Result<bool
             "81b4be29764dd8856fcad72ac8041a6a8eb04dcb3e368f72b58abab2fee1f0c3",
         ),
     ] {
-        let directory = root.join(directory);
+        let directory = crate::path::join_relative(root, directory);
         crate::path::refuse_symlink_ancestors(&directory)?;
         if !directory.try_exists()? {
             continue;

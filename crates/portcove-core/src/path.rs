@@ -23,6 +23,15 @@ pub(crate) fn comparable_windows_path(path: &str) -> String {
     path.trim_end_matches('\\').to_lowercase()
 }
 
+/// Join a declared `/`-separated relative path under `root` one component at a
+/// time. A raw join keeps `/` inside the component on Windows, which the
+/// extended (`\\?\`) namespace used for atomic publication treats literally.
+pub(crate) fn join_relative(root: &Path, relative: &str) -> std::path::PathBuf {
+    relative
+        .split('/')
+        .fold(root.to_path_buf(), |path, part| path.join(part))
+}
+
 pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
     path.to_str().is_some_and(|relative| {
         relative.split(['/', '\\']).any(|name| {
@@ -190,6 +199,35 @@ fn ancestor_check_propagates_metadata_errors() {
         refuse_symlink_ancestors(&child).unwrap_err().message,
         metadata_error.to_string()
     );
+}
+
+#[cfg(test)]
+#[test]
+fn relative_joins_use_only_native_separators_under_extended_roots() {
+    use std::path::{Component, MAIN_SEPARATOR};
+    let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
+    let root = Path::new(r"\\?\D:\a\_temp\library\user\port")
+        .components()
+        .collect::<std::path::PathBuf>();
+    let joined = join_relative(&root, "DaggerfallUnity_Data/StreamingAssets/Mods");
+    let suffix = joined
+        .strip_prefix(&root)
+        .unwrap()
+        .as_os_str()
+        .to_str()
+        .unwrap();
+    assert_eq!(
+        suffix,
+        ["DaggerfallUnity_Data", "StreamingAssets", "Mods"].join(std::path::MAIN_SEPARATOR_STR)
+    );
+    assert!(!suffix.contains(foreign));
+    let added = joined.components().skip(root.components().count());
+    for component in added {
+        let Component::Normal(name) = component else {
+            panic!("a relative join added a non-normal component");
+        };
+        assert!(!name.to_str().unwrap().contains(['/', '\\']));
+    }
 }
 
 #[cfg(all(test, unix))]
