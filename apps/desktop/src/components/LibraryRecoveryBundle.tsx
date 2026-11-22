@@ -28,6 +28,8 @@ import { Field } from "./ui/field";
 import { Input } from "./ui/input";
 
 type Operation = "create" | "inspect" | "resumeCreation" | "resumeRestore";
+type RecoveryFailureAction = "operation" | "planCreate" | "planRestore";
+
 type RecoveryStep = {
   operation: "resumeCreation" | "resumeRestore";
   path: string;
@@ -231,18 +233,21 @@ function RecoveryBundleDialog({
   const cancelling = useRef(false);
   const [failure, setFailure] = useState<{
     error: unknown;
-    action: "planCreate" | "operation";
+    action: RecoveryFailureAction;
   }>();
   const [recovery, setRecovery] = useState<RecoveryStep>();
   const error = failure?.error;
   const planningCreation = failure?.action === "planCreate";
   const interruptedCreationReview = planningCreation && recovery?.operation === "resumeCreation";
   const publishedCreationReview = planningCreation && Boolean(createReceipt?.bundle_id);
+  const planningRestore = failure?.action === "planRestore";
+  const interruptedRestoreReview = planningRestore && recovery?.operation === "resumeRestore";
+  const publishedRestoreReview = planningRestore && Boolean(restoreReceipt?.transfer_id);
 
   const run = async (
     status: string,
     work: () => Promise<void>,
-    action: "planCreate" | "operation" = "operation",
+    action: RecoveryFailureAction = "operation",
   ) => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -550,9 +555,13 @@ function RecoveryBundleDialog({
               ? "A previous copy was published to this folder. Check the bundle to verify its contents."
               : interruptedCreationReview
                 ? "An interrupted copy is waiting for this bundle folder."
-                : undefined
+                : publishedRestoreReview
+                  ? "This bundle was restored to this folder. Check the recorded restore result."
+                  : interruptedRestoreReview
+                    ? "An interrupted restore is waiting in this folder."
+                    : undefined
           }
-          showMutationSummary={!planningCreation}
+          showMutationSummary={failure?.action === "operation"}
         />
         {createReceipt &&
           (createReceipt.bundle_id || error !== undefined) &&
@@ -763,36 +772,40 @@ function RecoveryBundleDialog({
                     acceptRestoredDestination(result, restore.destination_root);
                   });
                 } else {
-                  void run("Checking the restore destination…", async () => {
-                    try {
-                      const review = await desktopApi.planLibraryRecoveryRestore(
-                        verified.path,
-                        destination,
-                        generation,
-                      );
-                      if (review.bundle.receipt_sha256 !== verified.receipt_sha256) {
-                        setVerified(undefined);
-                        throw new Error("The bundle changed. Verify it again before restoring.");
+                  void run(
+                    "Checking the restore destination…",
+                    async () => {
+                      try {
+                        const review = await desktopApi.planLibraryRecoveryRestore(
+                          verified.path,
+                          destination,
+                          generation,
+                        );
+                        if (review.bundle.receipt_sha256 !== verified.receipt_sha256) {
+                          setVerified(undefined);
+                          throw new Error("The bundle changed. Verify it again before restoring.");
+                        }
+                        setRestore(review);
+                      } catch (failure) {
+                        const step = recoveryStep(failure, "resumeRestore");
+                        const readback = publishedRestoreReadback(failure);
+                        if (
+                          (step || readback) &&
+                          (errorDetail(failure, "recovery_bundle_id") !== verified.bundle_id ||
+                            errorDetail(failure, "recovery_bundle_path") !== verified.path ||
+                            errorDetail(failure, "recovery_bundle_receipt_sha256") !==
+                              verified.receipt_sha256)
+                        ) {
+                          setVerified(undefined);
+                          throw new Error("The bundle changed. Verify it again before restoring.");
+                        }
+                        setRecovery(step);
+                        setRestoreReceipt(readback);
+                        throw failure;
                       }
-                      setRestore(review);
-                    } catch (failure) {
-                      const step = recoveryStep(failure, "resumeRestore");
-                      const readback = publishedRestoreReadback(failure);
-                      if (
-                        (step || readback) &&
-                        (errorDetail(failure, "recovery_bundle_id") !== verified.bundle_id ||
-                          errorDetail(failure, "recovery_bundle_path") !== verified.path ||
-                          errorDetail(failure, "recovery_bundle_receipt_sha256") !==
-                            verified.receipt_sha256)
-                      ) {
-                        setVerified(undefined);
-                        throw new Error("The bundle changed. Verify it again before restoring.");
-                      }
-                      setRecovery(step);
-                      setRestoreReceipt(readback);
-                      throw failure;
-                    }
-                  });
+                    },
+                    "planRestore",
+                  );
                 }
               }}
             >
