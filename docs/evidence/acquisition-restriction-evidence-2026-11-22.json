@@ -3,22 +3,25 @@
   "retrieved": "2026-11-22",
   "catalog_commit": "e45d8b816d2e",
   "scope": "Every acquisition restriction row on main: 152 listing download holds and 5 managed acquisition holds (16 typed decisions).",
-  "method": "Upstream facts were read without credentials: git ls-remote and a tags-only, tree-less fetch for repository readability, tag names, tag dates and the last commit date; raw.githubusercontent.com for the default-branch licence file (SPDX id inferred from the licence text); one page read per release list for the called-out rows. The GitHub REST API was not available for third-party repositories in this session, so archived state and release assets are unknown unless a finding states them.",
+  "method": "Upstream facts were read without credentials: git ls-remote, a tags-only tree-less fetch and a depth-1 blobless clone (tree listing only) for readability, tag names and dates, the last commit date and licence file names; raw.githubusercontent.com for licence texts (SPDX id inferred from the text); web fetches of repository and release pages for the rows that needed them. The GitHub REST API refused third-party repository reads in this session. Facts only the API gives (block reasons) are cited from the independent review's API readback and marked so. Release pages load asset lists lazily, so release asset names, sizes and provider digests were not read for any row; only the asset count shown on the page. No archive was downloaded or inspected. Tag dates are git dates unless a release publish date is stated.",
   "classification_counts": {
-    "rights-judgement": 101,
-    "factual-unchanged": 51,
-    "scope-too-broad": 4,
-    "unknown": 1
+    "rights-judgement": 83,
+    "factual-unchanged": 49,
+    "content-unverified": 22,
+    "unknown": 1,
+    "scope-too-broad": 2
   },
   "list_counts": {
-    "b-keep": 85,
-    "b-change": 17,
-    "c": 50,
-    "a": 4,
-    "d": 1
+    "b-keep": 63,
+    "b-change": 15,
+    "c": 48,
+    "c-content": 22,
+    "b-owner": 6,
+    "d": 1,
+    "a": 2
   },
   "proposed_reconsider_when": {
-    "note": "Proposed values for a follow-up data change; none is authored on main today.",
+    "note": "Proposed values for a follow-up data change; none is authored on main today. reviewed-successor-release needs a release or artifact scope to have a reviewed baseline; a hold scoped only by platform evaluates it as unknown, so pair it with a scoped permit or use owner-review.",
     "by_reason": {
       "bundled-game-data": ["clean-upstream-package", "attributable-grant"],
       "legacy-rights-review": ["attributable-grant", "owner-review"],
@@ -79,11 +82,17 @@
           "https://github.com/apancik/Abuse_2025",
           "https://raw.githubusercontent.com/apancik/Abuse_2025/HEAD/COPYING",
           "https://github.com/boburning/portcove/issues/2913"
-        ]
+        ],
+        "fork": {
+          "fork": true,
+          "parent": "Xenoveritas/abuse",
+          "source": "repository page, 2026-11-22"
+        },
+        "license_note": "COPYING is a per-path licence map pointing to COPYING.GPL and COPYING.WTFPL, so no single SPDX id applies; GitHub shows 'GPL-2.0 license' and 3 other licences."
       },
       "classification": "rights-judgement",
       "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
+      "finding": "Abuse_2025 is a fork of Xenoveritas/abuse. The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
       "recommendation": "Keep.",
       "proposed": "unchanged"
     },
@@ -137,8 +146,24 @@
       "classification": "rights-judgement",
       "list": "b-change",
       "finding": "The only stated basis is that old desktop assets have no publisher SHA-256. Under the #1129 tier-3 policy the accepted identity of a listing download is the upstream release location, checked against a provider digest only when there is one, so a missing digest is not a hold basis. Today the newest tag is v0.1.3 (2019-01-04), GPL-3.0 LICENSE present, last commit 2024-06-02.",
-      "recommendation": "Clear: the stated condition is not a hold basis under the tier-3 policy; no upstream fact changed, so this is a policy application for the owner batch.",
-      "proposed": []
+      "recommendation": "Conditional clear (policy application; the stated basis, a missing publisher digest, is not a hold basis under tier 3). Condition: a clean release-content listing of the newest package, v0.1.3 (published 2019-01-04). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.1.3",
+        "published": "2019-01-04",
+        "assets_shown": 5,
+        "asset_names_from_release_notes": [
+          "OpenSpades-0.1.3-Windows.zip",
+          "OpenSpades-0.1.3-OSX.zip",
+          "OpenSpades-0.1.3.pdb.7z"
+        ],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "ambermoon-ambermoon-net",
@@ -270,11 +295,12 @@
           "https://github.com/boburning/portcove/issues/161"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag big-lua-energy) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "bips-blips",
@@ -378,9 +404,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, native-only-e26d98fd (published 2026-10-10). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "native-only-e26d98fd",
+        "published": "2026-10-10",
+        "assets_shown": 4,
+        "asset_names_from_release_notes": ["parasite-eve-day1-preview-linux-x64.tar.gz"],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "blizz127-xenogears-decomp-port",
@@ -842,11 +880,12 @@
           "https://github.com/boburning/portcove/issues/120"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v0.34) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "captain-claw-pjasicek-openclaw",
@@ -1047,11 +1086,13 @@
           "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/releases"
         ]
       },
-      "classification": "scope-too-broad",
-      "list": "a",
-      "finding": "The hold says only the signed route can verify the approved v0.1 Windows ZIP. A typed listing permit checks the downloaded bytes against the same SHA-256, so verification no longer needs the signed route. #125 records the approved archive (release 190757282, asset 213295268, ChameleonTwistJPRecompiled.zip, 23,929,489 bytes, SHA-256 8e705d38…) under protected exact-byte acceptance; the separately authored Chiaro fonts are a recorded note. Today v0.1 is still the only release (2024-12-14), the repository is readable, GPL-3.0 COPYING present.",
-      "recommendation": "Keep the whole download hold and add a download permit for the exact v0.1 ZIP. The rights basis is the existing protected acceptance on #315/#125; if the lead reads that acceptance as limited to the signed route, this row moves to the owner unchanged.",
-      "proposed": [
+      "classification": "rights-judgement",
+      "list": "b-owner",
+      "finding": "The hold says only the signed route can verify the approved v0.1 Windows ZIP. The rights basis for those bytes is an owner protected acceptance that is explicitly scoped: it accepts only official/chameleon-twist-jp-recompiled, Windows x86-64, with its curated acquisition and scoped launch checks (docs/qualification/chameleon-twist-jp-exact-byte-acceptance-2026-10-21.md line 7), and grants no mirror, repackaging, blanket redistribution right or automatic acceptance of a future asset identity (same file, line 19). #125's resume condition reserves additional download offers until 'the release, exact selected bytes, applicable rights and operation-specific checks are bound'. Extending that acceptance to a generic listing download permit is therefore owner authority, not a factual narrowing. Separately, the row's reason code bundled-game-data conflicts with the preparation record, which says the README requires the Japanese original, releases omit game assets, and the route uses separately supplied game data (docs/qualification/chameleon-twist-jp-curated-admission-preparation-2026-10-18.md lines 72-76). Today v0.1 is still the only release (2024-12-14); GPL-3.0 COPYING present.",
+      "recommendation": "Keep the whole hold. Owner: decide whether the exact-byte acceptance extends to a listing download permit for the same v0.1 ZIP (owner_option). If it does, also correct the reason code, which the preparation record contradicts.",
+      "proposed": "owner decision",
+      "owner_kind": "owner-acceptance-scope",
+      "owner_option": [
         {
           "id": "download",
           "effect": "hold",
@@ -1751,11 +1792,12 @@
           "https://github.com/boburning/portcove/issues/6740"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v0.5) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "dirt-dash-namco22",
@@ -1942,11 +1984,12 @@
           "https://github.com/boburning/portcove/issues/2830"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v2.1.1) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "doom-doom-retro",
@@ -1995,11 +2038,12 @@
           "https://github.com/boburning/portcove/issues/5664"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v6.3) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "doom-dsda-doom",
@@ -2100,11 +2144,12 @@
           "https://github.com/boburning/portcove/issues/5669"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag 12.3.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "doom-the-eternity-engine",
@@ -2426,9 +2471,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.1.6 (published 2026-10-07). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.1.6",
+        "published": "2026-10-07",
+        "assets_shown": 3,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "The newer tag v0.1.7 (2026-10-09) is not the release marked Latest.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "empire-earth-gold-apple-silicon",
@@ -2527,11 +2584,12 @@
           "https://github.com/boburning/portcove/issues/6003"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v0.7.0-sandbox-preview) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
@@ -2582,9 +2640,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.9.6 (published 2026-10-24). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.9.6",
+        "published": "2026-10-24",
+        "assets_shown": 5,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "Release notes say the Mac and Windows downloads are 0.9.5 builds.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "extreme-tux-racer",
@@ -2772,13 +2842,31 @@
         "sources": [
           "https://github.com/NJH-1001/FinFanTacRecomp",
           "https://github.com/boburning/portcove/issues/327"
-        ]
+        ],
+        "license_note": "No project licence at the root. A LICENSES/ folder holds component licences only: psxrecomp (PolyForm Noncommercial 1.0.0), GCC runtime libraries (GPL-3.0 with GCC exception), mingw-w64 winpthreads and zlib."
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.1.0 (published 2026-09-03). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.1.0",
+        "published": "2026-09-03",
+        "assets_shown": 10,
+        "asset_names_from_release_notes": [
+          "FinFanTacRecomp-setup-0.1.0-windows-x64.zip",
+          "FinFanTacRecomp-setup-0.1.0-linux-x64.zip",
+          "FinFanTacRecomp-setup-0.1.0-macos-arm64.zip",
+          "FinFanTacRecomp-setup-0.1.0-macos-x64.zip"
+        ],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "Release notes publish SHA-256 values for the four setup archives.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "freeciv",
@@ -3007,11 +3095,12 @@
           "https://github.com/boburning/portcove/issues/2881"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v1.0.1) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "goldeneye-007-xbla-recomp",
@@ -3112,12 +3201,18 @@
           "https://raw.githubusercontent.com/in0finite/SanAndreasUnity/HEAD/LICENSE",
           "https://github.com/boburning/portcove/issues/6134",
           "https://github.com/in0finite/SanAndreasUnity/releases/tag/v4.0"
-        ]
+        ],
+        "newest_release_page": {
+          "tag": "v4.0",
+          "published": "24 May (year not shown; tag dated 2022)",
+          "assets_shown": 5,
+          "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        }
       },
       "classification": "scope-too-broad",
       "list": "a",
       "finding": "The hold names only an enforcement limit: \"Portcove cannot yet limit Download to the reviewed v4.0 desktop packages.\" Typed artifact permits now provide that limit. #6134 records the v4.0 Windows and Linux ZIP SHA-256 identities (no provider digest) and that the cover imagery in the app icon and main menu falls under the November 15 launcher/menu-art exception; Android v4.0 is a separate debug APK that stays held. Today v4.0 is still the newest release (2022-05-06; tag present; release page shows it as Latest), the repository is readable, MIT LICENSE present, last commit 2022-09-30.",
-      "recommendation": "Keep the whole download hold for earlier releases and the Android APK and add a download permit for the two exact v4.0 desktop ZIPs.",
+      "recommendation": "Keep the whole download hold and add a download permit for exactly the two reviewed v4.0 desktop ZIPs by SHA-256 (Windows x64 3cf2f158…, Linux x64 fb135b7f…). The Android APK, earlier releases and any changed bytes stay held. Older readers stay fully held.",
       "proposed": [
         {
           "id": "download",
@@ -3144,7 +3239,26 @@
             ]
           }
         }
-      ]
+      ],
+      "owner_exceptions_relied_on": [
+        {
+          "exception": "November 15, 2026 owner launcher/menu-art exception to the game-data hold",
+          "reference": "docs/CATALOG.md lines 270-282 (Owner exceptions to the game-data hold), first exception"
+        },
+        {
+          "exception": "Applied to the exact v4.0 desktop ZIPs",
+          "reference": "https://github.com/boburning/portcove/issues/6134 description, Current behavior paragraph: 'The existing launcher/menu-art exception covers that material' (app icons and MainMenu/Canvas/Logo at the tagged source)"
+        },
+        {
+          "exception": "Observed v4.0 SHA-256 identities",
+          "reference": "https://github.com/boburning/portcove/issues/6134#issuecomment-6891450087"
+        },
+        {
+          "exception": "Resume condition: apply enforceable release/asset restrictions and revalidate the permitted bytes",
+          "reference": "https://github.com/boburning/portcove/issues/6134 description, Dependencies and blockers"
+        }
+      ],
+      "legacy_readers": "Older readers enforce legacy_download_projection (crates/portcove-core/src/acquisition_restriction.rs:784): the explanation of the first hold naming Download. The whole hold stays, so readers below listing format 14 keep the full download hold and ignore the permit."
     },
     {
       "identity": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -3179,11 +3293,12 @@
           "https://github.com/boburning/portcove/issues/3480"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "granturismo2simrecomp-vulob1-gran-turismo-2-simulation-mode-v1-0",
@@ -3218,11 +3333,12 @@
           "https://github.com/boburning/portcove/issues/3479"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "gta-iii-re3",
@@ -3266,11 +3382,12 @@
           "https://github.com/boburning/portcove/issues/2852"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag reVC_1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "gta-vice-city-revc",
@@ -3314,11 +3431,12 @@
           "https://github.com/boburning/portcove/issues/2853"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag reVC_1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "guitar-hero-classic-noahbaxter-guitar-hero-ii-plus-classic-harmonix-song-imports",
@@ -3369,11 +3487,12 @@
           "https://github.com/boburning/portcove/issues/3000"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v0.9.1) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "gzh0821-pvzg-site",
@@ -3927,12 +4046,18 @@
           "https://raw.githubusercontent.com/fredangstadt-lang/LineWarsII-SDL/HEAD/LICENSE.md",
           "https://github.com/boburning/portcove/issues/6090",
           "https://github.com/fredangstadt-lang/LineWarsII-SDL/releases/tag/v1.0.0"
-        ]
+        ],
+        "newest_release_page": {
+          "tag": "v1.0.0",
+          "published": "18 Jul (year not shown; tag dated 2026-07-17)",
+          "assets_shown": 4,
+          "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        }
       },
       "classification": "scope-too-broad",
       "list": "a",
-      "finding": "The hold names only an enforcement limit: the reviewed freeware v1.0.0 Windows ZIP and Linux archive cannot yet be singled out. #6090 records both exact assets matching the publisher SHA-256, the original author's freeware permission for game.dat in the bundled notice, and two separately sourced PC 6300 and VGA font ROM images; under the #1129 policy fonts not extracted from the game are recorded notes, not holds. Today v1.0.0 is still the only release (2026-07-17), the repository is readable, PolyForm Noncommercial 1.0.0 LICENSE.md present.",
-      "recommendation": "Keep the whole download hold for other packages and add a download permit for the two exact v1.0.0 archives. #6090 also records that no attributable grant for the exact font bytes was established; the lead should confirm that the non-game-font note applies before narrowing, otherwise move this row to the owner.",
+      "finding": "The hold names only an enforcement limit: the reviewed freeware v1.0.0 Windows ZIP and Linux archive cannot yet be singled out. #6090 records both exact assets matching the publisher SHA-256, Patrick Aalto's freeware permission for game.dat in the bundled notice, and two separately sourced PC 6300 and VGA font ROM images. Its current description applies the owner's non-game font exception to those inspected bytes (an earlier specification, #6090 comment 7051436492, had recorded no attributable grant for them). Today v1.0.0 is still the only release (published 18 Jul, tag 2026-07-17), the repository is readable, PolyForm Noncommercial 1.0.0 LICENSE.md present.",
+      "recommendation": "Keep the whole download hold and add a download permit for exactly the two reviewed v1.0.0 archives by SHA-256. Keep their notices. Older readers stay fully held.",
       "proposed": [
         {
           "id": "download",
@@ -3961,7 +4086,26 @@
             ]
           }
         }
-      ]
+      ],
+      "owner_exceptions_relied_on": [
+        {
+          "exception": "November 15, 2026 owner freeware exception to the game-data hold (game data its rights holder released for free redistribution, bundled unmodified)",
+          "reference": "docs/CATALOG.md lines 270-282 (Owner exceptions to the game-data hold), second exception"
+        },
+        {
+          "exception": "Bundled fonts not extracted from the game are recorded notes, not holds",
+          "reference": "docs/CATALOG.md lines 251-257 (Recorded notes, not holds)"
+        },
+        {
+          "exception": "Applied to the exact v1.0.0 archives: Patrick Aalto's freeware permission for game.dat, and the separately sourced PC 6300 and VGA bitmap fonts 'fall within the owner's non-game font exception for the inspected bytes'",
+          "reference": "https://github.com/boburning/portcove/issues/6090 description, Current behavior paragraph"
+        },
+        {
+          "exception": "Resume condition: apply enforceable release/asset restrictions and revalidate the permitted bytes",
+          "reference": "https://github.com/boburning/portcove/issues/6090 description, Dependencies and blockers"
+        }
+      ],
+      "legacy_readers": "Older readers enforce legacy_download_projection (crates/portcove-core/src/acquisition_restriction.rs:784): the explanation of the first hold naming Download. The whole hold stays, so readers below listing format 14 keep the full download hold and ignore the permit."
     },
     {
       "identity": "lodilorenzo-cybermage-darklight-re-awakening",
@@ -4054,11 +4198,12 @@
           "https://github.com/boburning/portcove/issues/162"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag beta) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "lords-of-the-realm-ii-open-lords2",
@@ -4325,11 +4470,12 @@
           "https://github.com/boburning/portcove/issues/146"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v2.4.2) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "mercenaries-playground-of-destruction-kraftmacandchee",
@@ -4376,9 +4522,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v1.1.1 (published 2026-10-06). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v1.1.1",
+        "published": "2026-10-06",
+        "assets_shown": 3,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "meteo-dream-mf-community-edition",
@@ -4588,9 +4746,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, 0.18.3 (published 2026-11-22). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "0.18.3",
+        "published": "2026-11-22",
+        "assets_shown": 5,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "mstan-battle-arena-toshinden-recomp",
@@ -4641,9 +4811,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.1.4 (published 2026-10-31). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.1.4",
+        "published": "2026-10-31",
+        "assets_shown": 3,
+        "asset_names_from_release_notes": ["BattleArenaToshindenRecomp-v0.1.4-windows-x64.zip"],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "Release notes give 11,520,983 bytes and a SHA-256 for the Windows archive.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "mythologykombat-paumedes-mortal-kombat-mythologies-sub-zero",
@@ -4684,11 +4866,12 @@
           "https://github.com/boburning/portcove/issues/3402"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v0.1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "naev",
@@ -4794,7 +4977,7 @@
         "host": "github.com",
         "repository": "NeverCookFirst/DimensionsRecomp",
         "repository_readable": true,
-        "archived": "unknown",
+        "archived": "yes: 'This repository was archived by the owner on Nov 16, 2026' (release page)",
         "license_file": "LICENSE",
         "license_spdx_by_text": "MIT",
         "last_commit_date": "2026-11-16",
@@ -4823,9 +5006,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.2.0 (published 2026-11-16). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.2.0",
+        "published": "2026-11-16",
+        "assets_shown": 4,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "The repository was archived on 2026-11-16; v0.2.0 is titled the final release.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "nfl-head-coach-09-nfl-head-coach-09-static-recomp",
@@ -4930,8 +5125,23 @@
       "classification": "rights-judgement",
       "list": "b-change",
       "finding": "The hold rests on missing project and consolidated notices in the v0.7.0 ZIP. Under #1129 third-party binaries shipped without their notices are recorded notes, not holds. Today the newest tag is v0.7.1 (2026-09-26); MIT LICENSE present; README states BIOS dumps are not redistributed.",
-      "recommendation": "Clear and record the notice gap as a warning, unless the owner reads the notice gap as a redistribution condition of the bundled framework.",
-      "proposed": []
+      "recommendation": "Conditional clear, recording the notice gap as a warning, unless the owner reads it as a redistribution condition of the bundled framework. Condition: a clean release-content listing of the newest package, v0.7.1 (published 2026-09-26). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.7.1",
+        "published": "2026-09-26",
+        "assets_shown": 4,
+        "asset_names_from_release_notes": [
+          "BloodyRoar2-v0.7.1.zip",
+          "BloodyRoar2-linux-x64-0.7.1.zip"
+        ],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "oceantrirecomp-krisztsa-monster-hunter-tri",
@@ -5016,13 +5226,19 @@
         "sources": [
           "https://github.com/Odrannnn/MetroidPrimePort",
           "https://github.com/boburning/portcove/issues/1846"
-        ]
+        ],
+        "repository_block": {
+          "api": "HTTP 404 Not Found, no block object (independent review's REST API readback on 2026-11-22)",
+          "web": "repository page answered HTTP 404 (web fetch, 2026-11-22)",
+          "git": "git ls-remote asks for credentials"
+        }
       },
-      "classification": "factual-unchanged",
-      "list": "c",
-      "finding": "The upstream repository is not publicly readable today (git asks for credentials, the response GitHub gives for a missing or private repository); the listing already says availability is unavailable. Nothing can be downloaded.",
-      "recommendation": "Keep. Recheck if the repository reappears.",
-      "proposed": "unchanged"
+      "classification": "rights-judgement",
+      "list": "b-owner",
+      "finding": "The upstream repository answers HTTP 404 with no block reason, which is how GitHub answers for a deleted, renamed or private repository; why it is gone is unknown. The listing already says availability is unavailable. Nothing can be downloaded.",
+      "recommendation": "Keep. It is one of the 17 legacy-rights-review rows; recheck if the repository reappears.",
+      "proposed": "unchanged",
+      "owner_kind": "legacy-rights-review-unreadable"
     },
     {
       "identity": "omegakatana92-battle-arena-toshinden-gb-recomp",
@@ -5181,10 +5397,11 @@
         ]
       },
       "classification": "factual-unchanged",
-      "list": "b-change",
+      "list": "b-owner",
       "finding": "The managed transition hold names unreviewed launcher updates and settings storage. Upstream kept releasing (1.0.9 through 1.3, latest 1.3 on 11 Nov); the reviewed artifact is 0.8.5, so the transition condition still holds. Separately, the listing warning records that the package includes a Pikmin 2 runtime (recompiled game code) and that the upstream CC0 notice excludes Nintendo material; the listing download is held today only because the managed hold is whole. The README states the launcher extracts game assets from the player's own disc.",
-      "recommendation": "Keep the managed hold. Owner: decide the bundled-content question independently of the transition hold. Recommended: no separate listing hold, because #1129 records recompiled game code without a grant as a note and the game data comes from the player's disc; keep the existing warning.",
-      "proposed": "unchanged"
+      "recommendation": "Keep the managed hold. Owner: decide the bundled-content question independently of the transition hold. Recommended: no separate listing hold once the package contents are listed, because #1129 records recompiled game code without a grant as a note and the README says game data comes from the player's disc; keep the existing warning.",
+      "proposed": "unchanged",
+      "owner_kind": "bundled-content-after-transition"
     },
     {
       "identity": "openarena",
@@ -5301,11 +5518,16 @@
         "sources": [
           "https://github.com/GTTeancum/OpenGTPS1",
           "https://github.com/boburning/portcove/issues/743"
-        ]
+        ],
+        "repository_block": {
+          "api": "HTTP 404 Not Found, no block object (independent review's REST API readback on 2026-11-22)",
+          "web": "repository page answered HTTP 404 (web fetch, 2026-11-22)",
+          "git": "git ls-remote asks for credentials"
+        }
       },
       "classification": "factual-unchanged",
       "list": "c",
-      "finding": "The upstream repository is not publicly readable today, so no runtime is available.",
+      "finding": "The upstream repository answers HTTP 404 with no block reason (deleted, renamed or private; which is unknown), so no runtime is available.",
       "recommendation": "Keep. Recheck when upstream publishes a useful runtime.",
       "proposed": "unchanged"
     },
@@ -5702,13 +5924,19 @@
         "sources": [
           "https://github.com/GenryTheFox0/Project-Iron-6",
           "https://github.com/boburning/portcove/issues/3130"
-        ]
+        ],
+        "repository_block": {
+          "api": "Repository access blocked; block reason dmca, created 2026-11-10 (independent review's GitHub REST API readback on 2026-11-22; this session's API reads of third-party repositories were refused)",
+          "web": "https://github.com/GenryTheFox0/Project-Iron-6 answered HTTP 451 Unavailable For Legal Reasons (web fetch, 2026-11-22)",
+          "git": "git ls-remote asks for credentials"
+        }
       },
-      "classification": "factual-unchanged",
-      "list": "c",
-      "finding": "The upstream repository is not publicly readable today; nothing can be downloaded.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "rights-judgement",
+      "list": "b-owner",
+      "finding": "GitHub blocks the upstream repository: the REST API reports the block reason DMCA dated 2026-11-10, and the repository page answers HTTP 451 Unavailable For Legal Reasons. A DMCA takedown is the basis; nothing can be downloaded.",
+      "recommendation": "Keep. Owner: the basis is now a takedown, not unresolved package facts. Record the takedown in the explanation and reason in a later data change.",
+      "proposed": "unchanged",
+      "owner_kind": "takedown"
     },
     {
       "identity": "prop-cycle-namco22",
@@ -5856,11 +6084,12 @@
           "https://github.com/boburning/portcove/issues/122"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag github-v1.1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "r-e-l-i-v-e-oddworld-abe-s-oddysee",
@@ -5908,11 +6137,12 @@
           "https://github.com/boburning/portcove/issues/133"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag github-v1.1.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "rage-racer-rage-racer-pc",
@@ -5963,9 +6193,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, 0.6.15-alpha (published 2026-11-05). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "0.6.15-alpha",
+        "published": "2026-11-05",
+        "assets_shown": 9,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "rages4calm-earthbound-companion",
@@ -6230,9 +6472,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.2.4 (published 2026-11-19). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.2.4",
+        "published": "2026-11-19",
+        "assets_shown": 5,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "ring-racers",
@@ -6322,9 +6576,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, owner batch under #1129: there is no release today, so nothing can be offered. Clear only once a first release exists and its package contents are listed clean; keep the explanation as a recorded-note warning, unless the owner finds an explicit prohibition.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": null,
+        "published": null,
+        "assets_shown": 0,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "The repository has no releases, so there is no package to list or download.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "sauerbraten",
@@ -6558,11 +6824,12 @@
           "https://github.com/boburning/portcove/issues/150"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v2.0.2) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "sonic-free-riders-recompiled",
@@ -6615,9 +6882,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.10.75 (published 2026-11-22). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.10.75",
+        "published": "2026-11-22",
+        "assets_shown": 12,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": "Release notes mention Android, iOS, Windows, Linux and macOS packages and a SHA256SUMS.txt.",
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "sonic-robo-blast-2",
@@ -6822,8 +7101,8 @@
         "repository": "kandowontu2/starfox-enhanced",
         "repository_readable": true,
         "archived": "not shown on the releases page",
-        "license_file": null,
-        "license_spdx_by_text": null,
+        "license_file": "LICENSE-XBRZ.txt",
+        "license_spdx_by_text": "GPL-3.0",
         "last_commit_date": "2026-11-01",
         "tags": 20,
         "newest_tags": [
@@ -6846,11 +7125,13 @@
           "https://github.com/kandowontu2/starfox-enhanced",
           "https://github.com/kandowontu2/starfox-enhanced/releases",
           "https://github.com/boburning/portcove/issues/124"
-        ]
+        ],
+        "license_api": "GPL-3.0 (repository page sidebar and the independent review's API readback)",
+        "license_note": "No LICENSE or COPYING at the root; the only root licence file is LICENSE-XBRZ.txt (GPL-3.0, the xBRZ scaler's licence), which is what GitHub detects. Component licences sit under third_party/."
       },
       "classification": "factual-unchanged",
       "list": "c",
-      "finding": "The managed hold names an unavailable older package and newer packages that include parts of the original game. Upstream released 0.0.8.6 through 0.0.8.8.3 (latest 1 Nov); the reviewed artifact is v0.0.6.7. No review of the newer packages is recorded.",
+      "finding": "The managed hold names an unavailable older package and newer packages that include parts of the original game. Upstream released 0.0.8.6 through 0.0.8.8.3 (latest 1 Nov); the reviewed artifact is v0.0.6.7. No review of the newer packages is recorded. Licence: GitHub reports GPL-3.0, detected from the root LICENSE-XBRZ.txt; the earlier record of no licence file was wrong. That does not change the hold, which turns on unreviewed newer packages.",
       "recommendation": "Keep. Recheck when a newer package is reviewed (reviewed-successor-release).",
       "proposed": "unchanged"
     },
@@ -7289,10 +7570,11 @@
         ]
       },
       "classification": "rights-judgement",
-      "list": "b-change",
+      "list": "b-owner",
       "finding": "The hold names installer wizard images made from an original screenshot and logo in the Patch 7 (v1.0.7) installer. Today a newer v1.0.8 (2026-11-15) exists whose installer contents were not inspected; MIT LICENSE present.",
-      "recommendation": "Owner: decide whether installer wizard art counts as front-end art under the November 15 launcher/menu-art exception (then clear), or keep the hold and review v1.0.8 for an asset-clean installer.",
-      "proposed": "owner decision"
+      "recommendation": "Owner: decide whether installer wizard art counts as front-end art under the November 15 launcher/menu-art exception. If it does, clear conditionally on a clean release-content listing of v1.0.8 (tag 2026-11-15), whose installer contents were not inspected; otherwise keep the hold and review v1.0.8 for an asset-clean installer.",
+      "proposed": "owner decision",
+      "owner_kind": "menu-art-exception-scope"
     },
     {
       "identity": "the-powder-toy",
@@ -7447,11 +7729,12 @@
           "https://github.com/boburning/portcove/issues/6008"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v0.3.0) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "tokyo-wars-namco22",
@@ -7608,9 +7891,21 @@
       },
       "classification": "rights-judgement",
       "list": "b-change",
-      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check today found no explicit redistribution prohibition.",
-      "recommendation": "Clear and keep the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition.",
-      "proposed": []
+      "finding": "The only stated basis is recompiled, translated or inherited game code without a grant, or an unlicensed own layer. Under the #1129 tier-3 policy (owner, November 13) these are recorded notes, not holds; the policy lifts no hold by itself. A README check found no explicit redistribution prohibition; package contents were not inspected, so that is not evidence that the package bundles no game data.",
+      "recommendation": "Conditional clear, keeping the explanation as a recorded-note warning (owner batch under #1129), unless the owner finds an explicit prohibition. Condition: a clean release-content listing of the newest package, v0.6.1 (published 2026-11-07). Its contents are not yet listed; docs/CATALOG.md (Bundled game data stays held) keeps a package whose contents are unknown held until they are listed.",
+      "proposed": "owner decision",
+      "content_listing": {
+        "newest_release": "v0.6.1",
+        "published": "2026-11-07",
+        "assets_shown": 6,
+        "asset_names_from_release_notes": [],
+        "contents_listed": false,
+        "why_not_listed": "Release asset names, sizes and archive contents were not readable: the GitHub REST API refused third-party reads in this session and the release page loads its asset list lazily. No archive was downloaded.",
+        "note": null,
+        "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+      },
+      "owner_kind": "conditional-clear",
+      "proposed_if_condition_met": []
     },
     {
       "identity": "unchiga-yu-gi-oh-forbidden-memories-recompiled",
@@ -8047,11 +8342,12 @@
           "https://github.com/boburning/portcove/issues/6004"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag 1.9.2-alpha) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "wing-commander-privateer-openprivateer",
@@ -8080,16 +8376,20 @@
         "tags": 3,
         "newest_tags": [
           {
-            "tag": "build_20261117_0458",
-            "date": "2026-11-15"
+            "tag": "build_20261120_2250",
+            "date": "2026-11-21",
+            "date_source": "release published (release page)",
+            "latest": true
           },
           {
             "tag": "build_20261117_2026",
-            "date": "2026-11-15"
+            "date": "2026-11-17",
+            "date_source": "release published (release page)"
           },
           {
-            "tag": "build_20261120_2250",
-            "date": "2026-11-15"
+            "tag": "build_20261117_0458",
+            "date": "2026-11-17",
+            "date_source": "release published (release page)"
           }
         ],
         "release_url_tag": "build_20261113_0111",
@@ -8101,13 +8401,26 @@
           "https://github.com/boburning/portcove/issues/6119",
           "https://github.com/schlangz/openprivateer-project/releases",
           "https://github.com/schlangz/openprivateer-project/releases/tag/build_20261113_0111"
-        ]
+        ],
+        "tag_date_correction": "The earlier record gave 2026-11-15 for all three builds from git; the releases were published 2026-11-17, 2026-11-17 and 2026-11-21.",
+        "newest_release_page": {
+          "releases_shown": 3,
+          "assets_shown": {
+            "build_20261120_2250": 10,
+            "build_20261117_2026": 9,
+            "build_20261117_0458": 9
+          },
+          "alert_notice": "none shown",
+          "source": "release page read 2026-11-22 by a web fetch; GitHub REST API refused third-party reads in this session"
+        }
       },
-      "classification": "scope-too-broad",
-      "list": "a",
-      "finding": "The hold's own basis is the Windows package only: the publisher's linked security scan names a different Windows executable hash (8a56c13b…) than the reviewed client (cb1d8362…). #6119 records that all six desktop archives of build_20261113_0111 matched the publisher SHA256SUMS and that the Linux x64 client launched; no game data is bundled (the player supplies PRIV.TRE). Today the release named by release_url returns HTTP 404 and three newer builds exist (build_20261117_0458, build_20261117_2026, build_20261120_2250, latest); the releases page no longer shows a Windows alert notice, but no scan bound to a current Windows executable was found, so the Windows condition is not shown to have cleared.",
-      "recommendation": "Narrow to a Windows-only download hold. Separately correct release_url, which names a withdrawn build (a listing correction, not a restriction change).",
-      "proposed": [
+      "classification": "rights-judgement",
+      "list": "b-owner",
+      "finding": "The hold's own basis is the Windows package only: the publisher's linked security scan named a different Windows executable hash (8a56c13b…) than the reviewed client (cb1d8362…). The #8538 specification assigns OpenPrivateer's platform scope to the rights-basis decision authority (Dependencies and blockers: 'the 17 rights re-review candidates and OpenPrivateer's platform scope, each needing the rights-basis decision authority'). The listing's release_url names build_20261113_0111, which now returns HTTP 404. The #6119 digest, Linux launch and no-bundled-data evidence covers only that deleted build. The releases page now shows three builds, build_20261117_0458 and build_20261117_2026 (published 2026-11-17) and build_20261120_2250 (published 2026-11-21, Latest), and no alert notice. Why the reviewed build and the alert notice disappeared is unknown. No scan bound to a current Windows executable was found.",
+      "recommendation": "Keep the whole hold. Owner, after the preconditions: decide whether to narrow to a Windows-only hold (owner_option). A platform-only hold names no reviewed version, so reviewed-successor-release would stay unknown for it; the option uses owner-review only.",
+      "proposed": "owner decision",
+      "owner_kind": "rights-basis-platform-scope",
+      "owner_option": [
         {
           "id": "download",
           "effect": "hold",
@@ -8117,9 +8430,14 @@
           },
           "reason": "safety-evidence-mismatch",
           "explanation": "The publisher's linked Windows security scan does not match the Windows executable in the current release. Portcove can offer the Windows download after that package is cleared.",
-          "reconsider_when": ["reviewed-successor-release", "owner-review"],
+          "reconsider_when": ["owner-review"],
           "tracking_issue": 6119
         }
+      ],
+      "precondition": [
+        "Correct release_url to the current build (a listing correction).",
+        "Re-verify the current build's non-Windows archives against its SHA256SUMS.txt and re-check them for bundled game data.",
+        "Then the owner decides the platform scope."
       ]
     },
     {
@@ -8164,11 +8482,12 @@
           "https://github.com/boburning/portcove/issues/356"
         ]
       },
-      "classification": "rights-judgement",
-      "list": "b-keep",
-      "finding": "The hold turns on the rights or provenance of bundled content (game data, derived art, audio, fonts, third-party components or an unlicensed project). Package contents were not inspected today, so whether a newer release removed the material is not established.",
-      "recommendation": "Keep.",
-      "proposed": "unchanged"
+      "classification": "content-unverified",
+      "list": "c-content",
+      "finding": "The hold names unresolved package facts. This is a factual content gap, not a rights judgement: the package contents are not listed.",
+      "recommendation": "Keep. Resolve by listing the contents of the newest package (newest tag v1.1) with the release-content scan; then classify the listed contents under the rights basis.",
+      "proposed": "unchanged",
+      "resolving_step": "List the package contents of the newest release (release-content scan) and record them on the tracking issue."
     },
     {
       "identity": "xonotic",
@@ -8253,5 +8572,36 @@
       "recommendation": "Keep. Recheck when upstream publishes a useful runtime.",
       "proposed": "unchanged"
     }
-  ]
+  ],
+  "owner_kind_counts": {
+    "conditional-clear": 15,
+    "owner-acceptance-scope": 1,
+    "legacy-rights-review-unreadable": 1,
+    "bundled-content-after-transition": 1,
+    "takedown": 1,
+    "menu-art-exception-scope": 1,
+    "rights-basis-platform-scope": 1
+  },
+  "thirteen_and_seventeen": {
+    "note": "The plan's list of 13 was not available to this record. The 13/17 split below is a reconstruction; the authoritative set is the 17 rows with reason legacy-rights-review.",
+    "legacy_rights_review": [
+      "ace-of-spades-openspades",
+      "blizz127-parasite-eve-decomp-port",
+      "elmasas-lcs-recomp",
+      "eternal-darkness-sanity-s-requiem-eternal-darkness-recomp",
+      "final-fantasy-tactics-finfantacrecomp",
+      "mercenaries-playground-of-destruction-kraftmacandchee",
+      "monster-hunter-generations-ultimate-mhgurecomp",
+      "mstan-battle-arena-toshinden-recomp",
+      "nevercookfirst-dimensionsrecomp",
+      "novapowers0-bloody-roar-ii-recomp",
+      "odrannnn-metroidprimeport",
+      "rage-racer-rage-racer-pc",
+      "ridgeracertype4recomp-tetrisgm-r4-ridge-racer-type-4",
+      "sarpbc-recompiled-snufflyyy-supersonic-acrobatic-rocket-powered-battle-cars",
+      "sonic-free-riders-recompiled",
+      "thandor-the-invasion-open-thandor",
+      "toystory2-recompiled-periblugaming-toy-story-2-buzz-lightyear-to-the-rescue"
+    ]
+  }
 }

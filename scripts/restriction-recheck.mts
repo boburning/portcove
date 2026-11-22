@@ -6,6 +6,12 @@ import {
   reconsiderConditions,
   type AcquisitionRestriction,
 } from "./catalog-acquisition-restrictions.mts";
+import {
+  observerListingObservations,
+  readListingObservation,
+  type ListingObservation,
+  type ListingObservedRelease,
+} from "./listing-observation-reader.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /**
@@ -23,18 +29,29 @@ import { isRecord } from "./runtime-values.mts";
  * Condition rules, per hold:
  * - `publisher-checksum`: a complete observation's newest release has assets
  *   and every asset carries a provider digest.
- * - `reviewed-successor-release`: a complete observation names a release whose
- *   version no restriction of the port scopes (by release or artifact). With
- *   no scoped version there is no reviewed baseline, so the result is unknown.
- * - `clean-upstream-package`: the evidence file records a content scan of the
- *   newest observed release with zero findings.
+ * - `reviewed-successor-release`: a complete observation names a release that
+ *   no restriction of the port scopes (by release or artifact) and that was
+ *   published after the newest scoped release. The baseline is the newest
+ *   provider publication time among observed scoped versions; an older or
+ *   equally dated unscoped release is not a successor. A missing publication
+ *   time, or a scoped version absent from the observation, is unknown. A hold
+ *   scoped only by platform names no reviewed version, so this condition stays
+ *   unknown for it until a release or artifact scope (or the owner) supplies
+ *   the baseline.
+ * - `clean-upstream-package`: the evidence file records content scans with
+ *   zero findings covering every asset of the newest observed release. A scan
+ *   names a version and optionally an `asset_sha256` or a `platform`; without
+ *   either it covers the whole version. Any covering finding is not satisfied;
+ *   an uncovered asset is unknown.
  * - `attributable-grant`: the evidence file records whether a grant covering
  *   the held scope was reviewed.
  * - `upstream-route-change`: the evidence file records whether the upstream
  *   route the hold names changed.
  * - `owned-input-preparation`, `owner-review`: never machine-checkable.
  *
- * Missing or incomplete evidence is `unknown`, never `satisfied`.
+ * Missing or incomplete evidence is `unknown`, never `satisfied`. A row with
+ * any manual condition is flagged `manual` (it needs the owner) whatever its
+ * other conditions say; its strongest machine result is reported beside it.
  */
 
 export type ReconsiderCondition = (typeof reconsiderConditions)[number];
@@ -44,14 +61,16 @@ export const manualConditions: readonly ReconsiderCondition[] = [
   "owner-review",
 ];
 
-export interface ObservedRelease {
+export type ObservedRelease = ListingObservedRelease & { version: string };
+export interface ContentScan {
   version: string;
-  published_at: string | null;
-  assets: { name: string; sha256: string | null }[];
+  findings: number;
+  platform?: string;
+  asset_sha256?: string;
 }
 export interface EvidenceSubject {
   port_id: string;
-  content_scan?: { version: string; findings: number }[];
+  content_scan?: ContentScan[];
   grant?: { recorded: boolean; reference: string };
   route_changed?: { changed: boolean; reference: string };
 }
@@ -70,7 +89,12 @@ export interface RecheckRow {
   carrier: "listing" | "managed";
   restriction_id: string;
   reason: string;
+  /** `manual` whenever any condition needs a person; otherwise `machine`. */
   flag: ConditionStatus;
+  /** Strongest result among machine-checkable conditions; null when none. */
+  machine: Exclude<ConditionStatus, "manual"> | null;
+  /** Fact digest of the complete observation the row was judged from. */
+  observation_facts_sha256: string | null;
   conditions: ConditionResult[];
 }
 export interface RecheckReport {
@@ -83,13 +107,14 @@ export interface RecheckReport {
     observer_report: "absent" | "applied";
     evidence: "absent" | "applied";
   };
-  /** Holds whose conditions are satisfied or unknown, in id order. */
+  /** Holds whose machine result is satisfied or unknown, in id order. */
   flagged: RecheckRow[];
   /** Every hold with authored conditions, in id order. */
   rows: RecheckRow[];
 }
 
-const statuses: readonly ConditionStatus[] = ["satisfied", "unknown", "not-satisfied", "manual"];
+const statuses: readonly ConditionStatus[] = ["manual", "satisfied", "unknown", "not-satisfied"];
+const machineStatuses = ["satisfied", "unknown", "not-satisfied"] as const;
 
 function carriersOf(record: AuthoredPort) {
   const listing = record.listing as Record<string, unknown>;
@@ -113,50 +138,31 @@ function scopedVersions(record: AuthoredPort) {
   return versions;
 }
 
-function readReleases(observation: unknown): ObservedRelease[] | undefined {
-  if (!isRecord(observation)) return undefined;
-  // `complete` is the producer's success; an absent status is a legacy success.
-  if (observation.status !== undefined && observation.status !== "complete") return undefined;
-  if (!Array.isArray(observation.releases)) return undefined;
-  return observation.releases.flatMap((release: unknown) => {
-    if (!isRecord(release) || typeof release.version !== "string" || !release.version) return [];
-    const assets = Array.isArray(release.assets) ? release.assets : [];
-    return [
-      {
-        version: release.version,
-        published_at: typeof release.published_at === "string" ? release.published_at : null,
-        assets: assets.flatMap((asset: unknown) =>
-          isRecord(asset) && typeof asset.name === "string"
-            ? [{ name: asset.name, sha256: typeof asset.sha256 === "string" ? asset.sha256 : null }]
-            : [],
-        ),
-      },
-    ];
-  });
+interface Observed {
+  facts_sha256: string | null;
+  releases: ObservedRelease[];
+}
+
+function completeReleases(observation: ListingObservation | undefined): Observed | undefined {
+  if (observation?.state !== "complete") return undefined;
+  return {
+    facts_sha256: observation.facts_sha256,
+    releases: observation.releases.filter(
+      (release): release is ObservedRelease => release.version !== null,
+    ),
+  };
 }
 
 /** Committed listing observations, replaced by observer report entries. */
 function observedReleases(inputs: RecheckInputs, known: ReadonlySet<string>) {
-  const result = new Map<string, ObservedRelease[]>();
+  const reported = observerListingObservations(inputs.observerReport, known);
+  const result = new Map<string, Observed>();
   for (const record of inputs.records) {
-    const releases = readReleases(record.listing.upstream_observation);
-    if (releases) result.set(record.listing.id, releases);
-  }
-  if (inputs.observerReport === undefined) return result;
-  const report = inputs.observerReport;
-  const entries: unknown =
-    isRecord(report) && Array.isArray(report.listings) ? report.listings : report;
-  if (!Array.isArray(entries))
-    throw new Error("Observer report needs a listings array of listing updates.");
-  for (const raw of entries) {
-    const entry: unknown = isRecord(raw) && isRecord(raw.listing_update) ? raw.listing_update : raw;
-    if (!isRecord(entry) || typeof entry.id !== "string")
-      throw new Error("Observer report contains a listing without an id.");
-    if (!known.has(entry.id))
-      throw new Error(`Observer report names ${entry.id}, which is not a catalog identity.`);
-    const releases = readReleases(entry.upstream_observation);
-    if (releases) result.set(entry.id, releases);
-    else result.delete(entry.id);
+    const id = record.listing.id;
+    const observed = completeReleases(
+      reported.get(id) ?? readListingObservation(record.listing.upstream_observation),
+    );
+    if (observed) result.set(id, observed);
   }
   return result;
 }
@@ -188,11 +194,18 @@ function evidenceSubjects(evidence: unknown, known: ReadonlySet<string>) {
             isRecord(scan) &&
             typeof scan.version === "string" &&
             Number.isSafeInteger(scan.findings) &&
-            Number(scan.findings) >= 0,
+            Number(scan.findings) >= 0 &&
+            (scan.platform === undefined || typeof scan.platform === "string") &&
+            (scan.asset_sha256 === undefined ||
+              (typeof scan.asset_sha256 === "string" &&
+                /^[0-9a-f]{64}$/u.test(scan.asset_sha256))) &&
+            !(scan.platform !== undefined && scan.asset_sha256 !== undefined),
         )
       )
     )
-      throw new Error(`${subject.port_id} content scans need a version and a finding count.`);
+      throw new Error(
+        `${subject.port_id} content scans need a version, a finding count and at most one of platform or a lowercase asset_sha256.`,
+      );
     if (subject.grant !== undefined && !referenced(subject.grant, "recorded"))
       throw new Error(`${subject.port_id} grant evidence needs recorded and a reference.`);
     if (subject.route_changed !== undefined && !referenced(subject.route_changed, "changed"))
@@ -202,15 +215,99 @@ function evidenceSubjects(evidence: unknown, known: ReadonlySet<string>) {
   return result;
 }
 
+/** Provider publication time in milliseconds; null when absent or unreadable. */
+function publishedAt(release: ObservedRelease) {
+  const time = release.published_at === null ? Number.NaN : Date.parse(release.published_at);
+  return Number.isFinite(time) ? time : null;
+}
+
 /** Newest first by provider publication time; undated releases keep their order last. */
 function newest(releases: readonly ObservedRelease[]) {
   return releases
-    .map((release, index) => ({ release, index }))
+    .map((release, index) => ({ release, index, time: publishedAt(release) }))
     .toSorted(
       (left, right) =>
-        (right.release.published_at ?? "").localeCompare(left.release.published_at ?? "") ||
+        (right.time ?? Number.NEGATIVE_INFINITY) - (left.time ?? Number.NEGATIVE_INFINITY) ||
         left.index - right.index,
     )[0]?.release;
+}
+
+function successor(
+  reviewed: ReadonlySet<string>,
+  releases: readonly ObservedRelease[],
+): [ConditionStatus, string] {
+  const scoped = releases.filter((release) => reviewed.has(release.version));
+  const missing = [...reviewed].filter((version) => !scoped.some((r) => r.version === version));
+  if (missing.length)
+    return [
+      "unknown",
+      `Scoped version(s) not in the observation: ${missing.toSorted().join(", ")}.`,
+    ];
+  const undatedScoped = scoped.filter((release) => publishedAt(release) === null);
+  if (undatedScoped.length)
+    return [
+      "unknown",
+      `Scoped release(s) without a publication time: ${undatedScoped.map((r) => r.version).join(", ")}.`,
+    ];
+  const baseline = Math.max(...scoped.map((release) => publishedAt(release)!));
+  const unscoped = releases.filter((release) => !reviewed.has(release.version));
+  const newer = unscoped.filter((release) => (publishedAt(release) ?? -Infinity) > baseline);
+  if (newer.length)
+    return [
+      "satisfied",
+      `Published after the newest scoped release: ${newer.map((r) => r.version).join(", ")}.`,
+    ];
+  const undated = unscoped.filter((release) => publishedAt(release) === null);
+  if (undated.length)
+    return [
+      "unknown",
+      `Unscoped release(s) without a publication time: ${undated.map((r) => r.version).join(", ")}.`,
+    ];
+  return unscoped.length
+    ? [
+        "not-satisfied",
+        `Unscoped releases are not newer than the newest scoped release: ${unscoped.map((r) => r.version).join(", ")}.`,
+      ]
+    : ["not-satisfied", "Every observed release is already scoped."];
+}
+
+/** Scans of `latest` that cover `asset`: same version, then exact digest, platform or whole version. */
+function covering(
+  scans: readonly ContentScan[],
+  version: string,
+  asset?: ObservedRelease["assets"][number],
+) {
+  return scans.filter(
+    (scan) =>
+      scan.version === version &&
+      (scan.asset_sha256 !== undefined
+        ? asset?.sha256?.toLowerCase() === scan.asset_sha256
+        : scan.platform !== undefined
+          ? (asset?.platform_hints.includes(scan.platform) ?? false)
+          : true),
+  );
+}
+
+function contentScan(
+  latest: ObservedRelease,
+  scans: readonly ContentScan[],
+): [ConditionStatus, string] {
+  const groups = latest.assets.length
+    ? latest.assets.map((asset) => ({
+        label: asset.name ?? "an unnamed asset",
+        found: covering(scans, latest.version, asset),
+      }))
+    : [{ label: latest.version, found: covering(scans, latest.version) }];
+  const findings = groups.reduce(
+    (sum, group) => sum + group.found.reduce((total, scan) => total + scan.findings, 0),
+    0,
+  );
+  if (findings)
+    return ["not-satisfied", `${findings} finding(s) in scans covering ${latest.version}.`];
+  const uncovered = groups.filter((group) => !group.found.length).map((group) => group.label);
+  if (uncovered.length)
+    return ["unknown", `No content scan covers ${uncovered.join(", ")} in ${latest.version}.`];
+  return ["satisfied", `Content scans cover every asset of ${latest.version} with no findings.`];
 }
 
 function evaluate(
@@ -239,23 +336,16 @@ function evaluate(
     case "reviewed-successor-release": {
       const reviewed = scopedVersions(record);
       if (!reviewed.size)
-        return result("unknown", "No restriction scopes a release or artifact version.");
+        return result(
+          "unknown",
+          "No restriction scopes a release or artifact version, so there is no reviewed baseline.",
+        );
       if (!releases) return result("unknown", "No complete release observation.");
-      const fresh = releases.map((release) => release.version).filter((v) => !reviewed.has(v));
-      return fresh.length
-        ? result(
-            "satisfied",
-            `Observed releases outside every scoped version: ${fresh.join(", ")}.`,
-          )
-        : result("not-satisfied", "Every observed release is already scoped.");
+      return result(...successor(reviewed, releases));
     }
     case "clean-upstream-package": {
       if (!latest) return result("unknown", "No complete release observation.");
-      const scan = subject?.content_scan?.find((entry) => entry.version === latest.version);
-      if (!scan) return result("unknown", `No content scan recorded for ${latest.version}.`);
-      return scan.findings
-        ? result("not-satisfied", `${scan.findings} finding(s) in ${latest.version}.`)
-        : result("satisfied", `The content scan of ${latest.version} recorded no findings.`);
+      return result(...contentScan(latest, subject?.content_scan ?? []));
     }
     case "attributable-grant":
       if (!subject?.grant) return result("unknown", "No reviewed grant evidence.");
@@ -273,9 +363,16 @@ function evaluate(
   return result("unknown", "Unrecognized condition.");
 }
 
-/** A row flags the strongest result among its conditions. */
+/** Strongest machine result: satisfied, then unknown, then not satisfied. */
+function machineOf(conditions: readonly ConditionResult[]) {
+  return (
+    machineStatuses.find((status) => conditions.some((entry) => entry.status === status)) ?? null
+  );
+}
+
+/** Any manual condition puts the row with the owner, whatever else it says. */
 function flagOf(conditions: readonly ConditionResult[]): ConditionStatus {
-  return statuses.find((status) => conditions.some((entry) => entry.status === status))!;
+  return conditions.some((entry) => entry.status === "manual") ? "manual" : machineOf(conditions)!;
 }
 
 const byKey = (left: RecheckRow, right: RecheckRow) =>
@@ -299,11 +396,12 @@ export function restrictionRecheckReport(inputs: RecheckInputs): RecheckReport {
         holds++;
         const authored = restriction.reconsider_when ?? [];
         if (!authored.length) continue;
+        const observation = observed.get(record.listing.id);
         const conditions = authored.map((condition) =>
           evaluate(
             condition as ReconsiderCondition,
             record,
-            observed.get(record.listing.id),
+            observation?.releases,
             subjects.get(record.listing.id),
           ),
         );
@@ -313,6 +411,8 @@ export function restrictionRecheckReport(inputs: RecheckInputs): RecheckReport {
           restriction_id: restriction.id,
           reason: restriction.reason ?? "unclassified",
           flag: flagOf(conditions),
+          machine: machineOf(conditions),
+          observation_facts_sha256: observation?.facts_sha256 ?? null,
           conditions,
         });
       }
@@ -332,7 +432,7 @@ export function restrictionRecheckReport(inputs: RecheckInputs): RecheckReport {
       observer_report: inputs.observerReport === undefined ? "absent" : "applied",
       evidence: inputs.evidence === undefined ? "absent" : "applied",
     },
-    flagged: rows.filter((row) => row.flag === "satisfied" || row.flag === "unknown"),
+    flagged: rows.filter((row) => row.machine === "satisfied" || row.machine === "unknown"),
     rows,
   };
 }
@@ -347,7 +447,7 @@ export function renderRestrictionRecheck(report: RecheckReport): string {
     `Observer report: ${summary.observer_report}; evidence: ${summary.evidence}`,
     ...report.flagged.map(
       (row) =>
-        `${row.flag}: ${row.port_id} ${row.carrier}/${row.restriction_id} (${row.reason}): ${row.conditions
+        `${row.flag === "manual" ? `manual (owner; machine ${row.machine})` : row.flag}: ${row.port_id} ${row.carrier}/${row.restriction_id} (${row.reason}): ${row.conditions
           .map((entry) => `${entry.condition} ${entry.status}`)
           .join(", ")}`,
     ),
