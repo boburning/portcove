@@ -451,8 +451,9 @@ fn exact_scheduled_replay(
 }
 
 /// Consecutive days start a whole window apart, so daily windows tile the set
-/// instead of overlapping: any `ceil(n / limit) + 1` consecutive full windows
-/// cover every stable subject (447 subjects: 15 days, not 416). Each completed
+/// instead of overlapping: each cycle of `c = ceil(n / limit)` days covers
+/// every stable subject (447 subjects: 14 days, not 416), and any `2c`
+/// consecutive full windows do too. Each completed
 /// cycle shifts the phase by one subject, so even when the deadline always
 /// cuts the window short, every subject eventually gets the first slot. The
 /// split visits each at most once.
@@ -506,14 +507,21 @@ mod scheduled_subject_tests {
 
     #[test]
     fn full_daily_windows_cover_a_large_stable_set_within_one_cycle() {
-        for count in [33_usize, 64, 447, 1_000] {
+        for count in [33_usize, 64, 96, 128, 447, 1_000] {
             let subjects: Vec<_> = (0..count).collect();
-            let days = count.div_ceil(SCHEDULED_SUBJECT_LIMIT) as u64 + 1;
-            for first in [0_u64, 12_345] {
-                let visited: BTreeSet<_> = (first..first + days)
+            let cycle = count.div_ceil(SCHEDULED_SUBJECT_LIMIT) as u64;
+            let covers = |first: u64, days: u64| {
+                (first..first + days)
                     .flat_map(|day| scheduled_subjects(&subjects, day).copied())
-                    .collect();
-                assert_eq!(visited.len(), count, "{count} from day {first}");
+                    .collect::<BTreeSet<_>>()
+                    .len()
+                    == count
+            };
+            for aligned in [0_u64, 7] {
+                assert!(covers(aligned * cycle, cycle), "{count} cycle {aligned}");
+            }
+            for first in 0..3 * cycle {
+                assert!(covers(first, 2 * cycle), "{count} from day {first}");
             }
         }
     }

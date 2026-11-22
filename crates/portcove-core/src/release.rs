@@ -311,6 +311,8 @@ pub(crate) const PROVIDER_JSON_MAX_BYTES: usize = 4 * 1024 * 1024;
 const CHECKSUM_MAX_BYTES: usize = 1024 * 1024;
 const CHECKSUM_MAX_SIDECARS: usize = 8;
 const PROVIDER_PAGE_SIZE: usize = 100;
+/// Pages the request-cost forecast and offline release notes consider. It is
+/// not a selection bound: selection reads as much history as its choice needs.
 const GITHUB_MAX_RELEASE_PAGES: usize = 10;
 const GITHUB_SAVED_RELEASE_INVENTORY_LIMIT: usize = 10;
 const GITHUB_ASSET_INVENTORY_PAGE_LIMIT: usize = 3;
@@ -878,6 +880,16 @@ impl GithubReleaseProvider {
         let Some(page) = inventory.next_page else {
             return Ok(false);
         };
+        let incomplete = || {
+            PortcoveError::network(
+                "GitHub release history did not finish within the provider request budget. Try again.",
+            )
+            .detail("release_inventory", "incomplete")
+            .detail("release_pages_read", (page - 1).to_string())
+        };
+        if tokio::time::Instant::now() >= inventory.deadline {
+            return Err(incomplete());
+        }
         let url = paginated_url(
             &inventory.repository_url,
             "releases",
@@ -892,13 +904,7 @@ impl GithubReleaseProvider {
         };
         let mut current = tokio::time::timeout_at(inventory.deadline, read)
             .await
-            .map_err(|_| {
-                PortcoveError::network(
-                    "GitHub release history did not finish within the provider request budget. Try again.",
-                )
-                .detail("release_inventory", "incomplete")
-                .detail("release_pages_read", (page - 1).to_string())
-            })??;
+            .map_err(|_| incomplete())??;
         if current.len() > PROVIDER_PAGE_SIZE {
             return Err(PortcoveError::verification(
                 "GitHub returned more releases than the requested page size",
@@ -923,8 +929,9 @@ impl GithubReleaseProvider {
         Ok(())
     }
 
-    /// Checks uploader continuity, reading older history only while it could
-    /// still establish the uploader. A prefix can only fail closed.
+    /// Checks uploader continuity, reading older history while it could still
+    /// establish the uploader, and completely before accepting that no release
+    /// carries uploader facts.
     async fn continuing_uploader(
         &self,
         port: &PortDefinition,
@@ -939,6 +946,13 @@ impl GithubReleaseProvider {
                 Err(_)
                     if inventory.next_page.is_some()
                         && uploader_continuity::history_can_establish(asset) =>
+                {
+                    self.extend_release_inventory(inventory, scope).await?;
+                }
+                // "Not observed" means no release carries uploader facts, which
+                // only the complete history can establish.
+                Ok(uploader_continuity::Continuity::NotObserved)
+                    if inventory.next_page.is_some() =>
                 {
                     self.extend_release_inventory(inventory, scope).await?;
                 }
@@ -1657,9 +1671,11 @@ enum GithubSelection<'a> {
 }
 
 /// Newest-first GitHub release history, read one page at a time only as far as
-/// a decision needs. Channel selection takes the first match in provider order,
-/// so a prefix that contains a match gives the same answer as the full history.
-/// Absence is concluded only once `next_page` is `None`.
+/// a decision needs. Stable and Rolling selection take the first match in
+/// provider order, so a prefix containing one gives the full-history answer;
+/// Beta's stable fallback needs the complete history (see
+/// `decided_github_release_index`). Absence is concluded only once `next_page`
+/// is `None`.
 struct GithubReleaseInventory {
     repository_url: String,
     releases: Vec<GithubRelease>,
@@ -1745,8 +1761,9 @@ impl GithubReleaseProvider {
                     "the saved package release inventory repeats a provider release identity",
                 ));
             }
-            let Some(index) = select_github_release_index(
+            let Some(index) = decided_github_release_index(
                 &inventory.releases,
+                inventory.next_page.is_none(),
                 port,
                 channel,
                 platform,
@@ -2105,10 +2122,17 @@ impl GithubReleaseProvider {
         }
         let applies =
             |release: &GithubRelease| !release.draft && selection.applies(port, platform, release);
-        self.extend_release_inventory_until(&mut inventory, scope, |releases| {
-            select_github_release_index(releases, port, channel, platform, applies).is_some()
-        })
-        .await?;
+        while decided_github_release_index(
+            &inventory.releases,
+            inventory.next_page.is_none(),
+            port,
+            channel,
+            platform,
+            applies,
+        )
+        .is_none()
+            && self.extend_release_inventory(&mut inventory, scope).await?
+        {}
         let latest_index =
             select_github_release_index(&inventory.releases, port, channel, platform, applies)
                 .ok_or_else(|| {
@@ -2189,8 +2213,13 @@ impl GithubReleaseProvider {
                 // reviewed fallback in channel order after the latest digest
                 // has actually triggered the hold.
                 let releases = &inventory.releases;
-                let found =
-                    select_github_release_index(releases, port, channel, platform, |candidate| {
+                let found = decided_github_release_index(
+                    releases,
+                    inventory.next_page.is_none(),
+                    port,
+                    channel,
+                    platform,
+                    |candidate| {
                         candidate.tag_name != latest_tag
                             && !candidate.draft
                             && !checked
@@ -2203,7 +2232,8 @@ impl GithubReleaseProvider {
                                 .as_ref()
                                 .is_some_and(|refresh| refresh.needs(candidate))
                                 || applies(candidate))
-                    });
+                    },
+                );
                 let Some(index) = found else {
                     // A reviewed fallback may be older than the history read so far.
                     if self.extend_release_inventory(&mut inventory, scope).await? {
@@ -2575,6 +2605,23 @@ pub(crate) fn select_channel_candidate<'a, T>(
     releases
         .iter()
         .find(|release| selectable(release) && !beta(release) && !is_rolling(release))
+}
+
+/// The channel candidate when the observed newest-first prefix already decides
+/// it. Stable and Rolling take the first match, which no older page can change.
+/// Beta prefers any prerelease and falls back to a stable one only when none
+/// exists, so a stable fallback is decided only by the complete history.
+fn decided_github_release_index(
+    releases: &[GithubRelease],
+    complete: bool,
+    port: &PortDefinition,
+    channel: ReleaseChannel,
+    platform: Platform,
+    selectable: impl Fn(&GithubRelease) -> bool,
+) -> Option<usize> {
+    let index = select_github_release_index(releases, port, channel, platform, selectable)?;
+    (complete || channel != ReleaseChannel::Beta || is_beta_release(&releases[index]))
+        .then_some(index)
 }
 
 fn select_github_release_index(
@@ -6549,9 +6596,23 @@ mod tests {
         );
     }
 
+    /// Releases whose assets the project's own automation uploaded, so uploader
+    /// continuity is decided without reading older history.
+    fn attributed(mut release: serde_json::Value) -> serde_json::Value {
+        release["assets"][0]["uploader"] =
+            serde_json::json!({"id": 41_898_282, "login": "github-actions[bot]", "type": "Bot"});
+        release
+    }
+
     fn release_page(first: usize, count: usize, draft: bool) -> String {
         let page = (first..first + count)
-            .map(|index| github_release(&format!("v{index}.0.0"), draft, "game-windows.zip"))
+            .map(|index| {
+                attributed(github_release(
+                    &format!("v{index}.0.0"),
+                    draft,
+                    "game-windows.zip",
+                ))
+            })
             .collect::<Vec<_>>();
         ok_json(&serde_json::to_string(&page).unwrap(), "")
     }
@@ -6619,19 +6680,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn github_beta_reads_past_a_full_stable_page_for_an_older_prerelease() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("re-blue").unwrap().clone();
+        port.channels.push(ReleaseChannel::Beta);
+        let port = &port;
+        let mut prerelease = attributed(github_release("v0.9.0-beta", false, "game-windows.zip"));
+        prerelease["prerelease"] = serde_json::Value::Bool(true);
+        let responses = vec![
+            ok_json(r#"{"archived":false}"#, ""),
+            release_page(1, PROVIDER_PAGE_SIZE, false),
+            ok_json(&serde_json::to_string(&vec![prerelease]).unwrap(), ""),
+        ];
+        let (api_root, requests, server) = serve_http(responses);
+        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let resolved = provider
+            .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(resolved.version, "v0.9.0-beta");
+        assert_eq!(requests.try_iter().count(), 3);
+    }
+
+    #[tokio::test]
     async fn github_release_history_budget_exhaustion_is_incomplete_not_absent() {
         let (api_root, _requests, server) = serve_http(vec![]);
-        let bounds = ProviderNetworkBounds {
-            request: Duration::ZERO,
-            ..PROVIDER_NETWORK_BOUNDS
-        };
-        let provider =
-            GithubReleaseProvider::with_api_root_and_bounds(api_root.clone(), bounds).unwrap();
+        let provider = GithubReleaseProvider::with_api_root(api_root.clone()).unwrap();
+        let mut inventory =
+            provider.release_inventory(&format!("{api_root}/repos/example/project"));
+        inventory.deadline = tokio::time::Instant::now();
         let error = provider
-            .releases(&format!("{api_root}/repos/example/project"))
+            .extend_release_inventory(&mut inventory, None)
             .await
             .unwrap_err();
         server.join().unwrap();
+        assert!(inventory.releases.is_empty());
         assert_eq!(error.code, crate::ErrorCode::Network);
         assert_eq!(
             error.details.get("release_inventory").map(String::as_str),

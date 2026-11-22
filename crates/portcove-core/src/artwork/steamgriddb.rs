@@ -39,11 +39,11 @@ const CREDENTIAL_SERVICE: &str = "io.github.portcove.Portcove";
 const CREDENTIAL_USER: &str = "steamgriddb.com";
 const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_RESULTS: usize = 50;
-/// Pages of 50 a player can list for one game and role. Each page is one
-/// player-requested call; this only stops a runaway paging loop.
-const MAX_LISTING_PAGES: u32 = 200;
-/// Pages read while re-finding a chosen image before it is imported.
-const MAX_REVALIDATION_PAGES: u32 = 20;
+/// Pages of 50 a player can list for one game and role, and the pages read
+/// while re-finding a chosen image before import. They match, so any image a
+/// player could list can also be confirmed.
+const MAX_LISTING_PAGES: u32 = 40;
+const MAX_REVALIDATION_PAGES: u32 = MAX_LISTING_PAGES;
 const MAX_SEARCH_TERM_CHARS: usize = 120;
 const MAX_IMAGE_DIMENSION: u32 = 8192;
 
