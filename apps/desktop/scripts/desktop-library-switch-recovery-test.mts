@@ -470,7 +470,8 @@ export async function librarySwitchRecoveryScenario({
   await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
   await expectPickerFocus();
   const savedAgain = await read("get_bootstrap_status");
-  assert.deepEqual(savedAgain, restarted);
+  // A changed saved choice retires old review identities without reopening the library.
+  assert.deepEqual(savedAgain, { ...restarted, generation: restarted.generation + 1 });
   assert.deepEqual(
     await read("get_library_identity", { generation: savedAgain.generation }),
     recoveredIdentity,
