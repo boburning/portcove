@@ -1227,6 +1227,10 @@ Detail starts with compact identity, state and its current action, followed by
 the installation and requirements. Current update decisions and saves/storage
 precede project background and diagnostics. Catalog identity wraps in full and
 installation version labels explicitly say Installed or External installation.
+In Manage, an external installation links to its matching Game files control.
+Focus moves to the folder or launch-details control when available and to the
+Game actions region when it is unavailable. Opening the section leaves the
+existing registration and any draft in place.
 
 Preparation groups Files used, What changes and During setup. Running preparation,
 managed installation and game-update observation can be left with Continue browsing;

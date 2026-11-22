@@ -402,6 +402,22 @@ or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
 
+## Reviewed screenshot display
+
+Run the opt-in Windows case with
+`just desktop-verify --scenario native-reviewed-screenshot-display --require-clean`.
+The source must embed reviewed typed IGDB screenshots. The run disables automatic
+catalog refresh in its isolated preferences, verifies embedded catalog delivery and
+compares the effective screenshot inventory with the tracked listing source. The
+normal app opens each exact port through Discover, chooses its original release
+when applicable,
+and compares the decoded gallery image with Core's cache-only read of the exact
+admitted asset. The run retains the viewer screenshots and a report of media IDs,
+digests, scope and decoded geometry. It checks Escape returns focus to the same
+port's gallery. It requires live image access on a cold cache and does not use a
+provider key. A bundled directory result leaves signed delivery and released
+client acceptance open.
+
 ## Hosted installed application update
 
 The manual `hosted-installed-update.yml` workflow (#52) proves one real

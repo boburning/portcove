@@ -87,9 +87,17 @@ export async function backupReviewScenario({
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
     await mkdir(paths.user_data_root, { recursive: true });
     await writeFile(save, "selected snapshot data");
-    const selected = transportValue("backup", command(["backup", "create", port.id]));
+    // The first owned fixture creation reached the generic 15 s timeout in
+    // Windows job 137017525749. Run each fixture write once with a larger budget.
+    const selected = transportValue(
+      "backup",
+      command(["backup", "create", port.id], undefined, { timeoutMs: 45_000 }),
+    );
     await writeFile(save, "other snapshot data");
-    const other = transportValue("backup", command(["backup", "create", port.id]));
+    const other = transportValue(
+      "backup",
+      command(["backup", "create", port.id], undefined, { timeoutMs: 45_000 }),
+    );
     await writeFile(save, "current data before review");
     await open(port);
     await revealDetailSection(browser, "Saves & backups");

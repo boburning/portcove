@@ -20,6 +20,10 @@ pub(crate) fn legacy_retained_document(
     let mut omitted = Vec::new();
     let mut stripped_linux = false;
     document.ports.retain_mut(|port| {
+        // A whole legacy catalog is decoded before the installed port is chosen.
+        if port.id != port_id {
+            port.mod_loader = None;
+        }
         if port.linux_packaged_library.is_none() {
             return true;
         }
@@ -1030,7 +1034,11 @@ mod tests {
         let restored = decoded.catalog("zelda64-recomp").unwrap();
         assert_eq!(
             serde_json::to_value(restored.authoritative_document()).unwrap(),
-            serde_json::to_value(crate::test_fixture::indexed_fixture_document(&original)).unwrap()
+            serde_json::to_value(crate::test_fixture::indexed_fixture_document_for_port(
+                &original,
+                "zelda64-recomp"
+            ))
+            .unwrap()
         );
         assert_eq!(
             serde_json::to_vec(&InstalledContract::capture(&restored, "zelda64-recomp").unwrap())
@@ -1234,6 +1242,54 @@ mod tests {
     }
 
     #[test]
+    fn legacy_capture_keeps_only_the_installed_ports_loader() {
+        let catalog = Catalog::embedded().unwrap();
+        let unrelated = "opentyrian-opentyrian";
+        let capture = |selected| InstalledContract::capture(&catalog, selected).unwrap();
+        let contract = capture(unrelated);
+        assert!(!contract.catalog_json.contains("\"mod_loader\""));
+        let retained = contract.catalog(unrelated).unwrap();
+        let mut pre_loader = catalog.authoritative_document();
+        for port in &mut pre_loader.ports {
+            port.mod_loader = None;
+        }
+        let pre_loader = Catalog::from_document(pre_loader).unwrap();
+        assert_eq!(
+            contract.catalog_json,
+            InstalledContract::capture(&pre_loader, unrelated)
+                .unwrap()
+                .catalog_json,
+        );
+
+        for loader_port in [
+            "shipwright",
+            "2ship2harkinian",
+            "zelda64-recomp",
+            "banjo-recomp",
+        ] {
+            let mut expected = catalog.port(loader_port).unwrap().clone();
+            assert!(expected.mod_loader.is_some(), "{loader_port}");
+            let selected = capture(loader_port).catalog(loader_port).unwrap();
+            assert_eq!(
+                selected.port(loader_port).unwrap().mod_loader,
+                expected.mod_loader
+            );
+            assert!(
+                selected
+                    .ports()
+                    .iter()
+                    .filter(|port| port.id != loader_port)
+                    .all(|port| port.mod_loader.is_none())
+            );
+            expected.mod_loader = None;
+            assert_eq!(
+                serde_json::to_value(retained.port(loader_port).unwrap()).unwrap(),
+                serde_json::to_value(expected).unwrap(),
+            );
+        }
+    }
+
+    #[test]
     fn unrelated_legacy_capture_keeps_shared_identity_without_optional_recognition() {
         let baseline = Catalog::embedded().unwrap();
         let optional_port = "zelda64-recomp";
@@ -1386,6 +1442,9 @@ mod tests {
             .qualification
             .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
         for port in &mut legacy.ports {
+            if port.id != "zelda64-recomp" {
+                port.mod_loader = None;
+            }
             if package_only_settings(port) {
                 port.game_settings = None;
             }

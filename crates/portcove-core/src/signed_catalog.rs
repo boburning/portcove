@@ -265,6 +265,12 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
                 ));
             }
         }
+        if port.mod_loader.is_some() {
+            return Err(PortcoveError::verification(
+                "legacy signed catalogs cannot deliver native mod loader bindings",
+            ));
+        }
+        port.mod_loader.clone_from(&original.mod_loader);
         let package_only = crate::GameSettingsContract::package_only;
         if port.game_settings.as_ref().is_some_and(package_only) {
             return Err(PortcoveError::verification(
