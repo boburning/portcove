@@ -27,7 +27,10 @@ export async function gitLabN64SourceDeclaration(
     !tag ||
     tag.length > 255 ||
     /^[.]{1,2}$/u.test(tag) ||
-    /[\u0000-\u0020\u007f\\]/u.test(tag)
+    tag.split("").some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 0x20 || code === 0x7f || character === "\\";
+    })
   ) {
     throw new Error("GitLab release has no exact tag and commit identity");
   }

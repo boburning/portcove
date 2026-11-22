@@ -619,8 +619,10 @@ export async function observeProviderSource(
     );
     const priorRows = priorPolicy?.gitlab_n64_source_declarations_v1;
     const results = [];
+    const releaseRows: unknown[] = facts.releases;
+    const releasesByTag = releaseRows.filter(isRecord);
     for (const tag of tags) {
-      const releases = facts.releases.filter((row) => isRecord(row) && row.tag_name === tag);
+      const releases = releasesByTag.filter((row) => row.tag_name === tag);
       const release = releases[0];
       const commit = releases.length === 1 && isRecord(release?.commit) ? release.commit.id : null;
       let result = declarations.get(tag);
@@ -629,7 +631,7 @@ export async function observeProviderSource(
         declarations.set(tag, result);
       }
       const current = result ?? { status: "unassessed", reason: "source-tag-budget" };
-      const historical = Array.isArray(priorRows)
+      const historical: unknown = Array.isArray(priorRows)
         ? priorRows.find((row: unknown) => isRecord(row) && row.tag === tag)
         : undefined;
       const earlier = isRecord(historical)
