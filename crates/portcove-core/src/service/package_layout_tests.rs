@@ -864,3 +864,133 @@ async fn a_failed_snapshot_stops_an_in_place_update_before_anything_is_installed
         "the played version's saves are untouched"
     );
 }
+
+/// Dethrace's Linux package moved its player from the archive root (v0.10.1)
+/// to `bin/` (v0.11.0) without declaring `launch_from_install_root`, so each
+/// version's persistence root is its own player's directory. Player data in
+/// the predecessor root must follow every lifecycle step to the active root.
+#[tokio::test]
+async fn dethrace_linux_player_data_follows_the_active_versions_runtime_root() {
+    const ID: &str = "dethrace-labs-dethrace";
+    const DATA: [(&str, &str); 5] = [
+        ("DATA/GENERAL.TXT", "original general"),
+        ("DATA/SAVEGAME/SAVE0.SAV", "race progress"),
+        ("MUSIC/Track02.ogg", "cd audio"),
+        ("dethrace.log", "diagnostic log"),
+        ("DIAGNOST.TXT", "diagnostic report"),
+    ];
+    let package = |version: &str, entries: &[(&str, u32)]| {
+        archive_release(
+            version,
+            format!("dethrace-{version}-linux-x64.tar.gz"),
+            entries,
+        )
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let current = Catalog::embedded().unwrap();
+    // The predecessor was installed by the catalog that reviewed its flat layout.
+    let mut historical = current.authoritative_document();
+    let previous = historical
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ID)
+        .unwrap();
+    let linux = Platform::LinuxX86_64;
+    let flat = previous.reviewed_predecessor_package_layouts_v1[&linux][0]
+        .layout
+        .clone();
+    previous.reviewed_predecessor_package_layouts_v1.clear();
+    previous.reviewed_package_layouts.insert(linux, flat);
+    let historical = Catalog::from_document(historical).unwrap();
+
+    let (first, first_server) = package("v0.10.1", &[("dethrace", 0o755), ("LICENSE", 0o644)]);
+    let provider = Arc::new(Provider(Mutex::new(first)));
+    let mut service = PortcoveService::with_provider(library.clone(), provider.clone()).unwrap();
+    service.replace_catalog_for_test(historical);
+    let installed = install(&service, ID).await;
+    first_server.join().unwrap();
+    service.replace_catalog_for_test(current);
+
+    let runtime = |record: &InstallRecord| {
+        let port = service.installed_port(record).unwrap();
+        let launch = service
+            .prepare_launch_for_install(&port, record, None, None)
+            .unwrap();
+        assert_eq!(launch.executable, launch.working_directory.join("dethrace"));
+        launch.working_directory
+    };
+    let read = |root: &std::path::Path, path: &str| fs::read_to_string(root.join(path)).unwrap();
+    let initial = runtime(&installed);
+    assert_eq!(initial, installed.path);
+    for (path, body) in DATA {
+        let file = initial.join(path);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, body).unwrap();
+    }
+    fs::write(installed.path.join(LAUNCH_MARKER), b"1").unwrap();
+
+    // Update: the nested successor's player reads the data beside `bin/dethrace`.
+    let (next, next_server) = package(
+        "v0.11.0",
+        &[("bin/dethrace", 0o755), ("share/doc/LICENSE", 0o644)],
+    );
+    *provider.0.lock().unwrap() = next;
+    let acquired = acquire(&service, ID).await;
+    next_server.join().unwrap();
+    let updated = apply_update(&service, ID).await.unwrap();
+    let _ = service.discard_game_update_acquisition(ID, &acquired);
+    assert_eq!(updated.version, "v0.11.0");
+    let updated_root = runtime(&updated);
+    assert_eq!(updated_root, updated.path.join("bin"));
+    for (path, body) in DATA {
+        assert_eq!(read(&updated_root, path), body, "{path} after update");
+    }
+    fs::write(
+        updated_root.join("DATA/SAVEGAME/SAVE0.SAV"),
+        "progress in v0.11.0",
+    )
+    .unwrap();
+    fs::write(updated.path.join(LAUNCH_MARKER), b"1").unwrap();
+
+    // Rollback: the predecessor's player sees the newer progress at its root.
+    let rolled = service.rollback(ID).unwrap();
+    assert_eq!(rolled.id, installed.id);
+    let rolled_root = runtime(&rolled);
+    assert_eq!(rolled_root, installed.path);
+    assert_eq!(
+        read(&rolled_root, "DATA/SAVEGAME/SAVE0.SAV"),
+        "progress in v0.11.0"
+    );
+    for (path, body) in DATA
+        .into_iter()
+        .filter(|(path, _)| *path != "DATA/SAVEGAME/SAVE0.SAV")
+    {
+        assert_eq!(read(&rolled_root, path), body, "{path} after rollback");
+    }
+
+    // Backup and restore while each layout is active reach that layout's root.
+    for (label, active_root) in [("predecessor", rolled_root.clone())] {
+        let backup = service.create_backup(ID).unwrap();
+        fs::write(active_root.join("DATA/SAVEGAME/SAVE0.SAV"), "lost progress").unwrap();
+        let preview = service
+            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
+            .unwrap();
+        let authorization = service
+            .authorize_backup_action(
+                ID,
+                &backup.id,
+                crate::BackupAction::Restore,
+                &preview.preview_sha256,
+            )
+            .unwrap();
+        service
+            .restore_backup(ID, &backup.id, &authorization.token)
+            .unwrap();
+        assert_eq!(
+            read(&active_root, "DATA/SAVEGAME/SAVE0.SAV"),
+            "progress in v0.11.0",
+            "{label} restore"
+        );
+    }
+}

@@ -1515,7 +1515,11 @@ mod tests {
             .retain(|record| !newer_ports.contains(&record.scope.port_id.as_str()));
         for port in &mut legacy.ports {
             if port.id != "zelda64-recomp" {
+                // Retention projects other ports' install-scoped semantics: a
+                // mod loader or reviewed predecessor layout is interpreted only
+                // for its own installed port, never for this contract's port.
                 port.mod_loader = None;
+                port.reviewed_predecessor_package_layouts_v1.clear();
             }
             if package_only_settings(port) {
                 port.game_settings = None;
