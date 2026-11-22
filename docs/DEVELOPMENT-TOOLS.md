@@ -2376,7 +2376,11 @@ and a screenshot before reset/resize cleanup; the original assertion still fails
 `native-secondary-panel-presentation` uses a fresh Windows fixture library and
 an owned prepared installation. It inspects DAT editing, metadata export,
 ready notices, mod original-file choice, recipe/provider reviews, retirement,
-file preservation and portable-save feedback in both themes. The retained
+file preservation and portable-save feedback in both themes. The supplied
+provider fixture exercises keyboard Add with an incomplete file list and with
+one eligible file in a complete list. The first opens the chooser. The second
+queues immediately. Both wait for Check files before requesting the exact file
+plan. The retained
 observation identifies supplied replies and controlled refusals. DAT and the
 successful metadata export use actual isolated Core operations. Ordinary
 owned preferences and background setup requests retain their existing paths.
