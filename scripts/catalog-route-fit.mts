@@ -8,8 +8,13 @@ import {
   type AuthoredPort,
   type CatalogPort,
 } from "./catalog-authoring.mts";
-import type { AcquisitionRestriction } from "./catalog-acquisition-restrictions.mts";
+import type {
+  AcquisitionRestriction,
+  RestrictedOperation,
+  RestrictionScope,
+} from "./catalog-acquisition-restrictions.mts";
 import { listingProviderIdentity } from "./listing-upstream-observation.mts";
+import { packagePlayerProjection } from "./package-player-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /**
@@ -20,23 +25,41 @@ import { isRecord } from "./runtime-values.mts";
  * name appears here, so an identity no code has seen is classified from its
  * fields alone. The first matching rule wins:
  *
- * 1. `enrolled`: an operational definition or a generated route enrollment exists.
- * 2. `excluded-scummvm`: the declared runtime engine is the ScummVM project.
- * 3. `upstream-condition`: source-only, unavailable or a route-wide typed hold.
- * 4. `data-only`: GitHub-hosted packages for a supported desktop platform, so the
- *    existing user-selected registration route fits from data alone.
- * 5. `needs-admission`: packages for a supported platform outside GitHub, so a
- *    Portcove-owned route would need independent exact-byte admission.
- * 6. `missing-capability`: packages for no supported desktop platform, or a host
- *    no release provider adapter observes.
- * 7. `needs-bytes-worker`: an observable host whose package bytes and player
- *    facts have not been observed yet.
+ * 1. `excluded-scummvm`: the declared runtime engine is the ScummVM project,
+ *    whether or not an operational route also exists (`enrolled` says so).
+ * 2. `enrolled`: an operational definition or a generated route enrollment exists.
+ *
+ * Every remaining identity is listing-only. Its candidate route is the existing
+ * non-owning user-selected registration route (`register-external`, `launch`).
+ *
+ * 3. `upstream-condition`: source-only or unavailable upstream, a complete
+ *    observation with no release package, or restrictions that hold every
+ *    candidate-route operation on every platform with known packages.
+ * 4. `data-only`: desktop packages are known for a supported platform and
+ *    independently observed player facts exist for at least one of them.
+ * 5. `missing-capability`: packages on a host no release provider adapter reads,
+ *    or packages that carry no supported desktop platform.
+ * 6. `needs-bytes-worker`: desktop packages are known but no player facts exist.
+ * 7. `unobserved`: package availability is unknown and no complete observation
+ *    exists. This is UNKNOWN, not absence.
+ *
+ * `needs-admission` is reserved for data that declares a Portcove-owned
+ * install/execution route without an admitted reviewed artifact. A listing-only
+ * record has no field that can declare such a route, so no rule assigns it and
+ * its count is zero by construction.
+ *
+ * Restrictions are reported separately and evaluated the way Core's offer check
+ * does (`crates/portcove-core/src/acquisition_restriction.rs`): per operation and
+ * platform, the most specific fitting restriction wins, a hold wins a tie, a
+ * more specific permit that could still match a deferred release or artifact
+ * clears a broader hold, and a permit cancels holds only in its own carrier.
  */
 
 export const dispositions = [
   "enrolled",
   "data-only",
   "needs-bytes-worker",
+  "unobserved",
   "needs-admission",
   "missing-capability",
   "upstream-condition",
@@ -44,19 +67,42 @@ export const dispositions = [
 ] as const;
 export type Disposition = (typeof dispositions)[number];
 
+/** Operations of the non-owning user-selected registration route. */
+export const registrationRouteOperations: readonly RestrictedOperation[] = [
+  "register-external",
+  "launch",
+];
+
 /** The engine identity behind every ScummVM-hosted listing, compared as a URL. */
 const scummvmEngineProject = "github.com/scummvm/scummvm";
-const registrationProvider = "github";
+/** Route facts describe a Windows prepared-player basename. */
+const preparedPlayerPlatform = "windows-x86-64";
+const desktopPlatforms: readonly string[] = platforms;
 
 export interface RouteFitFamily {
   adapter: string;
   provider: string;
 }
+export interface RouteFitRestriction {
+  id: string;
+  carrier: "listing" | "managed";
+  effect: "hold" | "permit";
+  operations: RestrictedOperation[];
+  scope: RestrictionScope | "whole";
+  reason?: string;
+}
+export type ObservationState = "complete" | "incomplete" | "unavailable" | "failed" | "none";
 export interface RouteFitRecord {
   id: string;
   family: RouteFitFamily;
   disposition: Disposition;
   reason: string;
+  /** An operational definition or generated route enrollment exists. */
+  enrolled: boolean;
+  observation: ObservationState;
+  restrictions: RouteFitRestriction[];
+  /** Operations Core's offer check holds, by platform, among the declared ones. */
+  held_operations: Partial<Record<RestrictedOperation, string[]>>;
 }
 export interface RouteFitSummary {
   identities: number;
@@ -66,10 +112,13 @@ export interface RouteFitSummary {
   by_family: Record<string, number>;
   listing_only_github_packages_windows_x86_64: number;
   data_only_windows_x86_64: number;
+  restricted_identities: number;
+  listing_only_download_held: number;
+  observations: Record<ObservationState, number>;
   observer_report: "absent" | "applied";
 }
 export interface RouteFitReport {
-  format_version: 1;
+  format_version: 2;
   summary: RouteFitSummary;
   identities: RouteFitRecord[];
 }
@@ -81,20 +130,14 @@ export interface RouteFitInputs {
   observerReport?: unknown;
 }
 
-function portIds(value: unknown, field: string, name: string): string[] {
+function portEntries(value: unknown, field: string, name: string): Record<string, unknown>[] {
   if (!isRecord(value) || !Array.isArray(value[field]))
     throw new Error(`${name} needs a ${field} array.`);
   return value[field].map((entry: unknown) => {
     if (!isRecord(entry) || typeof entry.port_id !== "string" || !entry.port_id)
       throw new Error(`${name} contains an entry without a port_id.`);
-    return entry.port_id;
+    return entry;
   });
-}
-
-function counted(ids: readonly string[]) {
-  const counts = new Map<string, number>();
-  for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
-  return counts;
 }
 
 function engineProject(url: unknown): string | undefined {
@@ -122,108 +165,305 @@ function usesScummvmEngine(record: AuthoredPort): boolean {
   );
 }
 
-/** Any hold without a scope applies to the whole route; scoped holds do not. */
-function routeWideHolds(record: AuthoredPort): string[] {
-  const restrictions: AcquisitionRestriction[] = record.listing.restrictions ?? [];
-  return restrictions
-    .filter(
-      (restriction) =>
-        restriction.effect === "hold" &&
-        (restriction.scope === undefined || Object.keys(restriction.scope).length === 0),
-    )
-    .map((restriction) => restriction.reason ?? restriction.id)
-    .toSorted();
-}
-
-function hostOf(url: string): string {
+function hostOf(url: unknown): string {
   try {
-    return new URL(url).hostname;
+    return new URL(String(url)).hostname;
   } catch {
     return "an unparseable host";
   }
 }
 
-/** Supported desktop platforms with observed package assets, from successful observations only. */
-function observedPackagePlatforms(report: unknown, known: ReadonlySet<string>) {
-  const result = new Map<string, Set<string>>();
+// ---------------------------------------------------------------------------
+// Restrictions: an offer-time port of Core's evaluate_carrier/evaluate.
+
+type CarrierRestrictions = { carrier: "listing" | "managed"; list: AcquisitionRestriction[] };
+
+/** Core's PortListing::effective_restrictions and definition_restrictions. */
+function carriers(record: AuthoredPort): CarrierRestrictions[] {
+  const listing = record.listing as Record<string, unknown>;
+  const authored = Array.isArray(listing.restrictions)
+    ? (listing.restrictions as AcquisitionRestriction[])
+    : [];
+  const legacy =
+    !authored.length && typeof listing.download_block_reason === "string"
+      ? [{ id: "legacy-download-block", effect: "hold", operations: ["download"] } as const]
+      : [];
+  const integration = isRecord(record.integration) ? record.integration : undefined;
+  const managed = Array.isArray(integration?.acquisition_restrictions)
+    ? (integration.acquisition_restrictions as AcquisitionRestriction[])
+    : [];
+  return [
+    { carrier: "managed", list: managed },
+    {
+      carrier: "listing",
+      list: authored.length ? authored : (legacy as unknown as AcquisitionRestriction[]),
+    },
+  ];
+}
+
+const filled = (values: readonly unknown[] | undefined) => (values?.length ?? 0) > 0;
+
+/** Artifacts > releases > inputs = components > platforms > whole. */
+function specificity(scope: RestrictionScope = {}): number {
+  if (filled(scope.artifacts)) return 5;
+  if (filled(scope.releases)) return 4;
+  if (filled(scope.inputs) || filled(scope.components)) return 3;
+  if (filled(scope.platforms)) return 2;
+  return 1;
+}
+
+type Fit = "no" | "possible" | "yes";
+
+/**
+ * Subject: a known operation and platform at offer time, with the release and
+ * artifact deferred. Core resolves no input or component yet, so those
+ * dimensions use its final rule: a hold fails closed, a permit never matches.
+ */
+function fit(restriction: AcquisitionRestriction, operation: string, platform: string): Fit {
+  if (!(restriction.operations as readonly string[]).includes(operation)) return "no";
+  const hold = restriction.effect === "hold";
+  const scope = restriction.scope ?? {};
+  if (filled(scope.platforms) && !scope.platforms!.includes(platform)) return "no";
+  if ((filled(scope.inputs) || filled(scope.components)) && !hold) return "no";
+  return filled(scope.releases) || filled(scope.artifacts) ? "possible" : "yes";
+}
+
+function evaluateCarrier(list: readonly AcquisitionRestriction[], op: string, platform: string) {
+  let best: { rank: number; hold: boolean; restriction: AcquisitionRestriction } | undefined;
+  let possiblePermit = 0;
+  for (const restriction of list) {
+    const rank = specificity(restriction.scope);
+    const hold = restriction.effect === "hold";
+    const result = fit(restriction, op, platform);
+    if (result === "possible" && !hold) possiblePermit = Math.max(possiblePermit, rank);
+    if (
+      result === "yes" &&
+      (!best || rank > best.rank || (rank === best.rank && hold && !best.hold))
+    )
+      best = { rank, hold, restriction };
+  }
+  if (!best || (best.hold && possiblePermit > best.rank)) return undefined;
+  return best;
+}
+
+/** Any held carrier wins; a permit cancels only its own carrier's holds. */
+export function heldAt(record: AuthoredPort, operation: string, platform: string) {
+  for (const { list } of carriers(record)) {
+    const decision = evaluateCarrier(list, operation, platform);
+    if (decision?.hold) return decision.restriction;
+  }
+  return undefined;
+}
+
+function reportedRestrictions(record: AuthoredPort): RouteFitRestriction[] {
+  return carriers(record).flatMap(({ carrier, list }) =>
+    list.map((restriction) => ({
+      id: restriction.id,
+      carrier,
+      effect: restriction.effect,
+      operations: [...restriction.operations],
+      scope:
+        restriction.scope && Object.keys(restriction.scope).length
+          ? structuredClone(restriction.scope)
+          : ("whole" as const),
+      ...(restriction.reason ? { reason: restriction.reason } : {}),
+    })),
+  );
+}
+
+const allOperations = (record: AuthoredPort) =>
+  [
+    ...new Set(
+      carriers(record).flatMap(({ list }) => list.flatMap((restriction) => restriction.operations)),
+    ),
+  ].toSorted();
+
+function heldOperations(record: AuthoredPort, evaluated: readonly string[]) {
+  const held: Partial<Record<RestrictedOperation, string[]>> = {};
+  for (const operation of allOperations(record)) {
+    const on = evaluated.filter((platform) => heldAt(record, operation, platform));
+    if (on.length) held[operation] = on;
+  }
+  return held;
+}
+
+function describeHeld(record: AuthoredPort, held: Partial<Record<string, string[]>>) {
+  return Object.entries(held)
+    .map(([operation, on]) => {
+      const reasons = [
+        ...new Set(
+          on!.map((platform) => {
+            const restriction = heldAt(record, operation, platform)!;
+            return restriction.reason ?? restriction.id;
+          }),
+        ),
+      ].toSorted();
+      const where = on!.length === desktopPlatforms.length ? "every platform" : on!.join(", ");
+      return `${operation} held on ${where}: ${reasons.join(", ")}`;
+    })
+    .join("; ");
+}
+
+// ---------------------------------------------------------------------------
+// Observations and player facts.
+
+interface Observed {
+  state: ObservationState;
+  platforms: Set<string>;
+  assets: number;
+}
+
+function readObservation(observation: unknown): Observed | undefined {
+  if (!isRecord(observation)) return undefined;
+  const status = observation.status;
+  // `complete` is the producer's success; an absent status is a legacy success.
+  if (status !== undefined && status !== "complete") {
+    const state = (["incomplete", "unavailable", "failed"] as const).find(
+      (known) => known === status,
+    );
+    return { state: state ?? "failed", platforms: new Set(), assets: 0 };
+  }
+  const observed: Observed = { state: "complete", platforms: new Set(), assets: 0 };
+  for (const release of Array.isArray(observation.releases) ? observation.releases : [])
+    for (const asset of isRecord(release) && Array.isArray(release.assets) ? release.assets : []) {
+      observed.assets++;
+      for (const hint of isRecord(asset) && Array.isArray(asset.platform_hints)
+        ? asset.platform_hints
+        : [])
+        if (desktopPlatforms.includes(hint as string)) observed.platforms.add(hint as string);
+    }
+  return observed;
+}
+
+/** Listing updates, `{ listings }`, or observer policies with `listing_update`. */
+function observerObservations(report: unknown, known: ReadonlySet<string>) {
+  const result = new Map<string, Observed>();
   if (report === undefined) return result;
   const entries: unknown =
     isRecord(report) && Array.isArray(report.listings) ? report.listings : report;
   if (!Array.isArray(entries))
     throw new Error("Observer report needs a listings array of listing updates.");
-  for (const entry of entries) {
+  for (const raw of entries) {
+    const entry: unknown = isRecord(raw) && isRecord(raw.listing_update) ? raw.listing_update : raw;
     if (!isRecord(entry) || typeof entry.id !== "string")
       throw new Error("Observer report contains a listing without an id.");
     if (!known.has(entry.id))
       throw new Error(`Observer report names ${entry.id}, which is not a catalog identity.`);
-    const observation = entry.upstream_observation;
-    // A failed, unavailable or incomplete attempt is not evidence of packages.
-    if (!isRecord(observation) || observation.status !== undefined) continue;
-    const observed = result.get(entry.id) ?? new Set<string>();
-    for (const release of Array.isArray(observation.releases) ? observation.releases : [])
-      for (const asset of isRecord(release) && Array.isArray(release.assets) ? release.assets : [])
-        for (const hint of isRecord(asset) && Array.isArray(asset.platform_hints)
-          ? asset.platform_hints
-          : [])
-          if ((platforms as readonly unknown[]).includes(hint)) observed.add(hint as string);
-    result.set(entry.id, observed);
+    const observed = readObservation(entry.upstream_observation);
+    if (observed) result.set(entry.id, observed);
   }
   return result;
 }
 
+/** Platforms with independently observed player facts and where they came from. */
+function playerFacts(record: AuthoredPort, shapes: readonly Record<string, unknown>[]) {
+  const facts = new Map<string, string>();
+  for (const entry of shapes)
+    if (
+      typeof entry.platform === "string" &&
+      isRecord(entry.shape) &&
+      Array.isArray(entry.shape.programs) &&
+      entry.shape.programs.length
+    )
+      facts.set(entry.platform, "a reviewed package shape");
+  if (record.package_observation_v1) {
+    const projection = packagePlayerProjection(record, record.package_observation_v1);
+    if (projection.status === "observed")
+      for (const platform of projection.platforms)
+        facts.set(platform, facts.get(platform) ?? "an accepted package player observation");
+  }
+  if (record.route_facts_v1?.prepared_player)
+    facts.set(
+      preparedPlayerPlatform,
+      facts.get(preparedPlayerPlatform) ?? "authored prepared-player route facts",
+    );
+  return facts;
+}
+
+type Fitted = Pick<RouteFitRecord, "disposition" | "reason"> & { packagePlatforms: string[] };
+
 function classifyListing(
   record: AuthoredPort,
-  observed: ReadonlySet<string> | undefined,
-): Omit<RouteFitRecord, "id" | "family"> & { packagePlatforms?: string[] } {
+  observed: Observed | undefined,
+  shapes: readonly Record<string, unknown>[],
+): Fitted {
   const listing = record.listing;
-  if (usesScummvmEngine(record))
-    return {
-      disposition: "excluded-scummvm",
-      reason: "Runs on the ScummVM engine; ScummVM onboarding is deferred.",
-    };
+  const none = { packagePlatforms: [] };
   if (listing.availability === "source-only" || listing.availability === "unavailable")
     return {
+      ...none,
       disposition: "upstream-condition",
       reason: `Upstream availability is ${listing.availability}.`,
     };
-  const holds = routeWideHolds(record);
-  if (holds.length)
-    return {
-      disposition: "upstream-condition",
-      reason: `Route-wide acquisition hold: ${[...new Set(holds)].join(", ")}.`,
-    };
   const declared = (listing.platforms ?? []).filter((platform) =>
-    (platforms as readonly string[]).includes(platform),
+    desktopPlatforms.includes(platform),
   );
+  const players = playerFacts(record, shapes);
+  const complete = observed?.state === "complete" ? observed : undefined;
   const packagePlatforms = [
-    ...new Set([...(listing.availability === "packages" ? declared : []), ...(observed ?? [])]),
+    ...new Set([
+      ...(listing.availability === "packages" ? declared : []),
+      ...(complete?.platforms ?? []),
+      ...players.keys(),
+    ]),
   ].toSorted();
-  const provider = listingProviderIdentity(listing)?.provider;
-  const evidence = listing.availability === "packages" ? "declared" : "observed";
-  if (packagePlatforms.length && provider === registrationProvider)
+  const routePlatforms = packagePlatforms.filter((platform) =>
+    registrationRouteOperations.every((operation) => !heldAt(record, operation, platform)),
+  );
+  if (packagePlatforms.length && !routePlatforms.length)
     return {
-      disposition: "data-only",
       packagePlatforms,
-      reason: `GitHub packages ${evidence} for ${packagePlatforms.join(", ")}; the user-selected registration route fits from data.`,
+      disposition: "upstream-condition",
+      reason: `No registration route operation remains: ${describeHeld(record, heldOperations(record, packagePlatforms))}.`,
     };
-  if (packagePlatforms.length)
+  const playerPlatforms = routePlatforms.filter((platform) => players.has(platform));
+  if (playerPlatforms.length)
     return {
-      disposition: "needs-admission",
-      reason: `Packages ${evidence} for ${packagePlatforms.join(", ")} are hosted on ${provider ?? hostOf(listing.release_url ?? listing.project_url)}, outside the registration route; a Portcove-owned route needs independent exact-byte admission.`,
+      packagePlatforms,
+      disposition: "data-only",
+      reason: `Desktop packages are known and ${[...new Set(playerPlatforms.map((platform) => players.get(platform)))].join(" and ")} supplies player facts for ${playerPlatforms.join(", ")}; it could enter the non-owning user-selected registration route from data alone.`,
     };
-  if (listing.availability === "packages")
+  const provider = listingProviderIdentity(listing)?.provider;
+  const host = hostOf(listing.release_url ?? listing.project_url);
+  if (routePlatforms.length && !provider)
     return {
+      packagePlatforms,
       disposition: "missing-capability",
-      reason: "Upstream packages declare no supported desktop platform.",
+      reason: `Packages are known for ${routePlatforms.join(", ")}, but no release provider adapter reads ${host}, so package bytes and player facts cannot be observed.`,
+    };
+  if (routePlatforms.length)
+    return {
+      packagePlatforms,
+      disposition: "needs-bytes-worker",
+      reason: `Desktop packages are known for ${routePlatforms.join(", ")} (${listing.availability === "packages" ? "declared" : "complete observation"}), but no player facts are derived: no package player observation, reviewed package shape or prepared-player route facts.`,
+    };
+  if (complete && complete.assets === 0)
+    return {
+      packagePlatforms,
+      disposition: "upstream-condition",
+      reason: "A complete observation found no release package in the observed releases.",
+    };
+  if (complete)
+    return {
+      packagePlatforms,
+      disposition: "missing-capability",
+      reason: `A complete observation found ${complete.assets} release package(s), none with a supported desktop platform hint.`,
     };
   if (!provider)
     return {
+      packagePlatforms,
       disposition: "missing-capability",
-      reason: `No release provider adapter observes ${hostOf(listing.release_url ?? listing.project_url)}.`,
+      reason: `No release provider adapter reads ${host}, so packages cannot be observed.`,
     };
+  const attempt =
+    observed && observed.state !== "none" ? ` The latest observation is ${observed.state}.` : "";
   return {
-    disposition: "needs-bytes-worker",
-    reason: `${provider === "github" ? "GitHub" : "GitLab"} package bytes and player facts for a supported platform are not observed yet.`,
+    packagePlatforms,
+    disposition: "unobserved",
+    reason:
+      listing.availability === "packages"
+        ? `Packages are declared for no known desktop platform and no complete observation exists; their platforms are unobserved.${attempt}`
+        : `Package availability is unobserved: no complete observation exists.${attempt}`,
   };
 }
 
@@ -231,8 +471,16 @@ const byId = (left: { id: string }, right: { id: string }) =>
   left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
 
 function sortedCounts(entries: Iterable<string>): Record<string, number> {
-  const counts = counted([...entries]);
+  const counts = new Map<string, number>();
+  for (const entry of entries) counts.set(entry, (counts.get(entry) ?? 0) + 1);
   return Object.fromEntries([...counts].toSorted(([left], [right]) => (left < right ? -1 : 1)));
+}
+
+function groupById(entries: readonly Record<string, unknown>[]) {
+  const groups = new Map<string, Record<string, unknown>[]>();
+  for (const entry of entries)
+    groups.set(entry.port_id as string, [...(groups.get(entry.port_id as string) ?? []), entry]);
+  return groups;
 }
 
 /** Pure analysis; equal inputs always produce byte-identical serialized output. */
@@ -241,45 +489,76 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
   const known = new Set(records.map((record) => record.listing.id));
   if (known.size !== records.length) throw new Error("Catalog identities must be unique.");
   const ports = new Map(inputs.ports.map((port) => [port.id, port]));
-  const shapes = counted(portIds(inputs.packageShapes, "entries", "Package shapes"));
-  const enrolled = counted(portIds(inputs.routeEnrollment, "cases", "Route enrollment"));
+  const shapes = groupById(portEntries(inputs.packageShapes, "entries", "Package shapes"));
+  const enrolled = groupById(portEntries(inputs.routeEnrollment, "cases", "Route enrollment"));
   for (const id of [...ports.keys(), ...shapes.keys(), ...enrolled.keys()])
     if (!known.has(id)) throw new Error(`${id} is not a catalog identity.`);
-  const observations = observedPackagePlatforms(inputs.observerReport, known);
+  const reported = observerObservations(inputs.observerReport, known);
 
   const dataOnlyWindows = new Set<string>();
   const identities = records.map((record): RouteFitRecord => {
     const id = record.listing.id;
     const port = ports.get(id);
+    const observed = reported.get(id) ?? readObservation(record.listing.upstream_observation);
+    const restrictions = reportedRestrictions(record);
+    // Every supported platform: a whole hold applies even where none is declared.
+    const held = heldOperations(record, desktopPlatforms);
+    const isEnrolled = port !== undefined || enrolled.has(id);
+    const common = {
+      id,
+      enrolled: isEnrolled,
+      observation: observed?.state ?? ("none" as const),
+      restrictions,
+      held_operations: held,
+    };
+    const release = port && isRecord(port.release) ? port.release : {};
+    const family = port
+      ? {
+          adapter: typeof port.adapter === "string" ? port.adapter : "unknown",
+          provider: typeof release.provider === "string" ? release.provider : "github",
+        }
+      : {
+          adapter: "listing",
+          provider: listingProviderIdentity(record.listing)?.provider ?? "other",
+        };
+    const heldText = Object.keys(held).length ? ` ${describeHeld(record, held)}.` : "";
+    if (usesScummvmEngine(record))
+      return {
+        ...common,
+        family,
+        disposition: "excluded-scummvm",
+        reason: `Runs on the ScummVM engine; ScummVM onboarding is deferred.${isEnrolled ? " An operational route also exists." : ""}${heldText}`,
+      };
     if (port) {
-      const release = isRecord(port.release) ? port.release : {};
-      const provider = typeof release.provider === "string" ? release.provider : "github";
-      const adapter = typeof port.adapter === "string" ? port.adapter : "unknown";
       const details = [
         enrolled.has(id) ? " Reviewed prepared-player route enrolled." : "",
-        shapes.has(id) ? ` ${shapes.get(id)} reviewed package shape(s).` : "",
+        shapes.has(id) ? ` ${shapes.get(id)!.length} reviewed package shape(s).` : "",
       ].join("");
       return {
-        id,
-        family: { adapter, provider },
-        disposition: "enrolled",
-        reason: `Operational ${adapter} definition with ${provider} releases.${details}`,
-      };
-    }
-    const family = {
-      adapter: "listing",
-      provider: listingProviderIdentity(record.listing)?.provider ?? "other",
-    };
-    if (enrolled.has(id))
-      return {
-        id,
+        ...common,
         family,
         disposition: "enrolled",
-        reason: "Reviewed prepared-player route enrolled for user-selected registration.",
+        reason: `Operational ${family.adapter} definition with ${family.provider} releases.${details}${heldText}`,
       };
-    const { packagePlatforms, ...fit } = classifyListing(record, observations.get(id));
-    if (packagePlatforms?.includes("windows-x86-64")) dataOnlyWindows.add(id);
-    return { id, family, ...fit };
+    }
+    if (enrolled.has(id))
+      return {
+        ...common,
+        family,
+        disposition: "enrolled",
+        reason: `Reviewed prepared-player route enrolled for user-selected registration.${heldText}`,
+      };
+    const { packagePlatforms, ...fitted } = classifyListing(record, observed, shapes.get(id) ?? []);
+    if (fitted.disposition === "data-only" && packagePlatforms.includes("windows-x86-64"))
+      dataOnlyWindows.add(id);
+    const routeHeld =
+      fitted.disposition === "upstream-condition" && fitted.reason.includes(" held ");
+    return {
+      ...common,
+      family,
+      ...fitted,
+      reason: routeHeld ? fitted.reason : `${fitted.reason}${heldText}`,
+    };
   });
 
   const listingOnly = records.filter((record) => !ports.has(record.listing.id));
@@ -288,8 +567,10 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
     number
   >;
   for (const identity of identities) byDisposition[identity.disposition]++;
+  const observations = { complete: 0, incomplete: 0, unavailable: 0, failed: 0, none: 0 };
+  for (const identity of identities) observations[identity.observation]++;
   return {
-    format_version: 1,
+    format_version: 2,
     summary: {
       identities: identities.length,
       operational_definitions: records.length - listingOnly.length,
@@ -305,6 +586,11 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
           listingProviderIdentity(listing)?.provider === "github",
       ).length,
       data_only_windows_x86_64: dataOnlyWindows.size,
+      restricted_identities: identities.filter((identity) => identity.restrictions.length).length,
+      listing_only_download_held: identities.filter(
+        (identity) => !ports.has(identity.id) && identity.held_operations.download,
+      ).length,
+      observations,
       observer_report: inputs.observerReport === undefined ? "absent" : "applied",
     },
     identities,
@@ -317,18 +603,18 @@ export function serializeRouteFitReport(report: RouteFitReport): string {
 
 export function renderRouteFitSummary(report: RouteFitReport): string {
   const { summary } = report;
+  const row = (name: string, count: number) => `  ${name.padEnd(40)} ${String(count).padStart(5)}`;
   const lines = [
     `Catalog route fit: ${summary.identities} identities, ${summary.operational_definitions} operational definitions, ${summary.listing_only} listing-only`,
+    ...dispositions.map((name) => row(name, summary.by_disposition[name])),
+    `Listing-only GitHub packages declared for windows-x86-64: ${summary.listing_only_github_packages_windows_x86_64}`,
+    `Data-only for windows-x86-64: ${summary.data_only_windows_x86_64}`,
+    `Identities with restrictions: ${summary.restricted_identities}; listing-only with download held: ${summary.listing_only_download_held}`,
+    `Observations (${summary.observer_report === "applied" ? "observer report applied" : "committed only"}):`,
+    ...Object.entries(summary.observations).map(([state, count]) => row(state, count)),
+    "Families:",
+    ...Object.entries(summary.by_family).map(([family, count]) => row(family, count)),
   ];
-  for (const name of dispositions)
-    lines.push(`  ${name.padEnd(40)} ${String(summary.by_disposition[name]).padStart(5)}`);
-  lines.push(
-    `Listing-only GitHub packages for windows-x86-64: ${summary.listing_only_github_packages_windows_x86_64}`,
-  );
-  lines.push(`Data-only for windows-x86-64: ${summary.data_only_windows_x86_64}`);
-  lines.push("Families:");
-  for (const [family, count] of Object.entries(summary.by_family))
-    lines.push(`  ${family.padEnd(40)} ${String(count).padStart(5)}`);
   return lines.join("\n");
 }
 
