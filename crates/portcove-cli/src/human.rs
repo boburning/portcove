@@ -1910,6 +1910,21 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(hold) = &status.exact_release_hold {
+            let cause = match hold.reason {
+                portcove_core::ExactReleaseHoldReason::Unreadable => {
+                    "Portcove can't read its saved release pin"
+                }
+                portcove_core::ExactReleaseHoldReason::ChannelMismatch => {
+                    "its saved release pin belongs to a different channel"
+                }
+            };
+            output.push_str(&format!(
+                "\n{}: updates are paused because {cause}. To follow the channel again: portcove channel follow {}",
+                port_name(catalog, &status.port_id),
+                clean(&status.port_id),
+            ));
+        }
         if let Some(pin) = &status.exact_release {
             output.push_str(&format!(
                 "\n{} follows exact release {} on {}.",
