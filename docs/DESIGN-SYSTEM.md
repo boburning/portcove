@@ -89,8 +89,8 @@ At effective heights up to 800px, multiple Library covers use a 20rem preferred
 column minimum and place identity beside a contained portrait. Their status and
 primary actions span the card below. This keeps the first row actionable in a
 960×640, 1280×800 and 1366×768 windows while retaining larger artwork than compact Rows.
-Poster cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
-40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
+Poster cover cards clamp title and project to two lines (the project to one line in desktop windows up to 760px high, expanding on hover and keyboard focus) without reserving empty lines, so chips follow each card's own identity and do not align across a row. In windows taller than 50rem and wider than 30rem each Library cover stretches to its row and pins its status/action footer to the card bottom: footers align across a row of single-port cards, and a multi-port group's footer sits above its alternatives disclosure, offset from single-port neighbors by that disclosure. Both expand on keyboard focus. Full identity wraps below
+40em. Footer actions stay beside the dominant status while the status keeps at least 4.5rem; a wider action group, such as a release-withdrawal badge with Play, wraps onto its own row instead of compressing the status. Neither overlaps the other. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
 Artwork remains contained; neither a crop nor a provider mapping is inferred.
 
@@ -751,7 +751,7 @@ above, matching the singleton cover's height boundary. This keeps first-row
 identity, readiness and actions together when listing platform chips wrap.
 Ordinary/tall and compact width rules retain their existing density. Rem-based
 minimums honor whole-interface enlargement. Poster layouts retain the effective
-24px cover-to-title gap and title/project reservations; horizontal covers use
+24px cover-to-title gap and clamp title/project without reserving empty lines; horizontal covers use
 `--space-3` and let identity determine its height. Unfocused horizontal project labels retain their existing line limit; identity focus reveals the complete label. Port-choice labels wrap as one translated text flow while retaining exact bidirectional names. Artwork uses the raised surface
 and a quiet translucent border. Chips use 11px/500 type and 7px corners;
 wrapped footer rhythm uses an 8px gap while action controls retain 32px height.
@@ -1180,6 +1180,21 @@ Neighboring Discover cards share identity, metadata, observation and action band
 through a row subgrid; long identity or status text does not shift one card's
 actions into another card's metadata band. Artwork remains contained and bounded
 independently of that text.
+In Covers view each Discover card is one raised surface: the cover sits inside
+a padded, bordered card, pointer hover and keyboard focus within the card highlight
+the card rather than lifting the cover, and the secondary "Why this port?" action
+aligns with the card's text edge. The inset equals the focus outline and its offset,
+so a focused control's ring stays inside the card border at every width. Card
+controls keep the same inset as their block scroll margin, so a nearest-edge reveal,
+such as comparison focus returning to a card taller than the workspace, keeps the
+whole ring inside the scrolling workspace. A mouse
+click does not leave the card highlighted. In forced colors the card highlight is a
+thin `Highlight` outline; the focused control's own ring remains the primary
+indicator. Library covers use the same card surface, inset and highlight. Short or
+narrow cards fit their own content so a neighboring game's alternatives cannot push
+Play below the viewport. Footer alignment and the Play/status rule follow the
+Library cover contract above. Short Library windows keep the horizontal cover
+layout. Rows keeps its own geometry.
 
 ### Game-data preparation review
 

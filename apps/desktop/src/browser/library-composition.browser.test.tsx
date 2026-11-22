@@ -27,7 +27,7 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { portDefinition, portStatus } from "../test-fixtures";
 import { catalogEntries } from "../features/browsing/catalog-entry";
 import { indexStatuses, summarizeLibrary } from "../view-model";
-import type { ExternalRuntimeRecord, PortListing, PortListingStatus } from "../types";
+import type { ExternalRuntimeRecord, PortListing, PortListingStatus, PortStatus } from "../types";
 import "../styles/index.css";
 
 vi.mock("../native-source-drop", { spy: true });
@@ -43,6 +43,8 @@ afterEach(async () => {
   document.documentElement.style.removeProperty("font-size");
   document.documentElement.style.removeProperty("zoom");
   delete document.documentElement.dataset.theme;
+  document.documentElement.dir = "";
+  document.documentElement.lang = "";
 });
 
 async function mount(
@@ -75,6 +77,18 @@ async function mount(
     )
     .toBe(expectedLibraryEntries);
   document.documentElement.dataset.theme = theme;
+}
+
+/** A cover footer's Play shares the status row without covering it, in either direction. */
+function playBesideStatus(play: Element) {
+  const footer = play.closest<HTMLElement>(".library-entry-footer")!;
+  const action = play.getBoundingClientRect();
+  const status = footer.querySelector(".collection-state")!.getBoundingClientRect();
+  const clear =
+    getComputedStyle(footer).direction === "rtl"
+      ? action.right <= status.left + 0.5
+      : action.left >= status.right - 0.5;
+  return Math.abs(action.top - status.top) <= 0.5 && clear;
 }
 
 function groupedCollectionSnapshot() {
@@ -1525,16 +1539,23 @@ it.each([
     const art = cover.querySelector<HTMLElement>(".collection-art")!;
     const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
     const horizontal = matchMedia("(height <= 50rem)").matches;
-    expect(
-      horizontal ||
-        Math.abs(art.getBoundingClientRect().width - cover.getBoundingClientRect().width) < 0.5,
-    ).toBe(true);
-    expect(overlay.getBoundingClientRect().width).toBeCloseTo(art.getBoundingClientRect().width, 0);
-    expect(art.getBoundingClientRect().height / art.getBoundingClientRect().width).toBeCloseTo(
-      1.5,
-      2,
-    );
-    expect(art.getBoundingClientRect().width).toBeCloseTo(artworkWidth, 0);
+    const surface = getComputedStyle(cover);
+    const inset =
+      parseFloat(surface.paddingInlineStart) + parseFloat(surface.borderInlineStartWidth);
+    expect(inset).toBeGreaterThan(0);
+    const image = art.getBoundingClientRect();
+    const body = cover.getBoundingClientRect();
+    expect(image.left - body.left).toBeCloseTo(inset, 0);
+    // Posters fill the card content box (the poster column minus the inset).
+    // Horizontal identities keep the portrait track, bounded by 40% of it.
+    const expectedWidth = horizontal
+      ? Math.min(artworkWidth, 0.4 * (body.width - 2 * inset))
+      : artworkWidth - 2 * inset;
+    expect(Math.abs(image.width - expectedWidth)).toBeLessThanOrEqual(1);
+    expect(overlay.getBoundingClientRect().width).toBeCloseTo(image.width, 0);
+    expect(image.height / image.width).toBeCloseTo(1.5, 2);
+    const playActions = width > 480 ? [...grid.querySelectorAll(".library-card-play")] : [];
+    expect(playActions.filter((play) => !playBesideStatus(play))).toEqual([]);
     const title = cover.querySelector<HTMLElement>(".collection-title")!;
     // A previous pointer position can hover the first poster and translate its
     // artwork by two pixels. Measure the resting composition after that settles.
@@ -1552,6 +1573,62 @@ it.each([
     expect(getComputedStyle(art).borderRadius).toBe("10px");
     const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
     expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  },
+);
+
+it.each([
+  ["ltr", 1280, 1024],
+  ["ltr", 1440, 900],
+  ["ltr", 1280, 720],
+  // 1366×768 at 200% zoom.
+  ["ltr", 683, 384],
+  ["rtl", 1280, 1024],
+  ["rtl", 683, 384],
+] as const)(
+  "keeps a withdrawn release's cover status readable beside its actions (%s, %ipx by %ipx)",
+  async (direction, width, height) => {
+    await page.viewport(width, height);
+    const snapshot = workspace("collection");
+    const withdrawn = {
+      operation: "install",
+      retained: true,
+      eligibility: { outcome: "hold", reason: "curated_distribution_withdrawn" },
+    } satisfies NonNullable<PortStatus["definition_operations"]>[number];
+    snapshot.statuses = snapshot.statuses.map((status) =>
+      status.active ? { ...status, definition_operations: [withdrawn] } : status,
+    );
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    if (direction === "rtl")
+      vi.spyOn(desktopApi, "localePreference").mockResolvedValue({ locale: "ar-XB" });
+    await mount();
+    await expect.poll(() => document.documentElement.dir).toBe(direction);
+    const footers = () =>
+      [...document.querySelectorAll<HTMLElement>(".collection-cover .library-entry-footer")].filter(
+        (footer) =>
+          footer.querySelector("[data-release-withdrawal]") &&
+          footer.querySelector(".library-card-play"),
+      );
+    await expect.poll(() => footers().length).toBeGreaterThan(0);
+    const minimum = 4.5 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    for (const footer of footers()) {
+      const card = footer.closest<HTMLElement>(".collection-cover")!.getBoundingClientRect();
+      const state = footer.querySelector<HTMLElement>(".collection-state")!;
+      const status = state.getBoundingClientRect();
+      const actions = footer.querySelector(".collection-actions")!.getBoundingClientRect();
+      const label = `${direction} ${width}x${height} ${footer.textContent}`;
+      expect(status.width, label).toBeGreaterThanOrEqual(minimum - 0.5);
+      expect(state.scrollWidth, label).toBeLessThanOrEqual(state.clientWidth + 1);
+      const separate =
+        actions.top >= status.bottom - 0.5 ||
+        (direction === "rtl"
+          ? actions.right <= status.left + 0.5
+          : actions.left >= status.right - 0.5);
+      expect(separate, label).toBe(true);
+      for (const bounds of [status, actions]) {
+        expect(bounds.left, label).toBeGreaterThanOrEqual(card.left - 0.5);
+        expect(bounds.right, label).toBeLessThanOrEqual(card.right + 0.5);
+      }
+    }
   },
 );
 
