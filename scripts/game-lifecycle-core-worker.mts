@@ -6,19 +6,13 @@ import { fileIdentity } from "./development-evidence.mts";
 import { executeGameLifecycle } from "./game-lifecycle-execution.mts";
 import { launchAndCloseVerifiedWindowsGame } from "./game-lifecycle-native.mts";
 import type { ExpectedGameLifecycle } from "./game-lifecycle-receipt.mts";
-import type { OutputSuccessorEvidencePreparation } from "../apps/desktop/src/transport-types.generated.d.ts";
+import type { materializeGameLifecycleLibraries } from "./game-lifecycle-materializer.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const execute = promisify(execFile);
-export interface MaterializedGameLifecycleWork {
-  preparation: OutputSuccessorEvidencePreparation;
-  preparation_json: string;
-  predecessor_library: string;
-  successor_library: string;
-  predecessor_active: { install_id: string };
-  successor_library_active: { install_id: string };
-  successor_executable: { relative_path: string; sha256: string };
-}
+export type MaterializedGameLifecycleWork = Awaited<
+  ReturnType<typeof materializeGameLifecycleLibraries>
+>["work"][number];
 type Job = Pick<ExpectedGameLifecycle, "run_id" | "run_attempt" | "job_id" | "platform">;
 
 function installation(result: unknown, tag: unknown, artifact: unknown) {
@@ -41,18 +35,29 @@ function installation(result: unknown, tag: unknown, artifact: unknown) {
 export async function runMaterializedGameLifecycle(
   job: Job,
   work: MaterializedGameLifecycleWork,
-  cli: { path: string; sha256: string },
   output: string,
   environment: NodeJS.ProcessEnv,
 ) {
   const reviewed = work.preparation;
   const previous = reviewed.predecessor;
   const next = reviewed.successor;
-  const id = next.definition.stable_id;
+  const cli = work.cli;
+  const id = work.port_id;
+  const matchesLane = (subject: unknown) =>
+    isRecord(subject) &&
+    subject.platform === job.platform &&
+    subject.channel === work.channel &&
+    typeof subject.tag === "string" &&
+    typeof subject.artifact_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(subject.artifact_sha256) &&
+    isRecord(subject.definition) &&
+    subject.definition.stable_id === id;
+  if (!isRecord(previous) || !isRecord(next) || !matchesLane(previous) || !matchesLane(next))
+    throw new Error("Native lifecycle exact preparation lane changed");
   if ((await fileIdentity(cli.path)).sha256 !== cli.sha256)
     throw new Error("Native lifecycle Core executable changed");
 
-  async function call(library: string, command: string, args: string[]) {
+  async function call(library: string, command: string, args: string[], name = command) {
     const { stdout } = await execute(
       cli.path,
       ["--library", library, "--json", "--non-interactive", command, ...args],
@@ -67,7 +72,7 @@ export async function runMaterializedGameLifecycle(
     if (
       !isRecord(answer) ||
       answer.ok !== true ||
-      answer.command !== command ||
+      answer.command !== name ||
       !isRecord(answer.data)
     )
       throw new Error(`Game lifecycle Core command did not succeed: ${command}`);
@@ -91,6 +96,26 @@ export async function runMaterializedGameLifecycle(
       throw new Error("Managed lifecycle verification did not pass for the exact active install");
     return { install_id: installId, checked_files: result.checked_files };
   }
+  async function verifySource(library: string) {
+    const source = await call(
+      library,
+      "source",
+      ["verify", work.source.profile_id],
+      "source.verify",
+    );
+    if (
+      source.profile_id !== work.source.profile_id ||
+      source.sha256 !== work.source.sha256 ||
+      source.storage_sha256 !== work.source.storage_sha256 ||
+      typeof source.path !== "string" ||
+      !isRecord(source.inspection) ||
+      source.inspection.health !== "current"
+    )
+      throw new Error("Reviewed lawful source changed after materialization");
+    const reviewedSource = await realpath(path.join(library, work.source.relative_path));
+    if ((await realpath(source.path)) !== reviewedSource)
+      throw new Error("Core selected different source custody");
+  }
   const before = await active(work.successor_library, previous.tag, previous.artifact_sha256);
   if (before.id !== work.successor_library_active.install_id)
     throw new Error("Test library no longer has the reviewed predecessor active");
@@ -99,11 +124,12 @@ export async function runMaterializedGameLifecycle(
   return executeGameLifecycle(job, {
     preparation: Buffer.from(work.preparation_json, "utf8"),
     executable_sha256: work.successor_executable.sha256,
+    source_variant: work.source.variant,
     output,
     phases: {
       async "acquire-exact-successor"() {
         const acquired = installation(
-          await call(work.successor_library, "install", [id, "--channel", next.channel, "--stage"]),
+          await call(work.successor_library, "install", [id, "--channel", work.channel, "--stage"]),
           next.tag,
           next.artifact_sha256,
         );
@@ -127,6 +153,7 @@ export async function runMaterializedGameLifecycle(
         return { outcome: "passed", ...(await verify(work.successor_library, successorInstallId)) };
       },
       async "launch-and-close"() {
+        await verifySource(work.successor_library);
         const selected = await active(work.successor_library, next.tag, next.artifact_sha256);
         if (
           selected.id !== successorInstallId ||
@@ -157,7 +184,7 @@ export async function runMaterializedGameLifecycle(
           },
           environment,
         );
-        return { ...result, outcome: "passed" };
+        return { ...result, outcome: "passed", source_variant: work.source.variant };
       },
       async "retain-and-reopen-predecessor"() {
         const rollback = installation(
@@ -174,6 +201,8 @@ export async function runMaterializedGameLifecycle(
         );
         if (original.id !== work.predecessor_active.install_id)
           throw new Error("Historical baseline changed");
+        await verifySource(work.predecessor_library);
+        await verifySource(work.successor_library);
         await verify(work.predecessor_library, original.id);
         return { outcome: "passed", ...(await verify(work.successor_library, rollback.id)) };
       },

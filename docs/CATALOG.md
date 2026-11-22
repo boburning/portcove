@@ -2984,7 +2984,10 @@ native results before using its attestation permission. Empty or held input
 records a no-work receipt without starting the attester. The existing portable
 library import cannot re-establish restricted predecessor or successor grants
 and current replay floors. A hosted pair needs independent admitted custody on
-both sides before the native worker can exercise it.
+both sides before the native worker can exercise it. The first appointment
+covers Windows x64 and one exact tested source variant per receipt. Other
+platforms, untested variants and candidates without independent admissions
+remain held while their own evidence is unavailable.
 Regular application release qualification keeps its own authority.
 Inspect an original game receipt, exact Core preparation bytes and its
 independently reviewed expectation using

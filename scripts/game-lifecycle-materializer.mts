@@ -95,7 +95,9 @@ async function requireFile(file: string, sha256: string) {
     if (!match(await handle.stat())) throw new Error("File identity changed");
     const hash = createHash("sha256");
     let bytes = 0;
-    for await (const chunk of handle.createReadStream({ autoClose: false })) {
+    const stream: AsyncIterable<unknown> = handle.createReadStream({ autoClose: false });
+    for await (const chunk of stream) {
+      if (!Buffer.isBuffer(chunk)) throw new Error("Reviewed file read did not return bytes");
       bytes += chunk.length;
       if (bytes > before.size) throw new Error("File exceeded its reviewed length");
       hash.update(chunk);

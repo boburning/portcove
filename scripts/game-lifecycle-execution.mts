@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { gameLifecycleChecks, verifyGameLifecyclePredicate } from "./game-lifecycle-receipt.mts";
+import {
+  gameLifecycleChecks,
+  inspectGameLifecyclePreparation,
+  verifyGameLifecyclePhaseFiles,
+  verifyGameLifecyclePredicate,
+} from "./game-lifecycle-receipt.mts";
 import type { ExpectedGameLifecycle } from "./game-lifecycle-receipt.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -14,6 +19,7 @@ interface BoundGameLifecycleWork {
   /** Exact stdout of the fixed Core preparation command after independent admission. */
   preparation: Buffer;
   executable_sha256: string;
+  source_variant: { game_id: string; variant_id: string; representation_id: string };
   output: string;
   /** Unprivileged worker invokes each normal phase and emits bounded redacted evidence. */
   phases: Record<Check, () => Promise<unknown>>;
@@ -29,31 +35,18 @@ export async function executeGameLifecycle(
   now = () => Math.floor(Date.now() / 1000),
 ) {
   if (!work) return { outcome: "no-eligible-input", authority: "none" } as const;
-  if (work.preparation.length < 1 || work.preparation.length > 256 * 1024)
-    throw new Error("Exact Core preparation bytes are missing or exceed the bound");
-  const document: unknown = JSON.parse(work.preparation.toString("utf8"));
+  const preparation = inspectGameLifecyclePreparation(work.preparation);
   if (
-    !isRecord(document) ||
-    document.ok !== true ||
-    document.command !== "catalog.prepare-successor-evidence" ||
-    !isRecord(document.data) ||
-    document.data.rule_version !== 1 ||
-    !isRecord(document.data.predecessor) ||
-    !isRecord(document.data.successor) ||
-    document.data.predecessor.platform !== job.platform ||
-    document.data.successor.platform !== job.platform ||
-    typeof document.data.selected_at !== "number" ||
-    !Number.isSafeInteger(document.data.selected_at) ||
-    document.data.selected_at < 1 ||
+    preparation.platform !== job.platform ||
     !path.isAbsolute(work.output) ||
     !/^[a-f0-9]{64}$/u.test(work.executable_sha256)
   )
     throw new Error("Verified Core preparation has no exact compatible Windows pair");
   const started = now();
-  if (document.data.selected_at > started) throw new Error("Core selection clock is in the future");
+  if (preparation.selected_at > started) throw new Error("Core selection clock is in the future");
   const checkPlan = encode({
     schema: 1,
-    rule_version: document.data.rule_version,
+    rule_version: preparation.rule_version,
     checks: gameLifecycleChecks,
   });
   const write = async (name: string, content: Buffer) => {
@@ -76,7 +69,7 @@ export async function executeGameLifecycle(
       observation = await work.phases[check]();
       if (!isRecord(observation) || observation.outcome !== "passed")
         throw new Error("Mandatory phase did not pass");
-      const bytes = encode(observation);
+      const bytes = encode({ ...observation, check });
       await write(`${check}.json`, bytes);
       checks[check] = { outcome: "passed", evidence_sha256: digest(bytes) };
     } catch (error) {
@@ -91,13 +84,15 @@ export async function executeGameLifecycle(
     ...bindings,
     started_at: started,
     completed_at: completed,
+    source_variant: work.source_variant,
     checks,
   };
-  verifyGameLifecyclePredicate(statement, {
+  const receipt = verifyGameLifecyclePredicate(statement, {
     ...bindings,
-    selected_at: document.data.selected_at,
+    selected_at: preparation.selected_at,
     now: completed,
   });
+  await verifyGameLifecyclePhaseFiles(work.output, preparation, receipt, bindings);
   await write("predicate.json", encode(statement));
   return { outcome: "ready-for-independent-attestation", authority: "none" } as const;
 }

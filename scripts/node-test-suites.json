@@ -1415,6 +1415,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/game-lifecycle-materializer.test.mts",
+      "memberships": [
+        ["catalog-full-2", 5006],
+        ["release-check", 5003]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/game-lifecycle-receipt.test.mts",
       "memberships": [
         ["catalog-full-2", 5004],

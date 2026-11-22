@@ -320,9 +320,7 @@ async function main(argv: string[]) {
       typeof document.run_id !== "string" ||
       typeof document.run_attempt !== "number" ||
       typeof document.job_id !== "string" ||
-      typeof document.source_commit !== "string" ||
-      typeof document.selected_at !== "number" ||
-      document.platform !== "windows-x86-64"
+      typeof document.source_commit !== "string"
     )
       throw new Error("Review requires an exact game lifecycle expectation");
     const receipt = await verifyAttestedGameLifecycle(directory, {
@@ -333,8 +331,6 @@ async function main(argv: string[]) {
       run_attempt: document.run_attempt,
       job_id: document.job_id,
       source_commit: document.source_commit,
-      selected_at: document.selected_at,
-      platform: document.platform,
       now: Math.floor(Date.now() / 1000),
     });
     process.stdout.write(`${JSON.stringify(receipt)}

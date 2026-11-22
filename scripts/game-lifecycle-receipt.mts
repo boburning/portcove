@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
@@ -13,6 +16,28 @@ export const gameLifecycleChecks = [
   "launch-and-close",
   "retain-and-reopen-predecessor",
 ] as const;
+
+type TestedSourceVariant = { game_id: string; variant_id: string; representation_id: string };
+
+function testedVariant(value: unknown): TestedSourceVariant {
+  const id = /^[a-z0-9][a-z0-9._-]{0,127}$/u;
+  if (
+    !isRecord(value) ||
+    !isDeepStrictEqual(Object.keys(value).sort(), ["game_id", "representation_id", "variant_id"]) ||
+    typeof value.game_id !== "string" ||
+    !id.test(value.game_id) ||
+    typeof value.variant_id !== "string" ||
+    !id.test(value.variant_id) ||
+    typeof value.representation_id !== "string" ||
+    !id.test(value.representation_id)
+  )
+    throw new Error("Exact tested game source variant is missing or invalid");
+  return {
+    game_id: value.game_id,
+    variant_id: value.variant_id,
+    representation_id: value.representation_id,
+  };
+}
 
 export interface ExpectedGameLifecycle {
   preparation_sha256: string;
@@ -31,6 +56,7 @@ const keys = [
   "preparation_sha256",
   "executable_sha256",
   "check_plan_sha256",
+  "source_variant",
   "run_id",
   "run_attempt",
   "job_id",
@@ -42,6 +68,167 @@ const keys = [
 
 const positiveIdentifier = /^[1-9][0-9]{0,15}$/u;
 const sha256 = /^[a-f0-9]{64}$/u;
+
+export function inspectGameLifecyclePreparation(bytes: Buffer) {
+  if (bytes.length < 1 || bytes.length > 256 * 1024)
+    throw new Error("Exact Core preparation has an invalid byte length");
+  const envelope: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  const evidence = isRecord(envelope) ? envelope.data : null;
+  if (
+    !isRecord(envelope) ||
+    envelope.schema_version !== 100 ||
+    envelope.ok !== true ||
+    envelope.command !== "catalog.prepare-successor-evidence" ||
+    envelope.error !== null ||
+    !isRecord(evidence) ||
+    evidence.rule_version !== 1 ||
+    typeof evidence.selected_at !== "number" ||
+    !Number.isSafeInteger(evidence.selected_at) ||
+    evidence.selected_at < 1 ||
+    !Array.isArray(evidence.anchor_observations) ||
+    evidence.anchor_observations.length < 1 ||
+    evidence.anchor_observations.length > 64
+  )
+    throw new Error("Exact Core preparation response is missing or unsupported");
+  const subject = (row: unknown) => {
+    if (
+      !isRecord(row) ||
+      !isRecord(row.definition) ||
+      typeof row.definition.stable_id !== "string" ||
+      !/^[a-z0-9][a-z0-9-]{0,127}$/u.test(row.definition.stable_id) ||
+      row.platform !== "windows-x86-64" ||
+      (row.channel !== "stable" && row.channel !== "beta") ||
+      typeof row.artifact_sha256 !== "string" ||
+      !sha256.test(row.artifact_sha256) ||
+      typeof row.tag !== "string" ||
+      row.tag.length < 1 ||
+      row.tag.length > 256 ||
+      !isRecord(row.coordinates) ||
+      !["setup", "launch", "data"].every((key) => {
+        const value = (row.coordinates as Record<string, unknown>)[key];
+        return typeof value === "string" && sha256.test(value);
+      }) ||
+      !Array.isArray(row.variants) ||
+      row.variants.length < 1 ||
+      row.variants.length > 32
+    )
+      throw new Error("Exact Core preparation scope is incomplete or unsupported");
+    return {
+      id: row.definition.stable_id,
+      platform: row.platform,
+      channel: row.channel,
+      artifact_sha256: row.artifact_sha256,
+      tag: row.tag,
+      coordinates: row.coordinates,
+      variants: row.variants,
+    } as const;
+  };
+  const predecessor = subject(evidence.predecessor);
+  const successor = subject(evidence.successor);
+  if (
+    predecessor.id !== successor.id ||
+    predecessor.channel !== successor.channel ||
+    predecessor.tag === successor.tag ||
+    predecessor.artifact_sha256 === successor.artifact_sha256 ||
+    !isDeepStrictEqual(predecessor.coordinates, successor.coordinates) ||
+    !isDeepStrictEqual(predecessor.variants, successor.variants)
+  )
+    throw new Error("Exact Core preparation does not describe an unchanged same-platform pair");
+  return {
+    selected_at: evidence.selected_at,
+    rule_version: evidence.rule_version,
+    platform: successor.platform,
+    predecessor,
+    successor,
+  };
+}
+
+export async function verifyGameLifecyclePhaseFiles(
+  directory: string,
+  preparation: ReturnType<typeof inspectGameLifecyclePreparation>,
+  receipt: ReturnType<typeof verifyGameLifecyclePredicate>,
+  expected: Pick<ExpectedGameLifecycle, "check_plan_sha256" | "executable_sha256">,
+) {
+  const read = async (name: string, digest: string) => {
+    const bytes = await readBoundedPublicBuildInputFile(directory, `${name}.json`, 128 * 1024);
+    if (createHash("sha256").update(bytes).digest("hex") !== digest)
+      throw new Error("Game lifecycle phase evidence differs from the attested digest");
+    const record: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    if (!isRecord(record)) throw new Error("Game lifecycle phase is not a receipt object");
+    return record;
+  };
+  const plan = await read("check-plan", expected.check_plan_sha256);
+  if (
+    !isDeepStrictEqual(plan, {
+      schema: 1,
+      rule_version: preparation.rule_version,
+      checks: [...gameLifecycleChecks],
+    })
+  )
+    throw new Error("Game lifecycle plan differs from the approved rule");
+  const evidence = new Map<string, Record<string, unknown>>();
+  for (const entry of receipt.reports) {
+    if (evidence.has(entry.check)) throw new Error("Duplicate game lifecycle phase receipt");
+    const report = await read(entry.check, entry.sha256);
+    if (report.outcome !== "passed" || report.check !== entry.check)
+      throw new Error("Game lifecycle phase identity or outcome differs");
+    evidence.set(entry.check, report);
+  }
+  const acquisition = evidence.get("acquire-exact-successor");
+  const verify = evidence.get("verify-package-and-install");
+  const launch = evidence.get("launch-and-close");
+  const rollback = evidence.get("retain-and-reopen-predecessor");
+  const exactKeys = (report: Record<string, unknown>, extra: string[]) =>
+    isDeepStrictEqual(Object.keys(report).sort(), ["check", "outcome", ...extra].sort());
+  const verifyFiles = (report: Record<string, unknown> | undefined, id: unknown) =>
+    report &&
+    report.install_id === id &&
+    Number.isSafeInteger(report.checked_files) &&
+    Number(report.checked_files) > 0 &&
+    exactKeys(report, ["install_id", "checked_files"]);
+  if (
+    !acquisition ||
+    !exactKeys(acquisition, [
+      "predecessor_install_id",
+      "successor_install_id",
+      "artifact_sha256",
+    ]) ||
+    typeof acquisition.predecessor_install_id !== "string" ||
+    !acquisition.predecessor_install_id ||
+    typeof acquisition.successor_install_id !== "string" ||
+    !acquisition.successor_install_id ||
+    acquisition.predecessor_install_id === acquisition.successor_install_id ||
+    acquisition.artifact_sha256 !== preparation.successor.artifact_sha256 ||
+    !verifyFiles(verify, acquisition.successor_install_id) ||
+    !verifyFiles(rollback, acquisition.predecessor_install_id) ||
+    !launch ||
+    !exactKeys(launch, [
+      "executable_sha256",
+      "method",
+      "exited_at",
+      "exit_code",
+      "source_variant",
+    ]) ||
+    launch.executable_sha256 !== expected.executable_sha256 ||
+    !isDeepStrictEqual(launch.source_variant, receipt.source_variant) ||
+    !preparation.successor.variants.some((variant) =>
+      isDeepStrictEqual(variant, receipt.source_variant),
+    ) ||
+    launch.method !== "identity-bound-native-main-window-close-request" ||
+    launch.exit_code !== 0 ||
+    typeof launch.exited_at !== "string"
+  )
+    throw new Error(
+      "Game lifecycle phases do not prove the exact acquisition, launch and rollback",
+    );
+  const exitedAt = Math.floor(Date.parse(launch.exited_at) / 1000);
+  if (
+    !Number.isFinite(exitedAt) ||
+    exitedAt < receipt.started_at ||
+    exitedAt > receipt.completed_at
+  )
+    throw new Error("Native game exit falls outside the authenticated lifecycle window");
+}
 
 /**
  * Interpret the predicate only after authenticating its signer and attested
@@ -99,7 +286,13 @@ export function verifyGameLifecyclePredicate(predicate: unknown, expected: Expec
       throw new Error("A mandatory game lifecycle check lacks a passing bound outcome");
     return { check, sha256: result.evidence_sha256 };
   });
-  return { started_at, completed_at, preparation_sha256: expected.preparation_sha256, reports };
+  return {
+    started_at,
+    completed_at,
+    preparation_sha256: expected.preparation_sha256,
+    source_variant: testedVariant(predicate.source_variant),
+    reports,
+  };
 }
 
 export function verifyGameLifecycleJob(
@@ -149,45 +342,56 @@ export function verifyGameLifecycleJob(
  * continue to reject successor-support activation until a capable release. */
 export async function verifyAttestedGameLifecycle(
   directory: string,
-  expected: ExpectedGameLifecycle & { source_commit: string },
+  requested: Omit<ExpectedGameLifecycle, "platform" | "selected_at"> & { source_commit: string },
 ) {
   const file = "successor-preparation.json";
   const before = await readBoundedPublicBuildInputFile(directory, file, 256 * 1024);
   const digest = createHash("sha256").update(before).digest("hex");
-  if (digest !== expected.preparation_sha256)
+  if (digest !== requested.preparation_sha256)
     throw new Error("Game lifecycle preparation bytes differ from the reviewed pair");
+  const preparation = inspectGameLifecyclePreparation(before);
+  const expected = {
+    ...requested,
+    platform: preparation.platform,
+    selected_at: preparation.selected_at,
+  };
 
-  const proof = await withReadOnlyReleaseChildren(directory, () =>
-    verifyReleaseSourceAttestation(
-      directory,
-      file,
-      {
-        source_commit: expected.source_commit,
-        ref: "refs/heads/main",
-        run_id: expected.run_id,
-        run_attempt: expected.run_attempt,
-        subjects: [{ filename: file, sha256: digest }],
-      },
-      { scope: "game-lifecycle" },
-    ),
-  );
+  const scratch = await mkdtemp(path.join(tmpdir(), "portcove-game-receipt-"));
+  const { predicate, verification_sha256 } = await (async () => {
+    try {
+      await writeFile(path.join(scratch, file), before, { flag: "wx", mode: 0o600 });
+      const proof = await withReadOnlyReleaseChildren(scratch, () =>
+        verifyReleaseSourceAttestation(
+          scratch,
+          file,
+          {
+            source_commit: expected.source_commit,
+            ref: "refs/heads/main",
+            run_id: expected.run_id,
+            run_attempt: expected.run_attempt,
+            subjects: [{ filename: file, sha256: digest }],
+          },
+          { scope: "game-lifecycle" },
+        ),
+      );
+      const verification = await readBoundedPublicBuildInputFile(
+        scratch,
+        "source-attestation-verification.json",
+        4 * 1024 * 1024,
+      );
+      return {
+        predicate: proof.statement.predicate,
+        verification_sha256: createHash("sha256").update(verification).digest("hex"),
+      };
+    } finally {
+      await rm(scratch, { recursive: true });
+    }
+  })();
   const after = await readBoundedPublicBuildInputFile(directory, file, 256 * 1024);
   if (!before.equals(after))
     throw new Error("Game lifecycle preparation changed during verification");
-  const receipt = verifyGameLifecyclePredicate(proof.statement.predicate, expected);
-  const evidence = [
-    { check: "check-plan", sha256: expected.check_plan_sha256 },
-    ...receipt.reports,
-  ];
-  for (const entry of evidence) {
-    const bytes = await readBoundedPublicBuildInputFile(
-      directory,
-      `${entry.check}.json`,
-      128 * 1024,
-    );
-    if (createHash("sha256").update(bytes).digest("hex") !== entry.sha256)
-      throw new Error("Game lifecycle phase evidence differs from the attested digest");
-  }
+  const receipt = verifyGameLifecyclePredicate(predicate, expected);
+  await verifyGameLifecyclePhaseFiles(directory, preparation, receipt, expected);
   const token = process.env.GH_TOKEN;
   if (!token) throw new Error("Explicit read-only workflow metadata token required");
   const provider = await createReleaseCustodyProvider({
@@ -197,11 +401,15 @@ export async function verifyAttestedGameLifecycle(
   const attempt = await provider.attempt(expected.run_id, expected.run_attempt);
   const job = await provider.job(Number(expected.job_id));
   const execution = verifyGameLifecycleJob(attempt, job, expected);
-  if (receipt.started_at < execution.started || receipt.completed_at > execution.completed)
+  if (
+    expected.selected_at < execution.started ||
+    receipt.started_at < execution.started ||
+    receipt.completed_at > execution.completed
+  )
     throw new Error("Game lifecycle receipt falls outside the original native job");
   return {
     ...receipt,
-    verification_path: proof.verification_path,
+    verification_sha256,
     authority: "none",
   };
 }

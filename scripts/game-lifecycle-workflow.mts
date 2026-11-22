@@ -2,7 +2,7 @@ import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runMaterializedGameLifecycle } from "./game-lifecycle-core-worker.mts";
-import type { MaterializedGameLifecycleWork } from "./game-lifecycle-core-worker.mts";
+import { materializeGameLifecycleLibraries } from "./game-lifecycle-materializer.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import { isRecord } from "./runtime-values.mts";
 import { executeGameLifecycle } from "./game-lifecycle-execution.mts";
@@ -36,7 +36,11 @@ function readWorkflowIdentity(environment: NodeJS.ProcessEnv) {
  * libraries. Archive import alone cannot restore the exact restricted grants
  * and replay floors. An empty queue is attributable and has no predicate.
  */
-async function noWork(directory: string, identity: ReturnType<typeof readWorkflowIdentity>) {
+async function noWork(
+  directory: string,
+  identity: ReturnType<typeof readWorkflowIdentity>,
+  holds: readonly unknown[],
+) {
   await mkdir(directory, { mode: 0o700 });
   const outcome = await executeGameLifecycle(
     { ...identity, job_id: "0", platform: "windows-x86-64" },
@@ -48,6 +52,9 @@ async function noWork(directory: string, identity: ReturnType<typeof readWorkflo
       ...identity,
       ...outcome,
       reason: "no-independently-admitted-hosted-library-pair",
+      holds,
+      native_platform: "windows-x86-64",
+      other_platforms: "native-producer-scope-unavailable",
     }),
     { flag: "wx", mode: 0o600 },
   );
@@ -58,18 +65,20 @@ async function noWork(directory: string, identity: ReturnType<typeof readWorkflo
 export async function executeGameLifecycleWorkflow(
   directory: string,
   identity: ReturnType<typeof readWorkflowIdentity>,
-  materials: {
-    work: readonly MaterializedGameLifecycleWork[];
-    cli?: { path: string; sha256: string };
-    environment?: NodeJS.ProcessEnv;
+  provisioned?: {
+    fixtures: Parameters<typeof materializeGameLifecycleLibraries>[0];
+    environment: NodeJS.ProcessEnv;
   },
 ) {
-  if (materials.work.length === 0) {
-    await noWork(directory, identity);
+  const materialized = provisioned
+    ? await materializeGameLifecycleLibraries(provisioned.fixtures)
+    : { work: [], holds: [] };
+  if (materialized.work.length === 0) {
+    await noWork(directory, identity, materialized.holds);
     return { predicate_ready: false, native_job_id: null };
   }
-  const work = materials.work[0];
-  if (!work || materials.work.length !== 1 || !materials.cli || !materials.environment)
+  const work = materialized.work[0];
+  if (!work || materialized.work.length !== 1 || !provisioned)
     throw new Error("Expected exactly one authorized disposable game lifecycle pair");
   const token = process.env.GH_TOKEN;
   if (!token) throw new Error("Original native job metadata reader required");
@@ -85,7 +94,8 @@ export async function executeGameLifecycleWorkflow(
     listing.body.total_count !== listing.body.jobs.length
   )
     throw new Error("Original native job inventory is incomplete");
-  const matches = listing.body.jobs.filter(
+  const jobs: unknown[] = listing.body.jobs;
+  const matches = jobs.filter(
     (job: unknown) =>
       isRecord(job) &&
       job.name === "Exact game lifecycle (Windows x64)" &&
@@ -97,9 +107,14 @@ export async function executeGameLifecycleWorkflow(
       job.labels.length === 1 &&
       job.labels[0] === "windows-2022",
   );
-  if (matches.length !== 1 || !/^[1-9][0-9]{0,15}$/u.test(String(matches[0]?.id)))
+  const original = matches[0];
+  if (
+    matches.length !== 1 ||
+    !isRecord(original) ||
+    !/^[1-9][0-9]{0,15}$/u.test(String(original.id))
+  )
     throw new Error("Original standard native job identity is unavailable");
-  const job_id = String(matches[0].id);
+  const job_id = String(original.id);
   await mkdir(directory, { mode: 0o700 });
   const environment: NodeJS.ProcessEnv = {};
   for (const name of [
@@ -115,7 +130,8 @@ export async function executeGameLifecycleWorkflow(
     "USERPROFILE",
     "PORTCOVE_PREFERENCES",
   ]) {
-    if (materials.environment[name] !== undefined) environment[name] = materials.environment[name];
+    if (provisioned.environment[name] !== undefined)
+      environment[name] = provisioned.environment[name];
   }
   await runMaterializedGameLifecycle(
     {
@@ -124,7 +140,6 @@ export async function executeGameLifecycleWorkflow(
       platform: "windows-x86-64",
     },
     work,
-    materials.cli,
     directory,
     environment,
   );
@@ -143,7 +158,7 @@ async function main(argv: string[]) {
       throw new Error("Expected hosted Windows x64 native worker");
     // An approved hosted input adapter has not yet been provisioned. A
     // dispatch supplies no libraries, packages, originals or raw receipts.
-    const result = await executeGameLifecycleWorkflow(directory, identity, { work: [] });
+    const result = await executeGameLifecycleWorkflow(directory, identity);
     await appendFile(output, `predicate_ready=${result.predicate_ready}\n`);
     if (result.native_job_id) await appendFile(output, `native_job_id=${result.native_job_id}\n`);
   } else if (mode === "seal") {

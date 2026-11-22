@@ -34,7 +34,11 @@ async function verifyExecutable(filename: string, digest: string) {
   )
     throw new Error("Game lifecycle executable is outside regular verified custody");
   const hash = createHash("sha256");
-  for await (const bytes of createReadStream(filename)) hash.update(bytes);
+  const stream: AsyncIterable<unknown> = createReadStream(filename);
+  for await (const bytes of stream) {
+    if (!Buffer.isBuffer(bytes)) throw new Error("Native file read did not return bytes");
+    hash.update(bytes);
+  }
   if (hash.digest("hex") !== digest)
     throw new Error("Game lifecycle executable differs from review");
 }
