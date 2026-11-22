@@ -144,7 +144,7 @@ fn follows_manifest_identity_and_rejects_invalid_identity_or_required_dependency
 }
 
 fn store_bundle(data: &[u8]) -> Vec<u8> {
-    let mut header = b"UnityFS\0\0\0\0\x075.x.x\02019.4.40f1\0".to_vec();
+    let mut header = b"UnityFS\0\0\0\0\x075.x.x\x002019.4.40f1\0".to_vec();
     let mut metadata = vec![0; 16];
     metadata.extend(1u32.to_be_bytes());
     metadata.extend((data.len() as u32).to_be_bytes());

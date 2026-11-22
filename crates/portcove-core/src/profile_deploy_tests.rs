@@ -3967,7 +3967,7 @@ fn dfu_local_pointycursor_projects_only_owned_files_and_retains_clean_recovery()
         assert!(fs::read(&marker).unwrap().is_empty());
         assert_eq!(fs::read(&canonical_progress).unwrap(), b"current progress");
         assert_eq!(
-            fs::read(&declined.path.join("backup.json")).unwrap(),
+            fs::read(declined.path.join("backup.json")).unwrap(),
             manifest
         );
         assert_eq!(fs::read(&canonical_mod).unwrap(), data);

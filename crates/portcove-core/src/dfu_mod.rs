@@ -386,7 +386,7 @@ fn read_objects(data: &[u8], platform: Platform) -> Result<BTreeMap<i64, Object<
             .get(start..end)
             .ok_or_else(|| invalid("invalid Unity object range"))?;
         require(
-            id != 0 && start % 4 == 0 && size > 0,
+            id != 0 && start.is_multiple_of(4) && size > 0,
             "invalid Unity object identity",
         )?;
         require(
