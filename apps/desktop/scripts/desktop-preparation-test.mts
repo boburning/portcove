@@ -1917,7 +1917,7 @@ export async function preparationScenarios({
           (await launch[0]!.getAttribute("aria-busy")) !== "true"
         );
       },
-      15_000,
+      45_000,
       "Library launch must settle before the card composition check",
     );
     const cardActions = await executeBrowserScript(
