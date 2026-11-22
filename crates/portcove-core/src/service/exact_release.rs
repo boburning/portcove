@@ -562,12 +562,23 @@ mod tests {
         });
         let library = Library::open(root.path()).unwrap();
         let mut service = PortcoveService::with_provider(library, provider).unwrap();
-        let mut document = service.catalog.document().clone();
+        // Exact exclusions are authored only for GitHub staged-source or
+        // managed PSX routes; choose one the same way the policy tests do.
+        let mut document = service.catalog.authoritative_document();
+        let platform = Platform::current().unwrap();
         let port = document
             .ports
             .iter_mut()
-            .find(|port| port.id == PORT)
+            .find(|port| {
+                port.adapter == crate::AdapterKind::StagedSourcePortable
+                    && port.release.provider == crate::ReleaseSource::Github
+                    && port.managed_acquisition_hold.is_none()
+                    && port.release.curated.is_empty()
+                    && port.release.managed_build.is_empty()
+                    && port.platforms.contains(&platform)
+            })
             .unwrap();
+        let held = port.id.clone();
         port.managed_acquisition_hold = Some(crate::ManagedAcquisitionHold {
             reason: "This package is known to corrupt saves.".into(),
             activation_reason: "This package is known to corrupt saves.".into(),
@@ -582,7 +593,7 @@ mod tests {
         );
 
         let refused = service
-            .review_exact_release(PORT, "v1.0.0")
+            .review_exact_release(&held, "v1.0.0")
             .await
             .unwrap_err();
         assert_eq!(presentation_key(&refused), "exact_release_held");
@@ -593,12 +604,12 @@ mod tests {
                 .summary
                 .contains("This package is known to corrupt saves.")
         );
-        assert!(service.status(PORT).unwrap().exact_release.is_none());
+        assert!(service.status(&held).unwrap().exact_release.is_none());
 
         // A different package of the same port is not held and can be pinned.
-        let preview = service.review_exact_release(PORT, "v1.1.0").await.unwrap();
+        let preview = service.review_exact_release(&held, "v1.1.0").await.unwrap();
         let status = service
-            .pin_exact_release(PORT, "v1.1.0", &preview.review_sha256)
+            .pin_exact_release(&held, "v1.1.0", &preview.review_sha256)
             .await
             .unwrap();
         assert_eq!(status.exact_release, Some(preview.selection));
