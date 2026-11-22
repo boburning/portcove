@@ -79,6 +79,7 @@ import type {
   BackupInventory,
   BackupRecord,
   BootstrapStatus,
+  LibrarySelectionReview,
   CapabilityDocument,
   CatalogDocument,
   CatalogDownloadCandidates,
@@ -868,8 +869,18 @@ export const desktopApi = {
 
   bootstrapStatus: () => invoke<BootstrapStatus>("get_bootstrap_status"),
   defaultLibraryRoot: () => invoke<string>("get_default_library_root"),
-  setDefaultLibrary: (path: string) => invoke<BootstrapStatus>("set_default_library", { path }),
-  resetDefaultLibrary: () => invoke<BootstrapStatus>("reset_default_library"),
+  reviewLibrarySelection: (path: string | null, generation: number) =>
+    invoke<LibrarySelectionReview>("review_library_selection", { path, generation }),
+  setDefaultLibrary: (path: string, expectedReview?: string) =>
+    invoke<BootstrapStatus>("set_default_library", {
+      path,
+      ...(expectedReview && { expectedReview }),
+    }),
+  resetDefaultLibrary: (expectedReview?: string) =>
+    invoke<BootstrapStatus>(
+      "reset_default_library",
+      expectedReview ? { expectedReview } : undefined,
+    ),
   githubAuthStatus: () => invoke<GithubAuthStatus>("get_github_auth_status"),
   setGithubToken: (token: string) => invoke<GithubAuthStatus>("set_github_token", { token }),
   logoutGithub: () => invoke<GithubAuthStatus>("logout_github"),

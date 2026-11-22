@@ -528,8 +528,8 @@ type WorkspaceProps = {
   bootstrap: BootstrapStatus;
   initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 };
@@ -1863,8 +1863,8 @@ function CurrentView({
   sourceHealth: SourceHealthState;
   appearance: AppearanceState;
   bootstrap: BootstrapStatus;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   gameSourceDropReview: GameSourceDropReview;
   hostToolActions: HostToolActions;
