@@ -66,6 +66,8 @@ async fn project_files_remain_visible_when_the_definition_lacks_native_mod_state
         .iter_mut()
         .find(|port| port.id == "shipwright")
         .unwrap();
+    port.mod_loader = None;
+    port.mod_provider_bindings = None;
     port.persistent_paths.retain(|path| path != "mods");
     service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
 

@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://www.kartkrew.org/",
     "setup_url": "https://www.kartkrew.org/news/2025-11-02_dr-robotniks-ring-racers-version-24.html",
-    "download_block_reason": "Use Kart Krew's full desktop release or the Linux Flatpak. These packages include the game's assets.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use Kart Krew's full desktop release or the Linux Flatpak. These packages include the game's assets.",
+        "tracking_issue": 6412
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

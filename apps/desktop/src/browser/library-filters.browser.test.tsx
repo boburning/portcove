@@ -236,8 +236,6 @@ async function revealReadiness() {
   if (document.querySelector("[data-slot=checkbox]")) await userEvent.keyboard("{Escape}");
   const panelTrigger = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
   if (panelTrigger.element().getAttribute("aria-expanded") !== "true") await panelTrigger.click();
-  const advanced = page.getByText("Advanced filters", { exact: true });
-  if (!advanced.element().closest("details")?.open) await advanced.click();
 }
 async function expectReadinessLabel(name: string | RegExp) {
   await revealReadiness();
@@ -271,8 +269,8 @@ async function expectReadinessOption(name: string, selected?: boolean) {
 }
 async function openAdvancedFilters(name: string) {
   await userEvent.click(button(name));
-  if (!page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open)
-    await userEvent.click(page.getByText("Advanced filters", { exact: true }));
+  if (!page.getByText("More filters", { exact: true }).element().closest("details")?.open)
+    await userEvent.click(page.getByText("More filters", { exact: true }));
 }
 async function closeFilters() {
   const field = document.querySelector<HTMLButtonElement>(

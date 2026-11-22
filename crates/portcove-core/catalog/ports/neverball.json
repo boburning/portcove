@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://neverball.org/download",
     "setup_url": "https://neverball.org/download",
-    "download_block_reason": "The stable Windows ZIP is on Neverball’s original release host. Use that ZIP or your Linux package manager for the desktop game.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "The stable Windows ZIP is on Neverball’s original release host. Use that ZIP or your Linux package manager for the desktop game.",
+        "tracking_issue": 6400
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

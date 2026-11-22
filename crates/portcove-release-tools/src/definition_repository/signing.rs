@@ -222,9 +222,13 @@ pub(super) fn targets(context: &Context, role: DefinitionOnlineRole) -> Result<T
         _extra: Default::default(),
     })
 }
-pub(super) fn meta(bytes: &[u8], version: NonZeroU64) -> Result<Metafile> {
+fn meta(bytes: &[u8], version: NonZeroU64) -> Result<Metafile> {
+    meta_identity(bytes.len() as u64, &sha(bytes), version)
+}
+
+pub(super) fn meta_identity(length: u64, sha256: &str, version: NonZeroU64) -> Result<Metafile> {
     Ok(serde_json::from_value(
-        serde_json::json!({"version":version,"length":bytes.len(),"hashes":{"sha256":sha(bytes)}}),
+        serde_json::json!({"version":version,"length":length,"hashes":{"sha256":sha256}}),
     )?)
 }
 pub(super) fn snapshot(context: &Context, roles: &Files) -> Result<Snapshot> {

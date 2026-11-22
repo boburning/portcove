@@ -34,6 +34,7 @@ import {
 } from "./upstream-mod-provider-registry.mts";
 import {
   inputEvidenceKey,
+  n64BuildJobTarget,
   n64RuntimeSourceCache,
   observeN64RuntimeHashSource,
   observeN64RuntimeSource,
@@ -44,12 +45,22 @@ import {
   selectOriginalSourceTarget,
 } from "./upstream-original-recognition.mts";
 import type { N64RuntimeHashSourceObservation } from "./upstream-n64-runtime-input.mts";
+import { n64AuthoringScope } from "./n64-original-binding-candidates.mts";
+import {
+  advanceUpstreamArtifactBuildObservation,
+  rebindUpstreamBuildObservation,
+} from "./upstream-github-build-output.mts";
+import {
+  advanceN64BuildJobObservation,
+  rebindN64BuildJobObservation,
+} from "./upstream-n64-build-job.mts";
 
 export interface ObservablePort {
   /** Descriptive consumers never enter the managed Core inspector. */
   kind?: "listing";
   listing?: Record<string, unknown>;
   original_source_family?: OriginalSourceFamily;
+  n64_authoring_scope_sha256?: string;
   id: string;
   channels: string[];
   definition_sha256: string;
@@ -64,6 +75,49 @@ export interface ObservableSource {
 }
 function listingOnly(source: ObservableSource) {
   return source.ports.every((port) => port.kind === "listing");
+}
+
+export interface CatalogObservationScopePolicy {
+  policyIdentity: string;
+  definitionHash: (portId: string) => string;
+  staleAfterHours: number;
+}
+
+/** Bind the collector's full source scope to its exact Core policy and normalized definitions. */
+export function catalogObservationScopeBinding(
+  source: ObservableSource,
+  policy: CatalogObservationScopePolicy,
+) {
+  const provider = source.provider ?? "github";
+  if (listingOnly(source)) {
+    return observationHash({
+      contract: "normalized-current-catalog-listing-policy-v1",
+      source: source.key,
+      provider,
+      ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+      scope: source.scope_sha256,
+      stale_after_hours: policy.staleAfterHours,
+    });
+  }
+  const definitions = source.ports.map(
+    (port) =>
+      [
+        port.id,
+        port.kind === "listing" ? port.definition_sha256 : policy.definitionHash(port.id),
+      ] as const,
+  );
+  if (
+    !/^[a-f0-9]{64}$/u.test(policy.policyIdentity) ||
+    definitions.some(([, hash]) => !/^[a-f0-9]{64}$/u.test(hash))
+  )
+    throw new Error("Exact Core policy and normalized observation definitions are required");
+  return observationHash({
+    contract: "normalized-current-catalog-core-policy-v1",
+    ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
+    policy: policy.policyIdentity,
+    scope: source.scope_sha256,
+    definitions,
+  });
 }
 
 function retainedListingClocks(source: ObservableSource, progress: SourceProgress) {
@@ -224,8 +278,13 @@ export function catalogObservationSources(input: unknown) {
             ? "n64-recomp"
             : undefined
         : undefined;
+    const authoringScope =
+      originalSourceFamily === "n64-recomp"
+        ? n64AuthoringScope(port, input.source_catalog)
+        : undefined;
     source.ports.push({
       ...(originalSourceFamily ? { original_source_family: originalSourceFamily } : {}),
+      ...(authoringScope ? { n64_authoring_scope_sha256: authoringScope } : {}),
       id: port.id,
       definition_sha256: observationHash(port),
       channels: port.channels.map((channel: unknown) => String(channel)),
@@ -289,6 +348,9 @@ export function catalogObservationSources(input: unknown) {
           .map((port) => ({
             id: port.id,
             definition_sha256: port.definition_sha256,
+            ...(port.n64_authoring_scope_sha256
+              ? { n64_authoring_scope_sha256: port.n64_authoring_scope_sha256 }
+              : {}),
             ...(port.listing
               ? {
                   kind: port.kind ?? "managed-with-listing",
@@ -505,6 +567,8 @@ export interface CatalogObservationOptions extends Pick<
   excludedSources?: ReadonlySet<string>;
   /** Hard cap on provider requests this operation may admit (#4779). */
   requestLimit?: number;
+  /** Give stale recovery regular turns after appointments and expiring managed work. */
+  rotateStaleSources?: boolean;
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
@@ -524,6 +588,14 @@ export interface CatalogObservationOptions extends Pick<
   save: (config: ObserverConfig, checkpoint: unknown) => Promise<void>;
   commit: (checkpoint: CatalogObserverCheckpoint) => Promise<void>;
   observeN64Runtime?: boolean;
+  readN64BuildStepLog?: (
+    repository: string,
+    job: number,
+    step: number,
+    account: Required<
+      Pick<ObserveOptions, "admitRequest" | "observeResponse" | "consumeResponseBytes">
+    >,
+  ) => Promise<Uint8Array>;
   readOriginalRecognition?: (
     repository: string,
     endpoint: string,
@@ -548,6 +620,61 @@ export interface CatalogObservationOptions extends Pick<
     result: SourceResult,
     policies: unknown[],
   ) => Promise<void>;
+}
+
+type ObservationTurn = {
+  key: string;
+  appointment: boolean;
+  /** A healthy source serving a managed port. */
+  managed: boolean;
+  freshnessObservedAt: string | null;
+  attemptedSequence: number;
+};
+
+/** Order already-due and retry-admitted sources before the existing request fences. */
+export function orderHostedObservationTurns<T extends ObservationTurn>(
+  turns: T[],
+  freshness?: { now: number; deadline: number; freshnessMs: number },
+): T[] {
+  const byRole = turns.toSorted(
+    (a, b) =>
+      Number(b.appointment) - Number(a.appointment) ||
+      Number(b.managed) - Number(a.managed) ||
+      a.attemptedSequence - b.attemptedSequence ||
+      a.key.localeCompare(b.key),
+  );
+  if (!freshness) return byRole;
+
+  const expiry = (turn: ObservationTurn) =>
+    turn.freshnessObservedAt === null
+      ? -Infinity
+      : Date.parse(turn.freshnessObservedAt) + freshness.freshnessMs;
+  const protectedTurns: T[] = [];
+  const ordinaryManaged: T[] = [];
+  const recovery: T[] = [];
+  const remaining: T[] = [];
+  for (const turn of byRole) {
+    if (turn.appointment || (turn.managed && expiry(turn) <= freshness.deadline)) {
+      protectedTurns.push(turn);
+    } else if (turn.managed) {
+      ordinaryManaged.push(turn);
+    } else if (expiry(turn) <= freshness.now) {
+      recovery.push(turn);
+    } else {
+      remaining.push(turn);
+    }
+  }
+
+  // Preserve the first recovery turn, then keep one in every four ordinary
+  // turns while both groups have work. Every turn uses the existing shared
+  // quantum. Oldest attempt within recovery keeps failed sources rotating.
+  const ordered = protectedTurns;
+  let recovered = 0;
+  for (let index = 0; index < ordinaryManaged.length; index++) {
+    if (index % 3 === 0 && recovered < recovery.length) ordered.push(recovery[recovered++]!);
+    ordered.push(ordinaryManaged[index]!);
+  }
+  return ordered.concat(recovery.slice(recovered), remaining);
 }
 
 /** Finite shared runtime/quota, fair durable source turns, existing per-source continuation. */
@@ -598,27 +725,12 @@ export async function advanceCatalogObservations(
   };
   if (!Number.isFinite(deadline) || deadline <= now())
     throw new ObservationFailure("budget", "Collector deadline unavailable");
-  const scopeBinding = (source: ObservableSource) => {
-    const provider = source.provider ?? "github";
-    if (listingOnly(source)) {
-      // The declaration scope already binds the exact descriptive projector.
-      return observationHash({
-        contract: "normalized-current-catalog-listing-policy-v1",
-        source: source.key,
-        provider,
-        ...(provider === "gitlab" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
-        scope: source.scope_sha256,
-        stale_after_hours: template.stale_after_hours,
-      });
-    }
-    return observationHash({
-      contract: "normalized-current-catalog-core-policy-v1",
-      ...(provider !== "github" ? { provider_proof: "explicit-page-coverage-v2" } : {}),
-      policy: policyIdentity,
-      scope: source.scope_sha256,
-      definitions: source.ports.map((port) => [port.id, definitionFor(port)]),
+  const scopeBinding = (source: ObservableSource) =>
+    catalogObservationScopeBinding(source, {
+      policyIdentity,
+      definitionHash: options.definitionHash,
+      staleAfterHours: template.stale_after_hours,
     });
-  };
   let requests = 0;
   let responseBytes = 0;
   let operationBytes = 0;
@@ -713,29 +825,28 @@ export async function advanceCatalogObservations(
   const servesManagedPort = (source: ObservableSource) =>
     healthy(state.sources[source.key]) && source.ports.some((port) => port.kind !== "listing");
   const n64RuntimeCache = n64RuntimeSourceCache();
-  const pending = sources
-    .filter((source) => {
-      if (options.excludedSources?.has(source.key)) return false;
-      const progress = state.sources[source.key];
-      return (
-        (scopeDue(source, progress) || source.repository === template.repository) &&
-        (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
-      );
-    })
-    // Prefer the selected scopes once per hosted opportunity, then healthy
-    // sources that serve a managed port: their releases can change what
-    // players install, while listing-only sources are descriptive. A completed
-    // managed source leaves `pending` until it is due again, and one with a
-    // recorded failure rejoins ordinary rotation, so listing-only sources
-    // still receive turns. The durable rotation orders each group.
-    .sort(
-      (a, b) =>
-        Number(earlyTurn(b)) - Number(earlyTurn(a)) ||
-        Number(servesManagedPort(b)) - Number(servesManagedPort(a)) ||
-        (state.sources[a.key]?.attempted_sequence ?? -1) -
-          (state.sources[b.key]?.attempted_sequence ?? -1) ||
-        a.key.localeCompare(b.key),
-    );
+  const pending = orderHostedObservationTurns(
+    sources
+      .filter((source) => {
+        if (options.excludedSources?.has(source.key)) return false;
+        const progress = state.sources[source.key];
+        return (
+          (scopeDue(source, progress) || source.repository === template.repository) &&
+          (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
+        );
+      })
+      .map((source) => ({
+        source,
+        key: source.key,
+        appointment: earlyTurn(source),
+        managed: servesManagedPort(source),
+        freshnessObservedAt: state.sources[source.key]?.freshness_observed_at ?? null,
+        attemptedSequence: state.sources[source.key]?.attempted_sequence ?? -1,
+      })),
+    options.rotateStaleSources === true
+      ? { now: now(), deadline, freshnessMs: template.stale_after_hours * 3600000 }
+      : undefined,
+  ).map(({ source }) => source);
   const earlyTurns = new Set(pending.filter(earlyTurn).map((source) => source.key));
   const earlyTurnCount = earlyTurns.size;
   const capacity = () =>
@@ -1508,10 +1619,31 @@ export async function advanceCatalogObservations(
                     target.release_tag,
                   ]);
                   const fresh = freshByRelease.get(release);
-                  const fact = fresh
+                  let fact = fresh
                     ? { ...fresh, ...target }
                     : await observeOriginalSource(target, read, family);
                   if (!fresh) freshByRelease.set(release, fact);
+                  if (
+                    fact.parser === "n64-recomp-game-entry-v1" &&
+                    retained?.fact.parser === fact.parser &&
+                    retained.fact.source_commit === fact.source_commit
+                  ) {
+                    const runtime = retained.fact.runtime_source;
+                    const builds = rebindUpstreamBuildObservation(
+                      retained.fact.build_outputs,
+                      fact,
+                    );
+                    fact = {
+                      ...fact,
+                      ...(runtime ? { runtime_source: runtime } : {}),
+                      ...(builds ? { build_outputs: builds } : {}),
+                    };
+                    const jobTarget = n64BuildJobTarget(fact);
+                    const jobs = jobTarget
+                      ? rebindN64BuildJobObservation(retained.fact.build_jobs, jobTarget)
+                      : undefined;
+                    if (jobs) fact = { ...fact, build_jobs: jobs };
+                  }
                   complete = { binding, observed_at: new Date(now()).toISOString(), fact };
                   recognitionState = "observed";
                 }
@@ -1544,7 +1676,7 @@ export async function advanceCatalogObservations(
                 };
                 if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                   remaining = 0;
-                  state.provider_retry_at = error.retryAt;
+                  extendProviderDeferral(error.retryAt);
                 }
               }
             }
@@ -1570,7 +1702,7 @@ export async function advanceCatalogObservations(
                 } catch (error) {
                   if (error instanceof ObservationFailure && error.rule === "rate-limit") {
                     remaining = 0;
-                    state.provider_retry_at = error.retryAt;
+                    extendProviderDeferral(error.retryAt);
                   }
                 }
                 complete = {
@@ -1584,6 +1716,71 @@ export async function advanceCatalogObservations(
                   },
                 };
               }
+            }
+            if (
+              options.observeN64Runtime &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              complete.fact.runtime_source?.state === "observed" &&
+              complete.fact.runtime_source.source.matched_input_blocks &&
+              complete.fact.runtime_source.source.hash_source?.state === "observed" &&
+              (!complete.fact.build_outputs || complete.fact.build_outputs.search !== null)
+            ) {
+              const fact = complete.fact;
+              try {
+                const builds = await advanceUpstreamArtifactBuildObservation(
+                  fact,
+                  fact.build_outputs,
+                  read,
+                  new Date(now()).toISOString(),
+                );
+                complete = { ...complete, fact: { ...fact, build_outputs: builds } };
+              } catch (error) {
+                // Keep the source evidence and the build search's last checked cursor.
+                if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                  remaining = 0;
+                  extendProviderDeferral(error.retryAt);
+                }
+              }
+            }
+            const readBuildStep = options.readN64BuildStepLog;
+            if (
+              readBuildStep &&
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1"
+            ) {
+              const fact = complete.fact;
+              const target = n64BuildJobTarget(fact);
+              if (
+                target &&
+                ((fact.build_jobs?.matches.length ?? 0) < target.outputs.length ||
+                  fact.build_jobs?.matches.some((match) => !match.compile))
+              ) {
+                try {
+                  const jobs = await advanceN64BuildJobObservation(
+                    target,
+                    fact.build_jobs,
+                    read,
+                    (job, step) => readBuildStep(fact.repository, job, step, account),
+                  );
+                  complete = { ...complete, fact: { ...fact, build_jobs: jobs } };
+                } catch (error) {
+                  if (error instanceof ObservationFailure && error.rule === "rate-limit") {
+                    remaining = 0;
+                    extendProviderDeferral(error.retryAt);
+                  }
+                }
+              }
+            }
+            if (
+              recognitionState === "observed" &&
+              complete?.fact.parser === "n64-recomp-game-entry-v1" &&
+              port?.n64_authoring_scope_sha256
+            ) {
+              complete = {
+                ...complete,
+                fact: { ...complete.fact, authoring_scope_sha256: port.n64_authoring_scope_sha256 },
+              };
             }
             policy[evidenceKey] = { state: recognitionState, last_complete: complete };
           }

@@ -1,0 +1,51 @@
+{
+  "format_version": 1,
+  "receipts": [
+    {
+      "repository_id": 1204493438,
+      "release_id": 396931373,
+      "source_commit": "ddd991cf5d5d0d79ff80b893600248d6ea73cf2e",
+      "source_blob_sha1": "2f731e602724c0395aea0ae8edf66bff5ffc6094",
+      "runtime_revision": "ca568b6ad79b9029d14077f0c3ffa757727c5559",
+      "hash_revision": "ac3a25da3d957d9ef3e4114d9f8332d34ce83a46",
+      "review_url": "https://github.com/boburning/portcove/issues/8384#issuecomment-7048909890",
+      "packages": [
+        {
+          "platform": "windows-x86-64",
+          "artifact_sha256": "bbea76c78256eb40da61ed951dbd2efdee9dfdcaffc501c24bab1ad39ac2c896",
+          "job_id": 108247503777,
+          "compile_sha256": "f5804a186a3aff83eb80a91e430a4313b82f393f140baceef800c46fbf3e4554",
+          "executable_sha256": "447b17337d883bbe7832cf740f0946126818f0f6b1d99c9a25cabaaa66f37711",
+          "layout_sha256": "0f6fb36c6a5d12d893604f549aebf28063527e2ce21da77817ff692d67acc68f"
+        },
+        {
+          "platform": "linux-x86-64",
+          "artifact_sha256": "ae0865eaa1092a88a9321e776ca71dcab86c69c4f74d1004dc4f2d6f2224685c",
+          "job_id": 108247503508,
+          "compile_sha256": "db66747a835d297367ec3a1dd9698a39ea04691956d63fe0ddd3510c51e6d25d",
+          "executable_sha256": "a7bd0eb7a6e7544d517e89e3475e53a1694313fc2f712d9d1fce557a83c7f2ab",
+          "layout_sha256": "ba3ac35f1141ddb1876d5cf33a2d544f3e75930a581261b20254f93dfb23d267"
+        },
+        {
+          "platform": "macos-x86-64",
+          "artifact_sha256": "9af5612942f0d40310ea83769fc8a5a221ab0e93a3e55532d5e3ece295cc0080",
+          "job_id": 108247503810,
+          "compile_sha256": "2f8f3db2b6fb600e041e7c6e387c90deabca20ffbc1f0414fecc0d6a0504119c",
+          "executable_sha256": "3917303fd9adc63141ea21402647401b5f71ebbac7d9dc5fa53a242fdc08af0e",
+          "layout_sha256": "ba3ac35f1141ddb1876d5cf33a2d544f3e75930a581261b20254f93dfb23d267"
+        },
+        {
+          "platform": "macos-aarch64",
+          "artifact_sha256": "9af5612942f0d40310ea83769fc8a5a221ab0e93a3e55532d5e3ece295cc0080",
+          "job_id": 108247503810,
+          "compile_sha256": "2f8f3db2b6fb600e041e7c6e387c90deabca20ffbc1f0414fecc0d6a0504119c",
+          "executable_sha256": "f3b1541549627bfa887e92d4516b2e9305b86afbea2f7344d535c38a432725f0",
+          "layout_sha256": "ba3ac35f1141ddb1876d5cf33a2d544f3e75930a581261b20254f93dfb23d267"
+        }
+      ],
+      "game_id": "harvest_moon_64",
+      "rom_xxh3_64": "68b2c3755c527305",
+      "reviewed_at": "2026-11-20"
+    }
+  ]
+}

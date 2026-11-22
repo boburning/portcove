@@ -2975,6 +2975,39 @@ fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() 
 }
 
 #[test]
+fn a_saved_folder_scan_returns_its_published_snapshot_even_when_replaced() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let mut service =
+        PortcoveService::new(crate::Library::open(&temporary.path().join("library")).unwrap())
+            .unwrap();
+    service.replace_catalog_for_test(catalog(payload));
+    let root = temporary.path().join("selected");
+    fs::create_dir(&root).unwrap();
+    fs::write(root.join("source.z64"), payload).unwrap();
+    service.library().add_game_file_root(&root).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let mut checkpoint_id = None;
+    let first = service
+        .scan_game_file_roots_with_progress(&limits, |event| {
+            if matches!(
+                &event.event,
+                crate::OperationEventKind::Progress { phase_id: Some(phase), .. }
+                    if phase == "saved_folder_scan_checkpoints"
+            ) {
+                let current = service.game_file_scan_snapshot().unwrap().unwrap();
+                checkpoint_id = Some(current.matches.unwrap().scan_id);
+                service.scan_game_file_roots(&limits).unwrap();
+            }
+        })
+        .unwrap();
+    let first_id = first.matches.unwrap().scan_id;
+    let current = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(Some(&first_id), checkpoint_id.as_ref());
+    assert_ne!(first_id, current.matches.unwrap().scan_id);
+}
+
+#[test]
 fn finishing_saved_folders_preserves_published_batches_after_cancellation() {
     let temporary = tempfile::tempdir().unwrap();
     let payload = b"synthetic supported source";

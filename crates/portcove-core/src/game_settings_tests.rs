@@ -240,6 +240,7 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
         capture_shipped_settings(
             &port,
             release.platform,
+            ReleaseChannel::Stable,
             &release.version,
             &release.archive_sha256,
             root.path(),
@@ -282,6 +283,7 @@ fn shipped_defaults_require_one_exact_archive_and_a_bounded_declared_file() {
         verify_shipped_defaults(
             port,
             release.platform,
+            ReleaseChannel::Stable,
             version,
             archive,
             defaults,
@@ -554,4 +556,71 @@ fn settings_preimage_rechecks_mirrors_and_requires_deletion_evidence() {
     );
     assert_eq!(std::fs::read(&config).unwrap(), concurrent);
     assert!(!mirror.exists());
+}
+
+#[test]
+fn package_only_settings_need_an_independent_declaration_and_exact_archive() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("super-mario-world-recomp").unwrap();
+    let descriptor = port.game_settings.as_ref().unwrap();
+    let release = &descriptor.releases[0];
+    let file = &descriptor.files[0];
+    assert!(descriptor.package_only());
+    assert!(file.settings.is_empty());
+    let temporary = tempfile::tempdir().unwrap();
+    let bytes = b"[Graphics]\r\nWindowSize=Auto\r\nUnknown.Custom=untouched\r\n";
+    std::fs::write(temporary.path().join(&file.path), bytes).unwrap();
+    let capture = capture_shipped_settings(
+        port,
+        release.platform,
+        ReleaseChannel::Stable,
+        &release.version,
+        &release.archive_sha256,
+        temporary.path(),
+    );
+    assert_eq!(
+        capture.defaults[&file.path].verified_bytes(file).unwrap(),
+        bytes
+    );
+    assert!(capture.gaps.is_empty());
+    assert!(
+        capture_shipped_settings(
+            port,
+            release.platform,
+            ReleaseChannel::Stable,
+            &release.version,
+            &"0".repeat(64),
+            temporary.path(),
+        )
+        .defaults
+        .is_empty()
+    );
+    assert!(descriptor.validate(&["Config".to_owned()]).is_err());
+    let mut undeclared = port.clone();
+    undeclared.adapter = crate::AdapterKind::LibultrashipPortable;
+    let later = capture_shipped_settings(
+        port,
+        release.platform,
+        ReleaseChannel::Stable,
+        "v0.15.12",
+        &"b".repeat(64),
+        temporary.path(),
+    );
+    assert_eq!(
+        later.defaults[&file.path].verified_bytes(file).unwrap(),
+        bytes
+    );
+    for (tag, channel) in [
+        ("v0.15.12", ReleaseChannel::Beta),
+        ("v0.15.12-rc1", ReleaseChannel::Stable),
+        ("v0.16.0", ReleaseChannel::Stable),
+    ] {
+        assert!(!descriptor.accepts_archive_receipt(
+            release.platform,
+            channel,
+            tag,
+            &"b".repeat(64)
+        ));
+    }
+    assert!(descriptor.validate_port(&undeclared).is_err());
 }
