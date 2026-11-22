@@ -8,7 +8,16 @@
     "project_url": "https://github.com/GenryTheFox0/Project-Iron-6",
     "platforms": [],
     "availability": "unavailable",
-    "download_block_reason": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "New downloads and redistribution remain unavailable until the declared modified/game-derived PC files and applicable source/distribution rights are reviewed. A no-ISO statement does not resolve that condition. Information about Project Iron 6 is retained under its existing identity; release-manifest and source provenance must be established before offering the files.",
+        "tracking_issue": 3130
+      }
+    ],
     "issue_number": 3130,
     "listed_at": "2026-10-25",
     "artwork": {

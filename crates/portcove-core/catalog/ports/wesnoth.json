@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://wiki.wesnoth.org/Download",
     "setup_url": "https://wiki.wesnoth.org/Download",
-    "download_block_reason": "Choose the stable build on the official Downloads page and use its installer, application bundle, or Linux package manager.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Choose the stable build on the official Downloads page and use its installer, application bundle, or Linux package manager.",
+        "tracking_issue": 6447
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

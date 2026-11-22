@@ -25,7 +25,16 @@
       "windows-x86-64": ["BrawlRecompiled-", "-Windows.zip"],
       "linux-x86-64": ["BrawlRecompiled-", "-Linux.tar.gz"]
     },
-    "download_block_reason": "Portcove downloads are paused because the launcher embeds fighter portraits and the title font extracted from the game disc. They can resume when upstream publishes a package that creates them from your own disc.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the launcher embeds fighter portraits and the title font extracted from the game disc. They can resume when upstream publishes a package that creates them from your own disc.",
+        "tracking_issue": 2434
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/7f3ac07b7d17dda048ef3a9421fd8fd4996a088c/README.md",
       "warnings": [

@@ -98,6 +98,9 @@ export function SteamGridDbPicker({
   const [game, setGame] = useState<SteamGridDbGame>();
   const [candidates, setCandidates] = useState<SteamGridDbCandidate[]>();
   const [shown, setShown] = useState(PAGE);
+  /** Provider pages already listed; an empty page ends the listing. */
+  const [providerPages, setProviderPages] = useState(0);
+  const [listingEnded, setListingEnded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failure, setFailure] = useState<{ error: unknown }>();
   /** Milliseconds SteamGridDB asked Portcove to wait before another request. */
@@ -191,9 +194,36 @@ export function SteamGridDbPicker({
     setGame(selected);
     setCandidates(undefined);
     setShown(PAGE);
+    setProviderPages(0);
+    setListingEnded(false);
     void run(
-      () => desktopApi.steamGridDbCandidates(selected.id, steamGridDbRole(slot)),
-      setCandidates,
+      () => desktopApi.steamGridDbCandidates(selected.id, steamGridDbRole(slot), 0),
+      (listed) => {
+        setCandidates(listed);
+        setProviderPages(1);
+        setListingEnded(listed.length === 0);
+      },
+    );
+  };
+
+  /** Reveal already listed images first, then ask SteamGridDB for its next page. */
+  const showMore = () => {
+    if (!game || !candidates) return;
+    if (candidates.length > shown) {
+      setShown((count) => count + PAGE);
+      return;
+    }
+    const page = providerPages;
+    void run(
+      () => desktopApi.steamGridDbCandidates(game.id, steamGridDbRole(slot), page),
+      (listed) => {
+        const known = new Set(candidates.map((candidate) => candidate.id));
+        const added = listed.filter((candidate) => !known.has(candidate.id));
+        setCandidates([...candidates, ...added]);
+        setProviderPages(page + 1);
+        if (listed.length === 0) setListingEnded(true);
+        else setShown((count) => count + PAGE);
+      },
     );
   };
 
@@ -328,12 +358,14 @@ export function SteamGridDbPicker({
                   </li>
                 ))}
               </ul>
-              {candidates.length > shown && (
+              {(candidates.length > shown || !listingEnded) && (
                 <Button
                   data-focusable
                   variant="outline"
                   size="sm"
-                  onClick={() => setShown((count) => count + PAGE)}
+                  disabled={loading || blocked}
+                  focusableWhenDisabled={loading || blocked}
+                  onClick={showMore}
                 >
                   Show more images
                 </Button>

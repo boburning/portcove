@@ -55,10 +55,12 @@ type Identity = PortIdentity & {
   channels?: PortDefinition["channels"] | undefined;
   listing?: CatalogEntry["listing"];
 };
+type DetailRevealControl = string | { focus: string };
+
 export type RevealDetailSection = (
   section: DetailSection,
   targetId?: string,
-  control?: string,
+  control?: DetailRevealControl,
 ) => void;
 
 function platformIdentities(
@@ -141,7 +143,7 @@ export function DetailLayout({
   const [pending, setPending] = useState<{
     section: DetailSection;
     targetId?: string | undefined;
-    control?: string | undefined;
+    control?: DetailRevealControl | undefined;
     identity: string;
   }>();
   const focusedOpening = useRef<string | undefined>(undefined);
@@ -172,9 +174,10 @@ export function DetailLayout({
       focusAndReveal(target);
       focusedOpening.current = identity;
       const controlScope = target.matches("h2, h3, span") ? target.parentElement : target;
-      const control = request?.control
-        ? controlScope?.querySelector<HTMLElement>(request.control)
-        : undefined;
+      const destination = request?.control;
+      const activate = typeof destination === "string";
+      const selector = activate ? destination : destination?.focus;
+      const control = selector ? controlScope?.querySelector<HTMLElement>(selector) : undefined;
       if (
         control?.isConnected &&
         !control.matches(":disabled, [aria-disabled=true]") &&
@@ -182,9 +185,11 @@ export function DetailLayout({
         control.getClientRects().length
       ) {
         focusAndReveal(control);
-        if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
-          control.parentElement.open = true;
-        else control.click();
+        if (activate) {
+          if (control.matches("summary") && control.parentElement instanceof HTMLDetailsElement)
+            control.parentElement.open = true;
+          else control.click();
+        }
       }
       if (request) setPending(undefined);
     });
@@ -419,7 +424,12 @@ export function DetailLayout({
               <div className="detail-overview">
                 <div className="detail-overview-main min-w-0">
                   {panels.overview}
-                  <CatalogMediaGallery port={port} />
+                  <CatalogMediaGallery
+                    port={port}
+                    fallbackFocus={() =>
+                      root.current?.querySelector<HTMLElement>("[data-detail-back]")
+                    }
+                  />
                   {overviewActions?.(reveal)}
                   {overviewDetails}
                 </div>

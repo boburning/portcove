@@ -287,7 +287,7 @@ impl PortcoveService {
             let contract = self.persistence_contract_for_install(install)?;
             if project_runtime
                 && (contract.writes_directly
-                    || contract.port.adapter != AdapterKind::NativePortable
+                    || !crate::game_settings::admits_mirrored_package_defaults(&contract.port)
                     || contract.port.runtime_data_policy.is_some()
                     || !contract
                         .port

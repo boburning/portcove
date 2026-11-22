@@ -57,7 +57,34 @@
           ]
         }
       ]
-    }
+    },
+    "media": [
+      {
+        "id": "igdb-screenshot-original-423",
+        "role": "screenshot",
+        "subject": {
+          "kind": "original",
+          "game_id": "doom-3-classic",
+          "source_edition_id": "doom-3-classic-pc"
+        },
+        "caption": "Original game screenshot",
+        "url": "https://images.igdb.com/igdb/image/upload/t_720p/dmxckx6xh0pikqhtbqhr.png",
+        "sha256": "ee68e31fd54ad5233022f8ab7133d2e7eeee791cc38a8b511d4a5394b485d80c",
+        "width": 960,
+        "height": 720,
+        "attribution": "Game artwork via IGDB; copyright remains with its rights holders.",
+        "source_url": "https://www.igdb.com/games/doom-3",
+        "license": "LicenseRef-IGDB-Terms",
+        "rights_url": "https://www.twitch.tv/p/en/legal/developer-agreement/",
+        "igdb": {
+          "game_id": 280,
+          "record_id": 423,
+          "kind": "screenshot",
+          "image_id": "dmxckx6xh0pikqhtbqhr",
+          "game_slug": "doom-3"
+        }
+      }
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,

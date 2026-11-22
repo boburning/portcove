@@ -372,7 +372,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     const entries = [...document.querySelectorAll<HTMLElement>(".collection-entry")];
     expect(document.querySelector('[aria-label="Search results"]')?.textContent).toBe(
-      "12 in your library",
+      "12 ports in your library",
     );
     const entryFor = (index: number) =>
       entries.find((entry) => entry.querySelector(`[data-detail-game-id="collection-${index}"]`))!;

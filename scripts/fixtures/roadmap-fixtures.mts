@@ -104,3 +104,43 @@ export function projectData(
     },
   };
 }
+
+export function scopedIssueItemData(
+  projectId: string,
+  itemId: string,
+  issue: {
+    node_id: string;
+    number: number;
+    title: string;
+    body: string;
+    html_url: string;
+  },
+  fields: Readonly<Record<string, string>> = {},
+) {
+  const nodes = Object.entries(fields).map(([name, value]) => ({
+    name: value,
+    field: { name },
+  }));
+  return {
+    node: {
+      id: itemId,
+      isArchived: false,
+      project: { id: projectId },
+      content: {
+        __typename: "Issue",
+        id: issue.node_id,
+        number: issue.number,
+        title: issue.title,
+        body: issue.body,
+        state: "OPEN",
+        url: issue.html_url,
+        updatedAt: "2026-11-21T12:00:00Z",
+      },
+      fieldValues: {
+        totalCount: nodes.length,
+        nodes,
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    },
+  };
+}

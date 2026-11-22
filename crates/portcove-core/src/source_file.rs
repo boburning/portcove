@@ -67,6 +67,10 @@ pub(crate) struct FileIdentity {
     pub canonical_n64_sha256: Option<String>,
     pub canonical_n64_sha1: Option<String>,
     pub canonical_n64_size: Option<u64>,
+    // Computed only from freshly checked bytes. Saved discovery observations
+    // must never satisfy a runtime's original verification.
+    #[serde(skip)]
+    pub canonical_n64_xxh3_64: Option<u64>,
     /// Digests of the bytes after a 512-byte SNES copier header, present only for
     /// a raw file whose length is 512 more than a multiple of 1024.
     #[serde(default)]
@@ -164,6 +168,7 @@ pub(crate) fn read_raw_identity_from_reader(
         canonical_n64_sha256: identity.canonical_n64_sha256,
         canonical_n64_sha1: identity.canonical_n64_sha1,
         canonical_n64_size: identity.canonical_n64_size,
+        canonical_n64_xxh3_64: identity.canonical_n64_xxh3_64,
         copier_headerless_sha256: identity.copier_headerless_sha256,
         copier_headerless_sha1: identity.copier_headerless_sha1,
     })
@@ -258,6 +263,7 @@ fn read_zip_identity_from_file(
         canonical_n64_sha256: identity.canonical_n64_sha256,
         canonical_n64_sha1: identity.canonical_n64_sha1,
         canonical_n64_size: identity.canonical_n64_size,
+        canonical_n64_xxh3_64: identity.canonical_n64_xxh3_64,
         // Copier headers are recognized on raw files only.
         copier_headerless_sha256: None,
         copier_headerless_sha1: None,
@@ -272,6 +278,7 @@ struct HashedContent {
     canonical_n64_sha256: Option<String>,
     canonical_n64_sha1: Option<String>,
     canonical_n64_size: Option<u64>,
+    canonical_n64_xxh3_64: Option<u64>,
     copier_headerless_sha256: Option<String>,
     copier_headerless_sha1: Option<String>,
 }
@@ -400,7 +407,8 @@ fn hash_reader(
     if reader.read(&mut [0_u8; 1])? != 0 {
         return Err(PortcoveError::source("source grew while hashing"));
     }
-    let (canonical_n64_sha256, canonical_n64_sha1, canonical_n64_size) = n64.finish()?;
+    let (canonical_n64_sha256, canonical_n64_sha1, canonical_n64_size, canonical_n64_xxh3_64) =
+        n64.finish()?;
     let (copier_headerless_sha256, copier_headerless_sha1) = headerless
         .map(|(sha256, sha1)| {
             (
@@ -417,6 +425,7 @@ fn hash_reader(
         canonical_n64_sha256,
         canonical_n64_sha1,
         canonical_n64_size,
+        canonical_n64_xxh3_64,
         copier_headerless_sha256,
         copier_headerless_sha1,
     })
@@ -465,6 +474,7 @@ struct N64CanonicalDigest {
     pending_len: usize,
     sha256: Sha256,
     sha1: Sha1,
+    xxh3: xxhash_rust::xxh3::Xxh3,
     size: u64,
     #[cfg(test)]
     work: N64Work,
@@ -559,6 +569,7 @@ impl N64CanonicalDigest {
             N64ByteOrder::Big => {
                 self.sha256.update(words);
                 self.sha1.update(words);
+                self.xxh3.update(words);
             }
             N64ByteOrder::ByteSwapped => {
                 let mut normalized = [0_u8; 4096];
@@ -569,6 +580,7 @@ impl N64CanonicalDigest {
                     }
                     self.sha256.update(&normalized[..chunk.len()]);
                     self.sha1.update(&normalized[..chunk.len()]);
+                    self.xxh3.update(&normalized[..chunk.len()]);
                 }
             }
             N64ByteOrder::Little => {
@@ -580,6 +592,7 @@ impl N64CanonicalDigest {
                     }
                     self.sha256.update(&normalized[..chunk.len()]);
                     self.sha1.update(&normalized[..chunk.len()]);
+                    self.xxh3.update(&normalized[..chunk.len()]);
                 }
             }
             N64ByteOrder::Invalid => unreachable!("invalid N64 input is rejected before hashing"),
@@ -591,9 +604,9 @@ impl N64CanonicalDigest {
         }
     }
 
-    fn finish(mut self) -> Result<(Option<String>, Option<String>, Option<u64>)> {
+    fn finish(mut self) -> Result<(Option<String>, Option<String>, Option<u64>, Option<u64>)> {
         if self.order.is_none() || matches!(self.order, Some(N64ByteOrder::Invalid)) {
-            return Ok((None, None, None));
+            return Ok((None, None, None, None));
         }
         if self.pending_len > 0 {
             let pending = self.pending;
@@ -603,6 +616,7 @@ impl N64CanonicalDigest {
             Some(hex::encode(self.sha256.finalize())),
             Some(hex::encode(self.sha1.finalize())),
             Some(self.size),
+            Some(self.xxh3.digest()),
         ))
     }
 }
@@ -977,7 +991,7 @@ mod tests {
             let chunks = [&encoded[..1], &encoded[1..3], &encoded[3..7], &encoded[7..]];
             let (digest, normalized) = canonical_digest(&chunks);
             assert_eq!(normalized, canonical);
-            let (sha256, sha1, size) = digest.finish().unwrap();
+            let (sha256, sha1, size, _) = digest.finish().unwrap();
             assert_eq!(sha256.unwrap(), hex::encode(Sha256::digest(canonical)));
             assert_eq!(sha1.unwrap(), hex::encode(Sha1::digest(canonical)));
             assert_eq!(size, Some(canonical.len() as u64));
@@ -1003,7 +1017,7 @@ mod tests {
             let mut digest = N64CanonicalDigest::default();
             digest.update(&encoded[..3]).unwrap();
             digest.update(&encoded[3..]).unwrap();
-            let (sha256, sha1, size) = digest.finish().unwrap();
+            let (sha256, sha1, size, _) = digest.finish().unwrap();
             assert_eq!(sha256.unwrap(), hex::encode(Sha256::digest(&expected)));
             assert_eq!(sha1.unwrap(), hex::encode(Sha1::digest(&expected)));
             assert_eq!(size, Some(8));
@@ -1021,7 +1035,7 @@ mod tests {
         assert!(matches!(digest.order, Some(N64ByteOrder::Invalid)));
         assert_eq!(digest.work.buffered_bytes, 4);
         assert_eq!(digest.work.digested_bytes, 0);
-        assert_eq!(digest.finish().unwrap(), (None, None, None));
+        assert_eq!(digest.finish().unwrap(), (None, None, None, None));
     }
 
     #[test]
@@ -1034,7 +1048,7 @@ mod tests {
         ] {
             let mut digest = N64CanonicalDigest::default();
             digest.update(bytes).unwrap();
-            assert_eq!(digest.finish().unwrap(), (None, None, None));
+            assert_eq!(digest.finish().unwrap(), (None, None, None, None));
         }
     }
 

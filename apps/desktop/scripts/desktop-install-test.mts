@@ -86,6 +86,7 @@ import {
   revealDetailSection,
   reviewGameUpdateDisposition,
   clickVisible,
+  replaceKeyboardText,
   selectCatalogPort,
   selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
@@ -1313,7 +1314,49 @@ export async function installScenarios({
       liveGame = undefined;
       pendingGame = undefined;
     };
-    const play = async () => {
+    const playFromPalette = async (active: InstallRecord) => {
+      const generation = (await bootstrap()).generation;
+      const key = JSON.stringify([generation, active.port_id, active.id, null]);
+      const target = By.css("section[data-detail-workspace] button[data-current-game-play]");
+      await browser.wait(
+        async () => {
+          const [control] = await browser.findElements(target);
+          return (
+            control &&
+            (await control.isDisplayed()) &&
+            (await control.isEnabled()) &&
+            (await control.getAttribute("data-current-game-play")) === key &&
+            (await control.getAttribute("aria-disabled")) !== "true"
+          );
+        },
+        acquisitionScriptBudgetMs,
+        "The exact installed game's confirmed Play action did not register",
+      );
+      const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+      await browser.actions().keyDown(modifier).sendKeys("k").keyUp(modifier).perform();
+      const palette = By.css('[aria-labelledby="command-palette-title"]');
+      const panel = await browser.wait(until.elementLocated(palette), 5_000);
+      const search = await panel.findElement(By.css('[role="combobox"]'));
+      await replaceKeyboardText(browser, search, "Play this game");
+      const commandId = "command-current-game-play";
+      const command = await browser.wait(until.elementLocated(By.id(commandId)), 5_000);
+      assert.equal(await command.findElement(By.css("strong")).getText(), "Play this game");
+      assert.equal(await command.findElement(By.css("small")).getText(), gameIdentityLabel(port));
+      await browser.wait(
+        async () => (await search.getAttribute("aria-activedescendant")) === commandId,
+        5_000,
+      );
+      await snapshotEvidence("native-command-palette-confirmed-play", command);
+      assert.equal(
+        await exists(path.join(active.path, ".portcove-launched")),
+        false,
+        "Opening and filtering the palette must not record a launch",
+      );
+      await search.sendKeys(Key.ENTER);
+      await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+      observations.command_play = { port_id: active.port_id, install_id: active.id, generation };
+    };
+    const play = async (startPlay = async (_active: InstallRecord) => click("Play")) => {
       assert.equal(await exists(marker), false, "Each owned launch requires an unreleased marker");
       const current = await status();
       const active = required(current.active);
@@ -1323,7 +1366,7 @@ export async function installScenarios({
         installation: { id: active.id, port_id: active.port_id, path: active.path },
       };
       pendingGame = game;
-      await click("Play");
+      await startPlay(active);
       const captured = await browser.wait(
         () => observer.capture(game, evidenceName("live-game")),
         60_000,
@@ -1393,20 +1436,34 @@ export async function installScenarios({
       gates.push(gate);
       return { release, gate };
     };
-    const acquire = async (release: Awaited<ReturnType<InstallFixture["publishRelease"]>>) => {
+    const acquire = async (
+      release: Awaited<ReturnType<InstallFixture["publishRelease"]>>,
+      fromExistingReview = false,
+    ) => {
       const generation = (await bootstrap()).generation;
       const plan = transportValue(
         "game_update_plan",
         success(await invoke("plan_game_update_acquisition", { portId: port.id, generation })),
       );
+      const asset = plan.plan.release.asset;
       assert.equal(plan.activate, false);
-      assert.equal(plan.plan.release.asset.sha256, release.sha256);
-      await reviewGameUpdateDisposition(browser, "download");
-      // Calibrated from 15 s: on hosted Windows (debug build) the v3 download review
-      // opened after 15 s once (cause not diagnosed; 14.9 s in the passing run). It
-      // shares the acquisition budget.
+      assert.equal(asset.sha256, release.sha256);
+      assert.equal(asset.size, release.size);
+      if (fromExistingReview) {
+        const activationPlan = transportValue(
+          "game_update_plan",
+          success(
+            await invoke("plan_game_update", { portId: port.id, activate: true, generation }),
+          ),
+        );
+        assert.equal(activationPlan.activate, true);
+        assert.equal(activationPlan.archive_only_plan_sha256, plan.plan_sha256);
+        assert.deepEqual(activationPlan.plan.release.asset, asset);
+      }
       const reviewWaitStarted = Date.now();
-      await browser.wait(
+      await reviewGameUpdateDisposition(browser, fromExistingReview ? "install" : "download");
+      // Hosted Windows can need more than 15 s to settle this exact review.
+      const review = await browser.wait(
         until.elementLocated(By.css("[data-game-update-review]")),
         acquisitionScriptBudgetMs,
       );
@@ -1414,6 +1471,24 @@ export async function installScenarios({
         Number(observations.slowest_download_review_ms ?? 0),
         Date.now() - reviewWaitStarted,
       );
+      let reviewedArchive;
+      if (fromExistingReview) {
+        const source = new URL(asset.url);
+        await browser.wait(
+          async () => {
+            const text = await review.getText();
+            return (
+              text.includes("Archive files") &&
+              text.includes(asset.name) &&
+              text.includes(source.origin + source.pathname)
+            );
+          },
+          acquisitionScriptBudgetMs,
+          "The existing activation review must disclose the exact archive before acquisition",
+        );
+        reviewedArchive = await review.getText();
+      }
+      // No second confirmation is issued before the real held transfer is observed.
       await click("Download archive for later");
       const pathname = new URL(release.url).pathname;
       const transferWaitStarted = Date.now();
@@ -1438,7 +1513,11 @@ export async function installScenarios({
       }, 15_000);
       assert.ok(transferring);
       assert.equal(transferring.release.asset.sha256, release.sha256);
-      return { plan, transferring };
+      return {
+        plan,
+        transferring,
+        ...(reviewedArchive ? { reviewed_archive: reviewedArchive } : {}),
+      };
     };
     const finish = async (
       transfer: Awaited<ReturnType<typeof acquire>>,
@@ -1473,7 +1552,7 @@ export async function installScenarios({
           ))
             if (
               (await section.isDisplayed()) &&
-              (await section.getText()).includes("Update downloaded, not installed")
+              (await section.getText()).includes("Update archive downloaded")
             )
               return true;
           return false;
@@ -1637,13 +1716,13 @@ export async function installScenarios({
       const v2 = await publish("2.0.0-acquisition", 0x43b9a607);
       // A first launch records Core's .portcove-launched bookkeeping. Establish
       // that real pre-state before testing byte preservation during acquisition.
-      await play();
+      await play(playFromPalette);
       await stopGame();
       await rm(marker);
       const beforeV2 = await preserve();
       observations.initial_launch = { preserved_baseline: beforeV2 };
       observations.acquire_then_play = { release: v2.release, before: beforeV2 };
-      const transferV2 = await acquire(v2.release);
+      const transferV2 = await acquire(v2.release, true);
       observations.acquire_then_play = {
         release: v2.release,
         before: beforeV2,
