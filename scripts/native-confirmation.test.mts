@@ -806,14 +806,14 @@ $source = [IO.File]::ReadAllText('${helper.replaceAll("'", "''")}')
 $code = [regex]::Match($source, "(?s)Add-Type -TypeDefinition @'\\r?\\n(.*?)\\r?\\n'@").Groups[1].Value
 if (-not $code) { throw 'production algorithm absent' }
 Write-SelectionPhase 'source-ready'
-# Replace only the five OS boundaries; compile the production Matches/Find bodies.
+# Replace only the OS boundaries and compile the production picker predicates.
 $pattern = '(?m)^    \\[DllImport[^\\r\\n]+private static extern[^\\r\\n]+;'
-if ([regex]::Matches($code, $pattern).Count -ne 15) { throw 'OS boundary inventory changed' }
+if ([regex]::Matches($code, $pattern).Count -ne 16) { throw 'OS boundary inventory changed' }
 $code = [regex]::Replace($code, $pattern, '')
 $boundary = @'
-    public static bool overflow = false, failed = false, disappeared = false, pickerTitle = false, secondDialog = false;
+    public static bool overflow = false, failed = false, disappeared = false, pickerTitle = false, secondDialog = false, metadataTitle = false;
     public static string fieldCase = "valid", sentText = null;
-    public static int sends = 0, itemCalls = 0;
+    public static int sends = 0, itemCalls = 0, selections = 0;
     public static int clicks = 0;
     public static int reads = 0;
     private static bool EnumWindows(Visitor visit, IntPtr state) {
@@ -831,10 +831,11 @@ $boundary = @'
         process = handle.ToInt32() == 3 || (handle.ToInt32() == 20 && (fieldCase == "cancel-foreign" || (fieldCase == "late-cancel-foreign" && reads > 1))) || ((handle.ToInt32() == 11 || handle.ToInt32() == 20) && (fieldCase == "button-foreign" || (fieldCase == "late-button-foreign" && reads > 0))) || (handle.ToInt32() == 9 && (fieldCase == "foreign" || (fieldCase == "late-foreign" && itemCalls > 1))) ? 99u : 42u; return 1;
     }
     private static int GetWindowText(IntPtr handle, StringBuilder text, int capacity) {
-        string title = handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : pickerTitle ? "Select Folder" : "Choose Portcove library";
+        string title = handle.ToInt32() == 11 || handle.ToInt32() == 16 ? (fieldCase == "button-caption" ? "other" : "Select Folder") : handle.ToInt32() == 1 ? "Portcove" : handle.ToInt32() == 4 ? "other" : metadataTitle ? "Export library information" : pickerTitle ? "Select Folder" : "Choose Portcove library";
         text.Append(title); return title.Length;
     }
     private static bool IsWindow(IntPtr handle) { return !disappeared; }
+    private static bool IsChild(IntPtr window, IntPtr child) { return window.ToInt32() == 2 && child.ToInt32() == 9 && fieldCase != "not-descendant"; }
     private static int GetClassName(IntPtr handle, StringBuilder name, int capacity) {
         name.Append(handle.ToInt32() == 11 || handle.ToInt32() == 16 || handle.ToInt32() == 20 ? (fieldCase == "button-class" || (handle.ToInt32() == 20 && fieldCase == "cancel-class") ? "other" : "Button") : handle.ToInt32() == 2 || (handle.ToInt32() == 5 && secondDialog) ? (fieldCase == "root-class" ? "other" : "#32770") : handle.ToInt32() == 6 ? "ComboBox" : handle.ToInt32() == 9 && fieldCase == "field-class" ? "other" : "Edit"); return name.Length;
     }
@@ -847,11 +848,20 @@ $boundary = @'
         return fieldCase == "readonly" || (fieldCase == "late-readonly" && itemCalls > 1) ? 0x0800 : 0;
     }
     private static IntPtr SendText(IntPtr window, uint message, UIntPtr parameter, string text, uint flags, uint timeout, out UIntPtr result) {
-        if (window.ToInt32() != 9 || message != 12 || flags != 34 || timeout != 5000) throw new Exception("wrong native text target");
+        bool target = message == 0x00C2 && timeout == 1000 && metadataTitle
+            || message == 12 && timeout == 5000 && !metadataTitle;
+        if (window.ToInt32() != 9 || !target || flags != 34 || parameter != UIntPtr.Zero) throw new Exception("wrong native text target");
         sends++; sentText = text; result = new UIntPtr(1); return fieldCase == "timeout" ? IntPtr.Zero : new IntPtr(1);
     }
-    private static IntPtr GetForegroundWindow() { return new IntPtr(fieldCase == "background" || (fieldCase == "late-background" && reads > 0) ? 8 : 2); }
+    private static IntPtr GetForegroundWindow() { return new IntPtr(fieldCase == "background" || (fieldCase == "late-background" && (reads > 0 || selections > 0)) ? 8 : 2); }
     private static IntPtr SendClick(IntPtr window, uint message, UIntPtr parameter, IntPtr data, uint flags, uint timeout, out UIntPtr result) {
+        if (message == 0x00B1) {
+            if (!metadataTitle || window.ToInt32() != 9 || parameter != UIntPtr.Zero ||
+                data != new IntPtr(-1) || flags != 34 || timeout != 1000) throw new Exception("wrong metadata selection target");
+            selections++;
+            result = UIntPtr.Zero;
+            return fieldCase == "selection-timeout" ? IntPtr.Zero : new IntPtr(1);
+        }
         if ((window.ToInt32() != 11 && window.ToInt32() != 20) || message != 245 || flags != 34 || timeout != 5000 || data != IntPtr.Zero || parameter != UIntPtr.Zero) throw new Exception("wrong native click target");
         clicks++; result = UIntPtr.Zero; return fieldCase == "click-timeout" || (window.ToInt32() == 20 && fieldCase == "cancel-click-timeout") ? IntPtr.Zero : new IntPtr(1);
     }
@@ -899,6 +909,20 @@ foreach ($case in @('valid', 'foreign', 'root-class', 'field-class', 'field-id',
     if ([PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Native text boundary failed $case" }
     if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-fixture') { throw 'Native text value changed' }
 }
+[PortcoveNativeWindows]::metadataTitle = $true
+foreach ($case in @('valid', 'foreign', 'not-descendant', 'field-class', 'readonly', 'disabled', 'root-disabled', 'background', 'late-background', 'selection-timeout', 'timeout', 'wrong-title')) {
+    [PortcoveNativeWindows]::fieldCase = $case
+    [PortcoveNativeWindows]::metadataTitle = $case -ne 'wrong-title'
+    [PortcoveNativeWindows]::sends = 0; [PortcoveNativeWindows]::selections = 0; [PortcoveNativeWindows]::reads = 0
+    $rejected = $false
+    try { [PortcoveNativeWindows]::ReplaceMetadataSaveText([IntPtr]2, [IntPtr]9, 42, 'owned-metadata.json') } catch { $rejected = $true }
+    $expectedSelections = if ($case -in @('valid', 'late-background', 'selection-timeout', 'timeout')) { 1 } else { 0 }
+    $expectedSends = if ($case -in @('valid', 'timeout')) { 1 } else { 0 }
+    if ([PortcoveNativeWindows]::selections -ne $expectedSelections -or [PortcoveNativeWindows]::sends -ne $expectedSends -or $rejected -ne ($case -ne 'valid')) { throw "Metadata edit boundary failed $case" }
+    if ($case -eq 'valid' -and [PortcoveNativeWindows]::sentText -cne 'owned-metadata.json') { throw 'Metadata edit value changed' }
+}
+[PortcoveNativeWindows]::metadataTitle = $false
+[PortcoveNativeWindows]::selections = 0
 Write-SelectionPhase 'text-controls-ready'
 [PortcoveNativeWindows]::fieldCase = 'valid'
 foreach ($case in @('valid', 'button-foreign', 'late-button-foreign', 'button-class', 'button-id', 'button-parent', 'button-caption', 'button-disabled', 'button-replacement', 'background', 'late-background', 'root-class', 'root-disabled', 'read-timeout', 'click-timeout')) {
@@ -1081,6 +1105,14 @@ $readbackBody = Block "Write-ObservationProgress 'file-input-readback'"
 $closeBody = Block '$closeDeadline ='
 function Assert-ExactConfirmationWindow { param($w) if ($w.Current.NativeWindowHandle -ne 7) { throw 'changed window' } }
 function Assert-LiveApplication { if ($script:case -eq 'changed-app') { throw 'changed application' } }
+function Set-NativeMetadataSaveText($Picker, $Edit, [string]$Value) {
+    if ($Picker.Current.NativeWindowHandle -ne 7 -or $Edit.Current.ProcessId -ne 42 -or -not $Edit.Current.HasKeyboardFocus) {
+        throw 'Metadata input must target the same owned focused edit'
+    }
+    $script:metadataEdits++
+    $script:values++
+    $Edit.Current.Value = $Value
+}
 function Write-ObservationProgress { param($stage) }
 function Get-OwnedConfirmationWindows {
     $script:polls++
@@ -1097,9 +1129,9 @@ if ([OwnedSavePathWitness]::GetShortPathName($ownedRoot, $shortRootBuffer, 32768
 $shortOwnedRoot = $shortRootBuffer.ToString()
 Write-Output ('owned-save-short-alias-observed=' + (-not [string]::Equals($shortOwnedRoot, $ownedRoot, [StringComparison]::OrdinalIgnoreCase)))
 $validCases = @('valid', 'dat-valid', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid')
-$zeroInputCases = @('dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'short-root-existing-save', 'short-root-foreign-save')
-foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app', 'dat-valid', 'dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid', 'short-root-existing-save', 'short-root-foreign-save', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'save-target-appeared')) {
-    $script:polls = 0; $script:values = 0; $failed = $false; $failureMessage = ''
+$zeroInputCases = @('dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'metadata-save-no-focus', 'short-root-existing-save', 'short-root-foreign-save')
+foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-field', 'still-open', 'changed-app', 'dat-valid', 'dat-foreign-field', 'dat-title-suffix', 'dat-wrong-action', 'recipe-valid', 'saves-import-valid', 'metadata-save-valid', 'saves-export-valid', 'short-root-save-valid', 'short-path-save-valid', 'short-root-existing-save', 'short-root-foreign-save', 'unknown-open', 'unknown-save', 'save-title-open', 'save-yes', 'missing-save-root', 'missing-save-parent', 'foreign-save-parent', 'save-traversal', 'existing-save-target', 'save-device', 'save-wildcard', 'save-foreign-field', 'metadata-save-no-focus', 'save-target-appeared')) {
+    $script:polls = 0; $script:values = 0; $script:metadataEdits = 0; $failed = $false; $failureMessage = ''
     $Title = if ($script:case.StartsWith('dat-')) { 'Choose a DAT file' } else { 'Choose game files' }
     $Button = if ($script:case -eq 'dat-wrong-action') { 'Save' } else { 'Open' }
     $OwnedSaveRoot = $null
@@ -1129,7 +1161,8 @@ foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-fie
         'short-root-existing-save' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = $existingJson }
         'short-root-foreign-save' { $OwnedSaveRoot = $shortOwnedRoot; $FilePath = [IO.Path]::Combine($nested,'new.json') }
     }
-    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -in @('foreign-field', 'dat-foreign-field', 'save-foreign-field')) { 99 } else { 42 }); Value = '' } }
+    $field = [pscustomobject]@{ Current = [pscustomobject]@{ Name = 'File name:'; ControlType = [System.Windows.Automation.ControlType]::Edit; ProcessId = $(if ($script:case -in @('foreign-field', 'dat-foreign-field', 'save-foreign-field')) { 99 } else { 42 }); Value = ''; HasKeyboardFocus = $false } }
+    $field | Add-Member ScriptMethod SetFocus { if ($script:case -ne 'metadata-save-no-focus') { $this.Current.HasKeyboardFocus = $true } }
     $field | Add-Member ScriptMethod GetCurrentPattern { param($pattern) $this }
     $field | Add-Member ScriptMethod SetValue { param($value) $script:values++; if ($script:case -ne 'ignored-set') { $this.Current.Value = $value } }
     $children = @($field)
@@ -1143,6 +1176,8 @@ foreach ($script:case in @('valid', 'foreign-field', 'ignored-set', 'changed-fie
     if ($failed -ne ($script:case -notin $validCases)) { throw "Wrong verdict for $script:case; observed refusal: $failureMessage" }
     if ($script:case -in $validCases -and (-not $fileSelection.closed -or -not $fileSelection.field_readback_matches -or $script:polls -ne 2 -or $script:values -ne 1)) { throw 'Missing fresh dismissal/readback witness' }
     if ($script:case -in $zeroInputCases -and $script:values -ne 0) { throw 'Refused picker target received file input' }
+    if ($script:case -in @('metadata-save-valid', 'short-root-save-valid', 'short-path-save-valid') -and $script:metadataEdits -ne 1) { throw 'Metadata save did not use the targeted edit route' }
+    if ($script:case -in @('saves-export-valid', 'valid') -and $script:metadataEdits -ne 0) { throw 'Unrelated picker used the metadata edit route' }
 }
 if ([IO.File]::ReadAllText($existingJson) -cne 'retained data') { throw 'Save overwrote retained fixture data' }
 Write-Output 'file-picker-witness-passed'

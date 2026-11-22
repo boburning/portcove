@@ -3,8 +3,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { useAppTranslation } from "../localization";
+import { useSupportReportExport } from "../features/workspace/settings-export-results";
 import type { DesktopSupportBundleExport } from "../types";
-import { failurePresentation, type FailureDisplay } from "../view-model";
+import { failurePresentation } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { Button } from "./ui/button";
 
@@ -75,42 +76,25 @@ export function SupportBundleExport({
   disabled?: boolean;
 }) {
   const { t } = useAppTranslation("settings");
-  const [exported, setExported] = useState<DesktopSupportBundleExport>();
-  const [pending, setPending] = useState(false);
+  const { result, run } = useSupportReportExport();
+  const exported = result.receipt;
+  const pending = result.phase === "exporting";
+  const failed = result.phase === "failed" || result.phase === "unconfirmed";
+  const presentation = failurePresentation(result.error);
   const [folderStatus, setFolderStatus] = useState<"opening" | "failed">();
-  const [failure, setFailure] = useState<{ presentation: FailureDisplay | undefined }>();
   const request = useRef(0);
-  const exporting = useRef(false);
   const openingFolder = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     return () => {
       request.current += 1;
-      exporting.current = false;
     };
   }, []);
 
-  const create = async () => {
-    if (disabled || exporting.current || !createSupportBundle) return;
-    exporting.current = true;
-    const current = ++request.current;
-    setPending(true);
-    setExported(undefined);
-    setFailure(undefined);
+  const create = () => {
+    if (disabled || pending || !createSupportBundle) return;
+    request.current += 1;
     setFolderStatus(undefined);
-    try {
-      const result = await createSupportBundle();
-      if (request.current === current) {
-        if (result) setExported(result);
-        else setFailure({ presentation: undefined });
-      }
-    } catch (value) {
-      if (request.current === current) setFailure({ presentation: failurePresentation(value) });
-    } finally {
-      if (request.current === current) {
-        exporting.current = false;
-        setPending(false);
-      }
-    }
+    void run(createSupportBundle);
   };
 
   const openFolder = async () => {
@@ -147,18 +131,18 @@ export function SupportBundleExport({
         aria-busy={pending || undefined}
         focusableWhenDisabled={pending}
         className="justify-self-start"
-        onClick={() => void create()}
+        onClick={create}
       >
         {pending ? t("supportReport.creating") : t("supportReport.create")}
       </Button>
       {pending && <p role="status">{t("supportReport.collecting")}</p>}
-      {failure && (
+      {failed && (
         <div role="alert" className="grid gap-2">
           <p className="text-pc-danger-foreground">{t("supportReport.failed")}</p>
-          {failure.presentation && (
+          {presentation && (
             <>
-              <p>{failure.presentation.summary}</p>
-              <FailureDetails presentation={failure.presentation} showMutationSummary={false} />
+              <p>{presentation.summary}</p>
+              <FailureDetails presentation={presentation} showMutationSummary={false} />
             </>
           )}
         </div>
