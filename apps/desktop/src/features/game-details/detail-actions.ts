@@ -202,16 +202,21 @@ export function detailActions({
       available: () => desktopApi.canReviewExactRelease(port.id, libraryGeneration),
       review: (version) => desktopApi.reviewExactRelease(port.id, version, libraryGeneration),
       pin: (review) =>
-        perform("pin release", () =>
-          desktopApi.pinExactRelease(
-            port.id,
-            review.selection.version,
-            review.review_sha256,
-            libraryGeneration,
-          ),
+        perform(
+          "pin release",
+          () =>
+            desktopApi.pinExactRelease(
+              port.id,
+              review.selection.version,
+              review.review_sha256,
+              libraryGeneration,
+            ),
+          { propagateFailure: true },
         ),
       follow: () =>
-        perform("follow channel", () => desktopApi.clearExactRelease(port.id, libraryGeneration)),
+        perform("follow channel", () => desktopApi.clearExactRelease(port.id, libraryGeneration), {
+          propagateFailure: true,
+        }),
     },
     setPolicy: (policy) =>
       perform("policy", () => desktopApi.setPolicy(port.id, policy, libraryGeneration)),

@@ -1925,6 +1925,39 @@
         ],
         "type": "string"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
       "ExactReleaseIdentity": {
         "oneOf": [
           {
@@ -2758,6 +2791,17 @@
               }
             ],
             "description": "User-selected exact release, when this port does not follow its channel."
+          },
+          "exact_release_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
           },
           "external_runtime": {
             "anyOf": [
@@ -24731,6 +24775,13 @@
             ],
             "description": "Version 13 binds user release preferences without admitting artifacts."
           },
+          "held_exact_release": {
+            "description": "Version 13: the stored text of a saved pin Core cannot use, carried\nunchanged so the destination keeps the same hold instead of silently\nfollowing the channel. Following the channel there clears it.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "output_directory": {
             "type": [
               "string",
@@ -26535,6 +26586,13 @@
               }
             ],
             "description": "Version 13 binds user release preferences without admitting artifacts."
+          },
+          "held_exact_release": {
+            "description": "Version 13: the stored text of a saved pin Core cannot use, carried\nunchanged so the destination keeps the same hold instead of silently\nfollowing the channel. Following the channel there clears it.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "output_directory": {
             "type": [
@@ -28548,6 +28606,13 @@
               }
             ],
             "description": "Version 13 binds user release preferences without admitting artifacts."
+          },
+          "held_exact_release": {
+            "description": "Version 13: the stored text of a saved pin Core cannot use, carried\nunchanged so the destination keeps the same hold instead of silently\nfollowing the channel. Following the channel there clears it.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "output_directory": {
             "type": [
@@ -30826,6 +30891,39 @@
         ],
         "type": "object"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
       "ExactReleaseIdentity": {
         "oneOf": [
           {
@@ -32267,6 +32365,17 @@
               }
             ],
             "description": "User-selected exact release, when this port does not follow its channel."
+          },
+          "exact_release_hold": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactReleaseHold"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
           },
           "external_runtime": {
             "anyOf": [
@@ -78867,6 +78976,39 @@
         ],
         "type": "object"
       },
+      "ExactReleaseHold": {
+        "additionalProperties": false,
+        "description": "A saved release pin Core cannot use. Update checks and installs for this\nport stay held instead of silently following the channel; choosing Follow\nclears it. Other ports are unaffected.",
+        "properties": {
+          "detail": {
+            "description": "Technical cause for diagnosis; never player copy.",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/$defs/ExactReleaseHoldReason"
+          }
+        },
+        "required": [
+          "reason",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "ExactReleaseHoldReason": {
+        "description": "Why Core cannot use a port's saved release pin as written.",
+        "oneOf": [
+          {
+            "const": "unreadable",
+            "description": "The saved pin cannot be read or lacks a valid package identity.",
+            "type": "string"
+          },
+          {
+            "const": "channel-mismatch",
+            "description": "The saved pin was made for a different channel than the port follows.",
+            "type": "string"
+          }
+        ]
+      },
       "ExactReleaseIdentity": {
         "oneOf": [
           {
@@ -80538,6 +80680,17 @@
           }
         ],
         "description": "User-selected exact release, when this port does not follow its channel."
+      },
+      "exact_release_hold": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ExactReleaseHold"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "A saved pin Core cannot use. Checks and installs for this port stay held\nuntil the player follows the channel again; other ports are unaffected."
       },
       "external_runtime": {
         "anyOf": [

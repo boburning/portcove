@@ -3,7 +3,7 @@ import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { DetailPanel } from "../../components/DetailPanel";
 import { actions as detailActions, installRecord } from "../../components/rendered-test-fixtures";
-import { portDefinition, portStatus } from "../../test-fixtures";
+import { failureReport, portDefinition, portStatus } from "../../test-fixtures";
 import type { ExactReleaseReview, PortStatus } from "../../types";
 import type { ExactReleaseActions } from "./ExactReleasePreference";
 import "../../styles/index.css";
@@ -120,4 +120,92 @@ it("hides an ineligible chooser while allowing an existing pin to be cleared", a
   await page.getByRole("button", { name: "Follow channel", exact: true }).click();
   expect(actions.follow).toHaveBeenCalledTimes(1);
   expect(actions.review).not.toHaveBeenCalled();
+});
+
+function exactReleaseFailure(key: string, summary: string, technical: string) {
+  const error = failureReport();
+  error.code = "unsupported";
+  error.message = technical;
+  error.presentation = {
+    ...error.presentation,
+    presentation_key: key,
+    summary,
+    technical_message: technical,
+  };
+  return error;
+}
+
+it("shows Core's reason when a held release is refused at review", async () => {
+  const summary =
+    "Portcove can't pin this release because it is held. This package is known to corrupt saves. Choose a different release or keep following the channel.";
+  const review = vi
+    .fn()
+    .mockRejectedValue(exactReleaseFailure("exact_release_held", summary, "held artifact"));
+  await openVersions(installedStatus(), capabilities({ review }));
+  await chooser().click();
+  await field().fill(reviewed.selection.version);
+  await page.getByRole("button", { name: "Review release", exact: true }).click();
+  await expect.element(page.getByText(summary, { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByText("Portcove couldn’t review this release. Check the tag and try again."))
+    .not.toBeInTheDocument();
+  await expect.element(pinButton()).not.toBeInTheDocument();
+});
+
+it("keeps the task's fallback for a failure Core does not explain and attaches its details", async () => {
+  const review = vi.fn().mockRejectedValue(failureReport());
+  await openVersions(installedStatus(), capabilities({ review }));
+  await chooser().click();
+  await field().fill("v9.9.9");
+  await page.getByRole("button", { name: "Review release", exact: true }).click();
+  await expect
+    .element(page.getByText("Portcove couldn’t review this release. Check the tag and try again."))
+    .toBeVisible();
+  await expect
+    .element(page.getByText("The required game files could not be accepted or prepared."))
+    .not.toBeInTheDocument();
+});
+
+it("shows Core's reason when a pin confirmation is refused", async () => {
+  const summary =
+    "The release or this game's saved settings changed after the review. Review the release again before pinning it.";
+  const pin = vi
+    .fn()
+    .mockRejectedValue(exactReleaseFailure("exact_release_review_changed", summary, "stale"));
+  await openVersions(installedStatus(), capabilities({ pin }));
+  await chooser().click();
+  await field().fill(reviewed.selection.version);
+  await page.getByRole("button", { name: "Review release", exact: true }).click();
+  await expect
+    .element(
+      page.getByText(
+        "Future installs and update checks use this release, even when the channel offers a newer one.",
+      ),
+    )
+    .toBeVisible();
+  await pinButton().click();
+  await expect.element(page.getByText(summary, { exact: true })).toBeVisible();
+});
+
+it("explains a held pin and offers Follow channel to clear it", async () => {
+  const available = vi.fn().mockResolvedValue(false);
+  const actions = capabilities({ available });
+  await openVersions(
+    {
+      ...installedStatus(),
+      exact_release_hold: { reason: "unreadable", detail: "expected value at line 1" },
+    },
+    actions,
+  );
+  await expect
+    .element(
+      page.getByText(
+        "Portcove can’t read the saved release pin, so it won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      ),
+    )
+    .toBeVisible();
+  await expect.element(page.getByText("expected value at line 1")).not.toBeInTheDocument();
+  await expect.element(chooser()).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Follow channel", exact: true }).click();
+  expect(actions.follow).toHaveBeenCalledTimes(1);
 });

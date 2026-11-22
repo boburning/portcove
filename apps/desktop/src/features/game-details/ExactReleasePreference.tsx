@@ -3,8 +3,17 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { ManagementRow } from "../../components/ui/patterns";
+import { ActionReviewFailure } from "../../components/ActionReviewFailure";
 import type { ExactReleaseReview, PortStatus } from "../../types";
-import { formatBytes } from "../../view-model";
+import { failurePresentation, formatBytes } from "../../view-model";
+
+type Step = "review" | "pin" | "follow";
+
+/** Core explains exact-release refusals it can name; other failures keep the
+ * task's own fallback, with Core's technical details attached either way. */
+function coreExplains(error: unknown) {
+  return failurePresentation(error)?.presentation_key.startsWith("exact_release_") === true;
+}
 
 export interface ExactReleaseActions {
   available: () => Promise<boolean>;
@@ -31,9 +40,10 @@ export function ExactReleasePreference({
   const [expanded, setExpanded] = useState(false);
   const [version, setVersion] = useState("");
   const [review, setReview] = useState<ExactReleaseReview>();
-  const [error, setError] = useState<"review" | "pin" | "follow">();
-  const [pending, setPending] = useState<"review" | "pin" | "follow">();
+  const [error, setError] = useState<{ step: Step; cause?: unknown }>();
+  const [pending, setPending] = useState<Step>();
   const pinned = status.exact_release;
+  const held = status.exact_release_hold;
   const latest = status.last_update_check?.check.channel_latest_version;
   const availability = actions.available;
 
@@ -73,8 +83,8 @@ export function ExactReleasePreference({
     try {
       const result = await actions.review(version);
       if (current === request.current) setReview(result);
-    } catch {
-      if (current === request.current) setError("review");
+    } catch (cause) {
+      if (current === request.current) setError({ step: "review", cause });
     } finally {
       if (current === request.current) setPending(undefined);
     }
@@ -102,19 +112,25 @@ export function ExactReleasePreference({
       const result = await apply();
       if (current !== request.current) return;
       if (!result) {
-        setError(mode);
+        setError({ step: mode });
         return;
       }
       setExpanded(false);
       setVersion("");
-    } catch {
-      if (current === request.current) setError(mode);
+    } catch (cause) {
+      if (current === request.current) setError({ step: mode, cause });
     } finally {
       if (current === request.current) setPending(undefined);
     }
   }
 
-  if (!available && !pinned) return null;
+  if (!available && !pinned && !held) return null;
+  const fallback =
+    error?.step === "review"
+      ? t("releasePreference.reviewFailed")
+      : error?.step === "pin"
+        ? t("releasePreference.pinFailed")
+        : t("releasePreference.followFailed");
 
   return (
     <ManagementRow
@@ -122,9 +138,13 @@ export function ExactReleasePreference({
       description={
         <div role="status">
           <p>
-            {pinned
-              ? t("releasePreference.pinned", { version: pinned.version })
-              : t("releasePreference.following")}
+            {held
+              ? held.reason === "channel-mismatch"
+                ? t("releasePreference.heldChannel")
+                : t("releasePreference.heldUnreadable")
+              : pinned
+                ? t("releasePreference.pinned", { version: pinned.version })
+                : t("releasePreference.following")}
           </p>
           {pinned && latest && (
             <p>{t("releasePreference.channelCandidate", { version: latest })}</p>
@@ -147,7 +167,7 @@ export function ExactReleasePreference({
               {t("releasePreference.choose")}
             </Button>
           )}
-          {pinned && (
+          {(pinned || held) && (
             <Button
               type="button"
               variant="outline"
@@ -213,6 +233,7 @@ export function ExactReleasePreference({
               </p>
               {review && (
                 <>
+                  <p>{t("releasePreference.pinConsequence")}</p>
                   <p>{t("releasePreference.saveCompatibility")}</p>
                   <Button
                     type="button"
@@ -228,13 +249,16 @@ export function ExactReleasePreference({
           </div>
         )}
         {error !== undefined && (
-          <p role="status" className="max-w-72 text-sm wrap-anywhere">
-            {error === "review"
-              ? t("releasePreference.reviewFailed")
-              : error === "pin"
-                ? t("releasePreference.pinFailed")
-                : t("releasePreference.followFailed")}
-          </p>
+          <div className="max-w-72 text-sm wrap-anywhere">
+            {error.cause === undefined ? (
+              <p role="status">{fallback}</p>
+            ) : (
+              <ActionReviewFailure
+                error={error.cause}
+                summary={coreExplains(error.cause) ? undefined : fallback}
+              />
+            )}
+          </div>
         )}
       </div>
     </ManagementRow>
