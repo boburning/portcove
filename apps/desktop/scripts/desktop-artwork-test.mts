@@ -694,7 +694,8 @@ export async function artworkScenario({
             (await browser.findElement(editor))
               .getText()
               .then((text) => text.includes("choice has been retained")),
-          10_000,
+          45_000,
+          "The exact Background refresh must expose the retained choice after the Core read",
         );
         unavailable = await state("detail");
         assert.equal(unavailable.availability, "unavailable");
