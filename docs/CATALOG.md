@@ -3339,6 +3339,17 @@ ownership stays with upstream for listing-only records. A same-title match is a
 research lead. Check the implementation's actual input edition against pinned
 upstream evidence before adding a source system.
 
+Run `node scripts/catalog-route-fit.mts` for a read-only route-fit summary of
+every catalog identity. Add `--json` or `--output FILE` for the deterministic
+per-identity report, `--observations FILE` to apply a listing observer report
+and `--check` to verify that every identity appears exactly once. Each record
+names its adapter and provider family and one disposition with a reason:
+`enrolled`, `data-only`, `needs-bytes-worker`, `needs-admission`,
+`missing-capability`, `upstream-condition` or `excluded-scummvm`. The rules
+read only catalog data, so a new identity is classified without code changes.
+ScummVM is recognized by its declared runtime engine, not by its name. The
+report grants no admission and changes no catalog data.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits
