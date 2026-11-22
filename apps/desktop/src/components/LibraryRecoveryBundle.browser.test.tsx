@@ -388,6 +388,16 @@ it("reads the recorded restore after a fresh review and refuses a replacement tr
   vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
   vi.spyOn(desktopApi, "planLibraryRecoveryRestore").mockRejectedValue({
     message: "This bundle was restored to this folder. Check the recorded restore result.",
+    presentation: {
+      mutation_state: "unknown",
+      phase: null,
+      presentation_key: "conflict",
+      recovery_actions: [],
+      summary: "The selection changed or another operation is using it. Review its current state.",
+      technical_context: {},
+      technical_message: "The recorded restore can be read.",
+      tone: "error",
+    },
     details: {
       recovery_action: "read_published_recovery_restore",
       import_destination: restoreDestination,
@@ -414,6 +424,18 @@ it("reads the recorded restore after a fresh review and refuses a replacement tr
   await dialog.getByRole("button", { name: "Verify bundle" }).click();
   await dialog.getByRole("textbox", { name: "Restore destination" }).fill(restoreDestination);
   await dialog.getByRole("button", { name: "Review restore" }).click();
+  const reported = dialog.getByRole("alert");
+  await expect
+    .element(
+      reported.getByText(
+        "This bundle was restored to this folder. Check the recorded restore result.",
+        { exact: true },
+      ),
+    )
+    .toBeVisible();
+  await expect
+    .element(reported.getByText(/confirm whether anything changed/))
+    .not.toBeInTheDocument();
   const check = dialog.getByRole("button", { name: "Check restored library" });
   await expect.element(check).toBeVisible();
   expect(read).not.toHaveBeenCalled();
@@ -434,6 +456,52 @@ it("reads the recorded restore after a fresh review and refuses a replacement tr
   expect(restore).not.toHaveBeenCalled();
   expect(resume).not.toHaveBeenCalled();
   expect(dialog.getByRole("button", { name: /^Open library$/ }).query()).toBeNull();
+});
+
+it("explains an authenticated interrupted restore before offering Resume", async () => {
+  vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
+  vi.spyOn(desktopApi, "planLibraryRecoveryRestore").mockRejectedValue({
+    message: "An interrupted restore is waiting in this folder.",
+    presentation: {
+      mutation_state: "unknown",
+      phase: null,
+      presentation_key: "conflict",
+      recovery_actions: [],
+      summary: "The selection changed or another operation is using it. Review its current state.",
+      technical_context: {},
+      technical_message: "The exact restore is interrupted.",
+      tone: "error",
+    },
+    details: {
+      recovery_action: "resume_library_recovery_restore",
+      import_destination: restoreDestination,
+      transfer_id: "restore-exact",
+      recovery_bundle_id: bundle.bundle_id,
+      recovery_bundle_path: bundle.path,
+      recovery_bundle_receipt_sha256: bundle.receipt_sha256,
+    },
+  });
+  const resume = vi.spyOn(desktopApi, "resumeLibraryRecoveryRestore");
+  await render(
+    <LibraryRecoveryBundleControls generation={7} libraryRoot={source} disabled={false} />,
+  );
+  await page.getByRole("button", { name: "Inspect or restore a bundle" }).click();
+  const dialog = page.getByRole("dialog", { name: "Inspect or restore a bundle" });
+  await dialog.getByRole("textbox", { name: "Recovery bundle folder" }).fill(destination);
+  await dialog.getByRole("button", { name: "Verify bundle" }).click();
+  await dialog.getByRole("textbox", { name: "Restore destination" }).fill(restoreDestination);
+  await dialog.getByRole("button", { name: "Review restore" }).click();
+  const reported = dialog.getByRole("alert");
+  await expect
+    .element(
+      reported.getByText("An interrupted restore is waiting in this folder.", { exact: true }),
+    )
+    .toBeVisible();
+  await expect
+    .element(reported.getByText(/confirm whether anything changed/))
+    .not.toBeInTheDocument();
+  await expect.element(dialog.getByRole("button", { name: "Resume bundle restore" })).toBeEnabled();
+  expect(resume).not.toHaveBeenCalled();
 });
 
 it.each(["read_published_recovery_restore", "resume_library_recovery_restore"])(
