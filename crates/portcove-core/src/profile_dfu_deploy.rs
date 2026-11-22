@@ -375,7 +375,7 @@ fn clean_parked_duplicate(
     preimage: &crate::AdoptionCopyPlan,
 ) -> Result<()> {
     use crate::external_runtime::{hash_stable_regular, open_identity_handle, same_file};
-    let hold = || save_group_drift().detail("preserved", path.display().to_string());
+    let hold = || preserved(save_group_drift(), path);
     let clean = || -> Result<()> {
         crate::path::refuse_symlink_ancestors(path)?;
         let root_handle = open_identity_handle(path)?;
@@ -465,7 +465,16 @@ fn clean_parked_duplicate(
         drop(root_handle);
         crate::durability::sync_publication(root)
     };
-    clean().map_err(|error| error.detail("preserved", path.display().to_string()))
+    clean().map_err(|error| preserved(error, &path))
+}
+
+/// Name the directory a refusal left in place in its ordinary Windows spelling.
+/// Operations keep the extended path; only the reported detail changes.
+fn preserved(error: PortcoveError, path: &Path) -> PortcoveError {
+    error.detail(
+        "preserved",
+        crate::path::ordinary_path(path).display().to_string(),
+    )
 }
 
 fn save_group_drift() -> PortcoveError {
@@ -552,7 +561,7 @@ impl PortcoveService {
             |park: &SavePark| root.join(format!(".portcove-dfu-save-park-{}", park.id));
         let cleanup_path =
             |park: &SavePark| root.join(format!(".portcove-dfu-save-cleanup-{}", park.id));
-        let hold = |path: &Path| save_group_drift().detail("preserved", path.display().to_string());
+        let hold = |path: &Path| preserved(save_group_drift(), path);
 
         // Recovery checks the named parked state before interpreting an absent
         // active directory as a successful switch to an empty save group.
@@ -579,8 +588,7 @@ impl PortcoveService {
                     old.as_ref().ok_or_else(|| hold(&cleanup))?,
                 );
             }
-            let observed = observed_save_group(&path)
-                .map_err(|error| error.detail("preserved", path.display().to_string()))?;
+            let observed = observed_save_group(&path).map_err(|error| preserved(error, &path))?;
             if let Some(observed) = observed {
                 if save_group_digest(&observed)? != record.preimage_sha256 {
                     if live.is_none() {
@@ -648,8 +656,7 @@ impl PortcoveService {
             self.check_lifecycle_fault(
                 crate::operation::LifecycleFaultPoint::DfuDepartingSaveGroupParked,
             )?;
-            let observed = observed_save_group(&path)
-                .map_err(|error| error.detail("preserved", path.display().to_string()))?;
+            let observed = observed_save_group(&path).map_err(|error| preserved(error, &path))?;
             if observed.as_ref() != Some(live) {
                 crate::durability::rename_noreplace(&path, &active).map_err(|_| hold(&path))?;
                 crate::durability::sync_publication(&root)?;
@@ -665,10 +672,7 @@ impl PortcoveService {
             return Err(save_group_drift());
         }
         if let Some(path) = parked {
-            if observed_save_group(&path)
-                .map_err(|error| error.detail("preserved", path.display().to_string()))?
-                != old
-            {
+            if observed_save_group(&path).map_err(|error| preserved(error, &path))? != old {
                 return Err(hold(&path));
             }
             let cleanup = cleanup_path(park.as_ref().ok_or_else(|| hold(&path))?);

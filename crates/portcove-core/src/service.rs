@@ -627,12 +627,12 @@ impl PortcoveService {
         let installs = self.library.all_installs()?;
         let registered_paths = installs
             .iter()
-            .map(|install| repair_path_identity(&install.path))
+            .map(|install| crate::path::ordinary_path(&install.path))
             .collect::<HashSet<_>>();
         let pending_final_paths = operations
             .iter()
             .filter_map(|operation| operation.paths.final_path.clone())
-            .map(|path| repair_path_identity(&path))
+            .map(|path| crate::path::ordinary_path(&path))
             .collect::<HashSet<_>>();
         let mut items = operations
             .iter()
@@ -704,7 +704,7 @@ impl PortcoveService {
                 for version_entry in fs::read_dir(port_entry.path())? {
                     let version_entry = version_entry?;
                     let path = version_entry.path();
-                    let identity = repair_path_identity(&path);
+                    let identity = crate::path::ordinary_path(&path);
                     if !registered_paths.contains(&identity)
                         && !pending_final_paths.contains(&identity)
                     {
@@ -8313,27 +8313,6 @@ fn require_prepared_source_directory(path: &Path) -> Result<()> {
         ));
     }
     Ok(())
-}
-
-fn repair_path_identity(path: &Path) -> PathBuf {
-    #[cfg(windows)]
-    {
-        use std::path::{Component, Prefix};
-
-        let Some(Component::Prefix(prefix)) = path.components().next() else {
-            return path.to_path_buf();
-        };
-        let Some(text) = path.to_str() else {
-            return path.to_path_buf();
-        };
-        match prefix.kind() {
-            Prefix::VerbatimDisk(_) => PathBuf::from(&text[4..]),
-            Prefix::VerbatimUNC(_, _) => PathBuf::from(format!("\\\\{}", &text[8..])),
-            _ => path.to_path_buf(),
-        }
-    }
-    #[cfg(not(windows))]
-    path.to_path_buf()
 }
 
 pub(crate) fn default_channel(port: &PortDefinition) -> ReleaseChannel {

@@ -4318,40 +4318,61 @@ fn dfu_setup_metadata_refuses_optional_ordering_and_bounds_the_transition_set() 
     assert_eq!(MAX_DFU_OBSERVED_FILES, 2 * MAX_DFU_PACKAGES);
 }
 
+/// Each root detects a different regression of the Mods root to a raw
+/// `user.join("DaggerfallUnity_Data/StreamingAssets/Mods")`. On Windows, an
+/// ordinary (`Prefix::Disk`) user root keeps `/` in the raw string, which atomic
+/// publication then prefixed with `\\?\` (os error 123), so that case fails on
+/// the regression. A verbatim root cannot: `PathBuf::push` rejoins a path pushed
+/// onto a verbatim base with `\`. On Unix only the component shape is checked.
 #[test]
 fn dfu_mods_root_is_composed_from_native_components() {
     use std::path::{Component, MAIN_SEPARATOR};
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("interkarma-daggerfall-unity").unwrap();
     let loader = crate::profile_loader::configured_loader(port).unwrap();
-    // A canonical temporary root is an extended (`\\?\`) disk root on Windows,
-    // as atomic publication uses.
+    let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
     let temporary = tempfile::tempdir().unwrap();
-    let user = std::fs::canonicalize(temporary.path())
+    let ordinary = temporary.path().join("interkarma-daggerfall-unity");
+    let verbatim = std::fs::canonicalize(temporary.path())
         .unwrap()
         .join("interkarma-daggerfall-unity");
     #[cfg(windows)]
-    assert!(matches!(
-        user.components().next(),
-        Some(Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::VerbatimDisk(_))
-    ));
-    let layout = Layout::for_user(&user)
-        .with_loader(loader)
-        .for_dfu_platform(crate::Platform::WindowsX86_64);
-    let mods = layout.mods();
-    let added = mods
-        .strip_prefix(&user)
-        .unwrap()
-        .components()
-        .map(|component| match component {
-            Component::Normal(name) => name.to_str().unwrap().to_owned(),
-            other => panic!("unexpected mods root component {other:?}"),
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(added, ["DaggerfallUnity_Data", "StreamingAssets", "Mods"]);
-    let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
-    let suffix = mods.strip_prefix(&user).unwrap().to_str().unwrap();
-    assert!(!suffix.contains(foreign), "{suffix}");
-    let live = live_package_path(&layout, "wandererhud - pointycursor.dfmod").unwrap();
-    assert_eq!(live.parent(), Some(mods.as_path()));
+    {
+        use std::path::Prefix;
+        let kind = |path: &Path| match path.components().next() {
+            Some(Component::Prefix(prefix)) => Some(prefix.kind()),
+            _ => None,
+        };
+        assert!(
+            matches!(kind(&ordinary), Some(Prefix::Disk(_))),
+            "{ordinary:?}"
+        );
+        assert!(
+            matches!(kind(&verbatim), Some(Prefix::VerbatimDisk(_))),
+            "{verbatim:?}"
+        );
+        // Control: only the ordinary root discriminates a raw declared join.
+        let declared = "DaggerfallUnity_Data/StreamingAssets/Mods";
+        assert!(ordinary.join(declared).to_str().unwrap().contains('/'));
+    }
+    for user in [&ordinary, &verbatim] {
+        let layout = Layout::for_user(user)
+            .with_loader(loader.clone())
+            .for_dfu_platform(crate::Platform::WindowsX86_64);
+        let mods = layout.mods();
+        let text = mods.to_str().unwrap();
+        assert!(!text.contains(foreign), "{text}");
+        let added = mods
+            .strip_prefix(user)
+            .unwrap()
+            .components()
+            .map(|component| match component {
+                Component::Normal(name) => name.to_str().unwrap().to_owned(),
+                other => panic!("unexpected mods root component {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(added, ["DaggerfallUnity_Data", "StreamingAssets", "Mods"]);
+        let live = live_package_path(&layout, "wandererhud - pointycursor.dfmod").unwrap();
+        assert_eq!(live.parent(), Some(mods.as_path()));
+    }
 }

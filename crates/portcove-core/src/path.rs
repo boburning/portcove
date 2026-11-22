@@ -23,6 +23,44 @@ pub(crate) fn comparable_windows_path(path: &str) -> String {
     path.trim_end_matches('\\').to_lowercase()
 }
 
+/// The ordinary Win32 spelling of a path for player-facing details and stored
+/// identity. Filesystem operations keep the extended (`\\?\`) form for
+/// long-path safety; only the presented spelling drops a verbatim disk or UNC
+/// prefix. Other paths, including non-Unicode ones, are returned unchanged.
+pub(crate) fn ordinary_path(path: &Path) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+
+        if let Some(Component::Prefix(prefix)) = path.components().next()
+            && matches!(
+                prefix.kind(),
+                Prefix::VerbatimDisk(_) | Prefix::VerbatimUNC(_, _)
+            )
+            && let Some(ordinary) = path.to_str().and_then(ordinary_windows_text)
+        {
+            return ordinary.into();
+        }
+    }
+    path.to_path_buf()
+}
+
+/// Host-independent spelling rule behind [`ordinary_path`]: `\\?\X:\…`
+/// becomes `X:\…` and `\\?\UNC\server\share…` becomes `\\server\share…`.
+/// Any other spelling, including a bare `\\?\X:` and other verbatim devices,
+/// has no ordinary equivalent here and yields `None`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn ordinary_windows_text(text: &str) -> Option<String> {
+    let verbatim = text.strip_prefix(r"\\?\")?;
+    if let Some(unc) = verbatim.strip_prefix(r"UNC\") {
+        return (!unc.is_empty()).then(|| format!(r"\\{unc}"));
+    }
+    match verbatim.as_bytes() {
+        [letter, b':', b'\\', ..] if letter.is_ascii_alphabetic() => Some(verbatim.to_owned()),
+        _ => None,
+    }
+}
+
 #[cfg(windows)]
 pub(crate) fn windows_ordinal_names_equal(left: &std::ffi::OsStr, right: &std::ffi::OsStr) -> bool {
     use std::os::windows::ffi::OsStrExt;
@@ -220,39 +258,131 @@ fn ancestor_check_propagates_metadata_errors() {
     );
 }
 
+/// What each root can detect about a regression from `join_relative` to a raw
+/// `root.join("a/b/c")`:
+/// - Ordinary Windows root (the un-canonicalized temporary directory, a
+///   `Prefix::Disk` path): a raw join leaves `/` in the string, which atomic
+///   publication later prefixed with `\\?\` (os error 123). This case fails on
+///   that regression, and the control assertion proves the input discriminates.
+/// - Verbatim Windows root (`\\?\D:\…` from `canonicalize`): `PathBuf::push`
+///   re-parses a pushed path onto a verbatim base and rejoins its components
+///   with `\`, so a raw join is indistinguishable here. This case only pins that
+///   the helper keeps verbatim roots verbatim and adds normal components.
+/// - Unix: `/` is the native separator, so neither form can be told apart; the
+///   case checks the component shape only.
 #[cfg(test)]
 #[test]
-fn relative_joins_use_only_native_separators_under_extended_roots() {
-    use std::path::{Component, MAIN_SEPARATOR};
+fn relative_joins_use_only_native_separators() {
+    use std::path::{Component, MAIN_SEPARATOR, MAIN_SEPARATOR_STR};
     let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
-    // A canonical temporary root is an extended (`\\?\`) disk root on Windows.
+    let relative = "DaggerfallUnity_Data/StreamingAssets/Mods";
+    let names = ["DaggerfallUnity_Data", "StreamingAssets", "Mods"];
     let temporary = tempfile::tempdir().unwrap();
-    let root = std::fs::canonicalize(temporary.path())
+    let ordinary = temporary.path().join("port");
+    let verbatim = std::fs::canonicalize(temporary.path())
         .unwrap()
         .join("port");
     #[cfg(windows)]
-    assert!(matches!(
-        root.components().next(),
-        Some(Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::VerbatimDisk(_))
-    ));
-    let joined = join_relative(&root, "DaggerfallUnity_Data/StreamingAssets/Mods");
-    let suffix = joined
-        .strip_prefix(&root)
-        .unwrap()
-        .as_os_str()
-        .to_str()
-        .unwrap();
-    assert_eq!(
-        suffix,
-        ["DaggerfallUnity_Data", "StreamingAssets", "Mods"].join(std::path::MAIN_SEPARATOR_STR)
-    );
-    assert!(!suffix.contains(foreign));
-    let added = joined.components().skip(root.components().count());
-    for component in added {
-        let Component::Normal(name) = component else {
-            panic!("a relative join added a non-normal component");
+    {
+        use std::path::Prefix;
+        let kind = |path: &Path| match path.components().next() {
+            Some(Component::Prefix(prefix)) => Some(prefix.kind()),
+            _ => None,
         };
-        assert!(!name.to_str().unwrap().contains(['/', '\\']));
+        assert!(
+            matches!(kind(&ordinary), Some(Prefix::Disk(_))),
+            "{ordinary:?}"
+        );
+        assert!(
+            matches!(kind(&verbatim), Some(Prefix::VerbatimDisk(_))),
+            "{verbatim:?}"
+        );
+        // Control: the ordinary root discriminates a raw join; the verbatim
+        // root does not, because push rejoins the parsed components there.
+        assert!(ordinary.join(relative).to_str().unwrap().contains('/'));
+        assert!(!verbatim.join(relative).to_str().unwrap().contains('/'));
+    }
+    for root in [&ordinary, &verbatim] {
+        let joined = join_relative(root, relative);
+        let text = joined.to_str().unwrap();
+        assert!(!text.contains(foreign), "{text}");
+        let suffix = joined.strip_prefix(root).unwrap().to_str().unwrap();
+        assert_eq!(suffix, names.join(MAIN_SEPARATOR_STR));
+        let added = joined
+            .components()
+            .skip(root.components().count())
+            .map(|component| match component {
+                Component::Normal(name) => name.to_str().unwrap().to_owned(),
+                other => panic!("a relative join added {other:?}"),
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(added, names);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn ordinary_spelling_drops_only_verbatim_disk_and_unc_prefixes() {
+    // Built from prefix pieces so no absolute path literal appears here.
+    let verbatim = r"\\?\";
+    let disk = |prefix: &str, rest: &[&str]| {
+        let mut text = format!("{prefix}D:");
+        for part in rest {
+            text.push('\\');
+            text.push_str(part);
+        }
+        text
+    };
+    let parts = ["a", "_temp", ".portcove-dfu-save-cleanup-1"];
+    assert_eq!(
+        ordinary_windows_text(&disk(verbatim, &parts)),
+        Some(disk("", &parts))
+    );
+    let unc = ["server", "share", "Games"].join("\\");
+    assert_eq!(
+        ordinary_windows_text(&format!("{verbatim}UNC\\{unc}")),
+        Some(format!("\\\\{unc}"))
+    );
+    // A bare verbatim drive is drive-relative once unprefixed, other verbatim
+    // devices have no ordinary spelling, and ordinary paths are not verbatim.
+    for unchanged in [
+        disk(verbatim, &[]),
+        format!("{verbatim}UNC\\"),
+        format!("{verbatim}GLOBALROOT\\Device"),
+        format!("{verbatim}1:\\a"),
+        disk("", &parts),
+        parts.join("\\"),
+    ] {
+        assert_eq!(ordinary_windows_text(&unchanged), None, "{unchanged}");
+    }
+
+    // The host path wrapper changes only what Windows parses as verbatim; on
+    // Unix the same text is an ordinary relative name and must not change.
+    let temporary = tempfile::tempdir().unwrap();
+    assert_eq!(ordinary_path(temporary.path()), temporary.path());
+    let canonical = std::fs::canonicalize(temporary.path()).unwrap();
+    let presented = ordinary_path(&canonical);
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+        assert!(matches!(
+            presented.components().next(),
+            Some(Component::Prefix(prefix)) if matches!(prefix.kind(), Prefix::Disk(_))
+        ));
+        assert!(!presented.to_str().unwrap().starts_with(verbatim));
+        // Presentation keeps identity: it resolves to the same directory.
+        assert_eq!(std::fs::canonicalize(&presented).unwrap(), canonical);
+        let text = disk(verbatim, &parts);
+        assert_eq!(
+            ordinary_path(Path::new(&text)),
+            Path::new(&disk("", &parts))
+        );
+    }
+    #[cfg(not(windows))]
+    {
+        assert_eq!(presented, canonical);
+        let text = disk(verbatim, &parts);
+        assert_eq!(ordinary_path(Path::new(&text)), Path::new(&text));
     }
 }
 
