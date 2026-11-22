@@ -99,7 +99,11 @@ import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings, CatalogUpdatesDialog } from "./CatalogUpdates";
 import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
-import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
+import {
+  invocationFailure,
+  managedRouteReadbackGuidance,
+  type InvocationRecord,
+} from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -727,6 +731,9 @@ function ErrorNotice({
           showMutationSummary={!readbackOnly && !committed}
         />
       )}
+      {invocation?.reviewCurrentState && !committed && (
+        <p className="mt-1 text-sm">{managedRouteReadbackGuidance}</p>
+      )}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
         <p>
           Refreshing the current state also failed: {errorText(invocation.refreshFailure)}. The
@@ -759,16 +766,19 @@ function ErrorNotice({
             {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
-        {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            onClick={() => void reviewCurrentState()}
-          >
-            Refresh library
-          </Button>
-        )}
+        {reviewCurrentState &&
+          (readbackOnly ||
+            invocation?.reviewCurrentState ||
+            presentation?.recovery_actions.includes("review_current_state")) && (
+            <Button
+              data-focusable
+              variant="outline"
+              size="sm"
+              onClick={() => void reviewCurrentState()}
+            >
+              Refresh library
+            </Button>
+          )}
         {reviewPreparation && (
           <Button
             data-focusable
@@ -1245,6 +1255,8 @@ function SourceHealth({
           generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
+          requirementsAvailable={requirementsState === "available"}
+          fallbackFocus={sourceHeading}
           onAdded={onAdded}
         />
       </div>
@@ -2811,7 +2823,12 @@ function SettledInvocation({
         <p data-slot="notice-body">
           {registration
             ? "Saved external launch details for " + record.context.target.label
-            : "Installed " + record.context.target.label + " · " + record.installed?.version}
+            : (record.context.operation === "change_managed_route"
+                ? "Created a managed copy of "
+                : "Installed ") +
+              record.context.target.label +
+              " · " +
+              record.installed?.version}
         </p>
         <div data-slot="notice-actions">
           {openGame && (

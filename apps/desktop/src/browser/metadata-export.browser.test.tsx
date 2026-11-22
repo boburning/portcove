@@ -1,3 +1,4 @@
+import { controlledAct as act } from "../../test/controlled-react-act";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -93,10 +94,36 @@ it("exports the selected path and retains its successful metadata receipt", asyn
   await expect
     .poll(() => document.querySelector("[data-invocation-announcements]")?.textContent)
     .toContain("export library metadata · fixture/library: finished.");
-  expect(exported).toHaveBeenCalledExactlyOnceWith("C:\\owned\\metadata.json");
+  expect(exported).toHaveBeenCalledExactlyOnceWith("C:\\owned\\metadata.json", 1);
   await expect
     .poll(() => receipt()?.textContent)
     .toContain("Library information was last exported to C:\\owned\\metadata.json");
+});
+
+it("finishes an export after leaving Settings and retains its exact result on return", async () => {
+  const path = "C:\\owned\\library information.json";
+  vi.mocked(pickMetadataExportPath).mockResolvedValue(path);
+  let finish!: () => void;
+  const exported = vi.spyOn(desktopApi, "exportLibraryMetadata").mockReturnValue(
+    new Promise((resolve) => {
+      finish = () => resolve({ path, sha256: "a".repeat(64), size: 803 });
+    }),
+  );
+  await openExport();
+  await page.getByRole("button", { name: "Export library information", exact: true }).click();
+  const pending = page.getByRole("button", { name: "Exporting library information…" });
+  await expect.element(pending).toHaveAttribute("aria-busy", "true");
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("button", { name: /^Library\b/ })
+    .click();
+  await expect.element(pending).not.toBeInTheDocument();
+  await act(async () => finish());
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect.element(page.getByText(path, { exact: true })).toBeVisible();
+  expect(exported).toHaveBeenCalledExactlyOnceWith(path, 1);
+  expect(pickMetadataExportPath).toHaveBeenCalledOnce();
 });
 
 for (const failure of ["picker", "export"] as const) {
@@ -157,11 +184,14 @@ it("explains a refused existing destination and allows a new filename", async ()
   });
   await expect.element(inline).toBeVisible();
   expect(receipt()).toBeNull();
-  expect(exported).toHaveBeenCalledExactlyOnceWith(existing);
+  expect(exported).toHaveBeenCalledExactlyOnceWith(existing, 1);
   await action.click();
   await expect
     .poll(() => receipt()?.textContent)
     .toContain(`Library information was last exported to ${fresh}`);
   await expect.element(inline).not.toBeInTheDocument();
-  expect(exported.mock.calls).toEqual([[existing], [fresh]]);
+  expect(exported.mock.calls).toEqual([
+    [existing, 1],
+    [fresh, 1],
+  ]);
 });
