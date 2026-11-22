@@ -311,7 +311,7 @@ it("explains an occupied restore destination and keeps the verified bundle for a
   const occupied = "D:/occupied";
   const message = "import requires a new or empty library; existing data was retained";
   const summary =
-    "This folder contains existing data. Choose a new or empty folder to restore the library.";
+    "This folder already contains other files, so Portcove didn’t change anything. Choose a new or empty folder to restore the library.";
   const inspect = vi.spyOn(desktopApi, "inspectLibraryRecoveryBundle").mockResolvedValue(bundle);
   const review = vi
     .spyOn(desktopApi, "planLibraryRecoveryRestore")

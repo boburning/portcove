@@ -2972,6 +2972,25 @@ and a completed restore offers a read of its recorded result. After a restore co
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
 
+Core reports each failure's outcome at the operation that observed it. The
+read-only commands that inspect a bundle, check a published bundle against its
+review, or read a recorded restore result report that no files changed. A
+restore failure before its journal exists reports that the restore did not
+start: nothing was copied, and the destination holds at most an empty folder
+with its lease file, which a new review accepts. Once the restore journal or the
+authenticated creation intent exists, every failure reports recovery required
+and names the resumable folder. This includes a re-check of the bundle inside a
+restore, a cancel and a full drive. When the operating system reports a full
+drive or quota, Core shows a plain explanation and keeps the operating-system
+text in the technical details. An aborted import that is reviewed again reports
+no changes.
+
+Portcove never deletes a retained creation staging directory or its `work`
+folder. After publication, the staging directory and its `work` folder stay in
+the destination's parent until the player removes them. Retained staging may hold
+the only copy of data the player needs, so automatic cleanup needs its own
+review. No safe cleanup for these directories exists yet; it is an open item.
+
 The opt-in Linux storage-exhaustion test uses an empty 80 MiB tmpfs in
 a private mount namespace. It reserves space after Core writes the authenticated
 intent, observes the kernel's write failure, then frees the reservation and

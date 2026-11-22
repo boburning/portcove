@@ -170,25 +170,29 @@ impl PortcoveService {
         result.map_err(|error| creation_error(error, &stage))
     }
 
-    /// Verify a completed bundle without opening its database or changing preferences.
+    /// The read-only inspect command. It never opens the bundle database or
+    /// changes preferences, so any failure leaves every file unchanged. Mutating
+    /// operations re-verify their input with [`verify_bundle`] instead.
     pub fn inspect_library_recovery_bundle(path: &Path) -> Result<LibraryRecoveryBundle> {
-        inspect(path)
-            .map(|(summary, _)| summary)
-            .map_err(|error| error.with_mutation_state(MutationState::NoChanges))
+        verify_bundle(path).map_err(|error| error.with_mutation_state(MutationState::NoChanges))
     }
 
-    /// Re-read a possibly committed create result for its exact reviewed destination and plan.
+    /// The read-only check of a possibly committed create result for its exact
+    /// reviewed destination and plan. A failure leaves every file unchanged.
     pub fn inspect_library_recovery_bundle_for_plan(
         path: &Path,
         expected_plan: &str,
     ) -> Result<LibraryRecoveryBundle> {
-        let (bundle, manifest) = inspect(path)?;
-        if manifest.reviewed_plan_sha256 != expected_plan {
-            return Err(PortcoveError::conflict(
-                "the verified bundle belongs to a different recovery review",
-            ));
-        }
-        Ok(bundle)
+        (|| {
+            let (bundle, manifest) = inspect(path)?;
+            if manifest.reviewed_plan_sha256 != expected_plan {
+                return Err(PortcoveError::conflict(
+                    "the verified bundle belongs to a different recovery review",
+                ));
+            }
+            Ok(bundle)
+        })()
+        .map_err(|error| error.with_mutation_state(MutationState::NoChanges))
     }
 
     /// Preview a checked import into a new or empty library. Opening it is separate.
@@ -880,8 +884,17 @@ fn initial_creation_error(
     error
 }
 
+/// Verify a completed bundle. The caller owns the reported mutation state.
+pub(crate) fn verify_bundle(path: &Path) -> Result<LibraryRecoveryBundle> {
+    inspect(path).map(|(summary, _)| summary)
+}
+
+/// The authenticated intent exists, so the source is unchanged and the staged
+/// copy can resume from `staging`, including after a cancel or a full disk.
 fn creation_error(error: PortcoveError, staging: &Path) -> PortcoveError {
-    error.detail("recovery_staging", staging.display().to_string())
+    error
+        .with_mutation_state(MutationState::RecoveryRequired)
+        .detail("recovery_staging", staging.display().to_string())
 }
 
 #[cfg(test)]
@@ -970,6 +983,11 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.message, disk_full);
+        let presentation = error.report().presentation;
+        assert_eq!(presentation.presentation_key, "storage_full");
+        assert!(presentation.summary.contains("ran out of free space"));
+        assert_eq!(presentation.technical_message, disk_full);
+        assert_eq!(presentation.mutation_state, MutationState::RecoveryRequired);
         let stage = Path::new(&error.details["recovery_staging"]);
         let intent = read_creation_intent(stage).unwrap();
         assert_eq!(intent.plan.plan_sha256, plan.plan_sha256);
@@ -1053,6 +1071,9 @@ mod tests {
                 || error.message.starts_with(&format!("{disk_full} at path ")),
             "expected the kernel's ENOSPC during the copy, got {error}"
         );
+        let presentation = error.report().presentation;
+        assert_eq!(presentation.presentation_key, "storage_full");
+        assert_eq!(presentation.mutation_state, MutationState::RecoveryRequired);
         let stage = Path::new(&error.details["recovery_staging"]);
         let intent = read_creation_intent(stage).unwrap();
         assert_eq!(intent.plan.plan_sha256, plan.plan_sha256);
@@ -1137,6 +1158,10 @@ mod tests {
             error
         });
         assert_eq!(error.code, crate::ErrorCode::Cancelled);
+        assert_eq!(
+            error.failure.mutation_state,
+            MutationState::RecoveryRequired
+        );
         assert!(!destination.exists());
         assert_eq!(
             fs::read(source.join("user/progress.bin")).unwrap(),
@@ -1298,9 +1323,13 @@ mod tests {
             &create_plan.plan_sha256,
         )
         .unwrap();
-        assert!(PortcoveService::inspect_library_recovery_bundle_for_plan(
-            &destination, "wrong review",
-        ).is_err());
+        let other_review =
+            PortcoveService::inspect_library_recovery_bundle_for_plan(&destination, "wrong review")
+                .unwrap_err();
+        assert_eq!(
+            other_review.failure.mutation_state,
+            MutationState::NoChanges
+        );
         assert_eq!(
             PortcoveService::inspect_library_recovery_bundle_for_plan(
                 &destination,
@@ -1328,6 +1357,22 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(cancelled.code, crate::ErrorCode::Cancelled);
+        assert_eq!(
+            cancelled.failure.mutation_state,
+            MutationState::RecoveryRequired
+        );
+        assert_eq!(
+            cancelled.details["recovery_action"],
+            "resume_library_recovery_restore"
+        );
+        let unfinished =
+            PortcoveService::read_library_recovery_restore(&restored, &restore_plan.plan_sha256)
+                .unwrap_err();
+        assert_eq!(unfinished.failure.mutation_state, MutationState::NoChanges);
+        assert_eq!(
+            unfinished.details["recovery_action"],
+            "resume_library_recovery_restore"
+        );
         assert!(Library::open(&restored).is_err());
         let apply = PortcoveService::restore_library_recovery_bundle(
             &destination,
@@ -1625,6 +1670,84 @@ mod tests {
         assert_eq!(
             fs::metadata(destination).unwrap().permissions().mode() & 0o077,
             0
+        );
+    }
+
+    #[test]
+    fn restore_reverification_failures_report_what_the_restore_changed() {
+        use crate::transfer_journal::TransferPhase;
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let bundle = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap();
+        let manifest = bundle.path.join(MANIFEST_FILE);
+        let original = fs::read(&manifest).unwrap();
+
+        // The bundle changes after the journal and library database exist.
+        let restore_root = workspace.path().join("restored");
+        let (_, restore_plan) =
+            prepare_restore(&bundle.path, &restore_root, Restore::Apply).unwrap();
+        let journaled =
+            crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &|phase| {
+                if phase == TransferPhase::Copying {
+                    assert!(restore_root.join(".portcove-import.json").is_file());
+                    assert!(restore_root.join("portcove.sqlite3").is_file());
+                    fs::write(&manifest, b"tampered receipt").unwrap();
+                }
+                Ok(())
+            })
+            .unwrap_err();
+        assert_ne!(journaled.failure.mutation_state, MutationState::NoChanges);
+        assert_eq!(
+            journaled.report().presentation.mutation_state,
+            MutationState::RecoveryRequired
+        );
+        assert_eq!(
+            journaled.details["recovery_action"],
+            "resume_library_recovery_restore"
+        );
+        assert_eq!(
+            Path::new(&journaled.details["import_destination"]),
+            restore_root
+        );
+        assert!(restore_root.join(".portcove-import.json").is_file());
+
+        // The read-only inspect command still changes nothing.
+        let inspected = PortcoveService::inspect_library_recovery_bundle(&bundle.path).unwrap_err();
+        assert_eq!(inspected.failure.mutation_state, MutationState::NoChanges);
+
+        // Before the journal exists, nothing is copied and no resume is offered.
+        let unstarted_root = workspace.path().join("unstarted");
+        fs::write(&manifest, &original).unwrap();
+        let (_, unstarted_plan) =
+            prepare_restore(&bundle.path, &unstarted_root, Restore::Apply).unwrap();
+        fs::write(&manifest, b"tampered receipt").unwrap();
+        let unstarted =
+            crate::import_execution::start_reviewed_import(unstarted_plan, Some(&bundle), &|_| {
+                Ok(())
+            })
+            .unwrap_err();
+        assert_eq!(unstarted.failure.mutation_state, MutationState::NotStarted);
+        assert!(!unstarted.details.contains_key("recovery_action"));
+        assert!(!unstarted_root.join(".portcove-import.json").exists());
+        assert!(!unstarted_root.join("portcove.sqlite3").exists());
+
+        fs::write(&manifest, original).unwrap();
+        let resumed = PortcoveService::resume_library_recovery_restore(
+            &restore_root,
+            Some(&journaled.details["transfer_id"]),
+        )
+        .unwrap();
+        assert!(resumed.completed);
+        assert_eq!(
+            fs::read(restore_root.join("user/progress.bin")).unwrap(),
+            b"saved progress"
         );
     }
 

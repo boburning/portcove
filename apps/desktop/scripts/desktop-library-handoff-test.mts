@@ -343,7 +343,7 @@ export async function libraryRecoveryBundleScenario({
     await field("Restore destination", occupied);
     await controls.click(controls.button("Review restore"));
     const occupiedNotice =
-      "This folder contains existing data. Choose a new or empty folder to restore the library.";
+      "This folder already contains other files, so Portcove didn’t change anything. Choose a new or empty folder to restore the library.";
     await waitText(occupiedNotice);
     await refuses("Restore library");
     const invalidDestination = await (

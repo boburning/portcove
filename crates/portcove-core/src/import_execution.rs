@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ActivityStatus, InstallQualification, Installer, Library, LibraryImportPlan, LibraryMetadata,
-    LibraryRecoveryProgress, Platform, PortcoveError, PortcoveService, Result,
+    LibraryRecoveryProgress, MutationState, Platform, PortcoveError, PortcoveService, Result,
     import_journal::{BundleImportAdmission, ImportJournal},
     library_access::{LibraryAccess, LibraryLease},
     transfer_journal::TransferPhase,
@@ -45,20 +45,26 @@ impl PortcoveService {
     }
 
     /// Read the published result of this reviewed bundle restore without resuming it.
+    /// This read-only command leaves every file unchanged, including when it fails.
     pub fn read_library_recovery_restore(
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryImportResult> {
-        let journal = ImportJournal::read_recovery(destination)?.ok_or_else(|| {
-            PortcoveError::conflict("no restore receipt is available at the reviewed destination")
-        })?;
-        if destination != journal.plan.destination_root {
-            return Err(PortcoveError::conflict(
-                "the reviewed restore destination changed",
-            ));
-        }
-        journal.require_published_bundle_review(expected_plan)?;
-        Ok(result(&journal, true))
+        (|| {
+            let journal = ImportJournal::read_recovery(destination)?.ok_or_else(|| {
+                PortcoveError::conflict(
+                    "no restore receipt is available at the reviewed destination",
+                )
+            })?;
+            if destination != journal.plan.destination_root {
+                return Err(PortcoveError::conflict(
+                    "the reviewed restore destination changed",
+                ));
+            }
+            journal.require_published_bundle_review(expected_plan)?;
+            Ok(result(&journal, true))
+        })()
+        .map_err(|error| error.with_mutation_state(MutationState::NoChanges))
     }
 
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {
@@ -121,47 +127,57 @@ pub(crate) fn start_reviewed_import_with_progress(
     observe: &mut dyn FnMut(LibraryRecoveryProgress) -> Result<()>,
 ) -> Result<LibraryImportResult> {
     let transfer_id = uuid::Uuid::new_v4().to_string();
-    let bundle = bundle
-        .map(|bundle| BundleImportAdmission::admit(bundle, &plan.plan_sha256, &transfer_id))
-        .transpose()?;
-    if !plan.destination_exists {
-        // create_dir is exclusive; never claim a directory that appeared after review.
-        fs::create_dir(&plan.destination_root)?;
-    }
-    let metadata = fs::symlink_metadata(&plan.destination_root)?;
-    if !metadata.is_dir()
-        || metadata.file_type().is_symlink()
-        || fs::canonicalize(&plan.destination_root)? != plan.destination_root
-    {
-        return Err(PortcoveError::verification(
-            "import destination was replaced or redirected",
-        ));
-    }
-    let lease = Arc::new(LibraryLease::with_access(
-        &plan.destination_root,
-        LibraryAccess::Exclusive,
-    )?);
-    crate::import_journal::ensure_empty_destination(&plan.destination_root)?;
-    let mut journal = ImportJournal {
-        schema_version: u32::from(bundle.is_some()) + 1,
-        transfer_id,
-        plan,
-        phase: TransferPhase::Copying,
-        bundle,
-    };
-    verify_input(&journal)?;
+    // Until the journal is written, nothing is copied and the destination holds at
+    // most an empty folder with its lease file, which a new review accepts.
+    let not_started = |error: PortcoveError| error.with_mutation_state(MutationState::NotStarted);
+    let (lease, mut journal) = (|| {
+        let bundle = bundle
+            .map(|bundle| BundleImportAdmission::admit(bundle, &plan.plan_sha256, &transfer_id))
+            .transpose()?;
+        if !plan.destination_exists {
+            // create_dir is exclusive; never claim a directory that appeared after review.
+            fs::create_dir(&plan.destination_root)?;
+        }
+        let metadata = fs::symlink_metadata(&plan.destination_root)?;
+        if !metadata.is_dir()
+            || metadata.file_type().is_symlink()
+            || fs::canonicalize(&plan.destination_root)? != plan.destination_root
+        {
+            return Err(PortcoveError::verification(
+                "import destination was replaced or redirected",
+            ));
+        }
+        let lease = Arc::new(LibraryLease::with_access(
+            &plan.destination_root,
+            LibraryAccess::Exclusive,
+        )?);
+        crate::import_journal::ensure_empty_destination(&plan.destination_root)?;
+        let journal = ImportJournal {
+            schema_version: u32::from(bundle.is_some()) + 1,
+            transfer_id: transfer_id.clone(),
+            plan,
+            phase: TransferPhase::Copying,
+            bundle,
+        };
+        verify_input(&journal)?;
+        Ok((lease, journal))
+    })()
+    .map_err(not_started)?;
     // Intent and open gate are one durable file, written before database initialization or copying.
+    // A failed write may or may not have published it, so its outcome stays unknown.
     journal.write(false)?;
-    crate::durability::sync_publication(
-        journal
-            .plan
-            .destination_root
-            .parent()
-            .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
-    )?;
-    let target = Library::initialize(journal.plan.destination_root.clone(), lease)?;
-    continue_import(&target, &mut journal, checkpoint, observe)
-        .map_err(|error| journal.error(error))
+    (|| {
+        crate::durability::sync_publication(
+            journal
+                .plan
+                .destination_root
+                .parent()
+                .ok_or_else(|| PortcoveError::state("import destination has no parent"))?,
+        )?;
+        let target = Library::initialize(journal.plan.destination_root.clone(), lease)?;
+        continue_import(&target, &mut journal, checkpoint, observe)
+    })()
+    .map_err(|error| journal.error(error))
 }
 
 fn recover_import(

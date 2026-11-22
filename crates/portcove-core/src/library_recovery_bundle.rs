@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 mod execution;
+pub(crate) use execution::verify_bundle;
 pub use execution::{LibraryRecoveryBundle, LibraryRecoveryProgress, LibraryRecoveryRestorePlan};
 
 use crate::{

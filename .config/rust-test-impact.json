@@ -322,6 +322,14 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/library_recovery_bundle/execution.rs",
+      "test": "a_full_filesystem_leaves_the_exact_recovery_copy_resumable",
+      "reason": "requires a private 80 MiB Linux test filesystem",
+      "package": "portcove-core",
+      "platforms": ["linux"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",
       "test": "owned_progression_fixture",
       "reason": "isolated first-party provider, codec and builder control; invoked by parent",

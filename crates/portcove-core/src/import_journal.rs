@@ -8,7 +8,7 @@ use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    LibraryImportPlan, LibraryRecoveryBundle, PortcoveError, PortcoveService, Result,
+    LibraryImportPlan, LibraryRecoveryBundle, PortcoveError, Result,
     transfer_journal::TransferPhase,
 };
 
@@ -79,7 +79,7 @@ impl BundleImportAdmission {
     }
 
     fn verify_input(&self) -> Result<()> {
-        let current = PortcoveService::inspect_library_recovery_bundle(&self.bundle_path)?;
+        let current = crate::library_recovery_bundle::verify_bundle(&self.bundle_path)?;
         if current.path != self.bundle_path
             || current.bundle_id != self.bundle_id
             || current.receipt_sha256 != self.receipt_sha256
@@ -359,8 +359,15 @@ impl ImportJournal {
         crate::durability::sync_publication(root)
     }
 
+    /// This journal exists at the destination, so the restore can resume from it.
+    /// An aborted import is only reported; this call left it unchanged.
     pub fn error(&self, error: PortcoveError) -> PortcoveError {
         error
+            .with_mutation_state(if self.phase == TransferPhase::Aborted {
+                crate::MutationState::NoChanges
+            } else {
+                crate::MutationState::RecoveryRequired
+            })
             .detail("transfer_id", &self.transfer_id)
             .detail(
                 "import_destination",

@@ -107,7 +107,7 @@ fn observe_copy<T>(
         let cancel = || {
             PortcoveError::new(
                 portcove_core::ErrorCode::Cancelled,
-                "Recovery copy stopped. Resume from the recorded folder when you’re ready.",
+                "Recovery copy cancelled. Files copied so far are kept so you can resume.",
             )
         };
         match progress {

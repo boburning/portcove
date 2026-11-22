@@ -80,7 +80,14 @@ impl PortcoveError {
 
 impl From<std::io::Error> for PortcoveError {
     fn from(error: std::io::Error) -> Self {
-        Self::state(error.to_string())
+        // The OS text stays the technical message; the player sees the known cause.
+        let storage_full = error.kind() == std::io::ErrorKind::StorageFull;
+        let converted = Self::state(error.to_string());
+        if storage_full {
+            converted.with_known_cause(crate::failure::KnownFailureCause::StorageFull)
+        } else {
+            converted
+        }
     }
 }
 

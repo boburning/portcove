@@ -481,7 +481,7 @@ function RecoveryBundleDialog({
         {destinationOccupied && (
           <ActionReviewFailure
             error={error}
-            summary="This folder contains existing data. Choose a new or empty folder to restore the library."
+            summary="This folder already contains other files, so Portcove didn’t change anything. Choose a new or empty folder to restore the library."
             summaryId={destinationErrorId}
             showMutationSummary={false}
           />
@@ -536,7 +536,7 @@ function RecoveryBundleDialog({
           <div className="grid gap-2">
             <p role="status">
               {cancelRequested
-                ? "Stopping after the current copy checkpoint…"
+                ? "Stopping the copy… Files copied so far stay in place so you can resume later."
                 : copying
                   ? "Copying recovery data…"
                   : verifying
