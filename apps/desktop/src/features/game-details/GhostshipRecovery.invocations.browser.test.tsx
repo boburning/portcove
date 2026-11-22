@@ -14,6 +14,7 @@ vi.mock("@tauri-apps/api/event", async (original) => ({
 }));
 const backup: BackupRecord = {
   id: "legacy-snapshot",
+  recovery_review: "legacy_install_and_data_v1",
   port_id: "ghostship",
   path: "snapshots/legacy",
   created_at: 1,
@@ -144,5 +145,13 @@ it("refuses a backup for another game before invoking the host", async () => {
   await expect(
     actions.recoverGhostshipLegacy!({ ...backup, port_id: "other" }, "reviewed"),
   ).rejects.toThrow("another game");
+  expect(recover).not.toHaveBeenCalled();
+});
+
+it("refuses an ordinary backup from the same game before invoking recovery", async () => {
+  const recover = vi.spyOn(desktopApi, "recoverGhostshipLegacyData");
+  expect(
+    await actions.recoverGhostshipLegacy!({ ...backup, recovery_review: null }, "reviewed"),
+  ).toBe(false);
   expect(recover).not.toHaveBeenCalled();
 });

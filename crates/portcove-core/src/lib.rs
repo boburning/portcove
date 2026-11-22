@@ -1,3 +1,4 @@
+mod acquisition_restriction;
 mod activity_diagnostics;
 mod adapter;
 mod application_runtime;
@@ -102,6 +103,7 @@ pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
 mod gamebanana;
+mod jakmods;
 mod mod_package;
 mod mod_provider;
 mod native_mod_list;
@@ -171,6 +173,11 @@ mod windows_runtime;
 mod windows_user_access;
 mod zip_read;
 
+pub use acquisition_restriction::{
+    AcquisitionRestriction, ReconsiderCondition, RestrictedArtifact, RestrictedComponent,
+    RestrictedOperation, RestrictionCarrier, RestrictionEffect, RestrictionReason,
+    RestrictionScope,
+};
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
@@ -311,6 +318,10 @@ pub use host_tools::{
 };
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
+pub use jakmods::{
+    JAKMODS_SETUP_URL, JakModsBuild, JakModsBuildStatus, JakModsCatalog, JakModsProject,
+    JakModsProjectKind, JakModsRelease, jakmods_game,
+};
 pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};

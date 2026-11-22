@@ -677,6 +677,9 @@ pub(crate) enum SteamGridDbCommand {
         /// Artwork role to propose images for.
         #[arg(long, value_enum)]
         role: SteamGridDbArtworkRoleArg,
+        /// Provider page of 50 images, starting at 0. An empty page ends the listing.
+        #[arg(long, default_value_t = 0)]
+        page: u32,
     },
 }
 

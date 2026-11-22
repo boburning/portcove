@@ -33,10 +33,11 @@ const unsupportedByReason: Record<string, string[]> = {
     change_to_managed_runtime clear_host_tool_path
     copy_mod_setup create_backup
     create_clean_mod_setup create_default_mod_setup
+    create_library_recovery_bundle resume_library_recovery_bundle restore_library_recovery_bundle resume_library_recovery_restore
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork set_background_artwork_framing import_library import_source install_application_update install_port logout_github
-    move_library open_bug_report open_external_url open_provider_mod_project open_host_tool_official_site submit_report
+    move_library open_bug_report open_external_url open_jakmods_resource open_provider_mod_project open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_pending_setup_resource
     open_catalog_download_release_notes open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
@@ -63,6 +64,7 @@ const unsupportedByReason: Record<string, string[]> = {
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
+    plan_library_recovery_bundle inspect_library_recovery_bundle plan_library_recovery_restore
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
@@ -76,7 +78,7 @@ const unsupportedByReason: Record<string, string[]> = {
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
-    get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
+    get_jakmods_catalog get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses

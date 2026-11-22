@@ -707,6 +707,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     { source: "desktop-default-cover-test.mts", qualification_only: true },
   ),
   scenario(
+    "native-reviewed-screenshot-display",
+    "Compare native gallery thumbnails with the exact admitted screenshot bytes.",
+    {
+      source: "desktop-default-cover-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-default-cover-display",
     "Accepted IGDB covers render in Catalog and details without client credentials.",
     {
@@ -994,6 +1003,11 @@ export function resolveDesktopSelection({
     uniqueRequested.length !== 1
   )
     throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-reviewed-screenshot-display") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-reviewed-screenshot-display requires one standalone Windows scenario");
   const nonRunnable = uniqueRequested.filter((id) => !requireDesktopScenario(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);
@@ -1129,6 +1143,8 @@ export function desktopHarnessDeadlineMs(
     // roles still settling. Allow the two picker/confirmation sequences,
     // bounded readback, reload and owned cleanup to run under one watchdog.
     selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") ? 600_000 : 0,
+    // Native gallery opens live typed screenshots, verifies cached bytes and restores focus.
+    selection.selected_scenarios.includes("native-reviewed-screenshot-display") ? 600_000 : 0,
     // Linux keyboard fixture readiness has two finite 90s phases; retain room
     // for real keyboard controls and owned cleanup without changing predicates.
     selection.selected_scenarios.includes("keyboard-layout") ? 360_000 : 0,

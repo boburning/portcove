@@ -945,8 +945,8 @@ Presentation extensions are explicitly segregated from these required fields.
 
 `DefinitionContentIndex::inspect_entry(namespace, stable_id, bytes)` implements
 the entry inspection boundary. It verifies the indexed target bytes before JSON
-decoding and requires schema 1 and exact namespace, stable ID and revision
-agreement. The port ID must match that stable ID. The initial `port` value must
+decoding and requires a supported entry schema and exact namespace, stable ID
+and revision agreement. The port ID must match that stable ID. The initial `port` value must
 contain the complete serialization of the existing `PortDefinition`, including
 default-valued fields. Comparing its typed projection rejects unknown fields at
 every nested port boundary without changing legacy catalog parsing. Object key
@@ -1004,7 +1004,10 @@ All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure
 affects only that inspection and leaves the index and other inspections unchanged.
 Other catalog ports preserve the self-contained legacy graph; their presence does
-not admit additional indexed definitions. `DefinitionCatalogProjection` retains
+not admit additional indexed definitions. Package-only settings belong to the
+selected port. Older complete projections omit those settings from unrelated
+ports. At selection, the effective catalog keeps any package-only settings
+already admitted for those ports. `DefinitionCatalogProjection` retains
 the exact entry and contract bytes alongside the validated catalog. This is pure
 supplied-content interpretation, with no I/O, signing, publisher grant, selection
 or installation. Its validated catalog now carries the selected port's exact
@@ -1283,6 +1286,11 @@ atomic commit and rechecks current authority, so a concurrent revocation defeats
 an older eligibility proof. Ordinary selection also validates the transition
 against the current format-1/embedded catalog in that same immediate transaction,
 including exact retries; a definition cannot remove or change unrelated entries.
+Only the selected port can declare a native mod loader in an indexed projection,
+and that declaration requires entry and contract schema 3. Legacy full
+projections preserve unrelated loaders from the effective baseline. Unindexed
+installation captures omit sibling loader declarations while keeping their port
+and source records.
 For its own port, that transition may keep or narrow a managed acquisition hold
 but not remove it or add a reviewed artifact, may replace but not remove a
 reviewed package layout, and may keep or remove `release.accepted_uploaders`
@@ -1801,8 +1809,10 @@ the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
 the accepted catalog baseline and current component/site identities. The catalog
-source readers reconstruct at most 6,144 entries per complete Git tree and refuse
-truncated or mismatched trees. Its neutral
+source readers reconstruct every entry of a complete Git tree and refuse
+truncated or mismatched trees. The count bound is GitHub's 100,000-entry
+recursive-tree completeness limit; in practice each reader's response byte
+bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same
@@ -1916,12 +1926,18 @@ remain separate and unchanged.
 The strict UTF-8 target has `listing_delivery_schema: 1`, a positive safe-integer
 `revision`, `withdrawn_ids` and a `directory` containing the existing format-1 or
 format-2 `CatalogListingDocument`; `download_block_reason` requires format 2.
-The complete target is bounded to 8 MiB, each listing
+The legacy target is bounded to 8 MiB, each listing
 uses the existing descriptive validator, and both lists are bounded to 10,000
 identities. Unknown fields, duplicate JSON keys, duplicate IDs, conflicting
 withdrawals, unsafe links and operational fields are rejected. Setup instructions
 and IGDB artwork mappings remain inert descriptions; acquisition, user-selected
 execution consent and managed installation retain their existing boundaries.
+
+The compact target uses the same delegation and an 8 MiB authenticated carrier.
+A compatible reader verifies the complete decoded digest and accepts up to 32 MiB
+of decoded directory data. Compact parsing checks each record separately and
+accepts up to 1 MiB per record and 10,000 records or withdrawals. Admission and
+local readback keep the same decoded bounds and retain the transport identity.
 
 Ordinary preparation and publication carry complete authored listings, including
 acquisition restrictions; package observations and metadata enrichment cannot
@@ -1975,6 +1991,36 @@ The observer's managed format-11 delivery keeps its existing reader window.
 When that older overlay cannot express a bundled typed scene, a newer reader
 keeps the scene only if the project and original-game scope still match and
 the combined media passes admission. A format-13 replacement can withdraw it.
+
+Listing format 14 can bind an original edition to a reviewed Core source
+identity. A binding names the exact source game, variant and representation.
+It is descriptive and applies only to current data verified with exact identity.
+Exports through format 13 retain the original editions and omit these bindings.
+The strict operational catalog does not carry the bindings.
+Both signed carriers use the same directory field rules. An older overlay
+keeps bundled bindings only for the same project and original description.
+A format-14 replacement can remove those bindings. Carrier support and format
+support are advertised separately, so compact transport alone does not
+establish format-14 compatibility.
+
+Listing format 15 carries typed [acquisition restrictions](CATALOG.md#acquisition-restrictions).
+Its `download_block_reason` must equal the projection of those restrictions, so
+a format-14 reader keeps enforcing at least the same download hold, and exports
+up to format 14 omit `restrictions` and keep that string. Signed listing
+delivery stays at format 11: the observer's projection accepts the format-15
+canonical directory as input and still publishes Core's format-11 export. A
+delivered listing that repeats the current string for the same project and
+game keeps the reader's typed restrictions; any other delivered value replaces
+them with a whole-listing download hold, or clears them. Publishing a format-15
+signed target is a later, separately gated change.
+
+Managed acquisition holds keep their delivered `managed_acquisition_hold`
+form; Core normalizes it to typed decisions when it loads, and the definition
+loader accepts a selected definition only when it keeps or adds restriction. A
+typed definition field is not deliverable yet. It needs a reader gate that
+older applications refuse, planned as a named definition feature under
+definition schema 4 once [#8496](https://github.com/boburning/portcove/pull/8496)
+lands; until then authoring emits only the legacy hold.
 
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
@@ -2051,6 +2097,14 @@ The native game ID must name the definition's normalized runtime file. The
 contract cites upstream support evidence. Indexed projections carrying these
 bindings require N64 recomp portable version 10 for the selected definition.
 
+A definition that adds release inputs to an enforced legacy contract requires
+N64 recomp portable version 11. Keep the existing accepted variants in the
+profile and contract. A file matching one of the profile's published runtime
+inputs can be registered as an original. Portcove checks the selected release
+and artifact before using that file. A release without an exact binding still
+requires an edition in its legacy list. Every port using the migrated profile
+must be an N64 Recomp port with an enforced legacy game contract.
+
 The matching release and artifact select the requirement during managed
 installation, activation, rollback and launch. Core checks the selected
 registration's storage and content identities and compares the upstream digest
@@ -2059,6 +2113,47 @@ that the runtime file matches the normalized original's SHA-256 and size. A
 bound release needs a checked original. A binding for a different release or
 artifact supplies no compatibility verdict. A literal value in upstream source
 needs evidence of the applicable runtime check before it can become a binding.
+Existing registrations remain available as exact local instances. When the
+default no longer fits a retained build, Portcove can recheck a unique matching
+saved instance within its bounded lookup. A selected setup with an exact
+original binding keeps that original.
+
+### Native mod loader bindings
+
+Indexed definition schema 3 carries the reviewed `mod_loader` declaration.
+The entry retains the ordinary requirements for its adapter and other fields.
+Existing reader versions continue to reject unrecognized entry schemas, and
+legacy signed catalog envelopes cannot appoint a loader.
+
+A binding declares a versioned engine, GitHub release repository, minimum
+stable release, applicable platforms, and native settings file. N64 Recomp also
+declares the native game. Each loader platform needs executable hints, and
+both the `mods` directory and settings file must be persistent paths. Core
+requires the exact retained installation to match before enabling managed mods.
+A stable successor in the declared release series uses the same loader.
+
+The authored Shipwright and Zelda 64: Recompiled bindings match the existing
+native settings and platform contracts. Historical definitions keep their
+loader interpretation. Indexed successors preserve the established loader
+and native settings so interrupted writes can resume with the same facts.
+
+2 Ship 2 Harkinian 5.0.1 uses `2ship2harkinian.json` and stores the names
+without extensions in the `gSettings.EnabledMods` list. Its build enables OTR
+and O2R support, and the pinned archive manager gives the last archive
+priority. The binding covers the declared managed Windows and Linux targets.
+[2Ship mod menu](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/mm/2s2h/Enhancements/ModMenu/ModMenu.cpp)
+[2Ship build flags](https://github.com/2ship2harkinian/2ship2harkinian/blob/8a24047fbce8915993804e7819f4df4fa591551f/CMakeLists.txt)
+[Pinned archive manager](https://github.com/kenix3/libultraship/blob/7cb10226e7875ec48ceec2f841d00afd84eef964/src/ship/resource/archive/ArchiveManager.cpp)
+
+Banjo: Recompiled v1.0.2 identifies its native game as `bk` and registers its
+application configuration root. Its pinned N64ModernRuntime scans that root's
+`mods` directory for NRM packages and reads `enabled_mods` and `mod_order`
+from `mods.json`. This establishes the source contract for local NRM packages
+on its declared managed platforms. The binding supplies no provider scope or
+texture-pack support.
+[Banjo v1.0.2 source](https://github.com/BanjoRecomp/BanjoRecomp/blob/ec859632cfa584e2272d32e46051543429a2baf4/src/main/main.cpp)
+[Pinned native list implementation](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/mods.cpp)
+[Pinned configuration paths](https://github.com/N64Recomp/N64ModernRuntime/blob/ca568b6ad79b9029d14077f0c3ffa757727c5559/librecomp/src/recomp.cpp)
 
 ### Reviewed mod provider bindings
 

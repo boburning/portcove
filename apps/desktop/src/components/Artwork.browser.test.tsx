@@ -246,6 +246,70 @@ describe("local artwork controls", () => {
     },
   );
 
+  async function startBackgroundPreview() {
+    let revision = 0;
+    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+      artworkState(port, slot, slot === "detail" ? revision : 0),
+    );
+    vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
+    let finish!: (image: typeof reviewedImage) => void;
+    const preview = vi
+      .mocked(desktopApi.previewLocalArtwork)
+      .mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const save = vi
+      .spyOn(desktopApi, "importArtwork")
+      .mockResolvedValue(artworkState("sample", "detail", 1, true));
+    await render("sample", 7, "old-cover");
+    await open();
+    await selectSlot("detail");
+    await expect.element(page.elementLocator(button("detail", "Choose local image"))).toBeEnabled();
+    await click("detail", "Choose local image");
+    expect(preview).toHaveBeenCalledExactlyOnceWith("sample", "E:/owned.png", 7);
+    return {
+      save,
+      refreshCatalog: async (currentRevision: number) => {
+        revision = currentRevision;
+        await render("sample", 7, "corrected-cover");
+      },
+      finishPreview: async () => {
+        await act(async () => finish(reviewedImage));
+        const review = page.getByRole("form", { name: "Review Background", exact: true });
+        await expect.element(review).toBeVisible();
+        expect(save).not.toHaveBeenCalled();
+        return review;
+      },
+    };
+  }
+
+  it("retains a local Background preview across a catalog refresh of the same choice", async () => {
+    const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
+    await refreshCatalog(0);
+    const review = await finishPreview();
+    const apply = review.getByRole("button", { name: "Apply", exact: true });
+    await expect.element(apply).toBeEnabled();
+    await apply.click();
+    expect(save).toHaveBeenCalledExactlyOnceWith("sample", "detail", "E:/owned.png", 0, 7, {
+      preview_sha256: reviewedImage.original_sha256,
+      framing: null,
+    });
+  });
+
+  it("retains a stale preview without moving focus or permitting Apply after the choice changes", async () => {
+    const { save, refreshCatalog, finishPreview } = await startBackgroundPreview();
+    await refreshCatalog(1);
+    const close = page
+      .getByRole("dialog", { name: "Change artwork" })
+      .getByRole("button", { name: "Close", exact: true });
+    await act(async () => (close.element() as HTMLElement).focus());
+    const review = await finishPreview();
+    await expect
+      .element(review.getByText("The artwork changed. Cancel and preview the image again."))
+      .toBeVisible();
+    await expect.element(review.getByRole("button", { name: "Apply", exact: true })).toBeDisabled();
+    await expect.element(close).toHaveFocus();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("requires a new preview when the selected image changes before Apply", async () => {
     vi.mocked(picker.pickArtworkPath).mockResolvedValue("E:/owned.png");
     const preview = vi.mocked(desktopApi.previewLocalArtwork).mockResolvedValueOnce(reviewedImage);
@@ -1476,7 +1540,7 @@ describe("SteamGridDB picker", () => {
       container.querySelector(".steamgriddb-picker")!.scrollIntoView({ block: "start" });
       await captureParityState("steamgriddb-game-matches");
       await click("cover", "Example Game (verified)");
-      expect(list).toHaveBeenCalledWith(42, "portrait_cover");
+      expect(list).toHaveBeenCalledWith(42, "portrait_cover", 0);
       // Choosing a match removes the list; focus moves to the way back.
       await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Back to matches"));
       await expect
@@ -1506,6 +1570,17 @@ describe("SteamGridDB picker", () => {
         .querySelector('[aria-label^="Use image by Artist 14,"]')!
         .scrollIntoView({ block: "nearest" });
       await captureParityState("steamgriddb-more-cover-candidates");
+      // Once every listed image is shown, the next provider page is requested.
+      list.mockResolvedValueOnce([candidate(15)]);
+      await click("cover", "Show more images");
+      expect(list).toHaveBeenLastCalledWith(42, "portrait_cover", 1);
+      await vi.waitFor(() =>
+        expect(container.querySelectorAll('[aria-label^="Use image by"]').length).toBe(15),
+      );
+      list.mockResolvedValueOnce([]);
+      await click("cover", "Show more images");
+      expect(list).toHaveBeenLastCalledWith(42, "portrait_cover", 2);
+      await vi.waitFor(() => expect(container.textContent).not.toContain("Show more images"));
       vi.mocked(desktopApi.artwork).mockResolvedValue(chosen);
       await act(async () =>
         container
@@ -1616,7 +1691,7 @@ describe("SteamGridDB picker", () => {
           .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       });
       expect(search).toHaveBeenCalledTimes(1);
-      expect(list.mock.calls).toEqual([[83, "portrait_cover"]]);
+      expect(list.mock.calls).toEqual([[83, "portrait_cover", 0]]);
       await act(async () => {
         vi.advanceTimersByTime(15_000);
       });
@@ -1638,8 +1713,8 @@ describe("SteamGridDB picker", () => {
       expect(container.querySelector('[aria-label^="Use image by Artist 831,"]')).not.toBeNull(),
     );
     expect(list.mock.calls).toEqual([
-      [83, "portrait_cover"],
-      [84, "portrait_cover"],
+      [83, "portrait_cover", 0],
+      [84, "portrait_cover", 0],
     ]);
     expect(choose).not.toHaveBeenCalled();
   });
@@ -1728,6 +1803,7 @@ describe("SteamGridDB picker", () => {
       expect(list).toHaveBeenCalledWith(
         55,
         slot === "landscape" ? "landscape_cover" : "hero_banner",
+        0,
       );
       await vi.waitFor(() =>
         expect(

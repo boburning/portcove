@@ -1,4 +1,9 @@
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import {
+  managedHoldFromRestrictions,
+  restrictionsFromManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
+import type { LegacyManagedHold } from "./catalog-acquisition-restrictions.mts";
 import { compactOpenXPortable, projectOpenXPortable } from "./catalog-openx-portable.mts";
 import {
   compactAlephOnePinnedWindows,
@@ -638,7 +643,15 @@ void test("shared upstream family facts stay consistent while game and permissio
   for (const { listing } of independent) {
     listing.name += listing.id;
     listing.issue_number = (listing.issue_number ?? 1) + 10000;
-    listing.download_block_reason = `An independently reviewed condition for ${listing.id}.`;
+    listing.restrictions = [
+      {
+        id: "download",
+        effect: "hold",
+        operations: ["download"],
+        reason: "package-facts-unresolved",
+        explanation: `An independently reviewed condition for ${listing.id}.`,
+      },
+    ];
     const guide = fixtureRecord(listing.manual_setup);
     const steps = fixtureRecords(guide.steps);
     requiredFixture(steps[0]).instruction = `Original-file requirements for ${listing.id}.`;
@@ -826,6 +839,14 @@ void test("authored JSON refuses duplicate decoded keys while retaining nested d
 void test("download restrictions project through the versioned directory without managed authority", () => {
   const source = readCatalogSource(catalogRoot);
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
+  const explanation = "Resolve the exact upstream permission.";
+  const hold = {
+    id: "download",
+    effect: "hold",
+    operations: ["download"],
+    reason: "third-party-component-terms",
+    explanation,
+  };
   const record = checkedAuthoredPort({
     format_version: 1,
     listing: {
@@ -833,15 +854,14 @@ void test("download restrictions project through the versioned directory without
       name: "Restricted fixture",
       summary: "An upstream project.",
       project_url: "https://example.org/project",
-      download_block_reason: "Resolve the exact upstream permission.",
+      restrictions: [hold],
     },
   });
   const projection = assembleCatalogRecords(shared, [record]);
-  assert.equal(projection.directory.format_version, 2);
-  assert.equal(
-    projection.directory.listings[0]?.download_block_reason,
-    record.listing.download_block_reason,
-  );
+  assert.equal(projection.directory.format_version, 15);
+  // Older readers keep enforcing the derived legacy string.
+  assert.equal(projection.directory.listings[0]?.download_block_reason, explanation);
+  assert.deepEqual(projection.directory.listings[0]?.restrictions, [hold]);
   assert.equal(projection.catalog.ports.length, 0);
   assert.throws(
     () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
@@ -851,34 +871,167 @@ void test("download restrictions project through the versioned directory without
   assert.ok(prepared);
   const preparedWithHold = checkedAuthoredPort({
     ...prepared,
-    listing: { ...prepared.listing, download_block_reason: record.listing.download_block_reason },
+    listing: { ...prepared.listing, restrictions: [hold] },
   });
   const preparedWithoutHold = structuredClone(preparedWithHold);
-  delete preparedWithoutHold.listing.download_block_reason;
+  delete preparedWithoutHold.listing.restrictions;
   const heldPrepared = assembleCatalogRecords(shared, [preparedWithHold]);
   const unheldPrepared = assembleCatalogRecords(shared, [preparedWithoutHold]);
-  assert.equal(
-    heldPrepared.directory.listings[0]?.download_block_reason,
-    record.listing.download_block_reason,
-  );
+  assert.equal(heldPrepared.directory.listings[0]?.download_block_reason, explanation);
   assert.deepEqual(heldPrepared.catalog.ports, unheldPrepared.catalog.ports);
   assert.partialDeepStrictEqual(heldPrepared.catalog.ports[0], {
     release: { provider: "user-prepared" },
   });
   const legacy = structuredClone(record);
-  delete legacy.listing.download_block_reason;
+  delete legacy.listing.restrictions;
   assert.equal(assembleCatalogRecords(shared, [legacy]).directory.format_version, 1);
-  for (const reason of ["", " trailing ", "line\nbreak", "x".repeat(4097), { allowed: true }]) {
+  // The legacy keys are derived and can no longer be authored.
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...legacy,
+        listing: { ...legacy.listing, download_block_reason: explanation },
+      }),
+    /download_block_reason/,
+  );
+  const withHold = (change: (restriction: Record<string, unknown>) => void, extra = {}) => {
+    const restriction: Record<string, unknown> = structuredClone(hold);
+    change(restriction);
+    return () =>
+      checkedAuthoredPort({
+        ...record,
+        listing: { ...record.listing, ...extra, restrictions: [restriction] },
+      });
+  };
+  for (const [change, pattern] of [
+    [(r: Record<string, unknown>) => (r.explanation = " trailing "), /player copy/],
+    [(r: Record<string, unknown>) => (r.explanation = "x".repeat(4097)), /player copy/],
+    [(r: Record<string, unknown>) => delete r.reason, /reason code/],
+    [(r: Record<string, unknown>) => (r.reason = "legacy-unclassified"), /reason code/],
+    [(r: Record<string, unknown>) => (r.operations = ["install"]), /outside the listing carrier/],
+    [(r: Record<string, unknown>) => (r.operations = ["remove"]), /outside the listing carrier/],
+    [(r: Record<string, unknown>) => (r.grant = true), /unknown field/],
+    [(r: Record<string, unknown>) => (r.scope = {}), /omitted when whole/],
+    [(r: Record<string, unknown>) => (r.scope = { edition: ["x"] }), /unknown dimension/],
+    [(r: Record<string, unknown>) => (r.scope = { platforms: ["amiga"] }), /platforms/],
+    [
+      (r: Record<string, unknown>) =>
+        (r.scope = { artifacts: [{ version: "v1", sha256: "ab".repeat(32) }] }),
+      /release route/,
+    ],
+    [(r: Record<string, unknown>) => (r.tracking_issue = 0), /tracking issue/],
+  ] as const)
+    assert.throws(withHold(change), pattern);
+  assert.throws(
+    withHold((r) => (r.scope = { artifacts: [{ version: "v1", sha256: "AB".repeat(32) }] }), {
+      release_url: "https://example.org/project/releases",
+    }),
+    /lowercase SHA-256/,
+  );
+  const permit = {
+    id: "reviewed",
+    effect: "permit",
+    operations: ["download"],
+    scope: { artifacts: [{ version: "v1", sha256: "ab".repeat(32), asset_name: "game.zip" }] },
+  };
+  const scoped = checkedAuthoredPort({
+    ...record,
+    listing: {
+      ...record.listing,
+      release_url: "https://example.org/project/releases",
+      restrictions: [hold, permit],
+    },
+  });
+  assert.equal(
+    assembleCatalogRecords(shared, [scoped]).directory.listings[0]?.download_block_reason,
+    explanation,
+  );
+  for (const restrictions of [
+    [permit],
+    [hold, { ...permit, operations: ["launch"] }],
+    [hold, { ...permit, scope: undefined }],
+    [hold, { ...permit, reason: "bundled-game-data" }],
+    [hold, { ...hold }],
+    [hold, { ...permit, scope: { inputs: ["source-profile"] } }],
+    [hold, { ...permit, scope: { components: [{ kind: "tool-artifact", id: "tool" }] } }],
+    [{ ...hold, operations: ["launch"] }],
+    [{ ...hold, operations: ["register-external"] }],
+  ])
+    assert.throws(() =>
+      checkedAuthoredPort({
+        ...record,
+        listing: {
+          ...record.listing,
+          release_url: "https://example.org/project/releases",
+          restrictions: structuredClone(restrictions) as never,
+        },
+      }),
+    );
+  assert.ok(source.records.length > 0);
+});
+
+void test("managed restrictions are authored typed and emitted as the unchanged legacy hold", () => {
+  const source = readCatalogSource(catalogRoot);
+  const embedded = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
+  const ports = fixtureRecords(embedded.ports);
+  let held = 0;
+  for (const record of source.records) {
+    const typed = record.integration?.acquisition_restrictions;
+    if (typed === undefined) continue;
+    held++;
+    const port = ports.find((candidate) => candidate.id === record.listing.id);
+    const hold = port?.managed_acquisition_hold;
+    assert.ok(hold, record.listing.id);
+    assert.deepEqual(restrictionsFromManagedHold(hold as LegacyManagedHold), typed);
+    assert.deepEqual(managedHoldFromRestrictions(record.listing.id, typed as never), hold);
+  }
+  assert.equal(held, 5);
+  const metroid = source.records.find(({ listing }) => listing.id === "super-metroid-recomp");
+  assert.ok(metroid?.integration);
+  const restrictions = structuredClone(metroid.integration.acquisition_restrictions) as Record<
+    string,
+    unknown
+  >[];
+  const unrepresentable = [
+    (r: Record<string, unknown>[]) => (r[0]!.tracking_issue = 164),
+    (r: Record<string, unknown>[]) => (r[0]!.scope = { platforms: ["windows-x86-64"] }),
+    (r: Record<string, unknown>[]) => (r[2]!.operations = ["install", "activate"]),
+    (r: Record<string, unknown>[]) => r.reverse(),
+  ];
+  for (const change of unrepresentable) {
+    const changed = structuredClone(restrictions);
+    change(changed);
     assert.throws(
       () =>
         checkedAuthoredPort({
-          ...record,
-          listing: { ...record.listing, download_block_reason: reason },
+          ...metroid,
+          integration: { ...metroid.integration, acquisition_restrictions: changed },
         }),
-      /download restriction/,
+      /cannot yet be delivered/,
     );
   }
-  assert.ok(source.records.length > 0);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...metroid,
+        integration: {
+          ...metroid.integration,
+          acquisition_restrictions: [
+            { ...restrictions[0], operations: ["download", "launch"] },
+            ...restrictions.slice(1),
+          ],
+        },
+      }),
+    /outside the integration carrier/,
+  );
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...metroid,
+        integration: { ...metroid.integration, managed_acquisition_hold: {} },
+      }),
+    /managed_acquisition_hold is derived/,
+  );
 });
 
 void test("authoring split preserves unknown metadata and ordered operational arrays", () => {
@@ -911,6 +1064,46 @@ void test("typed IGDB scenes project to listing format 13 without changing stric
     const presentation = projection.catalog.ports[0]?.presentation as Record<string, unknown>;
     assert.deepEqual(presentation.media, strict.length ? strict : undefined);
   }
+});
+
+void test("verified source identities belong only in the format 14 listing", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const binding = {
+    game_id: "source-game",
+    variant_id: "original-retail",
+    representation_id: "original-file",
+  };
+  const edition = {
+    id: "retail",
+    title: "Original retail",
+    evidence_urls: ["https://example.com/original"],
+    verified_sources: [binding],
+  };
+  const listing = {
+    ...authored.listing,
+    original_game: {
+      format_version: 1 as const,
+      id: "original-game",
+      evidence_urls: ["https://example.com/game"],
+      source_editions: [edition],
+    },
+  };
+  const result = assembleCatalogRecords(shared, [{ ...authored, listing }]);
+  const presentation = result.catalog.ports[0]?.presentation as Record<string, unknown>;
+  assert.equal(result.directory.format_version, 14);
+  assert.deepEqual(result.directory.listings[0]?.original_game, listing.original_game);
+  const { verified_sources: _sources, ...legacyEdition } = edition;
+  assert.deepEqual(presentation.original_game, {
+    ...listing.original_game,
+    source_editions: [legacyEdition],
+  });
+  edition.verified_sources.push(binding);
+  assert.throws(
+    () => assembleCatalogRecords(shared, [{ ...authored, listing }]),
+    /Duplicate verified source binding/,
+  );
 });
 
 void test("inherits only reviewed descriptive selectors for the same package scope", () => {
@@ -1042,8 +1235,7 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries implementation descriptions (format 12); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 12);
+  assert.equal(projected.directory.format_version, source.directory.format_version);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -1173,7 +1365,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 12);
+  assert.equal(source.directory.format_version, 15);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -1311,8 +1503,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; implementation descriptions lift the real directory to 12.
-  assert.equal(assembled.directory.format_version, 12);
+  assert.equal(assembled.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -1331,7 +1522,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 12);
+  assert.equal(combined.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -2112,7 +2303,10 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.adapter, before.adapter);
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
-  assert.equal(source.directory.format_version, 12);
+  const implementationOnly = structuredClone(record);
+  delete implementationOnly.listing.media;
+  const { ports: _ports, ...shared } = source.catalog;
+  assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);
   const dependency = record.listing.implementation.dependencies[0]!;
   for (const invalid of [
     { ...record.listing.implementation, format_version: 999 },

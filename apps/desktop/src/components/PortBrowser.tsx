@@ -96,6 +96,7 @@ import type {
 } from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
 import { useArtwork, useArtworkVisibility } from "../artwork";
+import { ReleaseWithdrawalBadge } from "./ReleaseWithdrawal";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 import { Menu } from "@base-ui/react/menu";
@@ -1334,7 +1335,7 @@ function LibraryEntry({
   organizationMenu: ReactNode;
 }) {
   const { element: artworkElement, visible, priority } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(presentationPort.id, "cover", visible, priority);
+  const { display: artwork } = useArtwork(port.id, "cover", visible, priority);
   const artworkNotice = artworkDisplayNotice(artwork);
   const title = gameTitle(presentationPort);
   const project = gameProjectLabel(port);
@@ -1366,7 +1367,7 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
-            portId={presentationPort.id}
+            portId={port.id}
             visible={visible}
             priority={priority}
             identityArtwork
@@ -1483,6 +1484,7 @@ function PortCardStatus({
           : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
+      <ReleaseWithdrawalBadge status={status} />
       {!taskPrimary && canLaunch && status?.external_runtime && (
         <ExternalLaunchWarnings portId={port.id} status={status} />
       )}
@@ -2113,7 +2115,7 @@ function BrowserCollectionTools({
         <CatalogFilters
           before={before}
           after={after}
-          advanced={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
+          readiness={model.composedLibrary ? <BrowserFilterControls model={model} /> : undefined}
           summary={summary}
           gameFileQuery={model.gameFileQuery}
           view={model.view === "library" ? "library" : "catalog"}

@@ -4,7 +4,9 @@ use super::*;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 
-const MAX_INSTALLS: usize = 16;
+/// The finite bound for a transition is its durable intent document, which
+/// records one fence per retained installation; there is no separate count.
+const MAX_INTENT_BYTES: usize = 8 * 1024 * 1024;
 const MANIFEST_LIMIT: u64 = 16 * 1024 * 1024;
 type FrozenCanonical = std::collections::BTreeMap<PathBuf, serde_json::Value>;
 
@@ -75,7 +77,7 @@ fn write_owned(root: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf> {
 
 fn store_intent(root: &Path, intent: &Intent) -> Result<PathBuf> {
     let bytes = serde_json::to_vec(intent)?;
-    if bytes.len() > 8 * 1024 * 1024 {
+    if bytes.len() > MAX_INTENT_BYTES {
         return Err(held("transition intent exceeds its finite metadata bound"));
     }
     write_owned(
@@ -243,8 +245,10 @@ impl PortcoveService {
             .filter(|i| i.port_id == port_id)
             .collect::<Vec<_>>();
         installs.sort_by(|a, b| a.id.cmp(&b.id));
-        if installs.is_empty() || installs.len() > MAX_INSTALLS {
-            return Err(held("retained copies exceed this bounded data transition"));
+        if installs.is_empty() {
+            return Err(held(
+                "this data transition has no retained copy to preserve",
+            ));
         }
         let installer = Installer::new(self.library.clone())?;
         let user = self.library.user_dir(port_id);
@@ -445,7 +449,7 @@ impl PortcoveService {
         refuse_symlink_ancestors(&root)?;
         let bytes = crate::external_runtime::read_stable_metadata(
             &operation.original_paths[0],
-            8 * 1024 * 1024,
+            MAX_INTENT_BYTES as u64,
         )?;
         if operation.original_paths[0]
             .file_name()
@@ -460,7 +464,6 @@ impl PortcoveService {
             || operation.activate != intent.review.canonical_existed
             || intent.fences.len() != intent.review.installs.len()
             || intent.fences.is_empty()
-            || intent.fences.len() > MAX_INSTALLS
             || operation
                 .install
                 .as_ref()

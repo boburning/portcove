@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
+  artworkState,
   fixtureValue,
   installedLaunchStatus,
   portDefinition,
@@ -22,6 +23,7 @@ import { GroupedLibrary } from "./GroupedLibrary";
 import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
 import { desktopApi } from "../../api";
+import { ArtworkProvider } from "../../artwork";
 import { useOrganization } from "../organization/use-organization";
 import type { useFavorites } from "../favorites/use-favorites";
 import { PortBrowser } from "../../components/PortBrowser";
@@ -1351,6 +1353,97 @@ it.each([
     expect(commit).not.toHaveBeenCalled();
   },
 );
+
+it("shows the installed port's Cover on a grouped Library card", async () => {
+  const sibling = {
+    ...first,
+    presentation: {
+      ...first.presentation,
+      installation_method: "portable-package" as const,
+      saves_and_settings: "portcove-managed" as const,
+      source_requirements: [],
+    },
+  };
+  const selected = {
+    ...second,
+    presentation: { ...sibling.presentation, original_game_title: "Regional alias" },
+  };
+  const catalog = { schema_version: 2, ports: [sibling, selected] };
+  const generation = 7;
+  const revision = 3;
+  const image = document.createElement("canvas");
+  image.width = 2;
+  image.height = 3;
+  const paint = fixtureValue(image.getContext("2d"), "fixture Cover canvas");
+  paint.fillStyle = "#176799";
+  paint.fillRect(0, 0, image.width, image.height);
+  const bytes = fixtureValue(image.toDataURL("image/png").split(",")[1], "fixture Cover");
+  const readArtwork = vi
+    .spyOn(desktopApi, "artwork")
+    .mockImplementation(async (id, slot) =>
+      artworkState(
+        id,
+        slot,
+        id === selected.id ? revision : 0,
+        id === selected.id && slot === "cover",
+      ),
+    );
+  const readThumbnail = vi
+    .spyOn(desktopApi, "artworkThumbnail")
+    .mockImplementation(async (_id, _slot, choiceRevision) => ({
+      asset_sha256: "a".repeat(64),
+      choice_revision: choiceRevision,
+      png_base64: bytes,
+    }));
+  const status = installedLaunchStatus();
+  await render(
+    <ArtworkProvider generation={generation} catalog={catalog}>
+      <PortBrowser
+        view="library"
+        collectionLayout="covers"
+        catalogUniverse={catalog.ports}
+        ports={[selected]}
+        statuses={
+          new Map([
+            [
+              selected.id,
+              { ...status, port_id: selected.id, active: { ...install, port_id: selected.id } },
+            ],
+          ])
+        }
+        libraryCount={1}
+        overview={{ installed: 1, ready: 1, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={vi.fn()}
+        loading={false}
+        onSelect={vi.fn()}
+      />
+    </ArtworkProvider>,
+  );
+
+  const card = page.getByRole("button", { name: "View details for Original game Second project" });
+  await expect.element(card).toBeVisible();
+  const selector = '[data-artwork-source="local_import"] img';
+  await expect
+    .poll(() => card.element().querySelector<HTMLImageElement>(selector)?.naturalHeight)
+    .toBe(3);
+  const displayed = card.element().querySelector<HTMLImageElement>(selector);
+  expect(displayed?.closest("[data-artwork-port-id]")?.getAttribute("data-artwork-port-id")).toBe(
+    selected.id,
+  );
+  expect(readArtwork.mock.calls.some(([id, role]) => id === first.id && role === "cover")).toBe(
+    false,
+  );
+  expect(
+    readThumbnail.mock.calls.some(
+      ([id, role, choiceRevision, currentGeneration]) =>
+        id === selected.id &&
+        role === "cover" &&
+        choiceRevision === revision &&
+        currentGeneration === generation,
+    ),
+  ).toBe(true);
+});
 
 async function renderFilteredUnifiedFavorite(view: "catalog" | "library") {
   const selected = {

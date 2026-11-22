@@ -386,6 +386,7 @@ type ArtworkVisibilityReview = ArtworkReviewTarget & { action: "hide" | "automat
 type ArtworkImageReview = ArtworkReviewTarget & {
   originalSha256: string;
   previewChanged?: boolean;
+  preserveFocus?: boolean;
   image: string;
   framing: ArtworkFraming | null;
   source:
@@ -442,10 +443,11 @@ function ArtworkSlotControl({
     target: HTMLButtonElement | null;
     cache: typeof cache;
   } | null>(null);
-  const currentIdentity = useRef({ cache, portId: port.id, slot });
+  const originalGameId = port.presentation?.original_game?.id;
+  const currentIdentity = useRef({ cache, portId: port.id, originalGameId, slot });
   useLayoutEffect(() => {
-    currentIdentity.current = { cache, portId: port.id, slot };
-  }, [cache, port.id, slot]);
+    currentIdentity.current = { cache, portId: port.id, originalGameId, slot };
+  }, [cache, port.id, originalGameId, slot]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -510,19 +512,24 @@ function ArtworkSlotControl({
     source: ArtworkImageReview["source"],
     revision: number,
     preview: ArtworkSelectionPreview,
+    preserveFocus = false,
   ) => {
-    if (!cache || !stillCurrent()) return;
+    const owner = currentIdentity.current.cache;
+    if (!owner || !stillInView() || currentIdentity.current.originalGameId !== originalGameId)
+      return false;
     const choice = display.state?.choice;
     setDraft({
       portId: port.id,
-      owner: cache,
+      owner,
       revision,
       originalSha256: preview.original_sha256,
+      preserveFocus,
       image: `data:image/png;base64,${preview.png_base64}`,
       framing:
         choice && choice.asset_sha256 === preview.original_sha256 ? (choice.framing ?? null) : null,
       source,
     });
+    return true;
   };
 
   const finishChange = (target: HTMLButtonElement | null, restoreFocus = true, owner = cache) => {
@@ -536,6 +543,7 @@ function ArtworkSlotControl({
   const chooseLocal = async () => {
     if (!cache || !display.state || busy.current) return;
     const revision = display.state.choice.revision;
+    const initiator = document.activeElement;
     let staged = false;
     busy.current = true;
     returnFocus.current = null;
@@ -546,9 +554,16 @@ function ArtworkSlotControl({
       const path = await pickArtworkPath();
       if (!stillCurrent() || !path) return;
       const preview = await desktopApi.previewLocalArtwork(port.id, path, cache.generation);
-      if (!stillCurrent()) return;
-      stageImage({ kind: "local", path }, revision, preview);
-      staged = true;
+      // Keep the completed preview across a cache refresh. Apply still needs the
+      // original revision from the current cache, and review respects moved focus.
+      const focused = document.activeElement;
+      const preserveFocus = Boolean(
+        !stillCurrent() &&
+        focused?.isConnected &&
+        focused !== document.body &&
+        focused !== initiator,
+      );
+      staged = stageImage({ kind: "local", path }, revision, preview, preserveFocus);
     } catch (value) {
       if (stillCurrent()) setError(errorText(value));
     } finally {
@@ -632,8 +647,7 @@ function ArtworkSlotControl({
         cache.generation,
       );
       if (!stillCurrent()) return;
-      stageImage({ kind: "provider", gameId, candidate, trigger }, revision, preview);
-      staged = true;
+      staged = stageImage({ kind: "provider", gameId, candidate, trigger }, revision, preview);
     } catch (value) {
       if (stillCurrent()) setError(steamGridDbErrorText(value));
     } finally {
@@ -902,6 +916,7 @@ function ArtworkSlotControl({
             previewActions={previewActions}
             sourceLabel={sourceLabel}
             initialFraming={draft.framing}
+            focusHeading={!draft.preserveFocus}
             pending={pending}
             stale={Boolean(draft.previewChanged) || !draftIsCurrent(draft)}
             onApply={(framing) => void applyImage(draft, framing)}
@@ -913,6 +928,7 @@ function ArtworkSlotControl({
             label={label}
             image={draft.image}
             sourceLabel={sourceLabel ?? t("artwork.reviewLocalImage")}
+            focusHeading={!draft.preserveFocus}
             pending={pending}
             stale={!draftIsCurrent(draft)}
             previewChanged={Boolean(draft.previewChanged)}
@@ -978,6 +994,7 @@ function ImageSelectionReview({
   label,
   image,
   sourceLabel,
+  focusHeading,
   pending,
   stale,
   previewChanged,
@@ -987,6 +1004,7 @@ function ImageSelectionReview({
   label: string;
   image: string;
   sourceLabel: string;
+  focusHeading: boolean;
   pending: boolean;
   stale: boolean;
   previewChanged: boolean;
@@ -1002,8 +1020,8 @@ function ImageSelectionReview({
   const [preview, setPreview] = useState<"loading" | "ready" | "failed">("loading");
   const canApply = !pending && !stale && !previewChanged && preview === "ready";
   useLayoutEffect(() => {
-    if (!heading.current?.closest("[inert], [hidden]")) heading.current?.focus();
-  }, []);
+    if (focusHeading && !heading.current?.closest("[inert], [hidden]")) heading.current?.focus();
+  }, [focusHeading]);
   useLayoutEffect(() => {
     if (pending || !submitted.current) return;
     submitted.current = false;

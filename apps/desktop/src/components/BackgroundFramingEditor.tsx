@@ -21,6 +21,7 @@ export function BackgroundFramingEditor({
   previewActions,
   sourceLabel,
   initialFraming,
+  focusHeading,
   pending,
   stale,
   onApply,
@@ -32,6 +33,7 @@ export function BackgroundFramingEditor({
   previewActions?: Partial<Record<BackgroundPreviewProps["layout"], string>> | undefined;
   sourceLabel?: string | undefined;
   initialFraming: ArtworkFraming | null;
+  focusHeading: boolean;
   pending: boolean;
   stale: boolean;
   onApply: (framing: ArtworkFraming | null) => void;
@@ -45,8 +47,8 @@ export function BackgroundFramingEditor({
   const [framing, setFraming] = useState(initialFraming);
   const [imageFailed, setImageFailed] = useState(false);
   useLayoutEffect(() => {
-    if (!heading.current?.closest("[inert], [hidden]")) heading.current?.focus();
-  }, []);
+    if (focusHeading && !heading.current?.closest("[inert], [hidden]")) heading.current?.focus();
+  }, [focusHeading]);
   useLayoutEffect(() => {
     if (pending || !restoreApplyFocus.current) return;
     restoreApplyFocus.current = false;

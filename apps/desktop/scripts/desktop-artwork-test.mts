@@ -237,7 +237,9 @@ export async function artworkScenario({
         assert.equal(actual.palette, actual.expectedPalette);
         assert.equal(actual.background, actual.expectedBackground);
       };
-      const expectHeroText = async () => {
+      const expectOverviewTextAndReturn = async () => {
+        await closeEditor();
+        await revealDetailSection(browser, "Overview");
         const hero = await browser.wait(until.elementLocated(By.css(".game-hero-detail")), 10_000);
         await executeBrowserScript(
           browser,
@@ -254,6 +256,7 @@ export async function artworkScenario({
                 const heading = hero?.querySelector("#port-detail-title");
                 return (
                   hero?.getAttribute("data-hero-identity") === "text" &&
+                  !hero.hasAttribute("data-hero-compact") &&
                   !hero.querySelector('[data-loading="true"]') &&
                   !hero.querySelector(".game-hero-image") &&
                   heading?.textContent?.trim() === expectedTitle &&
@@ -267,6 +270,9 @@ export async function artworkScenario({
           10_000,
           "Missing cover must retain the real game heading and primary action without a decorative image",
         );
+        await revealDetailSection(browser, "Manage");
+        await openEditor();
+        await activateSlot("cover");
       };
       const open = async () => {
         await observations.capture("before-reload");
@@ -307,15 +313,16 @@ export async function artworkScenario({
         await selectCatalogPort(browser, port.id);
         await revealDetailSection(browser, "Manage");
         await openEditor();
-        // The slot controls mount inside the modal; locate before requiring a choice.
+        // A reload can mount the Cover controls before its Core artwork read starts.
         await browser.wait(
-          until.elementIsEnabled(
-            await browser.wait(
-              until.elementLocated(control("cover", "Choose local image")),
-              10_000,
-            ),
-          ),
-          10_000,
+          async () => {
+            const [picker] = await browser.findElements(control("cover", "Choose local image"));
+            return (
+              picker !== undefined && (await picker.isDisplayed()) && (await picker.isEnabled())
+            );
+          },
+          45_000,
+          "The same Cover editor must finish loading and enable Choose local image",
         );
       };
       await open();
@@ -402,7 +409,7 @@ export async function artworkScenario({
       assert.equal(before.generated_fallback.style_version, 1);
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       const stale = object(
         await invoke("reset_artwork", {
           portId,
@@ -446,8 +453,9 @@ export async function artworkScenario({
         );
         if (slot === "detail") {
           const narrow = await browser.wait(
-            until.elementLocated(By.css('input[type="range"][name="narrow-x"]')),
-            10_000,
+            until.elementLocated(By.css('input[type="range"][name="narrow-x"]:enabled')),
+            30_000,
+            "The reviewed Background framing control did not become actionable",
           );
           assert.deepEqual(await state(slot), previous);
           await narrow.sendKeys(Key.END);
@@ -510,11 +518,55 @@ export async function artworkScenario({
           60_000,
           "The artwork editor must settle after the committed role is read back",
         );
-        await browser.wait(
-          () =>
-            executeBrowserScript(browser, (element) => document.activeElement === element, picker),
-          5000,
-        );
+        try {
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                (element) => document.activeElement === element,
+                picker,
+              ),
+            5_000,
+            "Artwork focus did not return to the edited slot's picker after Apply",
+          );
+        } catch (error) {
+          try {
+            const focus = await executeBrowserScript(
+              browser,
+              (label) => {
+                const dialog = document.querySelector<HTMLDialogElement>(
+                  "dialog.artwork-sheet[open]",
+                );
+                const panel = dialog?.querySelector('section[aria-label="' + label + '"]');
+                const pickers = [...(panel?.querySelectorAll("button") ?? [])].filter(
+                  (button) => button.textContent?.trim() === "Choose local image",
+                );
+                const active = document.activeElement;
+                return {
+                  windowFocused: document.hasFocus(),
+                  activeTag: active?.tagName,
+                  activeRole: active?.getAttribute("role"),
+                  activeLabel:
+                    active instanceof HTMLButtonElement
+                      ? active.textContent?.trim().slice(0, 120)
+                      : undefined,
+                  activeInEditor: Boolean(active && dialog?.contains(active)),
+                  editorOpen: Boolean(dialog),
+                  pickerCount: pickers.length,
+                  pickerFocused: pickers.some((button) => button === active),
+                  pickerDisabled: pickers[0]?.disabled,
+                };
+              },
+              slotLabel(slot),
+            );
+            const evidence = path.join(output, "artwork-return-focus-" + slot + ".json");
+            await writeFile(evidence, JSON.stringify(focus, null, 2), { flag: "wx" });
+            artifacts.push(evidence);
+          } catch (diagnosticError) {
+            console.error("Artwork focus diagnostic unavailable", errorMessage(diagnosticError));
+          }
+          throw error;
+        }
       }
       await waitForArtworkImage(browser, ".wide-artwork img");
       const sheetScreenshot = path.join(output, "native-change-artwork-sheet.png");
@@ -524,7 +576,8 @@ export async function artworkScenario({
       });
       artifacts.push(sheetScreenshot);
       await closeEditor();
-      // Reveal the always-mounted hero before waiting for its lazy foreground.
+      // Manage keeps the compact header. Overview renders the lazy foreground.
+      await revealDetailSection(browser, "Overview");
       await waitForArtworkImage(
         browser,
         ".game-hero-detail .game-hero-foreground img",
@@ -599,6 +652,7 @@ export async function artworkScenario({
         }
       }
       if (titleRestoreFailure) throw titleRestoreFailure.error;
+      await revealDetailSection(browser, "Manage");
       await openEditor();
       await activateSlot("cover");
       const reviewApply = By.xpath(
@@ -611,7 +665,7 @@ export async function artworkScenario({
       const hidden = await state("cover");
       assert.equal(hidden.choice.asset_sha256, null);
       assert.equal(hidden.resolved_source.kind, "generated_fallback");
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
       await click(control("cover", "Use automatic"));
       assert.deepEqual(await state("cover"), hidden);
@@ -625,7 +679,7 @@ export async function artworkScenario({
       assert.notEqual(reset.choice.suppressed, true);
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);
@@ -641,7 +695,8 @@ export async function artworkScenario({
             (await browser.findElement(editor))
               .getText()
               .then((text) => text.includes("choice has been retained")),
-          10_000,
+          45_000,
+          "The exact Background refresh must expose the retained choice after the Core read",
         );
         unavailable = await state("detail");
         assert.equal(unavailable.availability, "unavailable");
