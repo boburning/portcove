@@ -347,6 +347,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-managed-copy-result",
+    "A reviewed managed copy replaces an external registration while preserving its files, retains the exact completion, and opens only that installation without launching.",
+    {
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
+      source: "desktop-install-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-update-acquisition-lifecycle",
     "Real immutable transfers coexist with owned Play, fresh exclusive apply/prepare reuse exact archives, the activating update keeps one labelled automatic snapshot shown in history, restore review, rollback and Settings, a real Restore previous version then keeps saves and one labelled rollback snapshot, and retained cancellation is discarded after reviewed uninstall.",
     {
@@ -707,6 +717,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     { source: "desktop-default-cover-test.mts", qualification_only: true },
   ),
   scenario(
+    "native-reviewed-screenshot-display",
+    "Compare native gallery thumbnails with the exact admitted screenshot bytes.",
+    {
+      source: "desktop-default-cover-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-default-cover-display",
     "Accepted IGDB covers render in Catalog and details without client credentials.",
     {
@@ -863,6 +882,11 @@ export function resolveDesktopSelection({
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
     throw new Error("native-update-acquisition-lifecycle requires one standalone Windows scenario");
+  if (
+    uniqueRequested.includes("native-managed-copy-result") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-managed-copy-result requires one standalone Windows scenario");
   if (uniqueRequested.includes("native-preliminary-selected-setup")) {
     if (uniqueRequested.length !== 1)
       throw new Error("native-preliminary-selected-setup requires one exact standalone scenario");
@@ -994,6 +1018,11 @@ export function resolveDesktopSelection({
     uniqueRequested.length !== 1
   )
     throw new Error("native-closed-preparation-recovery requires one exact standalone scenario");
+  if (
+    uniqueRequested.includes("native-reviewed-screenshot-display") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-reviewed-screenshot-display requires one standalone Windows scenario");
   const nonRunnable = uniqueRequested.filter((id) => !requireDesktopScenario(id).runnable);
   if (!selectedProfile && nonRunnable.length)
     throw new Error(`${nonRunnable.join(", ")} is an acceptance gap, not a runnable scenario`);
@@ -1072,6 +1101,13 @@ export function desktopHarnessDeadlineMs(
   // restart before the 180 s watchdog stopped the driver. Allow time to check
   // the saved preferences after restart and join the owned processes.
   if (selection.selected_scenarios.includes("native-startup-preferences-recovery")) return 360_000;
+  // Job 137029359741 completed both themes' cover and row focus transitions.
+  // Give this standalone run time for its remaining compact checks and cleanup.
+  if (
+    selection.selected_scenarios.length === 1 &&
+    selection.selected_scenarios[0] === "native-library-layout"
+  )
+    return 300_000;
   // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
   if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Six public collection previews, two themes, compact capture and owned native exit.
@@ -1080,10 +1116,9 @@ export function desktopHarnessDeadlineMs(
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
-  // Calibrated from 180 s (#4879): with its waits calibrated for the debug build,
-  // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
-  // 180 s watchdog left no room for failure capture and cleanup. Harness only.
-  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
+  // Linux job 137029418197 had confirmed the exact preparation result when
+  // the 600 s watchdog cut off the remaining readback, restart and cleanup.
+  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 900_000;
   // Saved-source scan, two bounded installs, one fresh-session read and cleanup.
   if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) return 600_000;
   if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
@@ -1109,6 +1144,7 @@ export function desktopHarnessDeadlineMs(
   // finish first. Harness only; product deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-update-acquisition-lifecycle"))
     return 1_200_000;
+  if (selection.selected_scenarios.includes("native-managed-copy-result")) return 600_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
@@ -1125,6 +1161,8 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
+    // Native gallery opens live typed screenshots, verifies cached bytes and restores focus.
+    selection.selected_scenarios.includes("native-reviewed-screenshot-display") ? 600_000 : 0,
     // Linux keyboard fixture readiness has two finite 90s phases; retain room
     // for real keyboard controls and owned cleanup without changing predicates.
     selection.selected_scenarios.includes("keyboard-layout") ? 360_000 : 0,

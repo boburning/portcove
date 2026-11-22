@@ -51,7 +51,9 @@ pub struct LibraryRecoveryBundle {
 #[serde(deny_unknown_fields)]
 pub struct LibraryRecoveryRestorePlan {
     pub bundle: LibraryRecoveryBundle,
-    pub import: LibraryImportPlan,
+    pub destination_root: PathBuf,
+    pub required_bytes: u64,
+    pub available_bytes: u64,
     pub plan_sha256: String,
 }
 
@@ -131,41 +133,7 @@ impl PortcoveService {
         path: &Path,
         destination: &Path,
     ) -> Result<LibraryRecoveryRestorePlan> {
-        let (bundle, manifest) = inspect(path)?;
-        let import = Self::plan_library_import(
-            &bundle.path.join(METADATA_FILE),
-            &bundle.path.join(CONTENT_DIR),
-            destination,
-        )?;
-        if [&bundle.path, &import.metadata.original_root]
-            .iter()
-            .any(|root| {
-                import.destination_root.starts_with(root)
-                    || root.starts_with(&import.destination_root)
-            })
-        {
-            return Err(PortcoveError::usage(
-                "recovery destination must be separate from the bundle and its source library",
-            ));
-        }
-        if import.metadata_file.sha256 != manifest.metadata_sha256
-            || serde_json::to_value(&import.content)? != serde_json::to_value(&manifest.content)?
-        {
-            return Err(PortcoveError::verification(
-                "bundle content changed while reviewing recovery",
-            ));
-        }
-        let plan_sha256 = sha256(&serde_json::to_vec(&(
-            "portcove-library-recovery-restore-v1",
-            &bundle.path,
-            &bundle.receipt_sha256,
-            &import.plan_sha256,
-        ))?);
-        Ok(LibraryRecoveryRestorePlan {
-            bundle,
-            import,
-            plan_sha256,
-        })
+        prepare_restore(path, destination).map(|(review, _)| review)
     }
 
     pub fn restore_library_recovery_bundle(
@@ -173,7 +141,7 @@ impl PortcoveService {
         destination: &Path,
         expected_plan: &str,
     ) -> Result<LibraryImportResult> {
-        let review = Self::plan_library_recovery_restore(path, destination)?;
+        let (review, import) = prepare_restore(path, destination)?;
         if review.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
                 "recovery bundle or restore destination changed; review recovery again",
@@ -181,13 +149,62 @@ impl PortcoveService {
         }
         // Import owns all mutation, recovery, and publication of the restored
         // root. Its content-bound journal can be resumed without a second owner.
-        Self::import_library(
-            &review.import.metadata_file.path,
-            &review.import.content_root,
-            &review.import.destination_root,
-            &review.import.plan_sha256,
-        )
+        let path = import.destination_root.clone();
+        crate::import_execution::start_reviewed_import(import, Some(&review.bundle), &|phase| {
+            #[cfg(feature = "qualification-fixtures")]
+            if phase == crate::transfer_journal::TransferPhase::Published {
+                return crate::qualification_checkpoint::observe(
+                    &path,
+                    crate::qualification_checkpoint::Checkpoint::LibraryImportPublished,
+                );
+            }
+            let _ = (&path, phase);
+            Ok(())
+        })
     }
+}
+
+fn prepare_restore(
+    path: &Path,
+    destination: &Path,
+) -> Result<(LibraryRecoveryRestorePlan, LibraryImportPlan)> {
+    let (bundle, manifest) = inspect(path)?;
+    let import = PortcoveService::plan_library_import(
+        &bundle.path.join(METADATA_FILE),
+        &bundle.path.join(CONTENT_DIR),
+        destination,
+    )?;
+    if [&bundle.path, &import.metadata.original_root]
+        .iter()
+        .any(|root| {
+            import.destination_root.starts_with(root) || root.starts_with(&import.destination_root)
+        })
+    {
+        return Err(PortcoveError::usage(
+            "recovery destination must be separate from the bundle and its source library",
+        ));
+    }
+    if import.metadata_file.sha256 != manifest.metadata_sha256
+        || serde_json::to_value(&import.content)? != serde_json::to_value(&manifest.content)?
+    {
+        return Err(PortcoveError::verification(
+            "bundle content changed while reviewing recovery",
+        ));
+    }
+    let plan_sha256 = sha256(&serde_json::to_vec(&(
+        "portcove-library-recovery-restore-v1",
+        &bundle.path,
+        &bundle.receipt_sha256,
+        &import.plan_sha256,
+    ))?);
+    let review = LibraryRecoveryRestorePlan {
+        bundle,
+        destination_root: import.destination_root.clone(),
+        required_bytes: import.required_bytes,
+        available_bytes: import.available_bytes,
+        plan_sha256,
+    };
+    Ok((review, import))
 }
 
 fn start_creation(
@@ -724,6 +741,73 @@ mod tests {
         assert_eq!(
             fs::metadata(destination).unwrap().permissions().mode() & 0o077,
             0
+        );
+    }
+
+    #[test]
+    fn bundle_resume_requires_its_receipt_until_publication_and_refuses_manual_imports() {
+        use crate::transfer_journal::TransferPhase;
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let bundle = PortcoveService::create_library_recovery_bundle(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap();
+        let restore_root = workspace.path().join("restored");
+        let manual_root = workspace.path().join("manual");
+        let (_, manual_plan) = prepare_restore(&bundle.path, &manual_root).unwrap();
+        let interrupt = |phase| {
+            if phase == TransferPhase::Copying {
+                return Err(PortcoveError::state("fixture interruption before copy"));
+            }
+            Ok(())
+        };
+        crate::import_execution::start_reviewed_import(manual_plan, None, &interrupt).unwrap_err();
+        assert!(PortcoveService::resume_library_recovery_restore(&manual_root, None).is_err());
+
+        let (_, restore_plan) = prepare_restore(&bundle.path, &restore_root).unwrap();
+        crate::import_execution::start_reviewed_import(restore_plan, Some(&bundle), &interrupt)
+            .unwrap_err();
+        assert!(PortcoveService::resume_library_import(&restore_root).is_err());
+        assert!(
+            PortcoveService::resume_library_recovery_restore(&restore_root, Some("other-restore"))
+                .is_err()
+        );
+        let manifest = bundle.path.join(MANIFEST_FILE);
+        let original = fs::read(&manifest).unwrap();
+        fs::write(&manifest, b"tampered receipt").unwrap();
+        assert!(PortcoveService::resume_library_recovery_restore(&restore_root, None).is_err());
+        assert!(Library::open(&restore_root).is_err());
+        fs::write(&manifest, original).unwrap();
+        let restored =
+            PortcoveService::resume_library_recovery_restore(&restore_root, None).unwrap();
+        assert!(restored.completed);
+
+        let published_root = workspace.path().join("published-restore");
+        let (_, publish_plan) = prepare_restore(&bundle.path, &published_root).unwrap();
+        crate::import_execution::start_reviewed_import(publish_plan, Some(&bundle), &|phase| {
+            if phase == TransferPhase::Published {
+                return Err(PortcoveError::state(
+                    "fixture interruption after publication",
+                ));
+            }
+            Ok(())
+        })
+        .unwrap_err();
+        fs::rename(&bundle.path, workspace.path().join("offline-bundle")).unwrap();
+        assert!(
+            PortcoveService::resume_library_recovery_restore(&published_root, None)
+                .unwrap()
+                .completed
+        );
+        assert!(
+            PortcoveService::resume_library_recovery_restore(&restore_root, None)
+                .unwrap()
+                .completed
         );
     }
 }

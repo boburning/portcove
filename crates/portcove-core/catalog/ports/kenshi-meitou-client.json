@@ -34,7 +34,16 @@
       ],
       "help_url": "https://github.com/VlcekM/MeitouClient/releases/tag/launcher-v1.15.0"
     },
-    "download_block_reason": "Use the linked Meitou Launcher release for the Windows, Linux or Mac launcher. The publisher also ships separate game builds and updater data.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the linked Meitou Launcher release for the Windows, Linux or Mac launcher. The publisher also ships separate game builds and updater data.",
+        "tracking_issue": 6062
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "kenshi",

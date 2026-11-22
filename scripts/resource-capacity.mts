@@ -914,13 +914,18 @@ export function readResourceProbe(code: string, args: readonly string[], timeout
 }
 
 const defaultSourceScanTimeoutMs = 30_000;
+const maximumSourceScanTimeoutSeconds = 480;
 
 function sourceScanTimeoutMs(environment: NodeJS.ProcessEnv) {
   const value = environment.PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS;
   if (value === undefined) return defaultSourceScanTimeoutMs;
-  if (!/^[1-9][0-9]{1,2}$/u.test(value) || Number(value) < 30 || Number(value) > 120)
+  if (
+    !/^[1-9][0-9]{1,2}$/u.test(value) ||
+    Number(value) < 30 ||
+    Number(value) > maximumSourceScanTimeoutSeconds
+  )
     throw new Error(
-      "PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS must be an integer from 30 to 120",
+      `PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS must be an integer from 30 to ${maximumSourceScanTimeoutSeconds}`,
     );
   return Number(value) * 1000;
 }

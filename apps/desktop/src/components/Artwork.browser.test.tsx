@@ -1105,7 +1105,7 @@ describe("SteamGridDB picker", () => {
       container.querySelector(".steamgriddb-picker")!.scrollIntoView({ block: "start" });
       await captureParityState("steamgriddb-game-matches");
       await click("cover", "Example Game (verified)");
-      expect(list).toHaveBeenCalledWith(42, "portrait_cover");
+      expect(list).toHaveBeenCalledWith(42, "portrait_cover", 0);
       // Choosing a match removes the list; focus moves to the way back.
       await vi.waitFor(() => expect(document.activeElement?.textContent).toBe("Back to matches"));
       await expect
@@ -1135,6 +1135,17 @@ describe("SteamGridDB picker", () => {
         .querySelector('[aria-label^="Use image by Artist 14,"]')!
         .scrollIntoView({ block: "nearest" });
       await captureParityState("steamgriddb-more-cover-candidates");
+      // Once every listed image is shown, the next provider page is requested.
+      list.mockResolvedValueOnce([candidate(15)]);
+      await click("cover", "Show more images");
+      expect(list).toHaveBeenLastCalledWith(42, "portrait_cover", 1);
+      await vi.waitFor(() =>
+        expect(container.querySelectorAll('[aria-label^="Use image by"]').length).toBe(15),
+      );
+      list.mockResolvedValueOnce([]);
+      await click("cover", "Show more images");
+      expect(list).toHaveBeenLastCalledWith(42, "portrait_cover", 2);
+      await vi.waitFor(() => expect(container.textContent).not.toContain("Show more images"));
       vi.mocked(desktopApi.artwork).mockResolvedValue(chosen);
       await act(async () =>
         container
@@ -1243,7 +1254,7 @@ describe("SteamGridDB picker", () => {
           .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       });
       expect(search).toHaveBeenCalledTimes(1);
-      expect(list.mock.calls).toEqual([[83, "portrait_cover"]]);
+      expect(list.mock.calls).toEqual([[83, "portrait_cover", 0]]);
       await act(async () => {
         vi.advanceTimersByTime(15_000);
       });
@@ -1265,8 +1276,8 @@ describe("SteamGridDB picker", () => {
       expect(container.querySelector('[aria-label^="Use image by Artist 831,"]')).not.toBeNull(),
     );
     expect(list.mock.calls).toEqual([
-      [83, "portrait_cover"],
-      [84, "portrait_cover"],
+      [83, "portrait_cover", 0],
+      [84, "portrait_cover", 0],
     ]);
     expect(choose).not.toHaveBeenCalled();
   });
@@ -1357,6 +1368,7 @@ describe("SteamGridDB picker", () => {
       expect(list).toHaveBeenCalledWith(
         55,
         slot === "landscape" ? "landscape_cover" : "hero_banner",
+        0,
       );
       await vi.waitFor(() =>
         expect(

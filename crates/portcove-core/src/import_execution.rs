@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     ActivityStatus, InstallQualification, Installer, Library, LibraryImportPlan, LibraryMetadata,
     Platform, PortcoveError, PortcoveService, Result,
-    import_journal::ImportJournal,
+    import_journal::{BundleImportAdmission, ImportJournal},
     library_access::{LibraryAccess, LibraryLease},
     transfer_journal::TransferPhase,
 };
@@ -45,12 +45,19 @@ impl PortcoveService {
     }
 
     pub fn resume_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, false)
+        recover_import(destination, false, false, None)
+    }
+
+    pub fn resume_library_recovery_restore(
+        destination: &Path,
+        expected_transfer_id: Option<&str>,
+    ) -> Result<LibraryImportResult> {
+        recover_import(destination, false, true, expected_transfer_id)
     }
 
     /// Retain and gate incomplete copies. This never deletes input or destination data.
     pub fn abort_library_import(destination: &Path) -> Result<LibraryImportResult> {
-        recover_import(destination, true)
+        recover_import(destination, true, false, None)
     }
 }
 
@@ -67,6 +74,18 @@ fn start_import(
             "library import plan changed; review it again",
         ));
     }
+    start_reviewed_import(plan, None, checkpoint)
+}
+
+pub(crate) fn start_reviewed_import(
+    plan: LibraryImportPlan,
+    bundle: Option<&crate::LibraryRecoveryBundle>,
+    checkpoint: &dyn Fn(TransferPhase) -> Result<()>,
+) -> Result<LibraryImportResult> {
+    let transfer_id = uuid::Uuid::new_v4().to_string();
+    let bundle = bundle
+        .map(|bundle| BundleImportAdmission::admit(bundle, &plan.plan_sha256, &transfer_id))
+        .transpose()?;
     if !plan.destination_exists {
         // create_dir is exclusive; never claim a directory that appeared after review.
         fs::create_dir(&plan.destination_root)?;
@@ -86,12 +105,13 @@ fn start_import(
     )?);
     crate::import_journal::ensure_empty_destination(&plan.destination_root)?;
     let mut journal = ImportJournal {
-        schema_version: 1,
-        transfer_id: uuid::Uuid::new_v4().to_string(),
+        schema_version: u32::from(bundle.is_some()) + 1,
+        transfer_id,
         plan,
         phase: TransferPhase::Copying,
+        bundle,
     };
-    verify_input(&journal.plan)?;
+    verify_input(&journal)?;
     // Intent and open gate are one durable file, written before database initialization or copying.
     journal.write(false)?;
     crate::durability::sync_publication(
@@ -105,7 +125,12 @@ fn start_import(
     continue_import(&target, &mut journal, checkpoint).map_err(|error| journal.error(error))
 }
 
-fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult> {
+fn recover_import(
+    destination: &Path,
+    abort: bool,
+    bundle: bool,
+    expected_transfer_id: Option<&str>,
+) -> Result<LibraryImportResult> {
     let destination = fs::canonicalize(destination)?;
     if crate::library_authority::authority(&destination)?.is_some() {
         return Err(PortcoveError::conflict(
@@ -113,11 +138,11 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
         ));
     }
     // Verify that this root belongs to an import before creating any control files.
-    if ImportJournal::read_recovery(&destination)?.is_none() {
-        return Err(PortcoveError::state(
-            "no library import journal exists at this destination",
-        ));
-    }
+    ImportJournal::read_recovery(&destination)?
+        .ok_or_else(|| {
+            PortcoveError::state("no library import journal exists at this destination")
+        })?
+        .require_recovery_kind(bundle, expected_transfer_id)?;
     let lease = Arc::new(LibraryLease::with_access(
         &destination,
         LibraryAccess::Exclusive,
@@ -125,6 +150,7 @@ fn recover_import(destination: &Path, abort: bool) -> Result<LibraryImportResult
     let mut journal = ImportJournal::read_recovery(&destination)?.ok_or_else(|| {
         PortcoveError::state("no library import journal exists at this destination")
     })?;
+    journal.require_recovery_kind(bundle, expected_transfer_id)?;
     if journal.phase == TransferPhase::Aborted {
         return if abort {
             Ok(result(&journal, false))
@@ -188,7 +214,7 @@ fn continue_import(
         return finish_import(journal);
     }
     checkpoint(TransferPhase::Copying)?;
-    verify_input(&journal.plan)?;
+    verify_input(journal)?;
     crate::transfer_copy::copy_content(
         &journal.plan.content_root,
         target.root(),
@@ -201,7 +227,7 @@ fn continue_import(
     portability.restore_admissions(target)?;
     restore_metadata(target, &journal.plan.metadata)?;
     verify_completed_destination(target, journal)?;
-    verify_input(&journal.plan)?;
+    verify_input(journal)?;
     journal.phase = TransferPhase::Verified;
     journal.write(true)?;
     checkpoint(TransferPhase::Verified)?;
@@ -275,7 +301,7 @@ fn ensure_activity(target: &Library, journal: &ImportJournal) -> Result<Activity
         if operation != "import_library"
             || kind != "library"
             || target_id.is_some()
-            || receipt.as_deref() != Some(journal.plan.plan_sha256.as_str())
+            || receipt.as_deref() != Some(journal.publication_binding())
         {
             return Err(PortcoveError::verification(
                 "import activity identity belongs to another operation",
@@ -291,7 +317,7 @@ fn ensure_activity(target: &Library, journal: &ImportJournal) -> Result<Activity
         target.begin_identified_import_activity(
             uuid::Uuid::parse_str(&journal.transfer_id)
                 .map_err(|_| PortcoveError::state("invalid import ID"))?,
-            &journal.plan.plan_sha256,
+            journal.publication_binding(),
         )?;
         Ok(ActivityStatus::Running)
     }
@@ -347,7 +373,9 @@ fn restore_metadata(target: &Library, metadata: &LibraryMetadata) -> Result<()> 
     Ok(())
 }
 
-fn verify_input(plan: &LibraryImportPlan) -> Result<()> {
+fn verify_input(journal: &ImportJournal) -> Result<()> {
+    journal.verify_bundle_input()?;
+    let plan = &journal.plan;
     let (file, _) = crate::library_import::read_metadata(&plan.metadata_file.path)?;
     if file.sha256 != plan.metadata_file.sha256 || file.size != plan.metadata_file.size {
         return Err(PortcoveError::verification(

@@ -1102,6 +1102,20 @@ export default interface Resources {
       "managedInstall": "Managed setup",
       "managedLaunch": "Managed launch"
     },
+    "savedScan": {
+      "checking": "Checking the saved scan…",
+      "dismiss": "Dismiss scan result",
+      "failed": "Portcove could not check this scan.",
+      "heading": "Saved folder scan",
+      "label": "Saved folder scan result",
+      "partial": "Partial scan results saved.",
+      "progress": "Saved scan progress.",
+      "retry": "Retry checking this scan",
+      "review": "Review saved scan",
+      "saved": "Saved folder scan results.",
+      "showCurrent": "Show current folder results",
+      "unavailable": "This scan is no longer available with its original results and settings."
+    },
     "setupReviews": {
       "add": "Add {{total}} selected to Library",
       "choiceNote_one": "One game has more than one version that can use the same files. Select the version you want; selecting all leaves them out.",
@@ -2340,11 +2354,16 @@ export default interface Resources {
       "open": "Restore from a library copy",
       "plan": "Library restore plan",
       "recovery": {
+        "bundleIntro": "Finish checking and restoring the bundle before opening the library.",
+        "bundleRestored": "The library has been restored. Open it when you're ready.",
+        "bundleResume": "Resume bundle restore",
+        "bundleUnknown": "Portcove could not confirm this bundle restore.",
         "busy": "Recovering the library restore…",
         "destination": "Restore destination: <path />",
         "heading": "Finish the interrupted library restore",
         "intro": "Resume the restore to verify and finish opening the copied library. The Portcove export stays unchanged. Incomplete copies remain closed until recovery succeeds.",
         "label": "Library restore recovery",
+        "open": "Open restored library",
         "resume": "Resume restore"
       },
       "restore": "Restore this library",

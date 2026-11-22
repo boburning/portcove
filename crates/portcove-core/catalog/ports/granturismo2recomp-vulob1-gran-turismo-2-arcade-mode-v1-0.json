@@ -17,7 +17,16 @@
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
-    "download_block_reason": "Downloads, builds, registration and launch remain unavailable because the project gives conflicting setup instructions: its README says translated original-game C is not committed, but also says generated/ is committed and used by CI releases. The exact current tree/build route or a reproducible clean route from your own disc must be established first. This condition concerns conflicting preparation instructions; it does not determine general copyright status or whether a native player exists.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Downloads, builds, registration and launch remain unavailable because the project gives conflicting setup instructions: its README says translated original-game C is not committed, but also says generated/ is committed and used by CI releases. The exact current tree/build route or a reproducible clean route from your own disc must be established first. This condition concerns conflicting preparation instructions; it does not determine general copyright status or whether a native player exists.",
+        "tracking_issue": 3480
+      }
+    ],
     "issue_number": 3480,
     "original_game": {
       "format_version": 1,

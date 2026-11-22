@@ -224,6 +224,13 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The standalone `native-managed-copy-result` case uses the existing install fixture and an
+owned external registration. It observes the real reviewed transition, verifies
+one download and one Core install outcome, and checks that the original
+external executable and save remain byte-identical. The completed receipt must
+survive navigation and open the exact current game without launching it. The
+CLI seeds the registration. This case verifies the Desktop transition and receipt.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
@@ -327,8 +334,11 @@ successful launch, and the backup review's wait to close after a deletion, are c
 from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
 update review after Check for updates and after Update now, and for the ready detail cover
 to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
-includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
-selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+includes the preparation journey gets a 20-minute harness watchdog instead of 10.
+The standalone selected-setup completion journey gets 15 minutes. Linux job 137029418197
+confirmed successful preparation before the 10-minute harness deadline stopped the
+driver during the remaining readback. This budget includes restart and owned cleanup.
+The wait for the
 rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
 diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
 20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
@@ -384,16 +394,39 @@ These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated
 synthetic profile and qualification-only closed-client observation; no actual
-Steam client is launched. External-runtime registration uses inert executable
-bytes and never claims to launch that game. Controlled read failures and injected
-input observations retain their fixture labels. No private originals, real user
-profile, release signing or physical controller are required by this selection.
+Steam client is launched. The external-runtime review uses inert executable
+bytes. It checks that cancelling a native relink keeps the checked candidate,
+changed files require a fresh check, and explicit consent changes the same
+registration to the reviewed folder. Relinking and removing the registration
+preserve files in both folders. The scenario does not launch the fixture.
+Before opening removal after relink, the harness allows 60 seconds for the
+visible, enabled action to return after the renderer reads the same registration.
+The independent Core and file checks still run before removal.
+Controlled read failures and injected input observations retain their fixture
+labels. No private originals, real user profile, release signing or physical
+controller are required by this selection.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
+
+## Reviewed screenshot display
+
+Run the opt-in Windows case with
+`just desktop-verify --scenario native-reviewed-screenshot-display --require-clean`.
+The source must embed reviewed typed IGDB screenshots. The run disables automatic
+catalog refresh in its isolated preferences, verifies embedded catalog delivery and
+compares the effective screenshot inventory with the tracked listing source. The
+normal app opens each exact port through Discover, chooses its original release
+when applicable,
+and compares the decoded gallery image with Core's cache-only read of the exact
+admitted asset. The run retains the viewer screenshots and a report of media IDs,
+digests, scope and decoded geometry. It checks Escape returns focus to the same
+port's gallery. It requires live image access on a cold cache and does not use a
+provider key. A bundled directory result leaves signed delivery and released
+client acceptance open.
 
 ## Hosted installed application update
 
