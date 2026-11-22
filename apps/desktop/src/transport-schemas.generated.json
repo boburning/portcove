@@ -49784,6 +49784,15 @@
         "description": "False when additional or unreadable records may exist.",
         "type": "boolean"
       },
+      "expected_total": {
+        "description": "Records the provider reports for the whole listing, when it reports one.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
       "freshness": {
         "$ref": "#/$defs/ProviderFreshness"
       },
@@ -49791,6 +49800,15 @@
         "description": "Scope of older unscoped package references, when they belong to this catalog.",
         "type": [
           "string",
+          "null"
+        ]
+      },
+      "next_page": {
+        "description": "Provider page to continue from when this read stopped at its request\nbound. Absent when the listing ended or could not be read consistently.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": [
+          "integer",
           "null"
         ]
       },

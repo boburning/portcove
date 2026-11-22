@@ -302,8 +302,8 @@ export const desktopApi = {
   clearSteamGridDbKey: () => invoke<SteamGridDbKeyStatus>("clear_steamgriddb_key"),
   searchSteamGridDbGames: (term: string) =>
     invoke<SteamGridDbGame[]>("search_steamgriddb_games", { term }),
-  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole) =>
-    invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role }),
+  steamGridDbCandidates: (gameId: number, role: DestinationArtworkRole, page = 0) =>
+    invoke<SteamGridDbCandidate[]>("get_steamgriddb_candidates", { gameId, role, page }),
   steamGridDbPreview: (url: string) =>
     invoke<{ png_base64: string }>("get_steamgriddb_preview", { url }),
   checkSteamGridDbListings: (generation: number) =>
@@ -567,11 +567,12 @@ export const desktopApi = {
     expectedUrl: string,
     projectId?: string,
   ) => invoke<void>("open_jakmods_resource", { portId, generation, projectId, expectedUrl }),
-  modProviderCatalog: (portId: string, source: string, generation: number) =>
+  modProviderCatalog: (portId: string, source: string, generation: number, startPage = 1) =>
     invoke<import("./types").ProviderCatalog>("get_mod_provider_catalog", {
       portId,
       source,
       generation,
+      startPage,
     }),
   providerProject: (portId: string, projectId: string, generation: number, provider?: string) =>
     invoke<import("./types").ProviderProjectView>("get_provider_project", {

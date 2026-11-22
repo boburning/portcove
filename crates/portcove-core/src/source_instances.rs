@@ -81,6 +81,29 @@ pub(crate) fn list_limited(
     .collect()
 }
 
+/// One page of saved originals after `after` in instance order. Callers page
+/// through every instance instead of refusing above a total count.
+pub(crate) fn list_page(
+    connection: &Connection,
+    requirement: &str,
+    after: Option<&str>,
+    limit: i64,
+) -> Result<Vec<(String, SourceRecord)>> {
+    let mut query = connection.prepare(
+        "SELECT instance_id, source_json FROM source_instances
+         WHERE requirement_id=?1 AND instance_id > ?2 ORDER BY instance_id LIMIT ?3",
+    )?;
+    let rows = query.query_map(params![requirement, after.unwrap_or(""), limit], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    rows.map(|row| {
+        let (id, json) = row?;
+        let record = decode(requirement, &id, &json)?;
+        Ok((id, record))
+    })
+    .collect()
+}
+
 /// Export the extra instances. The default source rows already carry their
 /// own exact identity, and restoring them recreates those instance rows.
 pub(crate) fn export(
@@ -148,4 +171,53 @@ fn decode(requirement: &str, id: &str, json: &str) -> Result<SourceRecord> {
         observed.validate_for_record(&source)?;
     }
     Ok(source)
+}
+
+#[cfg(test)]
+mod paging_tests {
+    use super::*;
+
+    fn connection_with(count: usize) -> Connection {
+        let connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE source_instances (
+                    requirement_id TEXT NOT NULL,
+                    instance_id TEXT NOT NULL CHECK(length(instance_id)=64),
+                    source_json TEXT NOT NULL,
+                    PRIMARY KEY(requirement_id, instance_id)
+                ) WITHOUT ROWID;",
+            )
+            .unwrap();
+        for index in 0..count {
+            let source = SourceRecord {
+                profile_id: "n64-original".into(),
+                path: format!("/originals/{index}.z64").into(),
+                sha256: format!("{index:064x}"),
+                size: 1,
+                storage_sha256: format!("{index:064x}"),
+                storage_size: 1,
+                updated_at: 0,
+                observed_identity: None,
+            };
+            record(&connection, &source).unwrap();
+        }
+        connection
+    }
+
+    #[test]
+    fn pages_reach_every_saved_original_beyond_sixteen() {
+        let connection = connection_with(40);
+        let mut after = None::<String>;
+        let mut seen = Vec::new();
+        loop {
+            let page = list_page(&connection, "n64-original", after.as_deref(), 16).unwrap();
+            let Some((last, _)) = page.last() else { break };
+            after = Some(last.clone());
+            seen.extend(page.into_iter().map(|(id, _)| id));
+        }
+        let all = list(&connection, "n64-original").unwrap();
+        assert_eq!(seen.len(), 40);
+        assert_eq!(seen, all.into_iter().map(|(id, _)| id).collect::<Vec<_>>());
+    }
 }

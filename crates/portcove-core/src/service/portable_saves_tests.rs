@@ -1237,17 +1237,42 @@ fn heads_from_other_game_versions_are_not_offered() {
 }
 
 #[test]
-fn oversized_folders_report_incomplete_history() {
+fn long_push_history_stays_reviewable_and_pullable() {
     let folder = shared_folder();
     let pc = seeded_source();
     pc.push(folder.path());
+    // More than the 256 saves files the folder transport used to review.
+    let mut latest = None;
+    for index in 0..257 {
+        pc.write("Save/file1.sav", format!("{{\"pc\":{index}}}").as_bytes());
+        latest = Some(pc.push(folder.path()));
+    }
+    let latest = latest.unwrap();
+    let status = pc.status(folder.path());
+    assert!(status.complete, "{:?}", status.problems);
+    assert_eq!(status.entries.len(), 258);
+    assert_eq!(status.next_step, SaveFolderNextStep::UpToDate);
+    assert_eq!(pc.head(folder.path()), latest.content_sha256);
+
+    let deck = Device::new(VERSION);
+    deck.pull(folder.path(), &latest.content_sha256, Default::default())
+        .unwrap();
+    assert_eq!(deck.read("Save/file1.sav").unwrap(), b"{\"pc\":256}");
+}
+
+#[test]
+fn unusable_files_in_a_large_folder_are_listed_without_hiding_history() {
+    let folder = shared_folder();
+    let pc = seeded_source();
+    let pushed = pc.push(folder.path());
     let directory = folder.path().join("portcove-saves/v1").join(PORT);
     for index in 0..300 {
         fs::write(directory.join(format!("{index:064x}.json")), b"{}").unwrap();
     }
     let status = pc.status(folder.path());
-    assert!(!status.complete);
-    assert_eq!(status.next_step, SaveFolderNextStep::Incomplete);
+    assert!(status.complete);
+    assert_eq!(status.problems.len(), 300);
+    assert_eq!(pc.head(folder.path()), pushed.content_sha256);
 }
 
 #[test]
