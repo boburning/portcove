@@ -269,6 +269,25 @@ so an offscreen virtualized card is not mistaken for missing content. Copy conse
 and workspace readback have named 60-second settlement waits; these are harness
 budgets, not product deadlines or proof that a copy succeeded.
 
+The selected-setup journey allows 30 seconds for Core to report each connected
+folder mutation. Job [136689042471](https://github.com/boburning/portcove/actions/runs/44850160213/job/136689042471)
+observed an add worker still settling after the previous five-second wait.
+Before reopening an installation review, the harness gives the previous dialog
+and opener 45 seconds to settle. Job
+[136679148807](https://github.com/boburning/portcove/actions/runs/44850095996/job/136679148807)
+tried the hidden opener after Core recorded cancellation. Both conditions still
+require exact readback or a visible, enabled action. The BIOS scan includes a
+same-size unrelated file and requires the exact BIOS as its only candidate before
+verifying the same game and source profiles in the resumed setup.
+
+In Windows job [136782688592](https://github.com/boburning/portcove/actions/runs/44883170193/job/136782688592),
+the selected game opened and its Review installation operation still showed
+Working when the 15-second dialog wait expired. The first selected review now
+has a 60-second observation window inside the existing scenario budget. The harness
+still requires the exact selected game, the installation review dialog, and
+unchanged Core status before consent. The original timeout remains a failed
+observation for that source.
+
 The install readback probe allows the independent scheduled catalog refresh while
 still requiring one install command and one fixture download. Steam batch review
 checks the singular one-game label before root/profile selection and the plural
