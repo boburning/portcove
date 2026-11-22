@@ -550,13 +550,16 @@ export async function backupReviewScenario({
     );
     await capture("native-retained-data-backup-created", ".backup-history");
 
-    // Controlled retained-record fixture in this harness's private library.
-    // Do not launch CLI after insertion: its startup recovery could mutate it.
+    // Keep all three publication paths present so real recovery must hold this
+    // owned fixture rather than automatically publish a normally recoverable restore.
     const operationId = randomUUID();
     const recoveryRoot = path.join(library, "recovery", operationId);
     const stagedSave = path.join(recoveryRoot, "staged-data/owned-review-save.bin");
+    const previousSave = path.join(recoveryRoot, "previous-data/owned-review-save.bin");
     await mkdir(path.dirname(stagedSave), { recursive: true });
-    await writeFile(stagedSave, await readFile(save), { flag: "wx" });
+    await mkdir(path.dirname(previousSave), { recursive: true });
+    await writeFile(stagedSave, "staged snapshot data", { flag: "wx" });
+    await writeFile(previousSave, "previous snapshot data", { flag: "wx" });
     const databasePath = path.join(library, "portcove.sqlite3");
     const database = new DatabaseSync(databasePath);
     try {
@@ -590,11 +593,35 @@ export async function backupReviewScenario({
         database.close();
       }
     };
-    const journalBefore = readJournal();
+    const initialJournal = readJournal();
+    assert.ok(initialJournal);
     const heldFiles = await Promise.all(
-      [save, stagedSave, path.join(createdFromRetainedData.path, "data/owned-review-save.bin")].map(
-        (file) => fileIdentity(file),
-      ),
+      [
+        save,
+        stagedSave,
+        previousSave,
+        path.join(createdFromRetainedData.path, "data/owned-review-save.bin"),
+      ].map((file) => fileIdentity(file)),
+    );
+    const currentGeneration = transportValue(
+      "desktop_bootstrap_status",
+      (await ipc("get_bootstrap_status")).value,
+    ).generation;
+    const recovery = await ipc("discover_orphaned_operations", { generation: currentGeneration });
+    assert.equal(recovery.ok, true);
+    const journalBefore = readJournal();
+    assert.ok(journalBefore);
+    assert.equal(
+      journalBefore.last_error,
+      "restore publication paths are ambiguous; refusing automatic repair",
+    );
+    assert.deepEqual(
+      {
+        ...journalBefore,
+        last_error: initialJournal.last_error,
+        updated_at: initialJournal.updated_at,
+      },
+      { ...initialJournal },
     );
     const heldInventory = await ipc("get_backups", { portId: port.id });
     assert.equal(heldInventory.ok, true);
@@ -605,10 +632,6 @@ export async function backupReviewScenario({
       reason: "recovery_required",
     });
     assert.equal(heldBackupInventory.state, "degraded");
-    const currentGeneration = transportValue(
-      "desktop_bootstrap_status",
-      (await ipc("get_bootstrap_status")).value,
-    ).generation;
     const rejectedPreview = await ipc("preview_backup_action", {
       portId: port.id,
       backupId: createdFromRetainedData.id,
@@ -624,7 +647,7 @@ export async function backupReviewScenario({
       generation: currentGeneration,
     });
     assert.equal(deletePreview.ok, true);
-    // WebView refresh keeps the same native host; its service adapter is read-only.
+    // Refresh the WebView and let the normal recovery observer see the same held paths.
     await openCatalogPortAfterRefresh(browser, port, port.name);
     await revealDetailSection(browser, "Saves & backups");
     await browser.wait(
@@ -654,8 +677,9 @@ export async function backupReviewScenario({
     assert.deepEqual(readJournal(), journalBefore);
     for (const identity of heldFiles) assert.deepEqual(await fileIdentity(identity.path), identity);
     const restoreAssessmentEvidence = {
-      setup: "private retained Prepared-record fixture; not an observed interruption",
+      setup: "private Prepared-record fixture with three ambiguous publication paths",
       operationId,
+      initialJournal,
       journalBefore,
       journalAfter: readJournal(),
       heldFiles,
