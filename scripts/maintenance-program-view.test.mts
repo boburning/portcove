@@ -7,12 +7,17 @@ import { fileURLToPath } from "node:url";
 import type { AuthoredPort, CatalogPort } from "./catalog-authoring.mts";
 import { routeFitReport, type RouteFitInputs } from "./catalog-route-fit.mts";
 import { handoffRegistry } from "./maintenance-handoffs.mts";
+import { readFileSync } from "node:fs";
 import {
+  authorityCoverage,
   authorityInventoryErrors,
   authorityKinds,
+  cfgClass,
   checkProgramView,
   detectAuthorities,
   main,
+  parseEnum,
+  partitionCfgItems,
   programView,
   serializeProgramView,
   withoutTestItems,
@@ -93,18 +98,23 @@ function write(root: string, path: string, text: string) {
   writeFileSync(join(root, path), text);
 }
 
+const src = "crates/portcove-core/src";
+
 /** A repository tree carrying one instance of each authority shape. */
-function authorityTree(withCode: boolean) {
+function authorityTree(withCode: boolean, extra: Record<string, string> = {}) {
   const root = mkdtempSync(join(tmpdir(), "portcove-program-view-"));
-  const src = "crates/portcove-core/src";
   write(
     root,
     `${src}/types.rs`,
     [
-      '#[serde(rename_all = "kebab-case")]',
-      "pub enum ExternalProfilePolicy {",
-      withCode ? "    CodedDesktopV1," : "",
-      "}",
+      ...(withCode
+        ? [
+            '#[serde(rename_all = "kebab-case")]',
+            "pub enum ExternalProfilePolicy {",
+            "    CodedDesktopV1,",
+            "}",
+          ]
+        : []),
       "pub enum ManagedInitialization {",
       '    #[serde(rename = "unused-recipe-v1")]',
       "    UnusedRecipeV1,",
@@ -120,13 +130,23 @@ function authorityTree(withCode: boolean) {
       "}",
     ].join("\n"),
   );
-  write(root, `${src}/native_external_profile/coded.rs`, "pub fn resolve() {}\n");
+  if (withCode) {
+    write(
+      root,
+      `${src}/native_external_profile/coded.rs`,
+      "pub fn resolve(policy: ExternalProfilePolicy) {}\n",
+    );
+    write(root, `${src}/coded_port_recovery.rs`, "pub fn recover() {}\n");
+  }
   write(
     root,
     `${src}/provider.rs`,
     [
-      'const GAME_BINDINGS: &[(&str, u64)] = &[("listing-only-id", 1)];',
+      'const GAMEBANANA_BINDINGS: &[(&str, u64)] = &[("never-seen-by-code", 1)];',
+      'const COMMUNITY_BINDINGS: &[(&str, &str)] = &[("never-seen-by-code", "x")];',
       withCode ? 'fn special(id: &str) -> bool { id == "coded-port" }' : "",
+      withCode ? '#[cfg(any(test, feature = "qualification-fixtures"))]' : "",
+      withCode ? 'const QUALIFIED: &str = "coded-port";' : "",
       "#[cfg(test)]",
       "mod tests {",
       '    const FIXTURE: &str = "data-port";',
@@ -150,33 +170,61 @@ function authorityTree(withCode: boolean) {
     "crates/portcove-core/catalog/external-mod-portals.json",
     JSON.stringify([{ port: "never-seen-by-code", portals: ["portal"] }]),
   );
+  for (const [path, text] of Object.entries(extra)) write(root, path, text);
   return root;
 }
 
 const codeKinds = new Set([
-  "core-title-literal",
   "external-profile-policy",
   "family-generator-script",
+  "native-external-profile-module",
+  "qualification-fixture-title-code",
+  "title-named-core-item",
+]);
+/** Kinds the small fixture catalog gives no consumer. */
+const consumerless = new Set([
+  "github-mod-source-table",
+  "managed-initialization",
+  "prepared-shared-preferences-contract",
+  "runtime-data-policy",
 ]);
 
-function viewFor(options: { withCode: boolean; observed?: boolean; observerReport?: unknown }) {
-  const inputs = routeFitInputs(options.observed);
-  const routeFit = routeFitReport(inputs);
-  const root = authorityTree(options.withCode);
-  try {
-    // Without title code the fixture declares those kinds retired, as main would.
-    const kinds = authorityKinds.map((kind) => ({
+/** The inventory as main would declare it for the fixture tree. */
+function fixtureKinds(withCode: boolean): AuthorityKind[] {
+  return authorityKinds.map((kind) => {
+    const retired = !withCode && codeKinds.has(kind.kind);
+    return {
       ...kind,
-      retired: !options.withCode && codeKinds.has(kind.kind),
-    }));
-    const authorities = detectAuthorities(
-      root,
-      {
-        ids: new Set(routeFit.identities.map((identity) => identity.id)),
-        ports: inputs.ports,
-      },
-      kinds,
-    );
+      retired,
+      ...(kind.members ? { members: kind.members.map((member) => ({ ...member, retired })) } : {}),
+      ...(consumerless.has(kind.kind) ? { no_catalog_consumer: "Fixture catalog." } : {}),
+    };
+  });
+}
+
+function fixtureContext(inputs: RouteFitInputs) {
+  const routeFit = routeFitReport(inputs);
+  return {
+    routeFit,
+    context: {
+      ids: new Set(routeFit.identities.map((identity) => identity.id)),
+      ports: inputs.ports,
+      listings: inputs.records,
+    },
+  };
+}
+
+function viewFor(options: {
+  withCode: boolean;
+  observed?: boolean;
+  observerReport?: unknown;
+  extra?: Record<string, string>;
+}) {
+  const inputs = routeFitInputs(options.observed);
+  const { routeFit, context } = fixtureContext(inputs);
+  const root = authorityTree(options.withCode, options.extra);
+  try {
+    const authorities = detectAuthorities(root, context, fixtureKinds(options.withCode));
     const view = programView({
       routeFit,
       authorities,
@@ -221,7 +269,8 @@ void test("the retired-authority gate is derived from detected title-specific co
   assert.deepEqual(gate.failing, [
     {
       id: "coded-port",
-      detail: "Served by core-title-literal, external-profile-policy, family-generator-script.",
+      detail:
+        "Served by core-title-literal, external-profile-policy, family-generator-script, native-external-profile-module, qualification-fixture-title-code, title-named-core-item.",
     },
   ]);
   assert.equal(subject(failing, "coded-port").remaining_action, "retire-title-authority");
@@ -237,8 +286,8 @@ void test("the retired-authority gate is derived from detected title-specific co
 void test("test modules and test files never count as title-specific code", () => {
   const view = viewFor({ withCode: false });
   const literal = view.authority_kinds.find((kind) => kind.kind === "core-title-literal")!;
-  assert.equal(literal.state, "retired");
-  assert.deepEqual(literal.identities, []);
+  // Only the binding table's production literal counts; the test module's does not.
+  assert.deepEqual(literal.identities, ["never-seen-by-code"]);
   assert.equal(withoutTestItems('a\n#[cfg(test)]\nmod tests { fn f() { "x" } }\nb'), "a\n\nb");
   assert.equal(withoutTestItems("#[cfg(test)]\nmod fixtures;\nc"), "\nc");
   const generator = view.authority_kinds.find((kind) => kind.kind === "family-generator-script")!;
@@ -252,7 +301,11 @@ void test("an identity no code has seen is a subject with its route-fit disposit
   assert.equal(unseen.disposition, "needs-bytes-worker");
   assert.equal(unseen.remaining_action, "bytes-worker");
   // A listing-only identity bound in a portal file still reports the path.
-  assert.deepEqual(unseen.title_code_paths, ["external-mod-portals"]);
+  assert.deepEqual(unseen.title_code_paths, [
+    "core-title-literal",
+    "external-mod-portals",
+    "provider-binding-table",
+  ]);
   assert.ok(unseen.reason.length > 0);
 });
 
@@ -348,12 +401,29 @@ void test("an authority detector that matches nothing must be declared retired",
   try {
     const context = { ids: new Set(["x"]), ports: [] };
     const errors = authorityInventoryErrors(detectAuthorities(root, context));
-    assert.equal(errors.length, authorityKinds.length);
-    assert.match(errors[0]!, /found nothing .* not declared retired/u);
+    for (const kind of authorityKinds)
+      assert.ok(
+        errors.some((error) =>
+          new RegExp(
+            `^Authority kind ${kind.kind} found nothing .* not declared retired`,
+            "u",
+          ).test(error),
+        ),
+        kind.kind,
+      );
+    // Each declared member that is missing is reported on its own.
+    assert.ok(
+      errors.includes(
+        "Authority kind provider-binding-table cannot find GAMEBANANA_BINDINGS; fix the detector or declare that member retired.",
+      ),
+    );
 
     const retired: AuthorityKind[] = authorityKinds.map((kind) => ({
       ...kind,
       retired: true,
+      ...(kind.members
+        ? { members: kind.members.map((member) => ({ ...member, retired: true })) }
+        : {}),
     }));
     assert.deepEqual(authorityInventoryErrors(detectAuthorities(root, context, retired)), []);
     const reports = detectAuthorities(root, context, retired);
@@ -369,7 +439,8 @@ void test("an authority detector that matches nothing must be declared retired",
     declared_retired: true,
     count: 1,
     files: ["file"],
-    identities: [],
+    identities: ["x"],
+    unattributed: [],
   };
   assert.match(authorityInventoryErrors([stillMatching])[0]!, /declared retired but/u);
   assert.throws(
@@ -397,4 +468,329 @@ void test("every declared authority kind still matches the committed repository"
     view.gates.fitting.denominator.count,
     view.subjects.filter((entry) => entry.scope === "in-scope").length,
   );
+});
+
+const report = (fields: Partial<AuthorityReport> & { kind: string }): AuthorityReport => ({
+  description: "",
+  detector: "",
+  state: "active",
+  declared_retired: false,
+  count: 1,
+  files: ["file"],
+  identities: [],
+  unattributed: [],
+  ...fields,
+});
+
+void test("a kind that cannot derive identities takes them from its covering kind", () => {
+  const routeFit = routeFitReport(routeFitInputs());
+  const view = programView({
+    routeFit,
+    authorities: [
+      report({ kind: "enum", identities: ["coded-port"] }),
+      report({ kind: "modules", identities: null, covered_through: "enum" }),
+    ],
+  });
+  const gate = view.gates.retired_authority;
+  assert.equal(gate.state, "failed");
+  assert.deepEqual(gate.unknown_kinds, []);
+  assert.deepEqual(gate.unknown, []);
+  assert.deepEqual(subject(view, "coded-port").title_code_paths, ["enum", "modules"]);
+  assert.equal(subject(view, "data-port").remaining_action, "none");
+  assert.equal(gate.numerator, 1);
+});
+
+void test("unknown coverage never counts as retired", () => {
+  const routeFit = routeFitReport(routeFitInputs());
+  const cases: AuthorityReport[][] = [
+    // Not derivable and no covering kind.
+    [report({ kind: "modules", identities: null })],
+    // A covering kind that is itself not derivable.
+    [
+      report({ kind: "enum", identities: null }),
+      report({ kind: "modules", identities: null, covered_through: "enum" }),
+    ],
+    // A detector that matched entries it cannot attribute.
+    [
+      report({
+        kind: "modules",
+        identities: null,
+        covered_through: "enum",
+        unattributed: ["x.rs"],
+      }),
+      report({ kind: "enum", identities: ["coded-port"] }),
+    ],
+  ];
+  for (const authorities of cases) {
+    const view = programView({ routeFit, authorities });
+    const gate = view.gates.retired_authority;
+    assert.equal(gate.passed, false);
+    assert.ok(gate.state === "unknown" || gate.state === "failed");
+    assert.ok(gate.unknown_kinds.some((entry) => entry.kind === "modules"));
+    assert.ok(gate.unknown.some((entry) => entry.id === "data-port"));
+    assert.ok(!gate.unknown.some((entry) => gate.failing.some((fail) => fail.id === entry.id)));
+    assert.equal(gate.numerator, 0);
+    assert.equal(subject(view, "data-port").remaining_action, "resolve-authority-inventory");
+  }
+  const only = programView({ routeFit, authorities: cases[0]! }).gates.retired_authority;
+  assert.equal(only.state, "unknown");
+  assert.deepEqual(
+    only.unknown.map((entry) => entry.id),
+    ["coded-port", "data-port"],
+  );
+  // Retired kinds never make coverage unknown.
+  const { unknownKinds } = authorityCoverage([
+    report({ kind: "modules", identities: null, state: "retired", declared_retired: true }),
+  ]);
+  assert.deepEqual(unknownKinds, []);
+});
+
+void test("a native profile module not keyed on the policy enum makes coverage unknown", () => {
+  const view = viewFor({
+    withCode: true,
+    extra: { [`${src}/native_external_profile/other.rs`]: "pub fn resolve() {}\n" },
+  });
+  const modules = view.authority_kinds.find(
+    (kind) => kind.kind === "native-external-profile-module",
+  )!;
+  assert.deepEqual(modules.unattributed, [`${src}/native_external_profile/other.rs`]);
+  const gate = view.gates.retired_authority;
+  assert.equal(gate.passed, false);
+  assert.deepEqual(
+    gate.unknown_kinds.map((entry) => entry.kind),
+    ["native-external-profile-module"],
+  );
+  assert.deepEqual(
+    gate.unknown.map((entry) => entry.id),
+    ["data-port"],
+  );
+  assert.equal(gate.numerator, 0);
+  // A module the dispatch file keys on the enum is attributed.
+  const keyed = viewFor({
+    withCode: true,
+    extra: {
+      [`${src}/native_external_profile/other.rs`]: "pub fn resolve() {}\n",
+      [`${src}/native_external_profile.rs`]:
+        "ExternalProfilePolicy::CodedDesktopV1 => other::resolve(),\n",
+    },
+  });
+  assert.deepEqual(keyed.gates.retired_authority.unknown_kinds, []);
+});
+
+void test("detector rot: an active derivable kind with no identity is an error unless declared", () => {
+  assert.match(
+    authorityInventoryErrors([report({ kind: "enum", identities: [] })])[0]!,
+    /derives no catalog identity/u,
+  );
+  assert.deepEqual(
+    authorityInventoryErrors([
+      report({ kind: "enum", identities: [], no_catalog_consumer: "Core selects it." }),
+    ]),
+    [],
+  );
+  assert.match(
+    authorityInventoryErrors([
+      report({ kind: "enum", identities: ["x"], no_catalog_consumer: "Stale." }),
+    ])[0]!,
+    /declares no catalog consumer but covers 1/u,
+  );
+  // The fixture's renamed enum serialization drops every identity of an active kind.
+  const inputs = routeFitInputs();
+  const { context } = fixtureContext(inputs);
+  const root = authorityTree(true, {
+    [`${src}/types.rs`]: [
+      "pub enum ExternalProfilePolicy {",
+      '    #[serde(rename = "coded-desktop-v2")]',
+      "    CodedDesktopV1,",
+      "}",
+    ].join("\n"),
+  });
+  try {
+    const errors = authorityInventoryErrors(detectAuthorities(root, context, fixtureKinds(true)));
+    assert.ok(
+      errors.some((error) =>
+        /external-profile-policy matches 1 entries but derives no/u.test(error),
+      ),
+      errors.join("\n"),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("detector rot: enum shapes the detector cannot read fail loudly", () => {
+  const enumText = (header: string, body: string) => `${header}\npub enum Policy {\n${body}\n}\n`;
+  assert.deepEqual(
+    parseEnum(
+      enumText(
+        '#[serde(rename_all = "kebab-case")]',
+        '    /// Doc.\n    #[default]\n    OneTwo,\n    #[serde(rename = "x-y")]\n    Other,',
+      ),
+      "Policy",
+    )?.variants,
+    [
+      { name: "OneTwo", serialized: "one-two" },
+      { name: "Other", serialized: "x-y" },
+    ],
+  );
+  assert.throws(
+    () => parseEnum(enumText('#[serde(rename_all = "snake_case")]', "    OneTwo,"), "Policy"),
+    { message: /rename_all = "snake_case"/u },
+  );
+  assert.throws(() => parseEnum(enumText("", "    OneTwo { field: u32 },"), "Policy"), {
+    message: /variant shape .* cannot read: OneTwo \{ field: u32 \},/u,
+  });
+  assert.throws(() => parseEnum(enumText("", "    OneTwo(u32),"), "Policy"), {
+    message: /variant shape/u,
+  });
+  assert.throws(() => parseEnum(enumText("", '    #[serde(alias = "z")]\n    OneTwo,'), "Policy"), {
+    message: /attribute .* cannot read/u,
+  });
+  assert.equal(parseEnum("", "Policy"), undefined);
+});
+
+void test("detector rot: each declared table is found or individually retired", () => {
+  const inputs = routeFitInputs();
+  const { context } = fixtureContext(inputs);
+  const root = authorityTree(true, {
+    [`${src}/provider.rs`]:
+      'const GAMEBANANA_BINDINGS: &[(&str, u64)] = &[("never-seen-by-code", 1)];\nconst RENAMED_BINDINGS: &[(&str, &str)] = &[("never-seen-by-code", "x")];\n',
+  });
+  try {
+    const errors = authorityInventoryErrors(detectAuthorities(root, context, fixtureKinds(true)));
+    assert.ok(
+      errors.includes(
+        "Authority kind provider-binding-table cannot find COMMUNITY_BINDINGS; fix the detector or declare that member retired.",
+      ),
+    );
+    assert.ok(
+      errors.includes(
+        "Authority kind provider-binding-table found undeclared member RENAMED_BINDINGS; declare it.",
+      ),
+    );
+    const retiredMember = fixtureKinds(true).map((kind) =>
+      kind.kind === "provider-binding-table"
+        ? {
+            ...kind,
+            members: [
+              { name: "COMMUNITY_BINDINGS", retired: true },
+              { name: "GAMEBANANA_BINDINGS" },
+              { name: "RENAMED_BINDINGS" },
+            ],
+          }
+        : kind,
+    );
+    assert.deepEqual(
+      authorityInventoryErrors(detectAuthorities(root, context, retiredMember)).filter((error) =>
+        error.includes("provider-binding-table"),
+      ),
+      [],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  assert.match(
+    authorityInventoryErrors([
+      report({
+        kind: "table",
+        identities: ["x"],
+        members: [{ name: "EMPTY_BINDINGS", declared_retired: false, rows: 0 }],
+      }),
+    ])[0]!,
+    /found EMPTY_BINDINGS but read no rows/u,
+  );
+});
+
+void test("only exactly-cfg(test) code is excluded; feature-gated code is its own kind", () => {
+  assert.equal(cfgClass("test"), "test");
+  assert.equal(cfgClass('any(test, feature = "qualification-fixtures")'), "feature");
+  assert.equal(cfgClass('feature = "qualification-fixtures"'), "feature");
+  assert.equal(cfgClass("any(test, windows)"), "production");
+  assert.equal(cfgClass('not(any(test, feature = "qualification-fixtures"))'), "production");
+  const text = [
+    "a();",
+    '#[cfg(any(test, feature = "q"))]',
+    'const Q: &str = "q-id";',
+    "#[cfg(any(test, windows))]",
+    'const W: &str = "w-id";',
+    "#[cfg(test)]",
+    'mod tests { fn f() -> Result<A, B> { "t-id" } }',
+    "enum E {",
+    "    #[cfg(test)]",
+    "    Fixture,",
+    "    Kept,",
+    "}",
+  ].join("\n");
+  const { production, featureGated } = partitionCfgItems(text);
+  assert.match(production, /"w-id"/u);
+  assert.match(production, /Kept,\n\}/u);
+  assert.doesNotMatch(production, /q-id|t-id|Fixture/u);
+  assert.match(featureGated, /"q-id"/u);
+  assert.doesNotMatch(featureGated, /t-id/u);
+  assert.match(withoutTestItems(text), /q-id/u);
+
+  // Feature-gated module files are inventoried as qualification fixture code.
+  const inputs = routeFitInputs();
+  const { context } = fixtureContext(inputs);
+  const root = authorityTree(true, {
+    [`${src}/release.rs`]:
+      '#[cfg(any(test, feature = "qualification-fixtures"))]\nmod qualified;\n#[cfg(test)]\nmod pure;\n',
+    [`${src}/release/qualified.rs`]: 'pub const PORT: &str = "data-port";\n',
+    [`${src}/release/pure.rs`]: 'pub const PORT: &str = "pending-github";\n',
+  });
+  try {
+    const reports = detectAuthorities(root, context, fixtureKinds(true));
+    const fixtures = reports.find((entry) => entry.kind === "qualification-fixture-title-code")!;
+    assert.deepEqual(fixtures.identities, ["coded-port", "data-port"]);
+    assert.ok(fixtures.files.includes(`${src}/release/qualified.rs`));
+    const literal = reports.find((entry) => entry.kind === "core-title-literal")!;
+    assert.ok(!literal.identities!.includes("data-port"));
+    assert.ok(!literal.identities!.includes("pending-github"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("title-named Core enum variants and modules are inventoried from catalog keys", () => {
+  const inputs = routeFitInputs();
+  const { context } = fixtureContext(inputs);
+  const root = authorityTree(false, {
+    [`${src}/preparation.rs`]: [
+      "pub enum PreparationMode {",
+      "    /// A note (with an unbalanced parenthesis.",
+      "    Default,",
+      "    CodedPort200Legacy,",
+      "    Shaped { inner: u32 },",
+      "}",
+    ].join("\n"),
+    [`${src}/generic.rs`]: "pub enum Phase { DataPortable, Port }\n",
+  });
+  try {
+    const kinds = fixtureKinds(false).map((kind) =>
+      kind.kind === "title-named-core-item" ? { ...kind, retired: false } : kind,
+    );
+    const named = detectAuthorities(root, context, kinds).find(
+      (entry) => entry.kind === "title-named-core-item",
+    )!;
+    assert.deepEqual(named.identities, ["coded-port"]);
+    assert.deepEqual(named.files, [`${src}/preparation.rs`]);
+    assert.equal(named.count, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+void test("the script names no catalog identity outside its tests", () => {
+  const view = JSON.parse(main(["--json"], repositoryRoot)) as ReturnType<typeof programView>;
+  const ids = new Set(view.subjects.map((entry) => entry.id));
+  const script = readFileSync(new URL("./maintenance-program-view.mts", import.meta.url), "utf8");
+  const literals = [...script.matchAll(/["'`]([a-z0-9][a-z0-9-]*[a-z0-9])["'`]/gu)].map(
+    (match) => match[1]!,
+  );
+  assert.deepEqual(
+    literals.filter((literal) => ids.has(literal)),
+    [],
+  );
+  assert.deepEqual(view.gates.retired_authority.unknown_kinds, []);
+  assert.notEqual(view.gates.retired_authority.state, "unknown");
 });

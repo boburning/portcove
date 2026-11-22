@@ -1673,32 +1673,65 @@ Each catalog identity is one subject with its product scope (`in-scope`, or
 `deferred-scummvm` when route fit reports `excluded-scummvm`), route-fit
 disposition and reason, family, declared restrictions and held operations, the
 title-specific authority kinds that still serve it, and one remaining action:
-`none`, `retire-title-authority`, `data-enrollment`, `observation`,
-`bytes-worker`, `admission`, `missing-capability`, `upstream-condition` or
-`owner-decision` (deferred product scope).
+`none`, `retire-title-authority`, `resolve-authority-inventory` (retirement is
+unknown because an authority kind cannot derive whom it serves),
+`data-enrollment`, `observation`, `bytes-worker`, `admission`,
+`missing-capability`, `upstream-condition` or `owner-decision` (deferred product
+scope).
 
-**Coverage gates.** Each gate is a ratio over a versioned denominator and lists
-the identities failing it. Deferred ScummVM identities are in neither
+**Coverage gates.** Each gate is a ratio over a versioned denominator with a
+`state` of `passed`, `failed` or `unknown`, and lists the identities failing it
+and those whose result is unknown. Deferred ScummVM identities are in neither
 denominator.
 
-| Gate                | Denominator (version)                                               | Passing identity                                                      |
-| ------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `fitting`           | in-scope identities (`program-view/in-scope/1`)                     | a determined disposition other than `unobserved`                      |
-| `retired-authority` | in-scope `enrolled` identities (`program-view/in-scope-enrolled/1`) | no title-specific authority kind covers it; behavior is data-declared |
+| Gate                | Denominator (version)                                               | Passing identity                                                           |
+| ------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `fitting`           | in-scope identities (`program-view/in-scope/1`)                     | a determined disposition other than `unobserved`                           |
+| `retired-authority` | in-scope `enrolled` identities (`program-view/in-scope-enrolled/1`) | no known title-specific authority detector matched it, and none is unknown |
+
+Passing the retired-authority gate means only that no detector in the inventory
+matched the identity; it is not proof that its behavior is data-declared. The
+gate is conservative: unknown never counts as retired. A kind that cannot
+derive the identities it serves takes them from its declared `covered_through`
+kind only when that kind derives them fully; a kind with no covering kind, with
+a covering kind that cannot derive identities, or with matched entries it cannot
+attribute (for example a `native_external_profile` module that is not keyed on
+`ExternalProfilePolicy`) is listed in `unknown_kinds`. Every enrolled identity
+it does not already fail is then `unknown`, outside the numerator, and the gate
+cannot pass.
 
 **Authority kinds.** The retired-authority gate is derived from code, not a
 hand list. `authorityKinds` declares each kind of title-specific authority with
 a detector over code shape: catalog generator scripts that select records by a
-literal identity or upstream repository, production Core Rust that names a
-literal identity (test modules excluded), closed per-runtime contract enums
+literal identity or upstream repository; production Core Rust that names a
+literal identity; Core Rust compiled only under a Cargo feature (such as
+`#[cfg(any(test, feature = "qualification-fixtures"))]` items and modules) that
+names one, as the separate `qualification-fixture-title-code` kind; Core enum
+variants and module files whose names spell a catalog identity, listing name,
+GitHub repository name or family key, with the catalog as the dictionary
+(`title-named-core-item`); closed per-runtime contract enums
 (`ExternalProfilePolicy`, `ManagedInitialization`, `RuntimeDataPolicy` and the
-prepared runtime contracts) matched against definition values, the
-`native_external_profile` modules, compiled provider binding tables, the
-`github_mods.rs` source table and `external-mod-portals.json`. Each kind reports
-its count, files and covered identities where derivable, and is `retired` when
-its detector finds nothing. A detector that finds nothing for a kind not
-declared retired, or one that matches a kind declared retired, fails the view
-and its test, so a renamed shape cannot silently drop out of the inventory.
+prepared runtime contracts) matched against definition values; the
+`native_external_profile` modules, covered through `ExternalProfilePolicy`;
+compiled provider binding tables; the `github_mods.rs` source table and
+`external-mod-portals.json`. Only `#[test]` functions and items gated on exactly
+`#[cfg(test)]`, and test-named files, are excluded; platform gates such as
+`cfg(any(test, windows))` are production code. Each kind reports its count,
+files, covered identities where derivable and any entries it cannot attribute,
+and is `retired` when its detector finds nothing.
+
+The view and its test fail on the detector rot they can see: a kind that finds
+nothing but is not declared retired, or matches while declared retired; an
+active kind that derives identities but covers none, unless it declares why it
+has no catalog consumer (`no_catalog_consumer`, as for
+`PreparedRuntimeSettingsContract`, which Core selects for a player-prepared
+runtime); and, for enum and table detectors, each declared enum, table or file
+that is missing, read without rows or found undeclared, unless that member is
+individually declared retired. The enum reader fails loudly on a `rename_all`
+other than kebab-case, a variant with fields or a discriminant, or a serde
+attribute it cannot read, rather than skipping variants. Rot outside these
+checks (a new title-specific shape no detector searches) stays possible; the
+detectors bound what the gate can claim.
 
 **Metrics.** Counts per disposition and family over all identities
 (`program-view/identities/1`), listing-only GitHub candidates with Windows
