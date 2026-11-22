@@ -465,7 +465,7 @@ fn clean_parked_duplicate(
         drop(root_handle);
         crate::durability::sync_publication(root)
     };
-    clean().map_err(|error| preserved(error, &path))
+    clean().map_err(|error| preserved(error, path))
 }
 
 /// Name the directory a refusal left in place in its ordinary Windows spelling.
