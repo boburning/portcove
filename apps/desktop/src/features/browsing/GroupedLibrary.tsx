@@ -19,7 +19,12 @@ import { Button } from "../../components/ui/button";
 import { gameProjectLabel, gameTitle } from "../../port-identity";
 import type { Organization } from "../organization/OrganizationControls";
 import type { CatalogEntry } from "./catalog-entry";
-import { groupCatalog, type GameGroup } from "./original-game";
+import {
+  gameGroupPresentationPort,
+  gameGroupTitle,
+  groupCatalog,
+  type GameGroup,
+} from "./original-game";
 import { resolveGameChoice } from "./game-choice";
 import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
 import { ImplementationFacts } from "./GameAlternatives";
@@ -68,7 +73,7 @@ export function GroupedLibrary({
   matching: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
   organization?: Organization | undefined;
-  renderPort: (port: CatalogEntry, group: GameGroup) => ReactNode;
+  renderPort: (port: CatalogEntry, presentationPort: CatalogEntry, group: GameGroup) => ReactNode;
   renderFavorite?: ((port: CatalogEntry, group: GameGroup) => ReactNode) | undefined;
   onSelect: (portId: string, originKey?: string) => void;
   layout?: CollectionLayout;
@@ -107,10 +112,7 @@ export function GroupedLibrary({
   );
   const key = JSON.stringify([generation, queryKey]);
   const currentKey = useRef(key);
-  useLayoutEffect(() => {
-    currentGeneration.current = generation;
-    currentKey.current = key;
-  }, [generation, key]);
+  const currentMenuPort = useRef<string | undefined>(undefined);
   const [menu, setMenu] = useState<{
     key: string;
     openPortId?: string;
@@ -119,18 +121,39 @@ export function GroupedLibrary({
   }>({
     key,
   });
-  // Cancellation is final even if a later search returns to the same text.
-  if (menu.key !== key) setMenu({ key });
-  const currentMenu = menu.key === key ? menu : { key };
+  const menuGroup =
+    menu.key === key && menu.retainedPortId
+      ? groups.find((group) => group.ports.some((port) => port.id === menu.retainedPortId))
+      : undefined;
+  const hasMenuTarget =
+    !menu.retainedPortId ||
+    (menuGroup !== undefined &&
+      resolveGameChoice(
+        menuGroup,
+        statuses,
+        organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
+      ).port?.id === menu.retainedPortId);
+  // Cancellation is final when the exact action target leaves the logical
+  // results, even if the same query or collection later brings it back.
+  const menuCurrent = menu.key === key && hasMenuTarget;
+  if (!menuCurrent) setMenu({ key });
+  const currentMenu = menuCurrent ? menu : { key };
+  useLayoutEffect(() => {
+    currentGeneration.current = generation;
+    currentKey.current = key;
+    currentMenuPort.current = currentMenu.retainedPortId;
+  }, [generation, key, currentMenu.retainedPortId]);
   const menuOwner = useMemo(
     () => ({
       openPortId: currentMenu.openPortId,
       highlightedAction: currentMenu.highlightedAction,
       canReturn(portId: string) {
-        return currentKey.current === key && currentMenu.retainedPortId === portId;
+        return currentKey.current === key && currentMenuPort.current === portId;
       },
       getHighlighted(portId: string) {
-        return currentKey.current === key && currentMenu.openPortId === portId
+        return currentKey.current === key &&
+          currentMenuPort.current === portId &&
+          currentMenu.openPortId === portId
           ? currentMenu.highlightedAction
           : undefined;
       },
@@ -161,11 +184,9 @@ export function GroupedLibrary({
         );
       },
     }),
-    [key, currentMenu.openPortId, currentMenu.retainedPortId, currentMenu.highlightedAction],
+    [key, currentMenu.openPortId, currentMenu.highlightedAction],
   );
-  const menuPin = groups.find((group) =>
-    group.ports.some((port) => port.id === currentMenu.retainedPortId),
-  )?.id;
+  const menuPin = currentMenu.retainedPortId ? menuGroup?.id : undefined;
   return (
     <LibraryMenuContext.Provider value={menuOwner}>
       <VirtualCollectionRows
@@ -215,7 +236,7 @@ const LibraryGame = memo(function LibraryGame({
   t: TFunction<"browsing">;
   statuses: ReadonlyMap<string, PortStatus>;
   organization: Organization | undefined;
-  renderPort: (port: CatalogEntry, group: GameGroup) => ReactNode;
+  renderPort: (port: CatalogEntry, presentationPort: CatalogEntry, group: GameGroup) => ReactNode;
   renderFavorite?: ((port: CatalogEntry, group: GameGroup) => ReactNode) | undefined;
   onSelect: (portId: string, originKey?: string) => void;
   layout: CollectionLayout;
@@ -231,14 +252,14 @@ const LibraryGame = memo(function LibraryGame({
     statuses,
     organization?.snapshot ? (preferences ?? {}) : undefined,
   );
-  const first = group.matchingPorts[0]!;
+  const first = gameGroupPresentationPort(group);
   const grouped = group.ports.length !== 1 || choice.reason === "stale";
   return (
     <div
       ref={root}
       tabIndex={-1}
       className="min-w-0"
-      aria-label={t("library.portsLabel", { title: gameTitle(first) })}
+      aria-label={t("library.portsLabel", { title: gameGroupTitle(group) })}
       role="listitem"
       aria-posinset={item.position}
       aria-setsize={item.total}
@@ -249,7 +270,7 @@ const LibraryGame = memo(function LibraryGame({
       data-detail-return-group={group.id}
     >
       {choice.port ? (
-        renderPort(choice.port, group)
+        renderPort(choice.port, first, group)
       ) : (
         <LibraryChoicePrompt
           {...{ group, first, choice, layout, organization, restore }}
@@ -325,8 +346,8 @@ function LibraryChoicePrompt({
   favoriteControl?: ReactNode;
 }) {
   const { t } = useAppTranslation("browsing");
-  const { element, visible } = useArtworkVisibility();
-  const { display } = useArtwork(first.id, "cover", visible);
+  const { element, visible, priority } = useArtworkVisibility();
+  const { display } = useArtwork(first.id, "cover", visible, priority);
   return (
     <article
       className={`port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`}
@@ -338,6 +359,7 @@ function LibraryChoicePrompt({
             display={display}
             portId={first.id}
             visible={visible}
+            priority={priority}
             identityArtwork
             className="card-art collection-art"
           />

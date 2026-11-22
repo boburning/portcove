@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/widelands/widelands/releases/latest",
     "setup_url": "https://www.widelands.org/wiki/Game%20Manual/",
-    "download_block_reason": "Install and update Widelands through the publisher or the package manager you choose.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Install and update Widelands through the publisher or the package manager you choose.",
+        "tracking_issue": 6518
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

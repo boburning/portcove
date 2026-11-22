@@ -554,14 +554,30 @@ void test("large plans cross native process environments without losing paths, d
 });
 
 void test("a catalog-wide plan retains every identity through the bounded environment transport", () => {
-  const changes = Array.from({ length: 1100 }, (_, index) => {
-    const name = createHash("sha256").update(String(index)).digest("hex").slice(0, 32);
-    return change(`crates/portcove-core/catalog/ports/${name}.json`);
+  const changes = Array.from({ length: 1600 }, (_, index) => {
+    // More distinct paths and total name entropy than the old 1100 x 128-bit
+    // fixture; repeated numeric names would conceal the real catalog failure.
+    const name = createHash("sha256").update(String(index)).digest("hex").slice(0, 28);
+    return change(`crates/portcove-core/catalog/ports/${name}.json`, {
+      ...(index === 0
+        ? {
+            catalog_authoring: {
+              kind: "catalog-authoring-equivalence-v1" as const,
+              before: "a".repeat(64),
+              after: "b".repeat(64),
+            },
+          }
+        : {}),
+    });
   });
   const expected = plan(changes);
   const encoded = encodeValidationPlanEnvironment(expected);
-  assert.ok(encoded.length > 64 * 1024, "reproduce the catalog-wide transport overflow");
-  assert.ok(encoded.length < 96 * 1024, "retain headroom below the native exec limit");
+  assert.ok(encoded.length > 96 * 1024, "reproduce the real catalog-wide transport overflow");
+  assert.ok(encoded.length < 120 * 1024, "retain the bounded native transport budget");
+  assert.ok(
+    Buffer.byteLength(`PORTCOVE_PLAN_GZIP_BASE64=${encoded}\0`) < 128 * 1024,
+    "the complete environment entry must remain below Linux MAX_ARG_STRLEN",
+  );
   const script = `import { readValidationPlanInput, validateValidationPlan } from ${JSON.stringify(new URL("./validation-plan.mts", import.meta.url).href)}; console.log(JSON.stringify(validateValidationPlan(readValidationPlanInput())));`;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
     env: { ...process.env, PORTCOVE_PLAN_JSON: undefined, PORTCOVE_PLAN_GZIP_BASE64: encoded },
@@ -573,6 +589,25 @@ void test("a catalog-wide plan retains every identity through the bounded enviro
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(validateValidationPlan(JSON.parse(result.stdout)), expected);
+  const overTransport = plan(
+    Array.from({ length: 1600 }, (_, index) => {
+      const name = createHash("sha256").update(String(index)).digest("hex").slice(0, 32);
+      return change(`crates/portcove-core/catalog/ports/${name}.json`);
+    }),
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(overTransport)) < 1024 * 1024);
+  assert.throws(
+    () => encodeValidationPlanEnvironment(overTransport),
+    /environment transport limit/,
+    "a larger high-entropy plan must refuse rather than drop paths or inflate the native budget",
+  );
+  const oversizedTransport = gzipSync(JSON.stringify(overTransport)).toString("base64");
+  assert.ok(oversizedTransport.length > 120 * 1024);
+  assert.throws(
+    () => readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: oversizedTransport }),
+    /Invalid validation plan base64 transport/,
+    "the decoder must reject an oversized but otherwise valid transport before inflation",
+  );
   assert.throws(
     () =>
       encodeValidationPlanEnvironment(
@@ -593,8 +628,15 @@ void test("plan environment transport rejects ambiguity, corrupt encoding and bo
       }),
     /ambiguous/,
   );
-  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(96 * 1024 + 4)])
+  for (const value of ["", "?", "AAAA", "AA=A", "A".repeat(120 * 1024 + 4)])
     assert.throws(() => readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: value }));
+  const compressed = Buffer.from(encoded, "base64");
+  const corruptChecksum = Buffer.from(compressed);
+  corruptChecksum[corruptChecksum.length - 8] = corruptChecksum[corruptChecksum.length - 8]! ^ 1;
+  for (const invalid of [corruptChecksum, compressed.subarray(0, compressed.length - 1)])
+    assert.throws(() =>
+      readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: invalid.toString("base64") }),
+    );
   for (const bytes of [Buffer.from([0xff]), Buffer.from("{invalid")])
     assert.throws(() =>
       readValidationPlanInput({ PORTCOVE_PLAN_GZIP_BASE64: gzipSync(bytes).toString("base64") }),

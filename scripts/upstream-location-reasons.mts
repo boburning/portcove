@@ -7,4 +7,7 @@
 /** Monitor rules that describe the original location itself: a redirect or a missing repository. */
 export const originalLocationReasons = ["provider-redirect", "inaccessible-or-missing"] as const;
 
+export const reviewedEndpointClassification =
+  "reviewed-endpoint-condition; availability-unknown; lineage-separately-recorded";
+
 export type OriginalLocationReason = (typeof originalLocationReasons)[number];

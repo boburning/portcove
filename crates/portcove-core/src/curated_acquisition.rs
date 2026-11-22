@@ -42,6 +42,26 @@ pub(crate) fn migrate(transaction: &Transaction<'_>) -> Result<()> {
 }
 
 fn require_complete_history(connection: &Connection) -> Result<i64> {
+    let admissions = require_complete_identity_history(connection)?;
+    let transitions: i64 = connection.query_row(
+        "SELECT transition_count FROM curated_artifact_history WHERE singleton=1",
+        [],
+        |row| row.get(0),
+    )?;
+    let receipts: i64 = connection.query_row(
+        "SELECT count(*) FROM curated_transition_receipts",
+        [],
+        |row| row.get(0),
+    )?;
+    if transitions != receipts || receipts > 256 {
+        return Err(PortcoveError::state(
+            "curated transition history is incomplete or exceeds its bound",
+        ));
+    }
+    Ok(admissions)
+}
+
+fn require_complete_identity_history(connection: &Connection) -> Result<i64> {
     let expected: Option<i64> = connection
         .query_row(
             "SELECT admission_count FROM curated_artifact_history WHERE singleton=1",
@@ -57,21 +77,6 @@ fn require_complete_history(connection: &Connection) -> Result<i64> {
     if expected != Some(actual) {
         return Err(PortcoveError::state(
             "curated accepted identity history is incomplete",
-        ));
-    }
-    let transitions: i64 = connection.query_row(
-        "SELECT transition_count FROM curated_artifact_history WHERE singleton=1",
-        [],
-        |row| row.get(0),
-    )?;
-    let receipts: i64 = connection.query_row(
-        "SELECT count(*) FROM curated_transition_receipts",
-        [],
-        |row| row.get(0),
-    )?;
-    if transitions != receipts || receipts > 256 {
-        return Err(PortcoveError::state(
-            "curated transition history is incomplete or exceeds its bound",
         ));
     }
     let expected_scopes: i64 = connection.query_row(
@@ -364,6 +369,79 @@ pub(crate) fn repository_for_retained_record(
         .map_err(|_| PortcoveError::state("retained curated repository identity is invalid"))
 }
 
+/// A cached release contains the selected bytes and canonical provider URL, but
+/// has no retained numeric asset IDs. Only a unique exact scoped admission can
+/// recover them. Never infer identity from today's recommended definition.
+pub(crate) fn scoped_identity_for_cached_offer(
+    connection: &Connection,
+    port_id: &str,
+    release: &crate::ResolvedRelease,
+) -> Result<Option<(u64, u64)>> {
+    let asset = &release.asset;
+    // The signed record format fixes the acquisition origin and the canonical
+    // tag/filename path. A preserved mirror never becomes the advised URL.
+    // Exclude shapes that cannot be admitted without consulting local custody.
+    let could_be_curated = https_reference(&asset.url).is_some_and(|url| {
+        let Some(mut segments) = url.path_segments() else {
+            return false;
+        };
+        let (Some(owner), Some(repo)) = (segments.next(), segments.next()) else {
+            return false;
+        };
+        let repository = format!("{owner}/{repo}");
+        canonical_acquisition_url(&repository, &release.version, &asset.name)
+            .is_some_and(|expected| expected.as_str() == asset.url)
+    });
+    if !could_be_curated {
+        return Ok(None);
+    }
+
+    // An exact absence is meaningful only when identity and scope history are
+    // complete. Transition history is needed once there is a participating asset.
+    require_complete_identity_history(connection)?;
+    let mut statement = connection.prepare(
+        "SELECT DISTINCT admission.repository_id, admission.asset_id
+         FROM curated_artifact_admissions AS admission
+         JOIN curated_artifact_scopes AS scope
+           USING(repository_id, asset_id)
+         WHERE scope.stable_id = ?1
+           AND json_extract(admission.identity_json, '$.tag') = ?2
+           AND json_extract(admission.identity_json, '$.filename') = ?3
+           AND json_extract(admission.identity_json, '$.size') = ?4
+           AND json_extract(admission.identity_json, '$.sha256') = ?5
+           AND json_extract(admission.identity_json, '$.acquisition_url') = ?6
+         LIMIT 2",
+    )?;
+    let matches = statement
+        .query_map(
+            params![
+                port_id,
+                release.version,
+                asset.name,
+                asset.size,
+                asset.sha256,
+                asset.url
+            ],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+        )?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let (repository_id, asset_id) = match matches.as_slice() {
+        [] => return Ok(None),
+        [identity] => identity,
+        _ => {
+            return Err(PortcoveError::verification(
+                "cached offer matched conflicting retained curated identities",
+            ));
+        }
+    };
+    match (repository_id.parse(), asset_id.parse()) {
+        (Ok(repository), Ok(asset)) => Ok(Some((repository, asset))),
+        _ => Err(PortcoveError::verification(
+            "cached offer matched invalid retained curated identifiers",
+        )),
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CuratedEvidenceReference {
@@ -484,6 +562,18 @@ fn https_reference(value: &str) -> Option<reqwest::Url> {
     .then_some(url)
 }
 
+fn canonical_acquisition_url(repository: &str, tag: &str, filename: &str) -> Option<reqwest::Url> {
+    if !crate::definition_acquisition::valid_github_repository(repository) {
+        return None;
+    }
+    let mut expected = https_reference(&format!("https://github.com/{repository}"))?;
+    expected
+        .path_segments_mut()
+        .ok()?
+        .extend(["releases", "download", tag, filename]);
+    Some(expected)
+}
+
 impl CuratedAcquisitionRecord {
     pub(crate) fn verify_metadata(&self, observed: CuratedReleaseMetadata<'_>) -> Result<String> {
         if observed.release_id != Some(self.release_id)
@@ -513,17 +603,8 @@ impl CuratedAcquisitionRecord {
         }
         let upstream = format!("https://github.com/{repository}");
         let acquisition = https_reference(&self.acquisition_url);
-        let mut expected_acquisition = https_reference(&upstream)
+        let expected_acquisition = canonical_acquisition_url(repository, &self.tag, &self.filename)
             .ok_or_else(|| PortcoveError::usage("invalid curated upstream declaration"))?;
-        expected_acquisition
-            .path_segments_mut()
-            .map_err(|_| PortcoveError::usage("invalid curated upstream coordinates"))?
-            .extend([
-                "releases",
-                "download",
-                self.tag.as_str(),
-                self.filename.as_str(),
-            ]);
         let tag_valid = curated_tag_valid(&self.tag);
         let locations_valid = match self.record_version {
             1 => self.preserved_locations.is_empty(),

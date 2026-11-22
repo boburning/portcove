@@ -18,7 +18,16 @@
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
-    "download_block_reason": "The Windows and Android packages embed an initialized data block extracted from the original game, including font data. The Android package also includes an icon derived from an original sprite. Portcove Download requires permission covering these materials or replacement packages without them.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The Windows and Android packages embed an initialized data block extracted from the original game, including font data. The Android package also includes an icon derived from an original sprite. Portcove Download requires permission covering these materials or replacement packages without them.",
+        "tracking_issue": 5673
+      }
+    ],
     "setup_url": "https://github.com/missingno7/pre2_port/blob/v0.4.0/README.md#getting-started--how-to-actually-run-it",
     "release_url": "https://github.com/missingno7/pre2_port/releases/tag/v0.4.0",
     "manual_setup": {

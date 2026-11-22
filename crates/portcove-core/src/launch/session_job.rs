@@ -31,18 +31,11 @@ use std::{
 };
 
 use super::{SessionMember, member_holds_session};
+use crate::windows_user_access::CurrentUserDescriptor;
 use windows_sys::Win32::{
     Foundation::{
         DuplicateHandle, ERROR_ALREADY_EXISTS, ERROR_FILE_NOT_FOUND, ERROR_INVALID_PARAMETER,
-        ERROR_MORE_DATA, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree, SetLastError,
-    },
-    Security::{
-        Authorization::{
-            ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW,
-            SDDL_REVISION_1,
-        },
-        GetTokenInformation, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, TOKEN_QUERY, TOKEN_USER,
-        TokenUser,
+        ERROR_MORE_DATA, GetLastError, HANDLE, INVALID_HANDLE_VALUE, SetLastError,
     },
     System::{
         Diagnostics::ToolHelp::{
@@ -56,9 +49,9 @@ use windows_sys::Win32::{
             QueryInformationJobObject, SetInformationJobObject,
         },
         Threading::{
-            CREATE_SUSPENDED, GetCurrentProcess, OpenProcess, OpenProcessToken, OpenThread,
-            PROCESS_DUP_HANDLE, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
-            QueryFullProcessImageNameW, ResumeThread, SuspendThread, THREAD_SUSPEND_RESUME,
+            CREATE_SUSPENDED, GetCurrentProcess, OpenProcess, OpenThread, PROCESS_DUP_HANDLE,
+            PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+            ResumeThread, SuspendThread, THREAD_SUSPEND_RESUME,
         },
     },
 };
@@ -90,12 +83,8 @@ impl SessionJob {
         // Resolve the root first: an unresolvable root never starts tracking.
         let install_root = resolved_root(install_root)?;
         let name = wide_name(session_id)?;
-        let descriptor = CurrentUserDescriptor::new()?;
-        let attributes = SECURITY_ATTRIBUTES {
-            nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: descriptor.0,
-            bInheritHandle: 0,
-        };
+        let descriptor = CurrentUserDescriptor::for_object()?;
+        let attributes = descriptor.attributes();
         // SAFETY: valid attributes and a NUL-terminated name. The previous
         // error is cleared so an existing object is distinguished exactly.
         let (raw, error) = unsafe {
@@ -582,89 +571,6 @@ fn owned(raw: HANDLE) -> io::Result<OwnedHandle> {
 
 fn context(message: &str, error: io::Error) -> io::Error {
     io::Error::new(error.kind(), format!("{message}: {error}"))
-}
-
-/// A protected DACL granting the current account full access and nobody else.
-struct CurrentUserDescriptor(PSECURITY_DESCRIPTOR);
-
-impl CurrentUserDescriptor {
-    fn new() -> io::Result<Self> {
-        let sid = current_user_sid()?;
-        let sddl: Vec<u16> = format!("D:P(A;;GA;;;{sid})")
-            .encode_utf16()
-            .chain(Some(0))
-            .collect();
-        let mut descriptor = std::ptr::null_mut();
-        // SAFETY: NUL-terminated SDDL and a writable output pointer; the
-        // allocation is released by Drop with LocalFree.
-        if unsafe {
-            ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                sddl.as_ptr(),
-                SDDL_REVISION_1,
-                &mut descriptor,
-                std::ptr::null_mut(),
-            )
-        } == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(Self(descriptor))
-    }
-}
-
-impl Drop for CurrentUserDescriptor {
-    fn drop(&mut self) {
-        // SAFETY: allocated by ConvertStringSecurityDescriptorToSecurityDescriptorW.
-        unsafe {
-            LocalFree(self.0);
-        }
-    }
-}
-
-fn current_user_sid() -> io::Result<String> {
-    let mut raw_token = std::ptr::null_mut();
-    // SAFETY: valid output pointer and the current process pseudo handle.
-    if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw_token) } == 0 {
-        return Err(io::Error::last_os_error());
-    }
-    let token = owned(raw_token)?;
-    // Aligned fixed storage bounds TOKEN_USER and the maximum Windows SID.
-    let mut storage = [0_usize; 128];
-    let mut length = 0_u32;
-    // SAFETY: aligned writable storage and the live query token.
-    if unsafe {
-        GetTokenInformation(
-            token.as_raw_handle(),
-            TokenUser,
-            storage.as_mut_ptr().cast(),
-            std::mem::size_of_val(&storage) as u32,
-            &mut length,
-        )
-    } == 0
-    {
-        return Err(io::Error::last_os_error());
-    }
-    if (length as usize) < std::mem::size_of::<TOKEN_USER>() {
-        return Err(io::Error::other("invalid account token size"));
-    }
-    // SAFETY: the OS initialized a complete TOKEN_USER in aligned storage.
-    let sid = unsafe { (*storage.as_ptr().cast::<TOKEN_USER>()).User.Sid };
-    let mut text = std::ptr::null_mut();
-    // SAFETY: the SID lives in `storage`; the returned string is LocalFree'd.
-    if unsafe { ConvertSidToStringSidW(sid, &mut text) } == 0 {
-        return Err(io::Error::last_os_error());
-    }
-    // SAFETY: Windows returned a NUL-terminated UTF-16 string.
-    let value = unsafe {
-        let mut length = 0;
-        while *text.add(length) != 0 {
-            length += 1;
-        }
-        let value = String::from_utf16_lossy(std::slice::from_raw_parts(text, length));
-        LocalFree(text.cast());
-        value
-    };
-    Ok(value)
 }
 
 #[cfg(test)]

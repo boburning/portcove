@@ -404,6 +404,19 @@ The CLI API schema version is independent of the Portcove release version.
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
 and `listing_formats` independently from the API and event schemas.
+`listing_delivery_carriers` identifies the independently versioned signed
+directory carriers a client consumes. The `gzip-base64-json-v1` carrier
+authenticates the compressed envelope under the existing delegated policy role.
+The client checks the bounded decoded length and digest and applies the same
+directory revision and replay rules as `json-v1`. It reads the legacy carrier
+when the compact target is absent from the signed repository. A failed compact
+read leaves the existing installation and admitted directory state available
+under their existing validity checks. The listing status digest identifies the
+exact decoded directory. For compact delivery, `transport_target_sha256`
+reports the independently authenticated carrier digest. The optional compact directory record and the
+legacy record share one transaction and authority floor. Older releases with a
+compatible library schema can continue to read and renew their genuine legacy
+record. The higher admitted directory revision governs a capable reader.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -435,8 +448,7 @@ Listing format 11 adds optional inert `collection_covers`: one to four distinct,
 reviewed IGDB cover mappings for a multi-game project. It is exclusive with an
 individual `artwork` mapping. The field grants display only. Local artwork choices
 keep precedence. Exports to formats 5 through 10 omit the collection while retaining
-setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through
-12; an export without an explicit format carries the current directory format.
+setup, restrictions and identity. `capabilities.listing_formats` advertises 5 through 14. An export without an explicit format carries the current directory format.
 Retained user-selected listings with collections use envelope version 4. Earlier
 retained envelopes remain readable; a collection in an earlier envelope is refused.
 
@@ -445,11 +457,28 @@ descriptions. Exports to formats 5 through 11 omit these explanations and preser
 requirements and restrictions. Retained user-selected listings omit the field too,
 so an earlier strict retained reader can still open its established launch contract.
 
+Listing format 13 adds reviewed IGDB backgrounds and screenshots. Exports
+through format 12 keep earlier descriptive media and omit the new typed records.
+
+Listing format 14 adds reviewed bindings from an original edition to an exact
+Core source game, variant and representation. Exports through format 13 omit
+those bindings. A current registered file must pass Core recognition and
+admission under the selected Game contract before Desktop can use a matching
+edition's artwork. The binding leaves the launch requirements unchanged.
+The directory format applies independently of the signed carrier.
+
+Listing format 15 adds typed acquisition restrictions (`restrictions`). Exports
+through format 14 omit them and keep the derived `download_block_reason`, which
+always equals the explanation of the first download hold. See
+[acquisition restrictions](CATALOG.md#acquisition-restrictions).
+
 The catalog listing document has its own format version. Readers accept formats
-1–12 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–15 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
-and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
+format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
+screenshots, format 14 adds verified source-edition bindings and format 15 adds
+typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -562,6 +591,13 @@ since can differ.
   `listing_download_refusal: "managed-route"`: a fresh library offers Install
   there instead of the upstream listing download. A library's own
   registration, pending setup or definition hold can keep the download.
+- Each listing and operational definition also has a `content_capabilities`
+  row for each requested platform. The row reports reviewed provider coordinates,
+  loader-dependent mod operations, declared original-file profiles and any
+  upstream setup guidance. `requires_reviewed_runtime` means the catalog
+  matches a loader contract for that platform. Package review, installed
+  state and exact-runtime checks still apply. A declared source profile names
+  the recognition route and supplies no compatibility result for local files.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
@@ -1519,7 +1555,7 @@ portcove artwork steamgriddb set-key
 portcove --json --non-interactive artwork steamgriddb set-key --stdin
 portcove --json artwork steamgriddb status
 portcove --json artwork steamgriddb search "<game name>"
-portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover [--page <n>]
 portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
 portcove --json artwork steamgriddb check-listings
 portcove --json artwork steamgriddb clear-key
@@ -1533,8 +1569,9 @@ Core keeps the key in this host's secure credential store and sends it only to t
 fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
 `configured`; the key is never shown.
 
-`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
-or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+`search` returns up to 50 matching games. `candidates` returns one provider page of
+up to 50 static PNG or JPEG images (`--page`, starting at 0; an empty page ends the
+listing) for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
 its CDN URL, size, style and author attribution. Both are suggestions: they choose
 no artwork, establish no game identity, download no image bytes and write nothing
 to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
@@ -1546,8 +1583,11 @@ images), `detail` (hero images) or `landscape` (wide grid images) slot and retur
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
-and the destination handoff. An image no longer on the game's first listing page is
-not-found, and a changed choice revision is a conflict; in both cases the current
+and the destination handoff. Core finds the chosen image by its ID across listing pages,
+so an image that moved to a later page is still confirmed. An image missing from the
+game's complete listing is not-found; if the listing is too long to finish
+confirming, the result is a state error asking you to list the images again. A
+changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
@@ -2245,10 +2285,12 @@ sync tools are harmless. Portcove never overwrites or deletes files in the
 folder. Temporary files from interrupted copies are ignored; saves files that are
 damaged or do not match their name are ignored and listed under `problems`, and
 a damaged file under this device's own name is kept for inspection and the push
-is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
-game and at most 256 MiB of saves files at once; beyond that `complete` is false,
-`next_step` is `incomplete`, and pulls from the folder are refused until older
-files are moved out (a saves file can still be imported directly).
+is refused. Push history has no saves-file count limit. Each status read newly
+verifies at most 256 MiB of saves files and remembers what it verified, so a
+longer history finishes over later reads: until then `complete` is false and
+`next_step` is `incomplete`. A pull continues reviewing until the history is
+complete. A folder holding more than 65,536 names of any kind is reported as
+incomplete (a saves file can still be imported directly).
 
 `folder-status` is read-only. It lists every saves file with its source version
 and platform, whether it matches this device's qualified game version
@@ -2670,6 +2712,42 @@ backup's enabled entries and recorded order. A matching backup can stay in use
 as-is. A malformed primary holds for review with both files preserved. If both
 files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
 Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
+
+### Browsing JakMods in OpenGOAL
+
+Run `portcove --library PATH profile jakmods PORT_ID` for an OpenGOAL setup.
+The command uses your current platform. To view builds for another supported
+platform, pass `--platform`. Use `--json` for every listed release and build.
+
+OpenGOAL Launcher owns installation, version selection and updates. Install the
+base game in the launcher first. In **Settings > Mods**, add the source URL from
+the result. To see mods for that game, open **Features > Mods**. External
+projects link to their source for separate setup. [JakMods setup](https://jakmods.dev/#installation)
+
+Download counts belong to one release asset. A missing count stays unknown.
+Cached results show their last confirmed time. An unavailable feed without
+cached data returns an error.
+
+#### Replay the reviewed JakMods feed addition
+
+For explicit Core acceptance, retain `static/mods.json` from the two upstream
+revisions below. Save each file as its revision followed by `.json` in one
+directory. Verify its SHA-256 before running the replay.
+
+| Upstream revision                                                                                                       | SHA-256                                                            |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [8faab022](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8faab02231d48ab3246bbe9e57cd71741dfbe3ed/static/mods.json) | `f33e4d4242c7027730e9252e4b1e004cd3f1b43df3be21b8145f930bd5de9fcb` |
+| [8cd96e1a](https://github.com/OpenGOAL-Mods/jakmods.dev/blob/8cd96e1a3557f5066de62e911d3eb8a59727834a/static/mods.json) | `4ecfa805b22bc999783cf42d7ca3a71ebb691c81ffa63ad4beabb76f0488560f` |
+
+Set `PORTCOVE_JAKMODS_REPLAY` to that directory and run this command from the
+repository root.
+
+```sh
+node scripts/run-rust-tests.mts --guard-command cargo test --locked -p portcove-core --lib jakmods::tests::real_before_and_served_feed_addition_appears_only_for_jak1 -- --ignored --exact
+```
+
+The replay checks the provider's real Bullet Hell addition and its game and
+architecture scope. Routine CI uses deterministic provider fixtures.
 
 ### Installing from GameBanana and Thunderstore
 
@@ -3190,6 +3268,14 @@ requires separate setup, Play or explicit update; it cannot become an update
 through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
+
+When a Windows x64 Stable definition offers a reviewed package choice, pass
+the same `--package ID` to `installation plan` and `installation run`. The
+preview records the choice and exact asset. A changed choice or package proof
+requires a new preview. A successful installation keeps the choice for later
+updates. A newer package with a missing or ambiguous saved choice leaves the
+installed copy available for Play. Omitting `--package` uses the ordinary
+selection rules.
 
 ### Shared-directory external runtimes (API 73)
 

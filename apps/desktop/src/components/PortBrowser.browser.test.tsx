@@ -284,7 +284,7 @@ describe("Library empty browsing context", () => {
 
     await render("all", "unmatched title");
     const resultStatus = host.querySelector('[role="status"]');
-    expect(resultStatus?.textContent).toBe("0 in your library");
+    expect(resultStatus?.textContent).toBe("0 ports in your library");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Nothing in your library matches");
     expect(host.textContent).toContain(

@@ -5,10 +5,11 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { fitListingAdmissions } from "./listing-admission-budget.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseCatalogSource } from "./catalog-authoring.mts";
 import { listingDeclarationHash } from "./listing-upstream-observation.mts";
-import { observationHash } from "./upstream-observer.mts";
+import { compatibleGithubListingAssetUrl, observationHash } from "./upstream-observer.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -36,7 +37,7 @@ function directory(value: unknown): Directory {
     !isRecord(value) ||
     !Number.isSafeInteger(value.format_version) ||
     Number(value.format_version) < 1 ||
-    Number(value.format_version) > 12 ||
+    Number(value.format_version) > 15 ||
     !Array.isArray(value.listings) ||
     value.listings.length > 10000
   )
@@ -133,6 +134,61 @@ export function completedListingCandidates(
   return candidates;
 }
 
+function completeObservation(value: Record<string, unknown>) {
+  const { attempted_at, observed_at, fresh_until, ...facts } = value;
+  if (
+    facts.status !== "complete" ||
+    typeof attempted_at !== "string" ||
+    typeof observed_at !== "string" ||
+    typeof fresh_until !== "string"
+  )
+    return null;
+  const attempted = Date.parse(attempted_at);
+  const observed = Date.parse(observed_at);
+  const expires = Date.parse(fresh_until);
+  if (!Number.isFinite(attempted) || !(observed <= attempted && attempted < expires)) return null;
+  return { attempted, observed, expires, facts };
+}
+
+/**
+ * Keep an already signed observation through the first half of its original
+ * freshness window when the completed refresh only advances its clocks.
+ * Leaving the old clocks intact preserves the exact evidence readers received.
+ */
+function retainFreshObservation(
+  held: Record<string, unknown>,
+  proposed: Record<string, unknown>,
+  now: number,
+) {
+  const prior = completeObservation(held);
+  const next = completeObservation(proposed);
+  return (
+    prior !== null &&
+    next !== null &&
+    prior.observed <= now &&
+    now < prior.observed + (prior.expires - prior.observed) / 2 &&
+    next.observed >= prior.observed &&
+    next.attempted >= prior.attempted &&
+    next.expires >= prior.expires &&
+    next.expires - next.observed >= prior.expires - prior.observed &&
+    observationHash(omitUnknownAssetDigests(prior.facts)) ===
+      observationHash(omitUnknownAssetDigests(next.facts))
+  );
+}
+
+function omitUnknownAssetDigests(observation: unknown): unknown {
+  if (!isRecord(observation) || !Array.isArray(observation.releases)) return observation;
+  const releases: unknown[] = structuredClone(observation.releases);
+  for (const release of releases) {
+    if (!isRecord(release) || !Array.isArray(release.assets)) continue;
+    for (const asset of release.assets) {
+      // The listing reader decodes both spellings as an absent provider digest.
+      if (isRecord(asset) && asset.sha256 === null) delete asset.sha256;
+    }
+  }
+  return { ...observation, releases };
+}
+
 export function projectListingDelivery(
   canonical: unknown,
   candidates: readonly Record<string, unknown>[],
@@ -140,6 +196,8 @@ export function projectListingDelivery(
   revisionFloor = 0,
   byteLimit = maximum,
   compatible?: unknown,
+  operationalIds: ReadonlySet<string> = new Set(),
+  now = Date.now(),
 ) {
   const raw = directory(canonical);
   const baseline = directory(compatible ?? raw);
@@ -168,10 +226,16 @@ export function projectListingDelivery(
       continue;
     if (updates.has(String(candidate.id)))
       throw new Error("Conflicting descriptive observation candidates");
-    updates.set(String(candidate.id), candidate.upstream_observation);
+    updates.set(String(candidate.id), compatibleObservation(candidate.upstream_observation));
   }
   const withdrawn = previousDocument?.withdrawn_ids ?? [];
   const withdrawalSet = new Set(withdrawn);
+  for (const id of previousListings.keys()) {
+    if (!identities.has(id) && !withdrawalSet.has(String(id)))
+      throw new Error(
+        "Previously published listing missing from the canonical directory without an explicit withdrawal",
+      );
+  }
   const observedAt = (value: Record<string, unknown> | undefined) =>
     value && typeof value.observed_at === "string" ? Date.parse(value.observed_at) : -Infinity;
   const proposedRows = baseline.listings
@@ -179,6 +243,7 @@ export function projectListingDelivery(
       (listing) =>
         !withdrawalSet.has(String(listing.id)) &&
         (previousListings.has(listing.id) ||
+          operationalIds.has(String(listing.id)) ||
           updates.has(String(listing.id)) ||
           isRecord(listing.upstream_observation)),
     )
@@ -195,22 +260,29 @@ export function projectListingDelivery(
         ? result.upstream_observation
         : undefined;
       if (prior && (!authored || observedAt(prior) > observedAt(authored)))
-        result.upstream_observation = structuredClone(prior);
+        result.upstream_observation = prior;
       const held = isRecord(result.upstream_observation) ? result.upstream_observation : undefined;
       const proposed = updates.get(String(listing.id));
       if (
         proposed &&
-        (!held || (proposed.status === "complete" && observedAt(proposed) >= observedAt(held)))
+        (!held ||
+          (proposed.status === "complete" &&
+            observedAt(proposed) >= observedAt(held) &&
+            !retainFreshObservation(held, proposed, now)))
       )
-        result.upstream_observation = structuredClone(proposed);
+        result.upstream_observation = proposed;
+      if (result.upstream_observation !== undefined)
+        result.upstream_observation = omitUnknownAssetDigests(result.upstream_observation);
       return {
         listing: result,
+        prior,
+        required: previousListings.has(listing.id) || operationalIds.has(String(listing.id)),
         retained: !!prior,
         updated:
           result.upstream_observation === undefined
             ? false
             : observationHash(result.upstream_observation) !==
-              observationHash(old?.upstream_observation ?? null),
+              observationHash(omitUnknownAssetDigests(old?.upstream_observation ?? null)),
         priority: previousListings.has(listing.id) ? 0 : authored ? 1 : 2,
       };
     })
@@ -228,45 +300,15 @@ export function projectListingDelivery(
     withdrawn_ids: withdrawn,
     directory: { format_version: 11, listings },
   });
-  if (
-    previousDocument &&
-    previous!.length <= byteLimit &&
-    observationHash(previousDocument.directory) ===
-      observationHash({
-        format_version: 11,
-        listings: proposedRows
-          .map((row) => row.listing)
-          .sort((a, b) => String(a.id).localeCompare(String(b.id), "en")),
-      })
-  )
-    return {
-      bytes: previous!,
-      revision: previousDocument.revision,
-      changed: false,
-      retained: proposedRows.filter((row) => row.retained).length,
-      updated: 0,
-      omitted: [],
-      canonical_records: raw.listings.length,
-      delivered_records: proposedRows.length,
-    };
-  const listings: Record<string, unknown>[] = [];
-  const omitted: { id: string; reason: string }[] = [];
-  let size = Buffer.byteLength(JSON.stringify(envelope([]))),
-    retained = 0,
-    updated = 0;
-  if (size > byteLimit || byteLimit > maximum)
+  const envelopeBytes = Buffer.byteLength(JSON.stringify(envelope([])));
+  if (envelopeBytes > byteLimit || byteLimit > maximum)
     throw new Error("Descriptive envelope exceeds existing byte bound");
-  for (const row of proposedRows) {
-    const extra = Buffer.byteLength(JSON.stringify(row.listing)) + (listings.length ? 1 : 0);
-    if (size + extra > byteLimit) {
-      omitted.push({ id: String(row.listing.id), reason: "existing-target-byte-budget" });
-      continue;
-    }
-    size += extra;
-    listings.push(row.listing);
-    retained += Number(row.retained);
-    updated += Number(row.updated);
-  }
+  const { listings, retained, updated, omitted, omittedObservations } = fitListingAdmissions(
+    proposedRows,
+    envelopeBytes,
+    byteLimit,
+    now,
+  );
   listings.sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
   const candidate = envelope(listings);
   if (
@@ -281,6 +323,7 @@ export function projectListingDelivery(
       retained,
       updated,
       omitted,
+      omittedObservations,
       canonical_records: raw.listings.length,
       delivered_records: listings.length,
     };
@@ -293,8 +336,43 @@ export function projectListingDelivery(
     retained,
     updated,
     omitted,
+    omittedObservations,
     canonical_records: raw.listings.length,
     delivered_records: listings.length,
+  };
+}
+
+function compatibleObservation(observation: Record<string, unknown>) {
+  const { repository, releases } = observation;
+  if (
+    (observation.provider ?? "github") !== "github" ||
+    typeof repository !== "string" ||
+    !Array.isArray(releases)
+  )
+    return observation;
+  return {
+    ...observation,
+    releases: releases.map((release: unknown) => {
+      if (
+        !isRecord(release) ||
+        typeof release.version !== "string" ||
+        !release.version.includes("/") ||
+        !Array.isArray(release.assets)
+      )
+        return release;
+      const tag = release.version;
+      return {
+        ...release,
+        assets: release.assets.map((asset: unknown) =>
+          isRecord(asset) && typeof asset.url === "string" && typeof asset.name === "string"
+            ? {
+                ...asset,
+                url: compatibleGithubListingAssetUrl(asset.url, repository, tag, asset.name),
+              }
+            : asset,
+        ),
+      };
+    }),
   };
 }
 
@@ -324,6 +402,29 @@ export async function verifiedPriorListing(
     throw new Error("Prior signed listing bytes differ");
   delivery(parseCatalogSource(bytes.toString("utf8")));
   return bytes;
+}
+
+export async function priorListingForRenewal(prior: string, canonicalRecords: number) {
+  const identity = publishedTargets(prior)[listingDeliveryTarget];
+  if (!identity || !/^[a-f0-9]{64}$/u.test(identity))
+    throw new Error("Cannot establish the previous listing identity for renewal");
+  const bytes = await readControllerToolFile(
+    path.join(prior, `targets/${identity}.${listingDeliveryTarget}`),
+    maximum,
+  );
+  if (hash(bytes) !== identity) throw new Error("Historical listing target digest differs");
+  const old = delivery(parseCatalogSource(bytes.toString("utf8")));
+  return {
+    bytes,
+    revision: old.revision,
+    changed: false,
+    retained: 0,
+    updated: 0,
+    omitted: [],
+    omittedObservations: [],
+    canonical_records: canonicalRecords,
+    delivered_records: old.directory.listings.length,
+  };
 }
 
 function isolatedEnvironment(root: string) {
@@ -393,9 +494,14 @@ export async function prepareObservationBundle(options: {
     throw new Error("Core could not export the exact canonical directory for format 11");
   const compatible = directory(baseline.data);
   let previous: Buffer | null = null;
-  let revisionFloor = 0;
+  const revisionFloor = 0;
+  let renewal: Awaited<ReturnType<typeof priorListingForRenewal>> | undefined;
   let observerRevision = options.observe === false ? "offline" : "unavailable";
-  if (options.prior && existsSync(path.join(options.prior, "metadata/timestamp.json"))) {
+  if (options.prior) {
+    if (!existsSync(path.join(options.prior, "metadata/timestamp.json")))
+      throw new Error(
+        "Previous catalog timestamp unavailable; cannot establish initial listing admission",
+      );
     try {
       const prior = path.join(workspace, "verified-prior");
       copyPriorRepository(options.prior, prior);
@@ -424,33 +530,25 @@ export async function prepareObservationBundle(options: {
       );
       previous = await verifiedPriorListing(prior, report);
     } catch (error) {
+      // The signer authenticates the historical target before renewal. Never use
+      // an unauthenticated observation, or replace a directory we could not read.
+      renewal = await priorListingForRenewal(options.prior, canonical.listings.length);
       diagnostics.push(
-        `prior unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "verification failed"}`,
+        `retained exact previous listing bytes for historical signer verification; prior unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "verification failed"}`,
       );
     }
   }
-  if (options.prior) {
-    // Numeric continuity is only a conservative lower bound. No observations
-    // from this fallback are reused. The unchanged existing signer verifies
-    // this exact prior repository and all historical revision floors again.
-    try {
-      const identity = publishedTargets(options.prior)[listingDeliveryTarget];
-      if (identity && /^[a-f0-9]{64}$/u.test(identity)) {
-        const bytes = await readControllerToolFile(
-          path.join(options.prior, `targets/${identity}.${listingDeliveryTarget}`),
-          maximum,
-        );
-        if (hash(bytes) === identity)
-          revisionFloor = delivery(parseCatalogSource(bytes.toString("utf8"))).revision;
-      }
-    } catch {
-      diagnostics.push(
-        "previous listing revision unavailable; final historical verifier remains authoritative",
-      );
-    }
+  if (!isRecord(current) || !Array.isArray(current.ports))
+    throw new Error("Operational catalog requires a complete port array");
+  const operationalIds = new Set<string>();
+  for (const port of current.ports) {
+    if (!isRecord(port) || typeof port.id !== "string" || operationalIds.has(port.id))
+      throw new Error("Operational catalog has an invalid or duplicate port identity");
+    operationalIds.add(port.id);
   }
+  const now = Date.now();
   let candidates: Record<string, unknown>[] = [];
-  if (options.observe !== false) {
+  if (!renewal && options.observe !== false) {
     try {
       const input = await (
         options.readObservation ??
@@ -463,21 +561,25 @@ export async function prepareObservationBundle(options: {
           ))
       )();
       observerRevision = input.revision;
-      candidates = completedListingCandidates(input, current, canonical, Date.now(), diagnostics);
+      candidates = completedListingCandidates(input, current, canonical, now, diagnostics);
     } catch (error) {
       diagnostics.push(
         `observer unavailable: ${error instanceof Error ? error.message.slice(0, 300) : "read failed"}`,
       );
     }
   }
-  let projected = projectListingDelivery(
-    canonical,
-    candidates,
-    previous,
-    revisionFloor,
-    maximum,
-    compatible,
-  );
+  let projected =
+    renewal ??
+    projectListingDelivery(
+      canonical,
+      candidates,
+      previous,
+      revisionFloor,
+      maximum,
+      compatible,
+      operationalIds,
+      now,
+    );
   const inspect = (bytes: Buffer) => {
     const candidate = path.join(workspace, "listings.json");
     writeFileSync(candidate, bytes);
@@ -488,24 +590,24 @@ export async function prepareObservationBundle(options: {
     inspect(
       Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
     );
-  } catch {
+  } catch (error) {
+    if (renewal) throw error;
     diagnostics.push(
       "observer candidates failed Core validation; retaining prior applicable observations",
     );
-    projected = projectListingDelivery(canonical, [], previous, revisionFloor, maximum, compatible);
-    try {
-      inspect(
-        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
-      );
-    } catch {
-      diagnostics.push(
-        "previous optional observations failed current Core validation; using canonical data only",
-      );
-      projected = projectListingDelivery(canonical, [], null, revisionFloor, maximum, compatible);
-      inspect(
-        Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
-      );
-    }
+    projected = projectListingDelivery(
+      canonical,
+      [],
+      previous,
+      revisionFloor,
+      maximum,
+      compatible,
+      operationalIds,
+      now,
+    );
+    inspect(
+      Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
+    );
   }
   if (
     hash(await readControllerToolFile(options.canonical, maximum)) !== hash(canonicalBytes) ||
@@ -530,10 +632,11 @@ export async function prepareObservationBundle(options: {
     canonical_records: projected.canonical_records,
     delivered_records: projected.delivered_records,
     omitted: projected.omitted,
+    omitted_observations: projected.omittedObservations,
     not_projected_records: projected.canonical_records - projected.delivered_records,
     target_bytes: projected.bytes.length,
     projection_scope:
-      "Partial directory of complete current canonical rows with observations or explicit clears; omitted rows retain bundled fallback. Coverage is not complete provider history.",
+      "Reviewed operational and previously signed guides with bounded optional observations; omitted discovery rows retain bundled fallback. Coverage is not complete provider history.",
     diagnostics,
     scope:
       "descriptive-observation-only; canonical fields unchanged; no operation or publication grant",

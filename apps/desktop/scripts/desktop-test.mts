@@ -117,6 +117,7 @@ import {
   reviewControls,
   selectCatalogPort,
   openCatalogFilters,
+  openMoreCatalogFilters,
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
@@ -152,9 +153,9 @@ import type { AcquisitionGameObserver } from "./desktop-install-test.mts";
 import { hostPublicationScenario } from "./desktop-host-publication-test.mts";
 import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import { assertDesignCompatibility } from "./desktop-design-compatibility-assertions.mts";
-import { catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
+import { activityOutsideCatalog, catalogUpdateScenario } from "./desktop-catalog-update-test.mts";
 import { createImageRefusal } from "./desktop-cover-observations.mts";
-import { defaultCoverScenario } from "./desktop-default-cover-test.mts";
+import { defaultCoverScenario, reviewedScreenshotScenario } from "./desktop-default-cover-test.mts";
 import {
   desktopHarnessDeadlineMs,
   desktopScenarioById,
@@ -3188,6 +3189,47 @@ try {
       packageEvidence: required(packageEvidence),
     });
     assertOwnedBoundaryRequests(requests);
+    const {
+      readGameFirstCatalogObservation,
+      readGameFirstRelationships,
+      inspectGameFirstRelationships,
+    } = await import("./desktop-game-first-test.mts");
+    const readbacks: unknown[] = [];
+    const report: Record<string, unknown> = {
+      outcome: "failed",
+      source_revision: revision,
+      package: required(packageEvidence),
+      application: required(inputs[0]),
+      readbacks,
+      interpretation:
+        "Actual normal-package loaded catalog relationship readback; not installed game runtime or gameplay acceptance.",
+    };
+    try {
+      const relationships = await readGameFirstRelationships();
+      report.expected_baseline_sha256 = relationships.sha256;
+      report.audited_revision = relationships.expected.audited_revision;
+      const observation = await readGameFirstCatalogObservation(invoke, readbacks);
+      report.catalog_digest = observation.workspace.catalog_digest ?? null;
+      report.catalog_status = observation.catalog_status;
+      report.listing_delivery_status = observation.listing_delivery_status;
+      report.generation = observation.bootstrap.generation;
+      const production = inspectGameFirstRelationships(
+        observation.workspace,
+        relationships.expected,
+        observation.catalog_status.provenance,
+      );
+      report.families = production.reviewed_families;
+      report.audited_records = production.provenance.length;
+      report.provenance = production.provenance;
+      report.outcome = "passed";
+    } catch (error) {
+      report.failure = errorMessage(error);
+      throw error;
+    } finally {
+      const file = path.join(output, "normal-package-game-first-catalog.json");
+      await writeFile(file, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    }
   });
   await scenario("native-linux-packaged-webview-boundary", async () => {
     const browser = requiredInspector();
@@ -3606,7 +3648,7 @@ try {
       ]),
     ].sort();
     const channelChoice = async (channel: string) => {
-      const panel = await openCatalogFilters(browser);
+      const panel = await openMoreCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
       const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
       if ((await trigger.getAttribute("aria-expanded")) !== "true")
@@ -3887,6 +3929,15 @@ try {
     await captureScenarioScreenshot("native-library-browsing-context-restored");
   });
   await catalogUpdateScenario({ browser, invoke, scenario, output, artifacts });
+  await reviewedScreenshotScenario({
+    browser,
+    invoke,
+    scenario,
+    output,
+    library,
+    artifacts,
+    capture: captureScenarioScreenshot,
+  });
   for (const cacheConditions of [true, false]) {
     await defaultCoverScenario({
       browser,
@@ -4193,13 +4244,177 @@ try {
       "Application update settings did not receive focus",
     );
 
+    const activityTab = (name: "Tasks" | "History" | "Game updates") =>
+      By.xpath(
+        `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and text()[normalize-space(.)="${name}"]]`,
+      );
+    const selectActivityTab = async (name: "Tasks" | "History") => {
+      const tab = await browser.wait(until.elementLocated(activityTab(name)), 5_000);
+      await clickVisible(browser, tab);
+      await browser.wait(async () => (await tab.getAttribute("aria-selected")) === "true", 5_000);
+    };
+    for (const origin of ["Tasks", "History"] as const) {
+      // Leave Activity with the origin tab still selected. The explicit
+      // Settings link must override that selection and land on Game updates.
+      await selectPrimaryNavigation(browser, "Activity");
+      await selectActivityTab(origin);
+      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("updates", "keyboard");
+      const returnLink = await browser.findElement(
+        By.xpath(
+          '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open game updates in Activity"]',
+        ),
+      );
+      await clickVisible(browser, returnLink);
+      const updates = await browser.wait(until.elementLocated(activityTab("Game updates")), 5_000);
+      await browser.wait(
+        async () =>
+          (await updates.getAttribute("aria-selected")) === "true" &&
+          (await executeBrowserScript(browser, () => document.activeElement?.matches("main h1"))),
+        5_000,
+        `The Settings link must open Game updates and focus Activity after leaving ${origin}`,
+      );
+
+      await selectActivityTab(origin);
+      await updates.sendKeys(Key.ENTER);
+      await browser.wait(
+        async () =>
+          (await updates.getAttribute("aria-selected")) === "true" &&
+          (await executeBrowserScript(browser, (tab) => document.activeElement === tab, updates)),
+        5_000,
+        `Game updates did not retain keyboard focus when opened from ${origin}`,
+      );
+      const settingsLink = await browser.findElement(
+        By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
+      );
+      await clickVisible(browser, settingsLink);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => document.activeElement?.id === "settings-updates-heading",
+          ),
+        5_000,
+        `The named Settings heading did not receive focus after leaving ${origin} for Game updates`,
+      );
+    }
+
+    const shortcut = async (key: string) => {
+      const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+      await browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    };
+    const palette = By.css('[aria-labelledby="command-palette-title"]');
+    const searchPalette = async (query: string) => {
+      await shortcut("k");
+      const panel = await browser.wait(until.elementLocated(palette), 5_000);
+      const field = await panel.findElement(By.css('[role="combobox"]'));
+      await replaceKeyboardText(browser, field, query);
+      return field;
+    };
+    const choosePalette = async (label: string, optionId: string) => {
+      await searchPalette(label);
+      const option = await browser.wait(until.elementLocated(By.id(optionId)), 5_000);
+      await browser.wait(until.elementIsEnabled(option), 5_000);
+      assert.equal(await option.findElement(By.css("strong")).getText(), label);
+      await option.sendKeys(Key.ENTER);
+      await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    };
+    const localFind: string[] = [];
+    for (const [route, destination] of [
+      ["Library", "library"],
+      ["Discover", "catalog"],
+    ] as const) {
+      await selectPrimaryNavigation(browser, route);
+      const searchState = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (route) => {
+              if (document.querySelector("#port-search")) return "search";
+              const headings = [...document.querySelectorAll("main h2")];
+              return (
+                route === "Library" &&
+                headings.some((item) => item.textContent?.trim() === "Your library is empty") &&
+                "empty-library"
+              );
+            },
+            route,
+          ),
+        30_000,
+        "The current collection did not finish opening",
+      );
+      const focused = await browser.switchTo().activeElement();
+      assert.notEqual(
+        await focused.getAttribute("id"),
+        "port-search",
+        "The current search must start unfocused",
+      );
+      await shortcut("f");
+      if (searchState === "search") {
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the current " + route + " search",
+        );
+        localFind.push(destination);
+      } else {
+        assert.equal(
+          await (await browser.switchTo().activeElement()).getId(),
+          await focused.getId(),
+          "Find without a search must preserve focus",
+        );
+        assert.equal(searchState, "empty-library");
+        localFind.push("empty-library");
+      }
+      assert.equal((await browser.findElements(palette)).length, 0);
+      const selected = await executeBrowserScript(browser, () =>
+        document
+          .querySelector('[data-navigation-destination][aria-current="page"]')
+          ?.getAttribute("data-navigation-destination"),
+      );
+      assert.equal(selected, destination, "Find must preserve the current catalog route");
+    }
+    const categories = [
+      ["appearance", "Appearance"],
+      ["library-storage", "Library and storage"],
+      ["game-files", "Game files"],
+      ["updates", "Updates"],
+      ["integrations", "Integrations"],
+      ["controls", "Keyboard and controller"],
+      ["advanced", "Advanced"],
+      ["about", "About"],
+    ] as const;
+    for (const [id, label] of categories) {
+      await choosePalette(`Open ${label} settings`, `command-settings-${id}`);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (heading) => document.activeElement?.id === heading,
+            `settings-${id}-heading`,
+          ),
+        5_000,
+        `The palette did not focus the ${label} settings heading`,
+      );
+    }
+
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
     const filters = await openCatalogFilters(browser);
-    const channelChoices = await filters.findElement(
+    const moreFilters = await filters.findElement(By.css("details.catalog-filter-advanced"));
+    const summary = await moreFilters.findElement(By.css("summary"));
+    const channelChoices = await moreFilters.findElement(
       By.css('button[aria-label="Update channels: All"]'),
     );
+    if ((await moreFilters.getAttribute("open")) !== null) await summary.sendKeys(Key.ENTER);
+    await browser.wait(until.elementIsNotVisible(channelChoices), 5_000);
+    const routine = await filters.findElement(
+      By.css('button[aria-label="Device eligibility: All"]'),
+    );
+    assert.ok(await routine.isDisplayed(), "Routine device eligibility must stay visible");
+    await summary.sendKeys(Key.ENTER);
+    await browser.wait(until.elementIsVisible(channelChoices), 5_000);
     await clickVisible(browser, channelChoices);
     const selectedFilter = await browser.wait(
       until.elementLocated(
@@ -4385,6 +4600,44 @@ try {
         { title: "Folder for a future install", open: false, visible: false },
       ]);
     };
+    await verifyDetailActionHierarchy();
+    const unavailablePlay = await searchPalette("Play this game");
+    assert.equal(
+      (await browser.findElements(By.id("command-current-game-play"))).length,
+      0,
+      "A game without the required files must have no palette Play command",
+    );
+    await unavailablePlay.sendKeys(Key.ESCAPE);
+    await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    await revealDetailSection(browser, "Manage");
+    await choosePalette("Open Game files for this game", "command-current-game-files");
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () => {
+          const detail = document.querySelector('[data-detail-port-id="ghostship"]');
+          const selected = detail?.querySelector('[role="tab"][aria-selected="true"]');
+          return selected?.textContent?.trim() === "Game files";
+        }),
+      5_000,
+      "The contextual palette must keep Ghostship selected and open Game files",
+    );
+    const commandEvidence = path.join(output, "keyboard-layout-contextual-commands.json");
+    await writeFile(
+      commandEvidence,
+      JSON.stringify(
+        {
+          local_find: localFind,
+          focused_settings_headings: categories.map(([id]) => id),
+          contextual_port: "ghostship",
+          contextual_tab: "Game files",
+          blocked_play_command_absent: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(commandEvidence);
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
     await browser.manage().window().setRect({ width: 960, height: 640 });
@@ -4640,8 +4893,12 @@ try {
     assert.equal(initialStatus.checking, false);
     assert.equal(initialStatus.installing, false);
     assert.equal(initialStatus.available, null);
-    const activities = await invoke("get_activities");
-    assert.ok(activities.ok);
+    const activity = async () => activityOutsideCatalog(success(await invoke("get_activities")));
+    const activitiesBefore = await activity();
+    const assertNoApplicationUpdate = async () => {
+      assert.deepEqual(await activity(), activitiesBefore);
+      assert.deepEqual(success(await invoke("get_application_update_status")), initialStatus);
+    };
 
     await selectSettingsCategory("updates");
     const channel = By.xpath(
@@ -4682,8 +4939,7 @@ try {
       15_000,
       "turning off automatic checks was not saved",
     );
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
-    assert.equal(success(await invoke("get_application_update_status")).available, null);
+    await assertNoApplicationUpdate();
 
     await refreshSettings("updates");
     await browser.wait(until.elementLocated(channel), 15_000);
@@ -4709,7 +4965,7 @@ try {
       channel: "beta",
       automatic_checks: true,
     });
-    assert.deepEqual(success(await invoke("get_activities")), activities.value);
+    await assertNoApplicationUpdate();
     await browser.wait(
       () =>
         executeBrowserScript(browser, () => {
