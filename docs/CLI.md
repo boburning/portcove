@@ -1544,7 +1544,7 @@ portcove artwork steamgriddb set-key
 portcove --json --non-interactive artwork steamgriddb set-key --stdin
 portcove --json artwork steamgriddb status
 portcove --json artwork steamgriddb search "<game name>"
-portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover [--page <n>]
 portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
 portcove --json artwork steamgriddb check-listings
 portcove --json artwork steamgriddb clear-key
@@ -1558,8 +1558,9 @@ Core keeps the key in this host's secure credential store and sends it only to t
 fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
 `configured`; the key is never shown.
 
-`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
-or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
+`search` returns up to 50 matching games. `candidates` returns one provider page of
+up to 50 static PNG or JPEG images (`--page`, starting at 0; an empty page ends the
+listing) for `portrait-cover`, `landscape-cover` or `hero-banner`, each with
 its CDN URL, size, style and author attribution. Both are suggestions: they choose
 no artwork, establish no game identity, download no image bytes and write nothing
 to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
@@ -1571,8 +1572,11 @@ images), `detail` (hero images) or `landscape` (wide grid images) slot and retur
 up again with your key, downloads it from SteamGridDB's image server without your key,
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
-and the destination handoff. An image no longer on the game's first listing page is
-not-found, and a changed choice revision is a conflict; in both cases the current
+and the destination handoff. Core finds the chosen image by its ID across listing pages,
+so an image that moved to a later page is still confirmed. An image missing from the
+game's complete listing is not-found; if the listing is too long to finish
+confirming, the result is a state error asking you to list the images again. A
+changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
