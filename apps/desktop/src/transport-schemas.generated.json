@@ -2274,6 +2274,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -4593,6 +4600,13 @@
       },
       "preview_sha256": {
         "type": "string"
+      },
+      "restore_target_sha256": {
+        "description": "The library, installation scope and materialized setup reviewed for a restore.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "retained_runtime_copy_will_be_deleted": {
         "type": "boolean"
@@ -7195,6 +7209,37 @@
             },
             "type": "object"
           },
+          "reviewed_predecessor_package_layouts_v1": {
+            "additionalProperties": false,
+            "description": "Alternate full layouts for exact independently resolved GitHub artifacts.\nThey never select a package or authorize an acquisition.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
           "runtime_data_policy": {
             "anyOf": [
               {
@@ -8066,6 +8111,48 @@
         "required": [
           "directories",
           "executables"
+        ],
+        "type": "object"
+      },
+      "ReviewedPredecessorPackageLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "layout": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_id",
+          "release_id",
+          "asset_id",
+          "tag",
+          "channel",
+          "artifact",
+          "layout"
         ],
         "type": "object"
       },
@@ -30153,6 +30240,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -39759,6 +39853,48 @@
         ],
         "type": "object"
       },
+      "ReviewedPredecessorPackageLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "layout": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_id",
+          "release_id",
+          "asset_id",
+          "tag",
+          "channel",
+          "artifact",
+          "layout"
+        ],
+        "type": "object"
+      },
       "RomPatchFormat": {
         "description": "Patch file format applied by the `rom-patch` materialization.",
         "enum": [
@@ -40425,6 +40561,37 @@
           },
           "windows-x86-64": {
             "$ref": "#/$defs/ReviewedPackageLayout"
+          }
+        },
+        "type": "object"
+      },
+      "reviewed_predecessor_package_layouts_v1": {
+        "additionalProperties": false,
+        "description": "Alternate full layouts for exact independently resolved GitHub artifacts.\nThey never select a package or authorize an acquisition.",
+        "properties": {
+          "linux-x86-64": {
+            "items": {
+              "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+            },
+            "type": "array"
+          },
+          "macos-aarch64": {
+            "items": {
+              "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+            },
+            "type": "array"
+          },
+          "macos-x86-64": {
+            "items": {
+              "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+            },
+            "type": "array"
+          },
+          "windows-x86-64": {
+            "items": {
+              "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+            },
+            "type": "array"
           }
         },
         "type": "object"
@@ -41329,6 +41496,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -58754,6 +58928,37 @@
             },
             "type": "object"
           },
+          "reviewed_predecessor_package_layouts_v1": {
+            "additionalProperties": false,
+            "description": "Alternate full layouts for exact independently resolved GitHub artifacts.\nThey never select a package or authorize an acquisition.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
           "runtime_data_policy": {
             "anyOf": [
               {
@@ -59625,6 +59830,48 @@
         "required": [
           "directories",
           "executables"
+        ],
+        "type": "object"
+      },
+      "ReviewedPredecessorPackageLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "layout": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_id",
+          "release_id",
+          "asset_id",
+          "tag",
+          "channel",
+          "artifact",
+          "layout"
         ],
         "type": "object"
       },
@@ -77406,6 +77653,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -80419,6 +80673,85 @@
           }
         ]
       },
+      "ArtifactFact": {
+        "additionalProperties": false,
+        "properties": {
+          "arch": {
+            "$ref": "#/$defs/TargetArch"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "contradictory": {
+            "description": "Set when two authorizing sources disagreed about the role.",
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "os": {
+            "$ref": "#/$defs/TargetOs"
+          },
+          "players": {
+            "items": {
+              "$ref": "#/$defs/PlayerCandidate"
+            },
+            "type": "array"
+          },
+          "role": {
+            "$ref": "#/$defs/ArtifactRole"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/$defs/FactSource"
+          }
+        },
+        "required": [
+          "asset_id",
+          "name",
+          "size",
+          "sha256",
+          "role",
+          "os",
+          "arch",
+          "source"
+        ],
+        "type": "object"
+      },
+      "ArtifactRole": {
+        "description": "What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a\nlaunch target.",
+        "enum": [
+          "desktop-game-runtime",
+          "desktop-game-data",
+          "dedicated-server",
+          "builder",
+          "installer",
+          "importer",
+          "compiler",
+          "dev-tool",
+          "original-game-input",
+          "mobile-package",
+          "console-output",
+          "documentation",
+          "source-archive",
+          "integrity-metadata",
+          "debug-symbols",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "ChannelObservation": {
         "properties": {
           "channel": {
@@ -80469,6 +80802,35 @@
           },
           "platform": {
             "$ref": "#/$defs/Platform"
+          },
+          "reviewed_fallback": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedReleaseIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reviewed release that replaces an excluded channel candidate. Its\nassets are needed to project it, like the candidate's."
+          },
+          "route_holds": {
+            "description": "Typed holds beside the stable `hold_reasons` strings.",
+            "items": {
+              "$ref": "#/$defs/RouteHold"
+            },
+            "type": "array"
+          },
+          "selected_artifact": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtifactFact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The typed fact for the eligible or role-held artifact."
           }
         },
         "required": [
@@ -80478,6 +80840,266 @@
           "channel_candidate",
           "latest_eligible",
           "hold_reasons"
+        ],
+        "type": "object"
+      },
+      "Coverage": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "complete",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "partial",
+                "type": "string"
+              },
+              "next_cursor": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "next_cursor"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "unavailable",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "failed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "FactProvenance": {
+        "additionalProperties": false,
+        "properties": {
+          "catalog_definition_sha256": {
+            "type": "string"
+          },
+          "coverage": {
+            "$ref": "#/$defs/Coverage"
+          },
+          "facts_sha256": {
+            "type": "string"
+          },
+          "fresh_until": {
+            "description": "Freshness is owned by the observer configuration; Core reports none.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_good": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LastGood"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Core interprets one observation; the observer retains last-good facts."
+          },
+          "observed_at": {
+            "type": "string"
+          },
+          "parser": {
+            "type": "string"
+          },
+          "parser_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "observed_at",
+          "fresh_until",
+          "coverage",
+          "parser",
+          "parser_version",
+          "facts_sha256",
+          "catalog_definition_sha256",
+          "last_good"
+        ],
+        "type": "object"
+      },
+      "FactSource": {
+        "description": "Where a fact came from, highest precedence first.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "Machine-readable metadata the release itself publishes.",
+            "properties": {
+              "document": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "release-metadata",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "document"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A reviewed structural observation of these exact archive bytes.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "exact-release-structured",
+                "type": "string"
+              },
+              "shape_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "shape_version",
+              "archive_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Another provider's reviewed record for the same artifact.",
+            "properties": {
+              "kind": {
+                "const": "provider-cross-reference",
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "provider",
+              "reference"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bounded, versioned extractor for one family of releases.",
+            "properties": {
+              "extractor": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "family-extractor",
+                "type": "string"
+              },
+              "version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "extractor",
+              "version"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog's reviewed release selectors for this route.",
+            "properties": {
+              "kind": {
+                "const": "stable-declaration",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Filename tokens only; never authorizing.",
+            "properties": {
+              "kind": {
+                "const": "filename-suggestion",
+                "type": "string"
+              },
+              "rule_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "rule_version"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "LastGood": {
+        "additionalProperties": false,
+        "properties": {
+          "facts_sha256": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "observed_at",
+          "facts_sha256"
         ],
         "type": "object"
       },
@@ -80516,6 +81138,47 @@
         "required": [
           "release_id",
           "asset_id"
+        ],
+        "type": "object"
+      },
+      "ObservedReleaseFacts": {
+        "additionalProperties": false,
+        "properties": {
+          "artifacts": {
+            "items": {
+              "$ref": "#/$defs/ArtifactFact"
+            },
+            "type": "array"
+          },
+          "assets_complete": {
+            "description": "False means the asset list is UNKNOWN, never \"no player\".",
+            "type": "boolean"
+          },
+          "provider_prerelease": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "tag",
+          "published_at",
+          "provider_prerelease",
+          "assets_complete",
+          "artifacts"
         ],
         "type": "object"
       },
@@ -80578,6 +81241,32 @@
           "macos-aarch64"
         ],
         "type": "string"
+      },
+      "PlayerCandidate": {
+        "additionalProperties": false,
+        "description": "One package-relative program that may be the game's player.",
+        "properties": {
+          "machine": {
+            "description": "The PE/ELF/Mach-O machine in the `0x%04x` form package player\nobservations record; absent when the source recorded only a path.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
       },
       "ReleaseAsset": {
         "properties": {
@@ -80648,6 +81337,39 @@
         ],
         "type": "object"
       },
+      "RouteHold": {
+        "description": "Typed reasons a route holds an artifact or release.",
+        "enum": [
+          "wrong-role",
+          "wrong-host",
+          "contradictory-role",
+          "incomplete-coverage"
+        ],
+        "type": "string"
+      },
+      "TargetArch": {
+        "enum": [
+          "x86-64",
+          "aarch64",
+          "x86",
+          "universal",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "TargetOs": {
+        "enum": [
+          "windows",
+          "linux",
+          "macos",
+          "android",
+          "ios",
+          "console",
+          "web",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "UploaderContinuityBasis": {
         "enum": [
           "predates-baseline",
@@ -80704,6 +81426,9 @@
       "evidence": {
         "$ref": "#/$defs/ObservationEvidence"
       },
+      "fact_provenance": {
+        "$ref": "#/$defs/FactProvenance"
+      },
       "facts_sha256": {
         "type": "string"
       },
@@ -80724,6 +81449,13 @@
         },
         "type": "array"
       },
+      "release_facts": {
+        "description": "Typed role and host facts for each release a projection observed\n(latest observed, channel candidate, reviewed fallback or eligible), in\nprovider order. A consumer checks each fact's `source` before treating\nits role as authorized.",
+        "items": {
+          "$ref": "#/$defs/ObservedReleaseFacts"
+        },
+        "type": "array"
+      },
       "repository_id": {
         "format": "uint64",
         "minimum": 0,
@@ -80741,7 +81473,8 @@
       "observed_at",
       "eligibility_scope",
       "evidence",
-      "projections"
+      "projections",
+      "fact_provenance"
     ],
     "title": "UpstreamObservationReport",
     "type": "object"

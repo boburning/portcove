@@ -299,6 +299,7 @@ mod tests {
             mod_loader: None,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
+            reviewed_predecessor_package_layouts_v1: BTreeMap::new(),
             presentation: None,
         };
         let release =

@@ -62,12 +62,17 @@ export default interface Resources {
   },
   "backups": {
     "automaticSnapshots": {
+      "checking": "Checking automatic snapshots for this library…",
       "control": "Snapshot saved data before each version change",
+      "coverage": "Before a version change, Portcove can snapshot existing saves and settings it manages. See Backups for completed copies.",
       "description": "Before an update installs, a saved update is activated, or you restore a previous version, Portcove copies a game’s managed saves and settings so you can restore them if the new version misreads them. It skips games whose saves live outside Portcove and games with no saved data yet, and if a snapshot cannot be taken the version change stops. Portcove keeps the newest five automatic snapshots for each game and never removes the ones you take yourself. This applies to every game in this library, starting with the next version change.",
+      "disabled": "Automatic snapshots before version changes are off for this library.",
+      "enabled": "Automatic snapshots before version changes are on for this library.",
       "heading": "Snapshot saved data before version changes",
       "readFailed": "The setting could not be read.",
       "retry": "Try again",
-      "saveFailed": "The setting could not be saved."
+      "saveFailed": "Portcove couldn’t confirm the result of saving this setting.",
+      "unavailable": "Portcove couldn’t check this library’s automatic snapshot setting."
     },
     "details": {
       "catalogId": "Catalog ID: {{id}}",
@@ -226,15 +231,20 @@ export default interface Resources {
     "review": {
       "applyDelete": "Delete this backup permanently",
       "applyRestore": "Restore this backup",
+      "backupUnavailable": "The selected backup is missing or has changed. Close this review to see the current backup list.",
       "cancel": "Cancel",
       "checking": "Checking the backup and current saved data…",
       "deleting": "Deleting backup…",
       "descriptionDelete": "Permanently delete only the selected backup.",
       "descriptionRestore": "Replace this game’s current saved data with this backup.",
       "failure": "The operation did not complete. Review the current backup and data before trying again.",
+      "inventoryUnavailable": "Portcove couldn’t confirm that this backup can be restored. Refresh backup history to check again.",
+      "reconcileRestore": "Check the restore result in Activity before starting another restore.",
+      "reopenRestore": "Portcove couldn’t verify the restore target. Close this review and choose the backup again.",
       "restoring": "Restoring backup…",
       "reviewAgain": "Review again",
-      "selectionChanged": "This review no longer matches the selected backup. Close it and refresh backup history.",
+      "selectionChanged": "Portcove couldn’t confirm that this review matches the selected backup.",
+      "targetChanged": "This game’s installation or setup changed. Close this review and check the current backup history.",
       "titleDelete": "Review backup deletion",
       "titleRestore": "Review backup restore"
     },

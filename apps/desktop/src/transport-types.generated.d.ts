@@ -1164,6 +1164,77 @@ export type SteamGridDbCheckStop =
       reason: "cancelled";
     };
 export type GameStore = "steam" | "gog" | "epic";
+export type Coverage =
+  | {
+      kind: "complete";
+    }
+  | {
+      kind: "partial";
+      next_cursor: string | null;
+    }
+  | {
+      kind: "unavailable";
+    }
+  | {
+      kind: "failed";
+    };
+/**
+ * Typed reasons a route holds an artifact or release.
+ */
+export type RouteHold = "wrong-role" | "wrong-host" | "contradictory-role" | "incomplete-coverage";
+export type TargetArch = "x86-64" | "aarch64" | "x86" | "universal" | "unknown";
+export type TargetOs = "windows" | "linux" | "macos" | "android" | "ios" | "console" | "web" | "unknown";
+/**
+ * What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a
+ * launch target.
+ */
+export type ArtifactRole =
+  | "desktop-game-runtime"
+  | "desktop-game-data"
+  | "dedicated-server"
+  | "builder"
+  | "installer"
+  | "importer"
+  | "compiler"
+  | "dev-tool"
+  | "original-game-input"
+  | "mobile-package"
+  | "console-output"
+  | "documentation"
+  | "source-archive"
+  | "integrity-metadata"
+  | "debug-symbols"
+  | "unknown";
+/**
+ * Where a fact came from, highest precedence first.
+ */
+export type FactSource =
+  | {
+      document: string;
+      kind: "release-metadata";
+    }
+  | {
+      archive_sha256: string;
+      kind: "exact-release-structured";
+      shape_version: number;
+    }
+  | {
+      kind: "provider-cross-reference";
+      provider: string;
+      reference: string;
+    }
+  | {
+      extractor: string;
+      kind: "family-extractor";
+      version: number;
+    }
+  | {
+      kind: "stable-declaration";
+    }
+  | {
+      kind: "filename-suggestion";
+      rule_version: number;
+    };
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 /**
  * The application release feed a player follows. Beta is the default; Preview
@@ -1197,6 +1268,12 @@ export type InstallationContext =
       installation_id: string;
       kind: "external";
     };
+/**
+ * The files recognized during a read-only library selection check.
+ */
+export type LibrarySelectionContents =
+  "empty_directory" | "existing_database" | "recovery_records" | "new_default_directory";
+export type LibrarySelectionEffect = "keep" | "change_startup" | "open";
 export type PortIntentMode = "discover_only" | "notify" | "set_up_when_ready" | "ignored";
 export type PortReadiness =
   | {
@@ -1512,6 +1589,7 @@ export interface TransportOutputs {
   desktop_library_membership_outcomes: OutputDesktopLibraryMembershipOutcomes;
   desktop_library_memberships: OutputDesktopLibraryMemberships;
   desktop_library_organization: OutputDesktopLibraryOrganization;
+  desktop_library_selection_review: OutputDesktopLibrarySelectionReview;
   desktop_locale_preference: OutputDesktopLocalePreference;
   desktop_managed_route_change_preview: OutputManagedRouteChangePreview;
   desktop_managed_route_change_result: OutputManagedRouteChangeResult;
@@ -2017,6 +2095,12 @@ export interface PortActionAssessment {
   [k: string]: unknown;
 }
 export interface LaunchReadiness {
+  /**
+   * The effective active installation can use the default game-source registration
+   * for edition artwork after fresh byte verification. Omitted when launch can
+   * use different bytes or Core cannot establish the default's eligibility.
+   */
+  active_game_source_profile?: string | null;
   bios?: SourceHealth | null;
   bios_assessment?: SourceAssessment | null;
   blockers: LaunchBlocker[];
@@ -2311,6 +2395,10 @@ export interface BackupActionPreview {
   backup: BackupRecord;
   current_user_data_exists: boolean;
   preview_sha256: string;
+  /**
+   * The library, installation scope and materialized setup reviewed for a restore.
+   */
+  restore_target_sha256?: string | null;
   retained_runtime_copy_will_be_deleted: boolean;
   safety_backup_will_be_created: boolean;
   [k: string]: unknown;
@@ -2579,6 +2667,16 @@ export interface PortDefinition {
     "macos-aarch64"?: ReviewedPackageLayout;
     "macos-x86-64"?: ReviewedPackageLayout;
     "windows-x86-64"?: ReviewedPackageLayout;
+  };
+  /**
+   * Alternate full layouts for exact independently resolved GitHub artifacts.
+   * They never select a package or authorize an acquisition.
+   */
+  reviewed_predecessor_package_layouts_v1?: {
+    "linux-x86-64"?: ReviewedPredecessorPackageLayout[];
+    "macos-aarch64"?: ReviewedPredecessorPackageLayout[];
+    "macos-x86-64"?: ReviewedPredecessorPackageLayout[];
+    "windows-x86-64"?: ReviewedPredecessorPackageLayout[];
   };
   runtime_data_policy?: RuntimeDataPolicy | null;
   /**
@@ -3103,6 +3201,15 @@ export interface ReviewedPackageLayout {
    * Exclude verified macOS shared libraries from this fingerprint.
    */
   ignore_verified_macos_libraries?: boolean;
+}
+export interface ReviewedPredecessorPackageLayout {
+  artifact: ArtifactIdentity1;
+  asset_id: number;
+  channel: ReleaseChannel;
+  layout: ReviewedPackageLayout;
+  release_id: number;
+  repository_id: number;
+  tag: string;
 }
 /**
  * Port declaration for a disc image that Portcove unpacks into a runtime
@@ -7179,11 +7286,19 @@ export interface OutputUpstreamObservationReport {
   eligibility_scope: string;
   engine_api_schema_version: number;
   evidence: ObservationEvidence;
+  fact_provenance: FactProvenance;
   facts_sha256: string;
   format: number;
   observed_at: string;
   port_id: string;
   projections: ChannelObservation[];
+  /**
+   * Typed role and host facts for each release a projection observed
+   * (latest observed, channel candidate, reviewed fallback or eligible), in
+   * provider order. A consumer checks each fact's `source` before treating
+   * its role as authorized.
+   */
+  release_facts?: ObservedReleaseFacts[];
   repository_id: number;
   [k: string]: unknown;
 }
@@ -7192,6 +7307,26 @@ export interface ObservationEvidence {
   catalog_admission_assessed: boolean;
   provider_authenticated: boolean;
   [k: string]: unknown;
+}
+export interface FactProvenance {
+  catalog_definition_sha256: string;
+  coverage: Coverage;
+  facts_sha256: string;
+  /**
+   * Freshness is owned by the observer configuration; Core reports none.
+   */
+  fresh_until: string | null;
+  /**
+   * Core interprets one observation; the observer retains last-good facts.
+   */
+  last_good: LastGood | null;
+  observed_at: string;
+  parser: string;
+  parser_version: number;
+}
+export interface LastGood {
+  facts_sha256: string;
+  observed_at: string;
 }
 export interface ChannelObservation {
   channel: ReleaseChannel;
@@ -7204,6 +7339,19 @@ export interface ChannelObservation {
   latest_eligible: ObservedResolution | null;
   latest_observed: ObservedReleaseIdentity | null;
   platform: Platform;
+  /**
+   * The reviewed release that replaces an excluded channel candidate. Its
+   * assets are needed to project it, like the candidate's.
+   */
+  reviewed_fallback?: ObservedReleaseIdentity | null;
+  /**
+   * Typed holds beside the stable `hold_reasons` strings.
+   */
+  route_holds?: RouteHold[];
+  /**
+   * The typed fact for the eligible or role-held artifact.
+   */
+  selected_artifact?: ArtifactFact | null;
   [k: string]: unknown;
 }
 export interface ObservedReleaseIdentity {
@@ -7223,6 +7371,44 @@ export interface ObservedResolution {
   release: ResolvedRelease;
   release_id: number;
   [k: string]: unknown;
+}
+export interface ArtifactFact {
+  arch: TargetArch;
+  asset_id: number;
+  /**
+   * Set when two authorizing sources disagreed about the role.
+   */
+  contradictory?: boolean;
+  name: string;
+  os: TargetOs;
+  players?: PlayerCandidate[];
+  role: ArtifactRole;
+  sha256: string | null;
+  size: number;
+  source: FactSource;
+}
+/**
+ * One package-relative program that may be the game's player.
+ */
+export interface PlayerCandidate {
+  /**
+   * The PE/ELF/Mach-O machine in the `0x%04x` form package player
+   * observations record; absent when the source recorded only a path.
+   */
+  machine?: string | null;
+  path: string;
+  sha256?: string | null;
+}
+export interface ObservedReleaseFacts {
+  artifacts: ArtifactFact[];
+  /**
+   * False means the asset list is UNKNOWN, never "no player".
+   */
+  assets_complete: boolean;
+  provider_prerelease: boolean;
+  published_at: string | null;
+  release_id: number;
+  tag: string;
 }
 export interface OutputDesktopApplicationUpdatePreferences {
   /**
@@ -7443,6 +7629,15 @@ export interface UpdateNoticeRelease {
    */
   artifact_sha256: string;
   version: string;
+}
+export interface OutputDesktopLibrarySelectionReview {
+  contents: LibrarySelectionContents;
+  effect: LibrarySelectionEffect;
+  path: string;
+  resets_preferences: boolean;
+  review_sha256: string;
+  source: LibrarySelectionSource;
+  [k: string]: unknown;
 }
 export interface OutputDesktopLocalePreference {
   locale: string | null;

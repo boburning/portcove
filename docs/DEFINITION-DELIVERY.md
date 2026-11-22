@@ -1813,7 +1813,11 @@ the accepted catalog baseline and current component/site identities. The catalog
 source readers reconstruct every entry of a complete Git tree and refuse
 truncated or mismatched trees. The count bound is GitHub's 100,000-entry
 recursive-tree completeness limit; in practice each reader's response byte
-bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Its neutral
+bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Ancestry comparison stays bounded by commit
+distance from the accepted baseline (2,048 commits; 3,200 for application
+sources), matching the sandboxed history depth. This is an accepted limit (owner
+decision, November 22, 2026): release regularly, and revisit it only if a release
+approaches that distance. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same

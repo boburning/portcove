@@ -134,6 +134,7 @@ mod release;
 mod release_notes;
 mod retained_build;
 mod rom_patch;
+mod route_facts;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
@@ -326,7 +327,8 @@ pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 pub use library::{
-    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
+    ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, LibrarySelectionContents,
+    LibrarySelectionTarget, PortOperationGuard,
 };
 pub use library_import::LibraryImportPlan;
 pub use library_membership::{
@@ -351,6 +353,7 @@ pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
+pub use package_layout::PackageLayoutObservation;
 pub use package_layout::{
     PackageProgramFilter, inspect_package_archive, inspect_package_archive_with_program_filter,
 };
@@ -358,6 +361,7 @@ pub use package_shape::{
     InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
     PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
     ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
+    inspect_package_shape_archive_observed,
 };
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
@@ -429,6 +433,10 @@ pub use retained_build::{
     RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
     RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
+};
+pub use route_facts::{
+    ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,
+    ObservedReleaseFacts, PlayerCandidate, RouteHold, TargetArch, TargetOs,
 };
 pub use service::{
     ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,

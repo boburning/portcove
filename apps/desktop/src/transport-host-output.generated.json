@@ -820,6 +820,13 @@
           "preview_sha256": {
             "type": "string"
           },
+          "restore_target_sha256": {
+            "description": "The library, installation scope and materialized setup reviewed for a restore.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "retained_runtime_copy_will_be_deleted": {
             "type": "boolean"
           },
@@ -8056,6 +8063,67 @@
       "setup_confirmations"
     ],
     "title": "LibraryOrganization",
+    "type": "object"
+  },
+  "library_selection_review": {
+    "$defs": {
+      "LibrarySelectionContents": {
+        "description": "The files recognized during a read-only library selection check.",
+        "enum": [
+          "empty_directory",
+          "existing_database",
+          "recovery_records",
+          "new_default_directory"
+        ],
+        "type": "string"
+      },
+      "LibrarySelectionEffect": {
+        "enum": [
+          "keep",
+          "change_startup",
+          "open"
+        ],
+        "type": "string"
+      },
+      "LibrarySelectionSource": {
+        "enum": [
+          "invocation",
+          "saved",
+          "platform_default"
+        ],
+        "type": "string"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "contents": {
+        "$ref": "#/$defs/LibrarySelectionContents"
+      },
+      "effect": {
+        "$ref": "#/$defs/LibrarySelectionEffect"
+      },
+      "path": {
+        "type": "string"
+      },
+      "resets_preferences": {
+        "type": "boolean"
+      },
+      "review_sha256": {
+        "type": "string"
+      },
+      "source": {
+        "$ref": "#/$defs/LibrarySelectionSource"
+      }
+    },
+    "required": [
+      "path",
+      "source",
+      "effect",
+      "contents",
+      "resets_preferences",
+      "review_sha256"
+    ],
+    "title": "LibrarySelectionReview",
     "type": "object"
   },
   "locale_preference": {
@@ -23210,6 +23278,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -24879,6 +24954,37 @@
               },
               "windows-x86-64": {
                 "$ref": "#/$defs/ReviewedPackageLayout"
+              }
+            },
+            "type": "object"
+          },
+          "reviewed_predecessor_package_layouts_v1": {
+            "additionalProperties": false,
+            "description": "Alternate full layouts for exact independently resolved GitHub artifacts.\nThey never select a package or authorize an acquisition.",
+            "properties": {
+              "linux-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-aarch64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "macos-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
+              },
+              "windows-x86-64": {
+                "items": {
+                  "$ref": "#/$defs/ReviewedPredecessorPackageLayout"
+                },
+                "type": "array"
               }
             },
             "type": "object"
@@ -26641,6 +26747,48 @@
         "required": [
           "directories",
           "executables"
+        ],
+        "type": "object"
+      },
+      "ReviewedPredecessorPackageLayout": {
+        "additionalProperties": false,
+        "properties": {
+          "artifact": {
+            "$ref": "#/$defs/ArtifactIdentity"
+          },
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "channel": {
+            "$ref": "#/$defs/ReleaseChannel"
+          },
+          "layout": {
+            "$ref": "#/$defs/ReviewedPackageLayout"
+          },
+          "release_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tag": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository_id",
+          "release_id",
+          "asset_id",
+          "tag",
+          "channel",
+          "artifact",
+          "layout"
         ],
         "type": "object"
       },

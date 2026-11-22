@@ -39,3 +39,13 @@ export function resolvedGridColumns(template: string) {
       .filter((track) => /^\d+(?:\.\d+)?px$/u.test(track)).length,
   );
 }
+
+/** Account for fractional native scroll positions at rounded CSSOM boundaries. */
+export function collectionAnchorAligned(delta: number, scrollTop: number, limit: number) {
+  const destination = scrollTop + delta;
+  return (
+    Math.abs(delta) < 0.5 ||
+    (destination < 0 && scrollTop === 0) ||
+    (destination > limit && Math.abs(scrollTop - limit) <= 1)
+  );
+}

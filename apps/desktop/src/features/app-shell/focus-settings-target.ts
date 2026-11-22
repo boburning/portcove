@@ -11,10 +11,11 @@ export type ActivitySettingsTarget =
   | "application-updates"
   | "catalog-updates"
   | "diagnostics";
-export type SettingsTarget = ActivitySettingsTarget | "add-game-file-root";
+export type SettingsTarget = ActivitySettingsTarget | "add-game-file-root" | "saved-source-result";
 
 export function settingsCategoryForTarget(target: SettingsTarget): SettingsCategory {
   return target === "source-profile" ||
+    target === "saved-source-result" ||
     target === "discover-sources" ||
     target === "add-game-file-root"
     ? "game-files"
@@ -25,10 +26,25 @@ export function settingsCategoryForTarget(target: SettingsTarget): SettingsCateg
         : "library-storage";
 }
 
-export function focusSettingsTarget(target: SettingsTarget, sourceProfileId?: string) {
+export function focusSettingsTarget(
+  target: SettingsTarget,
+  sourceProfileId?: string,
+  sourceIdentity?: string,
+) {
   const group = settingsCategoryForTarget(target);
   const heading = document.getElementById(`settings-${group}-heading`);
   const section = heading?.closest("[data-settings-group]");
+  if (target === "saved-source-result") {
+    const row = [
+      ...(section?.querySelectorAll<HTMLElement>("[data-saved-source-identity]") ?? []),
+    ].find(
+      (item) =>
+        item.dataset.sourceProfile === sourceProfileId &&
+        item.dataset.savedSourceIdentity === sourceIdentity,
+    );
+    if (row) focusAndReveal(row);
+    return;
+  }
   const sourceRow =
     target === "source-profile" && sourceProfileId
       ? ([

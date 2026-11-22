@@ -271,6 +271,7 @@ impl PortcoveService {
             pending_setup: false,
             preparation_mode: None,
             required_source_extension: None,
+            active_game_source_profile: None,
             source: None,
             source_folder_unavailable: None,
             bios: None,

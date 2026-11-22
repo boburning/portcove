@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
-import { heroMediaCandidates } from "./hero-media";
-import { portDefinition } from "./test-fixtures";
-import type { CatalogMediaAsset } from "./types";
+import {
+  activeSourceHeroMediaContext,
+  canCheckEditionArtwork,
+  heroMediaCandidates,
+  verifiedHeroMediaContext,
+} from "./hero-media";
+import { portDefinition, portStatus, sourceInspectionIdentityFixture } from "./test-fixtures";
+import type { CatalogMediaAsset, PortStatus } from "./types";
 
 function asset(id: string, role: CatalogMediaAsset["role"], original = false): CatalogMediaAsset {
   return {
@@ -51,6 +56,132 @@ function port(media: CatalogMediaAsset[]) {
     },
   };
 }
+it("requires a current registered game, port and edition before displaying matched art", () => {
+  const image = { ...asset("header", "header", true), edition_neutral: false };
+  const p = port([image]);
+  const report = sourceInspectionIdentityFixture();
+  const source = report.registered!;
+  const match = { port_id: p.id, original_game_id: "original", source_edition_id: "edition" };
+  const checked = { ...report, original_editions: [match] };
+
+  expect(canCheckEditionArtwork(p)).toBe(false);
+  const bound = {
+    ...p,
+    presentation: {
+      ...p.presentation,
+      original_game: {
+        ...p.presentation.original_game,
+        source_editions: p.presentation.original_game.source_editions.map((edition) => ({
+          ...edition,
+          verified_sources: [{ game_id: "game", variant_id: "edition", representation_id: "raw" }],
+        })),
+      },
+    },
+  };
+  expect(canCheckEditionArtwork(bound)).toBe(true);
+  const context = verifiedHeroMediaContext(bound, source, checked);
+  expect(heroMediaCandidates(bound, context).backgrounds).toEqual([image]);
+  const readiness = {
+    blockers: [],
+    launchable: true,
+    pending_setup: false,
+    source: "not_checked" as const,
+    active_game_source_profile: source.profile_id,
+  };
+  const active: PortStatus = {
+    ...portStatus(),
+    active: {
+      id: "exact-install",
+      port_id: bound.id,
+      version: "v1",
+      path: "/fixture/install",
+      channel: "stable",
+      installed_at: 1,
+      verified: true,
+      staged: false,
+      artifact: { asset_name: "port.zip", sha256: "d".repeat(64), size: 1 },
+      runtime: null,
+      manifest_sha256: "f".repeat(64),
+      selected_executable: "port",
+    },
+    readiness,
+  };
+  expect(activeSourceHeroMediaContext(bound, active, source, checked)).toEqual(context);
+  expect(activeSourceHeroMediaContext(bound, active, source, undefined)).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(
+      bound,
+      { ...active, readiness: { ...readiness, source: "missing" } },
+      source,
+      checked,
+    ),
+  ).toEqual({});
+
+  expect(
+    activeSourceHeroMediaContext(bound, active, { ...source, profile_id: "wrong" }, undefined),
+  ).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(bound, active, source, { ...checked, health: "changed" }),
+  ).toEqual({});
+
+  expect(
+    activeSourceHeroMediaContext(bound, { ...active, readiness: null }, source, checked),
+  ).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(
+      bound,
+      {
+        ...active,
+        readiness: {
+          ...readiness,
+          active_game_source_profile: null,
+          preparation_mode: "source_only",
+        },
+      },
+      source,
+      checked,
+    ),
+  ).toEqual({});
+  expect(
+    activeSourceHeroMediaContext(
+      bound,
+      {
+        ...active,
+        readiness: {
+          ...readiness,
+          active_game_source_profile: "other-active-source",
+        },
+      },
+      source,
+      checked,
+    ),
+  ).toEqual({});
+  expect(verifiedHeroMediaContext(bound, source, report)).toEqual({});
+  expect(verifiedHeroMediaContext(bound, source, checked, p.presentation.original_game)).toEqual(
+    {},
+  );
+  const renamedTuple = {
+    ...bound.presentation.original_game,
+    source_editions: bound.presentation.original_game.source_editions.map((edition) => ({
+      ...edition,
+      verified_sources: [{ ...edition.verified_sources[0]!, representation_id: "new-layout" }],
+    })),
+  };
+  expect(verifiedHeroMediaContext(bound, source, checked, renamedTuple)).toEqual({});
+  expect(verifiedHeroMediaContext(bound, { ...source, updated_at: 2 }, checked)).toEqual({});
+  expect(verifiedHeroMediaContext(bound, source, { ...checked, health: "changed" })).toEqual({});
+  for (const wrong of [
+    { ...match, port_id: "other-port" },
+    { ...match, original_game_id: "other-game" },
+    { ...match, source_edition_id: "other-edition" },
+  ]) {
+    const outOfScope = { ...checked, original_editions: [wrong] };
+    expect(verifiedHeroMediaContext(bound, source, outOfScope)).toEqual({});
+  }
+  const conflicting = { ...checked, original_editions: [match, match] };
+  expect(verifiedHeroMediaContext(bound, source, conflicting)).toEqual({});
+});
+
 describe("shared hero media roles", () => {
   it("prefers exact-port logos then applicable original logos, leaving cover fallback to the hero", () => {
     const media = [
@@ -73,6 +204,26 @@ describe("shared hero media roles", () => {
     expect(heroMediaCandidates(p, { originalEditionId: "another-edition" }).foreground).toEqual([]);
     expect(heroMediaCandidates(p, { originalEditionId: "edition" }).foreground).toEqual([image]);
   });
+  it.each(["logo", "header"] as const)(
+    "orders automatic %s by exact port, applicable edition, then neutral fallback",
+    (role) => {
+      const neutral = asset("neutral", role, true);
+      const applicable = { ...asset("applicable", role, true), edition_neutral: false };
+      const direct = asset("direct", role);
+      const candidates = role === "logo" ? "foreground" : "backgrounds";
+      const context = { originalEditionId: "edition" };
+
+      expect(heroMediaCandidates(port([neutral, applicable, direct]), context)[candidates]).toEqual(
+        [direct, applicable],
+      );
+      expect(heroMediaCandidates(port([neutral, applicable]), context)[candidates]).toEqual([
+        applicable,
+        neutral,
+      ]);
+      expect(heroMediaCandidates(port([neutral, applicable]))[candidates]).toEqual([neutral]);
+    },
+  );
+
   it("keeps background and gallery available without any foreground candidate", () => {
     const header = asset("background", "header");
     const screenshot = asset("screen", "screenshot");

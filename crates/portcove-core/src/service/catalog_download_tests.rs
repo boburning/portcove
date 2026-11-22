@@ -1256,7 +1256,7 @@ async fn selection_inspects_one_release_instead_of_combining_packages_across_his
 
 #[tokio::test]
 async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventory() {
-    for count in [1, 200, 201] {
+    for count in [1, 200, 201, 1_000, 1_001] {
         let github = GithubFixture::new(archive(), None, None);
         let asset = github.assets.lock().unwrap()[0].clone();
         *github.assets.lock().unwrap() = (1..=count)
@@ -1271,12 +1271,13 @@ async fn discovery_completeness_requires_the_end_of_each_selected_asset_inventor
             .provider
             .catalog_download_options("owner/game", None, ReleaseChannel::Stable, None, &[])
             .await;
-        if count > 200 {
+        // GitHub allows at most 1,000 assets per release; more is malformed.
+        if count > 1_000 {
             assert!(
                 result
                     .unwrap_err()
                     .message
-                    .contains("complete 200-asset inventory bound")
+                    .contains("1,000-asset release inventory")
             );
         } else {
             let (candidates, coverage, _, _) = result.unwrap();

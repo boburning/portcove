@@ -105,6 +105,7 @@ it("reserves no gallery for absent media", async () => {
   expect(read).not.toHaveBeenCalled();
 });
 
+// The hosted shard reached the first enabled thumbnail near its 15 s deadline.
 it("lets players browse reviewed releases without an applicable installed edition", async () => {
   const release = (id: string, title: string) => ({
     id,
@@ -151,13 +152,14 @@ it("lets players browse reviewed releases without an applicable installed editio
   const viewport = { width: window.innerWidth, height: window.innerHeight };
   await page.viewport(390, 844);
   try {
-    const view = (images: CatalogMediaAsset[], id = port.id) => (
+    const view = (images: CatalogMediaAsset[], id = port.id, originalEditionId?: string) => (
       <ArtworkProvider generation={7} listings={directory(images)}>
         <button type="button" id="gallery-detail-back">
           Back to game details
         </button>
         <CatalogMediaGallery
           port={{ ...port, id, presentation: { ...port.presentation, media: images } }}
+          context={{ originalEditionId }}
           fallbackFocus={() => document.getElementById("gallery-detail-back")}
         />
       </ArtworkProvider>
@@ -169,6 +171,14 @@ it("lets players browse reviewed releases without an applicable installed editio
       .element(picker)
       .toHaveAccessibleName("Screenshot source Choose an original release");
     expect(read).not.toHaveBeenCalled();
+    await galleryView.rerender(view(media, port.id, "us"));
+    const automaticallyMatched = gallery.getByRole("button", {
+      name: /Enlarge screenshot 1: North American/,
+    });
+    await expect.element(automaticallyMatched).toBeEnabled();
+    await expect.element(picker).toHaveAccessibleName("Screenshot source Available screenshots");
+    await galleryView.rerender(view(media));
+    await expect.element(automaticallyMatched).not.toBeInTheDocument();
     await picker.click();
     await expect.poll(() => page.getByRole("option").elements()).toHaveLength(3);
     await page.getByRole("option", { name: usTitle, exact: true }).click();
@@ -190,6 +200,10 @@ it("lets players browse reviewed releases without an applicable installed editio
     await expect.element(european).toBeEnabled();
     await expect.element(thumbnail).not.toBeInTheDocument();
     expect(read.mock.calls.map(([, id]) => id)).toEqual(["us-scene", "eu-scene"]);
+    await galleryView.rerender(view(media, port.id, "us"));
+    await expect.element(european).toBeEnabled();
+    await expect.element(thumbnail).not.toBeInTheDocument();
+    await expect.element(picker).toHaveAccessibleName(`Screenshot source ${euTitle}`);
 
     await european.click();
     const europeanViewer = page.getByRole("dialog", { name: "European scene" });
@@ -256,7 +270,7 @@ it("lets players browse reviewed releases without an applicable installed editio
   } finally {
     await page.viewport(viewport.width, viewport.height);
   }
-});
+}, 45_000);
 
 for (const theme of ["dark", "light"] as const) {
   for (const width of [320, 740, 1440]) {

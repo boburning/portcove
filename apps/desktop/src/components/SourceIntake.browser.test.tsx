@@ -5,6 +5,9 @@ import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import { InvocationOwnerProvider } from "../features/operations/invocation-owner";
+import { OperationPresentationProvider } from "../features/operations/operation-presentation";
+import { useOperationState } from "../features/operations/use-operation-state";
 import * as picker from "../file-picker";
 import App from "../App";
 import { initializeLocalization, LocalizationProvider } from "../localization";
@@ -18,6 +21,7 @@ import type {
   SourceRecord,
 } from "../types";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./SourceIntake";
+import { SourceRemovalControl } from "./SourceRemoval";
 import { PreparationControl, type RunPreparation } from "./Preparation";
 import { preparation, workspace } from "../dev-scenarios/interactive/scenarios";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
@@ -359,6 +363,63 @@ describe("source intake dialog", () => {
     expect(imported).toHaveBeenCalledOnce();
     expect(button("Return to game")!.disabled).toBe(false);
     expect(button("Retry refresh")).toBeUndefined();
+  });
+
+  it("retires a lost import reply and holds another write for that requirement", async () => {
+    const imported = prepareImport().mockRejectedValue(new Error("Native reply interrupted"));
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const remove = vi.spyOn(desktopApi, "removeSource");
+    const sourceRequest = request(["D:/Game.z64"]);
+    function Fixture() {
+      const [open, setOpen] = useState(true);
+      const operations = useOperationState({
+        refresh,
+        libraryGeneration: sourceRequest.generation,
+      });
+      return (
+        <OperationPresentationProvider
+          generation={sourceRequest.generation}
+          pending={operations.pendingOperations}
+          perform={operations.perform}
+          sourceWriteOnHold={operations.sourceWriteOnHold}
+        >
+          <SourceRemovalControl
+            source={record("D:/Game.z64")}
+            generation={sourceRequest.generation}
+            ports={[]}
+            disabled={false}
+          />
+          {open && (
+            <SourceIntakeDialog
+              request={sourceRequest}
+              close={() => setOpen(false)}
+              onAdded={refresh}
+            />
+          )}
+        </OperationPresentationProvider>
+      );
+    }
+    await root.rerender(
+      <InvocationOwnerProvider>
+        <Fixture />
+      </InvocationOwnerProvider>,
+    );
+    await act(async () => button("Copy into Portcove")!.click());
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(document.body.textContent).toContain(
+      "Restart Portcove to check the saved file location",
+    );
+    expect(document.body.textContent).not.toContain("the files were already added");
+    await act(async () => button("Copy into Portcove")!.click());
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(imported).toHaveBeenCalledOnce();
+    expect(refresh).not.toHaveBeenCalled();
+    await act(async () => button("Close")!.click());
+    expect(button("Review saved location removal")?.disabled).toBe(true);
+    await act(async () => button("Review saved location removal")!.click());
+    expect(remove).not.toHaveBeenCalled();
   });
 
   it("offers a return after saving and prevents a repeated import", async () => {
@@ -998,6 +1059,7 @@ describe("source intake dialog", () => {
         "use_current_location",
         plan,
         1,
+        expect.any(Function),
       );
       expect(detail.element().querySelector("[data-installation-fact]")?.textContent).toContain(
         initialInstall!.version,
@@ -1048,6 +1110,53 @@ describe("source intake dialog", () => {
     expect(apply).toHaveBeenCalledOnce();
   });
 
+  it("reads back a committed source in the current library after its dialog retires", async () => {
+    const apply = prepareImport();
+    const imported = apply.getMockImplementation()!;
+    const pending = deferred<SourceImportResult | null>();
+    apply.mockReturnValueOnce(pending.promise);
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const generation = 7;
+    function Fixture({ sourcePath }: { sourcePath: string }) {
+      const operations = useOperationState({ refresh, libraryGeneration: generation });
+      return (
+        <OperationPresentationProvider
+          generation={generation}
+          pending={operations.pendingOperations}
+          perform={operations.perform}
+        >
+          <SourceIntakeDialog request={request([sourcePath])} close={vi.fn()} onAdded={refresh} />
+        </OperationPresentationProvider>
+      );
+    }
+    const fixture = (sourcePath: string) => (
+      <InvocationOwnerProvider>
+        <Fixture sourcePath={sourcePath} />
+      </InvocationOwnerProvider>
+    );
+    const originalPath = "D:/Game.z64";
+    const plan = "c".repeat(64);
+    await root.rerender(fixture(originalPath));
+    await act(async () => button("Copy into Portcove")!.click());
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      profile.id,
+      originalPath,
+      "copy",
+      plan,
+      generation,
+      expect.any(Function),
+    );
+    expect(refresh).not.toHaveBeenCalled();
+    await root.rerender(fixture("D:/Other.z64"));
+    await act(async () => {
+      pending.resolve(await imported(profile.id, originalPath, "copy", plan, generation));
+    });
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(button("Return to game")).toBeUndefined();
+    expect(apply).toHaveBeenCalledOnce();
+  });
+
   it("returns focus to the current same-game action when saving replaces its opener", async () => {
     prepareImport();
     function RepairFixture() {
@@ -1080,6 +1189,9 @@ describe("source intake dialog", () => {
     await act(async () => button("Copy into Portcove")!.click());
     await act(async () => button("Copy into Portcove")!.click());
     expect(button("Select game files")).toBeUndefined();
+    expect(desktopApi.inspectSourceIntake).toHaveBeenCalledExactlyOnceWith(profile.id, [
+      "D:/Game.z64",
+    ]);
     const owner = document.getElementById("source-save-scroll")!;
     const current = document.getElementById("current-game-action")!;
     owner.scrollTop = 0;

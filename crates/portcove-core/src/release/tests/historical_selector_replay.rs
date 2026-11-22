@@ -338,8 +338,8 @@ fn resident_evil_x64_server_does_not_replace_the_multilib_linux_client() {
                 assess_package_name(&asset.name, can_extract, platform, &[]);
             assert!(score.is_none(), "unexpected native choice: {}", asset.name);
             match asset.id {
-                Some(750950967) => assert_eq!(suitability, "auxiliary"),
-                Some(750950969) => assert_eq!(suitability, "emulation"),
+                Some(750950967) => assert_eq!(suitability.as_str(), "auxiliary"),
+                Some(750950969) => assert_eq!(suitability.as_str(), "emulation"),
                 _ => {}
             }
         }
