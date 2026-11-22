@@ -317,7 +317,9 @@ export async function artworkScenario({
         await browser.wait(
           async () => {
             const [picker] = await browser.findElements(control("cover", "Choose local image"));
-            return picker !== undefined && (await picker.isDisplayed()) && (await picker.isEnabled());
+            return (
+              picker !== undefined && (await picker.isDisplayed()) && (await picker.isEnabled())
+            );
           },
           45_000,
           "The same Cover editor must finish loading and enable Choose local image",
