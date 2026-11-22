@@ -48,6 +48,9 @@ import type {
   LibraryImportResult,
   LibraryMovePlan,
   LibraryMoveResult,
+  LibraryRecoveryBundle,
+  LibraryRecoveryBundlePlan,
+  LibraryRecoveryRestorePlan,
 } from "./types";
 import type {
   SourceDiscoveryLimits,
@@ -1384,6 +1387,38 @@ export const desktopApi = {
       destination,
       abort: false,
     }),
+  planLibraryRecoveryBundle: (destination: string, generation: number) =>
+    invoke<LibraryRecoveryBundlePlan>("plan_library_recovery_bundle", { destination, generation }),
+  createLibraryRecoveryBundle: (destination: string, expectedPlan: string, generation: number) =>
+    invoke<LibraryRecoveryBundle>("create_library_recovery_bundle", {
+      destination,
+      expectedPlan,
+      generation,
+    }),
+  inspectLibraryRecoveryBundle: (path: string) =>
+    invoke<LibraryRecoveryBundle>("inspect_library_recovery_bundle", { path }),
+  planLibraryRecoveryRestore: (path: string, destination: string, generation: number) =>
+    invoke<LibraryRecoveryRestorePlan>("plan_library_recovery_restore", {
+      path,
+      destination,
+      generation,
+    }),
+  restoreLibraryRecoveryBundle: (
+    path: string,
+    destination: string,
+    expectedPlan: string,
+    generation: number,
+  ) =>
+    invoke<LibraryImportResult>("restore_library_recovery_bundle", {
+      path,
+      destination,
+      expectedPlan,
+      generation,
+    }),
+  resumeLibraryRecoveryBundle: (staging: string, generation: number) =>
+    invoke<LibraryRecoveryBundle>("resume_library_recovery_bundle", { staging, generation }),
+  resumeLibraryRecoveryRestore: (destination: string, generation: number) =>
+    invoke<LibraryImportResult>("resume_library_recovery_restore", { destination, generation }),
   reportFrontendError: (report: FrontendFailureReport) =>
     invoke<void>("report_frontend_error", { report }),
   plan: (portId: string, channel: ReleaseChannel) =>
