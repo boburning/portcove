@@ -171,8 +171,22 @@ function retainFreshObservation(
     next.attempted >= prior.attempted &&
     next.expires >= prior.expires &&
     next.expires - next.observed >= prior.expires - prior.observed &&
-    observationHash(prior.facts) === observationHash(next.facts)
+    observationHash(omitUnknownAssetDigests(prior.facts)) ===
+      observationHash(omitUnknownAssetDigests(next.facts))
   );
+}
+
+function omitUnknownAssetDigests(observation: unknown): unknown {
+  if (!isRecord(observation) || !Array.isArray(observation.releases)) return observation;
+  const releases: unknown[] = structuredClone(observation.releases);
+  for (const release of releases) {
+    if (!isRecord(release) || !Array.isArray(release.assets)) continue;
+    for (const asset of release.assets) {
+      // The listing reader decodes both spellings as an absent provider digest.
+      if (isRecord(asset) && asset.sha256 === null) delete asset.sha256;
+    }
+  }
+  return { ...observation, releases };
 }
 
 export function projectListingDelivery(
@@ -246,7 +260,7 @@ export function projectListingDelivery(
         ? result.upstream_observation
         : undefined;
       if (prior && (!authored || observedAt(prior) > observedAt(authored)))
-        result.upstream_observation = structuredClone(prior);
+        result.upstream_observation = prior;
       const held = isRecord(result.upstream_observation) ? result.upstream_observation : undefined;
       const proposed = updates.get(String(listing.id));
       if (
@@ -256,7 +270,9 @@ export function projectListingDelivery(
             observedAt(proposed) >= observedAt(held) &&
             !retainFreshObservation(held, proposed, now)))
       )
-        result.upstream_observation = structuredClone(proposed);
+        result.upstream_observation = proposed;
+      if (result.upstream_observation !== undefined)
+        result.upstream_observation = omitUnknownAssetDigests(result.upstream_observation);
       return {
         listing: result,
         prior,
@@ -266,7 +282,7 @@ export function projectListingDelivery(
           result.upstream_observation === undefined
             ? false
             : observationHash(result.upstream_observation) !==
-              observationHash(old?.upstream_observation ?? null),
+              observationHash(omitUnknownAssetDigests(old?.upstream_observation ?? null)),
         priority: previousListings.has(listing.id) ? 0 : authored ? 1 : 2,
       };
     })
