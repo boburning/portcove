@@ -323,7 +323,12 @@ removes or changes it, the operation reports the refusal for that pin.
 A check can also report the channel's current candidate as information.
 
 Use `portcove channel follow PORT_ID` to clear the exact choice. Switching to
-another channel also clears it. Direct manifests can only select the current
+another channel also clears it, whether you choose the channel or activate a
+version from another channel. A pin Core cannot read, or one saved for another
+channel, pauses checks and installs for that game only; `portcove status`
+reports it and `portcove channel follow PORT_ID` clears it. A command that names
+a different `--channel` while a pin is saved asks you to follow the channel
+first. Direct manifests can only select the current
 catalog pin. Curated definitions require the separately admitted acquisition
 route. A saved release preference establishes an intended package. Save and
 configuration compatibility still depend on the installed game and its

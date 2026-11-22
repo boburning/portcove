@@ -222,7 +222,10 @@ allows an exact choice or the library has a saved pin. Choose exact release
 reviews a tag and displays the package before Pin this release saves the choice.
 Follow channel clears it. Cancel returns to the chooser. A changed library,
 channel or saved choice ends the old review. A pinned installation can display
-the channel's other candidate separately.
+the channel's other candidate separately. The review states that future installs
+and checks use the pinned release even when the channel offers a newer one. A
+refused review or pin shows Core's reason, with technical details attached. A
+held pin explains that updates are paused and offers Follow channel.
 
 Manual disclosure summaries reserve a trailing icon column. Their title and
 secondary information wrap within the remaining text column, keeping the icon
