@@ -252,39 +252,75 @@ function contrastRatio(foreground: string, background: string) {
   return (required(values[0]) + 0.05) / (required(values[1]) + 0.05);
 }
 
-async function assertActivityLabelSeparation(browser: WebDriver, width: number) {
-  const gap = await executeBrowserScript(
+async function assertActivityLabelSeparation(
+  browser: WebDriver,
+  activityId: string,
+  observationPath: string,
+  artifacts: string[],
+) {
+  const selector = By.css(
+    `[data-record-view="history"] [data-activity-id="${activityId}"]:not([hidden])`,
+  );
+  const row = await browser.wait(
+    until.elementLocated(selector),
+    15_000,
+    "History did not show the exact completed update check",
+  );
+  assert.equal(await row.isDisplayed(), true);
+  const observation = await executeBrowserScript(
     browser,
-    (compact) => {
-      const activity = document.querySelector(".activity-row");
-      const previous = activity?.querySelector(compact ? ".activity-main" : ".activity-time");
-      const status = activity?.querySelector(".activity-status");
-      if (!previous || !status) return null;
-      const textBounds = (element: Element) => {
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-        let left = Infinity;
-        let right = -Infinity;
+    (element) => {
+      element.scrollIntoView({ block: "center" });
+      const textRects = (selector: string) => {
+        const item = element.querySelector(selector);
+        if (!item) return [];
+        const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+        const rectangles = [];
         for (let node = walker.nextNode(); node; node = walker.nextNode()) {
           if (!node.textContent?.trim()) continue;
           const range = document.createRange();
           range.selectNodeContents(node);
-          const rect = range.getBoundingClientRect();
-          left = Math.min(left, rect.left);
-          right = Math.max(right, rect.right);
+          for (const rect of range.getClientRects()) {
+            if (rect.width > 0 && rect.height > 0) {
+              rectangles.push({
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
+              });
+            }
+          }
         }
-        return { left, right };
+        return rectangles;
       };
-      const preceding = textBounds(previous);
-      const outcome = textBounds(status);
-      if (!Number.isFinite(preceding.right) || !Number.isFinite(outcome.left)) return null;
-      return outcome.left - preceding.right;
+      return {
+        activityId: element.getAttribute("data-activity-id"),
+        viewport: { width: innerWidth, height: innerHeight },
+        main: textRects(".activity-main"),
+        status: textRects(".activity-status"),
+        time: textRects(".activity-time"),
+      };
     },
-    width === 960,
+    row,
   );
-  assert.ok(
-    gap !== null && gap >= 8,
-    `Activity outcome overlaps preceding content at ${width}px (gap ${gap}px)`,
-  );
+  await writeFile(observationPath, JSON.stringify(observation, null, 2), { flag: "wx" });
+  artifacts.push(observationPath);
+  assert.equal(observation.activityId, activityId);
+  assert.ok(observation.main.length && observation.status.length && observation.time.length);
+  for (const [label, preceding] of [
+    ["game and action", observation.main],
+    ["time", observation.time],
+  ] as const) {
+    for (const status of observation.status) {
+      for (const other of preceding) {
+        // History can stack these labels or put them on one line. The text
+        // needs its horizontal gap only when the actual lines share height.
+        if (status.top >= other.bottom || other.top >= status.bottom) continue;
+        const gap = Math.max(status.left - other.right, other.left - status.right);
+        assert.ok(gap >= 8, `Activity outcome and ${label} share a line with a ${gap}px gap`);
+      }
+    }
+  }
 }
 
 const updateReviewWindows = [
@@ -3026,6 +3062,15 @@ export async function preparationScenarios({
     const gameActivity = async () =>
       activityOutsideCatalog(await read("activity", "get_activities"));
     const activityBefore = await gameActivity();
+    const updateCheck = activityBefore.records.filter(
+      (record) =>
+        record.operation === "check_update" &&
+        record.target_kind === "port" &&
+        record.target_id === port.id &&
+        record.status === "succeeded",
+    );
+    assert.equal(updateCheck.length, 1, "The owned game must have one completed update check");
+    const updateCheckId = required(updateCheck[0]).id;
     const trigger = await browser.findElement(button("Update now"));
     await clickVisible(browser, trigger);
     const dialog = By.css("[data-game-update-review]");
@@ -3209,7 +3254,12 @@ export async function preparationScenarios({
           artifacts.push(latestScreenshot);
           if (!wasOpen) await clickVisible(browser, await details.findElement(By.css("summary")));
           await selectActivitySection(browser, "History");
-          await assertActivityLabelSeparation(browser, width);
+          await assertActivityLabelSeparation(
+            browser,
+            updateCheckId,
+            path.join(output, `activity-layout-${theme}-${width}x${height}.json`),
+            artifacts,
+          );
           const historyScreenshot = path.join(
             output,
             `native-task-history-${theme}-${width}x${height}.png`,
