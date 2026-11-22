@@ -37,6 +37,8 @@ export type PerformOptions<Result = unknown> = {
   /** Explicit workspace readback may propagate failures unlike an ambient retry action. */
   refresh?: OperationRefresh | ((result: Result | undefined) => Promise<unknown>);
   invalidateDiagnostics?: boolean;
+  /** Return a confirmed result while the invocation still owns both readbacks. */
+  readbackAfterSuccess?: () => Promise<unknown>;
   /** Preserve the original task rejection after settlement for a current caller. */
   propagateFailure?: boolean;
   /** Only named nullable native-consent commands opt in; other null results retain their meaning. */
@@ -396,27 +398,43 @@ export function useOperationState(configuration: {
               ...(failure !== undefined ? { failure } : {}),
             }),
           );
-          try {
-            if (isCurrent()) {
-              if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
-              const effect = options.refresh ?? "workspace";
-              if (typeof effect === "function") await effect(result);
-              else if (effect === "workspace") await refresh();
-              else if (effect === "activities") await refreshActivities();
+          const followup = outcome === "succeeded" ? options.readbackAfterSuccess : undefined;
+          const settleReadback = async () => {
+            try {
+              if (isCurrent()) {
+                if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
+                const refreshInvocation = async () => {
+                  const effect = options.refresh ?? "workspace";
+                  if (typeof effect === "function") await effect(result);
+                  else if (effect === "workspace") await refresh();
+                  else if (effect === "activities") await refreshActivities();
+                };
+                if (followup) {
+                  const workspaceRead = refreshInvocation();
+                  const followupRead = workspaceRead
+                    .catch(() => undefined)
+                    .then(() => (isCurrent() ? followup() : undefined));
+                  const reads = await Promise.allSettled([workspaceRead, followupRead]);
+                  const rejected = reads.find((read) => read.status === "rejected");
+                  if (rejected) throw rejected.reason;
+                } else await refreshInvocation();
+              }
+            } catch (value) {
+              refreshFailure = value ?? new Error("Current state could not be refreshed.");
             }
-          } catch (value) {
-            refreshFailure = value ?? new Error("Current state could not be refreshed.");
-          }
-          if (isOwned())
-            updateInvocations((current) =>
-              new Map(current).set(pendingId, {
-                ...record,
-                phase: "settled",
-                outcome,
-                ...(failure !== undefined ? { failure } : {}),
-                ...(refreshFailure !== undefined ? { refreshFailure } : {}),
-              }),
-            );
+            if (isOwned())
+              updateInvocations((current) =>
+                new Map(current).set(pendingId, {
+                  ...record,
+                  phase: "settled",
+                  outcome,
+                  ...(failure !== undefined ? { failure } : {}),
+                  ...(refreshFailure !== undefined ? { refreshFailure } : {}),
+                }),
+              );
+          };
+          if (followup) void settleReadback();
+          else await settleReadback();
         }
       }
       return settleInvocationResult({ isCurrent, options, taskFailure, result });

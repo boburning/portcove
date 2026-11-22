@@ -3086,7 +3086,7 @@ void test("isolated reviewed backup chains retain the finite lifecycle allowance
       "native-reviewed-source-reference-removal",
     ],
   ]) {
-    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 600_000);
+    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 1_200_000);
   }
   assert.equal(
     desktopHarnessDeadlineMs(

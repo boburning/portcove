@@ -295,6 +295,9 @@ pub struct BackupActionPreview {
     pub safety_backup_will_be_created: bool,
     pub retained_runtime_copy_will_be_deleted: bool,
     pub preview_sha256: String,
+    /// The library, installation scope and materialized setup reviewed for a restore.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restore_target_sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

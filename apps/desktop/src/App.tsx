@@ -2515,6 +2515,7 @@ function SelectedPortPanel({
         close: close,
         reviewInstall: installPlanning.review,
         backupsChanged: backups.refresh,
+        refreshRestoredBackups: backups.refreshAfterCommit,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
         onInstallCommitted: operations.noteInstallCommitted,
