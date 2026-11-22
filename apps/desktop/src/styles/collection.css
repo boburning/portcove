@@ -1435,6 +1435,13 @@
     background: var(--color-bg-elevated);
   }
 
+  /* A nearest-edge reveal, such as focus returning to a card taller than the
+     workspace, keeps the control's whole focus ring inside the scroll owner. */
+  :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover)
+    :is(button, a[href], summary) {
+    scroll-margin-block: var(--cover-card-inset);
+  }
+
   /* Pointer hover and keyboard focus highlight the card; a mouse click that
      leaves focus on a control does not. The control's own ring stays primary. */
   :is(.discover-covers .discover-game, .collection-covers:not(.discover-grid) .collection-cover):is(

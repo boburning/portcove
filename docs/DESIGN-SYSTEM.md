@@ -1179,7 +1179,10 @@ In Covers view each Discover card is one raised surface: the cover sits inside
 a padded, bordered card, pointer hover and keyboard focus within the card highlight
 the card rather than lifting the cover, and the secondary "Why this port?" action
 aligns with the card's text edge. The inset equals the focus outline and its offset,
-so a focused control's ring stays inside the card border at every width. A mouse
+so a focused control's ring stays inside the card border at every width. Card
+controls keep the same inset as their block scroll margin, so a nearest-edge reveal,
+such as comparison focus returning to a card taller than the workspace, keeps the
+whole ring inside the scrolling workspace. A mouse
 click does not leave the card highlighted. In forced colors the card highlight is a
 thin `Highlight` outline; the focused control's own ring remains the primary
 indicator. Library covers use the same card surface, inset and highlight. Short or
