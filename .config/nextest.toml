@@ -32,11 +32,13 @@ slow-timeout = { period = "5s", terminate-after = 36, grace-period = "0s" }
 success-output = "immediate"
 
 # The compatible_archive_progression_* and reviewed_archive_transition_*
-# families once had 240-600s Windows overrides. They timed out only on #8478
-# and #8503 heads that built the new portcove-listing-carrier at test
-# opt-level 0; pre-#8478 main (run 45054336807) ran them in 22-71s. #8478 set
-# the carrier's test opt-level to 1 (load-bearing; see Cargo.toml) and slimmed
-# their fixture: run 45042553290 took 3.7-13.7s, so they use the default.
+# families once had 240-600s Windows overrides, calibrated from 300-421s
+# cutoffs around 2026-11-09. Main just before #8478 (run 45054336807) ran them
+# in 22-71s. The recent 120/240s timeouts (runs 44903098663, 44923847234)
+# occurred only on #8478 and #8503 heads that built the new
+# portcove-listing-carrier at test opt-level 0. #8478 set the carrier's test
+# opt-level to 1 (load-bearing; see Cargo.toml) and slimmed their fixture: run
+# 45042553290 took 3.7-13.7s, so they use the default.
 
 # Required source fab49f3f, run 40904363207/attempt 1 Windows partition 3 retained
 # 90.378s portable-profile and 60.174s restore-prepared whole-test cutoffs.
