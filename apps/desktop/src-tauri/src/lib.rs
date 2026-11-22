@@ -1074,9 +1074,10 @@ async fn add_source(
     profile_id: String,
     path: PathBuf,
     expected_sha256: Option<String>,
+    generation: u64,
 ) -> DesktopResult<SourceRecord> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         if let Some(digest) = expected_sha256 {
             service
                 .register_source_with_digest(&profile_id, &path, &digest)
@@ -1676,6 +1677,7 @@ async fn import_source(
             return Err(PortcoveError::conflict(
                 "the source import changed after review; review the move again",
             )
+            .with_mutation_state(portcove_core::MutationState::NoChanges)
             .into());
         }
         if !confirm_destructive(
@@ -2885,6 +2887,13 @@ fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard>
 
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
     let library = host_startup::open_library(&selection).map_err(DesktopError::from)?;
+    ready_desktop_selection(selection, library)
+}
+
+fn ready_desktop_selection(
+    selection: LibrarySelection,
+    library: Library,
+) -> DesktopResult<ReadyDesktopState> {
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let workspace_observer = std::sync::Arc::new(std::sync::Mutex::new(
         library.change_observer().map_err(DesktopError::from)?,
@@ -3130,6 +3139,7 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
+            library_selection::review_library_selection,
             library_selection::set_default_library,
             library_selection::reset_default_library,
             get_github_auth_status,

@@ -4432,6 +4432,7 @@ mod tests {
             safety_backup_will_be_created: true,
             retained_runtime_copy_will_be_deleted: false,
             preview_sha256: "b".repeat(64),
+            restore_target_sha256: None,
         }
     }
 

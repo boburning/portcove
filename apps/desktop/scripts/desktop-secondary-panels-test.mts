@@ -250,6 +250,141 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       await clearCatalogFilters(browser);
       await selectCatalogPort(browser, portId);
     };
+    const compactDetails = async () => {
+      const shortcut = (key: string) =>
+        browser.actions().keyDown(Key.CONTROL).sendKeys(key).keyUp(Key.CONTROL).perform();
+      const picker = By.css('.detail-section-picker [data-slot="select-trigger"]');
+      const sections = [
+        ["files", "Game files"],
+        ["mods", "Mods"],
+        ["saves", "Saves & backups"],
+        ["versions", "Versions & updates"],
+        ["configuration", "Game settings"],
+        ["manage", "Manage"],
+        ["overview", "Overview"],
+      ] as const;
+      const observations: unknown[] = [];
+      report.compact_detail_sections = observations;
+      await openDetails();
+      const initialScale = await executeBrowserScript(browser, () =>
+        localStorage.getItem("portcove.appearance.interface-size"),
+      );
+      assert.ok(initialScale === null || initialScale === "100");
+      const primaryAction = await browser.wait(
+        until.elementLocated(
+          By.css('[data-detail-workspace] .detail-header-actions button[data-variant="primary"]'),
+        ),
+        15_000,
+      );
+      const actionName = (await primaryAction.getText()).trim();
+      assert.ok(actionName);
+      let primary: { error: unknown } | undefined;
+      // Restore on both paths; only a passing scenario may fail on the restore.
+      const restoreScale = async () => {
+        try {
+          await shortcut("0");
+          await browser.wait(
+            () =>
+              executeBrowserScript(browser, () =>
+                ["100", null].includes(localStorage.getItem("portcove.appearance.interface-size")),
+              ),
+            10_000,
+          );
+        } catch (error) {
+          if (!primary) throw error;
+          console.error(
+            "Could not restore the interface size after the compact detail failure",
+            error,
+          );
+        }
+      };
+      try {
+        for (const scale of [125, 150, 175, 200, 250]) {
+          await shortcut("+");
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                (expected) =>
+                  localStorage.getItem("portcove.appearance.interface-size") === String(expected),
+                scale,
+              ),
+            10_000,
+          );
+        }
+        for (const [section, label] of sections) {
+          const trigger = await browser.wait(
+            async () => {
+              const [candidate] = await browser.findElements(picker);
+              return candidate && (await candidate.isDisplayed()) ? candidate : false;
+            },
+            15_000,
+            "The exact game must expose its narrow section picker",
+          );
+          // browser.wait resolves only with the displayed picker, never with false.
+          assert.ok(trigger);
+          assert.equal(await browser.findElement(By.css(".detail-tab-list")).isDisplayed(), false);
+          await clickVisible(browser, trigger);
+          const option = await browser.wait(
+            until.elementLocated(By.xpath(`//*[@role="option" and normalize-space(.)="${label}"]`)),
+            5_000,
+          );
+          await clickVisible(browser, option);
+          const heading = await browser.findElement(By.id(`detail-section-${section}`));
+          const observed = await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                (element, section, expectedPort, previousPrimary) => {
+                  const panel = element.closest<HTMLElement>('[role="tabpanel"]');
+                  const detail = element.closest<HTMLElement>("[data-detail-workspace]");
+                  if (
+                    !detail ||
+                    detail.dataset.detailPortId !== expectedPort ||
+                    detail.dataset.detailSection !== section ||
+                    !panel ||
+                    panel.hidden ||
+                    panel.inert
+                  )
+                    return false;
+                  const header = detail.querySelector<HTMLElement>(".detail-header-actions");
+                  const primary = header?.querySelector<HTMLButtonElement>(
+                    'button[data-variant="primary"]',
+                  );
+                  const width = detail.getBoundingClientRect().width;
+                  return {
+                    width,
+                    viewport: { width: innerWidth, height: innerHeight },
+                    primary: primary?.textContent?.trim(),
+                    primary_retained:
+                      primary === previousPrimary && Boolean(primary?.getClientRects().length),
+                    horizontal_overflow: detail.scrollWidth > detail.clientWidth + 1,
+                  };
+                },
+                heading,
+                section,
+                portId,
+                primaryAction,
+              ),
+            10_000,
+            `The narrow picker must reveal its exact ${label} panel`,
+          );
+          assert.ok(observed);
+          assert.ok(observed.width <= 320, JSON.stringify(observed));
+          assert.ok(observed.primary_retained, JSON.stringify(observed));
+          assert.equal(observed.primary, actionName);
+          assert.equal(observed.horizontal_overflow, false, JSON.stringify(observed));
+          observations.push({ section, label, ...observed });
+          if (section === "saves" || section === "mods")
+            await capture(`compact-detail-${section}`, trigger);
+        }
+      } catch (error) {
+        primary = { error };
+        await restoreScale();
+        throw error;
+      }
+      await restoreScale();
+    };
     const openMods = async () => {
       await openDetails();
       await revealDetailSection(browser, "Mods");
@@ -306,6 +441,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
 
     try {
       await browser.manage().window().setRect({ width: 960, height: 640 });
+      await compactDetails();
       await settings("game-files");
       const datBefore = fixtureSuccess(await invoke("get_dat_references"));
       assert.deepEqual(datBefore, [], "Use a fresh owned preferences scope");
@@ -536,19 +672,45 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         await click(button("Close review"));
         await focused(recipe);
 
+        const singleFile = theme === "light";
+        await probe.phase(singleFile ? "provider-singleton" : "mods");
         await openMods();
         await click(button("Browse mods"));
-        await click(button(fixtures.providerProject.project.name));
-        if (theme === "light") {
+        if (singleFile) {
           await text("Pending addition");
           await clickVisible(browser, await findButton("Undo"));
         }
-        await click(button(`Add ${fixtures.providerPlan.file.file_name}`));
+        const catalogAdd = await findButton("Add");
+        const fileAddName = `Add ${fixtures.providerPlan.file.file_name}`;
+        const commandCount = async (command: string) =>
+          (await probe.capture()).trace.filter((entry) => entry.command === command).length;
+        const planCount = () => commandCount("plan_provider_install");
+        const applyCount = () => commandCount("apply_mod_setup_draft");
+        const priorPlans = await planCount();
+        const priorApplies = await applyCount();
+        await observedAction("get_provider_project", () => catalogAdd.sendKeys(Key.ENTER));
+        if (singleFile) {
+          await text("Pending addition");
+          assert.equal((await browser.findElements(button(fileAddName))).length, 0);
+          await capture(`${theme}-provider-file-queued-directly`);
+        } else {
+          const fileAdd = await findButton(fileAddName);
+          await capture(`${theme}-provider-file-chooser`, fileAdd);
+          assert.equal(await planCount(), priorPlans);
+          assert.equal(await applyCount(), priorApplies);
+          await clickVisible(browser, fileAdd);
+          await text("Pending addition");
+        }
+        assert.equal(await planCount(), priorPlans);
+        assert.equal(await applyCount(), priorApplies);
         await click(button("Review changes"));
-        await click(button("Check files"));
+        await observedAction("plan_provider_install", () => click(button("Check files")));
+        assert.equal(await planCount(), priorPlans + 1);
         const install = await findButton("Apply changes");
         await capture(`${theme}-provider-review`, install);
+        assert.equal(await applyCount(), priorApplies);
         await observedAction("apply_mod_setup_draft", () => clickVisible(browser, install));
+        assert.equal(await applyCount(), priorApplies + 1);
         await text("Owned presentation fixture refused this action.");
         await capture(`${theme}-provider-refused`);
 

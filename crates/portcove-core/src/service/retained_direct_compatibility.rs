@@ -34,8 +34,8 @@ fn require_empty_player_data(port: &PortDefinition, root: &Path) -> Result<()> {
                     result?;
                 }
             }
-            // Apply the same finite case-sensitive inspection boundary as
-            // persistence::require_absent_path before allowing this one source.
+            // A finite case-sensitive inspection boundary before allowing this
+            // one source; beyond it the original is held, never partly checked.
             for (index, entry) in fs::read_dir(root)?.enumerate() {
                 if index >= 4096 {
                     return Err(held(port));

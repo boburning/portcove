@@ -3585,9 +3585,29 @@ try {
     const browser = driverBrowser();
     const before = await invoke("get_bootstrap_status");
     assert.ok(before.ok);
-    const defaultRoot = await invoke("get_default_library_root");
-    assert.ok(defaultRoot.ok);
-    assert.ok(defaultRoot.value);
+    const generation = before.value.generation;
+    const preferenceReview = async () =>
+      transportValue(
+        "desktop_library_selection_review",
+        success(
+          await invoke("review_library_selection", {
+            path: null,
+            generation: generation,
+          }),
+        ),
+      );
+
+    const expected = await preferenceReview();
+    assert.equal(expected.source, "platform_default");
+    assert.equal(expected.effect, "open");
+    assert.match(expected.review_sha256, /^[0-9a-f]{64}$/);
+    const contents = {
+      empty_directory: "This folder is empty. Portcove will start a new library here.",
+      new_default_directory: "Portcove will create the default library folder.",
+      existing_database:
+        "This folder contains a library database. Portcove checks it when opening.",
+      recovery_records: "This folder contains recovery records. Portcove checks them when opening.",
+    }[expected.contents];
     await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
@@ -3609,7 +3629,8 @@ try {
     );
     const reviewText = await review.getText();
     assert.ok(reviewText.includes("Open the default library?"));
-    assert.ok(reviewText.includes(defaultRoot.value));
+    assert.ok(reviewText.includes(expected.path));
+    assert.ok(reviewText.includes(contents));
     assert.ok(reviewText.includes("Files in the current library will stay where they are"));
     assert.equal(
       success(await invoke("get_bootstrap_status")).library_root,
@@ -3656,6 +3677,7 @@ try {
       "Library selection review trigger did not regain focus after Escape",
     );
     assert.deepEqual(success(await invoke("get_bootstrap_status")), before.value);
+    assert.deepEqual(await preferenceReview(), expected);
   });
   await scenario("native-library-browsing-context", async () => {
     const browser = driverBrowser();

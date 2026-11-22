@@ -1145,6 +1145,12 @@ fn assert_durable_move_recovery(point: LifecycleFaultPoint) {
         error.message, "simulated source import interruption",
         "{point:?}"
     );
+    assert_eq!(
+        error.report().presentation.mutation_state,
+        crate::MutationState::RecoveryRequired,
+        "{point:?}"
+    );
+    assert!(error.details.contains_key("import_id"), "{point:?}");
     drop(service);
     eprintln!("{point:?}: interruption recorded; recovering");
 

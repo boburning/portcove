@@ -6,12 +6,14 @@ import type {
   InstallRecord,
   OperationEvent,
   PortStatus,
+  SourceRecord,
 } from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
 import {
   invocationFailure,
   pendingInvocationConflict,
-  requiresManagedRouteReadback,
+  mutationNeedsReadback,
+  sourceImportRecoveryGuidance,
   settleInvocationResult,
   type InvocationContext,
   type InvocationRecord,
@@ -35,6 +37,8 @@ export type PerformOptions<Result = unknown> = {
   /** Explicit workspace readback may propagate failures unlike an ambient retry action. */
   refresh?: OperationRefresh | ((result: Result | undefined) => Promise<unknown>);
   invalidateDiagnostics?: boolean;
+  /** Return a confirmed result while the invocation still owns both readbacks. */
+  readbackAfterSuccess?: () => Promise<unknown>;
   /** Preserve the original task rejection after settlement for a current caller. */
   propagateFailure?: boolean;
   /** Only named nullable native-consent commands opt in; other null results retain their meaning. */
@@ -44,6 +48,8 @@ export type PerformOptions<Result = unknown> = {
   installedResult?: (result: Result) => InvocationRecord["installed"];
   /** Captures the exact external registration returned by a reviewed native command. */
   externalRegistrationResult?: (result: Result) => ExternalRuntimeRecord | undefined;
+  /** Captures a source or BIOS registration returned by Core. */
+  sourceRegistrationResult?: (result: Result) => SourceRecord | undefined;
 };
 
 export type ReportError = (value: unknown, context?: InvocationContext) => void;
@@ -78,11 +84,18 @@ export function useOperationState(configuration: {
     new Map(),
   );
   const activeOwner = useRef<number | undefined>(generation);
+  const sourceImportsNeedingRecovery = useRef(new Set<string>());
+  const sourceWriteOnHold = useCallback(
+    (profileId: string) => sourceImportsNeedingRecovery.current.has(profileId),
+    [],
+  );
   useLayoutEffect(() => {
     activeOwner.current = generation;
+    const imports = sourceImportsNeedingRecovery.current;
     return () => {
       activeOwner.current = undefined;
       setCommittedSetups(new Map());
+      imports.clear();
     };
   }, [generation]);
   const noteSetupCommitted = useCallback(
@@ -269,8 +282,13 @@ export function useOperationState(configuration: {
         (context.operation === "change_managed_route" ||
           context.operation === "launch" ||
           context.operation === "register_external");
-      const hold =
-        requiresReadback && unreadInstallPorts.has(context.target.id)
+      const sourceRecovery =
+        context.target.kind === "source" &&
+        options.sourceRegistrationResult &&
+        sourceImportsNeedingRecovery.current.has(context.target.id);
+      const hold = sourceRecovery
+        ? sourceImportRecoveryGuidance
+        : requiresReadback && unreadInstallPorts.has(context.target.id)
           ? "Refresh the library to confirm the current installation."
           : requiresReadback && unreadExternalPorts.has(context.target.id)
             ? "Refresh the library to confirm the current external launch details."
@@ -286,6 +304,7 @@ export function useOperationState(configuration: {
             failure: new Error(hold),
           }),
         );
+        if (sourceRecovery && options.propagateFailure) throw new Error(hold);
         return undefined;
       }
       updateInvocations((current) => new Map(current).set(pendingId, record));
@@ -339,16 +358,31 @@ export function useOperationState(configuration: {
             noteSetupCommitted(registration.port_id, "external");
             record = { ...record, externalRegistration: registration };
           }
+        } else if (context.target.kind === "source" && options.sourceRegistrationResult) {
+          const source = options.sourceRegistrationResult(result);
+          if (source?.profile_id === context.target.id && source.path)
+            record = {
+              ...record,
+              sourceRegistration: { source, afterRead: startedWorkspaceReadRevision?.() },
+            };
         }
       } catch (value) {
         taskFailure = { value };
         if (
           context.operation === "change_managed_route" &&
           context.target.kind === "port" &&
-          requiresManagedRouteReadback(value) &&
+          mutationNeedsReadback(value) &&
           isOwned()
         ) {
           noteSetupCommitted(context.target.id, "managed_route");
+          record = { ...record, reviewCurrentState: true };
+        } else if (
+          context.operation === "import_source" &&
+          context.target.kind === "source" &&
+          mutationNeedsReadback(value) &&
+          isOwned()
+        ) {
+          sourceImportsNeedingRecovery.current.add(context.target.id);
           record = { ...record, reviewCurrentState: true };
         }
         ({ outcome, failure } = classifyInvocationFailure(value));
@@ -364,27 +398,43 @@ export function useOperationState(configuration: {
               ...(failure !== undefined ? { failure } : {}),
             }),
           );
-          try {
-            if (isCurrent()) {
-              if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
-              const effect = options.refresh ?? "workspace";
-              if (typeof effect === "function") await effect(result);
-              else if (effect === "workspace") await refresh();
-              else if (effect === "activities") await refreshActivities();
+          const followup = outcome === "succeeded" ? options.readbackAfterSuccess : undefined;
+          const settleReadback = async () => {
+            try {
+              if (isCurrent()) {
+                if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
+                const refreshInvocation = async () => {
+                  const effect = options.refresh ?? "workspace";
+                  if (typeof effect === "function") await effect(result);
+                  else if (effect === "workspace") await refresh();
+                  else if (effect === "activities") await refreshActivities();
+                };
+                if (followup) {
+                  const workspaceRead = refreshInvocation();
+                  const followupRead = workspaceRead
+                    .catch(() => undefined)
+                    .then(() => (isCurrent() ? followup() : undefined));
+                  const reads = await Promise.allSettled([workspaceRead, followupRead]);
+                  const rejected = reads.find((read) => read.status === "rejected");
+                  if (rejected) throw rejected.reason;
+                } else await refreshInvocation();
+              }
+            } catch (value) {
+              refreshFailure = value ?? new Error("Current state could not be refreshed.");
             }
-          } catch (value) {
-            refreshFailure = value ?? new Error("Current state could not be refreshed.");
-          }
-          if (isOwned())
-            updateInvocations((current) =>
-              new Map(current).set(pendingId, {
-                ...record,
-                phase: "settled",
-                outcome,
-                ...(failure !== undefined ? { failure } : {}),
-                ...(refreshFailure !== undefined ? { refreshFailure } : {}),
-              }),
-            );
+            if (isOwned())
+              updateInvocations((current) =>
+                new Map(current).set(pendingId, {
+                  ...record,
+                  phase: "settled",
+                  outcome,
+                  ...(failure !== undefined ? { failure } : {}),
+                  ...(refreshFailure !== undefined ? { refreshFailure } : {}),
+                }),
+              );
+          };
+          if (followup) void settleReadback();
+          else await settleReadback();
         }
       }
       return settleInvocationResult({ isCurrent, options, taskFailure, result });
@@ -399,6 +449,7 @@ export function useOperationState(configuration: {
       refresh,
       refreshActivities,
       noteSetupCommitted,
+      startedWorkspaceReadRevision,
       unreadInstallPorts,
       unreadExternalPorts,
       updateInvocations,
@@ -413,6 +464,7 @@ export function useOperationState(configuration: {
     unreadInstallPorts,
     unreadExternalPorts,
     unreadManagedRoutePorts,
+    sourceWriteOnHold,
     noteInstallCommitted,
     invocations,
     dismissInvocation,

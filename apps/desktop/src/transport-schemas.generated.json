@@ -4594,6 +4594,13 @@
       "preview_sha256": {
         "type": "string"
       },
+      "restore_target_sha256": {
+        "description": "The library, installation scope and materialized setup reviewed for a restore.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "retained_runtime_copy_will_be_deleted": {
         "type": "boolean"
       },

@@ -1113,6 +1113,9 @@ export function desktopHarnessDeadlineMs(
   // Six public collection previews, two themes, compact capture and owned native exit.
   if (selection.selected_scenarios.includes("native-collection-artwork-presentation"))
     return 600_000;
+  // Prepared-folder registration and relink plus separate draft validation and
+  // fresh launch review. Keep the extra time within this Windows-only fixture.
+  if (selection.selected_scenarios.includes("native-external-runtime-review")) return 420_000;
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
@@ -1154,13 +1157,14 @@ export function desktopHarnessDeadlineMs(
     // The integrated full suite has 35 journeys plus two-theme capture matrices.
     // Its previous ten-minute watchdog expired during still-progressing native
     // file handling. Keep individual waits and cleanup unchanged.
-    executed > 24
-      ? 20 * 60_000
-      : executed > 8 ||
-          selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
-          selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
-        ? 10 * 60_000
-        : 3 * 60_000,
+    executed > 24 ? 20 * 60_000 : executed > 8 ? 10 * 60_000 : 3 * 60_000,
+    // Windows job 136906004836 reached its 600 s watchdog after restore,
+    // deletion and the first degraded-history capture. Keep another 10 min for
+    // the remaining scenarios, evidence capture and owned process cleanup.
+    selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
+      selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
+      ? 1_200_000
+      : 0,
     // Native gallery opens live typed screenshots, verifies cached bytes and restores focus.
     selection.selected_scenarios.includes("native-reviewed-screenshot-display") ? 600_000 : 0,
     // Linux keyboard fixture readiness has two finite 90s phases; retain room
