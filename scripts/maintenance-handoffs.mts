@@ -888,7 +888,7 @@ const routineRunsIn =
 const routinePermissions = [
   "GITHUB_TOKEN contents: read",
   "GITHUB_TOKEN actions: read (to read the retained receipt run and its artifact)",
-  "The existing maintenance store executor role that `handoffs --record` uses, limited to the handoff's operation row",
+  "The existing maintenance store executor role that `handoffs --record` uses; a role grants table access, so a future store adapter must change rows only through a guarded function that addresses one operation record by its identity and fence",
 ] as const;
 
 const routineSteps = (evidence: string, receipt: string): readonly ExecutorStep[] => [
@@ -910,7 +910,7 @@ const routineSteps = (evidence: string, receipt: string): readonly ExecutorStep[
   { id: "gather-evidence", does: evidence, idempotent: true },
   {
     id: "publish-evidence",
-    does: "Write the evidence to the job summary and a retained run artifact named by the operation key; nothing is posted elsewhere.",
+    does: "Write the evidence to the job summary and a retained run artifact named by the operation identity; nothing is posted elsewhere.",
     idempotent: true,
   },
   { id: "await-receipt", does: receipt, idempotent: true },
@@ -1142,7 +1142,10 @@ export type ContractState = "planned" | "leased" | "completed" | "abandoned";
 
 export interface ContractOperation {
   contract_version: typeof handoffContractVersion;
-  operation_key: string;
+  /** This record's own identity; every effect addresses it. */
+  operation_id: string;
+  /** The finding it acts on; shared by every record of the same finding. */
+  finding_key: string;
   deciding: DecidingFacts;
   fence: GenerationFence;
   state: ContractState;
@@ -1155,25 +1158,43 @@ export interface ContractOperation {
 }
 
 /**
- * The deterministic operation key: the same kind, subject, deciding input
+ * The deterministic finding key: the same kind, subject, deciding input
  * digest and policy generation always yield the same key, so a replayed
- * finding is recognized. The source generation is a fence, not identity: a
- * later run verifying the same condition is the same operation.
+ * finding is recognized and the records of one finding are related. The
+ * fields are hashed as a JSON array, so no field value can shift into
+ * another. The source generation is a fence, not identity: a later run
+ * verifying the same condition is the same finding.
  */
-export function handoffOperationKey(deciding: DecidingFacts, policyGeneration: string) {
+export function handoffFindingKey(deciding: DecidingFacts, policyGeneration: string) {
   const digest = createHash("sha256")
     .update(
-      [
+      JSON.stringify([
         handoffContractVersion,
         deciding.kind,
         deciding.subject_key,
         deciding.input_digest,
         policyGeneration,
-      ].join("\t"),
+      ]),
     )
     .digest("hex")
     .slice(0, 40);
   return `handoff.${deciding.kind}.k${digest}`;
+}
+
+/**
+ * One record's operation identity: the finding key for the first record of a
+ * finding, then `.<n>` for the n-th, as `handoffOperationId` numbers a plan
+ * needed again. A finding that wakes or reappears after abandonment gets a new
+ * record, so an effect for the earlier one can never reach it.
+ */
+export const handoffContractOperationId = (findingKey: string, ordinal: number) =>
+  ordinal === 1 ? findingKey : `${findingKey}.${ordinal}`;
+
+/** The ordinal of `operationId` among its finding's records, or null when it is not one of them. */
+export function contractOperationOrdinal(findingKey: string, operationId: string) {
+  if (operationId === findingKey) return 1;
+  const match = /^\.([2-9]|[1-9][0-9]+)$/u.exec(operationId.slice(findingKey.length));
+  return operationId.startsWith(findingKey) && match ? Number(match[1]) : null;
 }
 
 const positiveInteger = (value: unknown) => Number.isSafeInteger(value) && (value as number) >= 1;
@@ -1209,17 +1230,24 @@ export function contractOperationErrors(value: unknown): string[] {
     if (!text(fence.source_generation, executorLimit)) errors.push("fence.source_generation");
     if (!text(fence.policy_generation, executorLimit)) errors.push("fence.policy_generation");
   }
+  const findingKey = value.finding_key;
   if (
-    typeof value.operation_key !== "string" ||
-    !operationIdPattern.test(value.operation_key) ||
+    typeof findingKey !== "string" ||
     (deciding &&
       entry &&
       fence &&
       typeof fence.policy_generation === "string" &&
-      value.operation_key !==
-        handoffOperationKey(deciding as unknown as DecidingFacts, fence.policy_generation))
+      findingKey !==
+        handoffFindingKey(deciding as unknown as DecidingFacts, fence.policy_generation))
   )
-    errors.push("operation_key");
+    errors.push("finding_key");
+  if (
+    typeof value.operation_id !== "string" ||
+    !operationIdPattern.test(value.operation_id) ||
+    (typeof findingKey === "string" &&
+      contractOperationOrdinal(findingKey, value.operation_id) === null)
+  )
+    errors.push("operation_id");
   const state = value.state;
   if (!["planned", "leased", "completed", "abandoned"].includes(state as string))
     errors.push("state");
@@ -1278,29 +1306,38 @@ export interface HandoffObservation {
   fence: GenerationFence;
 }
 
+/** Executor events name the operation record they act on and the fence they read. */
+interface AddressedEvent {
+  operation_id: string;
+  holder: string;
+  now: number;
+  fence: GenerationFence;
+}
+
 export type HandoffEvent = { event_id: string } & (
   | { type: "observe"; observation: HandoffObservation }
-  | { type: "claim"; holder: string; now: number; fence: GenerationFence }
-  | { type: "checkpoint"; holder: string; now: number; step: string; fence: GenerationFence }
-  | {
+  | ({ type: "claim" } & AddressedEvent)
+  | ({ type: "checkpoint"; step: string } & AddressedEvent)
+  | ({
       type: "complete";
-      holder: string;
-      now: number;
       receipt: HandoffReceipt;
-      fence: GenerationFence;
       /** The clear transition the receipt shows (routine receipts are the subject clearing). */
       cleared_sequence: number;
-    }
+    } & AddressedEvent)
 );
 
-/** Descriptions of store writes an executor would make; this module performs none. */
-export type HandoffEffect =
-  | { type: "record-plan"; operation_key: string }
-  | { type: "refence"; operation_key: string; fence: GenerationFence }
-  | { type: "abandon"; operation_key: string }
-  | { type: "record-lease"; operation_key: string; lease: HandoffLease }
-  | { type: "record-checkpoint"; operation_key: string; step: string }
-  | { type: "record-receipt"; operation_key: string; receipt: HandoffReceipt };
+/**
+ * Descriptions of store writes an executor would make; this module performs
+ * none. Each addresses one record by `operation_id` and names its finding.
+ */
+export type HandoffEffect = { operation_id: string; finding_key: string } & (
+  | { type: "record-plan" }
+  | { type: "refence"; fence: GenerationFence }
+  | { type: "abandon" }
+  | { type: "record-lease"; lease: HandoffLease }
+  | { type: "record-checkpoint"; step: string }
+  | { type: "record-receipt"; receipt: HandoffReceipt }
+);
 
 export interface HandoffModel {
   kind: HandoffKind;
@@ -1314,6 +1351,7 @@ export type HandoffRefusal =
   | "dispatch-disabled"
   | "owner-only"
   | "no-open-operation"
+  | "superseded-operation"
   | "stale-fence"
   | "leased"
   | "not-holder"
@@ -1362,16 +1400,33 @@ export function handoffWakes(completed: ContractOperation, observation: HandoffO
     : observation.deciding.input_digest !== completed.deciding.input_digest;
 }
 
-const planned = (observation: HandoffObservation): ContractOperation => ({
-  contract_version: handoffContractVersion,
-  operation_key: handoffOperationKey(observation.deciding, observation.fence.policy_generation),
-  deciding: observation.deciding,
-  fence: observation.fence,
-  state: "planned",
-  lease: null,
-  checkpoint: null,
-  receipt: null,
-  completed_sequence: null,
+/**
+ * A new planned record for the observation: its finding key, and the next
+ * ordinal among the retained records of that finding.
+ */
+const planned = (
+  operations: readonly ContractOperation[],
+  observation: HandoffObservation,
+): ContractOperation => {
+  const findingKey = handoffFindingKey(observation.deciding, observation.fence.policy_generation);
+  const prior = operations.filter(({ finding_key }) => finding_key === findingKey).length;
+  return {
+    contract_version: handoffContractVersion,
+    operation_id: handoffContractOperationId(findingKey, prior + 1),
+    finding_key: findingKey,
+    deciding: observation.deciding,
+    fence: observation.fence,
+    state: "planned",
+    lease: null,
+    checkpoint: null,
+    receipt: null,
+    completed_sequence: null,
+  };
+};
+
+const address = (operation: ContractOperation) => ({
+  operation_id: operation.operation_id,
+  finding_key: operation.finding_key,
 });
 
 /**
@@ -1407,40 +1462,51 @@ export function applyHandoffEvent(
   if (event.type === "observe") {
     const { observation } = event;
     if (observation.deciding.kind !== model.kind) return refuse("kind-mismatch");
-    const key = handoffOperationKey(observation.deciding, observation.fence.policy_generation);
+    const key = handoffFindingKey(observation.deciding, observation.fence.policy_generation);
     if (!latest || latest.state === "abandoned") {
       if (observation.state === "clear") return done(operations, []);
-      const next = planned(observation);
-      return done([...operations, next], [{ type: "record-plan", operation_key: key }]);
+      const next = planned(operations, observation);
+      return done([...operations, next], [{ type: "record-plan", ...address(next) }]);
     }
     if (latest.state === "completed") {
       if (!handoffWakes(latest, observation)) return done(operations, []);
-      const next = planned(observation);
-      // A wake on an unchanged finding keeps its identity; the reopened plan is a new record.
-      return done([...operations, next], [{ type: "record-plan", operation_key: key }]);
+      // A wake on an unchanged finding keeps its finding key; the reopened plan
+      // is a new record with its own operation identity.
+      const next = planned(operations, observation);
+      return done([...operations, next], [{ type: "record-plan", ...address(next) }]);
     }
     // An open operation (planned or leased). The clear an operation awaits is its
     // receipt's evidence, not an abandonment; the complete event records it.
     if (observation.state === "clear" && latest.checkpoint === "await-receipt")
       return done(operations, []);
-    if (observation.state === "clear" || key !== latest.operation_key) {
+    if (observation.state === "clear" || key !== latest.finding_key) {
       const abandoned: ContractOperation = { ...latest, state: "abandoned", lease: null };
-      const effects: HandoffEffect[] = [{ type: "abandon", operation_key: latest.operation_key }];
+      const effects: HandoffEffect[] = [{ type: "abandon", ...address(latest) }];
       if (observation.state === "clear") return done(replaceLatest(abandoned), effects);
-      effects.push({ type: "record-plan", operation_key: key });
-      return done([...replaceLatest(abandoned), planned(observation)], effects);
+      const next = planned(operations, observation);
+      effects.push({ type: "record-plan", ...address(next) });
+      return done([...replaceLatest(abandoned), next], effects);
     }
     if (sameFence(latest.fence, observation.fence)) return done(operations, []);
     // Same identity, newer verification: the open operation is re-fenced, so a
     // holder acting on the old fence is refused and must re-read.
     return done(replaceLatest({ ...latest, fence: observation.fence }), [
-      { type: "refence", operation_key: latest.operation_key, fence: observation.fence },
+      { type: "refence", ...address(latest), fence: observation.fence },
     ]);
   }
 
   const contract = handoffContracts[model.kind];
   if (contract.plan.mode !== "routine" || contract.lease === null) return refuse("owner-only");
   if (policy.dispatch !== "modelled") return refuse("dispatch-disabled");
+  // An event names the record it acts on; one for an earlier record of the
+  // handoff (abandoned, or completed and since reopened) is never applied to
+  // the current one.
+  if (latest && event.operation_id !== latest.operation_id)
+    return refuse(
+      operations.some(({ operation_id }) => operation_id === event.operation_id)
+        ? "superseded-operation"
+        : "no-open-operation",
+    );
   if (!latest || (latest.state !== "planned" && latest.state !== "leased")) {
     if (event.type !== "complete" || latest?.state !== "completed")
       return refuse("no-open-operation");
@@ -1465,7 +1531,7 @@ export function applyHandoffEvent(
     // The claim carries a matching fence, so reading and checking it are done.
     const checkpoint = latest.checkpoint ?? "take-lease";
     return done(replaceLatest({ ...latest, state: "leased", lease: next, checkpoint }), [
-      { type: "record-lease", operation_key: latest.operation_key, lease: next },
+      { type: "record-lease", ...address(latest), lease: next },
     ]);
   }
   if (!lease || lease.holder !== event.holder) return refuse("not-holder");
@@ -1477,7 +1543,7 @@ export function applyHandoffEvent(
     if (index !== -1 && index <= at) return done(operations, []);
     if (index !== at + 1 || event.step === "record-receipt") return refuse("checkpoint-order");
     return done(replaceLatest({ ...latest, checkpoint: event.step }), [
-      { type: "record-checkpoint", operation_key: latest.operation_key, step: event.step },
+      { type: "record-checkpoint", ...address(latest), step: event.step },
     ]);
   }
   if (latest.checkpoint !== "await-receipt" || event.cleared_sequence <= latest.fence.sequence)
@@ -1491,6 +1557,76 @@ export function applyHandoffEvent(
     completed_sequence: event.cleared_sequence,
   };
   return done(replaceLatest(completed), [
-    { type: "record-receipt", operation_key: latest.operation_key, receipt: event.receipt },
+    { type: "record-receipt", ...address(latest), receipt: event.receipt },
   ]);
+}
+
+/** The part of one operation record a store adapter guards each effect against. */
+export type StoredContractOperation = Pick<
+  ContractOperation,
+  "operation_id" | "finding_key" | "state" | "receipt"
+>;
+
+export type HandoffEffectRefusal = "unknown-operation" | "operation-closed" | "receipt-immutable";
+
+/**
+ * The addressing guard a store adapter applies to one effect: it acts only on
+ * the record the effect names, and only while that record is open. A delayed
+ * effect for an abandoned or completed record is refused, never applied to a
+ * newer record of the same finding. A replayed plan or identical receipt
+ * changes nothing.
+ */
+export function applyHandoffEffect(
+  records: readonly StoredContractOperation[],
+  effect: HandoffEffect,
+): {
+  records: readonly StoredContractOperation[];
+  outcome: "applied" | "unchanged" | "refused";
+  reason?: HandoffEffectRefusal;
+} {
+  const refuse = (reason: HandoffEffectRefusal) => ({
+    records,
+    outcome: "refused" as const,
+    reason,
+  });
+  const index = records.findIndex(({ operation_id }) => operation_id === effect.operation_id);
+  const record = records[index];
+  if (effect.type === "record-plan") {
+    if (record)
+      return record.finding_key === effect.finding_key
+        ? { records, outcome: "unchanged" }
+        : refuse("unknown-operation");
+    if (contractOperationOrdinal(effect.finding_key, effect.operation_id) === null)
+      return refuse("unknown-operation");
+    const next: StoredContractOperation = {
+      operation_id: effect.operation_id,
+      finding_key: effect.finding_key,
+      state: "planned",
+      receipt: null,
+    };
+    return { records: [...records, next], outcome: "applied" };
+  }
+  if (!record || record.finding_key !== effect.finding_key) return refuse("unknown-operation");
+  const replace = (next: StoredContractOperation) => ({
+    records: records.map((existing, at) => (at === index ? next : existing)),
+    outcome: "applied" as const,
+  });
+  if (record.state === "completed" && effect.type === "record-receipt")
+    return JSON.stringify(record.receipt) === JSON.stringify(effect.receipt)
+      ? { records, outcome: "unchanged" }
+      : refuse("receipt-immutable");
+  if (record.state === "abandoned" && effect.type === "abandon")
+    return { records, outcome: "unchanged" };
+  if (record.state !== "planned" && record.state !== "leased") return refuse("operation-closed");
+  switch (effect.type) {
+    case "abandon":
+      return replace({ ...record, state: "abandoned" });
+    case "record-lease":
+      return replace({ ...record, state: "leased" });
+    case "record-receipt":
+      return replace({ ...record, state: "completed", receipt: effect.receipt });
+    case "refence":
+    case "record-checkpoint":
+      return { records, outcome: "applied" };
+  }
 }

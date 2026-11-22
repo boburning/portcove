@@ -8,21 +8,25 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import {
+  applyHandoffEffect,
   applyHandoffEvent,
   contractOperationErrors,
   emptyHandoffModel,
   handoffContracts,
   handoffContractVersion,
-  handoffOperationKey,
+  handoffContractOperationId,
+  handoffFindingKey,
   handoffWakes,
   registryExecutorPolicy,
   type ContractOperation,
   type GenerationFence,
+  type HandoffEffect,
   type HandoffEvent,
   type HandoffKind,
   type HandoffModel,
   type HandoffObservation,
   type RoutineExecutorPlan,
+  type StoredContractOperation,
   disabledCapabilities,
   handoffEntry,
   handoffGuidance,
@@ -800,6 +804,9 @@ const observe = (
   fence,
 });
 const modelled = { dispatch: "modelled" } as const;
+/** The operation identity of a handoff's first record for an observation. */
+const firstOperation = (observation: HandoffObservation) =>
+  handoffFindingKey(observation.deciding, observation.fence.policy_generation);
 /** Applies events in order, asserting each outcome; returns the last transition. */
 function run(model: HandoffModel, events: readonly HandoffEvent[]) {
   let transition = { model, outcome: "unchanged" as string, effects: [] as readonly unknown[] };
@@ -839,10 +846,15 @@ void test("every handoff class has a valid executor contract and dispatch stays 
     });
     const operation = created.model.operations[0]!;
     assert.deepEqual(contractOperationErrors(operation), [], entry.kind);
-    assert.match(operation.operation_key, /^[A-Za-z0-9._:-]{1,200}$/u);
+    assert.match(operation.operation_id, /^[A-Za-z0-9._:-]{1,200}$/u);
+    assert.equal(operation.operation_id, operation.finding_key);
     const invalid: [Partial<ContractOperation> | Record<string, unknown>, string][] = [
       [{ contract_version: "other/1" }, "contract_version"],
-      [{ operation_key: "handoff.x.k0" }, "operation_key"],
+      [{ finding_key: "handoff.x.k0" }, "finding_key"],
+      [{ operation_id: "handoff.x.k0" }, "operation_id"],
+      [{ operation_id: `${operation.finding_key}.1` }, "operation_id"],
+      [{ operation_id: `${operation.finding_key}.x` }, "operation_id"],
+      [{ operation_id: `${operation.finding_key}.2 ` }, "operation_id"],
       [{ deciding: { ...operation.deciding, input_digest: "abc" } }, "deciding.input_digest"],
       [
         { deciding: { ...operation.deciding, subject_key: "handoff:other:port" } },
@@ -931,15 +943,15 @@ void test("routine executor plans are inert data with fixed permissions and proh
     );
 });
 
-void test("the operation key is deterministic from class, subject and deciding digests", () => {
+void test("the finding key is deterministic from class, subject and deciding digests", () => {
   const first = observe("release-health-condition", fenceAt(3));
   const reverified = observe(
     "release-health-condition",
     fenceAt(3, { source_generation: "run-9" }),
   );
   assert.equal(
-    handoffOperationKey(first.deciding, first.fence.policy_generation),
-    handoffOperationKey(reverified.deciding, reverified.fence.policy_generation),
+    handoffFindingKey(first.deciding, first.fence.policy_generation),
+    handoffFindingKey(reverified.deciding, reverified.fence.policy_generation),
   );
   for (const other of [
     observe("release-health-condition", fenceAt(3), "b").deciding,
@@ -947,12 +959,23 @@ void test("the operation key is deterministic from class, subject and deciding d
     { ...first.deciding, subject_key: handoffSubject("release-health-condition", "port:other") },
   ])
     assert.notEqual(
-      handoffOperationKey(other, "maintenance-handoffs/1"),
-      handoffOperationKey(first.deciding, "maintenance-handoffs/1"),
+      handoffFindingKey(other, "maintenance-handoffs/1"),
+      handoffFindingKey(first.deciding, "maintenance-handoffs/1"),
     );
   assert.notEqual(
-    handoffOperationKey(first.deciding, "maintenance-handoffs/2"),
-    handoffOperationKey(first.deciding, "maintenance-handoffs/1"),
+    handoffFindingKey(first.deciding, "maintenance-handoffs/2"),
+    handoffFindingKey(first.deciding, "maintenance-handoffs/1"),
+  );
+  // Fields are encoded as a JSON array, so a separator inside one value cannot shift into the next.
+  assert.notEqual(
+    handoffFindingKey(
+      { ...first.deciding, subject_key: `${first.deciding.subject_key}\tx` },
+      "maintenance-handoffs/1",
+    ),
+    handoffFindingKey(
+      { ...first.deciding, input_digest: `x\t${first.deciding.input_digest}` },
+      "maintenance-handoffs/1",
+    ),
   );
   assert.equal(handoffContractVersion, "maintenance-handoff-contract/1");
 });
@@ -965,7 +988,15 @@ void test("the registry policy refuses every executor event; owner-only classes 
       type: "observe",
       observation: observe(kind, fence),
     });
-    const claim: HandoffEvent = { event_id: "c", type: "claim", holder: "job", now: 0, fence };
+    const op = model.operations[0]!.operation_id;
+    const claim: HandoffEvent = {
+      event_id: "c",
+      type: "claim",
+      operation_id: op,
+      holder: "job",
+      now: 0,
+      fence,
+    };
     assert.equal(
       applyHandoffEvent(model, claim).reason,
       authority === "routine" ? "dispatch-disabled" : "owner-only",
@@ -979,12 +1010,14 @@ void test("the registry policy refuses every executor event; owner-only classes 
 void test("replaying the same event or finding produces no duplicate effect", () => {
   const kind = "upstream-observer-exception";
   const fence = fenceAt(2);
+  const op = firstOperation(observe(kind, fence));
   const events: HandoffEvent[] = [
     { event_id: "observe-2", type: "observe", observation: observe(kind, fence) },
-    { event_id: "claim-1", type: "claim", holder: "job-a", now: 1_000, fence },
+    { event_id: "claim-1", type: "claim", operation_id: op, holder: "job-a", now: 1_000, fence },
     {
       event_id: "step-1",
       type: "checkpoint",
+      operation_id: op,
       holder: "job-a",
       now: 2_000,
       step: "gather-evidence",
@@ -1012,6 +1045,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
     {
       event_id: "step-1b",
       type: "checkpoint",
+      operation_id: op,
       holder: "job-a",
       now: 2_500,
       step: "gather-evidence",
@@ -1030,6 +1064,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
     {
       event_id: "step-2",
       type: "checkpoint",
+      operation_id: op,
       holder: "job-a",
       now: 3_000,
       step: "publish-evidence",
@@ -1038,6 +1073,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
     {
       event_id: "step-3",
       type: "checkpoint",
+      operation_id: op,
       holder: "job-a",
       now: 3_000,
       step: "await-receipt",
@@ -1046,6 +1082,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
     {
       event_id: "done",
       type: "complete",
+      operation_id: op,
       holder: "job-a",
       now: 4_000,
       receipt,
@@ -1061,6 +1098,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
       {
         event_id: "done",
         type: "complete",
+        operation_id: op,
         holder: "job-a",
         now: 4_000,
         receipt,
@@ -1077,6 +1115,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
     {
       event_id: "done-again",
       type: "complete",
+      operation_id: op,
       holder: "job-a",
       now: 5_000,
       receipt,
@@ -1093,6 +1132,7 @@ void test("replaying the same event or finding produces no duplicate effect", ()
       {
         event_id: "done-2",
         type: "complete",
+        operation_id: op,
         holder: "job-a",
         now: 4_000,
         receipt: { ...receipt, reference: "other run" },
@@ -1108,9 +1148,10 @@ void test("replaying the same event or finding produces no duplicate effect", ()
 void test("a handoff whose generation fence moved is refused, not applied", () => {
   const kind = "release-health-condition";
   const fence = fenceAt(4);
+  const op = firstOperation(observe(kind, fence));
   const leased = run(emptyHandoffModel(kind), [
     { event_id: "o", type: "observe", observation: observe(kind, fence) },
-    { event_id: "c", type: "claim", holder: "job", now: 0, fence },
+    { event_id: "c", type: "claim", operation_id: op, holder: "job", now: 0, fence },
   ]).model;
   for (const moved of [
     fenceAt(5, { assessment_id: fence.assessment_id, source_generation: fence.source_generation }),
@@ -1119,10 +1160,11 @@ void test("a handoff whose generation fence moved is refused, not applied", () =
     { ...fence, policy_generation: "maintenance-handoffs/2" },
   ]) {
     for (const event of [
-      { event_id: "x1", type: "claim", holder: "job", now: 1, fence: moved },
+      { event_id: "x1", type: "claim", operation_id: op, holder: "job", now: 1, fence: moved },
       {
         event_id: "x2",
         type: "checkpoint",
+        operation_id: op,
         holder: "job",
         now: 1,
         step: "gather-evidence",
@@ -1146,11 +1188,19 @@ void test("a handoff whose generation fence moved is refused, not applied", () =
     refenced.effects.map(({ type }) => type),
     ["refence"],
   );
-  assert.equal(refenced.model.operations[0]!.operation_key, leased.operations[0]!.operation_key);
+  assert.equal(refenced.model.operations[0]!.operation_id, leased.operations[0]!.operation_id);
   assert.equal(
     applyHandoffEvent(
       refenced.model,
-      { event_id: "s", type: "checkpoint", holder: "job", now: 1, step: "gather-evidence", fence },
+      {
+        event_id: "s",
+        type: "checkpoint",
+        operation_id: op,
+        holder: "job",
+        now: 1,
+        step: "gather-evidence",
+        fence,
+      },
       modelled,
     ).reason,
     "stale-fence",
@@ -1174,13 +1224,15 @@ void test("a handoff whose generation fence moved is refused, not applied", () =
 void test("an expired lease is reclaimed exactly once and never has two holders", () => {
   const kind = "release-content-finding";
   const fence = fenceAt(1);
+  const op = firstOperation(observe(kind, fence));
   const ttl = handoffContracts[kind].lease!.ttl_minutes * 60_000;
   const held = run(emptyHandoffModel(kind), [
     { event_id: "o", type: "observe", observation: observe(kind, fence) },
-    { event_id: "a", type: "claim", holder: "job-a", now: 0, fence },
+    { event_id: "a", type: "claim", operation_id: op, holder: "job-a", now: 0, fence },
     {
       event_id: "a1",
       type: "checkpoint",
+      operation_id: op,
       holder: "job-a",
       now: 10,
       step: "gather-evidence",
@@ -1191,13 +1243,20 @@ void test("an expired lease is reclaimed exactly once and never has two holders"
   assert.equal(
     applyHandoffEvent(
       held,
-      { event_id: "b0", type: "claim", holder: "job-b", now: ttl - 1, fence },
+      { event_id: "b0", type: "claim", operation_id: op, holder: "job-b", now: ttl - 1, fence },
       modelled,
     ).reason,
     "leased",
   );
   // After expiry, the first claim reclaims and resumes after the last checkpoint.
-  const reclaim: HandoffEvent = { event_id: "b", type: "claim", holder: "job-b", now: ttl, fence };
+  const reclaim: HandoffEvent = {
+    event_id: "b",
+    type: "claim",
+    operation_id: op,
+    holder: "job-b",
+    now: ttl,
+    fence,
+  };
   const reclaimed = applyHandoffEvent(held, reclaim, modelled);
   assert.equal(reclaimed.outcome, "applied");
   const lease = reclaimed.model.operations[0]!.lease!;
@@ -1208,7 +1267,7 @@ void test("an expired lease is reclaimed exactly once and never has two holders"
   assert.equal(
     applyHandoffEvent(
       reclaimed.model,
-      { event_id: "c", type: "claim", holder: "job-c", now: ttl, fence },
+      { event_id: "c", type: "claim", operation_id: op, holder: "job-c", now: ttl, fence },
       modelled,
     ).reason,
     "leased",
@@ -1220,6 +1279,7 @@ void test("an expired lease is reclaimed exactly once and never has two holders"
       {
         event_id: "a2",
         type: "checkpoint",
+        operation_id: op,
         holder: "job-a",
         now: ttl + 1,
         step: "publish-evidence",
@@ -1236,6 +1296,7 @@ void test("an expired lease is reclaimed exactly once and never has two holders"
       {
         event_id: "a3",
         type: "checkpoint",
+        operation_id: op,
         holder: "job-a",
         now: ttl,
         step: "publish-evidence",
@@ -1252,6 +1313,7 @@ void test("an expired lease is reclaimed exactly once and never has two holders"
       {
         event_id: "b1",
         type: "checkpoint",
+        operation_id: op,
         holder: "job-b",
         now: ttl + 1,
         step: "await-receipt",
@@ -1271,12 +1333,37 @@ void test("a completed operation re-opens only when its wake condition holds", (
   };
   const kind = "release-health-condition";
   const fence = fenceAt(1);
+  const op = firstOperation(observe(kind, fence));
   const completed = run(emptyHandoffModel(kind), [
     { event_id: "o", type: "observe", observation: observe(kind, fence) },
-    { event_id: "c", type: "claim", holder: "job", now: 0, fence },
-    { event_id: "s1", type: "checkpoint", holder: "job", now: 1, step: "gather-evidence", fence },
-    { event_id: "s2", type: "checkpoint", holder: "job", now: 1, step: "publish-evidence", fence },
-    { event_id: "s3", type: "checkpoint", holder: "job", now: 1, step: "await-receipt", fence },
+    { event_id: "c", type: "claim", operation_id: op, holder: "job", now: 0, fence },
+    {
+      event_id: "s1",
+      type: "checkpoint",
+      operation_id: op,
+      holder: "job",
+      now: 1,
+      step: "gather-evidence",
+      fence,
+    },
+    {
+      event_id: "s2",
+      type: "checkpoint",
+      operation_id: op,
+      holder: "job",
+      now: 1,
+      step: "publish-evidence",
+      fence,
+    },
+    {
+      event_id: "s3",
+      type: "checkpoint",
+      operation_id: op,
+      holder: "job",
+      now: 1,
+      step: "await-receipt",
+      fence,
+    },
     // The clear the operation awaits is not an abandonment.
     {
       event_id: "clear",
@@ -1286,6 +1373,7 @@ void test("a completed operation re-opens only when its wake condition holds", (
     {
       event_id: "done",
       type: "complete",
+      operation_id: op,
       holder: "job",
       now: 2,
       receipt,
@@ -1318,7 +1406,56 @@ void test("a completed operation re-opens only when its wake condition holds", (
     back.model.operations.map(({ state }) => state),
     ["completed", "planned"],
   );
-  assert.equal(back.model.operations[1]!.operation_key, completed.operations[0]!.operation_key);
+  // Same finding key, a new operation identity for the new record.
+  const [old, reopened] = back.model.operations as [ContractOperation, ContractOperation];
+  assert.equal(reopened.finding_key, old.finding_key);
+  assert.equal(old.operation_id, op);
+  assert.equal(reopened.operation_id, `${op}.2`);
+  assert.equal(reopened.operation_id, handoffContractOperationId(op, 2));
+  assert.deepEqual(contractOperationErrors(reopened), []);
+  assert.deepEqual(back.effects, [
+    { type: "record-plan", operation_id: `${op}.2`, finding_key: op },
+  ]);
+  // An executor event still addressed to the completed record never acts on the reopened one.
+  for (const late of [
+    {
+      event_id: "late-claim",
+      type: "claim",
+      operation_id: op,
+      holder: "job",
+      now: 3,
+      fence: fenceAt(3),
+    },
+    {
+      event_id: "late-done",
+      type: "complete",
+      operation_id: op,
+      holder: "job",
+      now: 3,
+      receipt,
+      fence,
+      cleared_sequence: 2,
+    },
+  ] satisfies HandoffEvent[]) {
+    const refused = applyHandoffEvent(back.model, late, modelled);
+    assert.equal(refused.reason, "superseded-operation", late.event_id);
+    assert.equal(refused.model, back.model);
+  }
+  assert.equal(
+    applyHandoffEvent(
+      back.model,
+      {
+        event_id: "nowhere",
+        type: "claim",
+        operation_id: `${op}.9`,
+        holder: "job",
+        now: 3,
+        fence: fenceAt(3),
+      },
+      modelled,
+    ).reason,
+    "no-open-operation",
+  );
 
   // Owner intake wakes only on a changed deciding digest, not on a later sequence of the same one.
   const intake = observe("hosted-intake-holds", fenceAt(1));
@@ -1346,5 +1483,193 @@ void test("a completed operation re-opens only when its wake condition holds", (
       observe("hosted-intake-holds", fenceAt(4, { policy_generation: "maintenance-handoffs/2" })),
     ),
     true,
+  );
+});
+
+/** Every effect of the events, in order, applied to an empty store through the addressing guard. */
+function storeOf(kind: HandoffKind, events: readonly HandoffEvent[]) {
+  let model = emptyHandoffModel(kind);
+  let records: readonly StoredContractOperation[] = [];
+  const effects: HandoffEffect[] = [];
+  for (const event of events) {
+    const transition = applyHandoffEvent(model, event, modelled);
+    model = transition.model;
+    for (const effect of transition.effects) {
+      const applied = applyHandoffEffect(records, effect);
+      assert.equal(applied.outcome, "applied", `${event.event_id}: ${effect.type}`);
+      records = applied.records;
+      effects.push(effect);
+    }
+  }
+  // The store holds exactly the reducer's records.
+  assert.deepEqual(
+    records,
+    model.operations.map(({ operation_id, finding_key, state, receipt }) => ({
+      operation_id,
+      finding_key,
+      state,
+      receipt,
+    })),
+  );
+  return { model, records, effects };
+}
+
+void test("a delayed effect for a superseded record is refused, never applied to its successor", () => {
+  const kind = "release-health-condition";
+  const receipt = {
+    reference: "https://github.com/boburning/portcove/actions/runs/3",
+    sha256: digest("report"),
+    evidence: [],
+  };
+  const fence = fenceAt(1);
+  const op = firstOperation(observe(kind, fence));
+  const lease = { holder: "job", acquired_at: 0, expires_at: 1, reclaims: 0 };
+
+  // Completed, then woken: the finding's second record is `<key>.2`.
+  const reopened = storeOf(kind, [
+    { event_id: "o", type: "observe", observation: observe(kind, fence) },
+    { event_id: "c", type: "claim", operation_id: op, holder: "job", now: 0, fence },
+    {
+      event_id: "s1",
+      type: "checkpoint",
+      operation_id: op,
+      holder: "job",
+      now: 1,
+      step: "gather-evidence",
+      fence,
+    },
+    {
+      event_id: "s2",
+      type: "checkpoint",
+      operation_id: op,
+      holder: "job",
+      now: 1,
+      step: "publish-evidence",
+      fence,
+    },
+    {
+      event_id: "s3",
+      type: "checkpoint",
+      operation_id: op,
+      holder: "job",
+      now: 1,
+      step: "await-receipt",
+      fence,
+    },
+    {
+      event_id: "clear",
+      type: "observe",
+      observation: observe(kind, fenceAt(2), "clear", "clear"),
+    },
+    {
+      event_id: "done",
+      type: "complete",
+      operation_id: op,
+      holder: "job",
+      now: 2,
+      receipt,
+      fence,
+      cleared_sequence: 2,
+    },
+    { event_id: "back", type: "observe", observation: observe(kind, fenceAt(3)) },
+  ]);
+  assert.deepEqual(
+    reopened.records.map(({ operation_id, state }) => [operation_id, state]),
+    [
+      [op, "completed"],
+      [`${op}.2`, "planned"],
+    ],
+  );
+  const toOld = { operation_id: op, finding_key: op };
+  for (const [effect, reason] of [
+    [{ type: "abandon", ...toOld }, "operation-closed"],
+    [{ type: "record-lease", ...toOld, lease }, "operation-closed"],
+    [{ type: "record-checkpoint", ...toOld, step: "gather-evidence" }, "operation-closed"],
+    [{ type: "refence", ...toOld, fence: fenceAt(3) }, "operation-closed"],
+    [
+      { type: "record-receipt", ...toOld, receipt: { ...receipt, reference: "other run" } },
+      "receipt-immutable",
+    ],
+    [
+      { type: "record-lease", operation_id: op, finding_key: "handoff.other.k0", lease },
+      "unknown-operation",
+    ],
+    [
+      { type: "record-lease", operation_id: `${op}.3`, finding_key: op, lease },
+      "unknown-operation",
+    ],
+  ] satisfies [HandoffEffect, string][]) {
+    const refused = applyHandoffEffect(reopened.records, effect);
+    assert.equal(refused.outcome, "refused", effect.type);
+    assert.equal(refused.reason, reason, effect.type);
+    assert.equal(refused.records, reopened.records);
+  }
+  // The completing receipt delivered again, or the plan replayed, changes nothing.
+  for (const effect of [
+    { type: "record-receipt", ...toOld, receipt },
+    { type: "record-plan", operation_id: `${op}.2`, finding_key: op },
+  ] satisfies HandoffEffect[])
+    assert.equal(applyHandoffEffect(reopened.records, effect).outcome, "unchanged", effect.type);
+
+  // Abandoned when it cleared before completion, then reappearing: the same
+  // finding gets `<key>.2`, and a late lease or receipt for the abandoned
+  // record is refused rather than landing on the new one.
+  const reappeared = storeOf(kind, [
+    { event_id: "o", type: "observe", observation: observe(kind, fence) },
+    { event_id: "c", type: "claim", operation_id: op, holder: "job", now: 0, fence },
+    {
+      event_id: "clear",
+      type: "observe",
+      observation: observe(kind, fenceAt(2), "clear", "clear"),
+    },
+    { event_id: "back", type: "observe", observation: observe(kind, fenceAt(3)) },
+  ]);
+  assert.deepEqual(
+    reappeared.effects.map(({ type, operation_id }) => [type, operation_id]),
+    [
+      ["record-plan", op],
+      ["record-lease", op],
+      ["abandon", op],
+      ["record-plan", `${op}.2`],
+    ],
+  );
+  assert.equal(reappeared.model.operations[1]!.finding_key, op);
+  for (const effect of [
+    { type: "record-lease", ...toOld, lease },
+    { type: "record-receipt", ...toOld, receipt },
+  ] satisfies HandoffEffect[]) {
+    const refused = applyHandoffEffect(reappeared.records, effect);
+    assert.equal(refused.reason, "operation-closed", effect.type);
+    assert.equal(refused.records, reappeared.records);
+  }
+  // A repeated abandon of the same record is recognized as already applied.
+  assert.equal(
+    applyHandoffEffect(reappeared.records, { type: "abandon", ...toOld }).outcome,
+    "unchanged",
+  );
+  // An executor event for the abandoned record is refused by the reducer too.
+  assert.equal(
+    applyHandoffEvent(
+      reappeared.model,
+      { event_id: "late", type: "claim", operation_id: op, holder: "job", now: 5, fence },
+      modelled,
+    ).reason,
+    "superseded-operation",
+  );
+  // The new record is still claimable at its own identity and fence.
+  assert.equal(
+    applyHandoffEvent(
+      reappeared.model,
+      {
+        event_id: "next",
+        type: "claim",
+        operation_id: `${op}.2`,
+        holder: "job",
+        now: 5,
+        fence: fenceAt(3),
+      },
+      modelled,
+    ).outcome,
+    "applied",
   );
 });

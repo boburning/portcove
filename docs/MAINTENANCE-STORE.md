@@ -1241,20 +1241,31 @@ condition and existing executor.
 typed contract. It is pure data and a pure reducer, `applyHandoffEvent`. It
 reads no store, makes no network call, uses no credential and dispatches
 nothing. Dispatch stays `disabled` for all six kinds, and a test asserts it.
+That includes the three routine kinds: their dispatch also stays disabled
+until the owner explicitly decides how executor credentials are delegated.
 
 - **Deciding facts:** the source, the stored facts, the condition fields covered
   by the assessment's `input_digest` and the excluded fields. They match the
   recording rules above.
-- **Operation identity:** `handoff.<kind>.k<40 hex>`, the SHA-256 of the contract
-  version, kind, handoff subject, deciding `input_digest` and policy generation.
-  The same finding always yields the same key, so a replay is recognized. The
-  source generation is a fence, not identity.
+- **Finding key and operation identity:** the finding key is
+  `handoff.<kind>.k<40 hex>`, the SHA-256 of the JSON array of contract
+  version, kind, handoff subject, deciding `input_digest` and policy
+  generation. The same finding always yields the same key, so a replay is
+  recognized and the records of one finding are related. The source generation
+  is a fence, not identity. Each operation record has its own `operation_id`:
+  the finding key for the finding's first record, then `.<n>` for the n-th, as
+  the store numbers a plan needed again. A finding that wakes after completion
+  or reappears after abandonment gets a new record. The reducer derives the
+  ordinal from the retained records, with no clock or randomness. No finding
+  key or contract operation ID has been persisted yet.
 - **Generation fence:** sequence, applicable assessment, source generation (the
   subject's `verified_run_id`) and policy generation (the assessment's policy
   version). An executor event whose fence differs from the operation's is
   refused as `stale-fence`. A newer verification of the same finding re-fences
   the open operation under the same key, so a holder must re-read. A changed
-  finding abandons the open operation and plans a new one.
+  finding abandons the open operation and plans a new one. Claim, checkpoint
+  and complete events name the `operation_id` they act on. An event for an
+  earlier record of the handoff is refused as `superseded-operation`.
 - **Lease and checkpoint:** routine kinds have a 30-minute lease. A live lease
   has one holder; another claim is refused. The first claim after expiry
   reclaims it once, counts the reclaim and resumes after the last completed
@@ -1269,8 +1280,15 @@ nothing. Dispatch stays `disabled` for all six kinds, and a test asserts it.
   `input-digest-changed`: a new receipt comment, reconciliation, blocker or held
   candidate. A policy generation change wakes any kind. Otherwise a completed
   operation stays completed.
-- **Replay:** an event ID already applied is a duplicate with no effect. The
-  reducer returns effects only as descriptions of store writes.
+- **Replay and effects:** an event ID already applied is a duplicate with no
+  effect. The reducer returns effects only as descriptions of store writes.
+  Each effect addresses one record by `operation_id` and carries its
+  `finding_key`. `applyHandoffEffect` models the guard a store adapter must
+  apply: an effect acts only on the record it names, and only while that record
+  is planned or leased. A delayed abandon, lease, checkpoint, re-fence or
+  receipt for an abandoned or completed record is refused, never applied to a
+  newer record of the same finding. A replayed plan or identical receipt
+  changes nothing.
 
 Under the registry's policy every claim, checkpoint and completion is refused
 (`dispatch-disabled`; `owner-only` for owner kinds). Tests use a `modelled`
@@ -1300,13 +1318,17 @@ schedule or dispatch exists for it.
    conditions with their recorded resume conditions, the observer exceptions,
    or the flagged and unreadable packages for a person to confirm.
 5. `publish-evidence`: the job summary and a retained artifact named by the
-   operation key.
+   operation identity.
 6. `await-receipt`: a later scheduled main report or completed observer
    checkpoint. Dispatched and pull-request runs never count.
 7. `record-receipt`: the run URL and report SHA-256, then complete and release.
 
 Permissions: `GITHUB_TOKEN` `contents: read` and `actions: read`, and the
-existing store executor role for the operation row. The job must never write
+existing store executor role. A role grants table access, not one row. What
+would bound the job to its own record is a requirement on the future store
+adapter: change rows only through a guarded function that addresses one
+operation record by its identity and fence, as `applyHandoffEffect` models.
+No such function exists yet. The job must never write
 repository contents, push, or open, approve or merge a pull request. It must
 never comment on or edit issues or Project fields, or dispatch any workflow. It
 must never use the Project, signing or publication credentials or any delegated
@@ -1320,11 +1342,12 @@ authority, which has not been granted.
 
 **Persistence not yet added.** The `operations` table holds the fence sequence
 and assessment, executor, state, revision and receipt reference and SHA-256.
-Persisting the contract needs a store migration that adds the operation key,
+Persisting the contract needs a store migration that adds the finding key,
 deciding `input_digest`, source and policy generation, lease holder, expiry and
 reclaim count, the last checkpoint and the completing sequence. Its guard would
-need to refuse a stale fence on every lease or checkpoint update, keep one live
-holder, and allow a reclaim only after expiry. Until then the contract is a
+need to refuse a stale fence on every lease or checkpoint update, refuse any
+write to a closed record, keep one live holder, and allow a reclaim only after
+expiry. Until then the contract is a
 tested model only.
 
 ## Hosted operation
