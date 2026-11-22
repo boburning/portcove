@@ -25,7 +25,16 @@
       "linux-x86-64": ["MikuPan_linux_", ".zip"]
     },
     "recommended_download_channel": "beta",
-    "download_block_reason": "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the package includes the game’s English subtitle text and font textures exported from the game. They can resume when upstream publishes a package that creates them from your own game files.",
+        "tracking_issue": 346
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/Mikompilation/MikuPan/blob/ec204d75441e98d8bd43ddd95cae744eb683f00c/README.md",
       "warnings": [

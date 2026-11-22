@@ -233,3 +233,44 @@ fn real_before_and_served_feed_addition_appears_only_for_jak1() {
         JakModsBuildStatus::Unavailable
     );
 }
+
+#[test]
+fn late_projects_and_releases_for_the_game_are_found_in_a_large_feed() {
+    let mut snapshot = feed(false);
+    let mods = snapshot["mods"].as_object_mut().unwrap();
+    // Unrelated earlier rows used to consume a fixed 512-row prefix.
+    for index in 0..600 {
+        mods.insert(
+            format!("other-{index:04}"),
+            json!({"displayName":"Other","supportedGames":["jak2"],"versions":[]}),
+        );
+    }
+    // The newest eligible release is listed after 300 older ones.
+    let mut versions = (0..300)
+        .map(|index| {
+            json!({
+                "version": format!("old-{index}"),
+                "publishedDate":"2020-01-01T00:00:00Z","supportedGames":["jak1"],
+                "assets":{"windows":null,"linux":null,"macos":null}
+            })
+        })
+        .collect::<Vec<_>>();
+    versions.push(json!({
+        "version":"newest","publishedDate":"2026-11-20T00:00:00Z","supportedGames":["jak1"],
+        "assets":{
+            "windows":"https://github.com/example/late/releases/download/v9/windows-v9.0.0.zip",
+            "linux":null,"macos":null
+        }
+    }));
+    mods.insert(
+        "zz-late-project".into(),
+        json!({"displayName":"Late Project","supportedGames":["jak1"],"versions":versions}),
+    );
+    let (projects, _) = project_feed(&snapshot, "jak1", Platform::WindowsX86_64).unwrap();
+    let late = projects
+        .iter()
+        .find(|project| project.name == "Late Project")
+        .expect("a project after feed position 512 is projected");
+    assert_eq!(late.releases.len(), 301);
+    assert_eq!(late.releases[0].version, "newest");
+}

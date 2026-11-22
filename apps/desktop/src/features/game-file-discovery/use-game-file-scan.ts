@@ -1,6 +1,7 @@
 import {
   createContext,
   createElement,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -8,7 +9,13 @@ import {
   type ReactNode,
 } from "react";
 import { desktopApi } from "../../api";
-import type { GameFileRoot, GameFileScanSnapshot, OperationEvent, SourceRecord } from "../../types";
+import type {
+  GameFileRoot,
+  GameFileScanSnapshot,
+  OperationEvent,
+  SourceDiscoveryReport,
+  SourceRecord,
+} from "../../types";
 import { errorText, isCancellation } from "../../view-model";
 
 export const gameFileScanLimits = {
@@ -22,13 +29,36 @@ export function availableRootCount(roots: readonly GameFileRoot[]) {
   return roots.filter((root) => root.availability === "available").length;
 }
 
+export type ScanResultRequest = { sequence: number; expected?: string };
+
+export function savedScanResultIdentity(snapshot: GameFileScanSnapshot | null | undefined) {
+  if (!snapshot?.matches?.scan_id) return undefined;
+  return JSON.stringify([
+    snapshot.matches.scan_id,
+    snapshot.catalog_sha256,
+    snapshot.completed_at,
+    snapshot.coverage?.batches,
+  ]);
+}
+
+export function matchesSavedScanResult(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  expected: string,
+) {
+  return snapshot?.freshness === "inputs_match" && savedScanResultIdentity(snapshot) === expected;
+}
+
+export async function isCurrentSavedScanResult(expected: string, generation: number) {
+  return matchesSavedScanResult(await desktopApi.gameFileScanSnapshot(generation), expected);
+}
+
 type ScanState = {
   scanning: boolean;
   operationId?: string;
   completedBatches?: number;
   candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256" | "size">[];
   completion: number;
-  result?: GameFileScanSnapshot;
+  receipt?: { snapshot: GameFileScanSnapshot; completion: number };
   error?: string;
   notice?: string;
 };
@@ -55,7 +85,12 @@ export function useGameFileScan(generation: number) {
     const token = {};
     current.active = token;
     const accepts = () => !current.disposed && current.active === token;
-    setState((previous) => ({ scanning: true, candidates: [], completion: previous.completion }));
+    setState((previous) => ({
+      scanning: true,
+      candidates: [],
+      completion: previous.completion,
+      ...(previous.receipt ? { receipt: previous.receipt } : {}),
+    }));
     let result: GameFileScanSnapshot | undefined;
     let error: string | undefined;
     let notice: string | undefined;
@@ -146,7 +181,11 @@ export function useGameFileScan(generation: number) {
           scanning: false,
           candidates: [],
           completion: previous.completion + 1,
-          ...(result === undefined ? {} : { result }),
+          ...(result !== undefined
+            ? { receipt: { snapshot: result, completion: previous.completion + 1 } }
+            : previous.receipt
+              ? { receipt: previous.receipt }
+              : {}),
           ...(error === undefined ? {} : { error }),
           ...(notice === undefined ? {} : { notice }),
         }));
@@ -167,6 +206,17 @@ export type GameFileScan = ReturnType<typeof useGameFileScan>;
 
 const GameFileScanContext = createContext<GameFileScan | undefined>(undefined);
 
+export type OneOffFileSearch = { root: string; profile: string; report: SourceDiscoveryReport };
+
+const OneOffFileSearchContext = createContext<
+  | { result: OneOffFileSearch | undefined; begin: () => (result: OneOffFileSearch) => void }
+  | undefined
+>(undefined);
+
+export function useOneOffFileSearch() {
+  return useContext(OneOffFileSearchContext);
+}
+
 export function GameFileScanProvider({
   children,
   generation,
@@ -175,7 +225,19 @@ export function GameFileScanProvider({
   generation: number;
 }) {
   const scan = useGameFileScan(generation);
-  return createElement(GameFileScanContext.Provider, { value: scan }, children);
+  const [{ result }, setSearch] = useState<{ result?: OneOffFileSearch; pending?: object }>({});
+  const begin = useCallback(() => {
+    const pending = {};
+    setSearch((current) => ({ ...current, pending }));
+    return (completed: OneOffFileSearch) => {
+      setSearch((current) => (current.pending === pending ? { result: completed } : current));
+    };
+  }, []);
+  return createElement(
+    GameFileScanContext.Provider,
+    { value: scan },
+    createElement(OneOffFileSearchContext.Provider, { value: { result, begin } }, children),
+  );
 }
 
 export function useGameFileScanObserver(generation: number) {

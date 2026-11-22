@@ -13,7 +13,18 @@ use crate::{
 
 use super::PortcoveService;
 
-const MAX_SAVED_N64_ORIGINALS: i64 = 16;
+/// Saved originals read per database page while looking for a fallback.
+const SAVED_N64_ORIGINAL_PAGE: i64 = 16;
+
+/// A cheap check before hashing: the saved file is still a readable regular
+/// file of its recorded stored size.
+fn saved_original_available(source: &SourceRecord) -> bool {
+    std::fs::metadata(&source.path).is_ok_and(|metadata| {
+        metadata.is_file()
+            && metadata.len() == source.storage_size
+            && std::fs::File::open(&source.path).is_ok()
+    })
+}
 
 impl PortcoveService {
     pub fn register_source(&self, profile_id: &str, path: &Path) -> Result<SourceRecord> {
@@ -469,30 +480,47 @@ impl PortcoveService {
                     .detail("profile_id", profile_id)
             }
         };
-        let candidates = crate::source_instances::list_limited(
-            &self.library.connection()?,
-            profile_id,
-            MAX_SAVED_N64_ORIGINALS + 1,
-        )?;
-        if candidates.len() > MAX_SAVED_N64_ORIGINALS as usize {
-            return Err(current_error);
-        }
+        // Every saved original is considered, a page at a time. Missing or
+        // resized files are skipped before hashing, and the shared hash budget
+        // bounds the work: exhausting it reports an unfinished check rather
+        // than the absence of a usable original.
         let mut matching = None;
-        for (_, candidate) in candidates {
-            if current.as_ref().is_some_and(|current| {
-                current.sha256 == candidate.sha256
-                    && current.storage_sha256 == candidate.storage_sha256
-                    && current.path == candidate.path
-            }) {
-                continue;
-            }
-            match verify(&candidate) {
-                Ok(()) if matching.is_some() => return Err(PortcoveError::conflict(
-                    "Several saved originals match this release. Choose the original you want to use.",
-                ).detail("profile_id", profile_id)),
-                Ok(()) => matching = Some(candidate),
-                Err(error) if is_candidate_failure(&error) => {}
-                Err(error) => return Err(error),
+        let mut after = None::<String>;
+        loop {
+            let page = crate::source_instances::list_page(
+                &self.library.connection()?,
+                profile_id,
+                after.as_deref(),
+                SAVED_N64_ORIGINAL_PAGE,
+            )?;
+            let Some((last, _)) = page.last() else {
+                break;
+            };
+            after = Some(last.clone());
+            for (_, candidate) in page {
+                if current.as_ref().is_some_and(|current| {
+                    current.sha256 == candidate.sha256
+                        && current.storage_sha256 == candidate.storage_sha256
+                        && current.path == candidate.path
+                }) || !saved_original_available(&candidate)
+                {
+                    continue;
+                }
+                match verify(&candidate) {
+                    Ok(()) if matching.is_some() => return Err(PortcoveError::conflict(
+                        "Several saved originals match this release. Choose the original you want to use.",
+                    ).detail("profile_id", profile_id)),
+                    Ok(()) => matching = Some(candidate),
+                    Err(error) if is_candidate_failure(&error) => {}
+                    Err(error) if error.details.get("scan_limit").map(String::as_str) == Some("hash_bytes") => {
+                        return Err(PortcoveError::state(
+                            "Portcove couldn't finish checking your other saved originals for this release. Try again, or choose the original you want to use.",
+                        )
+                        .detail("profile_id", profile_id)
+                        .detail("saved_originals", "not_checked"));
+                    }
+                    Err(error) => return Err(error),
+                }
             }
         }
         matching.ok_or(current_error)
@@ -519,31 +547,35 @@ impl PortcoveService {
         let Some(profile) = port.source_profile.as_deref() else {
             return Ok(false);
         };
-        let available = |source: &SourceRecord| {
-            std::fs::metadata(&source.path).is_ok_and(|metadata| {
-                metadata.is_file()
-                    && metadata.len() == source.storage_size
-                    && std::fs::File::open(&source.path).is_ok()
-            })
-        };
         if let Some(install_id) = install_id
             && let Some(binding) = self.pinned_original(&port.id, profile, install_id)?
         {
-            return Ok(available(&self.registered_profile_original(&binding)?));
+            return Ok(saved_original_available(
+                &self.registered_profile_original(&binding)?,
+            ));
         }
-        let candidates = crate::source_instances::list_limited(
-            &self.library.connection()?,
-            profile,
-            MAX_SAVED_N64_ORIGINALS + 1,
-        )?;
-        Ok(candidates.len() <= MAX_SAVED_N64_ORIGINALS as usize
-            && candidates.iter().any(|(_, candidate)| {
+        let mut after = None::<String>;
+        loop {
+            let page = crate::source_instances::list_page(
+                &self.library.connection()?,
+                profile,
+                after.as_deref(),
+                SAVED_N64_ORIGINAL_PAGE,
+            )?;
+            let Some((last, _)) = page.last() else {
+                return Ok(false);
+            };
+            after = Some(last.clone());
+            if page.iter().any(|(_, candidate)| {
                 healthy_default.is_none_or(|current| {
                     current.sha256 != candidate.sha256
                         || current.storage_sha256 != candidate.storage_sha256
                         || current.path != candidate.path
-                }) && available(candidate)
-            }))
+                }) && saved_original_available(candidate)
+            }) {
+                return Ok(true);
+            }
+        }
     }
 
     pub(super) fn verified_source_record_with_checkpoint(

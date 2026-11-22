@@ -27,6 +27,25 @@ public static class PortcoveNativeWindows {
     [DllImport("user32.dll", EntryPoint = "SendMessageTimeoutW")] private static extern IntPtr SendClick(IntPtr window, uint message, UIntPtr parameter, IntPtr data, uint flags, uint timeout, out UIntPtr result);
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "SendMessageTimeoutW")] private static extern IntPtr ReadCaption(IntPtr window, uint message, UIntPtr capacity, StringBuilder text, uint flags, uint timeout, out UIntPtr result);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern bool IsChild(IntPtr window, IntPtr child);
+    private static bool IsOwnedMetadataEdit(IntPtr window, IntPtr edit, int process) {
+        uint owner;
+        GetWindowThreadProcessId(edit, out owner);
+        return Matches(window, process, "Export library information") && IsWindowEnabled(window) &&
+            GetForegroundWindow() == window &&
+            edit != IntPtr.Zero && IsChild(window, edit) && owner == process && Class(edit) == "Edit" &&
+            IsWindowEnabled(edit) && (GetWindowStyle(edit, -16) & 0x0800) == 0;
+    }
+    public static void ReplaceMetadataSaveText(IntPtr window, IntPtr edit, int process, string path) {
+        UIntPtr result;
+        // The shell Save dialog can keep its suggested name after a UIA SetValue.
+        // Replace the selection through the focused native edit's change path.
+        if (!IsOwnedMetadataEdit(window, edit, process) ||
+            SendClick(edit, 0x00B1, UIntPtr.Zero, new IntPtr(-1), 0x0022, 1000, out result) == IntPtr.Zero ||
+            !IsOwnedMetadataEdit(window, edit, process) ||
+            SendText(edit, 0x00C2, UIntPtr.Zero, path, 0x0022, 1000, out result) == IntPtr.Zero)
+            throw new InvalidOperationException("Owned metadata file-name edit changed or did not accept input.");
+    }
     private static bool MatchesFolderButtonShape(IntPtr window, IntPtr button, int process) {
         uint actual;
         GetWindowThreadProcessId(button, out actual);
@@ -205,6 +224,10 @@ public static class PortcoveNativeWindows {
 function Get-NativePickerHandles { [PortcoveNativeWindows]::Find($applicationId, $Title) }
 function Get-NativePickerElement([IntPtr]$Handle) { [System.Windows.Automation.AutomationElement]::FromHandle($Handle) }
 function Test-NativePickerWindow([IntPtr]$Handle) { [PortcoveNativeWindows]::Matches($Handle, $applicationId, $Title) }
+function Set-NativeMetadataSaveText($Window, $Edit, [string]$Value) {
+    Assert-ExactConfirmationWindow $Window
+    [PortcoveNativeWindows]::ReplaceMetadataSaveText([IntPtr]$Window.Current.NativeWindowHandle, [IntPtr]$Edit.Current.NativeWindowHandle, $applicationId, $Value)
+}
 function Set-NativeFolderText($Window, [string]$Value) {
     Assert-ExactConfirmationWindow $Window
     [PortcoveNativeWindows]::SetFolderText([IntPtr]$Window.Current.NativeWindowHandle, $applicationId, $Title, $Value)

@@ -946,6 +946,19 @@ pub struct ArchiveDataTransitionV1 {
     pub creating_contract_sha256: String,
 }
 
+/// Native mod admission bound to a reviewed upstream runtime and platform.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ModLoaderBinding {
+    pub contract: crate::LoaderContractRef,
+    pub repository: String,
+    pub minimum_version: String,
+    pub settings_file: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_game: Option<String>,
+    pub platforms: Vec<Platform>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -1103,6 +1116,9 @@ pub struct PortDefinition {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) legacy_mod_provider_held: bool,
+    /// Versioned native loader facts admitted with this exact definition.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mod_loader: Option<ModLoaderBinding>,
     /// Catalog-owned containment for a managed route whose current upstream
     /// release still matches its selector but changed reviewed behavior.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1278,10 +1294,13 @@ pub struct PortListing {
     pub platforms: Vec<Platform>,
     #[serde(default)]
     pub availability: ListingAvailability,
-    /// A reviewed restriction on fresh self-service downloads only. It grants
-    /// no execution, management or permission over an existing copy.
+    /// Legacy projection of `restrictions` for older readers: the explanation
+    /// of the first hold naming Download. It grants nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_block_reason: Option<String>,
+    /// Typed acquisition restrictions. Requires listing format 14.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restrictions: Vec<crate::AcquisitionRestriction>,
     /// Advisory literal filename hints for an upstream-owned download. They do
     /// not authenticate a package or grant installation/execution ownership.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -2818,7 +2837,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

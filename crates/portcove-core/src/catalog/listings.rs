@@ -1,6 +1,7 @@
 //! The broad directory is descriptive. Strict managed definitions retain their
 //! original validator and are never synthesized from an incomplete listing.
 use super::*;
+use crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT;
 use crate::catalog_media::IGDB_SCENE_LISTING_FORMAT;
 use crate::{CatalogListingDocument, ListingAvailability, Platform, PortListing};
 use std::{collections::BTreeMap, sync::LazyLock};
@@ -52,6 +53,7 @@ impl From<&PortDefinition> for PortListing {
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
+            restrictions: Vec::new(),
             download_asset_hints: BTreeMap::new(),
             recommended_download_channel: None,
             release_url: None,
@@ -173,13 +175,19 @@ pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=VERIFIED_EDITION_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=RESTRICTION_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 14",
+                "listing export supports formats 5 through 15",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < RESTRICTION_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                // The validated legacy string remains the older readers' hold.
+                listing.restrictions.clear();
+            }
+        }
         if format_version < VERIFIED_EDITION_LISTING_FORMAT {
             for listing in &mut document.listings {
                 strip_verified_sources(listing);
@@ -232,6 +240,24 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self
+            .listings
+            .iter()
+            .any(|listing| !listing.restrictions.is_empty())
+        {
+            self.format_version = self.format_version.max(RESTRICTION_LISTING_FORMAT);
+        }
+        if self.format_version >= RESTRICTION_LISTING_FORMAT {
+            // Retained or delivered older listings keep their legacy hold as a
+            // whole-listing download hold; nothing is narrowed or cleared.
+            for listing in &mut self.listings {
+                if listing.restrictions.is_empty() {
+                    listing.restrictions = crate::acquisition_restriction::normalize_legacy_listing(
+                        listing.download_block_reason.as_deref(),
+                    );
+                }
+            }
+        }
         if self.listings.iter().any(has_verified_source_editions) {
             self.format_version = self.format_version.max(VERIFIED_EDITION_LISTING_FORMAT);
         }
@@ -348,11 +374,33 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=VERIFIED_EDITION_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=RESTRICTION_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < RESTRICTION_LISTING_FORMAT
+            && self
+                .listings
+                .iter()
+                .any(|listing| !listing.restrictions.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "typed acquisition restrictions require listing format 15",
+            ));
+        }
+        if self.format_version >= RESTRICTION_LISTING_FORMAT
+            && self.listings.iter().any(|listing| {
+                listing.download_block_reason.as_deref()
+                    != crate::acquisition_restriction::legacy_download_projection(
+                        &listing.restrictions,
+                    )
+            })
+        {
+            return Err(PortcoveError::unsupported(
+                "a listing download restriction must equal the projection of its typed restrictions",
+            ));
         }
         if self.format_version < VERIFIED_EDITION_LISTING_FORMAT
             && self.listings.iter().any(has_verified_source_editions)
@@ -867,6 +915,18 @@ impl PortListing {
         {
             return Err(PortcoveError::usage("invalid listing download restriction"));
         }
+        crate::acquisition_restriction::validate(
+            &self.restrictions,
+            crate::RestrictionCarrier::Listing,
+        )?;
+        if !self.restrictions.is_empty()
+            && self.download_block_reason.as_deref()
+                != crate::acquisition_restriction::legacy_download_projection(&self.restrictions)
+        {
+            return Err(PortcoveError::usage(
+                "listing download restriction differs from its typed projection",
+            ));
+        }
         for url in [&self.release_url, &self.setup_url].into_iter().flatten() {
             if !valid_url(url) {
                 return Err(PortcoveError::usage(
@@ -1170,6 +1230,7 @@ impl Catalog {
                 let issue_number = listing.issue_number;
                 let availability = listing.availability;
                 let download_block_reason = listing.download_block_reason.clone();
+                let restrictions = listing.restrictions.clone();
                 let download_asset_hints = listing.download_asset_hints.clone();
                 let recommended_download_channel = listing.recommended_download_channel;
                 let release_url = listing.release_url.clone();
@@ -1197,6 +1258,7 @@ impl Catalog {
                     platforms,
                     availability,
                     download_block_reason,
+                    restrictions,
                     download_asset_hints,
                     recommended_download_channel,
                     release_url,
@@ -1657,7 +1719,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":15,"listings":[listing()]}),
+            json!({"format_version":16,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1938,7 +2000,7 @@ mod tests {
         let embedded = Catalog::embedded().unwrap();
         let mut authored = embedded.authoritative_document();
         let mut directory = embedded.listing_document().clone();
-        directory.format_version = 13;
+        directory.format_version = directory.format_version.max(13);
         let port = authored
             .ports
             .iter_mut()
@@ -2023,8 +2085,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include typed IGDB scene records.
-        assert_eq!(projected.listing_document().format_version, 13);
+        // Embedded listings include typed acquisition restrictions.
+        assert_eq!(projected.listing_document().format_version, 15);
     }
 
     #[test]
@@ -2213,11 +2275,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 15;
+        future.format_version = 16;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 15);
+        assert_eq!(future.format_version, 16);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 15).is_err());
+        assert!(parse(&value, 16).is_err());
     }
 
     #[test]
@@ -2244,7 +2306,8 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        assert_eq!(current.format_version, 13);
+        // Typed acquisition restrictions lift the embedded directory to 15.
+        assert_eq!(current.format_version, 15);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();

@@ -9,6 +9,7 @@ import { sceneCoverage } from "./artwork-operations.mts";
 import {
   checkShapeTable,
   coreShapeVersion,
+  derivationInputsDigest,
   entriesDigest,
   pruneTable,
   recordEntry,
@@ -274,6 +275,23 @@ const firstShapeEntry = (table: ShapeTable) => {
 
 void test("the committed package shape table is current for the catalog and Core", () => {
   assert.deepEqual(checkShapeTable(shapeTableText(), shapeCatalog(), coreShapeVersion()), []);
+});
+
+void test("only the declared Linux portable data route changes its shape derivation digest", () => {
+  const port = (shapeCatalog().ports as Record<string, unknown>[]).find(
+    (candidate) => candidate.id === "nicholas-ochoa-opensc2k",
+  );
+  assert.ok(port);
+  const withoutPortableData = { ...port };
+  delete withoutPortableData.linux_portable_data_directory;
+  assert.notEqual(
+    derivationInputsDigest(port, "linux-x86-64"),
+    derivationInputsDigest(withoutPortableData, "linux-x86-64"),
+  );
+  assert.equal(
+    derivationInputsDigest(port, "windows-x86-64"),
+    derivationInputsDigest(withoutPortableData, "windows-x86-64"),
+  );
 });
 
 void test("package shape check refuses a digest the catalog no longer marks as reviewed", () => {

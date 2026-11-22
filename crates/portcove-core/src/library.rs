@@ -1834,12 +1834,20 @@ impl Library {
         .collect()
     }
 
+    #[cfg(test)]
     pub(crate) fn store_update_snapshot(&self, check: &UpdateCheck) -> Result<UpdateSnapshot> {
+        Self::store_update_snapshot_from(&self.connection()?, check)
+    }
+
+    pub(crate) fn store_update_snapshot_from(
+        connection: &Connection,
+        check: &UpdateCheck,
+    ) -> Result<UpdateSnapshot> {
         let snapshot = UpdateSnapshot {
             checked_at: Self::now(),
             check: check.clone(),
         };
-        self.connection()?.execute(
+        connection.execute(
             "INSERT INTO update_snapshots(port_id, check_json, checked_at)
              VALUES (?1, ?2, ?3)
              ON CONFLICT(port_id) DO UPDATE SET
