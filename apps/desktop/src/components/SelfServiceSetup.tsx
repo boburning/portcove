@@ -20,6 +20,7 @@ import { ExternalLaunchWarnings } from "./AuthoredSetupWarnings";
 import { CatalogDownloadControl, PendingSetupActions } from "./CatalogDownload";
 import { AuthoredPreparationGuidance, UserSelectedRuntimeControl } from "./ExternalRuntime";
 import { ExternalLink } from "./ExternalLink";
+import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { ActionRow, Notice } from "./ui/patterns";
@@ -35,7 +36,7 @@ export interface SelfServiceSetupProps {
   render?: ((slots: { play: ReactNode; setup: ReactNode }) => ReactNode) | undefined;
 }
 
-/** Non-owning setup only. Managed installation remains in the strict detail pane. */
+/** Non-owning setup and the explicit review of a separate managed copy. */
 export function SelfServiceSetup({
   entry,
   devicePlatform,
@@ -83,6 +84,8 @@ export function SelfServiceSetup({
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const needsRecovery = pending?.state === "attention-required";
   const registered = status?.external_runtime;
+  const managedPort =
+    entry.definition?.adapter === "native-portable" ? entry.definition : undefined;
   const launch = listingActionAssessment(entry.listingStatus, "launch");
   const attach = listingActionAssessment(entry.listingStatus, "attach-existing");
   const operation = presentPortAction(useOperationPresentation(), entry.id, status, "launch");
@@ -203,6 +206,21 @@ export function SelfServiceSetup({
           perform={perform}
         />
       )}
+      {managedPort &&
+        registered?.user_selected &&
+        !pending &&
+        !status?.active &&
+        !operation.managedRouteReadbackRequired && (
+          <ActionRow>
+            <ManagedRouteChangeControl
+              key={JSON.stringify([managedPort.id, generation, registered])}
+              port={managedPort}
+              generation={generation}
+              busy={busy}
+              onChanged={onChanged}
+            />
+          </ActionRow>
+        )}
       {registered?.user_selected && !pending && (
         <details>
           <summary data-focusable className="disclosure-pad-2 cursor-pointer font-medium">
