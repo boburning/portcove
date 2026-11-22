@@ -163,6 +163,23 @@ export async function artworkCorrectionScenario({
       required(ports(catalog).find((port) => port.id === portId)),
     );
     const originalName = text(originalPort.name);
+    // V1 carries artwork only. Core restores these fields from the embedded
+    // catalog and the final readback compares the full catalog against it.
+    for (const port of ports(catalog)) {
+      delete object(port.release).reviewed_package_choices_v2;
+      delete port.mod_loader;
+      delete port.mod_provider_bindings;
+      if (port.game_settings && object(port.game_settings).format_version === 2) {
+        delete port.game_settings;
+      }
+      delete port.windows_shipwright_persistence;
+      delete port.windows_tracked_handoff;
+      if (Array.isArray(port.persistent_file_patterns)) {
+        for (const pattern of port.persistent_file_patterns as unknown[]) {
+          delete object(pattern).allow_empty_middle;
+        }
+      }
+    }
     const keyPath = path.join(output, "public-test-signing-key.pem");
     // Reuse signed_catalog_tests.rs's [7;32] public test seed, never a publisher key.
     const privateKey = createPrivateKey({
