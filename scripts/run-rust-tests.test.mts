@@ -236,6 +236,102 @@ void test("inert Linux handshake failure retains ownership and closes only the o
   }
 });
 
+void test(
+  "a retained live reaper does not hold the wrapper open",
+  { skip: process.platform !== "linux", timeout: 10_000 },
+  async () => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-live-reaper-"));
+    const ready = path.join(tempRoot, "reaper.json");
+    const eof = path.join(tempRoot, "control-eof");
+    const stop = path.join(tempRoot, "stop");
+    const settled = path.join(tempRoot, "settled");
+    const moduleUrl = new URL("./run-rust-tests.mts", import.meta.url).href;
+    const identityUrl = new URL("./heavy-rust-test-lock.mts", import.meta.url).href;
+    const reaper = `
+      import { existsSync, writeFileSync } from "node:fs";
+      import { readProcessIdentity } from ${JSON.stringify(identityUrl)};
+      const [ready, eof, stop, settled] = process.argv.slice(1);
+      process.stdin.once("end", () => writeFileSync(eof, "closed"));
+      process.stdin.resume();
+      writeFileSync(ready, JSON.stringify({
+        pid: process.pid, identity: readProcessIdentity(process.pid),
+      }));
+      const expiry = Date.now() + 6000;
+      const poll = setInterval(() => {
+        if (existsSync(stop) || Date.now() >= expiry) {
+          clearInterval(poll);
+          writeFileSync(settled, "finished");
+        }
+      }, 20);
+    `;
+    const wrapper = spawn(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `
+          import { spawn } from "node:child_process";
+          import { existsSync, readFileSync } from "node:fs";
+          import { setTimeout as delay } from "node:timers/promises";
+          import { runRustTests } from ${JSON.stringify(moduleUrl)};
+          const [tempRoot, ready, eof, stop, settled, reaper] = process.argv.slice(1);
+          try {
+            await runRustTests(["--guard-command", "inert-command"], {
+              tempRoot,
+              platform: "linux",
+              treeWaitMilliseconds: 50,
+              rustSupportCompilerIdentity: () => ({
+                verbose_version: "test", sysroot: "", environment: [], commands: [],
+              }),
+              prepareSupportArtifact: () => ({
+                outcome: "built", fingerprint: "a".repeat(64), elapsed_ms: 1,
+              }),
+              spawn: () => spawn(
+                process.execPath,
+                ["--input-type=module", "-e", reaper, ready, eof, stop, settled],
+                { stdio: ["pipe", "ignore", "ignore"] },
+              ),
+              readLinuxSupervisor: (_file, child) => ({ pid: child.pid }),
+              acquireLock: async () => ({
+                childEnvironment: {},
+                registerChild: async () => {
+                  while (!existsSync(ready)) await delay(10);
+                  return JSON.parse(readFileSync(ready, "utf8"));
+                },
+                release: async () => { throw new Error("retained reservation was released"); },
+              }),
+              writeGate: () => { throw new Error("inert gate failure"); },
+            });
+            process.exitCode = 3;
+          } catch (error) {
+            process.exitCode = error.code === "PORTCOVE_HEAVY_RUST_TREE_ACTIVE" ? 1 : 2;
+          }
+        `,
+        tempRoot,
+        ready,
+        eof,
+        stop,
+        settled,
+        reaper,
+      ],
+      { stdio: "ignore" },
+    );
+    try {
+      await waitUntil(() => existsSync(ready));
+      await waitUntil(() => wrapper.exitCode !== null);
+      assert.equal(wrapper.exitCode, 1);
+      const record = JSON.parse(await readFile(ready, "utf8"));
+      assert.equal(readProcessIdentity(record.pid), record.identity);
+      await waitUntil(() => existsSync(eof));
+      assert.equal(existsSync(settled), false);
+    } finally {
+      await writeFile(stop, "finish");
+      if (existsSync(ready)) await waitUntil(() => existsSync(settled));
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  },
+);
+
 void test("inert Linux pre-gate exit cannot turn successful cleanup into command success", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   let managed: ReturnType<typeof childProcess> | undefined;
