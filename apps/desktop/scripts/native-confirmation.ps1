@@ -382,7 +382,7 @@ function Resolve-OwnedSaveTarget([string]$Target, [string]$OwnedRoot) {
 }
 if ($FilePath) {
     Assert-ExactConfirmationWindow $window
-    $openTitles = @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file', 'Choose a DAT file', 'Open setup recipe…', 'Import saves')
+    $openTitles = @('Choose local artwork', 'Choose game files', 'Choose ZIP file', 'Choose BIOS file', 'Choose a DAT file', 'Open setup recipe…', 'Import saves', 'Locate game executable')
     $saveTitles = @('Export library information', 'Export saves')
     $saveFile = $Button -ceq 'Save' -and $Title -cin $saveTitles
     if ($Button -ceq 'Open' -and $Title -cin $openTitles) {
