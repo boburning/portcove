@@ -1127,6 +1127,14 @@ export function desktopHarnessDeadlineMs(
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
   // manual-content restore and its preparation/adoption prerequisites.
+  // The signed-catalog correction adds two native consent prompts, a refused
+  // verification and independent catalog reads before its reviewed Apply.
+  if (
+    selection.selected_scenarios.length === 1 &&
+    selection.setup_scenarios.length === 0 &&
+    selection.selected_scenarios.includes("native-artwork-catalog-correction")
+  )
+    return 420_000;
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = Math.max(
     // The integrated full suite has 35 journeys plus two-theme capture matrices.

@@ -2547,7 +2547,7 @@ void test("signed artwork correction is an isolated opt-in consumer proof", () =
   assert.deepEqual(selection.selected_scenarios, [id]);
   assert.deepEqual(selection.setup_scenarios, []);
   assert.deepEqual(selection.prerequisites, ["desktop", "owned-fixture", "native-dialog"]);
-  assert.equal(desktopHarnessDeadlineMs(selection), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selection), 420_000);
 });
 
 void test("design compatibility stays exact-selection-only and requests its isolated fixture", () => {
