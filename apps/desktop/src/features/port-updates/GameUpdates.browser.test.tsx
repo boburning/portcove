@@ -328,7 +328,7 @@ it("reviews without execution and submits the exact download-only plan on confir
   expect(apply).not.toHaveBeenCalled();
   expect(container.textContent).toContain("Update now");
   expect(container.textContent).toContain(
-    "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged.",
+    "Update archive downloaded. Your installed version and saves were preserved during the download.",
   );
   expect(container.textContent).not.toContain("Update downloaded for later");
 });
@@ -1307,7 +1307,7 @@ it("downloads an immutable archive during an explicit launch without granting Ap
       },
     },
   ]);
-  expect(container.textContent).toContain("Update downloaded, not installed");
+  expect(container.textContent).toContain("Update archive downloaded");
   expect(container.textContent).not.toContain("Update saved for later");
   await expect
     .element(page.getByRole("button", { name: "Update now", exact: true }))
@@ -1339,7 +1339,7 @@ it.each([false, true])(
         currentVersion="1.0"
       />,
     );
-    expect(container.textContent).toContain("Update downloaded, not installed");
+    expect(container.textContent).toContain("Update archive downloaded");
     expect(apply).not.toHaveBeenCalled();
     await expect
       .element(page.getByRole("button", { name: "Download for later", exact: true }))
@@ -1420,6 +1420,43 @@ it.each(["acquired", "attention_required"] as const)(
   },
 );
 
+it("keeps the archive status accurate after its exact release becomes active", async () => {
+  const release = acquisition.release;
+  await root.rerender(
+    <GameUpdateControl
+      portId={acquisition.port_id}
+      generation={9}
+      policy="notify"
+      busy={false}
+      currentVersion={release.version}
+      status={{
+        ...portStatus(),
+        port_id: acquisition.port_id,
+        active: {
+          ...stagedUpdate,
+          id: "activated-from-archive",
+          port_id: acquisition.port_id,
+          version: release.version,
+          channel: release.channel,
+          staged: false,
+          artifact: {
+            asset_name: release.asset.name,
+            sha256: release.asset.sha256,
+            size: release.asset.size,
+          },
+        },
+        staged: null,
+        acquisition,
+      }}
+      perform={perform}
+    />,
+  );
+  const archive = container.querySelector('[aria-label="Downloaded update"]');
+  expect(archive?.querySelector("h4")?.textContent).toBe("Update archive downloaded");
+  expect(archive?.textContent).toContain(`Version you’re using: ${release.version}`);
+  expect(archive?.textContent).not.toContain("not installed");
+});
+
 it("distinguishes acquired archives from prepared updates in Activity and keeps current Play available", async () => {
   const port = portDefinition();
   const secondPort = { ...portDefinition(), id: "no-update", name: "Another game" };
@@ -1465,9 +1502,9 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   expect(
     container.querySelector(".update-state")?.textContent ??
       container.querySelector(".update-row")?.textContent,
-  ).toContain("Update downloaded, not installed");
+  ).toContain("Update archive downloaded");
   expect(container.querySelector('[aria-label="Downloaded update"]')?.textContent).toContain(
-    "Prepare or install the update separately",
+    "Version you’re using: 1.0",
   );
   expect(container.textContent).not.toContain("Update saved for later");
   const prepared = [...container.querySelectorAll(".update-stat")].find((stat) =>
@@ -1572,7 +1609,7 @@ it("keeps acquisition completion as a receipt until a fresh status replaces it",
   await click("Download for later");
   await click("Download archive for later");
   expect(container.textContent).toContain(
-    "Update downloaded, not installed. Review it to finish setup or install it. Your current version is unchanged.",
+    "Update archive downloaded. Your installed version and saves were preserved during the download.",
   );
   expect(container.textContent).toContain(
     "The operation finished, but library status could not be refreshed",

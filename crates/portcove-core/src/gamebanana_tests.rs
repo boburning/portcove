@@ -318,13 +318,12 @@ fn download_deadline_grows_with_size_and_is_capped() {
 }
 
 #[test]
-fn projects_with_too_many_files_are_refused_instead_of_truncated() {
-    let files = (1..=257u64).map(file).collect::<Vec<_>>();
+fn projects_with_long_file_histories_keep_every_file() {
+    let files = (1..=300u64).map(file).collect::<Vec<_>>();
     let value: Value = serde_json::from_str(&project_json("1.0", files)).unwrap();
-    assert!(parse_project(&value, 1, WEB).is_err());
-    let files = (1..=256u64).map(file).collect::<Vec<_>>();
-    let value: Value = serde_json::from_str(&project_json("1.0", files)).unwrap();
-    assert_eq!(parse_project(&value, 1, WEB).unwrap().files.len(), 256);
+    let project = parse_project(&value, 1, WEB).unwrap();
+    assert_eq!(project.files.len(), 300);
+    assert!(project.files.iter().any(|file| file.file_id == "300"));
 }
 
 #[tokio::test]

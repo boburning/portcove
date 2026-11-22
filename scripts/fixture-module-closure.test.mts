@@ -360,9 +360,9 @@ void test("cover and catalog Native contracts execute without optional package i
   });
   assert.ifError(result.error);
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  // Two catalog cases and seven cover cases, including scope and surface controls.
-  assert.match(result.stdout, /pass 9/u);
-  assert.match(result.stdout, /fail 0/u);
+  // Three catalog cases and seven cover cases must run in the isolated copy.
+  assert.match(result.stdout, /^ℹ pass 10\r?$/mu);
+  assert.match(result.stdout, /^ℹ fail 0\r?$/mu);
 });
 
 void test("CI plan bootstrap loads without installed SDK packages", (context) => {

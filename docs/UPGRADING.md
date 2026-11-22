@@ -95,6 +95,12 @@ game version. The library upgrade waits for older Desktop and CLI processes to
 close. After upgrading, versions with writer protocol 70 or earlier refuse the
 library. Keep the pre-upgrade copy if you need to use an older client.
 
+A newly installed package with package-only defaults uses retained settings
+interpretation format 12. Earlier clients can continue to verify unrelated
+managed installations. They need a compatible reader to open or manage the
+specific package-only installation. Existing historical installations keep
+their original retained interpretation.
+
 For a supported Windows settings file with an independent persistent path,
 Portcove applies a new shipped default when the verified old default still
 matches the player's file. If Portcove cannot verify the file, or both sides
@@ -102,7 +108,7 @@ changed it differently, the affected installation stays staged. The player's
 file remains in place and the staged version keeps any verified default it
 shipped with. Keep using the installed version while the update waits for
 review or verified defaults.
-A first native upgrade can establish the missing canonical copy from the
+A first qualifying managed upgrade can establish the missing canonical copy from the
 verified old package before it applies the new default. A known runtime edit
 can be carried forward from the exact managed launch when it agrees with the
 new default or the upstream default stayed the same. The automatic pre-update
@@ -114,7 +120,7 @@ A reviewed backup restore can record the removal of a declared settings file.
 The receipt requires a snapshot that covers the exact active persistence policy,
 a verified package default, and a matching file before the restore. Portcove
 records the outcome after it verifies that the canonical file and active copy
-are absent. On supported Windows native installs, the next staged version
+are absent. On Windows installs with a supported mirrored settings contract, the next staged version
 preserves that deletion when Portcove can verify the receipt and both paths
 remain absent. It removes only the packaged runtime copy and keeps the verified
 incoming default in the install receipt. An unexplained absence or a concurrent

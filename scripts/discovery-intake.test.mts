@@ -10,9 +10,8 @@ import {
 } from "./roadmap-issue.mts";
 
 import type { RoadmapClient } from "./roadmap.mts";
-import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
+import { projectData, scopedIssueItemData, sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
 import { isRecord } from "./runtime-values.mts";
-import type { RoadmapIssueItem } from "./roadmap-issue.mts";
 import { intakeAmendmentAction, validateDiscoveryIntakeBody } from "./daily-discovery-session.mts";
 import { observationHash } from "./upstream-observer.mts";
 const config = validateConfig(
@@ -62,9 +61,10 @@ void test("amendment recovery observes successful writes and refuses repetition 
     );
 });
 void test("catalog-ID direct intake recovery keeps its existing catalog identity without inventing a port key", async () => {
+  const upstream = "https://example.test/engine";
   const body = renderPortIssueBody({
     title: "Catalog Game",
-    upstream: "https://example.test/engine",
+    upstream,
     catalogId: "catalog-game",
   });
   const issue = {
@@ -76,39 +76,51 @@ void test("catalog-ID direct intake recovery keeps its existing catalog identity
   };
   const client = await sdkRoadmap(config, {
     allowMutations: true,
-    rest: () => {
-      throw new Error("Unexpected body mutation");
+    graphql: (query, variables) => {
+      if (query.includes("projectV2(number:")) return projectData("PVT");
+      assert.match(query, /query ScopedProjectItem/u);
+      assert.deepEqual(variables, { id: "ITEM43" });
+      return scopedIssueItemData("PVT", "ITEM43", issue);
     },
   });
   client.repositoryIssue = async () => issue;
   client.repositoryIssues = async () => await fixtureIssueInventory(client, []);
-  client.itemList = async () => [];
   client.projectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
     fields: [],
   });
   client.readInventory = async () => [];
-  client.ensureIssueItem = async () => ({ id: "ITEM43" });
-  client.setItemFields = async () => {};
+  client.ensureIssueItem = async (contentId) => {
+    assert.equal(contentId, "I43");
+    return { id: "ITEM43" };
+  };
+  client.setItemFields = async (itemId, fields) => {
+    assert.equal(itemId, "ITEM43");
+    assert.equal(fields["Port stage"], "Cataloged");
+  };
   const result = await client.normalizePortIssue({
     number: 43,
-    catalog: { ports: [{ id: "catalog-game" }] },
+    catalog: { ports: [{ id: "catalog-game", project_url: upstream }] },
+    listings: [{ id: "catalog-game", issue_number: 43 }],
   });
   assert.equal(result.bodyChanged, false);
   assert.equal(result.projectItemAdded, true);
+  assert.equal(result.itemId, "ITEM43");
+  assert.equal(result.issue, issue.html_url);
 });
 void test("captured issue identity survives failed Project intake and neutral normalization repairs the same issue", async () => {
   const state: {
     issue: Issue | null;
     receipt: Issue | null;
-    projectItem: RoadmapIssueItem | null;
     fields: Readonly<Record<string, string>> | null;
-  } = { issue: null, receipt: null, projectItem: null, fields: null };
+  } = { issue: null, receipt: null, fields: null };
   let creates = 0;
   const client = await sdkRoadmap(config, {
     allowMutations: true,
     rest: ({ method, endpoint, body: payload }) => {
+      if (method === "GET" && endpoint === `users/${config.owner}`)
+        return { type: "User", node_id: "OWNER_fixture" };
       assert.equal(method, "POST");
       assert.equal(endpoint, `repos/${config.repository}/issues`);
       assert.ok(
@@ -124,6 +136,17 @@ void test("captured issue identity survives failed Project intake and neutral no
         html_url: "https://github.com/boburning/portcove/issues/42",
       };
       return Response.json(state.issue, { status: 201 });
+    },
+    graphql: (query, variables) => {
+      if (query.includes("projectV2(number:")) return projectData("PVT");
+      assert.match(query, /query ScopedProjectItem/u);
+      assert.deepEqual(variables, { id: "ITEM42" });
+      const issue = required(state.issue);
+      return scopedIssueItemData("PVT", "ITEM42", {
+        ...issue,
+        title: required(issue.title),
+        body: required(issue.body),
+      });
     },
   });
   client.repositoryIssues = async () =>
@@ -168,30 +191,25 @@ void test("captured issue identity survives failed Project intake and neutral no
     /durable issue/,
   );
   client.repositoryIssue = async () => required(state.issue);
-  client.itemList = async () => (state.projectItem ? [state.projectItem] : []);
   client.projectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
     fields: [],
   });
   client.readInventory = async () => [];
-  client.ensureIssueItem = async () => ({ id: "ITEM42" });
+  client.ensureIssueItem = async (contentId) => {
+    assert.equal(contentId, required(state.receipt).node_id);
+    return { id: "ITEM42" };
+  };
   client.setItemFields = async (id, values) => {
-    const issue = required(state.issue);
-    assert.ok(issue.state === undefined || issue.state === null || typeof issue.state === "string");
+    assert.equal(id, "ITEM42");
     state.fields = values;
-    state.projectItem = {
-      id,
-      content: { ...issue, state: issue.state, url: issue.html_url, type: "Issue" },
-      fieldValues: Object.entries(values).map(([name, value]) => ({
-        name: value,
-        field: { name },
-      })),
-    };
   };
   const result = await client.normalizePortIssue({ number: 42, catalog: { ports: [] } });
   assert.equal(result.projectItemAdded, true);
   assert.equal(result.bodyChanged, false);
+  assert.equal(result.itemId, "ITEM42");
+  assert.equal(result.issue, required(state.receipt).html_url);
   assert.equal(required(state.fields).Status, "Inbox");
   assert.equal(required(state.fields)["Port stage"], "Watchlist");
   assert.equal(creates, 1);

@@ -687,6 +687,7 @@ mod tests {
                     id: id.into(),
                     title: id.into(),
                     system: None,
+                    verified_sources: Vec::new(),
                     evidence_urls: vec!["https://example.com".into()],
                 })
                 .collect(),
@@ -747,6 +748,7 @@ mod tests {
                 id: "usa-v1".into(),
                 title: "USA version 1".into(),
                 system: Some("nintendo-64".into()),
+                verified_sources: Vec::new(),
                 evidence_urls: vec!["https://example.com".into()],
             }],
         };
