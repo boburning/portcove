@@ -164,7 +164,9 @@ impl PortcoveService {
     }
 
     /// Native import eligibility for the active installation only. A port that
-    /// is not installed keeps a pure link-out.
+    /// is not installed keeps a pure link-out. An installed build whose
+    /// retained identity no longer verifies offers no native import; the setups
+    /// view reports that build as changed or missing on its own.
     pub(crate) fn github_native_import(
         &self,
         port: &PortDefinition,
@@ -174,7 +176,7 @@ impl PortcoveService {
             return Ok(false);
         };
         match self.active_install(port)? {
-            Some(install) => installed_native_import(&install, platform),
+            Some(install) => Ok(installed_native_import(&install, platform).unwrap_or(false)),
             None => Ok(false),
         }
     }
@@ -700,6 +702,20 @@ mod tests {
             assert!(view.github_release_url.is_some());
             assert!(!view.github_native_import_offered);
         }
+    }
+
+    #[test]
+    fn a_changed_installed_build_offers_no_native_import() {
+        let platform = Platform::current().unwrap();
+        let (_temporary, service) = service_with_install(Some("v1.2.2"));
+        let port = service.catalog().port("zelda64-recomp").unwrap().clone();
+        let install = service.active_install(&port).unwrap().unwrap();
+        std::fs::write(install.path.join(".portcove-manifest.json"), b"changed").unwrap();
+        assert!(installed_native_import(&install, platform).is_err());
+        assert!(!service.github_native_import(&port, Some(platform)).unwrap());
+        let view = service.preview_mod_handoff("zelda64-recomp").unwrap();
+        assert!(view.github_release_url.is_some());
+        assert!(!view.github_native_import_offered);
     }
 
     #[test]
