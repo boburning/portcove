@@ -3689,6 +3689,31 @@ void test("accepted checkpoint advancement ignores request counts, clocks, clear
     false,
   );
   assert.equal(advanced(a, position({ continuation: { pages: { a: {}, b: {} } } })), true);
+  // Changed last-good facts advance only without a stated incomplete coverage.
+  const facts = (sha: string, kind?: string) =>
+    position({
+      last_complete: {
+        observation: { facts_sha256: sha },
+        projection: kind ? { fact_provenance: { coverage: { kind } } } : {},
+      },
+    });
+  assert.equal(advanced(facts("a", "complete"), facts("b", "complete")), true);
+  assert.equal(advanced(facts("a"), facts("b")), true);
+  for (const kind of ["partial", "failed", "unavailable", "invented"])
+    assert.equal(advanced(facts("a", "complete"), facts("b", kind)), false, kind);
+  const { coreProjectionCoverage, requireCompleteCoreCoverage } =
+    await import("./catalog-observer-continuation.mts");
+  assert.equal(coreProjectionCoverage({}), "unstated");
+  assert.equal(
+    coreProjectionCoverage({ fact_provenance: { coverage: { kind: "partial" } } }),
+    "partial",
+  );
+  assert.equal(coreProjectionCoverage({ fact_provenance: { coverage: { kind: 7 } } }), "failed");
+  requireCompleteCoreCoverage({ fact_provenance: { coverage: { kind: "complete" } } });
+  assert.throws(
+    () => requireCompleteCoreCoverage({ fact_provenance: { coverage: { kind: "partial" } } }),
+    (error: unknown) => error instanceof ObservationFailure && error.rule === "incomplete-coverage",
+  );
   assert.equal(
     advanced(a, position({ continuation: { pages: { a: {} }, validation_cursor: 1 } })),
     true,

@@ -2346,6 +2346,39 @@ tag prefixes. Core excludes these tags even before asset collection. Releases
 in the selected stream with incomplete package evidence still hold. Review the
 existing tag history before adding a prefix and retain exact package verification.
 
+#### Artifact roles and fact sources
+
+Core gives every release asset it classifies a typed role, target operating
+system, architecture and fact source (`crates/portcove-core/src/route_facts.rs`).
+Only a `desktop-game-runtime` role may become a launch target. Installers,
+builders, importers, compilers, development tools, original-game inputs,
+mobile packages, console outputs, documentation, source archives, integrity
+metadata and debug symbols are never offered as the game.
+
+Sources are consulted in this fixed precedence; the first with a definite role
+wins:
+
+1. `release-metadata`: machine-readable metadata the release publishes.
+2. `exact-release-structured`: a reviewed observation of the exact archive
+   bytes, such as a [generated package shape](#generated-reviewed-package-shapes).
+   Its player candidates exclude toolchain, installer, server and
+   development-tool programs beside the player.
+3. `provider-cross-reference`: another provider's reviewed record.
+4. `family-extractor`: a bounded, versioned extractor for one release family.
+5. `stable-declaration`: the route's reviewed selectors (asset hints, package
+   choices, curated pins), exactly as far as they select today.
+6. `filename-suggestion`: filename tokens, versioned by `rule_version`.
+
+A filename suggestion never authorizes a runtime. It may still describe an
+asset and place a release outside another platform's stream. Two authorizing
+sources that disagree about the role make the role unknown and hold that
+artifact on that platform with `contradictory-role`; sibling platforms stay
+offered. When authorizing sources disagree about the host, the host is unknown
+rather than a refusal. A package named only for another operating system is
+never selected for this host, and a release whose players are all for other
+hosts is outside this platform's stream. Prefer adding release-owned or
+structured facts over adding filename tokens or title-specific selectors.
+
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
 let the existing provider observe each release's version, asset ID, exact name,

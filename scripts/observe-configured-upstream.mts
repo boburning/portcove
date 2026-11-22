@@ -285,6 +285,7 @@ export async function advanceObservation(
       exception: null,
     },
   );
+  const priorContinuation = structuredClone(next.continuation);
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput: Observation | null = null;
@@ -382,6 +383,11 @@ export async function advanceObservation(
     } catch (error) {
       if (error instanceof ObservationFailure && error.continuation)
         next.continuation = error.continuation;
+      // Stated incomplete coverage keeps the accepted cursor where it was.
+      if (error instanceof ObservationFailure && error.rule === "incomplete-coverage") {
+        if (priorContinuation === undefined) delete next.continuation;
+        else next.continuation = structuredClone(priorContinuation);
+      }
       const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;

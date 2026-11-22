@@ -1057,6 +1057,46 @@ void test("deferred checkpoints honor retry clocks without requests and mismatch
   );
 });
 
+void test("stated incomplete Core coverage keeps the cursor and last-good facts", async () => {
+  const { acceptedObservationAdvanced, acceptedObservationPosition } =
+    await import("./catalog-observer-continuation.mts");
+  const options = { fetch: fixture().fetch, project, now: () => Date.parse(time) };
+  const good = await advanceObservation(config, null, {
+    ...options,
+    project: async (observation: { facts_sha256: string }) => ({
+      ...(await project(observation)),
+      fact_provenance: { coverage: { kind: "complete" } },
+    }),
+  });
+  assert.equal(good.report.transition, "initial-baseline");
+  for (const coverage of [
+    { kind: "partial", next_cursor: null },
+    { kind: "failed" },
+    { kind: "unavailable" },
+    { kind: "invented" },
+  ]) {
+    const held = await advanceObservation(config, good.checkpoint, {
+      ...options,
+      fetch: fixture().fetch,
+      project: async (observation: { facts_sha256: string }) => ({
+        ...(await project(observation)),
+        fact_provenance: { coverage },
+      }),
+    });
+    assert.equal(held.report.transition, "failed", coverage.kind);
+    assert.equal(requiredFixture(held.report.exception).rule, "incomplete-coverage");
+    assert.deepEqual(held.checkpoint.last_complete, good.checkpoint.last_complete);
+    assert.equal(held.checkpoint.completed_runs, good.checkpoint.completed_runs);
+    assert.equal(
+      acceptedObservationAdvanced(
+        acceptedObservationPosition(good.checkpoint),
+        acceptedObservationPosition(held.checkpoint),
+      ),
+      false,
+    );
+  }
+});
+
 void test("unexpected observer failures retain only their error class", async () => {
   const thrown = [
     [new TypeError("token ghp_secret in provider text"), "TypeError"],
