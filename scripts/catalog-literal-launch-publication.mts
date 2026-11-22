@@ -232,7 +232,7 @@ function bind(
           unchanged.source_contracts,
           unchanged.artifact_bindings,
           unchanged.evidence_references,
-        ].flatMap((value) => (Array.isArray(value) ? value : [])),
+        ].flatMap((value): unknown[] => (Array.isArray(value) ? value : [])),
       ];
     }),
   );
