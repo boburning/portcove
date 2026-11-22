@@ -922,7 +922,7 @@ async fn dethrace_linux_player_data_follows_the_active_versions_runtime_root() {
     };
     let read = |root: &std::path::Path, path: &str| fs::read_to_string(root.join(path)).unwrap();
     let initial = runtime(&installed);
-    assert_eq!(initial, installed.path);
+    assert!(initial.starts_with(&installed.path) && !initial.ends_with("bin"));
     for (path, body) in DATA {
         let file = initial.join(path);
         fs::create_dir_all(file.parent().unwrap()).unwrap();
@@ -942,7 +942,7 @@ async fn dethrace_linux_player_data_follows_the_active_versions_runtime_root() {
     let _ = service.discard_game_update_acquisition(ID, &acquired);
     assert_eq!(updated.version, "v0.11.0");
     let updated_root = runtime(&updated);
-    assert_eq!(updated_root, updated.path.join("bin"));
+    assert!(updated_root.starts_with(&updated.path) && updated_root.ends_with("bin"));
     for (path, body) in DATA {
         assert_eq!(read(&updated_root, path), body, "{path} after update");
     }
@@ -953,11 +953,14 @@ async fn dethrace_linux_player_data_follows_the_active_versions_runtime_root() {
     .unwrap();
     fs::write(updated.path.join(LAUNCH_MARKER), b"1").unwrap();
 
+    // Backup and restore with the successor active reach `bin/`.
+    backup_and_restore(&service, ID, &updated_root, "progress in v0.11.0");
+
     // Rollback: the predecessor's player sees the newer progress at its root.
     let rolled = service.rollback(ID).unwrap();
     assert_eq!(rolled.id, installed.id);
     let rolled_root = runtime(&rolled);
-    assert_eq!(rolled_root, installed.path);
+    assert_eq!(rolled_root, initial);
     assert_eq!(
         read(&rolled_root, "DATA/SAVEGAME/SAVE0.SAV"),
         "progress in v0.11.0"
@@ -969,28 +972,45 @@ async fn dethrace_linux_player_data_follows_the_active_versions_runtime_root() {
         assert_eq!(read(&rolled_root, path), body, "{path} after rollback");
     }
 
-    // Backup and restore while each layout is active reach that layout's root.
-    for (label, active_root) in [("predecessor", rolled_root.clone())] {
-        let backup = service.create_backup(ID).unwrap();
-        fs::write(active_root.join("DATA/SAVEGAME/SAVE0.SAV"), "lost progress").unwrap();
-        let preview = service
-            .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
-            .unwrap();
-        let authorization = service
-            .authorize_backup_action(
-                ID,
-                &backup.id,
-                crate::BackupAction::Restore,
-                &preview.preview_sha256,
-            )
-            .unwrap();
-        service
-            .restore_backup(ID, &backup.id, &authorization.token)
-            .unwrap();
-        assert_eq!(
-            read(&active_root, "DATA/SAVEGAME/SAVE0.SAV"),
-            "progress in v0.11.0",
-            "{label} restore"
-        );
-    }
+    // Backup and restore with the predecessor active reach its root.
+    backup_and_restore(&service, ID, &rolled_root, "progress in v0.11.0");
+}
+
+/// Snapshot the active data, overwrite a save, restore it and require the
+/// snapshot's save at `active_root`, the active version's runtime root.
+fn backup_and_restore(
+    service: &PortcoveService,
+    id: &str,
+    active_root: &std::path::Path,
+    expected: &str,
+) {
+    const SAVE: &str = "DATA/SAVEGAME/SAVE0.SAV";
+    let backup = service.create_backup(id).unwrap();
+    assert_eq!(
+        fs::read_to_string(backup.path.join("data").join(SAVE)).unwrap(),
+        expected
+    );
+    fs::write(active_root.join(SAVE), "unsaved overwrite").unwrap();
+    let preview = service
+        .preview_backup_action(id, &backup.id, crate::BackupAction::Restore)
+        .unwrap();
+    let authorization = service
+        .authorize_backup_action(
+            id,
+            &backup.id,
+            crate::BackupAction::Restore,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    service
+        .restore_backup(id, &backup.id, &authorization.token)
+        .unwrap();
+    assert_eq!(
+        fs::read_to_string(active_root.join(SAVE)).unwrap(),
+        expected
+    );
+    assert_eq!(
+        fs::read_to_string(active_root.join("DATA/GENERAL.TXT")).unwrap(),
+        "original general"
+    );
 }
