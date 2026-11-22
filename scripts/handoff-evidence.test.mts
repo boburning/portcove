@@ -223,3 +223,18 @@ void test("handoff identity and timestamp fields reject coercible JSON arrays", 
   ])
     assert.throws(() => validateHandoff(malformed), /Handoff rejected/u);
 });
+
+void test("native handoff preserves a live window when UI control stops", async () => {
+  const { nativeHandoffStatus } = await import("./handoff-evidence.mts");
+  const id = "17880060-6577-431c-9d09-1f7c0e2e7581";
+  const receipt = { ok: true, command: "launch.show", data: { id, phase: "running" } };
+  const status = nativeHandoffStatus(receipt, id, "open", "stopped");
+  assert.equal(status.observed_window, "open");
+  assert.equal(status.ui_control, "stopped");
+  assert.equal(status.launch_phase, "running");
+  assert.equal(status.launch_outcome, null);
+  assert.throws(
+    () => nativeHandoffStatus({ ...receipt, data: { id: "other" } }, id, "open", "stopped"),
+    /owned request/u,
+  );
+});

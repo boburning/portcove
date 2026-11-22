@@ -43,6 +43,18 @@ import {
   type IgdbRegionalCover,
 } from "./catalog-cover-mapping.mts";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
+import {
+  checkAcquisitionRestrictions,
+  listingDownloadBlockReason,
+  projectListingRestrictions,
+  projectManagedRestrictions,
+  replaceKey,
+  restrictionsFromManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
+import type {
+  AcquisitionRestriction,
+  LegacyManagedHold,
+} from "./catalog-acquisition-restrictions.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
 
@@ -64,7 +76,8 @@ export interface AuthoredListing extends NamedRecord {
   project_url: string;
   platforms?: string[];
   availability?: "unknown" | "packages" | "source-only" | "unavailable";
-  download_block_reason?: string;
+  /** Typed listing restrictions; the generator derives the legacy download string. */
+  restrictions?: AcquisitionRestriction[];
   download_asset_hints?: Record<string, string[]>;
   recommended_download_channel?: "stable" | "beta";
   implementation?: ImplementationMetadata;
@@ -73,7 +86,13 @@ export interface AuthoredListing extends NamedRecord {
     format_version: 1;
     id: string;
     evidence_urls: string[];
-    source_editions: { id: string; title: string; system?: string; evidence_urls: string[] }[];
+    source_editions: {
+      id: string;
+      title: string;
+      system?: string;
+      evidence_urls: string[];
+      verified_sources?: { game_id: string; variant_id: string; representation_id: string }[];
+    }[];
   };
   variant_label?: string;
   issue_number?: number;
@@ -133,8 +152,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   rsdkv4_portable_data_v1?: true;
   /** Shared official OpenMoHAA package and per-edition portable layout. */
   openmohaa_portable_v1?: "base" | "spearhead" | "breakthrough";
-  /** Reviewed OpenXW and OpenXvT package selectors and local config path. */
-  openx_portable_v1?: true;
+  /** Shared Windows ZIP, Linux TAR.XZ and local config.yaml for matching reviewed routes. */
+  openx_portable_v1?: true | string;
   package_observation_v1?: PackagePlayerObservationV1;
   settings_qualification_v1?: SettingsQualificationPolicy;
   settings_observation_v1?: SettingsQualificationObservation;
@@ -167,6 +186,14 @@ const listingPresentationFields = [
   "collection_covers",
   "media",
 ] as const;
+
+function typedIgdbScene(asset: unknown) {
+  return (
+    isRecord(asset) &&
+    (asset.role === "header" || asset.role === "screenshot") &&
+    asset.igdb != null
+  );
+}
 const sharedPortFields = ["id", "name", "summary", "project_url"] as const;
 const listingFields = new Set([
   "compatibility",
@@ -176,7 +203,7 @@ const listingFields = new Set([
   "availability",
   "upstream_observation",
   "availability_override_reason",
-  "download_block_reason",
+  "restrictions",
   "download_asset_hints",
   "recommended_download_channel",
   "issue_number",
@@ -446,7 +473,7 @@ export function listingDownloadAssetHints(record: AuthoredPort) {
     !inherit.length ||
     new Set(inherit).size !== inherit.length ||
     listing.availability !== "packages" ||
-    listing.download_block_reason !== undefined ||
+    listingDownloadBlockReason(listing) !== undefined ||
     !Array.isArray(integration?.platforms) ||
     !Array.isArray(integration.channels) ||
     !integration.channels.includes(listing.recommended_download_channel ?? "stable") ||
@@ -564,6 +591,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Authored artwork does not match its IGDB regional cover selection.");
   }
   if (listing.compatibility !== undefined) checkCatalogAdvisories(listing.compatibility, platforms);
+  if (Object.hasOwn(listing, "download_block_reason"))
+    throw new Error(
+      `${String(listing.id)} listing.download_block_reason is derived; author listing.restrictions instead.`,
+    );
   if (Object.keys(listing).some((field) => !listingFields.has(field)))
     throw new Error(
       "Listing contains unknown descriptive fields; operational fields belong to its integration.",
@@ -631,11 +662,11 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         "Pin maintenance requires reason, reconsideration condition and an exact direct contract",
       );
   }
-  if (
-    listing.download_block_reason !== undefined &&
-    !boundedText(listing.download_block_reason, 4096)
-  )
-    throw new Error("Listing download restriction requires bounded nonempty text.");
+  if (listing.restrictions !== undefined)
+    checkAcquisitionRestrictions(String(listing.id), listing.restrictions, "listing", {
+      hasReleaseRoute:
+        listing.release_url !== undefined || listing.download_asset_hints !== undefined,
+    });
   if (listing.download_asset_hints !== undefined) {
     if (
       !isRecord(listing.download_asset_hints) ||
@@ -688,7 +719,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (listing.implementation !== undefined) checkImplementationMetadata(listing.implementation);
   if (listing.original_game !== undefined) {
     const game = listing.original_game;
-    const identity = (value: unknown) =>
+    const identity = (value: unknown): value is string =>
       typeof value === "string" && value.length <= 128 && stableId.test(value);
     const evidence = (value: unknown) => {
       if (
@@ -713,6 +744,7 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Invalid original game identity.");
     evidence(game.evidence_urls);
     const editions = new Set();
+    const sources = new Set<string>();
     for (const edition of game.source_editions) {
       if (
         !isRecord(edition) ||
@@ -721,12 +753,33 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         !boundedText(edition.title, 512) ||
         (edition.system !== undefined && !identity(edition.system)) ||
         Object.keys(edition).some(
-          (key) => !["id", "title", "system", "evidence_urls"].includes(key),
+          (key) => !["id", "title", "system", "evidence_urls", "verified_sources"].includes(key),
         )
       )
         throw new Error("Invalid or duplicate source edition identity.");
       editions.add(edition.id);
       evidence(edition.evidence_urls);
+      if (edition.verified_sources !== undefined) {
+        if (
+          !Array.isArray(edition.verified_sources) ||
+          edition.verified_sources.length === 0 ||
+          edition.verified_sources.length > 16
+        )
+          throw new Error("Original editions require a bounded list of verified source bindings.");
+        for (const source of edition.verified_sources) {
+          if (
+            !isRecord(source) ||
+            Object.keys(source).length !== 3 ||
+            !identity(source.game_id) ||
+            !identity(source.variant_id) ||
+            !identity(source.representation_id)
+          )
+            throw new Error("Invalid verified source binding.");
+          const key = `${source.game_id}:${source.variant_id}:${source.representation_id}`;
+          if (sources.has(key)) throw new Error("Duplicate verified source binding.");
+          sources.add(key);
+        }
+      }
     }
   }
   for (const field of ["original_game_title", "variant_label"] as const)
@@ -756,8 +809,17 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error("Invalid reviewed active upstream status.");
     }
 
+    if (Object.hasOwn(integration, "managed_acquisition_hold"))
+      throw new Error(
+        `${listing.id} integration.managed_acquisition_hold is derived; author integration.acquisition_restrictions instead.`,
+      );
+    if (integration.acquisition_restrictions !== undefined) {
+      checkAcquisitionRestrictions(listing.id, integration.acquisition_restrictions, "integration");
+      // Typed managed data is delivered only in the existing legacy form.
+      projectManagedRestrictions(listing.id, integration);
+    }
     if (
-      listing.download_block_reason !== undefined &&
+      listingDownloadBlockReason(listing) !== undefined &&
       (!isRecord(integration.release) || integration.release.provider !== "user-prepared")
     )
       throw new Error(
@@ -834,7 +896,16 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
 /** Mechanical split; no support, source, package or artwork observations are added. */
 export function authoringRecordFromPort(port: CatalogPort, order?: number): AuthoredPort {
   const listing: Record<string, unknown> = {};
-  const integration = structuredClone(port);
+  let integration = structuredClone(port);
+  if (isRecord(integration.managed_acquisition_hold))
+    integration = replaceKey(integration, "managed_acquisition_hold", [
+      [
+        "acquisition_restrictions",
+        restrictionsFromManagedHold(
+          integration.managed_acquisition_hold as unknown as LegacyManagedHold,
+        ),
+      ],
+    ]) as CatalogPort;
   for (const field of sharedPortFields) {
     listing[field] = integration[field];
     delete integration[field];
@@ -877,7 +948,7 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
     ),
   ).integration;
   if (!operational) return undefined;
-  const integration = structuredClone(operational);
+  const integration = projectManagedRestrictions(record.listing.id, structuredClone(operational));
   const presentation = isRecord(integration.presentation) ? integration.presentation : {};
   const managedGuide = presentation.manual_setup;
   delete presentation.manual_setup;
@@ -887,8 +958,22 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
     if (field === "manual_setup" && managedGuide != null) {
       presentation[field] = managedGuide;
       integration.presentation = presentation;
+    } else if (field === "original_game" && record.listing.original_game) {
+      const original = structuredClone(record.listing.original_game);
+      for (const edition of original.source_editions) delete edition.verified_sources;
+      presentation[field] = original;
+      integration.presentation = presentation;
     } else if (Object.hasOwn(record.listing, field)) {
-      presentation[field] = structuredClone(record.listing[field]);
+      const value = record.listing[field];
+      if (field === "media" && Array.isArray(value) && value.some(typedIgdbScene)) {
+        const legacy = value.filter((asset) => !typedIgdbScene(asset));
+        // An absent legacy array allows directory media. An authored empty
+        // array continues to clear directory media on the strict route.
+        if (legacy.length === 0) continue;
+        presentation[field] = structuredClone(legacy);
+      } else {
+        presentation[field] = structuredClone(value);
+      }
       integration.presentation = presentation;
     }
   }
@@ -935,7 +1020,7 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
     .map((record) => {
       const hints = listingDownloadAssetHints(record);
       return {
-        ...structuredClone(record.listing),
+        ...projectListingRestrictions(structuredClone(record.listing)),
         ...(hints === undefined ? {} : { download_asset_hints: hints }),
         platforms: [
           ...(Array.isArray(record.integration?.platforms)
@@ -988,38 +1073,53 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
   const listedDates = listings.some((listing) => listing.listed_at !== undefined);
   const fundingLinks = listings.some((listing) => listing.funding_urls !== undefined);
   const coverCollections = listings.some((listing) => listing.collection_covers !== undefined);
-  const format_version = listings.some((listing) => listing.implementation !== undefined)
-    ? 12
-    : coverCollections
-      ? 11
-      : fundingLinks
-        ? 10
-        : listedDates
-          ? 9
-          : gitlabObservations
-            ? 8
-            : listings.some((listing) => listing.compatibility !== undefined)
-              ? 7
-              : guideReferences
-                ? 6
-                : extendedMedia
-                  ? 5
-                  : listings.some(
-                        (listing) =>
-                          listing.upstream_observation !== undefined ||
-                          listing.availability_override_reason !== undefined ||
-                          "release_maintenance" in listing,
-                      )
-                    ? 4
-                    : listings.some(
-                          (listing) =>
-                            listing.original_game !== undefined ||
-                            (Array.isArray(listing.media) && listing.media.length > 0),
-                        )
-                      ? 3
-                      : listings.some((listing) => listing.download_block_reason !== undefined)
-                        ? 2
-                        : 1;
+  const hasIgdbScenes = listings.some(
+    ({ media }) => Array.isArray(media) && media.some(typedIgdbScene),
+  );
+  const typedRestrictions = listings.some((listing) => listing.restrictions !== undefined);
+  const hasVerifiedEditions = listings.some((listing) =>
+    listing.original_game?.source_editions.some((edition) => edition.verified_sources?.length),
+  );
+  const format_version = typedRestrictions
+    ? 15
+    : hasVerifiedEditions
+      ? 14
+      : hasIgdbScenes
+        ? 13
+        : listings.some((listing) => listing.implementation !== undefined)
+          ? 12
+          : coverCollections
+            ? 11
+            : fundingLinks
+              ? 10
+              : listedDates
+                ? 9
+                : gitlabObservations
+                  ? 8
+                  : listings.some((listing) => listing.compatibility !== undefined)
+                    ? 7
+                    : guideReferences
+                      ? 6
+                      : extendedMedia
+                        ? 5
+                        : listings.some(
+                              (listing) =>
+                                listing.upstream_observation !== undefined ||
+                                listing.availability_override_reason !== undefined ||
+                                "release_maintenance" in listing,
+                            )
+                          ? 4
+                          : listings.some(
+                                (listing) =>
+                                  listing.original_game !== undefined ||
+                                  (Array.isArray(listing.media) && listing.media.length > 0),
+                              )
+                            ? 3
+                            : listings.some(
+                                  (listing) => listingDownloadBlockReason(listing) !== undefined,
+                                )
+                              ? 2
+                              : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

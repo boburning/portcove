@@ -108,7 +108,7 @@ import { Tooltip } from "./ui/tooltip";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
-import { scrollWorkspaceTo, workspaceScrollTop } from "../workspace-scroll";
+import { revealSettingsHeading } from "../features/app-shell/focus-settings-target";
 import { SteamBatchEntryDialog, SteamEntryDialog } from "./SteamEntry";
 import { LanguageSettings } from "./LanguageSettings";
 import {
@@ -501,6 +501,7 @@ export function StatusLayer({
   operation,
   busy,
   featureNotices,
+  scanResultAnnouncement,
   invocations,
   operationEvents,
   dismissInvocation,
@@ -508,6 +509,7 @@ export function StatusLayer({
   preparationRecovery,
   readyToPlay,
   openInstalledGame,
+  openExternalGame,
   completedActivityAvailable,
   onActivity = false,
 }: {
@@ -520,6 +522,7 @@ export function StatusLayer({
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   featureNotices?: ReactNode;
+  scanResultAnnouncement?: string | undefined;
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
@@ -528,6 +531,7 @@ export function StatusLayer({
   /** Returns Play only when current readback reports the record's port launchable. */
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
   openInstalledGame?: (record: InvocationRecord) => (() => void) | undefined;
+  openExternalGame?: (record: InvocationRecord) => (() => void) | undefined;
   completedActivityAvailable?: (id: string) => boolean;
 }) {
   const { t } = useAppTranslation("common");
@@ -540,6 +544,7 @@ export function StatusLayer({
         record.phase !== "settled" ||
         record.outcome !== "succeeded" ||
         record.installed ||
+        record.externalRegistration ||
         invocationFailure(record) !== undefined ||
         acknowledgedSuccess.current.has(record.id)
       )
@@ -553,6 +558,7 @@ export function StatusLayer({
     <>
       {invocations && (
         <InvocationAnnouncements
+          scanResult={scanResultAnnouncement}
           messages={[...invocations.values()].flatMap((record) => {
             const text = invocationAnnouncement(record, operationEvents, (game) =>
               t("launchRequestAccepted", { game }),
@@ -572,6 +578,7 @@ export function StatusLayer({
                 record.phase === "settled" &&
                 invocationFailure(record) === undefined &&
                 !record.installed &&
+                !record.externalRegistration &&
                 // A successful launch needs no visible message; the game itself is the result.
                 (record.id !== latestSuccess ||
                   (record.context.operation === "launch" && record.outcome === "succeeded"))
@@ -604,6 +611,7 @@ export function StatusLayer({
                   latestSuccess={latestSuccess}
                   readyToPlay={readyToPlay}
                   openInstalledGame={openInstalledGame}
+                  openExternalGame={openExternalGame}
                   completedActivityAvailable={completedActivityAvailable}
                   dismissInvocation={dismissInvocation}
                   openActivity={openActivity}
@@ -1888,6 +1896,7 @@ export function SettingsView(props: SettingsViewProps) {
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={`recovery-${generation}`}
+        generation={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}
@@ -2215,7 +2224,7 @@ export function LibrarySelectionCard({
     setPending(true);
     try {
       const path = await choose?.(selection?.root ?? "");
-      if (path && path !== selection?.root) {
+      if (path) {
         focusReturn.current = "switch";
         setReview({ kind: "switch", path });
       }
@@ -2256,6 +2265,7 @@ export function LibrarySelectionCard({
       setReview(undefined);
     }
   };
+  const saveCurrent = review?.kind === "switch" && review.path === selection?.root;
   const source =
     selection?.source === "saved"
       ? "Saved library"
@@ -2321,15 +2331,21 @@ export function LibrarySelectionCard({
             aria-describedby="library-selection-review-description"
           >
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
-              {review.kind === "switch" ? "Switch libraries?" : "Open the default library?"}
+              {saveCurrent
+                ? "Save this library for startup?"
+                : review.kind === "switch"
+                  ? "Switch libraries?"
+                  : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
               className="mb-4 leading-relaxed"
             >
-              {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
-                : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
+              {saveCurrent
+                ? "Portcove will keep this library open and save it for future launches. Its files and install locations stay in place."
+                : review.kind === "switch"
+                  ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
+                  : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
             <DialogFooter className="mt-4">
@@ -2341,11 +2357,15 @@ export function LibrarySelectionCard({
                   void applyReview();
                 }}
               >
-                {pending
-                  ? "Switching…"
-                  : review.kind === "switch"
-                    ? "Switch library"
-                    : "Open default library"}
+                {saveCurrent
+                  ? pending
+                    ? "Saving…"
+                    : "Save startup choice"
+                  : pending
+                    ? "Switching…"
+                    : review.kind === "switch"
+                      ? "Switch library"
+                      : "Open default library"}
               </Button>
               <Button
                 data-focusable
@@ -2702,32 +2722,6 @@ function StorageCard({
   );
 }
 
-function revealSettingsHeading(targetId: string) {
-  window.requestAnimationFrame(() => {
-    const heading = document.getElementById(targetId);
-    if (!heading || heading.closest("[hidden]")) return;
-    heading.focus({ preventScroll: true });
-    heading.scrollIntoView({ block: "nearest", inline: "nearest" });
-    const navigation = heading
-      .closest(".settings-grid")
-      ?.querySelector<HTMLElement>(".settings-section-index");
-    const workspace = heading.closest<HTMLElement>('[data-focus-region="workspace"]');
-    if (!navigation || !workspace || getComputedStyle(navigation).position !== "sticky") return;
-    const target = heading.getBoundingClientRect();
-    const strip = navigation.getBoundingClientRect();
-    // Wide category navigation sits beside the heading. Only a sticky strip
-    // above the same reading column can cover its focus outline.
-    if (target.left >= strip.right || target.right <= strip.left) return;
-    const focusStyle = getComputedStyle(heading);
-    const outlineRoom =
-      Math.max(0, Number.parseFloat(focusStyle.outlineWidth)) +
-      Math.max(0, Number.parseFloat(focusStyle.outlineOffset));
-    const covered = strip.bottom + outlineRoom - target.top;
-    if (covered > 0 && strip.top < target.bottom)
-      scrollWorkspaceTo(workspace, workspaceScrollTop(workspace) - covered);
-  });
-}
-
 function sourceInspectionMessage(read: SourceInspectionReadState | undefined) {
   return read?.status === "idle"
     ? "Check this file to see its current identity and compatibility."
@@ -2791,6 +2785,7 @@ function SettledInvocation({
   latestSuccess,
   readyToPlay,
   openInstalledGame,
+  openExternalGame,
   completedActivityAvailable,
   dismissInvocation,
   openActivity,
@@ -2800,24 +2795,29 @@ function SettledInvocation({
   latestSuccess: number | undefined;
   readyToPlay: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   openInstalledGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
+  openExternalGame: ((record: InvocationRecord) => (() => void) | undefined) | undefined;
   completedActivityAvailable: ((id: string) => boolean) | undefined;
   dismissInvocation: ((id: number) => void) | undefined;
   openActivity: ((id?: string, section?: "history") => void) | undefined;
   onActivity: boolean;
 }) {
-  if (record.outcome === "succeeded" && record.installed) {
-    const openGame = openInstalledGame?.(record);
+  if (record.outcome === "succeeded" && (record.installed || record.externalRegistration)) {
+    const registration = record.externalRegistration;
+    const openGame = registration ? openExternalGame?.(record) : openInstalledGame?.(record);
+    const origin = (registration ? "external-result:" : "install-result:") + record.id;
     const activityId = record.context.activityId;
     return (
       <Notice intent="success" className="mb-0 items-center">
         <p data-slot="notice-body">
-          Installed {record.context.target.label} · {record.installed.version}
+          {registration
+            ? "Saved external launch details for " + record.context.target.label
+            : "Installed " + record.context.target.label + " · " + record.installed?.version}
         </p>
         <div data-slot="notice-actions">
           {openGame && (
             <Button
               data-focusable
-              data-detail-origin={`install-result:${record.id}`}
+              data-detail-origin={origin}
               variant="primary"
               size="sm"
               onClick={openGame}

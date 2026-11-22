@@ -182,10 +182,12 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         ("n64-recomp-portable", 8),
         ("n64-recomp-portable", 9),
         ("n64-recomp-portable", 10),
+        ("n64-recomp-portable", 11),
         ("psx-recomp-managed", 2),
         ("psx-recomp-managed", 3),
         ("psx-recomp-managed", 4),
         ("psx-recomp-managed", 5),
+        ("psx-recomp-managed", 6),
         ("native-portable", 2),
         ("native-portable", 3),
         ("native-portable", 4),
@@ -523,6 +525,11 @@ fn listing_delivery_is_negotiable_and_cannot_provision_an_incoming_authority() {
     let core = portcove_core::Library::open(&library).unwrap();
     let before = core.review_definition_authority().unwrap();
     let capabilities = json_stdout(&portcove(&library, &["--json", "capabilities"]));
+    // Format 15 carries typed acquisition restrictions; signed delivery stays older.
+    assert_eq!(
+        capabilities["data"]["listing_formats"],
+        serde_json::json!([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+    );
     let commands = capabilities["data"]["commands"].as_array().unwrap();
     assert!(
         commands

@@ -70,6 +70,7 @@ fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("shipwright").unwrap().clone();
     port.upstream_active_reviewed = true;
+    port.mod_loader = None;
     let binding = crate::ModProviderBinding::Gamebanana { game_id: 32001 };
     port.mod_provider_bindings = Some(vec![binding.clone()]);
     let version = crate::provider_binding::LIBULTRASHIP_BINDING_CAPABILITY;
@@ -100,6 +101,30 @@ fn upstream_review_and_mod_provider_scopes_require_both_reader_gates() {
                     accepted.port().mod_provider_bindings.as_deref(),
                     Some(std::slice::from_ref(&binding))
                 );
+            }
+        }
+    }
+}
+
+#[test]
+fn authored_mod_loaders_are_fenced_for_current_and_retained_entries() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog.port("shipwright").unwrap().clone();
+    // Isolate the loader schema fence from the separate provider capability.
+    port.mod_provider_bindings = None;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if schema == 3 {
+                assert_eq!(result.unwrap().port().mod_loader, port.mod_loader);
+            } else {
+                assert!(result.unwrap_err().message.contains("definition schema 3"));
             }
         }
     }
@@ -1097,6 +1122,7 @@ fn libultraship_windows_paths_require_the_owning_v2_template() {
 fn shipwright_working_directory_persistence_requires_the_v3_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("shipwright").unwrap().clone();
+    port.mod_provider_bindings = None;
     port.source_profile = None;
     port.presentation = None;
     let mut entry = entry_for_port(&port);
@@ -1446,17 +1472,20 @@ fn catalog_fixture() -> Value {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = &catalog.ports()[0];
     let mut entry = entry_for_port(port);
-    if port.windows_shipwright_persistence {
-        entry["required_capabilities"][0]["minimum_version"] = json!(3);
-        entry["required_capabilities"][0]["maximum_version"] = json!(3);
-    }
+    let minimum = if port.windows_shipwright_persistence {
+        3
+    } else {
+        1
+    };
+    entry["required_capabilities"] =
+        json!(crate::test_fixture::definition_requirements(port, minimum));
     entry
 }
 
 fn entry_for_port(port: &crate::PortDefinition) -> Value {
     let contract = target(b"{}");
     json!({
-        "definition_schema": 1, "namespace": "official", "stable_id": port.id,
+        "definition_schema": if port.mod_loader.is_some() { 3 } else { 1 }, "namespace": "official", "stable_id": port.id,
         "revision": 1, "required_capabilities": [{"template":port.adapter,"minimum_version":1,"maximum_version":1}],
         "port": port, "source_contracts": [], "execution_contract": contract,
         "persistence_contract": contract, "artifact_bindings": [], "evidence_references": []
@@ -1518,6 +1547,49 @@ fn exact_exclusions_require_version_35_in_fresh_and_retained_readers() {
     );
     entry["required_capabilities"][0]["minimum_version"] = json!(35);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn managed_psx_exact_exclusions_require_version_six_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .port("alexbeav-vampire-hunter-d-recomp")
+        .unwrap()
+        .clone();
+    port.managed_acquisition_hold = catalog
+        .port("super-metroid-recomp")
+        .unwrap()
+        .managed_acquisition_hold
+        .clone();
+    let mut entry = entry_for_port(&port);
+    let requirement = &mut entry["required_capabilities"][0];
+    requirement["minimum_version"] = json!(5);
+    requirement["maximum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("psx-recomp-managed capability version 6")
+    );
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("psx-recomp-managed capability version 6")
+    );
+
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
 }
 
 fn target(bytes: &[u8]) -> String {
@@ -1599,6 +1671,9 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(6);
     entry["required_capabilities"][0]["maximum_version"] = json!(6);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    entry["required_capabilities"][0]["maximum_version"] = json!(7);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.
@@ -1830,12 +1905,15 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
         value["stable_id"] = json!(port.id);
+        value["definition_schema"] = json!(if port.mod_loader.is_some() { 3 } else { 1 });
         value["port"] = serde_json::to_value(port).unwrap();
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        let version = if let Some((_, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(port)
+        {
+            minimum
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; keep it first.
             33
@@ -2070,7 +2148,7 @@ fn entry_schema_and_exact_index_identity_are_independent_checks() {
     let baseline = fixture();
     let stable_id = baseline["stable_id"].as_str().unwrap();
     for (key, changed) in [
-        ("definition_schema", json!(3)),
+        ("definition_schema", json!(4)),
         ("namespace", json!("community")),
         ("stable_id", json!("different-port")),
         ("revision", json!(2)),
@@ -2178,11 +2256,24 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
-    value["port"]["persistent_paths"] = json!(["../outside"]);
+    let port = value["port"].as_object_mut().unwrap();
+    // Exercise generic persistence validation rather than the earlier loader fence.
+    port.remove("mod_loader");
+    port.remove("mod_provider_bindings");
+    // Keep the fixture's authored settings targets in the persistence contract.
+    port.get_mut("persistent_paths")
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+        .push(json!("../outside"));
     let inspected = inspect(&value).unwrap();
     let mut catalog = crate::Catalog::embedded().unwrap().authoritative_document();
     catalog.ports[0] = inspected.port().clone();
-    assert!(crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).is_err());
+    let error = crate::Catalog::from_json(&serde_json::to_string(&catalog).unwrap()).unwrap_err();
+    assert!(
+        error.message.contains("unsafe persistent path: ../outside"),
+        "{error}"
+    );
 }
 
 #[test]

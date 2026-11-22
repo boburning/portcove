@@ -378,8 +378,10 @@ export default interface Resources {
       "unavailable": "These filter results are unavailable. Return to Filters to update your choices or check again."
     },
     "media": {
+      "availableScreenshots": "Available screenshots",
       "captionUnavailable": "<caption/> · Image unavailable",
       "choose": "Choose a screenshot",
+      "chooseRelease": "Choose an original release",
       "creditOriginal": "Original release · <edition/> · <credit/>",
       "creditPort": "Port image · <credit/>",
       "enlarge": "Enlarge screenshot {{number, number}}: {{caption}}",
@@ -394,6 +396,7 @@ export default interface Resources {
       "previous": "Previous",
       "retry": "Retry image",
       "retryScreenshot": "Retry screenshot {{number, number}}",
+      "screenshotSource": "Screenshot source",
       "screenshots": "Screenshots",
       "show": "Show screenshot {{number, number}}: {{caption}}",
       "source": "Source",
@@ -499,6 +502,7 @@ export default interface Resources {
       "noticePublisherTrusted": "Publisher trusted.",
       "noticeUpdateApplied": "Catalog update applied.",
       "originBuiltIn": "Built-in catalog",
+      "originDefinitionSelected": "Using selected catalog definitions",
       "originSigned": "Signed catalog · version {{version}}",
       "originSignedPrevious": "Signed catalog · version {{version}} · using the previous valid update",
       "planDetailsLabel": "Technical details for catalog update sequence {{sequence}}",
@@ -872,6 +876,17 @@ export default interface Resources {
       "overview": "Overview",
       "saves": "Saves & backups",
       "versions": "Versions & updates"
+    },
+    "withdrawal": {
+      "installedBadge": "Installed release withdrawn",
+      "installedNext": "You can keep your installed copy and its saves.",
+      "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+      "label": "Withdrawn release",
+      "recommendedBadge": "Recommended release withdrawn",
+      "recommendedNext": "Wait for a compatible release or review the available versions.",
+      "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
+      "rollback": "Review rollback",
+      "versions": "View versions"
     }
   },
   "gameFiles": {
@@ -899,7 +914,7 @@ export default interface Resources {
       "additionalCatalog": "Additional restored filters remain active. Reset catalog filters to remove them.",
       "additionalLibrary": "Additional restored filters remain active. Reset library filters to remove them.",
       "additionalNote": "Additional restored filters are active; open Filters to review or reset them.",
-      "advanced": "Advanced filters",
+      "advanced": "More filters",
       "advancedNote": "Setup and installation filters must all match the same way of installing or setting up a game. Projects with unknown facts aren’t counted as matches.",
       "all": "All",
       "chip": "{{group}}: {{value}}",
@@ -910,6 +925,7 @@ export default interface Resources {
       "group": {
         "attention": "Installation attention",
         "channels": "Update channels",
+        "device": "Device eligibility",
         "gameFiles": "Game files",
         "installationMethods": "Setup methods",
         "membership": "Library membership",
@@ -924,10 +940,11 @@ export default interface Resources {
         "attention": "Recorded needs for the current installation. Unavailable details remain unknown.",
         "gameFiles": "Uses the same setup or installation as your other filters. Changed or unreadable files need checking; they are not counted as missing.",
         "membership": "Includes managed installations, registered runtimes and downloads awaiting setup. Membership does not imply readiness.",
-        "platforms": "Package targets, not tested device compatibility. Available for this device uses this PC’s platform; Intel and Apple silicon remain distinct.",
+        "platforms": "These options use declared package targets. Available for this device uses your current platform. The results can match it or another selected platform.",
         "updates": "Uses the current installation’s last check and matching verified staged update. Choosing a filter does not check for updates."
       },
       "howBody": "Choose one or more options. Results match at least one option in each selected group.",
+      "howPlatformBody": "Device eligibility and Runs on count as one platform group.",
       "howSummary": "How filters work",
       "needsContextCatalog": "These restored filters need unavailable local context. Reset catalog filters to choose a supported query.",
       "needsContextLibrary": "These restored filters need unavailable local context. Reset library filters to choose a supported query.",
@@ -1085,6 +1102,20 @@ export default interface Resources {
       "managedInstall": "Managed setup",
       "managedLaunch": "Managed launch"
     },
+    "savedScan": {
+      "checking": "Checking the saved scan…",
+      "dismiss": "Dismiss scan result",
+      "failed": "Portcove could not check this scan.",
+      "heading": "Saved folder scan",
+      "label": "Saved folder scan result",
+      "partial": "Partial scan results saved.",
+      "progress": "Saved scan progress.",
+      "retry": "Retry checking this scan",
+      "review": "Review saved scan",
+      "saved": "Saved folder scan results.",
+      "showCurrent": "Show current folder results",
+      "unavailable": "This scan is no longer available with its original results and settings."
+    },
     "setupReviews": {
       "add": "Add {{total}} selected to Library",
       "choiceNote_one": "One game has more than one version that can use the same files. Select the version you want; selecting all leaves them out.",
@@ -1208,6 +1239,25 @@ export default interface Resources {
       "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
       "reset": "Reset to default…",
       "review": "Review change"
+    },
+    "jakMods": {
+      "browse": "Browse JakMods",
+      "builds": "Versions and platform builds",
+      "downloads": "Downloads for this file: {{value}}",
+      "empty": "No matching projects in this catalog.",
+      "external": "This project is available on its own website.",
+      "feed": "Add this community source in the OpenGOAL Launcher’s Mods settings: {{url}}",
+      "games": "Games: {{games}}",
+      "loading": "Loading JakMods…",
+      "ownership": "JakMods is a community catalog. The OpenGOAL Launcher installs and updates its mod packages.",
+      "partial": "Some projects could not be read.",
+      "refresh": "Refresh JakMods",
+      "search": "Find a mod",
+      "setup": "Set up JakMods in the OpenGOAL Launcher",
+      "source": "Visit project website",
+      "standalone": "Standalone OpenGOAL build",
+      "unavailable": "This project has no listed build for this platform.",
+      "unknown": "The source does not confirm a compatible build."
     },
     "mods": {
       "add": "Add mod file…",
@@ -2286,11 +2336,16 @@ export default interface Resources {
       "open": "Restore from a library copy",
       "plan": "Library restore plan",
       "recovery": {
+        "bundleIntro": "Finish checking and restoring the bundle before opening the library.",
+        "bundleRestored": "The library has been restored. Open it when you're ready.",
+        "bundleResume": "Resume bundle restore",
+        "bundleUnknown": "Portcove could not confirm this bundle restore.",
         "busy": "Recovering the library restore…",
         "destination": "Restore destination: <path />",
         "heading": "Finish the interrupted library restore",
         "intro": "Resume the restore to verify and finish opening the copied library. The Portcove export stays unchanged. Incomplete copies remain closed until recovery succeeds.",
         "label": "Library restore recovery",
+        "open": "Open restored library",
         "resume": "Resume restore"
       },
       "restore": "Restore this library",

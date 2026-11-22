@@ -42,15 +42,10 @@ const fixedGroups = [
   { key: "attention" },
 ] as const;
 type Group = (typeof fixedGroups)[number]["key"] | "originalSystems";
-const commonGroups: readonly Group[] = [
-  "platforms",
-  "originalSystems",
-  "channels",
-  "portOptions",
-  "membership",
-  "gameFiles",
-];
-const libraryPrimaryGroups: readonly Group[] = ["platforms", "originalSystems", "channels"];
+const routineGroups = {
+  catalog: ["platforms", "membership", "gameFiles", "portOptions"],
+  library: ["gameFiles", "attention", "updates"],
+} as const satisfies Record<"catalog" | "library", readonly Group[]>;
 interface FilterGroup {
   key: Group;
   label: string;
@@ -178,10 +173,10 @@ export function CatalogFilters({
   before,
   after,
   summary,
-  advanced,
+  readiness,
   quickViewUpdates = false,
 }: {
-  advanced?: ReactNode;
+  readiness?: ReactNode;
   /** The Library Updates quick view owns its update selection; show no chips for it. */
   quickViewUpdates?: boolean;
   before?: ReactNode;
@@ -236,9 +231,18 @@ export function CatalogFilters({
         0,
       );
   const additional = additionalCount > 0;
-  const primaryGroups = view === "library" ? libraryPrimaryGroups : commonGroups;
+  const primaryGroups: readonly Group[] = routineGroups[view];
+  const isRoutine = (group: Group, value: string) =>
+    primaryGroups.includes(group) && (group !== "platforms" || value === "this-device");
   const hasAdvancedSelection =
-    selected.some(({ group }) => !primaryGroups.includes(group)) || additional;
+    selected.some(({ group, value }) => !isRoutine(group, value)) || additional;
+  const moreGroups = groups
+    .filter((group) => group.key === "platforms" || !primaryGroups.includes(group.key))
+    .map((group) =>
+      group.key === "platforms" && view === "catalog"
+        ? { ...group, values: group.values.filter((value) => !isRoutine(group.key, value)) }
+        : group,
+    );
   const [advancedOpen, setAdvancedOpen] = useState(hasAdvancedSelection);
   const activeCount = selected.length + additionalCount;
   const remove = (group: Group, value: string) =>
@@ -305,6 +309,7 @@ export function CatalogFilters({
                 {t("filters.howSummary")}
               </summary>
               <p>{t("filters.howBody")}</p>
+              {view === "catalog" && <p>{t("filters.howPlatformBody")}</p>}
             </details>
           </div>
           {!editable && (
@@ -324,9 +329,20 @@ export function CatalogFilters({
             </p>
           )}
           <div className="catalog-filter-groups items-start">
-            {primaryGroups
-              .map((key) => groups.find((group) => group.key === key)!)
-              .map(renderGroup)}
+            {readiness}
+            {primaryGroups.map((key) => {
+              const group = groups.find((group) => group.key === key)!;
+              return renderGroup(
+                key === "platforms"
+                  ? {
+                      ...group,
+                      label: t("filters.group.device"),
+                      values: group.values.filter((value) => isRoutine(key, value)),
+                    }
+                  : group,
+              );
+            })}
+            {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
           </div>
           <details
             className="catalog-filter-advanced"
@@ -338,9 +354,7 @@ export function CatalogFilters({
             </summary>
             <p className="text-sm text-pc-muted-foreground">{t("filters.advancedNote")}</p>
             <div className="catalog-filter-groups items-start pt-3">
-              {advanced}
-              {gameFileQuery && <GameFileFilterControls state={gameFileQuery} />}
-              {groups.filter((group) => !primaryGroups.includes(group.key)).map(renderGroup)}
+              {moreGroups.map(renderGroup)}
             </div>
           </details>
           <div className="catalog-filter-actions flex flex-wrap justify-end gap-2">
@@ -410,7 +424,9 @@ export function CatalogFilters({
   );
 
   function renderGroup(group: FilterGroup) {
-    const chosen = supported ? (query[group.key] ?? []) : [];
+    const chosen = supported
+      ? group.values.filter((value) => query[group.key]?.includes(value))
+      : [];
     const help: Partial<Record<Group, string>> = {
       platforms: t("filters.help.platforms"),
       membership: t("filters.help.membership"),

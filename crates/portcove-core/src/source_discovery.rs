@@ -617,19 +617,10 @@ impl PortcoveService {
                         expected_payload.as_deref(),
                         &matches,
                     )?;
-                    if finish_scan_id.is_some() {
-                        emit_saved_scan_checkpoint(&operation, &snapshot, emit);
-                        // This exact snapshot was committed. A new scan may
-                        // already have replaced the shared latest pointer.
-                        return Ok(snapshot);
-                    }
-                    return current_game_file_scan(self.catalog(), self.library())?.ok_or_else(
-                        || {
-                            PortcoveError::state(
-                                "game-file scan snapshot disappeared after publication",
-                            )
-                        },
-                    );
+                    emit_saved_scan_checkpoint(&operation, &snapshot, emit);
+                    // Report the snapshot committed by this invocation. The latest
+                    // pointer can already belong to another scan.
+                    return Ok(snapshot);
                 }
                 previous_checkpoint = Some(self.library().publish_game_file_scan_checkpoint(
                     &snapshot,

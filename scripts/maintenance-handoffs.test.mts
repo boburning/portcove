@@ -63,6 +63,10 @@ void test("every attention kind has one disabled registry entry with an exact re
     handoffRegistry.filter(({ authority }) => authority === "owner-only").map(({ kind }) => kind),
     ["release-health-relocation", "hosted-intake-blocked", "hosted-intake-holds"],
   );
+  const blocked = handoffEntry("hosted-intake-blocked")!;
+  assert.match(blocked.action, /daily maintenance schedule resumes verified pending final audits/u);
+  assert.match(blocked.resume_condition, /pending receipt and durable checkpoint must agree/u);
+  assert.equal(blocked.dispatch, "disabled");
   assert.ok(!handoffRegistry.some(({ kind }) => kind.includes("publication")));
   assert.deepEqual(
     withoutHandoff.map(([source]) => source),
@@ -377,7 +381,7 @@ void test("release-content findings and uninspected packages become routine hand
   assert.equal(entry.source, "release-content");
   assert.equal(entry.authority, "routine");
   assert.equal(entry.workflow?.trigger, "schedule");
-  assert.match(entry.action, /download_block_reason/u);
+  assert.match(entry.action, /download hold to the listing's restrictions/u);
   assert.match(entry.action, /never writes a hold/u);
   assert.match(entry.action, /inspects manually any package the scan could not read/u);
   assert.match(
@@ -706,7 +710,7 @@ void test("release-content guidance follows what the handoff holds", () => {
     moved.action,
     /relocation evidence \(upstream-relocation-evidence\.yml\) and any rename are owner-only and follow the port's release-health-relocation handoff and its authority/u,
   );
-  assert.doesNotMatch(moved.action, /download_block_reason/u);
+  assert.doesNotMatch(moved.action, /download hold to the listing's restrictions/u);
   assert.match(
     moved.invocation,
     /^confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff/u,

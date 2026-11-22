@@ -49,7 +49,16 @@
         }
       ]
     },
-    "download_block_reason": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Fresh bundled-package acquisition remains held for the explicitly excluded upstream decompilation and Konami game/data scope, including the bundled European translation texts. The MIT PC-layer grant does not settle those named components. Resume only with applicable permissions for the exact components or a reviewed compatible package resolving that scope. A conditional independently permitted existing-copy route does not clear this hold.",
+        "tracking_issue": 1910
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "yu-gi-oh-forbidden-memories",

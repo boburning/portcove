@@ -5,10 +5,12 @@ import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { LibraryImportButton } from "./LibraryImport";
 import { LibraryMoveButton } from "./LibraryMove";
+import { LibraryRecoveryBundleControls } from "./LibraryRecoveryBundle";
 import { SettingsRow } from "./ui/patterns";
 
 export function LibraryRecovery({
   libraryRoot,
+  generation,
   busy,
   ports,
   statuses,
@@ -17,6 +19,7 @@ export function LibraryRecovery({
   onReviewSaves,
 }: {
   libraryRoot: string;
+  generation: number;
   busy?: string | undefined;
   ports: PortDefinition[];
   statuses: ReadonlyMap<string, PortStatus>;
@@ -43,8 +46,12 @@ export function LibraryRecovery({
     <SettingsRow className="library-recovery min-w-0 wrap-anywhere" data-focus-group>
       <h2>Recovery copies and library location</h2>
       <p>
-        Keep a manual recovery copy, restore a checked copy, or change where this library is stored.
+        Keep a verified recovery bundle, restore a copy, or change where this library is stored.
       </p>
+      <LibraryRecoveryBundleControls
+        generation={generation}
+        disabled={Boolean(busy) || preparing || !libraryRoot}
+      />
       <section className="mt-6 grid justify-items-start gap-3">
         <h3>Library information export</h3>
         <p>
