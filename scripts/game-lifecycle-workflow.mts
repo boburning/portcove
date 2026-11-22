@@ -117,22 +117,19 @@ export async function executeGameLifecycleWorkflow(
   const job_id = String(original.id);
   await mkdir(directory, { mode: 0o700 });
   const environment: NodeJS.ProcessEnv = {};
-  for (const name of [
-    "PATH",
-    "SystemRoot",
-    "WINDIR",
-    "PATHEXT",
-    "COMSPEC",
-    "TEMP",
-    "TMP",
-    "APPDATA",
-    "LOCALAPPDATA",
-    "USERPROFILE",
-    "PORTCOVE_PREFERENCES",
-  ]) {
+  for (const name of ["PATH", "SystemRoot", "WINDIR", "PATHEXT", "COMSPEC"]) {
     if (provisioned.environment[name] !== undefined)
       environment[name] = provisioned.environment[name];
   }
+  const runtime = path.join(directory, "runtime-private");
+  await mkdir(runtime, { mode: 0o700 });
+  for (const name of ["TEMP", "APPDATA", "LOCALAPPDATA", "USERPROFILE"] as const) {
+    const privatePath = path.join(runtime, name.toLowerCase());
+    await mkdir(privatePath, { mode: 0o700 });
+    environment[name] = privatePath;
+  }
+  environment.TMP = environment.TEMP;
+  environment.PORTCOVE_PREFERENCES = path.join(runtime, "preferences.json");
   await runMaterializedGameLifecycle(
     {
       ...identity,

@@ -89,7 +89,7 @@ export async function launchAndCloseVerifiedWindowsGame(
         "-Command",
         `(Get-Process -Id ${owner} -ErrorAction Stop).StartTime.ToFileTimeUtc()`,
       ],
-      { timeout: 5000, maxBuffer: 1024, windowsHide: true },
+      { timeout: 5000, maxBuffer: 1024, windowsHide: true, env: environment },
     );
     if (!/^\d{1,20}$/u.test(filetime.trim()))
       throw new Error("Core launch owner has no creation identity");
@@ -114,7 +114,7 @@ export async function launchAndCloseVerifiedWindowsGame(
         "-SnapshotPath",
         snapshot,
       ],
-      { timeout: 55000, maxBuffer: 32 * 1024, windowsHide: true },
+      { timeout: 55000, maxBuffer: 32 * 1024, windowsHide: true, env: environment },
     );
     const result: unknown = JSON.parse(stdout);
     if (
