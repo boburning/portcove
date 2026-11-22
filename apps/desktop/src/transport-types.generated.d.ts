@@ -7224,9 +7224,11 @@ export interface OutputUpstreamObservationReport {
   projections: ChannelObservation[];
   /**
    * Typed role and host facts for each release a projection observed
-   * (latest observed, channel candidate or eligible), in provider order.
+   * (latest observed, channel candidate, reviewed fallback or eligible), in
+   * provider order. A consumer checks each fact's `source` before treating
+   * its role as authorized.
    */
-  release_facts: ObservedReleaseFacts[];
+  release_facts?: ObservedReleaseFacts[];
   repository_id: number;
   [k: string]: unknown;
 }
@@ -7267,6 +7269,11 @@ export interface ChannelObservation {
   latest_eligible: ObservedResolution | null;
   latest_observed: ObservedReleaseIdentity | null;
   platform: Platform;
+  /**
+   * The reviewed release that replaces an excluded channel candidate. Its
+   * assets are needed to project it, like the candidate's.
+   */
+  reviewed_fallback?: ObservedReleaseIdentity | null;
   /**
    * Typed holds beside the stable `hold_reasons` strings.
    */

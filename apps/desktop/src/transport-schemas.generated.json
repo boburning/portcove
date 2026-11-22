@@ -80282,6 +80282,17 @@
           "platform": {
             "$ref": "#/$defs/Platform"
           },
+          "reviewed_fallback": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedReleaseIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reviewed release that replaces an excluded channel candidate. Its\nassets are needed to project it, like the candidate's."
+          },
           "route_holds": {
             "description": "Typed holds beside the stable `hold_reasons` strings.",
             "items": {
@@ -80918,7 +80929,7 @@
         "type": "array"
       },
       "release_facts": {
-        "description": "Typed role and host facts for each release a projection observed\n(latest observed, channel candidate or eligible), in provider order.",
+        "description": "Typed role and host facts for each release a projection observed\n(latest observed, channel candidate, reviewed fallback or eligible), in\nprovider order. A consumer checks each fact's `source` before treating\nits role as authorized.",
         "items": {
           "$ref": "#/$defs/ObservedReleaseFacts"
         },
@@ -80942,7 +80953,6 @@
       "eligibility_scope",
       "evidence",
       "projections",
-      "release_facts",
       "fact_provenance"
     ],
     "title": "UpstreamObservationReport",
