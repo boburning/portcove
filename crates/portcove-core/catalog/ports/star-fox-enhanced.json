@@ -31,6 +31,10 @@
         {
           "title": "Set up a separate Mac or Android copy",
           "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+        },
+        {
+          "title": "Add a prepared Windows or Linux copy to Portcove",
+          "instruction": "After the permitted copy accepts your own matching original, choose Use an existing installation. Select starfox_pc.exe on Windows or starfox_pc on Linux and its containing folder. Choose Play separately. Use the upstream player to manage its updates and keep your external save and settings files. Removing the registration leaves the external files in place. If Portcove already manages a Star Fox Enhanced installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
         }
       ],
       "references": [

@@ -36841,6 +36841,10 @@
             {
               "title": "Set up a separate Mac or Android copy",
               "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+            },
+            {
+              "title": "Add a prepared Windows or Linux copy to Portcove",
+              "instruction": "After the permitted copy accepts your own matching original, choose Use an existing installation. Select starfox_pc.exe on Windows or starfox_pc on Linux and its containing folder. Choose Play separately. Use the upstream player to manage its updates and keep your external save and settings files. Removing the registration leaves the external files in place. If Portcove already manages a Star Fox Enhanced installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
             }
           ],
           "references": [
@@ -37331,7 +37335,7 @@
             },
             {
               "title": "Keep the creating installation and data",
-              "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only."
+              "instruction": "Close the game and launcher before copying their data. On Linux preserve the installed folder, including saves, and the active settings location, either its config directory or open-nectar under XDG_CONFIG_HOME (usually ~/.config). On Android retain the actual chosen data folder and use the upstream export for memory cards. The card ZIP covers the cards only. After Pikmin setup completes on a supported desktop, choose Use an existing installation. Select the prepared copy's native nectar-launcher.exe on Windows or nectar-launcher on Linux or Mac and its containing folder. Use that launcher's Pikmin Play control. The launcher owns game preparation and updates. Use the Android launcher directly on Android. Removing the registration leaves the external files in place."
             }
           ],
           "warnings": [
@@ -37675,6 +37679,10 @@
             {
               "title": "Use a separate reviewed Windows v1.8.3 copy",
               "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+            },
+            {
+              "title": "Add your F-Zero v1.8.3 copy to Portcove",
+              "instruction": "After the v1.8.3 game accepts your original, choose Use an existing installation. Select FZeroSNESRecomp.exe and its containing folder. Play is separate from registration. Keep this external copy, your original and its data under your control. Removing the registration leaves the external files in place. If Portcove already manages an F-Zero installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
             }
           ],
           "references": [
