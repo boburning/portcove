@@ -1043,7 +1043,7 @@ it.each([
     await versions.click();
     const panel = page.getByRole("tabpanel", { name: "Versions & updates", exact: true });
     await expect.element(panel).toBeVisible();
-    await expect.element(panel).toHaveTextContent(expected);
+    await expect.element(panel).toMatchTextContent(expected);
     await expect
       .element(panel.getByRole("link", { name: "Open upstream project" }))
       .toHaveAttribute("href", port.project_url);
