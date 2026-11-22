@@ -1,12 +1,28 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import {
+  applyHandoffEvent,
+  contractOperationErrors,
+  emptyHandoffModel,
+  handoffContracts,
+  handoffContractVersion,
+  handoffOperationKey,
+  handoffWakes,
+  registryExecutorPolicy,
+  type ContractOperation,
+  type GenerationFence,
+  type HandoffEvent,
+  type HandoffKind,
+  type HandoffModel,
+  type HandoffObservation,
+  type RoutineExecutorPlan,
   disabledCapabilities,
   handoffEntry,
   handoffGuidance,
@@ -759,4 +775,576 @@ void test("release-content guidance follows what the handoff holds", () => {
     resume_condition: entry.resume_condition,
     receipt: entry.receipt,
   });
+});
+
+const digest = (label: string) => createHash("sha256").update(label).digest("hex");
+const fenceAt = (sequence: number, overrides: Partial<GenerationFence> = {}): GenerationFence => ({
+  sequence,
+  assessment_id: 100 + sequence,
+  source_generation: `run-${sequence}`,
+  policy_generation: "maintenance-handoffs/1",
+  ...overrides,
+});
+const observe = (
+  kind: HandoffKind,
+  fence: GenerationFence,
+  condition = "a",
+  state: HandoffObservation["state"] = "needs-attention",
+): HandoffObservation => ({
+  state,
+  deciding: {
+    kind,
+    subject_key: handoffSubject(kind, "port:example"),
+    input_digest: digest(condition),
+  },
+  fence,
+});
+const modelled = { dispatch: "modelled" } as const;
+/** Applies events in order, asserting each outcome; returns the last transition. */
+function run(model: HandoffModel, events: readonly HandoffEvent[]) {
+  let transition = { model, outcome: "unchanged" as string, effects: [] as readonly unknown[] };
+  for (const event of events) transition = applyHandoffEvent(transition.model, event, modelled);
+  return transition;
+}
+const routineKinds = [
+  "release-health-condition",
+  "upstream-observer-exception",
+  "release-content-finding",
+];
+
+void test("every handoff class has a valid executor contract and dispatch stays disabled", () => {
+  assert.deepEqual(
+    Object.keys(handoffContracts),
+    handoffRegistry.map(({ kind }) => kind),
+  );
+  for (const entry of handoffRegistry) {
+    const contract = handoffContracts[entry.kind];
+    assert.equal(entry.dispatch, "disabled", entry.kind);
+    assert.deepEqual(registryExecutorPolicy(entry.kind), { dispatch: "disabled" });
+    assert.equal(contract.kind, entry.kind);
+    assert.equal(contract.deciding_facts.source, entry.source, entry.kind);
+    assert.ok(
+      contract.deciding_facts.store_facts.length && contract.deciding_facts.condition_fields.length,
+    );
+    assert.ok(contract.wake.when.length >= 20 && contract.receipt.reference.length >= 20);
+    // Routine authority, and only it, has a routine plan and a lease.
+    assert.equal(contract.plan.mode === "routine", entry.authority === "routine", entry.kind);
+    assert.equal(contract.lease !== null, entry.authority === "routine", entry.kind);
+    // A valid operation of each class passes the schema; the store's limits are enforced.
+    const observation = observe(entry.kind, fenceAt(3));
+    const created = applyHandoffEvent(emptyHandoffModel(entry.kind), {
+      event_id: "o1",
+      type: "observe",
+      observation,
+    });
+    const operation = created.model.operations[0]!;
+    assert.deepEqual(contractOperationErrors(operation), [], entry.kind);
+    assert.match(operation.operation_key, /^[A-Za-z0-9._:-]{1,200}$/u);
+    const invalid: [Partial<ContractOperation> | Record<string, unknown>, string][] = [
+      [{ contract_version: "other/1" }, "contract_version"],
+      [{ operation_key: "handoff.x.k0" }, "operation_key"],
+      [{ deciding: { ...operation.deciding, input_digest: "abc" } }, "deciding.input_digest"],
+      [
+        { deciding: { ...operation.deciding, subject_key: "handoff:other:port" } },
+        "deciding.subject_key",
+      ],
+      [{ fence: { ...operation.fence, sequence: 0 } }, "fence.sequence"],
+      [{ fence: { ...operation.fence, source_generation: "" } }, "fence.source_generation"],
+      [{ state: "dispatched" }, "state"],
+      [{ checkpoint: "deploy" }, "checkpoint"],
+      [{ state: "completed" }, "receipt.state"],
+      [
+        {
+          state: "completed",
+          completed_sequence: 4,
+          receipt: { reference: "x".repeat(501), sha256: "nothex", evidence: [""] },
+        },
+        "receipt.reference",
+      ],
+    ];
+    for (const [patch, error] of invalid)
+      assert.ok(
+        contractOperationErrors({ ...operation, ...patch }).includes(error),
+        `${entry.kind}: ${error}`,
+      );
+    const leased = {
+      ...operation,
+      state: "leased",
+      lease: { holder: "maintenance-inventory.yml", acquired_at: 1, expires_at: 2, reclaims: 0 },
+    };
+    assert.equal(
+      contractOperationErrors(leased).includes("lease.owner-only"),
+      entry.authority !== "routine",
+      entry.kind,
+    );
+  }
+});
+
+void test("routine executor plans are inert data with fixed permissions and prohibitions", () => {
+  const routine = handoffRegistry.filter(({ authority }) => authority === "routine");
+  assert.deepEqual(
+    routine.map(({ kind }) => kind),
+    routineKinds,
+  );
+  for (const { kind } of routine) {
+    const plan = handoffContracts[kind].plan as RoutineExecutorPlan;
+    assert.equal(plan.mode, "routine");
+    assert.match(plan.runs_in, /existing scheduled maintenance-inventory\.yml/u);
+    assert.deepEqual(
+      plan.steps.map(({ id }) => id),
+      [
+        "read-handoff",
+        "check-fence",
+        "take-lease",
+        "gather-evidence",
+        "publish-evidence",
+        "await-receipt",
+        "record-receipt",
+      ],
+    );
+    assert.ok(plan.steps.every(({ idempotent }) => idempotent));
+    // Read-only GitHub permissions; no write scope, Project credential or AI service.
+    for (const permission of plan.permissions)
+      assert.doesNotMatch(permission, /write|project|secret/iu);
+    for (const prohibited of [
+      /merge a pull request/u,
+      /dispatch any workflow/u,
+      /Project credential/u,
+      /AI service/u,
+      /publish/u,
+      /dispatched or pull-request run as the receipt/u,
+    ])
+      assert.ok(
+        plan.never.some((rule) => prohibited.test(rule)),
+        `${kind}: ${prohibited}`,
+      );
+  }
+  for (const { kind } of handoffRegistry.filter(({ authority }) => authority !== "routine"))
+    assert.equal(handoffContracts[kind].plan.mode, "owner-intake", kind);
+  // The contract adds no workflow: every registry workflow already exists and none names the contract.
+  const workflows = path.join(repositoryRoot, ".github", "workflows");
+  for (const file of readdirSync(workflows))
+    assert.doesNotMatch(
+      readFileSync(path.join(workflows, file), "utf8"),
+      /applyHandoffEvent|handoffContracts/u,
+      file,
+    );
+});
+
+void test("the operation key is deterministic from class, subject and deciding digests", () => {
+  const first = observe("release-health-condition", fenceAt(3));
+  const reverified = observe(
+    "release-health-condition",
+    fenceAt(3, { source_generation: "run-9" }),
+  );
+  assert.equal(
+    handoffOperationKey(first.deciding, first.fence.policy_generation),
+    handoffOperationKey(reverified.deciding, reverified.fence.policy_generation),
+  );
+  for (const other of [
+    observe("release-health-condition", fenceAt(3), "b").deciding,
+    observe("release-content-finding", fenceAt(3)).deciding,
+    { ...first.deciding, subject_key: handoffSubject("release-health-condition", "port:other") },
+  ])
+    assert.notEqual(
+      handoffOperationKey(other, "maintenance-handoffs/1"),
+      handoffOperationKey(first.deciding, "maintenance-handoffs/1"),
+    );
+  assert.notEqual(
+    handoffOperationKey(first.deciding, "maintenance-handoffs/2"),
+    handoffOperationKey(first.deciding, "maintenance-handoffs/1"),
+  );
+  assert.equal(handoffContractVersion, "maintenance-handoff-contract/1");
+});
+
+void test("the registry policy refuses every executor event; owner-only classes refuse even a modelled one", () => {
+  for (const { kind, authority } of handoffRegistry) {
+    const fence = fenceAt(1);
+    const { model } = applyHandoffEvent(emptyHandoffModel(kind), {
+      event_id: "o",
+      type: "observe",
+      observation: observe(kind, fence),
+    });
+    const claim: HandoffEvent = { event_id: "c", type: "claim", holder: "job", now: 0, fence };
+    assert.equal(
+      applyHandoffEvent(model, claim).reason,
+      authority === "routine" ? "dispatch-disabled" : "owner-only",
+      kind,
+    );
+    if (authority !== "routine")
+      assert.equal(applyHandoffEvent(model, claim, modelled).reason, "owner-only", kind);
+  }
+});
+
+void test("replaying the same event or finding produces no duplicate effect", () => {
+  const kind = "upstream-observer-exception";
+  const fence = fenceAt(2);
+  const events: HandoffEvent[] = [
+    { event_id: "observe-2", type: "observe", observation: observe(kind, fence) },
+    { event_id: "claim-1", type: "claim", holder: "job-a", now: 1_000, fence },
+    {
+      event_id: "step-1",
+      type: "checkpoint",
+      holder: "job-a",
+      now: 2_000,
+      step: "gather-evidence",
+      fence,
+    },
+  ];
+  const once = run(emptyHandoffModel(kind), events);
+  for (const event of events) {
+    const replay = applyHandoffEvent(once.model, event, modelled);
+    assert.equal(replay.outcome, "duplicate", event.event_id);
+    assert.deepEqual(replay.effects, []);
+    assert.equal(replay.model, once.model);
+  }
+  // The same finding observed again under a new event id is recognized, not re-planned.
+  const again = applyHandoffEvent(
+    once.model,
+    { event_id: "observe-2b", type: "observe", observation: observe(kind, fence) },
+    modelled,
+  );
+  assert.equal(again.outcome, "unchanged");
+  assert.equal(again.model.operations.length, 1);
+  // A step already checkpointed under a new event id records nothing.
+  const step = applyHandoffEvent(
+    once.model,
+    {
+      event_id: "step-1b",
+      type: "checkpoint",
+      holder: "job-a",
+      now: 2_500,
+      step: "gather-evidence",
+      fence,
+    },
+    modelled,
+  );
+  assert.equal(step.outcome, "unchanged");
+  // Completing twice with the same receipt is a duplicate; a different receipt is refused.
+  const receipt = {
+    reference: "https://github.com/boburning/portcove/actions/runs/1",
+    sha256: digest("snapshot"),
+    evidence: [],
+  };
+  const done = run(once.model, [
+    {
+      event_id: "step-2",
+      type: "checkpoint",
+      holder: "job-a",
+      now: 3_000,
+      step: "publish-evidence",
+      fence,
+    },
+    {
+      event_id: "step-3",
+      type: "checkpoint",
+      holder: "job-a",
+      now: 3_000,
+      step: "await-receipt",
+      fence,
+    },
+    {
+      event_id: "done",
+      type: "complete",
+      holder: "job-a",
+      now: 4_000,
+      receipt,
+      fence,
+      cleared_sequence: 3,
+    },
+  ]);
+  assert.equal(done.model.operations[0]!.state, "completed");
+  assert.deepEqual(contractOperationErrors(done.model.operations[0]), []);
+  assert.equal(
+    applyHandoffEvent(
+      done.model,
+      {
+        event_id: "done",
+        type: "complete",
+        holder: "job-a",
+        now: 4_000,
+        receipt,
+        fence,
+        cleared_sequence: 3,
+      },
+      modelled,
+    ).outcome,
+    "duplicate",
+  );
+  // The same receipt delivered under a new event id records nothing.
+  const redelivered = applyHandoffEvent(
+    done.model,
+    {
+      event_id: "done-again",
+      type: "complete",
+      holder: "job-a",
+      now: 5_000,
+      receipt,
+      fence,
+      cleared_sequence: 3,
+    },
+    modelled,
+  );
+  assert.equal(redelivered.outcome, "unchanged");
+  assert.deepEqual(redelivered.effects, []);
+  assert.equal(
+    applyHandoffEvent(
+      done.model,
+      {
+        event_id: "done-2",
+        type: "complete",
+        holder: "job-a",
+        now: 4_000,
+        receipt: { ...receipt, reference: "other run" },
+        fence,
+        cleared_sequence: 3,
+      },
+      modelled,
+    ).reason,
+    "receipt-immutable",
+  );
+});
+
+void test("a handoff whose generation fence moved is refused, not applied", () => {
+  const kind = "release-health-condition";
+  const fence = fenceAt(4);
+  const leased = run(emptyHandoffModel(kind), [
+    { event_id: "o", type: "observe", observation: observe(kind, fence) },
+    { event_id: "c", type: "claim", holder: "job", now: 0, fence },
+  ]).model;
+  for (const moved of [
+    fenceAt(5, { assessment_id: fence.assessment_id, source_generation: fence.source_generation }),
+    { ...fence, assessment_id: 999 },
+    { ...fence, source_generation: "run-later" },
+    { ...fence, policy_generation: "maintenance-handoffs/2" },
+  ]) {
+    for (const event of [
+      { event_id: "x1", type: "claim", holder: "job", now: 1, fence: moved },
+      {
+        event_id: "x2",
+        type: "checkpoint",
+        holder: "job",
+        now: 1,
+        step: "gather-evidence",
+        fence: moved,
+      },
+    ] satisfies HandoffEvent[]) {
+      const refused = applyHandoffEvent(leased, event, modelled);
+      assert.equal(refused.outcome, "refused");
+      assert.equal(refused.reason, "stale-fence");
+      assert.equal(refused.model, leased);
+    }
+  }
+  // A newer verification of the same finding re-fences the operation; the old fence is then stale.
+  const newer = fenceAt(4, { source_generation: "run-5" });
+  const refenced = applyHandoffEvent(
+    leased,
+    { event_id: "o2", type: "observe", observation: observe(kind, newer) },
+    modelled,
+  );
+  assert.deepEqual(
+    refenced.effects.map(({ type }) => type),
+    ["refence"],
+  );
+  assert.equal(refenced.model.operations[0]!.operation_key, leased.operations[0]!.operation_key);
+  assert.equal(
+    applyHandoffEvent(
+      refenced.model,
+      { event_id: "s", type: "checkpoint", holder: "job", now: 1, step: "gather-evidence", fence },
+      modelled,
+    ).reason,
+    "stale-fence",
+  );
+  // A changed finding abandons the open operation and plans a new one.
+  const changed = applyHandoffEvent(
+    leased,
+    { event_id: "o3", type: "observe", observation: observe(kind, fenceAt(5), "b") },
+    modelled,
+  );
+  assert.deepEqual(
+    changed.effects.map(({ type }) => type),
+    ["abandon", "record-plan"],
+  );
+  assert.deepEqual(
+    changed.model.operations.map(({ state }) => state),
+    ["abandoned", "planned"],
+  );
+});
+
+void test("an expired lease is reclaimed exactly once and never has two holders", () => {
+  const kind = "release-content-finding";
+  const fence = fenceAt(1);
+  const ttl = handoffContracts[kind].lease!.ttl_minutes * 60_000;
+  const held = run(emptyHandoffModel(kind), [
+    { event_id: "o", type: "observe", observation: observe(kind, fence) },
+    { event_id: "a", type: "claim", holder: "job-a", now: 0, fence },
+    {
+      event_id: "a1",
+      type: "checkpoint",
+      holder: "job-a",
+      now: 10,
+      step: "gather-evidence",
+      fence,
+    },
+  ]).model;
+  // A live lease refuses another holder.
+  assert.equal(
+    applyHandoffEvent(
+      held,
+      { event_id: "b0", type: "claim", holder: "job-b", now: ttl - 1, fence },
+      modelled,
+    ).reason,
+    "leased",
+  );
+  // After expiry, the first claim reclaims and resumes after the last checkpoint.
+  const reclaim: HandoffEvent = { event_id: "b", type: "claim", holder: "job-b", now: ttl, fence };
+  const reclaimed = applyHandoffEvent(held, reclaim, modelled);
+  assert.equal(reclaimed.outcome, "applied");
+  const lease = reclaimed.model.operations[0]!.lease!;
+  assert.deepEqual([lease.holder, lease.reclaims], ["job-b", 1]);
+  assert.equal(reclaimed.model.operations[0]!.checkpoint, "gather-evidence");
+  // Replay of the reclaim, and a competing reclaim at the same moment, change nothing.
+  assert.equal(applyHandoffEvent(reclaimed.model, reclaim, modelled).outcome, "duplicate");
+  assert.equal(
+    applyHandoffEvent(
+      reclaimed.model,
+      { event_id: "c", type: "claim", holder: "job-c", now: ttl, fence },
+      modelled,
+    ).reason,
+    "leased",
+  );
+  // The former holder can no longer act.
+  assert.equal(
+    applyHandoffEvent(
+      reclaimed.model,
+      {
+        event_id: "a2",
+        type: "checkpoint",
+        holder: "job-a",
+        now: ttl + 1,
+        step: "publish-evidence",
+        fence,
+      },
+      modelled,
+    ).reason,
+    "not-holder",
+  );
+  // An expired holder cannot act either until it reclaims.
+  assert.equal(
+    applyHandoffEvent(
+      held,
+      {
+        event_id: "a3",
+        type: "checkpoint",
+        holder: "job-a",
+        now: ttl,
+        step: "publish-evidence",
+        fence,
+      },
+      modelled,
+    ).reason,
+    "lease-expired",
+  );
+  // Steps cannot be skipped.
+  assert.equal(
+    applyHandoffEvent(
+      reclaimed.model,
+      {
+        event_id: "b1",
+        type: "checkpoint",
+        holder: "job-b",
+        now: ttl + 1,
+        step: "await-receipt",
+        fence,
+      },
+      modelled,
+    ).reason,
+    "checkpoint-order",
+  );
+});
+
+void test("a completed operation re-opens only when its wake condition holds", () => {
+  const receipt = {
+    reference: "https://github.com/boburning/portcove/actions/runs/2",
+    sha256: null,
+    evidence: [],
+  };
+  const kind = "release-health-condition";
+  const fence = fenceAt(1);
+  const completed = run(emptyHandoffModel(kind), [
+    { event_id: "o", type: "observe", observation: observe(kind, fence) },
+    { event_id: "c", type: "claim", holder: "job", now: 0, fence },
+    { event_id: "s1", type: "checkpoint", holder: "job", now: 1, step: "gather-evidence", fence },
+    { event_id: "s2", type: "checkpoint", holder: "job", now: 1, step: "publish-evidence", fence },
+    { event_id: "s3", type: "checkpoint", holder: "job", now: 1, step: "await-receipt", fence },
+    // The clear the operation awaits is not an abandonment.
+    {
+      event_id: "clear",
+      type: "observe",
+      observation: observe(kind, fenceAt(2), "clear", "clear"),
+    },
+    {
+      event_id: "done",
+      type: "complete",
+      holder: "job",
+      now: 2,
+      receipt,
+      fence,
+      cleared_sequence: 2,
+    },
+  ]).model;
+  assert.equal(completed.operations.at(-1)!.state, "completed");
+  // A late replay of the deciding observation, or the clear itself, does not re-open it.
+  for (const late of [observe(kind, fence), observe(kind, fenceAt(2), "clear", "clear")]) {
+    assert.equal(handoffWakes(completed.operations[0]!, late), false);
+    const quiet = applyHandoffEvent(
+      completed,
+      { event_id: `late-${late.state}`, type: "observe", observation: late },
+      modelled,
+    );
+    assert.equal(quiet.outcome, "unchanged");
+  }
+  // The condition returning after the clear wakes it, with the same identity for the same finding.
+  const back = applyHandoffEvent(
+    completed,
+    { event_id: "back", type: "observe", observation: observe(kind, fenceAt(3)) },
+    modelled,
+  );
+  assert.deepEqual(
+    back.effects.map(({ type }) => type),
+    ["record-plan"],
+  );
+  assert.deepEqual(
+    back.model.operations.map(({ state }) => state),
+    ["completed", "planned"],
+  );
+  assert.equal(back.model.operations[1]!.operation_key, completed.operations[0]!.operation_key);
+
+  // Owner intake wakes only on a changed deciding digest, not on a later sequence of the same one.
+  const intake = observe("hosted-intake-holds", fenceAt(1));
+  const intakeDone: ContractOperation = {
+    ...applyHandoffEvent(emptyHandoffModel("hosted-intake-holds"), {
+      event_id: "o",
+      type: "observe",
+      observation: intake,
+    }).model.operations[0]!,
+    state: "completed",
+    receipt: {
+      reference: "https://github.com/boburning/portcove/issues/177#issuecomment-1",
+      sha256: digest("body"),
+      evidence: [],
+    },
+    completed_sequence: 1,
+  };
+  assert.deepEqual(contractOperationErrors(intakeDone), []);
+  assert.equal(handoffWakes(intakeDone, observe("hosted-intake-holds", fenceAt(4))), false);
+  assert.equal(handoffWakes(intakeDone, observe("hosted-intake-holds", fenceAt(4), "b")), true);
+  // A policy generation change wakes any class.
+  assert.equal(
+    handoffWakes(
+      intakeDone,
+      observe("hosted-intake-holds", fenceAt(4, { policy_generation: "maintenance-handoffs/2" })),
+    ),
+    true,
+  );
 });
