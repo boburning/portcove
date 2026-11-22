@@ -327,6 +327,35 @@ test("Windows metadata picker aliases still bind the complete owned file path", 
   assert.equal(cleanup.trustworthy, false);
 });
 
+test("different picker file names remain blocked without recording their returned paths", async () => {
+  const { call, forwarded, probe } = installed({ ...options, windowsPickerPaths: true });
+  const paths = [
+    "C:/unrelated/portcove-library.json",
+    options.metadataPath + ".json",
+    options.metadataPath.slice(0, -5),
+    options.metadataPath + '"',
+    "C:/unrelated/player-private.json",
+  ];
+  for (const path of paths)
+    assert.equal(
+      (await call("export_library_metadata", { path })).headers.get("Tauri-Response"),
+      "error",
+    );
+  assert.deepEqual(forwarded, []);
+  const cleanup = probe.restore();
+  assert.equal(cleanup.trustworthy, false);
+  assert.deepEqual(
+    [...cleanup.mismatches],
+    [
+      "export_library_metadata: metadata picker returned the default file name",
+      "export_library_metadata: metadata picker appended a second JSON extension",
+      "export_library_metadata: metadata picker removed the JSON extension",
+      "export_library_metadata: metadata picker retained a closing quote",
+      "export_library_metadata: unexpected metadata file name",
+    ],
+  );
+});
+
 test("changed identity and malformed targeted requests fail visibly and preserve bounded trace fields", async () => {
   const { window, call, forwarded, probe } = installed();
   for (const args of [
