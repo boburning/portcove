@@ -60,7 +60,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Portcove downloads are paused because the package includes a shader cache built from the game’s own shaders. They can resume when upstream publishes a package that builds the cache from your own game files.",
+        "tracking_issue": 361
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "condemned-2-bloodshot",

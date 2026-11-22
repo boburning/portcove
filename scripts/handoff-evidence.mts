@@ -404,10 +404,57 @@ export function renderHandoff(report: Awaited<ReturnType<typeof checkHandoff>>, 
   return `${output}\n`;
 }
 
+export function nativeHandoffStatus(
+  receipt: unknown,
+  requestId: string,
+  window: string,
+  uiControl: string,
+) {
+  requireValue(
+    ["open", "closed", "unknown"].includes(window) &&
+      ["active", "stopped", "unknown"].includes(uiControl),
+    "invalid window or UI control observation",
+  );
+  requireValue(
+    isRecord(receipt) &&
+      receipt.ok === true &&
+      receipt.command === "launch.show" &&
+      isRecord(receipt.data) &&
+      receipt.data.id === requestId &&
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/iu.test(requestId),
+    "launch receipt must match the owned request",
+  );
+  return {
+    request_id: requestId,
+    observed_window: window,
+    ui_control: uiControl,
+    launch_updated_at: receipt.data.updated_at ?? null,
+    launch_phase: receipt.data.phase ?? null,
+    launch_outcome: receipt.data.outcome ?? null,
+    exit_code: receipt.data.exit_code ?? null,
+    finished_at: receipt.data.finished_at ?? null,
+  };
+}
+
 async function main(args: string[]) {
+  if (args[0] === "native-status") {
+    const [, receiptPath, request, window, control, ...extra] = args;
+    requireValue(
+      receiptPath && request && window && control && extra.length === 0,
+      "usage: handoff-evidence.mts native-status LAUNCH.json REQUEST_ID WINDOW UI_CONTROL",
+    );
+    const stats = await lstat(receiptPath);
+    requireValue(
+      stats.isFile() && stats.size <= HANDOFF_LIMITS.manifestBytes,
+      "launch receipt must be a bounded ordinary file",
+    );
+    const receipt: unknown = JSON.parse(await readFile(receiptPath, "utf8"));
+    console.log(JSON.stringify(nativeHandoffStatus(receipt, request, window, control)));
+    return;
+  }
   if (args.length === 1 && args[0] === "--help") {
     process.stdout.write(
-      "usage: handoff-evidence.mts check --manifest FILE [--expected-revision SHA] [--json]\nRead-only reference verification; no execution or acceptance authority.\n",
+      "usage: handoff-evidence.mts check --manifest FILE [--expected-revision SHA] [--json]\n       handoff-evidence.mts native-status LAUNCH.json REQUEST_ID WINDOW UI_CONTROL\nRead-only reference verification; no execution or acceptance authority.\n",
     );
     return;
   }

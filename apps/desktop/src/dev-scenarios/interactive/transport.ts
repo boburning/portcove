@@ -464,6 +464,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     // Fixture games have no reviewed mod contract, as most real games do not;
     // the setups view then renders nothing.
+    jakmods_setup_url: (args) => {
+      requirePort("jakmods_setup_url", args);
+      return null;
+    },
     get_mod_setups: (args) => {
       const portId = requirePort("get_mod_setups", args);
       return {

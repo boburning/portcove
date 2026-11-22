@@ -24,8 +24,7 @@ use crate::{
     mod_package::{MAX_EXTRACTED_BYTES, MAX_MEMBERS, extract_provider_packages},
     profile,
     profile_deploy::{
-        CodePolicy, Layout, adapter_extensions, inspect_for_port, require_reviewed_or_reordered,
-        sha256_file,
+        CodePolicy, Layout, inspect_for_port, require_reviewed_or_reordered, sha256_file,
     },
     provider_client::ProviderClient,
 };
@@ -127,7 +126,11 @@ pub(crate) enum ProviderInstallMode<'a> {
     Reviewed,
     Workspace,
     Automatic,
-    Recipe { identity: &'a str, byte_budget: u64 },
+    Recipe {
+        identity: &'a str,
+        byte_budget: u64,
+        install_id: Option<&'a str>,
+    },
 }
 
 impl ProviderInstallMode<'_> {
@@ -210,17 +213,15 @@ pub(crate) fn validate_offer(
     Ok(())
 }
 
-pub(crate) fn accepts_provider_file(port_id: &str, file: &ProviderFileCandidate) -> bool {
+pub(crate) fn accepts_provider_file(layout: &Layout, file: &ProviderFileCandidate) -> bool {
     let extension = file
         .file_name
         .rsplit_once('.')
         .map(|(_, extension)| extension.to_ascii_lowercase())
         .unwrap_or_default();
-    adapter_extensions(port_id).is_some_and(|extensions| {
-        (extension == "zip" || extensions.contains(&extension.as_str()))
-            && file.size > 0
-            && file.size <= MAX_DOWNLOAD_BYTES
-    })
+    (extension == "zip" || layout.package_extensions().contains(&extension.as_str()))
+        && file.size > 0
+        && file.size <= MAX_DOWNLOAD_BYTES
 }
 
 fn matches_dependency_coordinates(
@@ -553,14 +554,25 @@ impl PortcoveService {
         file_id: &str,
         mode: ProviderInstallMode<'_>,
     ) -> Result<ProviderInstallPlan> {
-        let layout = self.deploy_layout(port_id)?;
-        let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
-        // Staging a recipe input does not choose the setup that will run it.
-        // The complete recipe review verifies its own exact runtime.
-        if !matches!(mode, ProviderInstallMode::Recipe { .. }) {
-            self.profile_loader_binding(&current.build, current.loader.as_ref(), true)?;
-        }
+        let layout = if let ProviderInstallMode::Recipe { install_id, .. } = mode {
+            if install_id.is_none() {
+                return Err(PortcoveError::verification(
+                    "the recipe staging request has no exact runtime",
+                ));
+            }
+            let install = crate::Library::install_by_id(&self.library.connection()?, install_id)?
+                .filter(|install| install.port_id == port_id)
+                .ok_or_else(|| {
+                    PortcoveError::conflict("the recipe's exact installation is unavailable")
+                })?;
+            self.layout_for_install(&install)?.ok_or_else(|| {
+                PortcoveError::unsupported("the recipe build has no reviewed mod loader")
+            })?
+        } else {
+            self.require_layout_for_revision(&current)?
+        };
+        let extensions = layout.package_extensions();
 
         let projects = match client {
             ProviderClient::Thunderstore { client, community } => {
@@ -741,7 +753,7 @@ impl PortcoveService {
         // A loader that names packages by their own manifest (Recomp) is reviewed
         // the way a local install is: named by mod ID, other games refused, and
         // any code it would run reported for the player's decision.
-        let member_paths = match crate::native_mod_list::recomp_game(port_id) {
+        let member_paths = match layout.recomp_game() {
             Some(game) => {
                 let named_dir = staging.path().join("named");
                 fs::create_dir(&named_dir)?;
@@ -784,7 +796,7 @@ impl PortcoveService {
         // Recomp packages are reviewed through their manifests; which of two mods
         // wins an asset is not established for that loader, so their entries are
         // not compared, as for a local install.
-        let compares_assets = crate::native_mod_list::recomp_game(port_id).is_none();
+        let compares_assets = layout.recomp_game().is_none();
         let mut members = Vec::new();
         let mut inspections = Vec::new();
         for (path, index) in member_paths.iter().zip(source_indices) {
@@ -828,7 +840,7 @@ impl PortcoveService {
             }
         }
         // The checks apply would make, made before anything is authorized.
-        let named = crate::native_mod_list::loader_list(port_id).is_some();
+        let named = layout.loader_list().is_some();
         if named {
             for member in &members {
                 crate::native_mod_list::require_listable(&member.file_name)?;
@@ -1274,7 +1286,7 @@ impl PortcoveService {
                 &plan.plan_sha256,
             )
         };
-        let recomp = crate::native_mod_list::recomp_game(&plan.port_id).is_some();
+        let recomp = layout.recomp_game().is_some();
         if !recomp {
             consume()?;
         }
@@ -1365,7 +1377,7 @@ impl PortcoveService {
         }
         let prepared = self.prepare_mod_setup_draft(&layout, &current, plans, edits, None)?;
         let next = crate::profile_deploy::proposed_mod_setup(
-            port_id,
+            &layout,
             &current,
             &prepared.packages,
             Some(edits),
@@ -1390,7 +1402,7 @@ impl PortcoveService {
         let order = ordered.iter().map(|item| item.native_id.clone()).collect();
         let mut owned_paths = Vec::new();
         let mut truncated = false;
-        if crate::native_mod_list::recomp_game(port_id).is_none() {
+        if layout.recomp_game().is_none() {
             let mut remaining = 100_000usize;
             for item in ordered {
                 let paths = if let Some(staged) = prepared.packages.iter().find(|staged| {
@@ -1567,9 +1579,11 @@ impl PortcoveService {
                 "this plan was changed after review; nothing was discarded",
             ));
         }
-        let layout = self.deploy_layout(&plan.port_id)?;
+        self.catalog().port(&plan.port_id)?;
+        let layout = Layout::for_user(&self.library.user_dir(&plan.port_id));
         let staged = mode.staging(&layout, &plan.plan_sha256);
-        if staged.exists() {
+        crate::path::refuse_symlink_ancestors(&staged)?;
+        if staged.try_exists()? {
             fs::remove_dir_all(staged)?;
         }
         Ok(())
@@ -1598,7 +1612,7 @@ fn inspect_reviewed_members(
         let allowed = (!member.runs_code.is_empty()).then_some(member.sha256.as_str());
         let origin = wrapper_members.get(member.file_name.as_str());
         let mut item = inspect_for_port(
-            &plan.port_id,
+            layout,
             path,
             Some(
                 origin

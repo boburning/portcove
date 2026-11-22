@@ -294,39 +294,8 @@ async function checkReviewedExternal(
     .digest("hex");
   const catalog = object(JSON.parse(await readFile(catalogPath, "utf8")));
   const ports = objects(catalog.ports);
-  // Borrow an existing N64 recomp definition only for its adapter shape. Its
-  // live release route can change (#5380 moved Wave Race 64 to a GitHub
-  // release), so the fixture declares its own user-prepared route below.
-  const definition = structuredClone(ports.find((value) => value.id === "wave-race-64-recomp"));
-  assert.ok(definition, "existing N64 recomp adapter must be available to the fixture");
-  Object.assign(definition, {
-    id: port,
-    name: "Owned external consent fixture",
-    source_profile: "star-fox-64",
-    presentation: null,
-  });
-  definition.executable_hints = { "windows-x86-64": ["game.exe"] };
-  // Drop the borrowed port's managed-install fields so later changes to its
-  // managed route cannot reach this user-prepared registration fixture.
-  for (const field of [
-    "portable_marker",
-    "persistent_paths",
-    "runtime_mutable_paths",
-    "runtime_source_filename",
-    "runtime_source_materialization",
-    "runtime_source_hashes",
-  ]) {
-    delete definition[field];
-  }
-  for (const field of Object.keys(definition)) {
-    if (field.startsWith("n64_")) delete definition[field];
-  }
-  definition.release = {
-    provider: "user-prepared",
-    repository: object(definition.release).repository,
-    user_prepared: {},
-  };
-  const prepared = object(object(definition.release).user_prepared);
+  // This reviewed Windows registration has its own platform and executable
+  // contract. Changes to managed packages cannot change the consent fixture.
   const preparedRelease = {
     version: "fixture-v1",
     archive_name: "owned.zip",
@@ -337,8 +306,23 @@ async function checkReviewedExternal(
     source_argument_extension: "z64",
     mutable_paths: ["player.save"],
   };
-  prepared["windows-x86-64"] = preparedRelease;
-  ports.push(definition);
+  ports.push({
+    id: port,
+    name: "Owned external consent fixture",
+    summary: "Reviewed registration of a player-owned fixture directory.",
+    project_url: "https://github.com/example/external-consent-fixture",
+    support_tier: "beta",
+    channels: ["stable"],
+    platforms: ["windows-x86-64"],
+    adapter: "n64-recomp-portable",
+    source_profile: "star-fox-64",
+    executable_hints: { "windows-x86-64": ["game.exe"] },
+    release: {
+      provider: "user-prepared",
+      repository: "example/external-consent-fixture",
+      user_prepared: { "windows-x86-64": preparedRelease },
+    },
+  });
   catalog.ports = ports;
   const sourceCatalog = object(catalog.source_catalog);
   const contracts = objects(sourceCatalog.contracts);

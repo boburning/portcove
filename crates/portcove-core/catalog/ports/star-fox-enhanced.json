@@ -31,6 +31,10 @@
         {
           "title": "Set up a separate Mac or Android copy",
           "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+        },
+        {
+          "title": "Add a prepared Windows or Linux copy to Portcove",
+          "instruction": "After the permitted copy accepts your own matching original, choose Use an existing installation. Select starfox_pc.exe on Windows or starfox_pc on Linux and its containing folder. Choose Play separately. Use the upstream player to manage its updates and keep your external save and settings files. Removing the registration leaves the external files in place. If Portcove already manages a Star Fox Enhanced installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
         }
       ],
       "references": [
@@ -66,16 +70,35 @@
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "adapter": "staged-source-portable",
-    "managed_acquisition_hold": {
-      "reason": "The older Star Fox Enhanced package is unavailable upstream. Newer desktop packages include parts of the original game. Keep using your existing copy while Portcove checks a replacement.",
-      "activation_reason": "This prepared Star Fox Enhanced package does not match the earlier reviewed Windows release. Keep your current installed copy.",
-      "reviewed_artifacts": [
-        {
-          "version": "v0.0.6.7",
-          "sha256": "e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe"
+    "acquisition_restrictions": [
+      {
+        "id": "acquisition",
+        "effect": "hold",
+        "operations": ["download", "install", "update", "adopt"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "The older Star Fox Enhanced package is unavailable upstream. Newer desktop packages include parts of the original game. Keep using your existing copy while Portcove checks a replacement."
+      },
+      {
+        "id": "activation",
+        "effect": "hold",
+        "operations": ["activate"],
+        "reason": "upstream-transition-unreviewed",
+        "explanation": "This prepared Star Fox Enhanced package does not match the earlier reviewed Windows release. Keep your current installed copy."
+      },
+      {
+        "id": "reviewed-1",
+        "effect": "permit",
+        "operations": ["activate"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v0.0.6.7",
+              "sha256": "e1b8569fe5712b4e2cb99effa50b8527d86311ede55f3570ae1537d414f29abe"
+            }
+          ]
         }
-      ]
-    },
+      }
+    ],
     "release": {
       "repository": "kandowontu/starfox-enhanced",
       "asset_hints": {

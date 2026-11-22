@@ -18,7 +18,16 @@
       "game_slug": "pokemon-yellow-version-special-pikachu-edition",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The selected public v0.0.4 ZIP contains original or ROM-derived game content despite the upstream private/source-only declaration. Do not acquire or mirror that package. Resume only with an attributable clean permitted package or a reviewed lawful owned-input build/use contract covering the selected glue and framework; private build/source-only wording does not establish that permission.",
+        "tracking_issue": 174
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "pokemon-yellow",

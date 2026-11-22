@@ -236,8 +236,6 @@ async function revealReadiness() {
   if (document.querySelector("[data-slot=checkbox]")) await userEvent.keyboard("{Escape}");
   const panelTrigger = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
   if (panelTrigger.element().getAttribute("aria-expanded") !== "true") await panelTrigger.click();
-  const advanced = page.getByText("Advanced filters", { exact: true });
-  if (!advanced.element().closest("details")?.open) await advanced.click();
 }
 async function expectReadinessLabel(name: string | RegExp) {
   await revealReadiness();
@@ -271,8 +269,8 @@ async function expectReadinessOption(name: string, selected?: boolean) {
 }
 async function openAdvancedFilters(name: string) {
   await userEvent.click(button(name));
-  if (!page.getByText("Advanced filters", { exact: true }).element().closest("details")?.open)
-    await userEvent.click(page.getByText("Advanced filters", { exact: true }));
+  if (!page.getByText("More filters", { exact: true }).element().closest("details")?.open)
+    await userEvent.click(page.getByText("More filters", { exact: true }));
 }
 async function closeFilters() {
   const field = document.querySelector<HTMLButtonElement>(
@@ -581,16 +579,16 @@ it("selects one quick view at a time with counts from the shared search and filt
   await closeFilters();
   const all = quickView("All");
   await expect.element(all).toHaveAttribute("aria-checked", "true");
-  await expect.element(all).toHaveAccessibleDescription(/2 games$/);
+  await expect.element(all).toHaveAccessibleDescription(/2 ports$/);
   await quickView("Favorites 1 game").click();
   await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "true");
   await expect.element(all).toHaveAttribute("aria-checked", "false");
   // Other views keep counting the shared base rather than the Favorites result.
-  await expect.element(all).toHaveAccessibleDescription(/2 games$/);
+  await expect.element(all).toHaveAccessibleDescription(/2 ports$/);
   await quickView("Updates").click();
   await expect.element(quickView("Updates")).toHaveAttribute("aria-checked", "true");
   await expect.element(quickView("Favorites 1 game")).toHaveAttribute("aria-checked", "false");
-  await expect.element(all).toHaveAccessibleDescription(/2 games$/);
+  await expect.element(all).toHaveAccessibleDescription(/2 ports$/);
   await expect.element(button("Remove Runs on: Windows filter")).toBeVisible();
   // The view itself is the visible selection; it adds no engineering filter chips.
   await expect.element(button("Filters (1)")).toBeInTheDocument();

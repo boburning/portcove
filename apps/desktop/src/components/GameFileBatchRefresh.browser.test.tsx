@@ -248,7 +248,7 @@ function BatchWorkspace({
         )}
         <AddGames
           active={scanning}
-          scanRequest={openedScan ? 1 : 0}
+          scanRequest={openedScan ? { sequence: 1 } : undefined}
           generation={generation}
           ports={ports}
           statuses={statusMap}

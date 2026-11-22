@@ -18,7 +18,16 @@
       "game_slug": "gran-turismo-2",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The upstream README states that no license has been granted for original OpenGTPS1 code. The existing canonical permission hold remains: an attributable grant for that code and a reviewed usable player/setup route are required before Portcove can offer acquisition. Licenses of vendored components do not grant rights to the whole project.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "no-useful-route",
+        "explanation": "The upstream README states that no license has been granted for original OpenGTPS1 code. The existing canonical permission hold remains: an attributable grant for that code and a reviewed usable player/setup route are required before Portcove can offer acquisition. Licenses of vendored components do not grant rights to the whole project.",
+        "tracking_issue": 743
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

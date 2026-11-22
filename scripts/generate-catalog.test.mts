@@ -5,9 +5,11 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { readCatalogSource } from "./catalog-authoring.mts";
+import { sceneCoverage } from "./artwork-operations.mts";
 import {
   checkShapeTable,
   coreShapeVersion,
+  derivationInputsDigest,
   entriesDigest,
   pruneTable,
   recordEntry,
@@ -275,6 +277,23 @@ void test("the committed package shape table is current for the catalog and Core
   assert.deepEqual(checkShapeTable(shapeTableText(), shapeCatalog(), coreShapeVersion()), []);
 });
 
+void test("only the declared Linux portable data route changes its shape derivation digest", () => {
+  const port = (shapeCatalog().ports as Record<string, unknown>[]).find(
+    (candidate) => candidate.id === "nicholas-ochoa-opensc2k",
+  );
+  assert.ok(port);
+  const withoutPortableData = { ...port };
+  delete withoutPortableData.linux_portable_data_directory;
+  assert.notEqual(
+    derivationInputsDigest(port, "linux-x86-64"),
+    derivationInputsDigest(withoutPortableData, "linux-x86-64"),
+  );
+  assert.equal(
+    derivationInputsDigest(port, "windows-x86-64"),
+    derivationInputsDigest(withoutPortableData, "windows-x86-64"),
+  );
+});
+
 void test("package shape check refuses a digest the catalog no longer marks as reviewed", () => {
   const catalog = shapeCatalog();
   const entry = firstShapeEntry(JSON.parse(shapeTableText()) as ShapeTable);
@@ -413,4 +432,108 @@ void test("package shape prune drops unreviewed digests and adopts the catalog v
   const reset = pruneTable(shapeTableText(), shapeCatalog(), coreShapeVersion() + 1);
   assert.equal(reset.removed.length, table.entries.length);
   assert.equal((JSON.parse(reset.text) as ShapeTable).entries.length, 0);
+});
+
+void test("the scene workset distinguishes catalog, provider, and unobserved scopes", () => {
+  const subject = { kind: "original" as const, game_id: "game", source_edition_id: "one" };
+  const original = { id: "game", source_editions: [{ id: "one" }, { id: "two" }] };
+  const direct = { kind: "port" as const, port_id: "main-port" };
+  const accepted = {
+    ports: [
+      {
+        id: "main-port",
+        presentation: {
+          original_game: original,
+          media: [
+            {
+              role: "header",
+              subject,
+              sha256: "a".repeat(64),
+              igdb: { game_id: 20, image_id: "catalogheader" },
+            },
+            {
+              role: "screenshot",
+              subject: direct,
+              sha256: "b".repeat(64),
+              igdb: { game_id: 11, image_id: "goneshot" },
+            },
+          ],
+        },
+      },
+      { id: "retained-listing", presentation: { original_game: original } },
+    ],
+  };
+  const preparation = {
+    catalog: {
+      ports: [
+        {
+          id: "main-port",
+          presentation: { original_game: { id: "game", source_editions: [{ id: "three" }] } },
+        },
+        {
+          id: "candidate",
+          presentation: {
+            media: [
+              {
+                role: "screenshot",
+                subject: { kind: "port", port_id: "candidate" },
+                sha256: "c".repeat(64),
+                igdb: { game_id: 30, image_id: "proposedshot" },
+              },
+            ],
+          },
+        },
+      ],
+    },
+    gone_image_ids: ["goneshot", "neveradmitted"],
+    records: [
+      {
+        port_id: "main-port",
+        role: "header" as const,
+        subject: direct,
+        provider_game_id: 11,
+        reason: "provider-role-empty",
+      },
+      {
+        port_id: "retained-listing",
+        role: "header" as const,
+        subject,
+        provider_game_id: 21,
+        reason: "media-provider-unavailable-or-incomplete",
+      },
+      {
+        port_id: "candidate",
+        role: "screenshot" as const,
+        subject: { kind: "port" as const, port_id: "candidate" },
+        provider_game_id: 30,
+        reason: "existing-scene-retained",
+        withdrawn_image_ids: ["neveradmitted"],
+      },
+    ],
+  };
+  const rows = sceneCoverage(accepted, preparation);
+  const main = rows.filter((row) => row.port_id === "main-port");
+  assert.equal(main.length, 8);
+  assert.deepEqual(
+    main.map((row) => row.state),
+    ["missing", "withdrawn", "conflicting", "unknown", "unknown", "unknown", "unknown", "unknown"],
+  );
+  assert.deepEqual(main[1]?.withdrawn_image_ids, ["goneshot"]);
+  assert.deepEqual(main[2]?.admitted_image_ids, ["catalogheader"]);
+  assert.deepEqual(main[2]?.provider_game_ids, [20, 21]);
+  const candidate = rows.find((row) => row.port_id === "candidate" && row.role === "screenshot");
+  assert.equal(candidate?.state, "proposed");
+  assert.deepEqual(candidate?.proposed_image_ids, ["proposedshot"]);
+  assert.deepEqual(candidate?.withdrawn_image_ids, ["neveradmitted"]);
+  assert.deepEqual(candidate?.admitted_image_ids, []);
+  const listing = rows.find(
+    (row) => row.port_id === "retained-listing" && row.subject.kind === "port",
+  );
+  assert.equal(listing?.state, "unknown");
+  assert.deepEqual(listing?.reasons, ["outside-proposal-input"]);
+  assert.deepEqual(
+    sceneCoverage(accepted, preparation, ["retained-listing"]),
+    rows.filter((row) => row.port_id === "retained-listing"),
+  );
+  assert.equal(sceneCoverage(accepted, { ...preparation, records: [] })[2]?.state, "admitted");
 });

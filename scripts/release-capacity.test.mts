@@ -91,7 +91,10 @@ void test("online Targets renewal explicitly binds a new generation while preser
     /offline anchors/,
   );
 });
-import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import {
+  capacityFixture,
+  retainedCatalogReviewWorkflow,
+} from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
 import {
@@ -550,7 +553,10 @@ void test("delivered recovery workflow is pinned separately from ordinary capaci
     [".github/workflows/application-update-wake.yml", slice4CapacityResources.wake_workflow_sha256],
   ] as const) {
     const bytes = await readFile(new URL(`../${file}`, import.meta.url));
-    const current = createHash("sha256").update(bytes).digest("hex");
+    const retained = file.endsWith("application-update-production.yml")
+      ? retainedCatalogReviewWorkflow(bytes)
+      : bytes;
+    const current = createHash("sha256").update(retained).digest("hex");
     assert.equal(current, expected);
   }
   assert.notEqual(

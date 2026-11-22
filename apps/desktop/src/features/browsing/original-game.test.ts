@@ -1,7 +1,14 @@
 import { expect, it } from "vite-plus/test";
 import { portDefinition } from "../../test-fixtures";
 import type { CatalogEntry } from "./catalog-entry";
-import { gameGroupId, groupCatalog, groupCountLabel, originalSystems } from "./original-game";
+import {
+  gameGroupId,
+  gameGroupPresentationPort,
+  gameGroupTitle,
+  groupCatalog,
+  groupCountLabel,
+  originalSystems,
+} from "./original-game";
 
 function entry(id: string, gameId?: string, systems: (string | undefined)[] = []): CatalogEntry {
   const base = portDefinition();
@@ -96,4 +103,30 @@ it("does not label unknown project identities as verified unique games", () => {
   expect(groupCountLabel(groupCatalog([entry("known", "game"), entry("unknown")]))).toBe(
     "1 game + 1 ungrouped project",
   );
+});
+
+it("keeps a family's authored title and artwork subject independent of order and filter matching", () => {
+  const first = {
+    ...entry("alpha-port", "game"),
+    presentation: {
+      ...entry("alpha-port", "game").presentation,
+      original_game_title: "Recognizable original",
+    },
+  };
+  const alias = {
+    ...entry("zulu-port", "game"),
+    presentation: {
+      ...entry("zulu-port", "game").presentation,
+      original_game_title: "Regional alias",
+    },
+  };
+  for (const all of [
+    [first, alias],
+    [alias, first],
+  ]) {
+    const group = groupCatalog(all, [alias])[0]!;
+    expect(gameGroupTitle(group)).toBe("Recognizable original");
+    expect(gameGroupPresentationPort(group).id).toBe("alpha-port");
+    expect(group.matchingPorts[0]?.id).toBe("zulu-port");
+  }
 });

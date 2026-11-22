@@ -209,6 +209,23 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   because the expired catalog is still read as authenticated history: its
   signatures, version floors and unchanging published files are checked, but its
   expiry is not. No manual step is needed.
+- **Descriptive refresh:** While a signed complete observation is in the first
+  half of its recorded freshness window, an equivalent completed provider check
+  keeps the exact prior clocks and payload. The next applicable pass can renew
+  the observation once half that window has elapsed. Authored guide changes,
+  new release facts, and changes to the permitted freshness window bypass this
+  deduplication. Existing incomplete collection and failure rules still apply.
+- **Late Pages readback:** The existing twice-daily catalog schedule checks the
+  previous commit from the pinned Pages branch before selecting the next
+  publication source. A seven-day artifact identifies the earlier Pages commit,
+  source commit and catalog tree, plus the run that observed them. An exact
+  receipt requires the timestamp to match before and after reading active role
+  metadata, affected immutable targets, browse samples and any new checkpoint
+  objects. The observation records whether Pages still served the exact
+  predecessor, reported a higher timestamp during readback, or returned
+  incomplete evidence. These outcomes leave the publication unconfirmed and
+  allow the next publication to continue. This readback grants no signing or
+  publication authority.
 - **Signing:**
   - `prepare` builds the CLI and release tools, inspects the bundle with Core,
     reads the published catalog and plans the next version of every online role.

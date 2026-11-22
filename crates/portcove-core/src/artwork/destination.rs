@@ -439,7 +439,8 @@ impl PortcoveService {
                 };
             } else if role == DestinationArtworkRole::PortraitCover {
                 handoff.source = DestinationArtworkSource::GeneratedFallback;
-                if let Some(artwork) = port.artwork.as_ref() {
+                self.require_current_artwork_listing(&port)?;
+                if let Some(artwork) = self.automatic_cover(&port) {
                     handoff.source = DestinationArtworkSource::CatalogDefault {
                         artwork: artwork.clone(),
                     };

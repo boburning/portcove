@@ -18,7 +18,16 @@
       "game_slug": "battle-arena-toshinden--3",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Fresh acquisition of the inspected Battle Arena Toshinden 1.2 ZIP is held: it contains a 512 KiB rom_data object with the BA.TOSHINDEN Game Boy header despite the own-ROM/no-ROM distribution description. A project description or matching package checksum does not establish permission for that embedded game content. Resume with an attributable applicable content/use basis for the exact package, or a reviewed asset-clean publication and supported owned-input route. Existing copies retain their own independent permission and ownership requirements.",
+        "tracking_issue": 1796
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "battle-arena-toshinden-game-boy",

@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v1.1.0",
     "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/v1.1.0/README.md",
-    "download_block_reason": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Portcove downloads are paused while the complete bundle and first-start recovery are being reviewed. Use these steps for an upstream copy you already trust and are permitted to use.",
+        "tracking_issue": 4759
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
