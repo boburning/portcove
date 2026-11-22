@@ -285,10 +285,12 @@ fn relative_joins_use_only_native_separators() {
     #[cfg(windows)]
     {
         use std::path::Prefix;
-        let kind = |path: &Path| match path.components().next() {
-            Some(Component::Prefix(prefix)) => Some(prefix.kind()),
-            _ => None,
-        };
+        fn kind(path: &Path) -> Option<Prefix<'_>> {
+            match path.components().next() {
+                Some(Component::Prefix(prefix)) => Some(prefix.kind()),
+                _ => None,
+            }
+        }
         assert!(
             matches!(kind(&ordinary), Some(Prefix::Disk(_))),
             "{ordinary:?}"
