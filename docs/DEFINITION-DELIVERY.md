@@ -2128,10 +2128,50 @@ legacy signed catalog envelopes cannot appoint a loader.
 
 A binding declares a versioned engine, GitHub release repository, minimum
 stable release, applicable platforms, and native settings file. N64 Recomp also
-declares the native game. Each loader platform needs executable hints, and
-both the `mods` directory and settings file must be persistent paths. Core
-requires the exact retained installation to match before enabling managed mods.
-A stable successor in the declared release series uses the same loader.
+declares the native game. Each loader platform needs executable hints. For the
+Libultraship and N64 Recomp contracts, both the `mods` directory and settings
+file must be persistent paths, and the reviewed artifact fields below are
+refused. Core requires the exact retained installation to match before enabling
+managed mods. A stable successor in the declared release series uses the same
+loader.
+
+The `daggerfall-unity-data` version 1 contract admits data-only `.dfmod`
+bundles for a NativePortable GitHub release. The definition must require
+NativePortable capability 41 or later; older readers cannot interpret the
+binding. The settings file is `PortableAppdata/Mods/GameData/Mods.json`. The
+persistent paths must include `DaggerfallUnity_Data/StreamingAssets/Mods`,
+`Portable.txt` and `PortableAppdata`, and may add only
+`DaggerfallUnity_Data/StreamingAssets/GameFiles`. The definition declares no
+runtime data policy, file patterns or runtime-mutable paths. Each loader
+platform needs one executable hint and a reviewed package layout.
+
+The binding adds three reviewed facts:
+
+- `reviewed_artifacts` names one release tag and exact ZIP identity (asset
+  name, size and SHA-256) for every loader platform. The tag must be in the
+  minimum release's major series and no older than the minimum.
+- `reviewed_payload_sha256` optionally records, per loader platform, the
+  digest of the sorted path, size and SHA-256 rows of the reviewed immutable
+  payload.
+- `reviewed_repository_id` is the numeric GitHub repository ID. A payload
+  digest requires it.
+
+An installation matching a reviewed artifact exactly uses the loader after its
+retained files verify. Another release identity can reuse the review only when
+its manifest records the same platform, the declared repository and numeric
+repository ID, and the installed tag. Its immutable payload rows must produce
+the reviewed digest. The package's shipped mutable roots must also have the
+reviewed shape: no `Portable.txt` or `PortableAppdata`, and only the stock
+`readme.txt` in `Mods` and `GameFiles`. This comparison grants no new download
+or code-execution authority.
+
+Core deploys reviewed bundles only into
+`DaggerfallUnity_Data/StreamingAssets/Mods` under the exact retained runtime.
+It stages each file in a private directory beside `Mods`, outside Unity's
+recursive scan, and publishes it by rename only. A mount boundary fails closed
+instead of copying into `Mods`. Removal and replacement require the live file
+to match the recorded package. Files the setup does not own, or owned files
+that changed, hold the deployment and stay in place for review.
 
 The authored Shipwright and Zelda 64: Recompiled bindings match the existing
 native settings and platform contracts. Historical definitions keep their
