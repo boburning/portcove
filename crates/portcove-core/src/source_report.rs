@@ -781,7 +781,7 @@ mod tests {
     {
         let embedded = Catalog::embedded().unwrap();
         let mut listings = embedded.listing_document().clone();
-        listings.format_version = 14;
+        listings.format_version = listings.format_version.max(14);
         let listing = listings
             .listings
             .iter_mut()

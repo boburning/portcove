@@ -640,7 +640,8 @@ waits cannot fit the original bounds. The existing observer owns conditional
 cache reuse, facts digests, identity validation and complete-versus-prefix proofs;
 the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
-are downloaded. The core input is bounded to 4 MiB, its process to thirty
+are downloaded. Core inspection reads the catalog within the 16 MiB generated-catalog
+bound and each observation within 4 MiB. Each Core process is bounded to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
 Only observing jobs share the per-ref concurrency slot, with one active and at
 most one pending. Hourly schedules and manual runs always observe. A merge to
@@ -1099,7 +1100,7 @@ The monitor retains fair oldest-attempt rotation across bounded collector runs.
 The collector's 352-request and 512-new-location envelopes bound one monitor operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
-or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
+or 512-incident historical count ceilings. Input catalogs are bounded to 16 MiB,
 including programmatic invocations. Oversized physical inputs remain refused;
 no history is silently truncated to claim complete coverage.
 

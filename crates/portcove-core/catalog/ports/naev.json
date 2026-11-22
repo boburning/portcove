@@ -12,7 +12,16 @@
     "availability": "packages",
     "setup_url": "https://naev.org/downloads/",
     "release_url": "https://codeberg.org/naev/naev/releases/latest",
-    "download_block_reason": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use Naev’s downloads page for the Windows installer, Linux AppImage or universal Mac disk image.",
+        "tracking_issue": 6817
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
