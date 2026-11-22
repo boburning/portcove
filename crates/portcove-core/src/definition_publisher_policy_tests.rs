@@ -7507,12 +7507,17 @@ async fn authenticated_forge_install_fixture(gitlab: bool) {
     port["project_url"] = serde_json::json!("https://forge.example/group/fixture");
     port["release"] =
         serde_json::json!({"provider": "reviewed-forge", "repository": "group/fixture"});
+    // Entries carry the complete typed projection, including defaulted fields.
+    let port = serde_json::to_value(serde_json::from_value::<crate::PortDefinition>(port).unwrap())
+        .unwrap();
     let projection = serde_json::to_vec(&serde_json::json!({
         "contract_schema": 3, "representation": "catalog_projection",
         "catalog": {"schema_version": 3, "ports": [port.clone()],
-            "source_catalog": {"evidence": [], "identities": [], "contracts": [], "validators": []}},
+            "source_catalog": {"evidence": [], "identities": [], "contracts": [], "validators": [],
+                "qualification": []}},
         "reviewed_forge": selector
-    })).unwrap();
+    }))
+    .unwrap();
     let leaf_digest = hex::encode(Sha256::digest(&projection));
     let leaf = format!("sha256/{leaf_digest}.json");
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();

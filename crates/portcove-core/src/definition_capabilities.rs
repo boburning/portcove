@@ -98,6 +98,16 @@ definition_features! {
     UpstreamActiveReviewed => "catalog.upstream-active-review-v1", "port.upstream_active_reviewed";
 }
 
+const UNKNOWN_REQUIRED_FEATURE: &str = "unknown_required_feature";
+
+/// A newer named feature this reader does not implement. Like an unknown
+/// engine template, it requires a newer engine rather than invalidating the
+/// authenticated definition.
+pub(crate) fn is_unknown_required_feature(error: &PortcoveError) -> bool {
+    error.code == crate::ErrorCode::Unsupported
+        && error.details.contains_key(UNKNOWN_REQUIRED_FEATURE)
+}
+
 pub(crate) fn check_required_features(
     names: &[String],
 ) -> Result<std::collections::BTreeSet<Feature>> {
@@ -115,6 +125,7 @@ pub(crate) fn check_required_features(
         }
         let feature = Feature::from_name(name).ok_or_else(|| {
             PortcoveError::unsupported(format!("unsupported required definition feature {name:?}"))
+                .detail(UNKNOWN_REQUIRED_FEATURE, name.as_str())
         })?;
         if !checked.insert(feature) {
             return Err(PortcoveError::verification(

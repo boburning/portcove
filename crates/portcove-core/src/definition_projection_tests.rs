@@ -868,7 +868,9 @@ fn enforced_n64_release_inputs_require_migration_reader() {
     inspect(&selected, &contract).unwrap();
 
     selected["definition_schema"] = json!(4);
-    selected["required_features"] = json!([]);
+    // The selected player also declares archive file links. Name that feature so
+    // the omission under test is exactly the release-input reader feature.
+    selected["required_features"] = json!(["release.archive-file-links-v1"]);
     assert!(
         inspect(&selected, &contract)
             .unwrap_err()
@@ -876,7 +878,8 @@ fn enforced_n64_release_inputs_require_migration_reader() {
             .contains("n64.release-inputs-v1")
     );
 
-    selected["required_features"] = json!(["n64.release-inputs-v1"]);
+    selected["required_features"] =
+        json!(["release.archive-file-links-v1", "n64.release-inputs-v1"]);
     selected["required_capabilities"] = json!([{
         "template": "n64-recomp-portable", "minimum_version": 10, "maximum_version": 10
     }]);
@@ -1852,9 +1855,11 @@ fn reviewed_forge_selector_is_exact_named_and_retained_without_acquisition_autho
         .truncate(1);
     let port = &mut document["catalog"]["ports"][0];
     port["adapter"] = json!("native-portable");
-    port.as_object_mut().unwrap().remove("source_profile");
+    // No source profile; the complete typed projection still names the field.
+    port["source_profile"] = Value::Null;
     document["catalog"]["source_catalog"] = json!({
-        "evidence": [], "identities": [], "contracts": [], "validators": []
+        "evidence": [], "identities": [], "contracts": [], "validators": [],
+        "qualification": []
     });
     let port = &mut document["catalog"]["ports"][0];
     port["project_url"] = json!("https://forge.example/group/fixture");
@@ -1948,10 +1953,18 @@ fn signed_psx_toolchain_proposals_require_independent_acceptance_after_reopening
         .iter()
         .map(|&platform| embedded(platform).unwrap().clone())
         .collect();
+    // Tool artifacts belong to exactly one managed PS1 subject.
+    let mut catalog = crate::test_fixture::indexed_fixture_document_for_port(&baseline, id);
+    catalog.ports.retain(|port| port.id == id);
+    let sources = catalog.source_catalog.as_mut().unwrap();
+    sources.contracts.retain(|contract| contract.port_id == id);
+    sources
+        .qualification
+        .retain(|fact| fact.scope.port_id == id);
     let mut document = json!({
         "contract_schema":4,
         "representation":"catalog_projection",
-        "catalog":crate::test_fixture::indexed_fixture_document_for_port(&baseline, id),
+        "catalog":catalog,
         "tool_artifacts":artifacts
     });
     let bytes = serde_json::to_vec(&document).unwrap();
