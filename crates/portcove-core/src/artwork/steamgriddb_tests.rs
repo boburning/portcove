@@ -449,3 +449,85 @@ fn steamgriddb_live_fetch_matches_listing() {
         assert!(local.starts_with(b"\x89PNG"));
     }
 }
+
+/// Answers each listing page from its `page=` query, for multi-page listings.
+struct PagedFixture {
+    pages: Vec<Vec<serde_json::Value>>,
+    requests: RefCell<Vec<String>>,
+    images: RefCell<Vec<String>>,
+}
+
+impl SteamGridDbTransport for PagedFixture {
+    fn get(&self, path_and_query: &str, _key: &str) -> Result<TransportResponse> {
+        self.requests.borrow_mut().push(path_and_query.to_owned());
+        let page = path_and_query
+            .rsplit_once("page=")
+            .and_then(|(_, page)| page.parse::<usize>().ok())
+            .unwrap();
+        let data = self.pages.get(page).cloned().unwrap_or_default();
+        Ok(TransportResponse {
+            status: 200,
+            retry_after: None,
+            date: None,
+            body: serde_json::json!({"success": true, "data": data})
+                .to_string()
+                .into_bytes(),
+        })
+    }
+
+    fn fetch_image(&self, url: &str, _max_bytes: u64) -> Result<TransportResponse> {
+        self.images.borrow_mut().push(url.to_owned());
+        Ok(TransportResponse {
+            status: 200,
+            retry_after: None,
+            date: None,
+            body: vec![7],
+        })
+    }
+}
+
+fn paged(total: u64) -> PagedFixture {
+    let images = (1..=total)
+        .map(|id| image(id, serde_json::json!({})))
+        .collect::<Vec<_>>();
+    PagedFixture {
+        pages: images.chunks(MAX_RESULTS).map(<[_]>::to_vec).collect(),
+        requests: RefCell::new(Vec::new()),
+        images: RefCell::new(Vec::new()),
+    }
+}
+
+#[test]
+fn later_listing_pages_are_reachable_and_the_last_page_ends_the_listing() {
+    let fixture = paged(51);
+    let role = SteamGridDbArtworkRole::PortraitCover;
+    let (first, first_complete) = role_listing_page(&fixture, KEY, 42, role, 0).unwrap();
+    assert_eq!(first.len(), 50);
+    assert!(!first_complete);
+    let (second, second_complete) = role_listing_page(&fixture, KEY, 42, role, 1).unwrap();
+    assert_eq!(second.iter().map(|c| c.id).collect::<Vec<_>>(), [51]);
+    assert!(second_complete);
+    assert!(fixture.requests.borrow()[1].ends_with("&page=1"));
+}
+
+#[test]
+fn a_chosen_image_beyond_the_first_page_is_confirmed_by_identity() {
+    let fixture = paged(120);
+    let fetched =
+        fetch_candidate(&fixture, KEY, 42, SteamGridDbArtworkRole::PortraitCover, 51).unwrap();
+    assert_eq!(fetched.candidate.id, 51);
+    assert_eq!(fixture.requests.borrow().len(), 2);
+    // A genuinely removed image is reported only after the complete listing.
+    let fixture = paged(120);
+    let error = fetch_candidate(
+        &fixture,
+        KEY,
+        42,
+        SteamGridDbArtworkRole::PortraitCover,
+        999,
+    )
+    .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::NotFound);
+    assert_eq!(fixture.requests.borrow().len(), 3);
+    assert!(fixture.images.borrow().is_empty());
+}

@@ -272,6 +272,11 @@ export type LibraryImportPlan = Generated.TransportOutputs["library_import_plan"
 
 export type LibraryImportResult = Generated.TransportOutputs["library_import_result"];
 
+export type LibraryRecoveryBundle = Generated.TransportOutputs["library_recovery_bundle"];
+export type LibraryRecoveryBundlePlan = Generated.TransportOutputs["library_recovery_bundle_plan"];
+export type LibraryRecoveryRestorePlan =
+  Generated.TransportOutputs["library_recovery_restore_plan"];
+
 export type SourceDiscoveryLimits = Requests.TransportInputs["source_discovery_limits"];
 
 export type SourceDiscoveryRequest = Requests.TransportInputs["source_discovery_request"];

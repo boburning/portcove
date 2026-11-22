@@ -33,6 +33,7 @@ const unsupportedByReason: Record<string, string[]> = {
     change_to_managed_runtime clear_host_tool_path
     copy_mod_setup create_backup
     create_clean_mod_setup create_default_mod_setup
+    create_library_recovery_bundle resume_library_recovery_bundle restore_library_recovery_bundle resume_library_recovery_restore
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork set_background_artwork_framing import_library import_source install_application_update install_port logout_github
@@ -63,6 +64,7 @@ const unsupportedByReason: Record<string, string[]> = {
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
+    plan_library_recovery_bundle inspect_library_recovery_bundle plan_library_recovery_restore
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime

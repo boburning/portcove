@@ -46,7 +46,16 @@
         }
       ]
     },
-    "download_block_reason": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "third-party-component-terms",
+        "explanation": "The published Dutch preview package includes separately credited placeholder assets whose README says the Assets repository is not licensed. The engine MIT license does not cover them; individual compatible grants remain unestablished. Use an existing copy you are permitted to use. Reconsider acquisition when the offered package omits the affected assets or attributable permission covers them.",
+        "tracking_issue": 1850
+      }
+    ],
     "recommended_download_channel": "beta",
     "original_game": {
       "format_version": 1,

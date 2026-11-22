@@ -1145,8 +1145,12 @@ port and next review action together. Its three routes are Browse games (Discove
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved
-folders; Settings keeps "Add folder" without scanning. Files are checked against the
-port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+folders; Settings keeps "Add folder" without scanning. The workspace retains the
+last saved scan result through navigation. Review saved scan checks that exact
+snapshot before focusing it in Add games. If a different scan or a later batch
+has replaced it, the player can explicitly choose to see the current results.
+Files are checked against the port chosen on its game page; folder search
+supplies bounded recognition (#5058 F2).
 When setup or install finishes and current readiness, including Core's launch
 assessment, reports the game ready with nothing left to confirm, the completion
 notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;

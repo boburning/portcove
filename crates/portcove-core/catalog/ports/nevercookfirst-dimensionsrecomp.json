@@ -50,7 +50,16 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "Fresh acquisition of the selected Windows DimensionsRecomp player is held while the applicable permission or authorized-source basis for its statically translated LEGO Dimensions game-code component remains unresolved. The project MIT grant expressly covers the author’s code, not LEGO Dimensions or its data. Resume after reviewing an attributable basis for that component or a supported route excluding it. Independently permitted existing-copy instructions remain separate.",
+        "tracking_issue": 1817
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "lego-dimensions",

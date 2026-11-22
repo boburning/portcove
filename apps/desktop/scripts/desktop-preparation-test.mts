@@ -2181,8 +2181,26 @@ export async function preparationScenarios({
         await shortcut("0");
         await openUpdateTheme(browser, theme);
         await selectPrimaryNavigation(browser, "Library");
-        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        // Hosted Windows job 136875392709 was still loading the reopened
+        // library after two failed snapshots and an immediate retry.
+        await browser.wait(
+          until.elementLocated(By.css(".collection-entry")),
+          60_000,
+          "The seeded Library entries did not render after startup",
+        );
         const search = await browser.findElement(By.id("port-search"));
+        assert.notEqual(
+          await executeBrowserScript(browser, () => document.activeElement?.id),
+          "port-search",
+        );
+        await shortcut("f");
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the seeded Library search",
+        );
+        assert.equal((await browser.findElements(By.id("command-palette-title"))).length, 0);
+        observations.push({ phase: "library-local-find", theme, focused: "port-search" });
         // WebElement.clear() empties the DOM value without React's input event,
         // so the controlled query kept "Jak" and the next pass typed "JakJak"
         // (hosted run 43646110119). Clear through real key input instead.

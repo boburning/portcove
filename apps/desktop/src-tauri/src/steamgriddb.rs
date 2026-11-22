@@ -35,9 +35,10 @@ pub(crate) async fn search_steamgriddb_games(term: String) -> DesktopResult<Vec<
 pub(crate) async fn get_steamgriddb_candidates(
     game_id: u64,
     role: SteamGridDbArtworkRole,
+    page: Option<u32>,
 ) -> DesktopResult<Vec<SteamGridDbCandidate>> {
     blocking_worker(move || {
-        portcove_core::steamgriddb_candidates(game_id, role).map_err(Into::into)
+        portcove_core::steamgriddb_candidates(game_id, role, page.unwrap_or(0)).map_err(Into::into)
     })
     .await
 }

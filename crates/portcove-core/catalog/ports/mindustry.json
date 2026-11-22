@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://anuke.itch.io/mindustry",
     "setup_url": "https://mindustrygame.github.io/wiki/",
-    "download_block_reason": "Get Mindustry from the publisher or your package manager. That choice determines how you update the game.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get Mindustry from the publisher or your package manager. That choice determines how you update the game.",
+        "tracking_issue": 6506
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

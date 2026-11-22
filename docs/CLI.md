@@ -463,11 +463,18 @@ admission under the selected Game contract before Desktop can use a matching
 edition's artwork. The binding leaves the launch requirements unchanged.
 The directory format applies independently of the signed carrier.
 
+Listing format 15 adds typed acquisition restrictions (`restrictions`). Exports
+through format 14 omit them and keep the derived `download_block_reason`, which
+always equals the explanation of the first download hold. See
+[acquisition restrictions](CATALOG.md#acquisition-restrictions).
+
 The catalog listing document has its own format version. Readers accept formats
-1–14 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–15 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
-and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
+format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
+screenshots, format 14 adds verified source-edition bindings and format 15 adds
+typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -1550,7 +1557,7 @@ portcove artwork steamgriddb set-key
 portcove --json --non-interactive artwork steamgriddb set-key --stdin
 portcove --json artwork steamgriddb status
 portcove --json artwork steamgriddb search "<game name>"
-portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover
+portcove --json artwork steamgriddb candidates <game-id> --role portrait-cover [--page <n>]
 portcove --json artwork steamgriddb choose <port-id> --slot cover --game <game-id> --candidate <image-id> --expected-revision <revision>
 portcove --json artwork steamgriddb check-listings
 portcove --json artwork steamgriddb clear-key
@@ -1564,10 +1571,11 @@ Core keeps the key in this host's secure credential store and sends it only to t
 fixed SteamGridDB API origin. `status`, `set-key` and `clear-key` return only
 `configured`; the key is never shown.
 
-`search` returns up to 50 matching games. `candidates` returns up to 50 static PNG
-or JPEG images for `portrait-cover`, `landscape-cover` or `hero-banner`. Use
-`--role logo` for static PNG logos. Each result includes its CDN URL, size, style
-and artist credit. Both are suggestions: they choose
+`search` returns up to 50 matching games. `candidates` returns one provider page of
+up to 50 static PNG or JPEG images (`--page`, starting at 0; an empty page ends the
+listing) for `portrait-cover`, `landscape-cover` or `hero-banner`. Use `--role logo`
+for static PNG logos. Each result includes its CDN URL, size, style and artist
+credit. Both are suggestions: they choose
 no artwork, establish no game identity, download no image bytes and write nothing
 to Steam. Results flagged as adult, humor or epilepsy-risk are excluded. A missing
 key or a rejected key is a usage error, and a missing game is not-found. Rate
@@ -1580,8 +1588,11 @@ up again with your key, downloads it from SteamGridDB's image server without you
 and keeps it only if it decodes as a static PNG or JPEG matching its listed type and
 size. The artist credit is stored with the copy and shown in `artwork_state.attribution`
 and in the destination handoff for its supported artwork. Logo stays in the
-library. An image no longer on the game's first listing page is
-not-found, and a changed choice revision is a conflict; in both cases the current
+library. Core finds the chosen image by its ID across listing pages, so an image
+that moved to a later page is still confirmed. An image missing from the game's
+complete listing is not-found; if the listing is too long to finish confirming,
+the result is a state error asking you to list the images again. A changed choice
+revision is a conflict; in all of these cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
 that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
@@ -2280,10 +2291,12 @@ sync tools are harmless. Portcove never overwrites or deletes files in the
 folder. Temporary files from interrupted copies are ignored; saves files that are
 damaged or do not match their name are ignored and listed under `problems`, and
 a damaged file under this device's own name is kept for inspection and the push
-is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
-game and at most 256 MiB of saves files at once; beyond that `complete` is false,
-`next_step` is `incomplete`, and pulls from the folder are refused until older
-files are moved out (a saves file can still be imported directly).
+is refused. Push history has no saves-file count limit. Each status read newly
+verifies at most 256 MiB of saves files and remembers what it verified, so a
+longer history finishes over later reads: until then `complete` is false and
+`next_step` is `incomplete`. A pull continues reviewing until the history is
+complete. A folder holding more than 65,536 names of any kind is reported as
+incomplete (a saves file can still be imported directly).
 
 `folder-status` is read-only. It lists every saves file with its source version
 and platform, whether it matches this device's qualified game version
