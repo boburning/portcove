@@ -211,6 +211,20 @@
     "managedInstall": "Managed setup",
     "managedLaunch": "Managed launch"
   },
+  "savedScan": {
+    "checking": "Checking the saved scan…",
+    "dismiss": "Dismiss scan result",
+    "failed": "Portcove could not check this scan.",
+    "heading": "Saved folder scan",
+    "label": "Saved folder scan result",
+    "partial": "Partial scan results saved.",
+    "progress": "Saved scan progress.",
+    "retry": "Retry checking this scan",
+    "review": "Review saved scan",
+    "saved": "Saved folder scan results.",
+    "showCurrent": "Show current folder results",
+    "unavailable": "This scan is no longer available with its original results and settings."
+  },
   "setupReviews": {
     "add": "Add {{total}} selected to Library",
     "choiceNote_one": "One game has more than one version that can use the same files. Select the version you want; selecting all leaves them out.",

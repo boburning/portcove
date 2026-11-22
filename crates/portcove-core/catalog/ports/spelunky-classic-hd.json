@@ -18,7 +18,16 @@
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
-    "download_block_reason": "The release bundles modified Spelunky game data. Portcove needs an exact record of the applicable game-data permission and notices before offering Download. The setup guide covers a copy you already have permission to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The release bundles modified Spelunky game data. Portcove needs an exact record of the applicable game-data permission and notices before offering Download. The setup guide covers a copy you already have permission to use.",
+        "tracking_issue": 6056
+      }
+    ],
     "setup_url": "https://github.com/yancharkin/SpelunkyClassicHD/blob/1.2.2/README.md",
     "release_url": "https://github.com/yancharkin/SpelunkyClassicHD/releases/tag/1.2.2",
     "manual_setup": {

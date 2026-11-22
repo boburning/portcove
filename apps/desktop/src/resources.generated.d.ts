@@ -502,6 +502,7 @@ export default interface Resources {
       "noticePublisherTrusted": "Publisher trusted.",
       "noticeUpdateApplied": "Catalog update applied.",
       "originBuiltIn": "Built-in catalog",
+      "originDefinitionSelected": "Using selected catalog definitions",
       "originSigned": "Signed catalog · version {{version}}",
       "originSignedPrevious": "Signed catalog · version {{version}} · using the previous valid update",
       "planDetailsLabel": "Technical details for catalog update sequence {{sequence}}",
@@ -875,6 +876,17 @@ export default interface Resources {
       "overview": "Overview",
       "saves": "Saves & backups",
       "versions": "Versions & updates"
+    },
+    "withdrawal": {
+      "installedBadge": "Installed release withdrawn",
+      "installedNext": "You can keep your installed copy and its saves.",
+      "installedReason": "Version {{version}} was withdrawn by the catalog maintainer.",
+      "label": "Withdrawn release",
+      "recommendedBadge": "Recommended release withdrawn",
+      "recommendedNext": "Wait for a compatible release or review the available versions.",
+      "recommendedReason": "The recommended release was withdrawn by the catalog maintainer.",
+      "rollback": "Review rollback",
+      "versions": "View versions"
     }
   },
   "gameFiles": {
@@ -1089,6 +1101,20 @@ export default interface Resources {
       "externalRegistration": "Existing installation setup",
       "managedInstall": "Managed setup",
       "managedLaunch": "Managed launch"
+    },
+    "savedScan": {
+      "checking": "Checking the saved scan…",
+      "dismiss": "Dismiss scan result",
+      "failed": "Portcove could not check this scan.",
+      "heading": "Saved folder scan",
+      "label": "Saved folder scan result",
+      "partial": "Partial scan results saved.",
+      "progress": "Saved scan progress.",
+      "retry": "Retry checking this scan",
+      "review": "Review saved scan",
+      "saved": "Saved folder scan results.",
+      "showCurrent": "Show current folder results",
+      "unavailable": "This scan is no longer available with its original results and settings."
     },
     "setupReviews": {
       "add": "Add {{total}} selected to Library",
@@ -2310,11 +2336,16 @@ export default interface Resources {
       "open": "Restore from a library copy",
       "plan": "Library restore plan",
       "recovery": {
+        "bundleIntro": "Finish checking and restoring the bundle before opening the library.",
+        "bundleRestored": "The library has been restored. Open it when you're ready.",
+        "bundleResume": "Resume bundle restore",
+        "bundleUnknown": "Portcove could not confirm this bundle restore.",
         "busy": "Recovering the library restore…",
         "destination": "Restore destination: <path />",
         "heading": "Finish the interrupted library restore",
         "intro": "Resume the restore to verify and finish opening the copied library. The Portcove export stays unchanged. Incomplete copies remain closed until recovery succeeds.",
         "label": "Library restore recovery",
+        "open": "Open restored library",
         "resume": "Resume restore"
       },
       "restore": "Restore this library",

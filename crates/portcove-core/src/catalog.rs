@@ -220,16 +220,7 @@ impl Catalog {
     pub fn embedded() -> Result<Self> {
         #[cfg(feature = "qualification-fixtures")]
         if let Some(path) = std::env::var_os("PORTCOVE_QUALIFICATION_CATALOG") {
-            let path = Path::new(&path);
-            if !path.is_absolute() {
-                return Err(PortcoveError::usage(
-                    "qualification catalog path must be absolute",
-                ));
-            }
-            let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
-            let value = std::str::from_utf8(&bytes)
-                .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
-            return Self::from_json(value);
+            return Self::read_qualification_catalog(Path::new(&path));
         }
         // The bundled bytes never change within a process, and `Catalog` shares
         // its documents behind `Arc`, so parse and validate them once. A
@@ -240,6 +231,24 @@ impl Catalog {
             Some(catalog) => Ok(catalog.clone()),
             None => Self::parse_embedded(),
         }
+    }
+
+    /// Qualification catalogs extend the complete generated catalog, so they
+    /// share its supported read bound rather than a smaller fixed one.
+    #[cfg(feature = "qualification-fixtures")]
+    fn read_qualification_catalog(path: &Path) -> Result<Self> {
+        if !path.is_absolute() {
+            return Err(PortcoveError::usage(
+                "qualification catalog path must be absolute",
+            ));
+        }
+        let bytes = crate::path::read_bounded_regular(
+            path,
+            crate::signed_catalog::MAX_CATALOG_BYTES as u64,
+        )?;
+        let value = std::str::from_utf8(&bytes)
+            .map_err(|_| PortcoveError::usage("qualification catalog must be valid UTF-8"))?;
+        Self::from_json(value)
     }
 
     fn parse_embedded() -> Result<Self> {
@@ -453,6 +462,18 @@ impl Catalog {
         }
     }
 
+    /// Legacy full projections carry graph rows for unrelated ports without
+    /// their loader bindings. Keep the bindings already present in the baseline.
+    pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_loader.clone_from(&original.mod_loader);
+            }
+        }
+    }
+
     /// A sibling projection cannot appoint or remove package-only settings.
     pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
         for port in &mut Arc::make_mut(&mut self.document).ports {
@@ -469,7 +490,14 @@ impl Catalog {
     }
 
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
-        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+            return;
+        };
+        // The floor fences both bundled and legacy scopes. Only the currently
+        // admitted definition for this exact subject may appoint a scope again.
+        let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
+            && self.definition_selection(port_id).is_some();
+        if !has_admitted_scope {
             Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
         }
     }
@@ -818,6 +846,7 @@ impl Catalog {
                     port.id
                 )));
             }
+            crate::profile_loader::validate(port)?;
             crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
@@ -3075,22 +3104,68 @@ mod tests {
             std::fs::write(&path, bytes).unwrap();
             assert!(Catalog::inspect_proposal(&path).is_err());
         }
+        // The generated catalog may outgrow the legacy 4 MiB client floor:
+        // local inspection follows the supported generated-catalog bound.
+        let bound = crate::signed_catalog::MAX_CATALOG_BYTES;
+        for length in [above_legacy_catalog_floor(), bound] {
+            std::fs::write(&path, padded_catalog(length)).unwrap();
+            Catalog::inspect_proposal(&path).unwrap_or_else(|error| panic!("{length}: {error:?}"));
+        }
         // Past the catalog read bound the file is refused before it is read
         // whole, never truncated to a parsable prefix.
-        let padded = |length: usize| {
-            let mut bytes = EMBEDDED_CATALOG.to_owned();
-            bytes.push_str(&" ".repeat(length - bytes.len()));
-            bytes
-        };
-        std::fs::write(
-            &path,
-            padded(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1),
-        )
-        .unwrap();
-        Catalog::inspect_proposal(&path).unwrap();
-        std::fs::write(&path, padded(crate::signed_catalog::MAX_CATALOG_BYTES + 1)).unwrap();
+        std::fs::write(&path, padded_catalog(bound + 1)).unwrap();
         let error = Catalog::inspect_proposal(&path).unwrap_err();
         assert!(error.message.contains("bounded regular file"), "{error:?}");
+    }
+
+    /// The complete generated catalog padded with insignificant whitespace to
+    /// exactly `length` bytes, so a size bound is probed with an otherwise
+    /// valid catalog however far the embedded catalog grows.
+    fn padded_catalog(length: usize) -> String {
+        let bound = crate::signed_catalog::MAX_CATALOG_BYTES;
+        assert!(
+            EMBEDDED_CATALOG.len() <= bound,
+            "generated catalog is {} bytes, above its supported {bound}-byte bound",
+            EMBEDDED_CATALOG.len()
+        );
+        let padding = length
+            .checked_sub(EMBEDDED_CATALOG.len())
+            .unwrap_or_else(|| {
+                panic!(
+                    "generated catalog is {} bytes, already above the {length}-byte probe",
+                    EMBEDDED_CATALOG.len()
+                )
+            });
+        let mut bytes = EMBEDDED_CATALOG.to_owned();
+        bytes.push_str(&" ".repeat(padding));
+        bytes
+    }
+
+    /// A probe length strictly above the legacy floor, never below the
+    /// generated catalog itself.
+    fn above_legacy_catalog_floor() -> usize {
+        EMBEDDED_CATALOG
+            .len()
+            .max(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1)
+    }
+
+    #[cfg(feature = "qualification-fixtures")]
+    #[test]
+    fn qualification_catalog_follows_the_generated_catalog_bound() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("qualification-catalog.json");
+        let bound = crate::signed_catalog::MAX_CATALOG_BYTES;
+        for length in [above_legacy_catalog_floor(), bound] {
+            std::fs::write(&path, padded_catalog(length)).unwrap();
+            Catalog::read_qualification_catalog(&path)
+                .unwrap_or_else(|error| panic!("{length}: {error:?}"));
+        }
+        std::fs::write(&path, padded_catalog(bound + 1)).unwrap();
+        let error = Catalog::read_qualification_catalog(&path).unwrap_err();
+        assert!(error.message.contains("bounded regular file"), "{error:?}");
+        let error = Catalog::read_qualification_catalog(Path::new("qualification-catalog.json"))
+            .unwrap_err();
+        assert!(error.message.contains("must be absolute"), "{error:?}");
     }
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =
@@ -4827,6 +4902,10 @@ mod tests {
                 .unwrap();
             assert!(legacy.game_settings.is_none());
             port.game_settings = None;
+            // Frozen schema-1 rows predate both explicit loader declarations.
+            assert!(legacy.mod_loader.is_none() && legacy.mod_provider_bindings.is_none());
+            port.mod_loader = None;
+            port.mod_provider_bindings = None;
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;
@@ -5561,6 +5640,8 @@ mod tests {
             .iter_mut()
             .find(|port| port["id"] == "zelda64-recomp")
             .unwrap();
+        // Keep this missing-hint case focused on the generic executable contract.
+        port.as_object_mut().unwrap().remove("mod_loader");
         port["executable_hints"]
             .as_object_mut()
             .unwrap()

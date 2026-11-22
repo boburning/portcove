@@ -19,6 +19,7 @@ function guide(exportMetadata: () => Promise<LibraryMetadataFile | undefined>) {
     onReviewSaves,
     element: (
       <LibraryRecovery
+        generation={1}
         libraryRoot="E:/owned/library"
         ports={[port]}
         statuses={

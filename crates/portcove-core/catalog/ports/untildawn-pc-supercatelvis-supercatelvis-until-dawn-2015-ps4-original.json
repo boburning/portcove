@@ -17,7 +17,16 @@
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "New downloads are unavailable while the closed-source player’s distribution/provenance remains unresolved, including declared game-derived shader programs and its icon. A native description or own-disc requirement does not approve those files. Information about original CUSA02636/update 01.03 and project-reported progress is retained under this entry’s existing identity. Exact package/source provenance must be resolved before downloads are offered.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "New downloads are unavailable while the closed-source player’s distribution/provenance remains unresolved, including declared game-derived shader programs and its icon. A native description or own-disc requirement does not approve those files. Information about original CUSA02636/update 01.03 and project-reported progress is retained under this entry’s existing identity. Exact package/source provenance must be resolved before downloads are offered.",
+        "tracking_issue": 3461
+      }
+    ],
     "issue_number": 3461,
     "original_game": {
       "format_version": 1,

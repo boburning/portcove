@@ -405,6 +405,7 @@ fn game_update_plan_assessment(plan: &crate::InstallPlan) -> crate::PortActionAs
         availability,
         reason,
         definition: None,
+        restriction: None,
     }
 }
 

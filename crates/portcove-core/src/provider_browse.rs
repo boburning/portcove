@@ -17,6 +17,10 @@ use crate::{
 
 /// Mods listed per browse page.
 const BROWSE_PAGE_SIZE: u32 = 20;
+/// Provider pages of 50 one catalog read requests. Larger catalogs continue
+/// from `ProviderCatalog::next_page` in later reads, so every project stays
+/// reachable while each read keeps a bounded request count.
+const CATALOG_PAGES_PER_READ: u32 = 12;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderBrowsePage {
@@ -61,6 +65,13 @@ pub struct ProviderCatalog {
     pub legacy_game_id: Option<String>,
     /// False when additional or unreadable records may exist.
     pub complete: bool,
+    /// Provider page to continue from when this read stopped at its request
+    /// bound. Absent when the listing ended or could not be read consistently.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_page: Option<u32>,
+    /// Records the provider reports for the whole listing, when it reports one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expected_total: Option<u64>,
     pub observed_at: i64,
     pub freshness: ProviderFreshness,
 }
@@ -71,6 +82,21 @@ impl PortcoveService {
         port_id: &str,
         source: &str,
     ) -> Result<ProviderCatalog> {
+        self.mod_provider_catalog_from(port_id, source, 1).await
+    }
+
+    /// Reads the catalog starting at provider page `start_page` (1 first). A
+    /// continuation's `complete` covers only its own pages; the caller merges
+    /// reads and checks the merged count against `expected_total`.
+    pub async fn mod_provider_catalog_from(
+        &self,
+        port_id: &str,
+        source: &str,
+        start_page: u32,
+    ) -> Result<ProviderCatalog> {
+        if start_page == 0 {
+            return Err(PortcoveError::usage("provider catalog pages start at 1"));
+        }
         let client = ProviderClient::for_definition(
             &self.library,
             self.catalog().port(port_id)?,
@@ -81,47 +107,7 @@ impl PortcoveService {
             .map(|_| client.game_id());
         match client {
             ProviderClient::GameBanana { client, game } => {
-                let first = client.search(game, 1, 50).await?;
-                let expected = first.value.total;
-                let mut freshness = first.freshness;
-                let mut observed_at = first.observed_at;
-                let mut terminal = first.value.complete;
-                let mut projects = first.value.projects;
-                let mut consistent = true;
-                // A full Ship catalog currently fits within this bound. A larger
-                // catalog is offered as a partial snapshot, with explicit coverage.
-                for page in 2..=expected.div_ceil(50).min(12) as u32 {
-                    let Ok(next) = client.search(game, page, 50).await else {
-                        consistent = false;
-                        break;
-                    };
-                    if next.value.total != expected
-                        || (next.freshness == ProviderFreshness::Stale)
-                            != (first.freshness == ProviderFreshness::Stale)
-                        || terminal
-                    {
-                        consistent = false;
-                    }
-                    terminal = next.value.complete;
-                    observed_at = observed_at.min(next.observed_at);
-                    if next.freshness == ProviderFreshness::Stale {
-                        freshness = ProviderFreshness::Stale;
-                    }
-                    projects.extend(next.value.projects);
-                }
-                let game = game.to_string();
-                projects.retain(|project| project.game_id.as_deref() == Some(&game));
-                let mut seen = std::collections::HashSet::new();
-                projects.retain(|project| seen.insert(project.project_id.clone()));
-                // GameBanana does not return download counts on every listing.
-                // Preserve its Most Downloaded order even when counts are absent.
-                Ok(ProviderCatalog {
-                    legacy_game_id,
-                    complete: consistent && terminal && projects.len() as u64 == expected,
-                    projects,
-                    observed_at,
-                    freshness,
-                })
+                gamebanana_catalog(&client, game, start_page, legacy_game_id).await
             }
             ProviderClient::Thunderstore { client, community } => {
                 let observed = client.community_catalog(&community).await?;
@@ -134,6 +120,8 @@ impl PortcoveService {
                 Ok(ProviderCatalog {
                     legacy_game_id,
                     complete: projects.len() == expected,
+                    next_page: None,
+                    expected_total: Some(expected as u64),
                     projects,
                     observed_at: observed.observed_at,
                     freshness: observed.freshness,
@@ -263,20 +251,20 @@ impl PortcoveService {
                 "this project does not belong to the game this port is bound to",
             ));
         }
-        let eligible_file_ids = if observed.freshness == ProviderFreshness::Stale {
-            Vec::new()
-        } else {
-            observed
+        let layout = self.optional_deploy_layout(port_id)?;
+        let eligible_file_ids = match layout {
+            Some(layout) if observed.freshness != ProviderFreshness::Stale => observed
                 .value
                 .files
                 .iter()
                 .filter(|file| {
-                    crate::provider_install::accepts_provider_file(port, file)
+                    crate::provider_install::accepts_provider_file(&layout, file)
                         && crate::provider_install::validate_offer(client, &observed.value, file)
                             .is_ok()
                 })
                 .map(|file| file.file_id.clone())
-                .collect()
+                .collect(),
+            _ => Vec::new(),
         };
         Ok(ProviderProjectView {
             port_id: port_id.into(),
@@ -292,3 +280,57 @@ impl PortcoveService {
 #[cfg(test)]
 #[path = "provider_browse_tests.rs"]
 mod tests;
+
+/// One bounded GameBanana catalog read from `start_page`.
+pub(crate) async fn gamebanana_catalog(
+    client: &crate::GameBananaClient,
+    game: u64,
+    start_page: u32,
+    legacy_game_id: Option<String>,
+) -> Result<ProviderCatalog> {
+    let first = client.search(game, start_page, 50).await?;
+    let expected = first.value.total;
+    let mut freshness = first.freshness;
+    let mut observed_at = first.observed_at;
+    let mut terminal = first.value.complete;
+    let mut projects = first.value.projects;
+    let mut consistent = true;
+    let last_page = expected.div_ceil(50).min(u64::from(u32::MAX)) as u32;
+    let end_page = last_page.min(start_page.saturating_add(CATALOG_PAGES_PER_READ - 1));
+    for page in start_page.saturating_add(1)..=end_page {
+        let Ok(next) = client.search(game, page, 50).await else {
+            consistent = false;
+            break;
+        };
+        if next.value.total != expected
+            || (next.freshness == ProviderFreshness::Stale)
+                != (first.freshness == ProviderFreshness::Stale)
+            || terminal
+        {
+            consistent = false;
+        }
+        terminal = next.value.complete;
+        observed_at = observed_at.min(next.observed_at);
+        if next.freshness == ProviderFreshness::Stale {
+            freshness = ProviderFreshness::Stale;
+        }
+        projects.extend(next.value.projects);
+    }
+    let game = game.to_string();
+    projects.retain(|project| project.game_id.as_deref() == Some(&game));
+    let mut seen = std::collections::HashSet::new();
+    projects.retain(|project| seen.insert(project.project_id.clone()));
+    // GameBanana does not return download counts on every listing.
+    // Preserve its Most Downloaded order even when counts are absent.
+    let next_page = (consistent && !terminal && end_page < last_page).then(|| end_page + 1);
+    let complete = consistent && terminal && (start_page > 1 || projects.len() as u64 == expected);
+    Ok(ProviderCatalog {
+        legacy_game_id,
+        complete,
+        next_page,
+        expected_total: Some(expected),
+        projects,
+        observed_at,
+        freshness,
+    })
+}

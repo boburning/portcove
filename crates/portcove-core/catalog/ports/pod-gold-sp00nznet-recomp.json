@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/sp00nznet/pod-recomp/releases/tag/v0.1.0",
     "setup_url": "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
-    "download_block_reason": "Use the publisher’s setup outside Portcove. It can install build tools and compiles your owned POD Gold files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the publisher’s setup outside Portcove. It can install build tools and compiles your owned POD Gold files.",
+        "tracking_issue": 6091
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/sp00nznet/pod-recomp/blob/v0.1.0/README.md#quick-start",
       "steps": [

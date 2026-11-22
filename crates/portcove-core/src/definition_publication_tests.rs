@@ -10,8 +10,10 @@ fn fixture_with_catalog_growth(
     additional_bytes: usize,
     padded_leaf_bytes: Option<usize>,
 ) -> BTreeMap<String, Vec<u8>> {
-    let mut document =
-        crate::test_fixture::indexed_fixture_document(&crate::Catalog::embedded().unwrap());
+    let mut document = crate::test_fixture::indexed_fixture_document_for_port(
+        &crate::Catalog::embedded().unwrap(),
+        "shipwright",
+    );
     document
         .ports
         .iter_mut()
@@ -23,14 +25,15 @@ fn fixture_with_catalog_growth(
     }
     let catalog = crate::Catalog::from_document(document).unwrap();
     let port = catalog.port("shipwright").unwrap();
-    let mut leaf = serde_json::to_vec(&json!({"contract_schema":1,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
+    let loader_schema = if port.mod_loader.is_some() { 3 } else { 1 };
+    let mut leaf = serde_json::to_vec(&json!({"contract_schema":loader_schema,"representation":"catalog_projection","catalog":catalog.authoritative_document()})).unwrap();
     if let Some(bytes) = padded_leaf_bytes {
         assert!(leaf.len() < bytes);
         leaf.resize(bytes, b' ');
     }
     let leaf_target = format!("sha256/{}.json", hash(&leaf));
-    let entry = serde_json::to_vec(&json!({"definition_schema":1,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
-        "required_capabilities":[{"template":"libultraship-portable","minimum_version":1,"maximum_version":1}],
+    let entry = serde_json::to_vec(&json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
+        "required_capabilities":crate::test_fixture::definition_requirements(port, 1),
         "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]})).unwrap();
     let entry_target = format!("sha256/{}.json", hash(&entry));
     let index = serde_json::to_vec(&json!({"index_schema":1,"definitions":[{"namespace":"official","stable_id":port.id,"revision":1,"target":entry_target}],
