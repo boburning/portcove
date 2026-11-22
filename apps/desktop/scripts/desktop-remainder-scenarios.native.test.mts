@@ -351,7 +351,12 @@ void test("install readback permits known background commands and still refuses 
       requestIndex: 1,
     });
   run(
-    ["get_workspace_snapshot", "refresh_official_catalog_automatically", "get_artwork"],
+    [
+      "get_workspace_snapshot",
+      "refresh_official_catalog_automatically",
+      "get_artwork",
+      "run_standing_setup",
+    ],
     ["install_port"],
     2,
   );

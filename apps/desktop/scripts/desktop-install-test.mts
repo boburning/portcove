@@ -60,6 +60,7 @@ interface RefreshObservations {
   request?: InstallFixture["requests"][number];
   commands_before_retry?: string[];
   commands_after_retry?: string[];
+  activity_ids_after_retry?: string[];
   retry_commands?: string[];
   retry_did_not_repeat_install?: boolean;
   failure?: string;
@@ -675,6 +676,34 @@ export async function installScenarios({
       assert.equal(required(fixture.requests[requestIndex]).completed, true);
       assert.equal(required(fixture.requests[requestIndex]).bytes_sent, fixture.artifact.length);
 
+      const boot = transportValue(
+        "desktop_bootstrap_status",
+        success(await invoke("get_bootstrap_status")),
+      );
+      const intents = transportValue(
+        "desktop_port_intents",
+        success(await invoke("get_port_intents", { generation: boot.generation })),
+      );
+      assert.equal(
+        intents.some((intent) => intent.mode === "set_up_when_ready"),
+        false,
+        "The isolated retry fixture must have no standing game-install consent",
+      );
+      const roots = transportValue(
+        "desktop_game_file_roots",
+        success(await invoke("get_game_file_roots", { generation: boot.generation })),
+      );
+      assert.deepEqual(roots, [], "The isolated retry fixture must have no standing folder setup");
+      const operationalActivityIds = async () => {
+        const feed = transportValue("activity", success(await invoke("get_activities")));
+        assert.ok(feed.terminal_history_complete && feed.active_and_actionable_complete);
+        return feed.records
+          .filter(({ operation }) => operation !== "update_catalog")
+          .map(({ id }) => id)
+          .sort();
+      };
+      const activityIds = await operationalActivityIds();
+      assert.ok(activityIds.includes(succeeded.id));
       observations.activity_id = succeeded.id;
       observations.installed = installed.active;
       observations.request = required(fixture.requests[requestIndex]);
@@ -735,8 +764,14 @@ export async function installScenarios({
       observations.retry_commands = observations.commands_after_retry.slice(
         observations.commands_before_retry.length,
       );
-      // A refreshed workspace lets the detail re-read its views. The independent
-      // scheduled catalog refresh may also run; none may repeat the game install.
+      observations.activity_ids_after_retry = await operationalActivityIds();
+      assert.deepEqual(observations.activity_ids_after_retry, activityIds);
+      const current = (await statuses()).find((item) => item.port_id === port.id);
+      assert.deepEqual(current?.active, installed.active);
+      assert.equal(current?.staged, null);
+      // A catalog refresh can start the normal catch-up pass with no standing
+      // install consent (job 137010297933). Check the resulting Core activity and
+      // installation as well as the renderer commands to rule out setup replay.
       const retryAndBackgroundCommands = new Set([
         "get_activities",
         "get_workspace_changed",
@@ -752,6 +787,7 @@ export async function installScenarios({
         "get_backups",
         "get_artwork",
         "refresh_official_catalog_automatically",
+        "run_standing_setup",
       ]);
       assert.ok(observations.retry_commands.includes("get_workspace_snapshot"));
       assert.ok(
