@@ -2274,6 +2274,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -30077,6 +30084,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -41170,6 +41184,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {
@@ -77164,6 +77185,13 @@
       },
       "LaunchReadiness": {
         "properties": {
+          "active_game_source_profile": {
+            "description": "The effective active installation can use the default game-source registration\nfor edition artwork after fresh byte verification. Omitted when launch can\nuse different bytes or Core cannot establish the default's eligibility.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "bios": {
             "anyOf": [
               {

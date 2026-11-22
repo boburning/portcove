@@ -2024,6 +2024,12 @@ export interface PortActionAssessment {
   [k: string]: unknown;
 }
 export interface LaunchReadiness {
+  /**
+   * The effective active installation can use the default game-source registration
+   * for edition artwork after fresh byte verification. Omitted when launch can
+   * use different bytes or Core cannot establish the default's eligibility.
+   */
+  active_game_source_profile?: string | null;
   bios?: SourceHealth | null;
   bios_assessment?: SourceAssessment | null;
   blockers: LaunchBlocker[];

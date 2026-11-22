@@ -832,8 +832,28 @@ async fn create_backup(
 async fn inspect_source(
     state: tauri::State<'_, DesktopState>,
     profile_id: String,
+    artwork_generation: Option<u64>,
 ) -> DesktopResult<SourceInspectionReport> {
     let state = state.inner().clone();
+    if let Some(generation) = artwork_generation {
+        return blocking_service_at_generation(state, generation, move |service| {
+            let operation = portcove_core::OperationCoordinator::new("artwork-source", None);
+            let limits = portcove_core::RegisteredSourceInspectionLimits {
+                max_file_bytes: 64 * 1024 * 1024,
+                max_hash_bytes: 128 * 1024 * 1024,
+                max_elapsed_ms: 5_000,
+            };
+            let batch =
+                service.inspect_registered_sources_bounded(&[profile_id], &limits, &operation)?;
+            match batch.observations.into_iter().next() {
+                Some(portcove_core::RegisteredSourceObservation::Inspected { report }) => {
+                    Ok(*report)
+                }
+                _ => Err(PortcoveError::not_found("the original is no longer registered").into()),
+            }
+        })
+        .await;
+    }
     let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
         let mut report = inspect_source_with_service(&service, &profile_id)?;

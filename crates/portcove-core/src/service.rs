@@ -2222,6 +2222,7 @@ impl PortcoveService {
                     pending_setup: false,
                     preparation_mode: None,
                     required_source_extension: None,
+                    active_game_source_profile: None,
                     source: None,
                     source_folder_unavailable: None,
                     bios: None,
@@ -2259,9 +2260,10 @@ impl PortcoveService {
             .and_then(|profile| registered_sources.get(profile));
         // Readiness only checks prior instances for availability. Launch verifies the
         // selected instance against the retained release under the N64 read budget.
+        let migrated_original =
+            retained_catalog.is_some() && self.uses_migrated_n64_original(catalog, port);
         let recheck_saved_original = installed
-            && retained_catalog.is_some()
-            && self.uses_migrated_n64_original(catalog, port)
+            && migrated_original
             && self
                 .has_saved_n64_original_to_recheck(
                     port,
@@ -2498,6 +2500,30 @@ impl PortcoveService {
         } else {
             None
         };
+        let active_game_source_profile = port.source_profile.clone().filter(|profile| {
+            let Some(active) = status.active.as_ref().filter(|active| active.verified) else {
+                return false;
+            };
+            !blockers.contains(&LaunchBlocker::InvalidInstallation)
+                && !blockers.contains(&LaunchBlocker::IncompatibleSource)
+                && !port.optional_game_source
+                && crate::preparation::launch_consumes_original(port)
+                && !release.is_some_and(|release| {
+                    crate::source_inspection::n64_release_input(catalog, &port.id, release)
+                        .is_some()
+                })
+                && Self::artwork_source_scope(catalog, &port.id, profile).is_some_and(|scope| {
+                    Self::artwork_source_scope(current_catalog, &port.id, profile) == Some(scope)
+                })
+                && default_original.is_some_and(|original| {
+                    self.launch_uses_default_original(&port.id, &active.id, original)
+                        && (!migrated_original
+                            || matches!(
+                                self.has_saved_n64_original_to_recheck(port, None, Some(original)),
+                                Ok(false)
+                            ))
+                })
+        });
         status.readiness = Some(LaunchReadiness {
             setup_contract: retained_catalog
                 .as_ref()
@@ -2540,6 +2566,7 @@ impl PortcoveService {
                 .as_ref()
                 .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
+            active_game_source_profile,
             source,
             source_folder_unavailable,
             bios,
@@ -2552,6 +2579,27 @@ impl PortcoveService {
                 .and_then(|_| crate::adapter::managed_psx_selectable_discs(catalog, port)),
         });
         Ok(status)
+    }
+
+    fn artwork_source_scope<'a>(
+        catalog: &'a Catalog,
+        port_id: &str,
+        profile_id: &str,
+    ) -> Option<(
+        &'a crate::SourceIdentityProfile,
+        &'a crate::PortSourceContract,
+    )> {
+        let sources = catalog.source_catalog()?;
+        let profile = sources
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)?;
+        let contract = sources.contracts.iter().find(|contract| {
+            contract.port_id == port_id
+                && contract.profile_id == profile_id
+                && contract.role == crate::PortSourceRole::Game
+        })?;
+        Some((profile, contract))
     }
 
     fn retained_catalog_for_status(&self, status: &PortStatus) -> Result<Option<Catalog>> {
