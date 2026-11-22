@@ -826,6 +826,16 @@ export type UpdateReleaseNotesCoverage =
   "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
+/**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+/**
+ * What the package would run on the player's machine if enabled.
+ */
+export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
+export type RecompModHold = "other_game" | "executable_content" | "host_executable_files";
 export type HostToolProbeState =
   | "missing"
   | "invalid"
@@ -836,11 +846,6 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
-/**
- * How current an observation is. A confirmed empty result is `Fresh`; an outage
- * that falls back to earlier data is `Stale`, never an empty list.
- */
-export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type JakModsBuildStatus = "available" | "unavailable" | "unknown" | "external";
 export type JakModsProjectKind = "open_goal_build" | "external";
 export type OutputLaunchRequest = LaunchSessionView | null;
@@ -903,10 +908,6 @@ export type CapabilityFeature =
 export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launcher" | "asks-for-game-files" | "unknown";
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
-/**
- * What the package would run on the player's machine if enabled.
- */
-export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 /**
  * Upstream-owned browser routes. These grant no download or import capability.
  */
@@ -1382,6 +1383,8 @@ export interface TransportOutputs {
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
   github_device_login_result: OutputGithubDeviceLoginResult;
+  github_mod_catalog: OutputGithubModCatalog;
+  github_mod_compound_review: OutputGithubModCompoundReview;
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
@@ -4649,6 +4652,102 @@ export interface OutputGithubDeviceLoginResult {
   status: GithubAuthStatus | null;
   [k: string]: unknown;
 }
+export interface OutputGithubModCatalog {
+  complete: boolean;
+  freshness: ProviderFreshness;
+  /**
+   * The active installed build admits native companion import on this
+   * platform. False when the game is not installed or its installed build
+   * predates the reviewed loader; the releases remain a link-out.
+   */
+  native_import_offered: boolean;
+  observed_at: number;
+  platform: Platform;
+  port_id: string;
+  releases: GithubModRelease[];
+  repository: string;
+  repository_id: number;
+  source_url: string;
+  [k: string]: unknown;
+}
+export interface GithubModRelease {
+  asset: GithubModAsset;
+  published_at: number | null;
+  release_id: number;
+  release_url: string;
+  tag: string;
+  [k: string]: unknown;
+}
+export interface GithubModAsset {
+  asset_id: number;
+  bytes: number;
+  name: string;
+  published_sha256: string | null;
+  [k: string]: unknown;
+}
+export interface OutputGithubModCompoundReview {
+  asset_id: number;
+  /**
+   * The active installed build admits native import on the reviewed
+   * platform and its runtime meets every mod's minimum runtime version.
+   */
+  native_import_offered: boolean;
+  port_id: string;
+  release_id: number;
+  repository: string;
+  repository_id: number;
+  review: RecompCompoundReview;
+  [k: string]: unknown;
+}
+export interface RecompCompoundReview {
+  archive_bytes: number;
+  archive_sha256: string;
+  companions: ReviewedRecompCompanion[];
+  mods: RecompModInspection[];
+  platform: Platform;
+  [k: string]: unknown;
+}
+export interface ReviewedRecompCompanion {
+  bytes: number;
+  file_name: string;
+  sha256: string;
+  [k: string]: unknown;
+}
+export interface RecompModInspection {
+  authors: string[];
+  dependencies: RecompDependency[];
+  display_name: string;
+  enabled_by_default: boolean;
+  execution: RecompExecution[];
+  file_name: string;
+  game_id: string;
+  has_settings: boolean;
+  holds: RecompModHold[];
+  minimum_runtime_version: string;
+  /**
+   * The runtime's identity for the mod (from `mod.json`).
+   */
+  native_id: string;
+  /**
+   * Library name → exported functions the manifest declares.
+   */
+  native_libraries: {
+    [k: string]: string[];
+  };
+  native_version: string;
+  optional_dependencies: RecompDependency[];
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+/**
+ * A dependency on another native mod, with an optional minimum version.
+ */
+export interface RecompDependency {
+  id: string;
+  minimum_version: string | null;
+  [k: string]: unknown;
+}
 export interface OutputHostToolProbeResult {
   clear_action_available: boolean;
   message: string;
@@ -5566,7 +5665,9 @@ export interface OutputModSetupsView {
    */
   external_mod_portals?: ExternalModPortal[];
   /**
-   * This host has a reviewed native companion layout for the upstream ZIP.
+   * The active installed build admits native companion import for the
+   * upstream ZIP on this host. Not installed, or installed before the
+   * reviewed loader, leaves only the releases link.
    */
   github_native_import_offered?: boolean;
   /**
