@@ -97,6 +97,8 @@ pub enum SourceRejectionReason {
 pub enum SourceVariantScope {
     #[default]
     Unspecified,
+    /// An independently reviewed operation has no game-source requirement.
+    NotRequired,
     Exact {
         identity: SourceIdentity,
     },
@@ -154,15 +156,26 @@ impl SourceEvidence {
             && scope.artifact_sha256.as_ref().is_some_and(|hash| {
                 hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())
             })
-            && scope.contract_id.as_ref().is_some_and(|id| !id.is_empty())
             && scope
                 .check_version
                 .as_ref()
                 .is_some_and(|id| !id.is_empty())
-            && matches!(&scope.variant, SourceVariantScope::Exact { identity }
-                if !identity.game_id.is_empty()
-                    && !identity.variant_id.is_empty()
-                    && !identity.representation_id.is_empty())
+            && match &scope.variant {
+                SourceVariantScope::Exact { identity } => {
+                    scope.contract_id.as_ref().is_some_and(|id| !id.is_empty())
+                        && !identity.game_id.is_empty()
+                        && !identity.variant_id.is_empty()
+                        && !identity.representation_id.is_empty()
+                }
+                SourceVariantScope::NotRequired => {
+                    scope.contract_id.is_none()
+                        && scope
+                            .upstream_ref
+                            .as_ref()
+                            .is_some_and(|value| !value.is_empty())
+                }
+                SourceVariantScope::Unspecified => false,
+            }
     }
 }
 

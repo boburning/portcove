@@ -1,7 +1,7 @@
 //! Exact operands for reviewing support inheritance while activation is disabled.
 
 use schemars::JsonSchema;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -17,7 +17,8 @@ use crate::{
 const RULE_VERSION: u32 = 1;
 
 /// Conservative comparisons derived from complete typed operational coordinates.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SupportCoordinates {
     pub setup: String,
     pub launch: String,
@@ -36,7 +37,8 @@ pub struct SuccessorEvidencePreparation {
 }
 
 /// The custody and operational coordinates of one exact managed package.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct SuccessorEvidenceSubject {
     pub definition: crate::DefinitionSelectionIdentity,
     pub definition_sha256: String,
@@ -49,9 +51,17 @@ pub struct SuccessorEvidenceSubject {
     pub artifact_sha256: String,
     pub platform: crate::Platform,
     pub channel: ReleaseChannel,
-    pub contract_id: String,
+    pub source_requirement: SuccessorSourceRequirement,
+    pub contract_id: Option<String>,
     pub variants: Vec<crate::SourceIdentity>,
     pub coordinates: SupportCoordinates,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum SuccessorSourceRequirement {
+    ReviewedOriginal,
+    NotRequired,
 }
 
 fn evidence_digest(value: &impl Serialize) -> Result<String> {
@@ -61,13 +71,7 @@ fn evidence_digest(value: &impl Serialize) -> Result<String> {
     )?)))
 }
 
-pub(super) fn compatibility_coordinates(
-    catalog: &Catalog,
-    port: &crate::PortDefinition,
-    sources: &SourceCatalog,
-    contract: &crate::PortSourceContract,
-    platform: Platform,
-) -> Result<SupportCoordinates> {
+fn operational_coordinates(port: &crate::PortDefinition) -> Result<serde_json::Value> {
     let mut operational = serde_json::to_value(port)?;
     let fields = operational
         .as_object_mut()
@@ -90,6 +94,25 @@ pub(super) fn compatibility_coordinates(
         .ok_or_else(|| PortcoveError::state("successor release definition is not an object"))?
         .remove("curated");
 
+    Ok(operational)
+}
+
+fn operation_support_coordinates(common: &str) -> Result<SupportCoordinates> {
+    Ok(SupportCoordinates {
+        setup: evidence_digest(&("setup", common))?,
+        launch: evidence_digest(&("launch", common))?,
+        data: evidence_digest(&("data", common))?,
+    })
+}
+
+pub(super) fn compatibility_coordinates(
+    catalog: &Catalog,
+    port: &crate::PortDefinition,
+    sources: &SourceCatalog,
+    contract: &crate::PortSourceContract,
+    platform: Platform,
+) -> Result<SupportCoordinates> {
+    let operational = operational_coordinates(port)?;
     // Keep exact definition comparisons conservative. BIOS-conditioned,
     // recognition-only and artifact-bound source semantics need their own
     // normalization rules before their coordinates can be compared.
@@ -137,11 +160,25 @@ pub(super) fn compatibility_coordinates(
         validator,
         original,
     ))?;
-    Ok(SupportCoordinates {
-        setup: evidence_digest(&("setup", &common))?,
-        launch: evidence_digest(&("launch", &common))?,
-        data: evidence_digest(&("data", &common))?,
-    })
+    operation_support_coordinates(&common)
+}
+
+/// A typed native operation can declare setup without requiring an original.
+pub(super) fn source_free_operation(port: &crate::PortDefinition, sources: &SourceCatalog) -> bool {
+    port.adapter == crate::AdapterKind::NativePortable
+        && port.source_profile.is_none()
+        && port.bios_source_profile.is_none()
+        && !port.optional_game_source
+        && port.runtime_source_filename.is_none()
+        && port.runtime_source_set.is_empty()
+        && port.runtime_source_hashes.is_empty()
+        && port.runtime_disc_image.is_none()
+        && port.runtime_source_materialization.is_none()
+        && port.source_environment.is_none()
+        && !sources
+            .contracts
+            .iter()
+            .any(|contract| contract.port_id == port.id)
 }
 
 pub(super) fn exact_source_contract<'a>(
@@ -225,16 +262,41 @@ pub(super) fn authenticated_subject(
     let sources = admitted.source_catalog().ok_or_else(|| {
         PortcoveError::unsupported("successor subject lacks a signed source catalog")
     })?;
-    let contract = exact_source_contract(sources, port_id, &pin.tag, &pin.sha256)?;
-    let variants = sources.current_source_identities(contract)?;
-    if variants.is_empty()
-        || !port.channels.contains(&channel)
-        || port.managed_acquisition_hold.is_some()
-    {
+    if !port.channels.contains(&channel) || port.managed_acquisition_hold.is_some() {
         return Err(PortcoveError::unsupported(
-            "successor subject has no current supported source scope",
+            "successor subject has no current supported operation",
         ));
     }
+    let (source_requirement, contract_id, variants, coordinates) =
+        if source_free_operation(signed_port, sources) {
+            let operational = operational_coordinates(signed_port)?;
+            let common = evidence_digest(&(
+                RULE_VERSION,
+                platform,
+                operational,
+                SuccessorSourceRequirement::NotRequired,
+            ))?;
+            (
+                SuccessorSourceRequirement::NotRequired,
+                None,
+                Vec::new(),
+                operation_support_coordinates(&common)?,
+            )
+        } else {
+            let contract = exact_source_contract(sources, port_id, &pin.tag, &pin.sha256)?;
+            let variants = sources.current_source_identities(contract)?;
+            if variants.is_empty() {
+                return Err(PortcoveError::unsupported(
+                    "successor subject has no current supported source scope",
+                ));
+            }
+            (
+                SuccessorSourceRequirement::ReviewedOriginal,
+                Some(contract.id.clone()),
+                variants,
+                compatibility_coordinates(&admitted, signed_port, sources, contract, platform)?,
+            )
+        };
     Ok((
         SuccessorEvidenceSubject {
             definition: identity.clone(),
@@ -248,15 +310,10 @@ pub(super) fn authenticated_subject(
             artifact_sha256: pin.sha256.clone(),
             platform,
             channel,
-            contract_id: contract.id.clone(),
+            source_requirement,
+            contract_id,
             variants,
-            coordinates: compatibility_coordinates(
-                &admitted,
-                signed_port,
-                sources,
-                contract,
-                platform,
-            )?,
+            coordinates,
         },
         scope,
         admitted,
@@ -295,6 +352,7 @@ pub(crate) fn preflight(
         || previous
             .artifact_sha256
             .eq_ignore_ascii_case(&current.artifact_sha256)
+        || previous.source_requirement != current.source_requirement
         || previous.contract_id != current.contract_id
         || previous.variants != current.variants
         || previous.coordinates != current.coordinates
@@ -398,16 +456,23 @@ pub(super) fn reviewed_anchor_observations(
         .source_catalog()
         .ok_or_else(|| PortcoveError::state("missing successor source catalog"))?;
     let mut result = Vec::new();
-    for variant in &previous.variants {
+    let variant_scopes = match previous.source_requirement {
+        SuccessorSourceRequirement::ReviewedOriginal => previous
+            .variants
+            .iter()
+            .cloned()
+            .map(|identity| SourceVariantScope::Exact { identity })
+            .collect(),
+        SuccessorSourceRequirement::NotRequired => vec![SourceVariantScope::NotRequired],
+    };
+    for variant in variant_scopes {
         let mut prior_scope = SourceEvidenceScope {
             port_id: previous.definition.stable_id.clone(),
             platform: previous.platform,
             artifact_sha256: Some(previous.artifact_sha256.clone()),
             upstream_ref: Some(previous.tag.clone()),
-            contract_id: Some(previous.contract_id.clone()),
-            variant: SourceVariantScope::Exact {
-                identity: variant.clone(),
-            },
+            contract_id: previous.contract_id.clone(),
+            variant,
             check_version: None,
         };
         let same_artifact = |record: &SourceEvidence, scope: &SourceEvidenceScope| {
@@ -486,4 +551,61 @@ pub(super) fn reviewed_anchor_observations(
         result.extend([hands_on.clone(), lifecycle.clone()]);
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod source_free_tests {
+    use super::*;
+    use crate::SourceVariantScope;
+
+    #[test]
+    fn source_free_native_operation_refuses_optional_or_implicit_source_materialization() {
+        let catalog = Catalog::embedded().unwrap();
+        let mut port = catalog.port("gladiator-openglad").unwrap().clone();
+        let sources = catalog.source_catalog().unwrap();
+        assert!(source_free_operation(&port, sources));
+
+        port.optional_game_source = true;
+        assert!(!source_free_operation(&port, sources));
+        port.optional_game_source = false;
+        port.runtime_source_filename = Some("original.z64".into());
+        assert!(!source_free_operation(&port, sources));
+        port.runtime_source_filename = None;
+        port.bios_source_profile = Some("bios".into());
+        assert!(!source_free_operation(&port, sources));
+    }
+
+    #[test]
+    fn explicit_source_free_evidence_does_not_match_legacy_or_required_scope() {
+        let scope = SourceEvidenceScope {
+            port_id: "gladiator-openglad".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some("a".repeat(64)),
+            upstream_ref: Some("v1".into()),
+            contract_id: None,
+            variant: SourceVariantScope::NotRequired,
+            check_version: Some("fixture-check-v1".into()),
+        };
+        let mut proof = SourceEvidence {
+            scope: scope.clone(),
+            kind: SourceEvidenceKind::AutomatedLifecycle,
+            outcome: SourceEvidenceOutcome::Passed,
+            observed_at: 1,
+            portcove_version: None,
+            portcove_commit: None,
+            method: "fixture".into(),
+            evidence_ids: vec!["fixture".into()],
+        };
+        assert!(proof.applies_to(&scope));
+        assert_eq!(
+            serde_json::to_value(&scope.variant).unwrap(),
+            serde_json::json!({"state": "not_required"})
+        );
+
+        proof.scope.variant = SourceVariantScope::Unspecified;
+        assert!(!proof.applies_to(&proof.scope));
+        proof.scope.variant = SourceVariantScope::NotRequired;
+        proof.scope.contract_id = Some("some-original".into());
+        assert!(!proof.applies_to(&proof.scope));
+    }
 }

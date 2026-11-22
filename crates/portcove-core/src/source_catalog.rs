@@ -795,6 +795,25 @@ impl SourceCatalog {
                 "source qualification must reference Portcove qualification evidence",
             ));
         }
+        if record.kind == SourceEvidenceKind::KnownFailure
+            && record.outcome != SourceEvidenceOutcome::Failed
+        {
+            return Err(PortcoveError::usage(
+                "known-failure evidence must have a failed outcome",
+            ));
+        }
+        if scope.variant == SourceVariantScope::NotRequired {
+            if self
+                .contracts
+                .iter()
+                .any(|contract| contract.port_id == scope.port_id)
+            {
+                return Err(PortcoveError::usage(
+                    "source-free qualification conflicts with a declared source contract",
+                ));
+            }
+            return Ok(());
+        }
         let contract_id = scope
             .contract_id
             .as_deref()
@@ -841,13 +860,6 @@ impl SourceCatalog {
         if !binding_exists {
             return Err(PortcoveError::usage(
                 "source qualification is not bound to a reviewed artifact applicability",
-            ));
-        }
-        if record.kind == SourceEvidenceKind::KnownFailure
-            && record.outcome != SourceEvidenceOutcome::Failed
-        {
-            return Err(PortcoveError::usage(
-                "known-failure evidence must have a failed outcome",
             ));
         }
         Ok(())

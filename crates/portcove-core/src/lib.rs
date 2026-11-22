@@ -491,7 +491,7 @@ pub use store_install::{
     StoreOriginalFolder, SystemStoreInstallHost,
 };
 pub use successor_support::{
-    SuccessorEvidencePreparation, SuccessorEvidenceSubject, SupportCoordinates,
+    SuccessorEvidencePreparation, SuccessorEvidenceSubject, SuccessorSourceRequirement, SupportCoordinates,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
