@@ -23,7 +23,7 @@ const modSetups = vi.hoisted(() =>
 vi.mock("../api", () => ({
   desktopApi: new Proxy(
     { modSetups },
-    { get: (target, key) => Reflect.get(target, key) ?? invoke },
+    { get: (target, key) => (key === "modSetups" ? target.modSetups : invoke) },
   ),
 }));
 
