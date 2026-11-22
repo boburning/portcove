@@ -2515,6 +2515,16 @@ export interface PortDefinition {
     "macos-x86-64"?: ReviewedPackageLayout;
     "windows-x86-64"?: ReviewedPackageLayout;
   };
+  /**
+   * Alternate full layouts for exact independently resolved GitHub artifacts.
+   * They never select a package or authorize an acquisition.
+   */
+  reviewed_predecessor_package_layouts_v1?: {
+    "linux-x86-64"?: ReviewedPredecessorPackageLayout[];
+    "macos-aarch64"?: ReviewedPredecessorPackageLayout[];
+    "macos-x86-64"?: ReviewedPredecessorPackageLayout[];
+    "windows-x86-64"?: ReviewedPredecessorPackageLayout[];
+  };
   runtime_data_policy?: RuntimeDataPolicy | null;
   /**
    * Required by, and only valid with, the disc-image unpacking
@@ -3013,6 +3023,15 @@ export interface ReviewedPackageLayout {
    * Exclude verified macOS shared libraries from this fingerprint.
    */
   ignore_verified_macos_libraries?: boolean;
+}
+export interface ReviewedPredecessorPackageLayout {
+  artifact: ArtifactIdentity1;
+  asset_id: number;
+  channel: ReleaseChannel;
+  layout: ReviewedPackageLayout;
+  release_id: number;
+  repository_id: number;
+  tag: string;
 }
 /**
  * Port declaration for a disc image that Portcove unpacks into a runtime
