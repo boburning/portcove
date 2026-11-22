@@ -13,8 +13,9 @@ use crate::{
     PortcoveError, PortcoveService, Result,
 };
 
-/// Bound on a carried unusable pin; a stored pin is a few hundred bytes.
-pub(crate) const MAX_HELD_EXACT_RELEASE_BYTES: usize = 64 * 1024;
+/// Bound on a carried unusable pin: the same bound the library database
+/// places on `port_settings.exact_release_json`, so any stored pin travels.
+pub(crate) const MAX_HELD_EXACT_RELEASE_BYTES: usize = 4096;
 
 /// Match the previously offered Windows policy before verifying a retained
 /// embedded install. This comparison leaves the actual retained contract in use.
