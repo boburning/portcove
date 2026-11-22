@@ -73,6 +73,7 @@ import type {
   HostToolStatus,
   LibraryMetadataFile,
   LibrarySelection,
+  LibrarySelectionReview,
   OperationEvent,
   SourceInspectionReport,
   SourceProfile,
@@ -1736,8 +1737,8 @@ type SettingsViewProps = {
   workspaceRefreshFailed?: boolean;
   librarySelection?: LibrarySelection | undefined;
   chooseLibrary?: (currentPath: string) => Promise<string | null>;
-  switchLibrary?: ((path: string) => Promise<void>) | undefined;
-  resetLibrary?: () => Promise<void>;
+  switchLibrary?: ((path: string, review?: string) => Promise<void>) | undefined;
+  resetLibrary?: (review?: string) => Promise<void>;
   sourceNeeds?: SourceRequirement[];
   sourceRequirementsState?: SourceRequirementsState;
   installedCount?: number;
@@ -1877,6 +1878,11 @@ export function SettingsView(props: SettingsViewProps) {
     >
       <LibrarySelectionCard
         selection={librarySelection}
+        inspect={
+          generation <= 0
+            ? undefined
+            : (path) => desktopApi.reviewLibrarySelection(path, generation)
+        }
         busy={busy}
         choose={chooseLibrary}
         switchLibrary={switchLibrary}
@@ -2196,20 +2202,27 @@ function SettingsSection({
 
 export function LibrarySelectionCard({
   selection,
+  inspect,
   busy,
   choose,
   switchLibrary,
   reset,
 }: {
   selection?: LibrarySelection | undefined;
+  inspect?: ((path: string | null) => Promise<LibrarySelectionReview>) | undefined;
   busy?: string | undefined;
   choose?: ((currentPath: string) => Promise<string | null>) | undefined;
-  switchLibrary?: ((path: string) => Promise<void>) | undefined;
-  reset?: (() => Promise<void>) | undefined;
+  switchLibrary?: ((path: string, review?: string) => Promise<void>) | undefined;
+  reset?: ((review?: string) => Promise<void>) | undefined;
 }) {
   const [error, setError] = useState<unknown>();
   const presentation = failurePresentation(error);
-  const [review, setReview] = useState<{ kind: "switch" | "reset"; path: string }>();
+  const movedDestination = presentation?.technical_context.current_library_root;
+  const [review, setReview] = useState<{
+    kind: "switch" | "reset";
+    path: string;
+    inspection?: LibrarySelectionReview;
+  }>();
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
@@ -2222,7 +2235,12 @@ export function LibrarySelectionCard({
       const path = await choose?.(selection?.root ?? "");
       if (path) {
         focusReturn.current = "switch";
-        setReview({ kind: "switch", path });
+        const inspection = await inspect?.(path);
+        setReview({
+          kind: "switch",
+          path: inspection?.path ?? path,
+          ...(inspection && { inspection }),
+        });
       }
     } catch (value) {
       setError(value);
@@ -2237,10 +2255,11 @@ export function LibrarySelectionCard({
     setError(undefined);
     setPending(true);
     try {
-      const path = await desktopApi.defaultLibraryRoot();
+      const inspection = await inspect?.(null);
+      const path = inspection?.path ?? (await desktopApi.defaultLibraryRoot());
       if (!path.trim()) throw new Error("The default library location is unavailable.");
       focusReturn.current = "reset";
-      setReview({ kind: "reset", path });
+      setReview({ kind: "reset", path, ...(inspection && { inspection }) });
     } catch (value) {
       setError(value);
     } finally {
@@ -2252,8 +2271,12 @@ export function LibrarySelectionCard({
     setError(undefined);
     setPending(true);
     try {
-      if (review.kind === "switch") await switchLibrary?.(review.path);
-      else await reset?.();
+      const digest = review.inspection?.review_sha256;
+      if (review.kind === "switch") {
+        await (digest ? switchLibrary?.(review.path, digest) : switchLibrary?.(review.path));
+      } else {
+        await (digest ? reset?.(digest) : reset?.());
+      }
     } catch (value) {
       setError(value);
     } finally {
@@ -2261,7 +2284,19 @@ export function LibrarySelectionCard({
       setReview(undefined);
     }
   };
-  const saveCurrent = review?.kind === "switch" && review.path === selection?.root;
+  const keepCurrent = review?.inspection?.effect === "keep";
+  const saveCurrent =
+    review?.kind === "switch" &&
+    (review.inspection
+      ? review.inspection.effect === "change_startup"
+      : review.path === selection?.root);
+  const contents = review?.inspection?.contents;
+  const changeDefault = review?.kind === "reset" && review.inspection?.effect === "change_startup";
+  const resetScope = review?.inspection?.resets_preferences
+    ? " This also resets all host preferences, including language, favorites, and tool paths."
+    : review?.inspection
+      ? ""
+      : " If host preferences are damaged or from a newer format, this also resets saved language and tool paths.";
   const source =
     selection?.source === "saved"
       ? "Saved library"
@@ -2327,42 +2362,67 @@ export function LibrarySelectionCard({
             aria-describedby="library-selection-review-description"
           >
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
-              {saveCurrent
-                ? "Save this library for startup?"
-                : review.kind === "switch"
-                  ? "Switch libraries?"
-                  : "Open the default library?"}
+              {keepCurrent
+                ? "This library is already selected"
+                : saveCurrent
+                  ? "Save this library for startup?"
+                  : review.kind === "switch"
+                    ? "Switch libraries?"
+                    : changeDefault
+                      ? "Use this library as the default?"
+                      : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
               className="mb-4 leading-relaxed"
             >
-              {saveCurrent
-                ? "Portcove will keep this library open and save it for future launches. Its files and install locations stay in place."
-                : review.kind === "switch"
-                  ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
-                  : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
+              {keepCurrent
+                ? "This library is open and is already the startup library."
+                : saveCurrent
+                  ? "Portcove will keep this library open and save it for future launches. Its files and install locations stay in place."
+                  : review.kind === "switch"
+                    ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
+                    : changeDefault
+                      ? `Portcove will keep this library open and use it as the default for future launches.${resetScope}`
+                      : `Portcove will open the default library shown below and clear the saved library choice.${resetScope} Files in the current library will stay where they are. The default library uses its own game install folder settings.`}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
+            {contents && (
+              <p className="mt-3 text-sm text-pc-muted-foreground">
+                {
+                  {
+                    empty_directory:
+                      "This folder is empty. Portcove will start a new library here.",
+                    new_default_directory: "Portcove will create the default library folder.",
+                    existing_database:
+                      "This folder contains a library database. Portcove checks it when opening.",
+                    recovery_records:
+                      "This folder contains recovery records. Portcove checks them when opening.",
+                  }[contents]
+                }
+              </p>
+            )}
             <DialogFooter className="mt-4">
-              <Button
-                data-focusable
-                variant="primary"
-                disabled={pending}
-                onClick={() => {
-                  void applyReview();
-                }}
-              >
-                {saveCurrent
-                  ? pending
-                    ? "Saving…"
-                    : "Save startup choice"
-                  : pending
-                    ? "Switching…"
-                    : review.kind === "switch"
-                      ? "Switch library"
-                      : "Open default library"}
-              </Button>
+              {!keepCurrent && (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={pending}
+                  onClick={() => {
+                    void applyReview();
+                  }}
+                >
+                  {saveCurrent
+                    ? pending
+                      ? "Saving…"
+                      : "Save startup choice"
+                    : pending
+                      ? "Switching…"
+                      : review.kind === "switch"
+                        ? "Switch library"
+                        : "Open default library"}
+                </Button>
+              )}
               <Button
                 data-focusable
                 ref={keepLibraryButton}
@@ -2370,7 +2430,7 @@ export function LibrarySelectionCard({
                 disabled={pending}
                 onClick={cancelReview}
               >
-                Keep current library
+                {keepCurrent ? "Done" : "Keep current library"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -2378,7 +2438,14 @@ export function LibrarySelectionCard({
       )}
       {error !== undefined && (
         <div role="alert">
-          <p>{errorText(error)}</p>
+          {movedDestination ? (
+            <>
+              <p>This library was moved. Choose its current folder before switching.</p>
+              <code className="block break-all">{movedDestination}</code>
+            </>
+          ) : (
+            <p>{errorText(error)}</p>
+          )}
           {presentation && <FailureDetails presentation={presentation} />}
         </div>
       )}

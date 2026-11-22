@@ -2877,6 +2877,13 @@ fn application_runtime_guard() -> portcove_core::Result<ApplicationRuntimeGuard>
 
 fn initialize_desktop_selection(selection: LibrarySelection) -> DesktopResult<ReadyDesktopState> {
     let library = host_startup::open_library(&selection).map_err(DesktopError::from)?;
+    ready_desktop_selection(selection, library)
+}
+
+fn ready_desktop_selection(
+    selection: LibrarySelection,
+    library: Library,
+) -> DesktopResult<ReadyDesktopState> {
     start_stale_launch_recovery(&library).map_err(DesktopError::from)?;
     let workspace_observer = std::sync::Arc::new(std::sync::Mutex::new(
         library.change_observer().map_err(DesktopError::from)?,
@@ -3122,6 +3129,7 @@ pub fn run() -> std::process::ExitCode {
             steam_entry_commands::apply_steam_artwork,
             library_selection::get_library_identity,
             library_selection::get_default_library_root,
+            library_selection::review_library_selection,
             library_selection::set_default_library,
             library_selection::reset_default_library,
             get_github_auth_status,

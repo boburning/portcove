@@ -71,7 +71,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
     plan_install_batch review_game_setting review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
-    scan_game_file_roots
+    review_library_selection scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":

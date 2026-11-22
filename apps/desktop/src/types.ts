@@ -257,6 +257,7 @@ export type ApplicationUpdateProgress =
   Generated.TransportOutputs["desktop_application_update_progress"];
 
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
+export type LibrarySelectionReview = Generated.TransportOutputs["desktop_library_selection_review"];
 
 export type { LibraryMetadataFile } from "./transport-types.generated";
 

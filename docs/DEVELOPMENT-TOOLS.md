@@ -3079,13 +3079,15 @@ wait error. The original timeout and downstream connection failures remain faile
 evidence; only a fresh exact-source run can establish completion.
 
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
-libraries and saved preferences. Real folder selection and review first commit a
-recognizable SQLite library with a future schema; refusal retains the Core-owned
-summary and exposes the redacted schema reason/version through user-opened technical
-details. It must retain the active workspace, identity, saved choice and fixture
-database/player-marker bytes, with natural trigger focus before disclosure and an
-accessibility capture. A subsequent healthy selection
-and independent host restart must retain the new saved choice. Both process trees
+libraries and saved preferences. A canonical alias of the open saved library
+keeps its generation, identity and preference bytes. The real picker returns
+focus after the player closes the no-change review. A recognizable SQLite
+library with a future schema is then refused. The review retains the Core-owned
+summary, exposes the redacted schema reason and version under technical details,
+and preserves the active workspace, saved choice and fixture bytes. A successful
+switch and independent restart retain the new saved choice. A controlled edit
+to the owned preference file changes the startup choice, and the same open
+library can then be saved explicitly without reopening it. Both process trees
 use the existing identity-bound, root-inclusive positive-exit checks. The scenario
 does not open the real platform-default library, redirect Windows known folders,
 or establish installed-package, physical-input or platform-default-reset evidence.

@@ -2672,7 +2672,15 @@ Desktop compares existing library roots through Core validation. Reselecting
 the active root keeps the workspace generation and preference bytes when the
 canonical choice and startup source already agree. An explicit change to the
 startup choice still persists, even when the current library stays open.
-Switching to another root still requires the outgoing library to be idle.
+The Settings review classifies directory evidence without opening or creating
+a library. It discloses the canonical path, recognized database or recovery
+records and the startup effect. Before acting, Desktop recomputes the review
+against the current generation and preference selection. Core compares the
+reviewed preference change again under the host preference lock. Replacing an
+invalid preference document requires an explicit full-reset review. A retained
+move source prompts the player to pick the current folder, while startup keeps
+following the recorded move. Core still opens and validates the chosen library.
+Switching roots requires the outgoing library to be idle.
 
 Favorites use the compatible `favorites_by_library` extension in that same
 format-1 host preference document. `HostPreferenceStore::favorite_ports` and
