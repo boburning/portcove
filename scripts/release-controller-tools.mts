@@ -13,8 +13,12 @@ export const controllerToolSourceAssetMaximumBytes = 128 * 1024;
 // bytes once the CLI gained mod providers and recipes (#5005). Hosted Linux then
 // reached 343,951,930 bytes once the CLI gained SteamGridDB withdrawal removal
 // (#5542), 19 KiB over the 328 MiB bound. The owner chose 336 MiB, about 8 MiB of
-// headroom again, so ordinary CLI growth does not need a recalibration.
-export const controllerToolExpandedMaximumBytes = 336 * 1024 ** 2;
+// headroom again, so ordinary CLI growth does not need a recalibration. Hosted
+// Linux then measured 352,130,368 bytes on main (e38442b50) and 352,439,616
+// bytes once exact release review and pinning grew the CLI (#8494), 118,080
+// bytes over the 336 MiB bound. The lead chose 344 MiB under the same policy,
+// restoring about 8 MiB of headroom.
+export const controllerToolExpandedMaximumBytes = 344 * 1024 ** 2;
 const controllerToolManifestMaximumBytes = 64 * 1024;
 // Protected uploads use ZIP Store. The 41-member r31 archive had 6,686
 // framing bytes. Reserve a finite 16 KiB for the closed member inventory.
