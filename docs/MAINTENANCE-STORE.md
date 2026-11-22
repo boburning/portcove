@@ -1276,7 +1276,16 @@ The daily run keeps existing source and repository access. The production steps
 use the direct database secret `PORTCOVE_DATABASE_URL`. Collection uses
 `PORTCOVE_ROADMAP_TOKEN` to read the Project. A verified scheduled final audit
 uses the existing intake worker's Project credential, separate database role and
-metered admission in the same run. The metered steps also require
+metered admission in the same run. Before collection can advance the handoff
+fences, the worker reads the intake queue and checkpoints and reconciles the
+original receipts under its executor role. The receipt-only job uses the
+repository token for reads and has its own concurrency group, so it cannot
+displace an owner-authorized writer that is waiting for the intake slot. Each
+receipt pass reserves its own run attempt. Collection and backup continue even
+when this receipt pass fails. With no bound audit tickets the scheduler performs
+no audit. The scoped audit worker checks receipts again after its audit passes
+return. The collection report records the delegation and the executor jobs
+record their own outcomes. The metered steps also require
 `PORTCOVE_NEON_METER_TOKEN` with effective Viewer access to the existing Portcove
 project. A personal token from a dedicated Neon Collaborator with only this
 project's Viewer grant can supply that access. Project-scoped organization keys
@@ -1408,6 +1417,30 @@ reconstruction are transactional. Interrupted work retains the previous artifact
 The scheduler reads fresh source inputs at its next attempt. A failed source
 records a partial or failed observation. A finished recovery requires upload
 and independent restore evidence with the same dump SHA-256.
+
+### Accepted cover CDN health
+
+The existing scheduled maintenance inventory verifies one UTC-day window of
+accepted cover URLs after compiling its Core CLI. Windows contain at most 64
+distinct images, sorted by accepted image ID. Successive UTC days cover the
+whole stable inventory once per rotation. Shared image URLs are read once and
+compared separately against each current authored digest. A missed, interrupted
+or budget-limited pass leaves those observations unknown for that pass; it does
+not create a withdrawal. Image bytes are temporary, and the pass is limited to
+64 MiB and 150 seconds before the outstanding Core check is settled.
+
+The producer has no Twitch, GitHub or database credentials. It validates images
+using the existing Core decoder. The scheduled collector admits only the same
+protected maintenance workflow run and attempt, and compares the report to its
+exact checkout, committed listings, binary digest and deterministic window.
+The existing store records source `cover-artwork-health`: a matching digest,
+an exact HTTP 410, a validated digest mismatch, or a gap for an unavailable or
+deferred observation. A partial run does not erase earlier observations.
+The receipt and store facts grant no artwork admission, withdrawal, native-client
+or publication authority. A changed or withdrawn reference still passes through
+the existing artwork review and signed catalog path. This worker verifies
+accepted CDN references only. IGDB metadata refresh remains on the established
+maintainer host.
 
 ## Changes-only digest
 

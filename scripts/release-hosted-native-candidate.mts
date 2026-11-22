@@ -1,6 +1,7 @@
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
+import { nativeSourceBlobReadByteLimit } from "./release-native-source-contract.mts";
 import { applicationPublicBuildInputs } from "./release-authority-configuration.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { applicationReleaseProfile } from "./release-authority-configuration.mts";
@@ -230,7 +231,7 @@ async function hostedNativeSourceTransport(parentReceipt: object, directory: str
         return body;
       },
       async blob(sha: string) {
-        blobs ??= scoped(8 * 1024 ** 2);
+        blobs ??= scoped(nativeSourceBlobReadByteLimit);
         const body = await (await blobs).blob(sha);
         remaining(1);
         return body;

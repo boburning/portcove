@@ -502,8 +502,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // Embedded implementation descriptions require format 12 in the combined directory.
-    assert_eq!(catalog.listing_document().format_version, 12);
+    // Embedded typed acquisition restrictions require format 15 in the combined directory.
+    assert_eq!(catalog.listing_document().format_version, 15);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -524,8 +524,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format follows the accepted IGDB scene format 13.
-    candidate["directory"]["format_version"] = json!(14);
+    // The next unknown format follows the typed acquisition restriction format 15.
+    candidate["directory"]["format_version"] = json!(16);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -583,7 +583,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
             .funding_urls
             .is_some()
     );
-    assert_eq!(catalog.listing_document().format_version, 12);
+    assert_eq!(catalog.listing_document().format_version, 15);
 
     // A delivered format-10 snapshot carries links for this reader.
     candidate["revision"] = json!(2);
@@ -998,7 +998,10 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
             provenance_json TEXT NOT NULL CHECK(length(CAST(provenance_json AS BLOB))<=16384));",
         )
         .unwrap();
-    let mut next = serde_json::to_vec(&feed(2)).unwrap();
+    let mut edition_directory = feed(2);
+    edition_directory["directory"]["format_version"] =
+        json!(crate::catalog::listings::VERIFIED_EDITION_LISTING_FORMAT);
+    let mut next = serde_json::to_vec(&edition_directory).unwrap();
     next.resize(listing_delivery::MAX_BYTES + 1, b' ');
     assert!(listing_delivery::ListingDeliveryDocument::parse(&next).is_err());
     let next_digest = hex::encode(Sha256::digest(&next));
@@ -1011,6 +1014,9 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     equivocation["decoded_sha256"] = json!("0".repeat(64));
     let mut unsupported = current.clone();
     unsupported["carrier"] = json!("unsupported");
+    edition_directory["directory"]["format_version"] =
+        json!(crate::acquisition_restriction::RESTRICTION_LISTING_FORMAT + 1);
+    let unsupported_format = carrier(&serde_json::to_vec(&edition_directory).unwrap());
     let mut trailing = current.clone();
     let mut concatenated = gzip(&next);
     concatenated.extend(gzip(b""));
@@ -1021,6 +1027,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
         expired_bound,
         equivocation,
         unsupported,
+        unsupported_format,
         trailing,
         too_short,
     ] {
@@ -1063,7 +1070,7 @@ async fn compact_listing_admission_preserves_decoded_identity_and_refuses_invali
     }
 
     assert_eq!(legacy_row(&library), first_legacy);
-    let old_only = publish(&fixture, &key, 10, &feed(1)).await;
+    let old_only = publish(&fixture, &key, 11, &feed(1)).await;
     assert!(refresh(&library, &fixture, &old_only).await.is_err());
     let current = library.listing_delivery_status().unwrap();
     assert_eq!(current.revision, Some(2));

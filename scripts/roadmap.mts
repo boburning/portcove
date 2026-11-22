@@ -14,10 +14,17 @@ import {
   qualifiedPlatforms,
   validatePortStageSemantics,
   planPortStageReconciliation,
+  planPortStageMigration,
   validatePortIssueCoverage,
   qualificationCatalogObservation,
   issueFreeCatalogIds,
   catalogQualificationSummary,
+  initialPortStage,
+  isDerivedPortStageAssignment,
+  requireAssignablePortStage,
+  requireDerivedPortStage,
+  readRoadmapPortStageListings,
+  requireAvailableListingOwner,
 } from "./roadmap-qualification.mts";
 export {
   qualifiedPlatforms,
@@ -387,6 +394,7 @@ export function validateSetManySpec(config: RoadmapConfig, spec: unknown): SetMa
         throw new Error(
           `${diagnosticText(transition.to)} is not a valid ${fieldName} target option`,
         );
+      requireAssignablePortStage(fieldName, transition.to);
       if (transition.from === transition.to)
         throw new Error(`${update.target} ${fieldName} transition does not change the value`);
       const expected = transition.expected_identity;
@@ -1332,16 +1340,25 @@ export function materializeViews(config: Pick<RoadmapConfig, "views" | "active_r
 
 export { validateDurableIssueBody } from "./roadmap-issue.mts";
 
-export function portFieldInitialization(item: RoadmapIssueItem | null) {
+export function portFieldInitialization(
+  item: RoadmapIssueItem | null,
+  initialStage: string = neutralPortFields["Port stage"],
+) {
   const updates: Record<string, string> = {};
   for (const [field, value] of Object.entries(neutralPortFields)) {
     const current = fieldValue(item, field);
+    if (
+      field === "Port stage" &&
+      initialStage === "Watchlist" &&
+      fieldValue(item, "Status") === "Done"
+    )
+      continue;
     if (
       field === "Work type"
         ? current !== "Port"
         : current === undefined || current === null || current === ""
     ) {
-      updates[field] = value;
+      updates[field] = field === "Port stage" ? initialStage : value;
     }
   }
   return updates;
@@ -1449,9 +1466,15 @@ export function parseArguments(argv: readonly string[]) {
     const name = separator < 0 ? token : token.slice(0, separator);
     const inline = separator < 0 ? undefined : token.slice(separator + 1);
     if (
-      ["--apply", "--recover", "--json", "--summary", "--help", "--linux-beta-706"].includes(
-        name,
-      ) &&
+      [
+        "--apply",
+        "--recover",
+        "--json",
+        "--summary",
+        "--help",
+        "--linux-beta-706",
+        "--stage-migration-dry-run",
+      ].includes(name) &&
       inline === undefined
     ) {
       options[name] = true;
@@ -1471,7 +1494,7 @@ roadmap items are stored in the repository.
 
 Usage:
   node scripts/roadmap.mts check
-  node scripts/roadmap.mts doctor [--issue <number>] [--expected-head <sha>] [--json]
+  node scripts/roadmap.mts doctor [--issue <number> | --stage-migration-dry-run] [--expected-head <sha>] [--json]
   node scripts/roadmap.mts bootstrap
   node scripts/roadmap.mts capture-port --title <title> --url <https-url> (--port-key <key> | --catalog-id <id>)
   node scripts/roadmap.mts normalize-port --issue <number>
@@ -1509,7 +1532,7 @@ const roadmapCommandGuidance: Readonly<Record<string, readonly [string, string]>
     "check",
   ],
   doctor: [
-    "Use --issue N for direct affected-record validation. Omit --issue for a full inventory audit after substantial Roadmap changes or for release readiness. --expected-head binds the checkout; --json retains scope and failure diagnostics.",
+    "Use --issue N for direct affected-record validation. Omit --issue for a full inventory audit after substantial Roadmap changes or for release readiness. --stage-migration-dry-run reads active and archived items for #4850 without changing the Project. --expected-head binds the checkout; --json retains scope and failure diagnostics.",
     "doctor --json",
   ],
   bootstrap: [
@@ -2535,6 +2558,7 @@ export class RoadmapClient {
       details: suppliedDetails = null,
       itemIds,
       includeItemRevision = false,
+      includeIssueStateReason = false,
     }: {
       includeDependencies?: boolean;
       includeBodies?: boolean;
@@ -2544,6 +2568,7 @@ export class RoadmapClient {
       details?: ProjectDetails | null;
       itemIds?: readonly string[];
       includeItemRevision?: boolean;
+      includeIssueStateReason?: boolean;
     } = {},
   ) {
     const details = suppliedDetails ?? (await this.projectDetails(number));
@@ -2557,7 +2582,8 @@ export class RoadmapClient {
     const fields = includeFields
       ? "fieldValues(first: 25) { totalCount nodes { ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } } } pageInfo { hasNextPage endCursor } }"
       : "";
-    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
+    const stateReason = includeIssueStateReason ? "stateReason" : "";
+    const selection = `id isArchived ${includeItemRevision ? "updatedAt" : ""} content { __typename ... on DraftIssue { id updatedAt title ${body} } ... on Issue { id number updatedAt title ${body} url state ${stateReason} ${dependencies} } ... on PullRequest { id number updatedAt title ${body} url state merged } } ${fields}`;
     let nodes: unknown[];
     if (itemIds !== undefined) {
       nodes = [];
@@ -2604,6 +2630,16 @@ export class RoadmapClient {
       if (!isRecord(node) || typeof node.id !== "string")
         throw new Error("incomplete GitHub inventory: malformed Project item identity");
       const sourceContent = completeProjectContent(node.content, includeBodies);
+      if (
+        includeIssueStateReason &&
+        sourceContent.__typename === "Issue" &&
+        sourceContent.stateReason !== null &&
+        typeof sourceContent.stateReason !== "string"
+      )
+        throw new InventoryError(
+          "inventory_incomplete",
+          "Project issue closure reason is unavailable",
+        );
       const content = sourceContent
         ? {
             ...sourceContent,
@@ -3475,11 +3511,19 @@ export class RoadmapClient {
     };
   }
 
+  private validateDerivedStageAssignment(item: RoadmapIssueItem, field: string, value: string) {
+    if (!isDerivedPortStageAssignment(field, value)) return;
+    const catalog = qualificationCatalogObservation(JSON.parse(readFileSync(catalogPath, "utf8")));
+    requireDerivedPortStage(item, value, catalog, readRoadmapPortStageListings());
+  }
+
   async setFields(reference: string, values: Readonly<Record<string, string>>) {
     const number = this.config.project.number;
     if (number < 1) throw new Error("project number is not recorded in .github/roadmap.json");
     const context = await this.completeProjectContext(number);
     const item = await this.directProjectItem(reference);
+    for (const [fieldName, value] of Object.entries(values))
+      this.validateDerivedStageAssignment(item, fieldName, value);
     const changes = Object.entries(values).map(([fieldName, to]) => ({
       target: reference,
       itemId: item.id,
@@ -3548,6 +3592,7 @@ export class RoadmapClient {
     fieldName: string,
     value: unknown,
   ) {
+    requireAssignablePortStage(fieldName, value);
     const field = fields.find((candidate) => candidate.name === fieldName);
     if (!field) throw new Error(`Project field not found: ${fieldName}`);
     const option = field.options?.find((candidate) => candidate.name === value);
@@ -3626,6 +3671,7 @@ export class RoadmapClient {
         if (itemFields.has(key))
           throw new Error(`duplicate set-many item field: ${update.target} ${fieldName}`);
         itemFields.add(key);
+        this.validateDerivedStageAssignment(item, fieldName, transition.to);
         const observed = fieldValue(item, fieldName) ?? null;
         const mutation = this.fieldMutationInput(context, item.id, fieldName, transition.to);
         const expected = transition.expected_identity;
@@ -3635,8 +3681,10 @@ export class RoadmapClient {
             mutation.fieldId !== expected.field_id ||
             mutation.value.singleSelectOptionId !== expected.option_id ||
             (transition.from !== null &&
-              this.fieldMutationInput(context, item.id, fieldName, transition.from).value
-                .singleSelectOptionId !== expected.from_option_id))
+              context.fields
+                .find((field) => field.name === fieldName)
+                ?.options?.find((option) => option.name === transition.from)?.id !==
+                expected.from_option_id))
         )
           throw new Error(
             `set-many expected field or option identity changed for ${update.target} ${fieldName}`,
@@ -3678,6 +3726,16 @@ export class RoadmapClient {
     plan: SetManyPlan<ProjectContext>,
     changes: readonly SetManyAssignment[] = plan.pending,
   ) {
+    for (const change of changes) {
+      if (!isDerivedPortStageAssignment(change.fieldName, change.to)) continue;
+      const current = await this.directProjectItem(change.itemId);
+      if (
+        (fieldValue(current, change.fieldName) ?? null) !== change.from ||
+        (change.target_identity && current.content?.id !== change.target_identity.content_id)
+      )
+        throw new Error("Port stage changed before the planned assignment");
+      this.validateDerivedStageAssignment(current, change.fieldName, change.to);
+    }
     const inputs = changes.map((change) =>
       this.fieldMutationInput(plan.context, change.itemId, change.fieldName, change.to),
     );
@@ -3802,6 +3860,9 @@ export class RoadmapClient {
     fields: Readonly<Record<string, string>>;
   }) {
     validateGitHubBody(body);
+    requireAssignablePortStage("Port stage", fields["Port stage"]);
+    if (isDerivedPortStageAssignment("Port stage", fields["Port stage"]))
+      throw new Error("A draft has no canonical issue for a catalog-derived Port stage");
     const { details } = await this.projectContext();
     if (!details.id) throw new Error("Project identity is unavailable");
     let result;
@@ -3849,6 +3910,7 @@ export class RoadmapClient {
     body?: string;
     repositoryIdentity?: { id: number; game: string };
   }) {
+    if (catalogId) requireAvailableListingOwner(readRoadmapPortStageListings(), catalogId, null);
     const issueTitle = `[Port] ${title}`;
     const issues = inventory
       ? requireRoadmapInventory(inventory, this.config.repository, this, "identity").issues
@@ -3862,6 +3924,13 @@ export class RoadmapClient {
           ).records
         : undefined,
     );
+    const initialStage = catalogId
+      ? initialPortStage(
+          qualificationCatalogObservation(JSON.parse(readFileSync(catalogPath, "utf8"))),
+          catalogId,
+          upstream,
+        )
+      : undefined;
     if (inventory) invalidateRoadmapInventory(inventory);
     const issue = repositoryIssueObservation(
       (
@@ -3876,9 +3945,11 @@ export class RoadmapClient {
     // Retain canonical identity before a separately fallible Project mutation.
     await onIssueCreated(issue);
     const item = await this.ensureIssueItem(issue.node_id);
-    await this.setItemFields(item.id, {
-      ...neutralPortFields,
-    });
+    const current = await this.directProjectItem(item.id);
+    if ((current.content?.id ?? current.content?.node_id) !== issue.node_id)
+      throw new Error("New Project item content changed before field initialization");
+    const updates = portFieldInitialization(current, initialStage);
+    if (Object.keys(updates).length) await this.setItemFields(item.id, updates);
     return { ...issue, itemId: item.id };
   }
 
@@ -3932,43 +4003,43 @@ export class RoadmapClient {
       );
       catalogId = adopted?.id ?? null;
     }
-    if (listings) {
-      const claims = listings.filter(
-        (listing): listing is Record<string, unknown> =>
-          isRecord(listing) && listing.issue_number === number,
+    const canonicalListings = listings ?? readRoadmapPortStageListings();
+    const claims = canonicalListings.filter(
+      (listing): listing is Record<string, unknown> =>
+        isRecord(listing) && listing.issue_number === number,
+    );
+    if (claims.some((listing) => typeof listing.id !== "string" || !listing.id))
+      throw new Error(`issue #${number} is claimed by a malformed catalog listing`);
+    if (claims.length > 1)
+      throw new Error(
+        `issue #${number} is claimed by multiple catalog listings: ${claims.map((listing) => String(listing.id)).join(", ")}`,
       );
-      if (claims.some((listing) => typeof listing.id !== "string" || !listing.id))
-        throw new Error(`issue #${number} is claimed by a malformed catalog listing`);
-      if (claims.length > 1)
+    const listing = claims[0];
+    if (listing && catalogId && listing.id !== catalogId)
+      throw new Error(
+        `issue #${number} identifies catalog ${catalogId} but listing ${String(listing.id)} claims it; reconcile the listing issue_number before normalizing`,
+      );
+    // A research-only listing (not yet in catalog.json) keeps the research key.
+    const port =
+      listing && !catalogId
+        ? (catalog?.ports ?? []).find((candidate) => candidate.id === listing.id)
+        : undefined;
+    if (listing && port) {
+      if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
         throw new Error(
-          `issue #${number} is claimed by multiple catalog listings: ${claims.map((listing) => String(listing.id)).join(", ")}`,
+          `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
         );
-      const listing = claims[0];
-      if (listing && catalogId && listing.id !== catalogId)
+      const title = `-${normalizedPortTitle(issueTitle)}-`;
+      const games = [listing.original_game_title, listing.name]
+        .map((value) => (typeof value === "string" ? normalizePortKey(value) : ""))
+        .filter(Boolean);
+      if (!games.some((game) => title.includes(`-${game}-`)))
         throw new Error(
-          `issue #${number} identifies catalog ${catalogId} but listing ${String(listing.id)} claims it; reconcile the listing issue_number before normalizing`,
+          `issue #${number} title does not name the game of catalog listing ${port.id}; reconcile the listing issue_number before linking`,
         );
-      // A research-only listing (not yet in catalog.json) keeps the research key.
-      const port =
-        listing && !catalogId
-          ? (catalog?.ports ?? []).find((candidate) => candidate.id === listing.id)
-          : undefined;
-      if (listing && port) {
-        if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
-          throw new Error(
-            `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
-          );
-        const title = `-${normalizedPortTitle(issueTitle)}-`;
-        const games = [listing.original_game_title, listing.name]
-          .map((value) => (typeof value === "string" ? normalizePortKey(value) : ""))
-          .filter(Boolean);
-        if (!games.some((game) => title.includes(`-${game}-`)))
-          throw new Error(
-            `issue #${number} title does not name the game of catalog listing ${port.id}; reconcile the listing issue_number before linking`,
-          );
-        catalogId = port.id;
-      }
+      catalogId = port.id;
     }
+    if (catalogId) requireAvailableListingOwner(canonicalListings, catalogId, number);
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
     }
@@ -4039,8 +4110,6 @@ export class RoadmapClient {
     });
     const bodyChanged = body !== issue.body;
     const existingItem = existingItems[0] ?? null;
-    const fieldUpdates = portFieldInitialization(existingItem);
-
     if (inventory) invalidateRoadmapInventory(inventory);
     if (bodyChanged) {
       const current = await this.repositoryIssue(number);
@@ -4061,6 +4130,13 @@ export class RoadmapClient {
     }
     const item = existingItem ?? (await this.ensureIssueItem(issue.node_id));
     if (!item.id) throw new Error("normalized Project item identity is unavailable");
+    const current = await this.directProjectItem(item.id);
+    if ((current.content?.id ?? current.content?.node_id) !== issue.node_id)
+      throw new Error("Normalized Project item content changed before field initialization");
+    const fieldUpdates = portFieldInitialization(
+      current,
+      catalogId ? initialPortStage(catalog, catalogId, form.upstream) : undefined,
+    );
     if (Object.keys(fieldUpdates).length) await this.setItemFields(item.id, fieldUpdates);
     return {
       issue: issue.html_url,
@@ -4333,7 +4409,7 @@ export function evaluateRoadmapDoctor({
   risk706Approval: unknown;
   now: string;
 }) {
-  const stage = validatePortStageSemantics(catalog, items);
+  const stage = validatePortStageSemantics(catalog, items, config.repository, repositoryIssues);
   const readiness = analyzeReleaseReadiness(items, config.active_release, { risk706Approval, now });
   const roadmapErrors = [
     ...readiness.migrationConflicts.map(
@@ -4375,9 +4451,17 @@ export function evaluateRoadmapDoctor({
     const error = new Error(
       `Project drift:\n${[...drift, ...roadmapErrors].map((value) => `- ${value}`).join("\n")}`,
     );
-    throw Object.assign(error, { doctorErrors: [...drift, ...roadmapErrors] });
+    throw Object.assign(error, {
+      doctorErrors: [...drift, ...roadmapErrors],
+      derivedStageDrift: stage.derivedStageDrift,
+    });
   }
-  return { warnings: stage.warnings, diagnostics: stage.diagnostics, readiness };
+  return {
+    warnings: stage.warnings,
+    diagnostics: stage.diagnostics,
+    derivedStageDrift: stage.derivedStageDrift,
+    readiness,
+  };
 }
 
 export interface DoctorRepositoryInventoryAttempt {
@@ -4816,6 +4900,7 @@ export async function runDoctor(
     items,
     warnings: stage.warnings,
     diagnostics: stage.diagnostics,
+    derivedStageDrift: stage.derivedStageDrift,
     repositoryIssueInventoryAttempts,
     inventory,
     projectInventorySource: inventory
@@ -4875,6 +4960,45 @@ export function roadmapCommandHelp(command: string, config?: RoadmapConfig) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+async function runStageMigrationDryRun(config: RoadmapConfig, client: RoadmapClient) {
+  const inventory = requireRoadmapInventory(
+    await collectRoadmapInventory(client, undefined, { scope: "port-stage-migration" }),
+    config.repository,
+    client,
+  );
+  const context = await client.completeProjectContext(config.project.number);
+  const field = context.fields.find((entry) => entry.name === "Port stage");
+  if (!field?.id || !field.options?.length || inventory.projectId !== context.details.id)
+    throw new InventoryError(
+      "inventory_incomplete",
+      "Project Port stage field identity is unavailable",
+    );
+  const catalog = qualificationCatalogObservation(JSON.parse(await readFile(catalogPath, "utf8")));
+  const directory: unknown = JSON.parse(await readFile(listingsPath, "utf8"));
+  const issueFreeIds = issueFreeCatalogIds(catalog, directory);
+  const report = planPortStageMigration(
+    catalog,
+    [...inventory.items, ...inventory.archivedItems],
+    config.repository,
+    inventory.issues,
+    issueFreeIds,
+    directory,
+  );
+  return {
+    scope: { kind: "port-stage-migration", archive: "active-and-archived" },
+    stageMigration: {
+      project_id: inventory.projectId,
+      repository_id: inventory.repository_node_id,
+      observed_at: inventory.observed_at,
+      field_id: field.id,
+      observed_options: field.options,
+      ...report,
+    },
+    warnings: [],
+    diagnostics: [],
+  };
 }
 
 async function main(argv: readonly string[], commandScope?: RoadmapRequestScope) {
@@ -4943,14 +5067,24 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       return;
     }
     if (parsed.command === "doctor") {
+      const stageMigration = parsed.options["--stage-migration-dry-run"] === true;
       if (
         parsed.positionals.length ||
+        ("--stage-migration-dry-run" in parsed.options &&
+          (!stageMigration || parsed.options["--issue"] !== undefined)) ||
         Object.keys(parsed.options).some(
-          (key) => !["--issue", "--expected-head", "--json", "--summary"].includes(key),
+          (key) =>
+            ![
+              "--issue",
+              "--expected-head",
+              "--json",
+              "--summary",
+              "--stage-migration-dry-run",
+            ].includes(key),
         )
       )
         throw new Error(
-          "Usage: roadmap.mts doctor [--issue N] [--expected-head SHA] [--json]. Run with --help for an example.",
+          "Usage: roadmap.mts doctor [--issue N | --stage-migration-dry-run] [--expected-head SHA] [--json]. Run with --help for an example.",
         );
       let context;
       let report;
@@ -5002,6 +5136,7 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
                 const doctorConfig = await loadConfig({ requireProjectNumber: true });
                 const doctorClient = await RoadmapClient.connect(doctorConfig, scope);
                 readClients.push(doctorClient);
+                if (stageMigration) return runStageMigrationDryRun(doctorConfig, doctorClient);
                 if (parsed.options["--issue"] !== undefined) {
                   const value = requiredOption(parsed.options, "--issue");
                   if (!/^[1-9]\d*$/u.test(value) || !Number.isSafeInteger(Number(value)))
@@ -5017,28 +5152,41 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
         });
         report = {
           format: 1,
-          kind: "roadmap-doctor",
+          kind: stageMigration ? "roadmap-port-stage-migration" : "roadmap-doctor",
           status: "passed",
           context: checked.context,
           scope: "scope" in checked.result ? checked.result.scope : { kind: "global" },
           coverage: "complete",
           global_health: "scope" in checked.result ? "not_evaluated" : "passed",
           counts:
-            "fields" in checked.result
+            "stageMigration" in checked.result
               ? {
-                  fields: checked.result.fields.length,
-                  views: checked.result.views.length,
-                  issues: checked.result.repositoryIssues.length,
-                  items: checked.result.items.length,
+                  ...checked.result.stageMigration.counts,
+                  ...checked.result.stageMigration.historical_assignment_counts,
                 }
-              : { issues: checked.result.scope.checked_issues.length },
+              : "fields" in checked.result
+                ? {
+                    fields: checked.result.fields.length,
+                    views: checked.result.views.length,
+                    issues: checked.result.repositoryIssues.length,
+                    items: checked.result.items.length,
+                  }
+                : { issues: checked.result.scope.checked_issues.length },
           warnings: checked.result.warnings,
           diagnostics: checked.result.diagnostics,
+          ...("derivedStageDrift" in checked.result
+            ? { derived_stage_drift: checked.result.derivedStageDrift }
+            : {}),
+          ...("stageMigration" in checked.result
+            ? { stage_migration: checked.result.stageMigration }
+            : {}),
           repository_issue_inventory: repositoryIssueInventoryAttempts,
           project_inventory_source:
             "projectInventorySource" in checked.result
               ? checked.result.projectInventorySource
-              : "direct-issue-memberships",
+              : stageMigration
+                ? "project-items-connection-active-and-archived"
+                : "direct-issue-memberships",
           read_attempts: readAttempts,
           api_observations: readClients.flatMap((entry) => entry.observations),
           metrics: doctorApiMetrics(readClients),
@@ -5047,19 +5195,24 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       } catch (error) {
         report = {
           format: 1,
-          kind: "roadmap-doctor",
+          kind: stageMigration ? "roadmap-port-stage-migration" : "roadmap-doctor",
           status: "failed",
           scope:
             qualificationField(error, "doctorScope") ??
-            (parsed.options["--issue"] === undefined
-              ? { kind: "global" }
-              : { kind: "issues", issues: [Number(parsed.options["--issue"])] }),
+            (stageMigration
+              ? { kind: "port-stage-migration", archive: "active-and-archived" }
+              : parsed.options["--issue"] === undefined
+                ? { kind: "global" }
+                : { kind: "issues", issues: [Number(parsed.options["--issue"])] }),
           coverage: Array.isArray(qualificationField(error, "doctorErrors"))
             ? "complete"
             : "inconclusive",
           global_health: "not_evaluated",
           failure_kind: inventoryFailureKind(error),
           diagnosis: doctorFailureDiagnostics(error),
+          ...(Array.isArray(qualificationField(error, "derivedStageDrift"))
+            ? { derived_stage_drift: qualificationField(error, "derivedStageDrift") }
+            : {}),
           planning_findings_evaluated: Array.isArray(qualificationField(error, "doctorErrors")),
           context,
           repository_issue_inventory: repositoryIssueInventoryAttempts,
@@ -5086,16 +5239,18 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       } catch {
         reference = "retention unavailable";
       }
+      const errors = "errors" in report ? report.errors : [];
       if (parsed.options["--summary"]) {
         if (reference === "retention unavailable")
           throw new Error("Roadmap summary raw retention failed");
-        if (!context) throw new Error((report.errors ?? []).join("; "));
+        if (!context) throw new Error(errors.join("; "));
         console.log(summarizeReport("doctor", report, reference).text);
       } else if (parsed.options["--json"])
         console.log(JSON.stringify({ ...report, evidence: reference }));
       else if (context) console.log(summarizeReport("doctor", report, reference).text);
-      else console.error((report.errors ?? []).join("\n"));
-      if (!parsed.options["--json"] && report.status === "passed") console.log(roadmapViewGuidance);
+      else console.error(errors.join("\n"));
+      if (!stageMigration && !parsed.options["--json"] && report.status === "passed")
+        console.log(roadmapViewGuidance);
       return;
     }
     if (!client || !config) throw new Error("Roadmap operation configuration is unavailable");
@@ -5257,6 +5412,7 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
           throw new Error(
             `${value} is not a valid ${field} option; allowed: ${definition.options.join(" | ")}`,
           );
+        requireAssignablePortStage(field, value);
         values[field] = value;
       }
       if (!Object.keys(values).length) throw new Error("set requires at least one field option");

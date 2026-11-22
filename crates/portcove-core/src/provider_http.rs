@@ -22,6 +22,10 @@ use crate::{
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(60);
 const MAX_BACKOFF: Duration = Duration::from_secs(15 * 60);
 
+/// Shared request backoff for a provider across short-lived client instances.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ProviderBackoff(Arc<Mutex<Option<Instant>>>);
+
 #[derive(Clone)]
 pub(crate) struct ProviderHttp {
     client: reqwest::Client,
@@ -33,7 +37,7 @@ pub(crate) struct ProviderHttp {
     /// The provider's registrable site; downloads may redirect to its subdomains.
     site: &'static str,
     /// Provider-wide backoff after throttling or server errors.
-    blocked_until: Arc<Mutex<Option<Instant>>>,
+    blocked_until: ProviderBackoff,
 }
 
 impl ProviderHttp {
@@ -64,8 +68,13 @@ impl ProviderHttp {
             library,
             label,
             site,
-            blocked_until: Arc::new(Mutex::new(None)),
+            blocked_until: ProviderBackoff::default(),
         })
+    }
+
+    pub(crate) fn with_backoff(mut self, backoff: ProviderBackoff) -> Self {
+        self.blocked_until = backoff;
+        self
     }
 
     /// Streams one file to `destination`, following at most four redirects that stay
@@ -181,7 +190,7 @@ impl ProviderHttp {
     }
 
     fn backoff_remaining(&self) -> Option<Duration> {
-        let mut guard = self.blocked_until.lock().ok()?;
+        let mut guard = self.blocked_until.0.lock().ok()?;
         match *guard {
             Some(until) if until > Instant::now() => Some(until - Instant::now()),
             Some(_) => {
@@ -199,7 +208,7 @@ impl ProviderHttp {
             .and_then(|value| value.parse::<u64>().ok())
             .map_or(DEFAULT_BACKOFF, Duration::from_secs)
             .min(MAX_BACKOFF);
-        if let Ok(mut guard) = self.blocked_until.lock() {
+        if let Ok(mut guard) = self.blocked_until.0.lock() {
             *guard = Some(Instant::now() + wait);
         }
     }

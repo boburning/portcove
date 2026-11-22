@@ -18,7 +18,16 @@
       "game_slug": "mercenaries-playground-of-destruction",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "New downloads are unavailable because the prebuilt release package includes compiled game code, and the project's MIT license covers only its toolkit. Downloads can resume with permission covering that package, or with a reviewed route that builds from your own disc.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are unavailable because the prebuilt release package includes compiled game code, and the project's MIT license covers only its toolkit. Downloads can resume with permission covering that package, or with a reviewed route that builds from your own disc.",
+        "tracking_issue": 1672
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "mercenaries-playground-of-destruction",

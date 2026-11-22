@@ -20,7 +20,16 @@
     },
     "issue_number": 2950,
     "release_url": "https://github.com/morerokk/MHGURecomp/releases/tag/0.17.8",
-    "download_block_reason": "The upstream packages include translated game code excluded from the project license. Portcove downloads are on hold pending a review of component permissions or a released package that prepares the code from the player’s own files.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "The upstream packages include translated game code excluded from the project license. Portcove downloads are on hold pending a review of component permissions or a released package that prepares the code from the player’s own files.",
+        "tracking_issue": 2950
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "monster-hunter-generations-ultimate",
