@@ -599,6 +599,192 @@ mod tests {
         assert!(exact_consent(&successor, &choice).is_err());
     }
 
+    const SYNTHETIC_SOURCE: ReviewedSource = ReviewedSource {
+        runtime_repository: "Owner/Runtime",
+        game: recomp_companion_review::fixtures::GAME,
+        repository: "Owner/Wrapper",
+        repository_id: 7,
+        asset_name: "Wrapper.zip",
+        companions: &recomp_companion_review::fixtures::LAYOUTS,
+    };
+
+    struct Published {
+        plan: GithubCompoundPlan,
+        key: String,
+        path: PathBuf,
+        layout: CompanionLayout,
+        _root: tempfile::TempDir,
+    }
+
+    fn publish_synthetic(layout: CompanionLayout) -> Published {
+        use recomp_companion_review::fixtures;
+        let (_temporary, _service, install) = crate::retained_build::tests::fixture();
+        let build = RetainedBuildIdentity {
+            platform: layout.platform,
+            ..crate::install::retained_build_identity_for_install(&install).unwrap()
+        };
+        let staged = fixtures::stage_for(&fixtures::complete(), layout).unwrap();
+        check_runtime("1.2.0", &staged.review).unwrap();
+        assert!(check_runtime("v1.1.9", &staged.review).is_err());
+        let plan = GithubCompoundPlan {
+            profile_id: "fixture".into(),
+            profile_revision: 1,
+            profile_revision_sha256: "a".repeat(64),
+            build,
+            loader: ModEngine::N64Recomp.reference(),
+            runtime_version: "1.2.0".into(),
+            repository: SYNTHETIC_SOURCE.repository.into(),
+            repository_id: SYNTHETIC_SOURCE.repository_id,
+            release_id: 11,
+            release_tag: "v1".into(),
+            asset_id: 12,
+            wrapper_sha256: staged.review.archive_sha256.clone(),
+            wrapper_bytes: staged.review.archive_bytes,
+            members: reviewed_members(layout, &staged).unwrap(),
+        };
+        let root = tempfile::tempdir().unwrap();
+        publish_plan(root.path(), &plan, &staged).unwrap();
+        // A repeated publication reopens and verifies the existing record.
+        publish_plan(root.path(), &plan, &staged).unwrap();
+        drop(staged);
+        let key = plan.sha256().unwrap();
+        Published {
+            path: root.path().join(&key),
+            plan,
+            key,
+            layout,
+            _root: root,
+        }
+    }
+
+    #[test]
+    fn synthetic_compound_record_survives_reopen_with_exact_roles() {
+        for layout in recomp_companion_review::fixtures::LAYOUTS {
+            let published = publish_synthetic(layout);
+            let roles = published
+                .plan
+                .members
+                .iter()
+                .map(|(name, member)| (name.as_str(), member.role))
+                .collect::<BTreeMap<_, _>>();
+            let (primary, bundled) = (layout.files[0], layout.files[1]);
+            assert_eq!(
+                roles,
+                BTreeMap::from([
+                    ("glue_mod.nrm", RecompCompanionRole::Nrm),
+                    ("plain_mod.nrm", RecompCompanionRole::Nrm),
+                    (primary, RecompCompanionRole::PrimaryLibrary),
+                    (bundled, RecompCompanionRole::BundledLibrary),
+                ])
+            );
+            assert_eq!(
+                read_plan(&published.path, &published.key).unwrap(),
+                published.plan
+            );
+            verify_wrapper(
+                &published.path,
+                &published.plan,
+                SYNTHETIC_SOURCE,
+                published.layout,
+            )
+            .unwrap();
+            let consent = GithubCompoundConsent {
+                plan_sha256: published.key.clone(),
+                native_libraries: published
+                    .plan
+                    .members
+                    .iter()
+                    .filter(|(_, member)| member.role != RecompCompanionRole::Nrm)
+                    .map(|(name, member)| (name.clone(), member.sha256.clone()))
+                    .collect(),
+            };
+            publish_consent(&published.path, &published.plan, &consent).unwrap();
+            publish_consent(&published.path, &published.plan, &consent).unwrap();
+            let mut different = consent.clone();
+            different.native_libraries.pop_first();
+            assert!(publish_consent(&published.path, &published.plan, &different).is_err());
+            let reloaded: GithubCompoundConsent =
+                serde_json::from_slice(&fs::read(published.path.join("consent.json")).unwrap())
+                    .unwrap();
+            assert_eq!(reloaded, consent);
+        }
+    }
+
+    #[test]
+    fn synthetic_compound_record_refuses_changed_files_and_identity() {
+        let layout = recomp_companion_review::fixtures::LAYOUTS[1];
+        let fresh = || publish_synthetic(layout);
+        let error_text = |published: &Published| {
+            read_plan(&published.path, &published.key)
+                .unwrap_err()
+                .to_string()
+        };
+
+        let changed_member = fresh();
+        fs::write(changed_member.path.join("members/Glue.so"), b"changed").unwrap();
+        assert!(error_text(&changed_member).contains("bytes changed"));
+
+        let extra_member = fresh();
+        fs::write(extra_member.path.join("members/extra.nrm"), b"x").unwrap();
+        assert!(error_text(&extra_member).contains("unexpected private compound member"));
+
+        let missing_member = fresh();
+        fs::remove_file(missing_member.path.join("members/plain_mod.nrm")).unwrap();
+        assert!(error_text(&missing_member).contains("member is missing"));
+
+        let changed_wrapper = fresh();
+        let wrapper = changed_wrapper.path.join("wrapper.zip");
+        let mut bytes = fs::read(&wrapper).unwrap();
+        let last = bytes.len() - 1;
+        bytes[last] ^= 0xff;
+        fs::write(&wrapper, bytes).unwrap();
+        assert!(error_text(&changed_wrapper).contains("bytes changed"));
+
+        let rewritten_plan = fresh();
+        let mut plan = rewritten_plan.plan.clone();
+        plan.release_tag = "v2".into();
+        fs::write(
+            rewritten_plan.path.join("plan.json"),
+            serde_json::to_vec(&plan).unwrap(),
+        )
+        .unwrap();
+        assert!(error_text(&rewritten_plan).contains("plan identity changed"));
+
+        #[cfg(unix)]
+        {
+            let linked = fresh();
+            let members = linked.path.join("members");
+            let moved = linked.path.join("moved-members");
+            fs::rename(&members, &moved).unwrap();
+            std::os::unix::fs::symlink(&moved, &members).unwrap();
+            assert!(read_plan(&linked.path, &linked.key).is_err());
+        }
+
+        let source = fresh();
+        let mut other_repository = source.plan.clone();
+        other_repository.repository_id += 1;
+        assert!(verify_wrapper(&source.path, &other_repository, SYNTHETIC_SOURCE, layout).is_err());
+        let mut other_platform = source.plan.clone();
+        other_platform.build.platform = Platform::WindowsX86_64;
+        assert!(verify_wrapper(&source.path, &other_platform, SYNTHETIC_SOURCE, layout).is_err());
+        let mut forged = source.plan.clone();
+        forged.members.get_mut("Glue.so").unwrap().sha256 = "f".repeat(64);
+        assert!(
+            verify_wrapper(&source.path, &forged, SYNTHETIC_SOURCE, layout)
+                .unwrap_err()
+                .to_string()
+                .contains("does not come from the exact wrapper")
+        );
+        let mut older_runtime = source.plan.clone();
+        older_runtime.runtime_version = "1.1.0".into();
+        assert!(
+            verify_wrapper(&source.path, &older_runtime, SYNTHETIC_SOURCE, layout)
+                .unwrap_err()
+                .to_string()
+                .contains("older than this mod requires")
+        );
+    }
+
     #[test]
     #[ignore = "natural-event observation, not ordinary coverage: requires the verified upstream v0.9.5 and v0.9.5a wrapper ZIPs in PORTCOVE_TEST_COMPOUND_WRAPPERS"]
     fn genuine_companion_successor_requires_its_own_choice_and_survives_reopen() {

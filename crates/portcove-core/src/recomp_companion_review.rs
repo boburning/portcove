@@ -279,10 +279,339 @@ pub(crate) fn stage(
     })
 }
 
+/// Synthetic compound wrappers for ordinary CI. Host images are minimal
+/// headers only; nothing here is ever loaded.
+#[cfg(test)]
+pub(crate) mod fixtures {
+    use std::io::Write as _;
+
+    use super::*;
+
+    pub(crate) const GAME: &str = "mm";
+    pub(crate) const LIBRARY: &str = "Glue";
+    pub(crate) const LAYOUTS: [CompanionLayout; 2] = [
+        CompanionLayout {
+            platform: Platform::WindowsX86_64,
+            declared_library: LIBRARY,
+            files: &["Glue.dll", "dep.dll"],
+        },
+        CompanionLayout {
+            platform: Platform::LinuxX86_64,
+            declared_library: LIBRARY,
+            files: &["Glue.so", "libdep.so.1"],
+        },
+    ];
+
+    pub(crate) enum Entry<'a> {
+        File(&'a str, Vec<u8>),
+        Directory(&'a str),
+        Symlink(&'a str, &'a str),
+    }
+
+    pub(crate) fn elf() -> Vec<u8> {
+        let mut image = vec![0u8; 64];
+        image[..7].copy_from_slice(b"\x7fELF\x02\x01\x01");
+        image[16..20].copy_from_slice(b"\x03\0\x3e\0");
+        image
+    }
+
+    pub(crate) fn pe() -> Vec<u8> {
+        let mut image = vec![0u8; 90];
+        image[..2].copy_from_slice(b"MZ");
+        image[60..64].copy_from_slice(&64u32.to_le_bytes());
+        image[64..70].copy_from_slice(b"PE\0\0\x64\x86");
+        image[86..88].copy_from_slice(&0x2000u16.to_le_bytes());
+        image[88..90].copy_from_slice(b"\x0b\x02");
+        image
+    }
+
+    pub(crate) fn nrm(id: &str, game: &str, library: Option<&str>) -> Vec<u8> {
+        let mut manifest = serde_json::json!({
+            "game_id": game, "id": id, "display_name": id, "version": "1.0.0",
+            "authors": ["someone"], "minimum_recomp_version": "1.2.0",
+        });
+        if let Some(library) = library {
+            manifest["native_libraries"] = serde_json::json!({ library: ["entry"] });
+        }
+        zip_bytes(&[Entry::File(
+            "mod.json",
+            serde_json::to_vec(&manifest).unwrap(),
+        )])
+    }
+
+    pub(crate) fn zip_bytes(entries: &[Entry<'_>]) -> Vec<u8> {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::SimpleFileOptions::default();
+        for entry in entries {
+            match entry {
+                Entry::File(name, bytes) => {
+                    writer.start_file(*name, options).unwrap();
+                    writer.write_all(bytes).unwrap();
+                }
+                Entry::Directory(name) => writer.add_directory(*name, options).unwrap(),
+                Entry::Symlink(name, target) => {
+                    writer.add_symlink(*name, *target, options).unwrap()
+                }
+            }
+        }
+        writer.finish().unwrap().into_inner()
+    }
+
+    /// The complete reviewed wrapper: two NRMs, both platform layouts and a
+    /// harmless document.
+    pub(crate) fn complete() -> Vec<Entry<'static>> {
+        vec![
+            Entry::File("Glue-Mod.nrm", nrm("glue_mod", GAME, Some(LIBRARY))),
+            Entry::File("Plain.nrm", nrm("plain_mod", GAME, None)),
+            Entry::File("Glue.dll", pe()),
+            Entry::File("dep.dll", pe()),
+            Entry::File("Glue.so", elf()),
+            Entry::File("libdep.so.1", elf()),
+            Entry::File("README.txt", b"read me".to_vec()),
+        ]
+    }
+
+    pub(crate) struct Wrapper {
+        pub path: PathBuf,
+        pub bytes: u64,
+        pub sha256: String,
+        _directory: tempfile::TempDir,
+    }
+
+    pub(crate) fn write(entries: &[Entry<'_>]) -> Wrapper {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("wrapper.zip");
+        fs::write(&path, zip_bytes(entries)).unwrap();
+        Wrapper {
+            bytes: fs::metadata(&path).unwrap().len(),
+            sha256: sha256_file(&path).unwrap(),
+            path,
+            _directory: directory,
+        }
+    }
+
+    pub(crate) fn stage_for(
+        entries: &[Entry<'_>],
+        layout: CompanionLayout,
+    ) -> Result<StagedCompoundReview> {
+        let wrapper = write(entries);
+        stage(
+            &wrapper.path,
+            wrapper.bytes,
+            &wrapper.sha256,
+            GAME,
+            layout,
+            &LAYOUTS,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fixtures::{Entry, GAME, LAYOUTS, elf, nrm, pe, stage_for};
     use std::io::Write as _;
+
+    fn refusal(entries: &[Entry<'_>], layout: CompanionLayout) -> String {
+        match stage_for(entries, layout) {
+            Ok(_) => panic!("the wrapper must be refused"),
+            Err(error) => error.message,
+        }
+    }
+
+    fn replacing(name: &str, entry: Entry<'static>) -> Vec<Entry<'static>> {
+        fixtures::complete()
+            .into_iter()
+            .map(|existing| match &existing {
+                Entry::File(current, _) if *current == name => match &entry {
+                    Entry::File(new, bytes) => Entry::File(*new, bytes.clone()),
+                    Entry::Directory(new) => Entry::Directory(*new),
+                    Entry::Symlink(new, target) => Entry::Symlink(*new, *target),
+                },
+                _ => existing,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn synthetic_wrapper_stages_exact_members_for_each_reviewed_platform() {
+        for layout in LAYOUTS {
+            let staged = stage_for(&fixtures::complete(), layout).unwrap();
+            assert_eq!(staged.review.platform, layout.platform);
+            assert_eq!(
+                staged
+                    .review
+                    .mods
+                    .iter()
+                    .map(|item| item.native_id.as_str())
+                    .collect::<Vec<_>>(),
+                ["glue_mod", "plain_mod"]
+            );
+            let mut expected = layout.files.to_vec();
+            expected.sort_unstable();
+            assert_eq!(
+                staged
+                    .review
+                    .companions
+                    .iter()
+                    .map(|item| item.file_name.as_str())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            let mut stored = vec!["glue_mod.nrm", "plain_mod.nrm"];
+            stored.extend(layout.files);
+            stored.sort_unstable();
+            assert_eq!(
+                staged
+                    .members
+                    .keys()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>(),
+                stored
+            );
+            for (name, path) in &staged.members {
+                assert!(path.is_file(), "{name}");
+            }
+            for companion in &staged.review.companions {
+                assert_eq!(
+                    sha256_file(&staged.members[&companion.file_name]).unwrap(),
+                    companion.sha256
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_non_regular_entries() {
+        let linux = LAYOUTS[1];
+        let mut directory = fixtures::complete();
+        directory.push(Entry::Directory("extras/"));
+        assert!(refusal(&directory, linux).contains("regular, unencrypted files"));
+        let mut symlink = fixtures::complete();
+        symlink.push(Entry::Symlink("link.txt", "README.txt"));
+        assert!(refusal(&symlink, linux).contains("regular, unencrypted files"));
+        let linked_companion = replacing("libdep.so.1", Entry::Symlink("libdep.so.1", "Glue.so"));
+        assert!(refusal(&linked_companion, linux).contains("regular, unencrypted files"));
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_unsafe_and_repeated_names() {
+        let linux = LAYOUTS[1];
+        let mut nested = fixtures::complete();
+        nested.push(Entry::File("docs/notes.txt", b"x".to_vec()));
+        assert!(refusal(&nested, linux).contains("unsafe or repeated member name"));
+        let mut escaping = fixtures::complete();
+        escaping.push(Entry::File("../escape.txt", b"x".to_vec()));
+        assert!(stage_for(&escaping, linux).is_err());
+        let mut repeated = fixtures::complete();
+        repeated.push(Entry::File("readme.TXT", b"x".to_vec()));
+        assert!(refusal(&repeated, linux).contains("unsafe or repeated member name"));
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_host_executables_outside_every_layout() {
+        for (name, image) in [
+            ("tool.exe", pe()),
+            ("helper.so", elf()),
+            ("run.sh", b"#!".to_vec()),
+        ] {
+            let mut entries = fixtures::complete();
+            entries.push(Entry::File(name, image));
+            for layout in LAYOUTS {
+                assert!(
+                    refusal(&entries, layout)
+                        .contains("host executable outside its reviewed layout"),
+                    "{name}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_a_different_companion_set_or_owner() {
+        let linux = LAYOUTS[1];
+        let missing = fixtures::complete()
+            .into_iter()
+            .filter(|entry| !matches!(entry, Entry::File("libdep.so.1", _)))
+            .collect::<Vec<_>>();
+        assert!(refusal(&missing, linux).contains("lacks its exact companion set"));
+        let unowned = replacing(
+            "Glue-Mod.nrm",
+            Entry::File("Glue-Mod.nrm", nrm("glue_mod", GAME, None)),
+        );
+        assert!(refusal(&unowned, linux).contains("lacks its exact companion set"));
+        let mut two_owners = fixtures::complete();
+        two_owners.push(Entry::File(
+            "Second.nrm",
+            nrm("second_mod", GAME, Some(fixtures::LIBRARY)),
+        ));
+        assert!(refusal(&two_owners, linux).contains("ambiguous ownership"));
+        let other_library = replacing(
+            "Glue-Mod.nrm",
+            Entry::File("Glue-Mod.nrm", nrm("glue_mod", GAME, Some("Other"))),
+        );
+        assert!(refusal(&other_library, linux).contains("companion binding"));
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_duplicate_identity_other_games_and_external_code() {
+        let linux = LAYOUTS[1];
+        let mut duplicate = fixtures::complete();
+        duplicate.push(Entry::File("Again.nrm", nrm("plain_mod", GAME, None)));
+        assert!(refusal(&duplicate, linux).contains("native identity"));
+        let other_game = replacing(
+            "Plain.nrm",
+            Entry::File("Plain.nrm", nrm("plain_mod", "bk", None)),
+        );
+        assert!(refusal(&other_game, linux).contains("reviewed game"));
+        let offline = replacing(
+            "Plain.nrm",
+            Entry::File("Plain.offline.nrm", nrm("plain_mod", GAME, None)),
+        );
+        assert!(refusal(&offline, linux).contains("reviewed game"));
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_a_companion_image_for_another_platform() {
+        let (windows, linux) = (LAYOUTS[0], LAYOUTS[1]);
+        let windows_image_on_linux = replacing("Glue.so", Entry::File("Glue.so", pe()));
+        assert!(refusal(&windows_image_on_linux, linux).contains("reviewed platform"));
+        let linux_image_on_windows = replacing("dep.dll", Entry::File("dep.dll", elf()));
+        assert!(refusal(&linux_image_on_windows, windows).contains("reviewed platform"));
+        let short = replacing("Glue.dll", Entry::File("Glue.dll", b"MZ".to_vec()));
+        assert!(stage_for(&short, windows).is_err());
+    }
+
+    #[test]
+    fn synthetic_wrapper_refuses_changed_bytes_and_non_regular_sources() {
+        let wrapper = fixtures::write(&fixtures::complete());
+        let linux = LAYOUTS[1];
+        let error = stage(
+            &wrapper.path,
+            wrapper.bytes - 1,
+            &wrapper.sha256,
+            GAME,
+            linux,
+            &LAYOUTS,
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("differs from the reviewed release asset")
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let error = stage(
+            directory.path(),
+            wrapper.bytes,
+            &wrapper.sha256,
+            GAME,
+            linux,
+            &LAYOUTS,
+        )
+        .unwrap_err();
+        assert!(error.message.contains("regular-file or size bound"));
+    }
 
     #[test]
     fn recognized_header_requires_a_platform_library() {
