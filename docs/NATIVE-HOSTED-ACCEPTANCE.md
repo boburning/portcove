@@ -404,8 +404,8 @@ snapshot and one installation command and transfer. The update-acquisition
 scenario never ran in that job.
 
 The update-acquisition group also observes #4879's automatic snapshot surfaces
-after its real activating update of a played fixture: the review and rollback
-copy, exactly one Core snapshot labelled with the from/to versions that holds the
+after its real activating update of a played fixture: the library policy and eligible coverage in Saves, Versions and the update review,
+the separate rollback explanation, exactly one Core snapshot labelled with the from/to versions that holds the
 played save, its Automatic label in history and in a cancelled restore review,
 and the per-library Settings control round-tripping through Core. Right after
 those checks, and before the later acquisitions and reviewed uninstall, it presses

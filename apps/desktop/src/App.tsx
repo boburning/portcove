@@ -178,6 +178,7 @@ import {
   type View,
 } from "./view-model";
 import { gameIdentityLabel, gameTitle } from "./port-identity";
+import { AutomaticSnapshotsProvider } from "./components/AutomaticSnapshotsSetting";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
 import { referenceIdentity } from "./shared/reference-identity";
 import { activeSourceHeroMediaContext, canCheckEditionArtwork } from "./hero-media";
@@ -1329,9 +1330,11 @@ function useWorkspace(props: WorkspaceProps) {
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
   const model = useWorkspace(props);
   return (
-    <SettingsExportResultsProvider key={props.bootstrap.generation}>
-      <WorkspaceView {...model} />
-    </SettingsExportResultsProvider>
+    <AutomaticSnapshotsProvider generation={model.bootstrap.generation}>
+      <SettingsExportResultsProvider key={props.bootstrap.generation}>
+        <WorkspaceView {...model} />
+      </SettingsExportResultsProvider>
+    </AutomaticSnapshotsProvider>
   );
 }
 

@@ -1229,8 +1229,19 @@ export async function installScenarios({
     };
     // #4879 native observation: the review/rollback copy, the labelled snapshot
     // Core took before this real activating update, and the per-library setting.
-    const snapshotReviewText =
-      "Portcove first takes an automatic snapshot of its saves and settings";
+    const snapshotPolicyText =
+      "Automatic snapshots before version changes are on for this library.";
+    const snapshotCoverageText = "Portcove can snapshot existing saves and settings it manages";
+    const visibleDetailPanel = () => browser.findElement(By.css('[role="tabpanel"]:not([hidden])'));
+    const visibleSnapshotPolicy = async (owner: WebElement) => {
+      const policy = await owner.findElement(By.css("[data-automatic-snapshot-policy]"));
+      await browser.wait(
+        async () => (await policy.getText()).includes(snapshotPolicyText),
+        15_000,
+        "The current library must report enabled automatic snapshots",
+      );
+      assert.ok((await policy.getText()).includes(snapshotCoverageText));
+    };
     const snapshotEvidence = async (name: string, target: WebElement) => {
       await executeBrowserScript(browser, 'arguments[0].scrollIntoView({block:"center"});', target);
       await captureAccessibilityReport(
@@ -1280,6 +1291,7 @@ export async function installScenarios({
 
       await openFixture(port, true);
       await revealDetailSection(browser, "Saves & backups");
+      await visibleSnapshotPolicy(await visibleDetailPanel());
       const row = `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${snapshot.id}"]`;
       const historyLabel = await browser.wait(
         until.elementLocated(By.css(`${row} [data-automatic-snapshot]`)),
@@ -1332,10 +1344,10 @@ export async function installScenarios({
 
       await revealDetailSection(browser, "Versions & updates");
       const rollback = await visibleButton("Restore previous version");
+      await visibleSnapshotPolicy(await visibleDetailPanel());
       const rollbackText = await rollback.findElement(By.xpath("following-sibling::p[1]"));
       assert.ok(
-        (await rollbackText.getText()).includes(snapshotReviewText),
-        "The rollback control must say Portcove first takes an automatic snapshot",
+        (await rollbackText.getText()).includes("Saved-data restore is a separate reviewed action"),
       );
       await snapshotEvidence("native-automatic-snapshot-rollback-control", rollbackText);
 
@@ -1825,10 +1837,7 @@ export async function installScenarios({
         "Fresh UI review must bind the exact acquired archive",
       );
       if (activate) {
-        assert.ok(
-          reviewText.includes(snapshotReviewText),
-          "An activating update review must say Portcove first takes an automatic snapshot",
-        );
+        await visibleSnapshotPolicy(review);
         await snapshotEvidence("native-automatic-snapshot-update-review", review);
       }
       await click(activate ? "Update now" : "Prepare update for later");
