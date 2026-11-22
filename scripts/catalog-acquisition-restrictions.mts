@@ -28,7 +28,7 @@ export const restrictionReasons = [
   "known-defective-artifact",
   "upstream-transition-unreviewed",
 ] as const;
-const reconsiderConditions = [
+export const reconsiderConditions = [
   "attributable-grant",
   "clean-upstream-package",
   "owned-input-preparation",
