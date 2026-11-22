@@ -322,6 +322,22 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/github_mods.rs",
+      "test": "real_release_successor_retains_numeric_github_identity",
+      "reason": "natural-event observation, not ordinary coverage: requires the real retained GitHub release metadata for the reviewed mod source in PORTCOVE_GITHUB_MOD_RELEASES",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
+      "source": "crates/portcove-core/src/github_compound_custody.rs",
+      "test": "genuine_companion_successor_requires_its_own_choice_and_survives_reopen",
+      "reason": "natural-event observation, not ordinary coverage: requires the verified upstream v0.9.5 and v0.9.5a wrapper ZIPs in PORTCOVE_TEST_COMPOUND_WRAPPERS",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",
       "test": "owned_progression_fixture",
       "reason": "isolated first-party provider, codec and builder control; invoked by parent",

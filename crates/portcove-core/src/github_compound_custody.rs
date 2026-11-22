@@ -600,7 +600,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires verified upstream ZIP fixtures in PORTCOVE_TEST_COMPOUND_WRAPPERS"]
+    #[ignore = "natural-event observation, not ordinary coverage: requires the verified upstream v0.9.5 and v0.9.5a wrapper ZIPs in PORTCOVE_TEST_COMPOUND_WRAPPERS"]
     fn genuine_companion_successor_requires_its_own_choice_and_survives_reopen() {
         let root = PathBuf::from(std::env::var_os("PORTCOVE_TEST_COMPOUND_WRAPPERS").unwrap());
         let (_temporary, _service, install) = crate::retained_build::tests::fixture();

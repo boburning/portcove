@@ -624,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires the real retained GitHub mod release metadata file"]
+    #[ignore = "natural-event observation, not ordinary coverage: requires the real retained GitHub release metadata for the reviewed mod source in PORTCOVE_GITHUB_MOD_RELEASES"]
     fn real_release_successor_retains_numeric_github_identity() {
         let path = std::env::var_os("PORTCOVE_GITHUB_MOD_RELEASES").unwrap();
         let metadata: Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
