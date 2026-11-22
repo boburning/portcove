@@ -464,13 +464,20 @@ the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
 Neither run reported an assertion failure before its cutoff. The MStan case
 has a 240-second Windows limit with the same assertions, cleanup and retry
 policy. The Sonic case still reached only its final restore when run
-`44960117848` cut it at 240 seconds. Its time came from the shared
-compatible-archive fixture catalog: it retained every embedded port's source
-data, and each backup, activation and restore reprocessed it. #8478 keeps only
-the port under test. Windows run `45042553290`, attempt 1, then passed the
-additive case in 13.7 seconds and every `compatible_archive_progression_*` and
-`reviewed_archive_transition_*` case in 3.7 to 11.6 seconds, so those families
-use the 120-second default again.
+`44960117848` cut it at 240 seconds. These timeouts occurred only on #8478 and
+#8503 heads that added the `portcove-listing-carrier` crate without a test
+`opt-level`, so Core tests ran its shared code unoptimized. On those heads the
+populated Mega Man X2 transition took 143 to 240 seconds, against 38.4 seconds
+on pre-#8478 `main` (`63c5b009`, run `45054336807`), where the additive Sonic
+case passed in 71 seconds and every `compatible_archive_progression_*` and
+`reviewed_archive_transition_*` case passed under the 120-second default.
+#8478 set the carrier's test `opt-level` to 1 and also limited the fixture
+catalog to the port under test; no run separates the two effects. Windows run
+`45042553290`, attempt 1, then passed both families in 3.7 to 13.7 seconds, so
+they use the 120-second default again. The
+`[profile.test.package.portcove-listing-carrier]` `opt-level = 1` entry in
+`Cargo.toml` is load-bearing for these budgets; re-measure them on Windows
+before removing it.
 
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
