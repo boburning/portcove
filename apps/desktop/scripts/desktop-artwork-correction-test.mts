@@ -3,7 +3,7 @@ import {
   requiredFixtureValue as required,
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
-import type { Locator, WebDriver } from "selenium-webdriver";
+import type { WebDriver } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
@@ -88,7 +88,7 @@ export async function renderCorrectedArtwork({
   originalName: string;
   portId: string;
   source: string;
-  click: (locator: Locator) => Promise<unknown>;
+  click: (locator: By) => Promise<unknown>;
 }) {
   await click(By.xpath('//nav//button[contains(., "Discover")]'));
   const search = await browser.wait(until.elementLocated(By.id("port-search")), 10000);
@@ -267,7 +267,8 @@ export async function artworkCorrectionScenario({
       return transportValue("catalog_status", success(await invoke("get_catalog_status")));
     };
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
-    const click = async (locator: Locator, enableDeadline = 5_000) => {
+    // A concrete By keeps the readable locator in the enable-deadline failure.
+    const click = async (locator: By, enableDeadline = 5_000) => {
       const element = await browser.wait(until.elementLocated(locator), 10000);
       await executeBrowserScript(
         browser,
@@ -277,7 +278,7 @@ export async function artworkCorrectionScenario({
       await browser.wait(
         until.elementIsEnabled(element),
         enableDeadline,
-        `The exact control must be enabled before delivery: ${locator}`,
+        `The exact control must be enabled before delivery: ${locator.toString()}`,
       );
       await element.click();
     };
