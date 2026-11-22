@@ -20,7 +20,16 @@
     },
     "release_url": "https://github.com/masterspike52/reNut/releases",
     "recommended_download_channel": "beta",
-    "download_block_reason": "Fresh Portcove downloads remain paused until attributable terms cover reNut and its bundled resources. Named SDK or tool licences do not resolve that existing condition. You can prepare and add an existing copy you have permission to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Fresh Portcove downloads remain paused until attributable terms cover reNut and its bundled resources. Named SDK or tool licences do not resolve that existing condition. You can prepare and add an existing copy you have permission to use.",
+        "tracking_issue": 161
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

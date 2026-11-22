@@ -315,3 +315,39 @@ void test("wire identity and timestamp coercion cannot authorize an audit bundle
     /complete execution report/,
   );
 });
+
+void test("native checkpoint verifies a storage fallback and retains complete retry identity", async () => {
+  const { writeNativeAuditCheckpoint } = await import("./native-audit-checkpoint.mts");
+  const root = mkdtempSync(path.join(os.tmpdir(), "native-audit-checkpoint-"));
+  try {
+    const primary = path.join(root, "primary");
+    const fallback = path.join(root, "fallback");
+    const entry = {
+      issue: 440,
+      build: "Preview 4",
+      launch_id: "owned-request",
+      evidence_path: root,
+      resume_condition: "Observe Load From Card",
+    };
+    const mkdir = (await import("node:fs/promises")).mkdir;
+    const full: typeof mkdir = ((directory: unknown, options: unknown) => {
+      if (directory === primary) throw Object.assign(new Error("full"), { code: "ENOSPC" });
+      return mkdir(directory as string, options as { recursive: true });
+    }) as typeof mkdir;
+    const written = await writeNativeAuditCheckpoint(entry, primary, fallback, full);
+    const repeated = await writeNativeAuditCheckpoint(entry, primary, fallback, full);
+    assert.deepEqual(repeated, written);
+    assert.equal(written.storage, "fallback");
+    assert.deepEqual(JSON.parse(readFileSync(written.path, "utf8")), entry);
+    await assert.rejects(
+      () => writeNativeAuditCheckpoint({ ...entry, build: "", launch_id: "" }, primary),
+      /build or launch ID/u,
+    );
+    await assert.rejects(
+      () => writeNativeAuditCheckpoint(entry, written.path, fallback),
+      /EEXIST/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

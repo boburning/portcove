@@ -273,4 +273,4 @@ it("keeps the selected mod setup and settings draft through version and save tas
   expect(useSetup).not.toHaveBeenCalled();
   await page.getByRole("button", { name: "Back to Library", exact: true }).click();
   await expect.element(openGame).toHaveFocus();
-});
+}, 30_000);

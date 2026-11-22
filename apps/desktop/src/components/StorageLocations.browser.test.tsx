@@ -44,23 +44,36 @@ function RemountedWorkspace({
   );
 }
 
-function RemountFixture() {
+function RemountFixture({ noOp = false }: { noOp?: boolean } = {}) {
   const [generation, setGeneration] = useState(1);
   const { switchFromSettings, resetFromSettings, returnToSelection, consume } =
     useLibrarySelectionReturn(
       generation,
-      async () => setGeneration((current) => current + 1),
-      async () => setGeneration((current) => current + 1),
+      async (_path, accepted) => {
+        const destination = noOp ? generation : generation + 1;
+        setGeneration(destination);
+        accepted(destination);
+      },
+      async (accepted) => {
+        const destination = generation + 1;
+        setGeneration(destination);
+        accepted(destination);
+      },
     );
   return (
-    <RemountedWorkspace
-      key={generation}
-      generation={generation}
-      trigger={returnToSelection}
-      consume={consume}
-      switchLibrary={switchFromSettings}
-      resetLibrary={resetFromSettings}
-    />
+    <>
+      {noOp && (
+        <button onClick={() => setGeneration((current) => current + 1)}>Refresh workspace</button>
+      )}
+      <RemountedWorkspace
+        key={generation}
+        generation={generation}
+        trigger={returnToSelection}
+        consume={consume}
+        switchLibrary={switchFromSettings}
+        resetLibrary={resetFromSettings}
+      />
+    </>
   );
 }
 
@@ -117,6 +130,36 @@ describe("Storage locations", () => {
     const newResetTrigger = button("Use default library");
     expect(newResetTrigger).not.toBe(oldResetTrigger);
     expect(document.activeElement).toBe(newResetTrigger);
+  });
+
+  it("does not transfer focus to a later workspace after a no-op selection", async () => {
+    await root.rerender(<RemountFixture noOp />);
+    const original = button("Choose another library");
+    await click("Choose another library");
+    await click("Switch library");
+    expect(document.activeElement).toBe(original);
+    const refresh = button("Refresh workspace");
+    refresh.focus();
+    await click("Refresh workspace");
+    expect(button("Choose another library")).not.toBe(original);
+    expect(document.activeElement).toBe(refresh);
+  });
+
+  it("reviews saving the current library when its selection only applies to this launch", async () => {
+    const switchLibrary = vi.fn().mockResolvedValue(undefined);
+    await root.rerender(
+      <LibrarySelectionCard
+        selection={{ root: "E:/Portcove", source: "invocation" }}
+        choose={async () => "E:/Portcove"}
+        switchLibrary={switchLibrary}
+      />,
+    );
+    await click("Choose another library");
+    expect(document.body.textContent).toContain("Save this library for startup?");
+    expect(document.body.textContent).toContain("save it for future launches");
+    expect(switchLibrary).not.toHaveBeenCalled();
+    await click("Save startup choice");
+    expect(switchLibrary).toHaveBeenCalledExactlyOnceWith("E:/Portcove");
   });
 
   it("keeps picker cancellation neutral and reviews a whole-library switch before applying it", async () => {

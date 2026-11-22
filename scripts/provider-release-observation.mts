@@ -1,3 +1,4 @@
+import { gitLabN64SourceDeclaration } from "./gitlab-n64-source-declaration.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash, ObservationFailure } from "./upstream-observer.mts";
@@ -6,7 +7,11 @@ export interface ProviderSource {
   provider: "gitlab" | "direct-manifest";
   repository: string;
   scope_sha256: string;
-  ports: { id: string; release: Record<string, unknown> }[];
+  ports: {
+    id: string;
+    release: Record<string, unknown>;
+    original_source_family?: string;
+  }[];
 }
 interface Read {
   url: string;
@@ -94,7 +99,14 @@ export async function observeProviderSource(
     charge: (bytes: number) => void;
     admit: () => void;
     reuseComplete?: boolean;
+    retainedCompletion?: {
+      observed_at: string;
+      facts_sha256: string;
+      completed_by_port: ReadonlyMap<string, string>;
+    };
     bindIdentity?: (identity: number) => Promise<void>;
+    sourcePolicyScope?: string;
+    priorSourcePolicies?: readonly Record<string, unknown>[];
     project: (portId: string, observation: Record<string, unknown>) => Promise<unknown>;
   },
 ) {
@@ -499,23 +511,150 @@ export async function observeProviderSource(
       "Provider fact interval requires fresh validation",
     );
   }
+  const retained = options.reuseComplete && requests === 0 ? options.retainedCompletion : undefined;
+  if (
+    retained &&
+    (retained.observed_at !== oldest || retained.facts_sha256 !== observationHash(facts))
+  )
+    throw new ObservationFailure(
+      "invalid-checkpoint",
+      "Retained descriptive completion differs from the exact provider facts and clock",
+    );
+  const completionFor = (id: string) => {
+    if (!retained) return new Date(now()).toISOString();
+    const clock = retained.completed_by_port.get(id);
+    const completed = clock === undefined ? NaN : Date.parse(clock);
+    if (
+      !clock ||
+      !Number.isFinite(completed) ||
+      completed < Date.parse(oldest) ||
+      completed > now()
+    )
+      throw new ObservationFailure(
+        "invalid-checkpoint",
+        "Invalid retained descriptive completion clock",
+      );
+    return clock;
+  };
   const observations = source.ports.map((port) => ({
     format: 3,
     authority: "provider-observation-only",
     provider: source.provider,
     port_id: port.id,
     started_at: oldest,
-    completed_at: new Date(now()).toISOString(),
+    completed_at: completionFor(port.id),
     facts,
     facts_sha256: observationHash(facts),
   }));
   const policies: unknown[] = [];
-  for (const observation of observations) {
+  const declarations = new Map<string, Awaited<ReturnType<typeof observeDeclaration>>>();
+  let sourceRetryAt: number | null = null;
+  async function observeDeclaration(projectId: number, tag: string, commit: unknown) {
+    try {
+      return {
+        status: "observed",
+        declaration: await gitLabN64SourceDeclaration(projectId, tag, commit, (url) =>
+          request(url, "GET"),
+        ),
+      };
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
+      if (
+        error instanceof ObservationFailure &&
+        ["budget", "provider-quota"].includes(error.rule)
+      ) {
+        const providerReset = error.retryAt ? Date.parse(error.retryAt) : 0;
+        sourceRetryAt = Math.max(now() + 3600000, providerReset || 0);
+      }
+      return {
+        status: "unassessed",
+        reason: error instanceof ObservationFailure ? error.rule : "source-proof-incomplete",
+      };
+    }
+  }
+
+  for (const [index, observation] of observations.entries()) {
     if (options.signal?.aborted)
       throw new ObservationFailure("cancelled", "Provider projection cancelled");
     if (now() >= options.deadline)
       throw new ObservationFailure("budget", "Provider Core projection deferred");
-    policies.push(await options.project(observation.port_id, observation));
+    const policy = await options.project(observation.port_id, observation);
+    const port = source.ports[index];
+    const project = facts.project;
+    if (
+      source.provider !== "gitlab" ||
+      port?.original_source_family !== "n64-recomp" ||
+      !isRecord(project) ||
+      !Array.isArray(facts.releases) ||
+      !isRecord(policy) ||
+      !isRecord(policy.provider_identity) ||
+      policy.provider_identity.provider !== "gitlab" ||
+      policy.provider_identity.project_id !== project.id ||
+      policy.provider_identity.repository !== source.repository ||
+      !Array.isArray(policy.projections)
+    ) {
+      policies.push(policy);
+      continue;
+    }
+    const projectId = Number(project.id);
+    const tags = new Set<string>();
+    for (const row of policy.projections) {
+      if (!isRecord(row) || row.channel !== "stable" || !isRecord(row.latest_eligible)) continue;
+      const identity = row.latest_eligible.identity;
+      if (
+        isRecord(identity) &&
+        identity.project_id === projectId &&
+        typeof identity.tag === "string" &&
+        isRecord(row.channel_candidate) &&
+        row.channel_candidate.tag === identity.tag
+      ) {
+        tags.add(identity.tag);
+      }
+    }
+    const sourcePolicyScope = options.sourcePolicyScope ?? source.scope_sha256;
+    const priorPolicy = options.priorSourcePolicies?.find(
+      (previous) =>
+        previous.port_id === observation.port_id &&
+        previous.gitlab_n64_source_scope_sha256 === sourcePolicyScope,
+    );
+    const priorRows = priorPolicy?.gitlab_n64_source_declarations_v1;
+    const results = [];
+    const releaseRows: unknown[] = facts.releases;
+    const releasesByTag = releaseRows.filter(isRecord);
+    for (const tag of tags) {
+      const releases = releasesByTag.filter((row) => row.tag_name === tag);
+      const release = releases[0];
+      const commit = releases.length === 1 && isRecord(release?.commit) ? release.commit.id : null;
+      let result = declarations.get(tag);
+      if (!result && declarations.size < 4) {
+        result = await observeDeclaration(projectId, tag, commit);
+        declarations.set(tag, result);
+      }
+      const current = result ?? { status: "unassessed", reason: "source-tag-budget" };
+      const historical: unknown = Array.isArray(priorRows)
+        ? priorRows.find((row: unknown) => isRecord(row) && row.tag === tag)
+        : undefined;
+      const earlier = isRecord(historical)
+        ? (historical.declaration ?? historical.historical_declaration)
+        : null;
+      const useHistorical =
+        current.status !== "observed" &&
+        isRecord(earlier) &&
+        earlier.authority === "source-declaration-only" &&
+        earlier.project_id === projectId &&
+        earlier.tag === tag &&
+        earlier.commit_sha === commit;
+      results.push({
+        tag,
+        ...current,
+        ...(useHistorical ? { historical_declaration: earlier } : {}),
+      });
+    }
+    policies.push({
+      ...policy,
+      gitlab_n64_source_scope_sha256: sourcePolicyScope,
+      gitlab_n64_source_declarations_v1: results,
+    });
   }
-  return { state, observations, policies, requests, bytes, observed_at: oldest };
+  return { state, observations, policies, requests, bytes, observed_at: oldest, sourceRetryAt };
 }

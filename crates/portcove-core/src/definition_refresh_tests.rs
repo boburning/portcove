@@ -359,6 +359,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
     // independent working-directory authority and tracked handoff compiled
     // into the client; a legacy catalog cannot deliver either.
     for port in &mut baseline.ports {
+        port.mod_provider_bindings = None;
         port.windows_shipwright_persistence = false;
         port.windows_tracked_handoff = false;
     }
@@ -684,7 +685,41 @@ async fn ordinary_refresh_retains_restrictive_admission_when_launch_companion_fa
             recovered.disposition,
             DefinitionRefreshDisposition::Selected
         ));
-        assert_eq!(recovered.selection.selected.unwrap().policy_revision, 2);
+        assert_eq!(
+            recovered
+                .selection
+                .selected
+                .as_ref()
+                .unwrap()
+                .policy_revision,
+            2
+        );
+        let retained_floor = || {
+            library
+                .connection()
+                .unwrap()
+                .query_row(
+                    "SELECT replay_floor_json FROM definition_publisher_authority",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap()
+        };
+        let floor = retained_floor();
+        let retried = refresh_fixture(
+            &service,
+            &source(&fixture),
+            ID,
+            &root,
+            FilesystemTransport,
+            |_| {},
+        )
+        .await
+        .unwrap();
+        assert!(!retried.policy_changed);
+        assert!(!retried.launch_assessment_changed);
+        assert_eq!(retried.selection, recovered.selection);
+        assert_eq!(retained_floor(), floor);
     }
 }
 

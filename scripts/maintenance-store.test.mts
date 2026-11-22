@@ -1,11 +1,19 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { postgresFixture, postgresServer } from "./fixtures/postgres-cluster.mts";
 import { postgresIntakeCheckpoints } from "./hosted-discovery-intake-checkpoint.mts";
+import { backupReusingHistory, MaintenanceBackupDeferred } from "./maintenance-backup-reuse.mts";
+import {
+  acquireMaintenanceReservation,
+  cutoverReading,
+  normalizeNeonMeter,
+  policyLimits,
+  type NeonMeter,
+} from "./maintenance-resource-policy.mts";
 import {
   backup,
   batchedStatements,
@@ -13,6 +21,7 @@ import {
   connectionFromEnvironment,
   defaultMigrationDirectory,
   libpqEnvironmentFromUrl,
+  maintenanceTransfer,
   migrate,
   migrationStatus,
   migrationTransaction,
@@ -23,6 +32,7 @@ import {
   runSql,
   serverInfo,
   storeDigest,
+  withExportedSnapshot,
 } from "./maintenance-store.mts";
 
 void test("connection URLs become libpq environment without exposing secrets in arguments", () => {
@@ -196,6 +206,75 @@ UPDATE portcove_maintenance.operations SET state = 'ambiguous', revision = 3 WHE
 function rejects(environment: NodeJS.ProcessEnv, sql: string, pattern: RegExp) {
   assert.throws(() => runSql(environment, sql), pattern);
 }
+
+void test(
+  "ordinary maintenance report and history page preserve the full restored timeline",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("history").owner;
+    const target = fixture.start("restored-history").owner;
+    migrate(source);
+    runSql(source, seed);
+    runSql(
+      source,
+      `INSERT INTO portcove_maintenance.assessments
+        (subject_key, policy_version, input_digest, state, result_digest, explanation, assessed_at, run_id)
+      SELECT 'port:example-port', 'policy-1', lpad(to_hex(n),64,'0'), 'held',
+        lpad(to_hex(n),64,'0'), '{}'::jsonb, now(), 'run-1'
+      FROM generate_series(4, 101) AS n ORDER BY n;
+      INSERT INTO portcove_maintenance.subject_transitions (subject_key, sequence, assessment_id)
+      SELECT 'port:example-port', assessment_id, assessment_id
+      FROM portcove_maintenance.assessments WHERE assessment_id >= 4 ORDER BY assessment_id;`,
+    );
+    const snapshot = path.join(fixture.root, "history-backup");
+    await backup(source, snapshot);
+    restore(target, snapshot);
+    const output = path.join(fixture.root, "bounded-report");
+    const database = new URL(`postgresql://owner@localhost:${target.PGPORT}/postgres`);
+    database.searchParams.set("host", target.PGHOST!);
+    const cli = path.resolve("scripts/maintenance-inventory.mts");
+    const call = (...args: string[]) => {
+      const result = spawnSync(process.execPath, [cli, ...args], {
+        env: { ...target, PORTCOVE_MAINTENANCE_DATABASE_URL: database.href },
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout;
+    };
+    call("report", "--output", output);
+    type HistoryEntry = { sequence: number };
+    const report = JSON.parse(readFileSync(path.join(output, "inventory.json"), "utf8")) as {
+      subjects: {
+        subject_key: string;
+        earlier_history_available: boolean;
+        history: HistoryEntry[];
+      }[];
+    };
+    const [row] = report.subjects;
+    assert.ok(row);
+    assert.equal(row.subject_key, "port:example-port");
+    assert.equal(row.earlier_history_available, true);
+    assert.deepEqual(
+      row.history.map((entry) => entry.sequence),
+      Array.from({ length: 12 }, (_, i) => i + 90),
+    );
+    const history = ["history", "--subject", row.subject_key];
+    const page = JSON.parse(call(...history)) as HistoryEntry[];
+    assert.deepEqual(
+      page.map((entry) => entry.sequence),
+      Array.from({ length: 100 }, (_, i) => 101 - i),
+    );
+    const next = JSON.parse(
+      call(...history, "--before", String(page.at(-1)?.sequence)),
+    ) as HistoryEntry[];
+    assert.equal(next.length, 1);
+    assert.equal(next[0]?.sequence, 1);
+    assert.deepEqual(JSON.parse(call(...history, "--before", "1")), []);
+  },
+);
 
 void test(
   "maintenance store guards history and survives an independent PostgreSQL restore",
@@ -552,5 +631,309 @@ void test(
     assert.deepEqual(migrationStatus(store.owner, migrations).problems, [
       `migration ${real.length + 1} (interrupted) differs from the applied migration`,
     ]);
+  },
+);
+
+function testMeter(transferBytes: number): NeonMeter {
+  const now = Date.now();
+  return {
+    periodStart: new Date(now - 10 * 86_400_000).toISOString(),
+    resetAt: new Date(now + 15 * 86_400_000).toISOString(),
+    sampledAt: new Date(now - 1000).toISOString(),
+    transferBytes,
+    computeSeconds: 9_790,
+    activeSeconds: 34_828,
+    storageBytes: 170_606_592,
+    branchTransferBytes: null,
+  };
+}
+
+void test(
+  "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
+  { skip: server.skip ?? false },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner, as } = fixture.start("receipt-admission");
+    migrate(owner);
+    runSql(
+      owner,
+      "CREATE ROLE receipt_only LOGIN NOINHERIT; GRANT portcove_maintenance_executor TO receipt_only WITH INHERIT FALSE;",
+    );
+    const login = as("receipt_only");
+    assert.throws(() => migrationStatus(login), /permission denied/u);
+    assert.deepEqual(migrationStatus(login, undefined, true), migrationStatus(owner));
+    const input = {
+      meter: testMeter(0),
+      request: "native-receipt",
+      operation: "handoffs" as const,
+      reason: "test",
+    };
+    assert.throws(() => acquireMaintenanceReservation(login, input), /permission denied/u);
+    const admission = acquireMaintenanceReservation(login, { ...input, executor: true });
+    assert.ok(admission.attempt_id);
+    assert.equal(admission.operation_reservation_bytes, 8_000_000);
+    assert.equal(
+      runSql(
+        owner,
+        "SELECT requested_by FROM portcove_maintenance_meta.resource_admissions WHERE request_key='native-receipt';",
+      ).trim(),
+      "receipt_only",
+    );
+  },
+);
+
+void test("Neon Free readings preserve missing dimensions and require an active period", () => {
+  const sampledAt = "2026-11-20T20:43:15.000Z";
+  const project = {
+    id: "wispy-salad-36926388",
+    owner: { subscription_type: "free_v3" },
+    consumption_period_start: "2026-11-12T21:55:18Z",
+    consumption_period_end: "2026-12-01T00:00:00Z",
+    data_transfer_bytes: 4_065_773_982,
+    compute_time_seconds: 9790,
+    active_time_seconds: 34828,
+  };
+  const branch = { id: "br-frosty-bar-bbaitwbu", project_id: project.id, logical_size: 170606592 };
+  const meter = normalizeNeonMeter(project, branch, sampledAt);
+  assert.equal(meter.branchTransferBytes, null);
+  assert.equal(meter.computeSeconds, 9790);
+  assert.equal(policyLimits(meter, "collect", Date.parse(sampledAt)).reserve_bytes, 350_000_000);
+  assert.throws(
+    () => normalizeNeonMeter({ ...project, data_transfer_bytes: null }, branch, sampledAt),
+    /usable/u,
+  );
+  assert.throws(() => normalizeNeonMeter(project, branch, "2026-12-01T00:00:00Z"), /usable/u);
+});
+
+void test(
+  "shared admissions fence concurrent callers and retain crash charges",
+  {
+    skip: server.skip ?? false,
+    timeout: 120_000,
+  },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner, as } = fixture.start("quota");
+    migrate(owner);
+    const initial = testMeter(0);
+    initial.transferBytes =
+      policyLimits(initial, "recovery", Date.now()).ceiling_bytes - 60_000_000;
+    const attempt = (request: string) =>
+      new Promise<string | null>((resolve, reject) => {
+        const module = new URL("./maintenance-resource-policy.mts", import.meta.url).href;
+        const code = `import { acquireMaintenanceReservation as acquire } from ${JSON.stringify(module)};
+      const result = acquire(process.env, { meter: ${JSON.stringify(initial)}, operation: "recovery",
+        request: ${JSON.stringify(request)}, reason: "test/concurrent" });
+      process.stdout.write(JSON.stringify(result.attempt_id));`;
+        const child = spawn(process.execPath, ["--input-type=module", "-e", code], { env: owner });
+        let stdout = "";
+        let stderr = "";
+        child.stdout.on("data", (chunk) => {
+          stdout += chunk;
+        });
+        child.stderr.on("data", (chunk) => {
+          stderr += chunk;
+        });
+        child.on("error", reject);
+        child.on("close", (status) => {
+          if (status !== 0) reject(new Error(stderr));
+          else resolve(JSON.parse(stdout) as string | null);
+        });
+      });
+    const admitted = (await Promise.all([attempt("a"), attempt("b")])).find(Boolean);
+    assert.ok(admitted);
+    runSql(owner, "CREATE ROLE quota_executor LOGIN IN ROLE portcove_maintenance_executor;");
+    const blockedUpdate = runSql(
+      as("quota_executor"),
+      `UPDATE portcove_maintenance_meta.resource_admissions
+      SET outcome='completed', finished_at=clock_timestamp(), estimate_bytes=0 WHERE attempt_id='${admitted}'
+      RETURNING attempt_id;`,
+    ).trim();
+    assert.equal(blockedUpdate, "", "intake cannot settle a reservation owned by collection");
+    assert.equal(await attempt("new"), null, "stalled meter cannot erase the earlier charge");
+    const reserve = (meter: NeonMeter, request: string) =>
+      acquireMaintenanceReservation(owner, {
+        meter,
+        request,
+        operation: "recovery",
+        reason: "test",
+      });
+    assert.equal(
+      reserve({ ...initial, transferBytes: initial.transferBytes - 1 }, "regressed").reason,
+      "counter-regressed",
+    );
+    assert.throws(
+      () => reserve({ ...initial, sampledAt: initial.periodStart }, "old"),
+      /cannot cover/u,
+    );
+    runSql(
+      owner,
+      "UPDATE portcove_maintenance_meta.resource_admissions SET started_at = clock_timestamp() - interval '4 days';",
+    );
+    assert.equal(await attempt("after-crash"), null, "an abandoned reservation is still charged");
+    assert.equal(
+      reserve({ ...initial, transferBytes: 4_900_000_000 }, "denied-peak").attempt_id,
+      null,
+    );
+    assert.equal(reserve(initial, "stale-after-denial").reason, "counter-regressed");
+    const reset = {
+      ...initial,
+      transferBytes: 5,
+      periodStart: new Date(Date.now() - 60_000).toISOString(),
+    };
+    assert.equal(reserve(reset, "overlap").reason, "overlapping-provider-period");
+    runSql(
+      owner,
+      `UPDATE portcove_maintenance_meta.resource_admissions SET reset_at='${reset.periodStart}';`,
+    );
+    assert.ok(
+      reserve(reset, "after-reset").attempt_id,
+      "scheduled continuation can admit after reset",
+    );
+  },
+);
+
+void test(
+  "recovery reconstruction reuses history and restores current state and sequences",
+  {
+    skip: server.skip ?? false,
+    timeout: 240_000,
+  },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const source = fixture.start("source").owner;
+    const prefix = fixture.start("prefix").owner;
+    const target = fixture.start("scratch").owner;
+    const proof = fixture.start("proof").owner;
+    migrate(source);
+    runSql(source, seed);
+    const previous = path.join(fixture.root, "previous");
+    await backup(source, previous);
+    runSql(source, executorSeed);
+    runSql(
+      source,
+      `SELECT setval('portcove_maintenance.observations_observation_id_seq', 5000, true);
+    INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at)
+      VALUES ('run-2', 'catalog', 'fixture', '2026-11-03T00:00:00Z');
+    INSERT INTO portcove_maintenance.observations
+      (run_id, subject_key, scope, input_revision, content_sha256, observed_at, payload)
+      VALUES ('run-2', 'port:example-port', '{}', 'commit-b', '${hex("b")}', '2026-11-03T00:00:01Z', '{"test":"suffix"}');`,
+    );
+    const output = path.join(fixture.root, "reconstructed");
+    await assert.rejects(
+      backupReusingHistory({ source, prefixDatabase: prefix, target, output, reservedBytes: 1 }),
+      MaintenanceBackupDeferred,
+    );
+    runSql(
+      source,
+      "CREATE TABLE portcove_maintenance.unexpected(data text); INSERT INTO portcove_maintenance.unexpected VALUES (repeat('x', 10000));",
+    );
+    await assert.rejects(
+      backupReusingHistory({
+        source,
+        prefixDatabase: prefix,
+        target,
+        output,
+        reservedBytes: 5_000_000,
+      }),
+      /Protected table inventory/u,
+    );
+    runSql(source, "DROP TABLE portcove_maintenance.unexpected;");
+    const result = await backupReusingHistory({
+      source,
+      prefixDatabase: prefix,
+      target,
+      previous,
+      output,
+      reservedBytes: 5_000_000,
+    });
+    assert.ok(result.transfer.history_copy_bytes > 0 && result.transfer.history_copy_bytes < 250);
+    assert.equal(result.manifest.sequences?.[0]?.last_value, "5001");
+    const restored = restore(proof, output);
+    assert.equal(restored.sequences_verified, true);
+    const reusePrefix = fixture.start("reuse-prefix").owner;
+    const reused = await backupReusingHistory({
+      source,
+      prefixDatabase: reusePrefix,
+      target,
+      previous: output,
+      output: path.join(fixture.root, "duplicate"),
+      reservedBytes: 5_000_000,
+      reuseRecent: true,
+    });
+    assert.equal(reused.reused, true);
+    assert.equal(reused.manifest.dump.sha256, result.manifest.dump.sha256);
+    assert.equal(reused.transfer.history_copy_bytes, 0);
+    assert.deepEqual(restored.tables, storeDigest(source));
+    assert.equal(
+      runSql(
+        proof,
+        "SELECT active FROM portcove_maintenance_meta.discovery_intake_activation;",
+      ).trim(),
+      "f",
+    );
+  },
+);
+
+void test("credential-free cutover is bound to one endpoint, period, and finite envelope", () => {
+  const endpoint = { PGHOST: "ep-shy-resonance-bb33lu82.c-15.us-east-1.aws.neon.tech" };
+  const now = Date.parse("2026-11-21T04:47:00Z");
+  const meter = cutoverReading(endpoint, "recovery", now);
+  assert.ok(meter);
+  assert.equal(meter.sampleOrigin, "november-cutover");
+  assert.equal(policyLimits(meter, "recovery", now).cutover_allowance_bytes, 300_000_000);
+  assert.equal(cutoverReading(endpoint, "recovery-full", now), undefined);
+  assert.equal(cutoverReading({ PGHOST: "ep-other.neon.tech" }, "recovery", now), undefined);
+  assert.equal(
+    cutoverReading({ ...endpoint, PORTCOVE_NEON_METER_TOKEN: "configured" }, "recovery", now),
+    undefined,
+  );
+  assert.equal(cutoverReading(endpoint, "recovery", Date.parse(meter.resetAt)), undefined);
+});
+
+void test("expired production reservations refuse client I/O and snapshots", async () => {
+  const environment = {
+    PGHOST: "never-connected.invalid",
+    PORTCOVE_POSTGRES_BIN: "/missing-test-bin",
+  };
+  await maintenanceTransfer.run(
+    { host: environment.PGHOST, byteLimit: 1_000_000, payloadBytes: 0, deadline: Date.now() - 1 },
+    async () => {
+      assert.throws(() => runSql(environment, "SELECT 1;"), /reservation expired/u);
+      await assert.rejects(
+        withExportedSnapshot(environment, async () => null),
+        /reservation expired/u,
+      );
+    },
+  );
+});
+
+void test(
+  "cutover admissions share their finite allowance across purposes",
+  {
+    skip: server.skip ?? false,
+    timeout: 120_000,
+  },
+  (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const { owner } = fixture.start("cutover-quota");
+    migrate(owner);
+    const now = Date.now();
+    const meter: NeonMeter = {
+      ...testMeter(4_065_773_982),
+      sampleOrigin: "november-cutover",
+      sampledAt: new Date(now - 6_000_000).toISOString(),
+      resetAt: new Date(now + 4 * 86_400_000).toISOString(),
+    };
+    const take = (
+      request: string,
+      operation: "recovery" | "recovery-catchup" | "collect" | "intake",
+    ) =>
+      acquireMaintenanceReservation(owner, { meter, request, operation, reason: "cutover/test" });
+    assert.ok(take("routine", "recovery").attempt_id);
+    assert.ok(take("collect", "collect").attempt_id);
+    assert.ok(take("intake", "intake").attempt_id);
+    assert.ok(take("catchup", "recovery-catchup").attempt_id);
+    assert.equal(take("overflow", "recovery-catchup").attempt_id, null);
   },
 );

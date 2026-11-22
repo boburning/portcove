@@ -22,13 +22,36 @@ export function availableRootCount(roots: readonly GameFileRoot[]) {
   return roots.filter((root) => root.availability === "available").length;
 }
 
+export type ScanResultRequest = { sequence: number; expected?: string };
+
+export function savedScanResultIdentity(snapshot: GameFileScanSnapshot | null | undefined) {
+  if (!snapshot?.matches?.scan_id) return undefined;
+  return JSON.stringify([
+    snapshot.matches.scan_id,
+    snapshot.catalog_sha256,
+    snapshot.completed_at,
+    snapshot.coverage?.batches,
+  ]);
+}
+
+export function matchesSavedScanResult(
+  snapshot: GameFileScanSnapshot | null | undefined,
+  expected: string,
+) {
+  return snapshot?.freshness === "inputs_match" && savedScanResultIdentity(snapshot) === expected;
+}
+
+export async function isCurrentSavedScanResult(expected: string, generation: number) {
+  return matchesSavedScanResult(await desktopApi.gameFileScanSnapshot(generation), expected);
+}
+
 type ScanState = {
   scanning: boolean;
   operationId?: string;
   completedBatches?: number;
   candidates: Pick<SourceRecord, "profile_id" | "path" | "sha256" | "size">[];
   completion: number;
-  result?: GameFileScanSnapshot;
+  receipt?: { snapshot: GameFileScanSnapshot; completion: number };
   error?: string;
   notice?: string;
 };
@@ -55,7 +78,12 @@ export function useGameFileScan(generation: number) {
     const token = {};
     current.active = token;
     const accepts = () => !current.disposed && current.active === token;
-    setState((previous) => ({ scanning: true, candidates: [], completion: previous.completion }));
+    setState((previous) => ({
+      scanning: true,
+      candidates: [],
+      completion: previous.completion,
+      ...(previous.receipt ? { receipt: previous.receipt } : {}),
+    }));
     let result: GameFileScanSnapshot | undefined;
     let error: string | undefined;
     let notice: string | undefined;
@@ -146,7 +174,11 @@ export function useGameFileScan(generation: number) {
           scanning: false,
           candidates: [],
           completion: previous.completion + 1,
-          ...(result === undefined ? {} : { result }),
+          ...(result !== undefined
+            ? { receipt: { snapshot: result, completion: previous.completion + 1 } }
+            : previous.receipt
+              ? { receipt: previous.receipt }
+              : {}),
           ...(error === undefined ? {} : { error }),
           ...(notice === undefined ? {} : { notice }),
         }));

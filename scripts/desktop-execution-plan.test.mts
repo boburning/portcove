@@ -436,6 +436,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-layout",
             "native-secondary-panel-presentation",
             "native-collection-artwork-presentation",
+            "native-reviewed-screenshot-display",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -511,6 +512,8 @@ void test("execution planning preserves the independently reviewed pre-change or
         Object.hasOwn(nativeHelperDependencies, added) ||
           nativeHelperSharedSources.includes(added) ||
           nativeTransportReceiptSources.some((source) => source === added) ||
+          (added === "scripts/fixtures/game-first-catalog-relationships.json" &&
+            selection.selected_scenarios.includes("native-normal-package-webview-boundary")) ||
           added === "apps/desktop/scripts/browser-script.mts" ||
           added === "apps/desktop/scripts/browser-readiness.mts" ||
           added === "apps/desktop/scripts/native-enlargement.mts" ||
@@ -1653,6 +1656,26 @@ void test("Linux interruption is standalone, production-featured and retains nam
     );
 });
 
+void test("publication checkpoint waits for the observed clock and keeps the full exit margin", () => {
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-host-publication-test.mts",
+    import.meta.url,
+  );
+  runDesktopModuleFixture(
+    entry,
+    `
+    const {checkpointClockReady}=await import(entry);
+    const marker={entered_unix_ms:1001,deadline_unix_ms:50000};
+    assert.equal(checkpointClockReady(marker,1000),false);
+    assert.equal(checkpointClockReady(marker,1001),true);
+    assert.equal(checkpointClockReady(marker,19999),true);
+    assert.throws(()=>checkpointClockReady(marker,20000),/remaining/);
+    assert.throws(()=>checkpointClockReady({...marker, entered_unix_ms:"1001"},1001),/entry timestamp/);
+    assert.throws(()=>checkpointClockReady({...marker, deadline_unix_ms:1000},1001),/deadline/);
+  `,
+  );
+});
+
 void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", () => {
   const entry = new URL(
     "../apps/desktop/scripts/desktop-host-publication-test.mts",
@@ -2360,6 +2383,119 @@ void test("secondary panel presentation keeps isolated Windows custody and compl
     resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
     [id],
   );
+});
+
+void test("reviewed screenshot observation binds the embedded listing source", () => {
+  const source = "crates/portcove-core/catalog/listings.json";
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-reviewed-screenshot-display"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.kind === "file" && input.path === source).length,
+    1,
+  );
+});
+
+void test("game-first production relationship expectations have selected-only immutable custody", () => {
+  const fixture = "scripts/fixtures/game-first-catalog-relationships.json";
+  const selected = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-game-first-choice-and-restart"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    selected.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture)
+      .length,
+    1,
+  );
+  const smoke = planDesktopExecution(
+    resolveDesktopSelection({ profile: "smoke", platform: "win32" }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    smoke.receiptInputs.filter((input) => input.kind === "file" && input.path === fixture).length,
+    0,
+  );
+});
+
+void test("normal package catalog readback retains reviewed fixture and oracle without changing execution authority", async (t) => {
+  const selection = resolveDesktopSelection({
+    scenarios: ["native-normal-package-webview-boundary"],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  for (const source of [
+    "scripts/fixtures/game-first-catalog-relationships.json",
+    "apps/desktop/scripts/desktop-game-first-test.mts",
+  ]) {
+    const inputs = plan.receiptInputs.filter(
+      (input) => input.kind === "file" && input.path === source,
+    );
+    assert.equal(inputs.length, 1, source);
+    assert.ok(Object.isFrozen(inputs[0]), source);
+  }
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.equal(plan.fixtures.install, false);
+  assert.equal(plan.fixtures.owned, false);
+  assert.equal(plan.session.normalPackageSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "normal-package-boundary");
+  const parent = path.join(os.homedir(), ".portcove-test-fixtures");
+  await mkdir(parent, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(path.join(parent, "portcove-package-catalog-custody-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const sources = [
+    "scripts/fixtures/game-first-catalog-relationships.json",
+    "apps/desktop/scripts/desktop-game-first-test.mts",
+  ];
+  for (const source of sources) {
+    const file = path.join(directory, source);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, await readFile(new URL(`../${source}`, import.meta.url)));
+  }
+  const output = path.join(directory, "output");
+  await mkdir(output);
+  const captured = await captureDesktopReceiptInputs({
+    root: directory,
+    values: { app: process.execPath },
+    plan: {
+      receiptInputs: plan.receiptInputs.filter(
+        (input) => input.kind === "file" && sources.includes(input.path),
+      ),
+      selection,
+    },
+    output,
+    revision: "a".repeat(40),
+    retainedRoot: path.join(directory, "retained"),
+    // The helper-dependency suite owns declaration-graph validation.
+    validate: async () => [],
+  });
+  const retained = captured.map((input) => {
+    assert.ok("retained" in input);
+    return input;
+  });
+  await verifyConsumedInputs(retained);
+  for (const source of sources) {
+    const file = path.join(directory, source);
+    const original = await readFile(file);
+    const changed = Buffer.from(original);
+    changed[0] = changed[0] === 65 ? 66 : 65;
+    await writeFile(file, changed);
+    await assert.rejects(
+      verifyConsumedInputs(retained),
+      /Live execution input changed after capture/u,
+    );
+    await writeFile(file, original);
+    await verifyConsumedInputs(retained);
+  }
 });
 
 void test("keyboard layout follows the actual native viewport after a minimum-width clamp", async () => {

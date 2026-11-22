@@ -51,24 +51,33 @@ function definitionDescriptiveFallback(
 ) {
   const presentation = definition.presentation;
   const originalGame = presentation?.original_game ?? listing?.original_game;
+  const listedMedia = listing?.media?.filter(({ subject }) =>
+    subject.kind === "port"
+      ? subject.port_id === id
+      : subject.game_id === originalGame?.id &&
+        originalGame.source_editions.some((edition) => edition.id === subject.source_edition_id),
+  );
+  const sceneMedia = listedMedia?.filter(
+    ({ role, igdb }) =>
+      (role === "header" && igdb?.kind === "artwork") ||
+      (role === "screenshot" && igdb?.kind === "screenshot"),
+  );
+  const strictMedia = presentation?.media;
+  // The accepted directory has already reconciled managed presentation in Core.
+  // Only its new scene roles extend an existing strict media array.
+  const media =
+    strictMedia == null
+      ? listedMedia
+      : strictMedia.length && sceneMedia?.length && listing?.project_url === definition.project_url
+        ? [...strictMedia, ...sceneMedia]
+        : undefined;
   // Only descriptive additions may fall back to the accepted listing. The
   // strict definition remains the separate operational owner, including setup.
   return {
     ...(presentation?.original_game == null && listing?.original_game
       ? { original_game: listing.original_game }
       : {}),
-    ...(presentation?.media == null && listing?.media
-      ? {
-          media: listing.media.filter(({ subject }) =>
-            subject.kind === "port"
-              ? subject.port_id === id
-              : subject.game_id === originalGame?.id &&
-                originalGame.source_editions.some(
-                  (edition) => edition.id === subject.source_edition_id,
-                ),
-          ),
-        }
-      : {}),
+    ...(media ? { media } : {}),
   };
 }
 

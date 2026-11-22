@@ -5,6 +5,33 @@ use crate::{Catalog, ReleaseChannel, ReleaseProvider, ReleaseSource};
 const ID: &str = "wave-race-64-racewave46";
 
 #[test]
+fn explicit_package_tag_history_refuses_retarget_even_with_new_asset_identity() {
+    let accepted = crate::definition_acquisition::GithubArtifactIdentity {
+        repository: "official/project".into(),
+        repository_id: 1,
+        release_id: 2,
+        asset_id: 3,
+        tag: "v0.22.1".into(),
+    };
+    let mut later_upload = accepted.clone();
+    later_upload.asset_id = 4;
+    let original = "11e9430b67d788b73f7a57d22166e8b500c23dab";
+    let retargeted = "11e9430b67d788b73f7a57d22166e8b500c23dac";
+    require_unchanged_explicit_tag(&accepted, Some(original), &later_upload, Some(original))
+        .unwrap();
+    assert_eq!(
+        require_unchanged_explicit_tag(&accepted, Some(original), &later_upload, Some(retargeted))
+            .unwrap_err()
+            .details["reason"],
+        "provider_tag_commit_changed"
+    );
+    require_unchanged_explicit_tag(&accepted, None, &later_upload, Some(retargeted)).unwrap();
+    later_upload.tag = "v0.22.2".into();
+    require_unchanged_explicit_tag(&accepted, Some(original), &later_upload, Some(retargeted))
+        .unwrap();
+}
+
+#[test]
 fn recorded_github_asset_identity_rejects_changed_bytes_but_keeps_new_rolling_bindings_distinct() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("payload");

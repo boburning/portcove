@@ -219,8 +219,16 @@ impl Library {
         for install in &metadata.application_versions {
             let mut absolute = install.clone();
             absolute.path = managed_root.join(&install.path);
-            if let Some(catalog) =
-                crate::install::portability_catalog_for_install(&absolute, &embedded)?
+            let (retained, choice) =
+                crate::install::portable_install_contract(&absolute, &embedded)?;
+            if let Some(choice) = choice {
+                admissions.push(
+                    crate::portability_authority::PortabilityAdmission::from_embedded_choice(
+                        install, &choice,
+                    )?,
+                );
+            }
+            if let Some(catalog) = retained
                 && catalog.definition_selection(&install.port_id).is_some()
             {
                 let identity = catalog

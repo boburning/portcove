@@ -20,7 +20,16 @@
     "availability": "packages",
     "setup_url": "https://github.com/petarov/saboteur2#readme",
     "release_url": "https://github.com/petarov/saboteur2/releases",
-    "download_block_reason": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Fresh package/build acquisition remains held under #2722: upstream embeds original SAB2.COM data in every binary, and an attributable grant covering distribution of those original materials has not been established. The port-code Unlicense permits compiled redistribution of that software; it does not resolve the separately recorded original-data condition. Reconsider on attributable original-content distribution evidence or a reviewed route creating those materials from the player’s own inputs. These instructions grant no permission to acquire, register or execute a copy.",
+        "tracking_issue": 2722
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/petarov/saboteur2#readme",
       "warnings": [

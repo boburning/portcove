@@ -1,4 +1,4 @@
-import { filterChoice, openAdvancedFilters } from "../../../test/filter-fields";
+import { filterChoice } from "../../../test/filter-fields";
 import { captureParityState as captureRenderedState } from "../../../test/parity-capture";
 import { prepareCaptureTarget } from "../../../test/capture-target";
 import { observeVisibleTarget } from "../../../scripts/browser-readiness.mts";
@@ -324,8 +324,10 @@ it.each(["linux-x86-64", "macos-aarch64", "windows-x86-64"] as const)(
       hostPlatform,
     );
     const captureControls = async (phase: "producing-host" | "retained-explicit-target") => {
-      await openAdvancedFilters();
-      const selector = ".catalog-filter-advanced fieldset:not([aria-label])";
+      const filters = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
+      if (filters.element().getAttribute("aria-expanded") !== "true") await filters.click();
+      const selector =
+        ".catalog-filter-panel > .catalog-filter-groups > fieldset:not([aria-label])";
       const control = fixtureValue(document.querySelector<HTMLElement>(selector), selector);
       const groups = fixtureValue(control.closest(".catalog-filter-groups"), "filter groups");
       const tools = fixtureValue(host.querySelector(".library-query-tools"), "query tools");

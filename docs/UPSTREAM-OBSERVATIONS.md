@@ -212,6 +212,89 @@ it never replaces the successful checkpoint or becomes an eligible candidate.
 All platform projections remain in the retained snapshot during a provider
 failure, and no catalog entry is removed.
 
+## Original-file source observations
+
+For an operational Libultraship definition with a source profile, the catalog
+observer can read an upstream `docs/supportedHashes.json` table at the exact
+commit resolved for Core's current Stable release. It binds the observation to
+the provider repository and release identities and the platform artifact
+digests returned by Core. The parser records its version, the source file's Git
+object and SHA-256, and the SHA-1 values the upstream table declares.
+
+For a GitHub N64 Recomp definition with a source profile, the observer reads
+`src/main/main.cpp` at the same release boundary. It recognizes the family's
+literal `supported_games` table and records the game ID, optional native mod game
+ID, and declared 64-bit ROM hash per row. Unrecognized declarations and
+conditional tables leave current evidence unknown. An observed table describes
+the release source. Runtime hash normalization, compiled platform coverage and
+actual acceptance require separate evidence before Core can use it for setup.
+
+For a release that pins the canonical N64ModernRuntime Git submodule, the
+same observer records the dependency revision and checked runtime source blob.
+It compares the unconditional input and storage routines with reviewed source
+patterns that pad the ROM, normalize it to big-endian byte order and call XXH3.
+Unrelated runtime routines can change while those blocks stay the same. A
+matched runtime's nested canonical xxHash Gitlink and its checked header blobs
+record the hash source pinned by that revision. The observer reuses checked
+headers across releases that pin the same dependency. A missing header read
+leaves the previously checked runtime and game table available. A
+required binding needs evidence of the effective hash implementation and
+provenance linking the selected compiled asset to its source and dependencies.
+Unavailable runtime metadata can be retried without losing the checked game
+table.
+
+For a matched N64 runtime and pinned hash dependency, the observer can associate
+a selected published artifact digest with an Actions output at the same
+upstream repository and source commit. The observer requires a successful
+same-repository first attempt, the output's own run identity, and run readback
+before retaining a match. A bounded search resumes from the retained position.
+Packages without a match stay unknown. An exact match remains available after
+the Actions artifact expires, including when other selected packages change
+at the same repository and commit. This establishes a provider-reported build-to-release
+digest link. Effective checkout and dependency behavior, the job that produced
+the output, and native original-file acceptance need separate evidence.
+
+For outputs with an identifiable upload step, the observer reads that step
+and the earlier checkout step from the exact run attempt. The upload log must
+identify the same digest, artifact ID and size. The checkout log must report
+the selected repository, source commit, runtime and xxHash revisions. The
+checkpoint retains checked job and step identities and log digests. Missing
+or unusable job evidence leaves the affected package unknown and advances the
+search to other packages. Shared budget and rate-limit deferrals still apply.
+Raw logs and signed download addresses stay out of the checkpoint. On a later
+turn, a matched job can retain the ordered CMake/Ninja runtime compile, static
+library, and executable link evidence from a successful step between checkout
+and upload. An unavailable compile log keeps the previously checked steps.
+
+Maintenance projects a provisional original-file binding for the exact port
+definition, source contracts, and package selection evaluated by the observer.
+It uses the native game ID from the configured runtime filename, the reviewed
+hash-header bytes, and the linked executable's name against the port's sole executable hint
+for that platform. A package review also binds the selected runtime layout. The proposal remains held until the packaged executable and its effective
+hash behavior are verified. A checked package receipt joins the selected platform and artifact digest
+to the observed source, runtime, hash dependency and exact build job. For a
+universal package, each selected architecture needs its own review. The
+maintenance projection then prepares a source-contract amendment and immutable
+upstream support evidence. It preserves existing bindings and the enforced
+legacy contract. The first enforced migration requires N64 reader capability
+11; informational exact bindings require capability 10.
+
+Run `node scripts/prepare-n64-original-inputs.mts CHECKPOINT PORT_ID` to
+replay a current observer checkpoint against the authored catalog and emit the
+replacement contract and evidence record. Apply them to the indicated shared
+catalog source through normal catalog review and generation. The output carries
+the previous contract digest and exact executable receipts for review. Native
+acceptance and signed definition delivery continue through their existing owners.
+
+These optional facts follow the existing request budget and checkpoint. The
+maintenance projection keeps the last complete exact observation and records
+when current evidence is unavailable. A due refresh checks the release tag
+before reusing the immutable table. A moved tag leaves the stored artifact
+observation intact while reporting the change. A release fallback never supplies a
+current observation. Recognition-only observations carry no verdict about a
+player's files or the runtime's acceptance, and confer no setup, acquisition
+or publication authority.
+
 ## Catalog scheduling and definition-delivery handoff
 
 `node scripts/observe-catalog-upstreams.mts --cli PATH_TO_PORTCOVE` uses the same
@@ -292,10 +375,10 @@ start another operation within that opportunity; each operation keeps its existi
 three-minute admission budget. Request counts and refreshed clocks alone cannot
 authorize another batch. A hosted opportunity's observation step spends at most 1,800 GitHub API
 requests, about a third of the observed hourly allowance, so upstream-health and
-other workflows sharing the token keep capacity. The ceiling is a hard total:
-each batch receives only the remaining allowance, and every GitHub request is
-admitted against it. GitLab and direct-manifest sources are counted but keep
-their own per-source bound, and checkpoint recovery, push admission and
+other workflows sharing the token keep capacity. The ceiling is a hard total.
+Each batch receives only the remaining allowance, and release and registry
+requests count against it. GitLab and direct-manifest sources also keep
+their own per-source bound. Checkpoint recovery, push admission and
 relocation proposals make separately bounded reads outside the step. A
 gap-filling push opportunity (below) spends at most 900, so a push followed by
 the next schedule within one hour stays near half of that allowance. Non-budget failures stay visible and are excluded from
@@ -317,8 +400,19 @@ The scheduled hosted opportunity gives Chameleon JP (#246) and OpenTyrian
 the existing collection allowance with the configured Shipwright source and
 preserve the regular rotation and checkpoint handling. A due appointed GitHub source takes its bounded provider refresh even if a Core
 binding change also permits offline reprojection of earlier facts. An incomplete
-refresh retains the prior observation and freshness clock. Manual dispatch uses
-the ordinary rotation.
+refresh retains the prior observation and freshness clock. Manual dispatch has
+no scheduled appointments.
+
+Each hosted batch starts with the appointed scopes and healthy managed sources
+whose provider receipt is missing or will expire by the batch deadline. The
+batch then offers one recovery turn before every three ordinary healthy managed
+turns while both groups have work. Recovery covers eligible listing-only
+sources and managed sources with a recorded failure whose provider freshness is
+missing or expired. Retry deadlines still apply. Within recovery, sources
+without a recorded attempt go first, followed by the least recently attempted
+sources. Every turn uses the existing source quantum and shared request,
+runtime, and byte limits. Sources that run out of capacity keep their durable
+place for a later batch.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
@@ -476,6 +570,8 @@ The inspection checkpoint also tracks where each baseline group ran out of
 time or download budget. The next run continues from that route in stable
 port, platform and channel order, even when new inspector bytes invalidate
 previous results. Generated baselines keep priority over reviewed layouts.
+If a handoff omits the saved route and the group has no new budget deferral,
+its checkpoint retains that position for a later handoff.
 Oversized archives stay unassessed and do not set the next route. A failed
 download or inspection remains eligible on a later pass. The continuation
 changes only the order of work within existing limits.
@@ -505,7 +601,8 @@ waits cannot fit the original bounds. The existing observer owns conditional
 cache reuse, facts digests, identity validation and complete-versus-prefix proofs;
 the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
-are downloaded. The core input is bounded to 4 MiB, its process to thirty
+are downloaded. Core inspection reads the catalog within the 16 MiB generated-catalog
+bound and each observation within 4 MiB. Each Core process is bounded to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
 Only observing jobs share the per-ref concurrency slot, with one active and at
 most one pending. Hourly schedules and manual runs always observe. A merge to
@@ -964,7 +1061,7 @@ The monitor retains fair oldest-attempt rotation across bounded collector runs.
 The collector's 352-request and 512-new-location envelopes bound one monitor operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
-or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
+or 512-incident historical count ceilings. Input catalogs are bounded to 16 MiB,
 including programmatic invocations. Oversized physical inputs remain refused;
 no history is silently truncated to claim complete coverage.
 
@@ -991,6 +1088,15 @@ from the existing bounded page proofs, verifies their identities/digests against
 the complete observation, and retains the original oldest validation clock.
 Reprojection never makes an old provider fact fresh. Normal cadence/expiry still
 requires provider checks.
+
+When every consumer of a source is a descriptive listing, its private
+checkpoint scope binds the source, provider, listing declarations, exact
+descriptive projector and freshness policy. A Core rebuild alone leaves that
+scope current. Mixed sources and managed sources keep their exact Core and
+definition bindings. Earlier listing checkpoints use the same bounded
+reprojection path. Offline success retains the original validation, completion
+and change clocks without postponing a due provider check. A tighter freshness
+limit can move the next provider check earlier.
 
 Current Core must select candidates from the complete header universe, and every
 selected release must have complete validated asset coverage. Missing coverage
@@ -1054,6 +1160,26 @@ availability from verified artifact bytes, protected catalog admission and
 player update eligibility. The latter three remain unassessed. GitHub's existing
 formats 1/2 and report format 1 remain compatible; no workflow per port, service,
 account, signing authority or production activation is introduced.
+
+For managed GitLab N64 recompilation sources, the same provider handoff can
+also report `gitlab_n64_source_declarations_v1`. It follows stable tags selected
+by the current Core metadata projection. A numeric project, exact release and
+tag commit, complete bounded directory listing and verified Git blob identify
+the source declaration. A second tag read brackets the proof, and incomplete,
+moved or ambiguous source evidence remains unassessed. These requests use the
+existing provider quota and observation deadline. A budget or quota deferral
+can bring forward the next observation, after the provider reset when known.
+A previous exact declaration may remain in the handoff as historical evidence
+when the current source scope, project, tag and commit still match. The package
+and descriptive listing projections remain independently available.
+
+A source declaration reports what the exact tagged GameEntry table says.
+Player launch and an exact release-specific original-file recommendation need
+separate reviewed evidence linking the selected shipped package and executable
+to that source. The existing signed original-file preparation requires a
+supported package/build provenance route and independent admission where
+applicable. Until those bindings are available for GitLab, keep existing
+signed guidance and treat observations as evidence for review.
 
 ## Descriptive consumers and accepted listing corrections
 
@@ -1234,6 +1360,12 @@ the repository, hints, restrictions, setup or operational route invalidate reuse
 Core exports the exact supplied directory to format 11 before enrichment; this
 preserves its original guide and current strict-reader compatibility, while the
 authored directory and public browse projection retain format 12 metadata.
+Delivery encodes slash-containing GitHub tags as single URL segments after
+checking the exact observed repository, tag and asset name. The observer
+checkpoint keeps the provider's original URL and observation clock.
+Delivery omits null provider digest fields to fit more observations within the
+same byte limit. Core reads an omitted digest as absent, and publication counts
+changes to the observation itself when tallying updates.
 Newer clients retain their existing implementation descriptions when a format-11
 row has the same project URL and exact original-game identity. The older delivery
 cannot express that field; a format-12 delivery can explicitly clear it. Changed
@@ -1247,11 +1379,20 @@ retain exact bytes and revision. The unchanged signer still verifies the entire
 prior repository and historical revision bounds before renewal. Publication uses
 the existing official-policy namespace and keys.
 
-The target remains a partial directory under the existing eight-MiB limit. It
-admits whole canonical rows, prioritizes prior rows before new observations, and
-never drops requirements to make a row fit. Omissions and source exceptions appear
-in `observation-projection.json` beside the publication evidence; omission does not
-mean withdrawal or complete provider coverage. Existing scheduled renewals refresh
+The signed target reserves each previously admitted identity and each matching
+operational catalog guide within the existing eight-MiB limit. Initial admission
+uses the reviewed operational declaration even when an upstream observation is
+unavailable. A previously signed identity missing from the canonical directory
+requires an explicit withdrawal. The signer’s historical verification can renew
+the exact previous bytes when current verification is unavailable. This path
+makes no new admission or provider claim.
+
+The projection reserves complete current guides and still-valid applicable prior
+observations before filling remaining space with optional enrichment. Under
+pressure it can omit an expired observation at its recorded freshness boundary.
+Its receipt lists deferred enrichment and omitted discovery rows separately.
+An over-budget required set preserves the published target and reports failure.
+Omitted discovery rows use the client’s embedded fallback. Existing scheduled renewals refresh
 optional observations, while unrelated main commits do not become changed solely
 because the fixed source bundle omits this derived target.
 
@@ -1330,3 +1471,25 @@ exposed a GitHub-only Accept header causing frogress HTTP 406. After scoping tha
 header correctly, all four configured sources returned usable HTTP 200 reports.
 The actual live observation packet is retained with the implementation evidence;
 fixtures and a local manual read do not establish unattended production operation.
+
+## Mod provider registry
+
+The catalog observation job reads the
+[Thunderstore ecosystem registry](https://thunderstore.io/api/experimental/schema/ecosystem-json-data/latest/)
+on its existing cadence when the opportunity has request capacity. The public
+read shares the job deadline and response budget and counts toward the same
+request ceiling as the release providers. When Thunderstore defers a request,
+the observer saves the retry deadline before unrelated source work. Its deadline
+is independent of GitHub's retry clock.
+
+The checkpoint retains the schema version, raw response digest, stable community
+IDs, registry game UUIDs, listing states and exact GameBanana game links when
+present. An incomplete response, unsupported schema or change to an already
+observed identity keeps the previous complete snapshot and reports a coverage
+gap. Maintenance reports expired observations as stale using the same
+configured freshness bound. When saved registry evidence and new source progress
+would exceed the existing checkpoint limit, the observer preserves the last
+readable checkpoint and reports the storage hold. The maintenance inventory
+records the registry as one discovery subject.
+A community record supplies neither a canonical Portcove port mapping nor
+runtime, package, installation or publication authority.
