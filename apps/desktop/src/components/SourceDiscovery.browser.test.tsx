@@ -6,6 +6,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
+import { GameFileScanProvider } from "../features/game-file-discovery/use-game-file-scan";
 import type {
   SourceDiscoveryLimits,
   SourceDiscoveryReport,
@@ -17,7 +18,7 @@ import {
   SourceImportReview,
   sourceImportModePresentation,
 } from "./SourceDiscovery";
-import { act } from "react";
+import { act, createRef } from "react";
 import { createRoot } from "react-dom/client";
 import { sourceImportFixtures } from "./rendered-test-fixtures";
 beforeEach(() => {
@@ -141,6 +142,10 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   const review = vi
     .spyOn(desktopApi, "planSourceImport")
     .mockRejectedValueOnce({ message: "Source changed after discovery" })
+    .mockResolvedValueOnce({
+      ...plan,
+      source: { ...candidate, storage_sha256: "a".repeat(64) },
+    })
     .mockResolvedValue(plan);
   const importSource = vi
     .spyOn(desktopApi, "importSource")
@@ -182,15 +187,26 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
   const click = async (label: string) => {
     await userEvent.click(control(label));
   };
-  try {
-    await root.rerender(
-      <SourceDiscoveryButton
-        generation={7}
-        profiles={[profile]}
-        disabled={false}
-        onAdded={refresh}
-      />,
+  const fallback = createRef<HTMLHeadingElement>();
+  const renderSettings = (generation: number, visible = true, profiles = [profile]) =>
+    root.rerender(
+      <GameFileScanProvider key={generation} generation={generation}>
+        <h2 ref={fallback} tabIndex={-1}>
+          Game files and BIOS
+        </h2>
+        {visible && (
+          <SourceDiscoveryButton
+            generation={generation}
+            profiles={profiles}
+            disabled={false}
+            fallbackFocus={fallback}
+            onAdded={refresh}
+          />
+        )}
+      </GameFileScanProvider>,
     );
+  try {
+    await renderSettings(7);
     await click("Find required files");
     const searchField = document.body.querySelector<HTMLInputElement>("#source-search-root");
     const searchLabel = document.body.querySelector<HTMLLabelElement>(
@@ -250,6 +266,9 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).not.toContain("not-a-match.iso");
     expect(document.body.textContent).toContain("1 more scan issue was omitted.");
     await captureParityState("source-discovery-incomplete-scan-fixture");
+    await expect
+      .element(page.getByRole("button", { name: "Review last search" }))
+      .not.toBeInTheDocument();
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
       {
@@ -283,10 +302,33 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).not.toContain("hash_bytes");
     expect(document.body.textContent).toContain("3 more scan issues were omitted.");
     expect(document.body.textContent).not.toContain("1 more scan issue was omitted.");
+    await click("Close");
+    await renderSettings(7, false);
+    await renderSettings(7);
+    const previous = page.getByRole("button", { name: "Review last search" });
+    await previous.click();
+    const dialog = page.getByRole("dialog", { name: "Find required files" });
+    await expect
+      .element(dialog.getByText("Results from the last search.", { exact: false }))
+      .toBeVisible();
+    await expect
+      .element(dialog.getByRole("textbox", { name: "Search folder" }))
+      .toHaveValue("D:/Selected");
+    await expect.element(dialog.getByText(candidate.path, { exact: true })).toBeVisible();
+    expect(search).toHaveBeenCalledOnce();
+    expect(scanInbox).toHaveBeenCalledOnce();
+    expect(review).not.toHaveBeenCalled();
+    expect(importSource).not.toHaveBeenCalled();
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
     expect(document.body.textContent).toContain("Source changed after discovery");
     await captureParityState("source-discovery-changed-source-fixture");
+    await click("Review copy");
+    await expect
+      .element(dialog.getByRole("alert"))
+      .toHaveTextContent("This file changed since the last search. Search the folder again.");
+    expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    expect(importSource).not.toHaveBeenCalled();
     await click("Review copy");
     expect(document.body.textContent).toContain(plan.destination);
     expect(plan.admission_mode).toBe("exact_identity");
@@ -311,7 +353,34 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
       document.body.querySelector('[aria-labelledby="source-discovery-title"] [role="alert"]'),
     ).toBeNull();
     expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
+    await click("Close");
+    await expect.element(previous).toHaveFocus();
+    let finishReview!: (result: SourceImportPlan) => void;
+    review.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishReview = resolve;
+        }),
+    );
+    await previous.click();
+    await click("Review copy");
+    await expect
+      .element(dialog.getByText("Checking the selected file and destination…"))
+      .toBeVisible();
+    await renderSettings(7, true, []);
+    await act(async () => finishReview(plan));
+    await expect.element(dialog).not.toBeInTheDocument();
+    await expect.element(page.getByRole("heading", { name: "Game files and BIOS" })).toHaveFocus();
+    await expect
+      .element(page.getByText("The required files from the last search are no longer listed."))
+      .toBeVisible();
+    await expect.element(previous).not.toBeInTheDocument();
+    expect(importSource).toHaveBeenCalledOnce();
+    await renderSettings(8);
+    await expect.element(previous).not.toBeInTheDocument();
+    expect(search).toHaveBeenCalledOnce();
   } finally {
+    await root.rerender(null);
     await cleanup();
     host.remove();
     vi.restoreAllMocks();
@@ -449,7 +518,8 @@ it.each([
       disc: null,
       members: [],
     };
-    const { source } = sourceImportFixtures();
+    const { source, plan } = sourceImportFixtures();
+    const reviewed = plan("use_current_location");
     const rootPath = "D:/Synthetic discovery presentation/Original game files";
     const report: SourceDiscoveryReport = {
       searched_roots: [rootPath],
@@ -488,6 +558,10 @@ it.each([
     };
     vi.mocked(picker.pickInstallFolder).mockResolvedValue(rootPath);
     const discover = vi.spyOn(desktopApi, "discoverSources").mockResolvedValue(report);
+    const planImport = vi
+      .spyOn(desktopApi, "planSourceImport")
+      .mockResolvedValueOnce({ ...reviewed, source: { ...source, sha256: "e".repeat(64) } })
+      .mockResolvedValue(reviewed);
     const imported = vi
       .spyOn(desktopApi, "importSource")
       .mockRejectedValue(new Error("Import must require a reviewed choice"));
@@ -498,7 +572,9 @@ it.each([
       await page.viewport(width, height);
       document.documentElement.dataset.theme = theme;
       await rendered.rerender(
-        <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />,
+        <GameFileScanProvider key={7} generation={7}>
+          <SourceDiscoveryButton generation={7} profiles={[profile]} disabled={false} />
+        </GameFileScanProvider>,
       );
       await page.getByRole("button", { name: "Find required files", exact: true }).click();
       const dialog = page
@@ -590,7 +666,30 @@ it.each([
       if (width === 430) await captureParityState("source-discovery-rhythm-preliminary-footer");
       await page.getByRole("button", { name: "Close", exact: true }).click();
       await expect.poll(() => document.activeElement?.textContent).toBe("Find required files");
+      await page.getByRole("button", { name: "Review last search" }).click();
+      const retained = page.getByRole("dialog", { name: "Find required files" });
+      const check = retained.getByRole("button", { name: "Check these files" });
+      await check.click();
+      await expect
+        .element(retained.getByRole("alert"))
+        .toHaveTextContent("This file changed since the last search. Search the folder again.");
+      await expect
+        .element(retained.getByRole("region", { name: "Source import review" }))
+        .not.toBeInTheDocument();
+      await check.click();
+      await expect
+        .element(retained.getByRole("region", { name: "Source import review" }))
+        .toBeVisible();
+      expect(planImport).toHaveBeenNthCalledWith(
+        2,
+        profile.id,
+        source.path,
+        "use_current_location",
+      );
+      expect(discover).toHaveBeenCalledOnce();
+      expect(imported).not.toHaveBeenCalled();
     } finally {
+      await rendered.rerender(null);
       await cleanup();
       host.remove();
       vi.restoreAllMocks();

@@ -14,6 +14,7 @@ import { workspaceScrollOwner, scrollWorkspaceTo } from "../../workspace-scroll"
 import type { CollectionLayout } from "./use-collection-layout";
 import type { GameGroup } from "./original-game";
 import {
+  collectionAnchorAligned,
   discoverDestinationIndex,
   discoverRows,
   resolvedGridColumns,
@@ -448,13 +449,10 @@ export function VirtualCollectionRows({
             owner.scrollTo({ top: desired });
             aligned = () => {
               if (!anchor.isConnected || latest.current.geometry.owner !== owner) return false;
-              const delta = anchor.getBoundingClientRect().top - viewportTop;
-              const destination = owner.scrollTop + delta;
-              const limit = Math.max(0, owner.scrollHeight - owner.clientHeight);
-              return (
-                Math.abs(delta) < 0.5 ||
-                (destination < 0 && owner.scrollTop === 0) ||
-                (destination > limit && Math.abs(owner.scrollTop - limit) < 0.5)
+              return collectionAnchorAligned(
+                anchor.getBoundingClientRect().top - viewportTop,
+                owner.scrollTop,
+                Math.max(0, owner.scrollHeight - owner.clientHeight),
               );
             };
           }
