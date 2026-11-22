@@ -1451,7 +1451,10 @@ export interface TransportOutputs {
   game_install_plan: GameInstallPlan;
   game_setting_change: GameSettingChange;
   game_setting_review: OutputGameSettingReview;
+  game_settings_change_set_review: OutputGameSettingsChangeSetReview;
+  game_settings_change_set_view: OutputGameSettingsChangeSetView;
   game_settings_contract: GameSettingsContract;
+  game_settings_edit: GameSettingsEdit;
   game_settings_view: GameSettingsView;
   game_update_acquisition: GameUpdateAcquisition;
   game_update_plan: OutputGameUpdatePlan;
@@ -4583,6 +4586,48 @@ export interface OutputGameSettingReview {
   proposed_value: unknown;
   review_sha256: string;
   setting_id: string;
+  [k: string]: unknown;
+}
+/**
+ * A complete review of one logical managed file and any runtime projection.
+ * A materialized setup is a fence on the view, not a second configuration store.
+ */
+export interface OutputGameSettingsChangeSetReview {
+  configuration_sha256: string;
+  edits: ReviewedGameSettingsEdit[];
+  file_id: string;
+  install_id: string;
+  library_id: string;
+  path: string;
+  port_id: string;
+  review_sha256: string;
+  setup: GameSettingsSetupIdentity | null;
+}
+export interface ReviewedGameSettingsEdit {
+  edit: GameSettingsEdit;
+  label: string;
+  previous_value: unknown;
+  proposed_value: unknown;
+}
+/**
+ * An edit to one declared key within the change-set's single configuration file.
+ */
+export interface GameSettingsEdit {
+  change: GameSettingChange;
+  setting_id: string;
+}
+export interface GameSettingsSetupIdentity {
+  id: string;
+  revision: number;
+}
+/**
+ * Settings observed for the exact installation used by the materialized setup.
+ */
+export interface OutputGameSettingsChangeSetView {
+  installed_version: string | null;
+  settings: GameSettingsView;
+  setup: GameSettingsSetupIdentity | null;
+  setup_name: string | null;
   [k: string]: unknown;
 }
 /**

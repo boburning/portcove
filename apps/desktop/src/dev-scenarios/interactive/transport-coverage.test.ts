@@ -28,7 +28,7 @@ const unsupportedByReason: Record<string, string[]> = {
     acquire_mod_recipe_package discard_mod_recipe_review
     acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package apply_local_mod_package
     add_source adopt_batch adopt_port
-    apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
+    apply_catalog_update apply_game_setting apply_game_settings_change_set apply_game_update apply_steam_batch_add
     apply_steam_artwork apply_steam_entry begin_github_device_login
     change_to_managed_runtime clear_host_tool_path
     copy_mod_setup create_backup
@@ -72,7 +72,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
+    plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     review_library_selection scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),
@@ -80,7 +80,7 @@ const unsupportedByReason: Record<string, string[]> = {
     `
     get_jakmods_catalog get_quaddicted_catalog get_moddb_file_notices get_mod_provider_catalog preview_mod_setup_draft apply_mod_setup_draft get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail
-    get_engine_capabilities get_game_settings get_install_batch get_library_identity
+    get_engine_capabilities get_game_settings get_game_settings_change_set_view get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses
     list_steam_profiles
     search_steamgriddb_games get_steamgriddb_candidates get_steamgriddb_preview
