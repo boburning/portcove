@@ -17,6 +17,14 @@ interface DesktopScenario {
 }
 
 const nativeResources = ["native-desktop", "keyboard-pointer"];
+export const hostPublicationScenarios = [
+  "native-host-publication-recovery",
+  "native-library-recovery-interruption",
+] as const;
+
+export function usesHostPublicationHarness(scenarios: readonly string[]) {
+  return hostPublicationScenarios.some((id) => scenarios.includes(id));
+}
 
 // Two finite install waits, source scan, owned game observation and cleanup.
 // This explicit MM case does not change product or other scenario deadlines.
@@ -146,6 +154,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
       prerequisites: ["desktop", "native-dialog", "external-runtime-fixture"],
       host_resources: [...nativeResources, "native-dialog"],
       source: "desktop-external-runtime-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
+    "native-library-recovery-interruption",
+    "Interrupt recovery bundle creation and restore at recorded Core boundaries and resume.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "install-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-host-publication-test.mts",
       qualification_only: true,
       platforms: ["win32"],
     },
@@ -689,6 +708,17 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-cli-handoff-test.mts",
   }),
   scenario(
+    "native-library-recovery-bundle",
+    "Create, verify and restore an owned recovery bundle before a separate library switch.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      host_resources: [...nativeResources, "native-dialog"],
+      platforms: ["win32"],
+      qualification_only: true,
+      source: "desktop-library-handoff-test.mts",
+    },
+  ),
+  scenario(
     "native-local-artwork-picker-and-recovery",
     "Local artwork uses the native picker safely.",
     {
@@ -975,10 +1005,13 @@ export function resolveDesktopSelection({
   if (uniqueRequested.includes("native-external-runtime-review") && uniqueRequested.length !== 1)
     throw new Error("native-external-runtime-review requires one exact standalone scenario");
   if (
-    uniqueRequested.includes("native-host-publication-recovery") &&
+    uniqueRequested.includes("native-library-recovery-bundle") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
   )
-    throw new Error("native-host-publication-recovery requires one standalone Windows scenario");
+    throw new Error("native-library-recovery-bundle requires one standalone Windows scenario");
+  const hostPublication = hostPublicationScenarios.find((id) => uniqueRequested.includes(id));
+  if (hostPublication && (uniqueRequested.length !== 1 || platform !== "win32"))
+    throw new Error(`${hostPublication} requires one standalone Windows scenario`);
   if (
     uniqueRequested.includes("native-real-prepared-runtime") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
@@ -1149,7 +1182,7 @@ export function desktopHarnessDeadlineMs(
     return 1_200_000;
   if (selection.selected_scenarios.includes("native-managed-copy-result")) return 600_000;
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
-  if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
+  if (usesHostPublicationHarness(selection.selected_scenarios)) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
   // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
@@ -1178,7 +1211,8 @@ export function desktopHarnessDeadlineMs(
     // Calibrated from 300 s (#4879): hosted owned-handoff (run 43616138586) passed
     // the copy and move journeys and was still in the CLI handoff when the 300 s
     // watchdog stopped it; debug-build capability reads take 12-15 s. Harness only.
-    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
+    selection.selected_scenarios.includes("native-library-recovery-bundle") ||
+      selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 600_000
       : 0,

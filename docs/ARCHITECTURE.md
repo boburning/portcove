@@ -2961,11 +2961,71 @@ and destination own completion of bookkeeping. The player opens the recovered li
 selection operation.
 
 In Desktop, open **Settings**, then **Library and storage**. Select **Create
-recovery bundle** to review coverage and the destination before copying. Select
-**Inspect or restore a bundle** to verify a finished copy and review a separate
-restore. After a restore completes, choose the restored folder through library
+recovery bundle** to review coverage and the destination before copying. After
+a restart, review the same destination from the same library. A matching
+interrupted intent offers **Resume bundle creation**. If a write fails before
+Core can authenticate the journal, the error does not offer a staging resume.
+After authentication, copy failure preserves the journal and copied data for
+another attempt. When the authenticated
+intent matches a publication at that destination, **Verify published bundle**
+reads the exact receipt and checks its contents without replaying the copy.
+Select **Inspect or restore a bundle** to verify a finished copy and review a
+separate restore. If verifying the selected folder fails, Desktop keeps the
+folder available to retry and offers the verification details. An occupied
+restore folder keeps the verified bundle and returns focus to the destination
+field, with a request for a new or empty folder. Core still refuses the occupied
+destination and supplies the technical reason. A fresh review of the same
+bundle and restore folder rediscovers its authenticated transfer. Resume checks an interrupted copy,
+and a completed restore offers a read of its recorded result. After a restore completes, choose the restored folder through library
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
+
+Core reports each failure's outcome at the operation that observed it. The
+read-only commands that inspect a bundle, check a published bundle against its
+review, or read a recorded restore result report that no files changed. A
+restore failure before its journal exists reports that the restore did not
+start: nothing was copied, and the destination holds at most an empty folder
+with its lease file, which a new review accepts. Once the restore journal or the
+authenticated creation intent exists, every failure reports recovery required
+and names the resumable folder. This includes a re-check of the bundle inside a
+restore, a cancel and a full drive. When the operating system reports a full
+drive or quota, Core shows a plain explanation and keeps the operating-system
+text in the technical details. An aborted import that is reviewed again reports
+no changes.
+
+Portcove never deletes a retained creation staging directory or its `work`
+folder. After publication, the staging directory and its `work` folder stay in
+the destination's parent until the player removes them. Retained staging may hold
+the only copy of data the player needs, so automatic cleanup needs its own
+review. No safe cleanup for these directories exists yet; it is an open item.
+
+The opt-in Linux storage-exhaustion test uses an empty 80 MiB tmpfs in
+a private mount namespace. It reserves space after Core writes the authenticated
+intent, observes the kernel's write failure, then frees the reservation and
+resumes the same copy. Run it through the normal resource guard from an
+isolated checkout:
+
+```sh
+node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-command \
+  unshare --user --map-root-user --mount --propagation private bash -eu -c '
+    test_mount=$(mktemp -d "$PORTCOVE_TEMP_DIR/recovery-enospc.XXXXXXXX")
+    cleanup() {
+      if mountpoint -q "$test_mount"; then
+        umount "$test_mount"
+      fi
+      rmdir "$test_mount"
+    }
+    trap cleanup EXIT
+    mount -t tmpfs -o size=80m,mode=0700,nosuid,nodev,noexec tmpfs "$test_mount"
+    export PORTCOVE_RECOVERY_TEST_MOUNT="$test_mount"
+    cargo test --locked -p portcove-core --lib \
+      a_full_filesystem_leaves_the_exact_recovery_copy_resumable -- --ignored
+  '
+```
+
+The test exercises Core copying against a real Linux capacity limit. It
+uses the Core unit test's deterministic authority and does not qualify the
+production secure store, Windows filesystems or the Desktop presentation.
 
 ## Library imports
 

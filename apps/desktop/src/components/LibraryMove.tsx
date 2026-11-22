@@ -4,6 +4,7 @@ import { reloadWorkspace } from "../reload-workspace";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
+import { withoutVerbatimPrefix } from "../path-presentation";
 import type { LibraryMovePlan } from "../types";
 import { errorText, formatBytes } from "../view-model";
 import { ActionReviewFailure } from "./ActionReviewFailure";
@@ -209,7 +210,7 @@ export function LibraryMoveRecovery({
     <section aria-label="Library move recovery">
       <h2 className="text-base">Finish changing library location</h2>
       <p className="mt-1 text-sm [overflow-wrap:anywhere] text-pc-muted-foreground [unicode-bidi:plaintext]">
-        Original library: {source}
+        Original library: {withoutVerbatimPrefix(source)}
       </p>
       <ul className="mt-3 grid list-disc gap-1 ps-5 text-sm">
         <li>Continue to check the new copy and finish switching libraries.</li>
@@ -297,9 +298,9 @@ export function LibraryCopySummary({
       aria-label={label}
     >
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
-        From <code>{source}</code>
+        From <code>{withoutVerbatimPrefix(source)}</code>
         <br />
-        To <code>{plan.destination_root}</code>
+        To <code>{withoutVerbatimPrefix(plan.destination_root)}</code>
       </p>
       <p className="m-[0_0_var(--space-2)] text-[var(--color-text-secondary)]">
         {formatBytes(plan.required_bytes)} required, including working space.{" "}
@@ -349,7 +350,7 @@ export function LibraryCopySummary({
               <li key={reference.profile_id}>
                 {reference.profile_id}
                 <br />
-                <code>{reference.path}</code>
+                <code>{withoutVerbatimPrefix(reference.path)}</code>
               </li>
             ))}
           </ul>

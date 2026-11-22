@@ -3364,6 +3364,33 @@ ownership stays with upstream for listing-only records. A same-title match is a
 research lead. Check the implementation's actual input edition against pinned
 upstream evidence before adding a source system.
 
+Run `node scripts/catalog-route-fit.mts` for a read-only route-fit summary of
+every catalog identity. Add `--json` or `--output FILE` for the deterministic
+per-identity report, `--observations FILE` to apply listing observer output
+and `--check` to verify that every identity appears exactly once. Each record
+names its adapter and provider family, whether an operational route exists, its
+observation state, its typed restrictions and one disposition with a reason.
+ScummVM is decided first, by the declared runtime engine rather than the name,
+as `excluded-scummvm`. `enrolled` has an operational definition or generated
+route enrollment. For listing-only records the candidate is the non-owning
+user-selected registration route. `data-only` needs known desktop packages and
+player facts for one of those platforms: an accepted package player
+observation, a reviewed package shape or prepared-player `route_facts_v1`.
+`needs-bytes-worker` has known desktop packages without player facts.
+`unobserved` has unknown availability and no complete observation; it is
+unknown, not absent. `missing-capability` names a host no release provider
+adapter reads or packages without a supported desktop platform.
+`upstream-condition` covers source-only or unavailable upstreams, a complete
+observation without release packages, or restrictions that hold every
+registration operation on every package platform. `needs-admission` is reserved
+for data that declares a Portcove-owned route without an admitted reviewed
+artifact; no listing-only field can declare one, so it stays at zero. Only an
+observation with status `complete`, or a legacy one without a status, is
+evidence. Restrictions use Core's offer-time precedence, with releases and
+artifacts deferred, and name each held operation. A download hold does not
+remove the registration route. The report grants no admission and changes no
+catalog data.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits

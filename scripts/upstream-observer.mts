@@ -246,6 +246,10 @@ const apiRoot = "https://api.github.com";
 export class ObservationFailure extends Error {
   rule: string;
   retryAt: string | null;
+  /** Provider HTTP status behind a status failure; distinguishes an outage from a rejection. */
+  httpStatus: number | null = null;
+  /** Coverage already stated by the producer (for example Core); overrides rule mapping. */
+  statedCoverage?: "partial" | "unavailable" | "failed";
   continuation?: ObservationContinuation;
   restartContinuation?: boolean;
   constructor(rule: string, details: string, retryAt: string | null = null) {
@@ -253,6 +257,53 @@ export class ObservationFailure extends Error {
     this.rule = rule;
     this.retryAt = retryAt;
   }
+}
+/** A stop that retained progress (for example a truncated nonterminal page)
+ * rather than an integrity failure that shares its rule. */
+export function partialObservationFailure(rule: string, details: string) {
+  const failure = new ObservationFailure(rule, details);
+  failure.statedCoverage = "partial";
+  return failure;
+}
+/** Longest a provider-supplied retry or reset clock may defer a source (#8569). */
+export const providerRetryHorizonMs = 24 * 3600_000;
+/**
+ * Bounded earliest retry time (epoch ms) from a provider's `Retry-After` value
+ * (delta seconds or HTTP-date) or a numeric reset clock in epoch ms. Absent,
+ * negative, fractional or unparsable values yield null; a time in the past is
+ * `now`; a time beyond `providerRetryHorizonMs` is clamped to that horizon.
+ */
+export function boundedProviderRetryTime(
+  now: number,
+  value: string | number | null | undefined,
+): number | null {
+  let at: number;
+  if (typeof value === "number") at = value;
+  else if (typeof value === "string") {
+    const text = value.trim();
+    if (/^\d+$/u.test(text))
+      at = now + Math.min(Number(text), providerRetryHorizonMs / 1000) * 1000;
+    // Delta-seconds must be a non-negative integer; anything else that starts
+    // like a number is garbage rather than an HTTP-date.
+    else if (!text || /^[-+.\d]/u.test(text)) return null;
+    else at = Date.parse(text);
+  } else return null;
+  if (!Number.isFinite(at)) return null;
+  return Math.min(Math.max(at, now), now + providerRetryHorizonMs);
+}
+/**
+ * A retained retry/reset clock beyond the horizon from `now` can only predate
+ * the horizon. Re-clamping it to `now + horizon` would defer it again on every
+ * run, so it is discarded and the source is attempted.
+ */
+export function boundedRetainedRetryClock(now: number, clock: string | null): string | null {
+  return clock === null || Date.parse(clock) <= now + providerRetryHorizonMs ? clock : null;
+}
+/** A provider status failure that keeps the HTTP status for stated coverage. */
+export function providerStatusFailure(status: number) {
+  const failure = new ObservationFailure("provider-status", `provider returned HTTP ${status}`);
+  failure.httpStatus = status;
+  return failure;
 }
 
 function requireFact(condition: unknown, rule: string, details: string): asserts condition {
@@ -350,19 +401,13 @@ function assertObserverConfig(config: unknown): asserts config is ObserverConfig
   return;
 }
 export function observerGitHubRateLimit(error: GitHubApiError, now: number): ObservationFailure {
-  const retry = error.retryAfter;
-  const required =
-    retry && /^\d+$/u.test(retry) ? now + Number(retry) * 1000 : Date.parse(retry ?? "");
-  const reset = error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : NaN;
   const resume = Math.max(
     now + 60_000,
-    Number.isFinite(required) ? required : 0,
-    Number.isFinite(reset) ? reset : 0,
-  );
-  requireFact(
-    Number.isFinite(resume) && resume <= 8.64e15,
-    "invalid-metadata",
-    "provider retry clock is invalid",
+    boundedProviderRetryTime(now, error.retryAfter) ?? 0,
+    boundedProviderRetryTime(
+      now,
+      error.rateLimit?.resetAt ? Date.parse(error.rateLimit.resetAt) : null,
+    ) ?? 0,
   );
   return new ObservationFailure(
     "rate-limit",
@@ -1601,21 +1646,16 @@ export async function observeUpstream(
           (response.headers.has("retry-after") ||
             response.headers.get("x-ratelimit-remaining") === "0"))
       ) {
-        const retry = response.headers.get("retry-after");
-        const reset = Number(response.headers.get("x-ratelimit-reset")) * 1000;
-        const retryTime =
-          retry && /^\d+$/.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry ?? "");
+        const reset = response.headers.get("x-ratelimit-reset");
         const resume = Math.max(
           now() + 60_000,
-          Number.isFinite(retryTime) ? retryTime : 0,
-          Number.isFinite(reset) ? reset : 0,
+          boundedProviderRetryTime(now(), response.headers.get("retry-after")) ?? 0,
+          boundedProviderRetryTime(
+            now(),
+            reset && /^\d+$/u.test(reset) ? Number(reset) * 1000 : null,
+          ) ?? 0,
         );
         await response.body?.cancel();
-        requireFact(
-          Number.isFinite(resume) && resume <= 8.64e15,
-          "invalid-metadata",
-          "provider retry clock is invalid",
-        );
         throw new ObservationFailure(
           "rate-limit",
           "provider rate limit defers observation without advancing the last complete snapshot",
@@ -1640,10 +1680,7 @@ export async function observeUpstream(
       if (response.status !== 200) {
         await response.body?.cancel();
         if (continuation.asset_redirects?.[url]) delete continuation.asset_redirects[url];
-        const failure = new ObservationFailure(
-          "provider-status",
-          `provider returned HTTP ${response.status}`,
-        );
+        const failure = providerStatusFailure(response.status);
         failure.restartContinuation = true;
         throw failure;
       }
@@ -1743,11 +1780,7 @@ export async function observeUpstream(
         failedReads.delete(url);
         return { url, value: previous };
       }
-      requireFact(
-        response.status === 200,
-        "provider-status",
-        `provider returned HTTP ${response.status}`,
-      );
+      if (response.status !== 200) throw providerStatusFailure(response.status);
       requireFact(
         (response.headers["content-type"] ?? "").includes("application/json"),
         "invalid-metadata",
@@ -1802,8 +1835,7 @@ export async function observeUpstream(
             "invalid-metadata",
             "provider returned malformed UTF-8 JSON",
           );
-        if (error.status !== null)
-          throw new ObservationFailure("provider-status", `provider returned HTTP ${error.status}`);
+        if (error.status !== null) throw providerStatusFailure(error.status);
       }
       throw new ObservationFailure(
         "transport",
@@ -1823,12 +1855,14 @@ export async function observeUpstream(
     const result = await request(pathname, page, replay ? pages[url] : null, replay);
     normalize(result.value.body);
     result.value = compactPage(result.value, result.url, config, pages);
-    if (page !== null && nextPage(result.value.link, pathname, page, config))
-      requireFact(
-        Array.isArray(result.value.body) && result.value.body.length === 100,
-        "pagination",
-        "nonterminal page is incomplete",
-      );
+    // A truncated nonterminal page retains progress; malformed, escaping or
+    // repeating pagination stays an integrity failure under the same rule.
+    if (
+      page !== null &&
+      nextPage(result.value.link, pathname, page, config) &&
+      (!Array.isArray(result.value.body) || result.value.body.length !== 100)
+    )
+      throw partialObservationFailure("pagination", "nonterminal page is incomplete");
     pages[result.url] = result.value;
     requestOrder.push({ pathname, page, normalize, ...result });
     if (!replay && !deferCheckpoint) await retain();
