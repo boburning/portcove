@@ -1381,8 +1381,13 @@ export async function selectedSetupCompletionScenario({
       // BIOS can associate the incomplete port with the next setup selection.
       const biosOnly = path.join(owned.directory, "bios-only");
       const biosOnlyPath = path.join(biosOnly, "bios.pcbios");
+      const unrelatedBiosPath = path.join(biosOnly, "unrelated.pcbios");
+      const acceptedBios = await readFile(owned.biosBefore);
+      const unrelatedBios = Buffer.from(acceptedBios);
+      unrelatedBios.writeUInt8(unrelatedBios.readUInt8(0) ^ 0xff, 0);
       await mkdir(biosOnly);
-      await writeFile(biosOnlyPath, await readFile(owned.biosBefore), { flag: "wx" });
+      await writeFile(biosOnlyPath, acceptedBios, { flag: "wx" });
+      await writeFile(unrelatedBiosPath, unrelatedBios, { flag: "wx" });
       const rootsBefore = await read("get_game_file_roots");
       assert.equal(rootsBefore.length, 1);
       assertOwnedSelectedSetupPath(required(rootsBefore[0]).path, owned.directory);
@@ -1406,6 +1411,10 @@ export async function selectedSetupCompletionScenario({
               !beforeBiosScans.has(item.id),
           );
           if (!activity || observations?.freshness !== "inputs_match") return false;
+          assert.equal(required(observations.coverage).frontier_exhausted, true);
+          assert.equal(required(observations.coverage).can_resume, false);
+          assert.deepEqual(observations.report.limits_reached, []);
+          assert.equal(observations.report.files_hashed, 2);
           assert.deepEqual(
             observations.report.candidates.map((item) => item.profile_id),
             [owned.profiles[1]],
@@ -1425,7 +1434,7 @@ export async function selectedSetupCompletionScenario({
           );
         },
         15_000,
-        "The fresh real Core scan must contain only the BIOS candidate",
+        "The fresh real Core scan must admit only the exact BIOS despite the same-size unrelated file",
       );
       const beforeBiosRegistration = await read("get_statuses");
       const blocked = required(
@@ -1500,6 +1509,7 @@ export async function selectedSetupCompletionScenario({
         required(biosSources.find((item) => item.profile_id === owned.profiles[1])).path,
         biosOnlyPath,
       );
+      assert.deepEqual(await readFile(unrelatedBiosPath), unrelatedBios);
       assert.deepEqual(core(["source", "list"]), biosSources);
       await click(By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`));
       const statusesBeforeBiosPlan = await read("get_statuses");
