@@ -31,6 +31,7 @@ interface RepositoryIssueBlocker {
 export interface IssueProjectMembership {
   readonly id: string;
   readonly project_id: string;
+  readonly updatedAt?: string;
   readonly issue_id: string;
   readonly isArchived: boolean;
   readonly fieldValues: unknown;
@@ -648,6 +649,9 @@ export async function collectRepositoryIssueInventory(
             Object.freeze({
               id: link.id,
               project_id: project.id,
+              ...(typeof link.updatedAt === "string" && Number.isFinite(Date.parse(link.updatedAt))
+                ? { updatedAt: link.updatedAt }
+                : {}),
               issue_id: row.id,
               isArchived: link.isArchived,
               fieldValues: await nestedFields(link, project.id),

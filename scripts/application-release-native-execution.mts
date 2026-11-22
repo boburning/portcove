@@ -49,7 +49,10 @@ import { collectApplicationNativeReport } from "./release-native-pre-sign-report
 import { serializeApplicationPreSignCapture } from "./release-native-stage-capture.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
 import type { HistoricalJobProvider } from "./release-custody-provider.mts";
-import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+import {
+  nativeCompatibilitySourcePaths,
+  nativeSourceBlobReadByteLimit,
+} from "./release-native-source-contract.mts";
 import { retainNativeSourceDeclarations } from "./release-native-source-provider.mts";
 import { acquireWindowsWebviewDriver } from "./release-windows-webview-driver.mts";
 import {
@@ -138,12 +141,12 @@ async function produce() {
   const publicJob = process.env.GITHUB_JOB === "public_installed";
   const token = readOnlyReleaseChildEnvironment()?.GH_TOKEN;
   assert.ok(token, "explicit native execution job reader required");
-  const metadata = (deadline: number) =>
+  const metadata = (deadline: number, maxBytes = 8 * 1024 ** 2) =>
     createReleaseCustodyProvider({
       token,
       deadline,
       requestTimeoutMs: 30000,
-      maxBytes: 8 * 1024 ** 2,
+      maxBytes,
     });
   const publicDeadline = publicJob
     ? await readPublicInstalledOwnerDeadline(current, await metadata(performance.now() + 30000))
@@ -166,12 +169,13 @@ async function produce() {
   const minimum = process.env.PORTCOVE_APPLICATION_NATIVE_MINIMUM_PLATFORM;
   assert.ok(minimum === "windows-11-26h2-x64" || minimum === "windows-server-2022-x64-continuity");
   // Commit and config plus at most one Contents and immutable blob read per declaration.
-  const provider = await metadata(
-    Math.min(
-      publicDeadline,
-      performance.now() + (2 + 2 * nativeCompatibilitySourcePaths.length) * 30000,
-    ),
+  const declarationDeadline = Math.min(
+    publicDeadline,
+    performance.now() + (2 + 2 * nativeCompatibilitySourcePaths.length) * 30000,
   );
+  const provider = await metadata(declarationDeadline);
+  // Declaration blobs have their own reader; the shared reader keeps its bound.
+  let declarationBlobs: ReturnType<typeof metadata> | undefined;
   const control = await provider.commit(current.source);
   assert.ok(
     isRecord(control) &&
@@ -228,7 +232,13 @@ async function produce() {
     : await retainNativeSourceDeclarations(
         output,
         (pathname) => provider.file(pathname, sourceCommit),
-        (blob) => provider.blob(blob),
+        async (blob) =>
+          (
+            await (declarationBlobs ??= metadata(
+              declarationDeadline,
+              nativeSourceBlobReadByteLimit,
+            ))
+          ).blob(blob),
       );
   for (const filename of fixedScripts)
     await copyFile(path.join(root, "scripts", filename), path.join(tools, "scripts", filename));

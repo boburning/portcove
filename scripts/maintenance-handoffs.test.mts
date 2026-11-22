@@ -63,6 +63,10 @@ void test("every attention kind has one disabled registry entry with an exact re
     handoffRegistry.filter(({ authority }) => authority === "owner-only").map(({ kind }) => kind),
     ["release-health-relocation", "hosted-intake-blocked", "hosted-intake-holds"],
   );
+  const blocked = handoffEntry("hosted-intake-blocked")!;
+  assert.match(blocked.action, /daily maintenance schedule resumes verified pending final audits/u);
+  assert.match(blocked.resume_condition, /pending receipt and durable checkpoint must agree/u);
+  assert.equal(blocked.dispatch, "disabled");
   assert.ok(!handoffRegistry.some(({ kind }) => kind.includes("publication")));
   assert.deepEqual(
     withoutHandoff.map(([source]) => source),
@@ -377,7 +381,7 @@ void test("release-content findings and uninspected packages become routine hand
   assert.equal(entry.source, "release-content");
   assert.equal(entry.authority, "routine");
   assert.equal(entry.workflow?.trigger, "schedule");
-  assert.match(entry.action, /download_block_reason/u);
+  assert.match(entry.action, /download hold to the listing's restrictions/u);
   assert.match(entry.action, /never writes a hold/u);
   assert.match(entry.action, /inspects manually any package the scan could not read/u);
   assert.match(
@@ -613,16 +617,18 @@ void test("accounted GitHub relocation conditions follow their reviewed resume c
   const handoffs = (conditions: unknown[]) =>
     releaseHealthHandoffs(new Map([["port:alpha", { freshness: "fresh-complete", conditions }]]));
   const entry = handoffEntry("release-health-relocation")!;
-  // All accounted: still a relocation handoff (nothing hidden or reclassified), no new evidence prescribed.
-  const all = handoffs([
+  const conditions = [
     reviewed("k1", "provider-redirect"),
     reviewed("k2", "inaccessible-or-missing"),
-  ]);
-  assert.deepEqual(
-    all.map(({ kind }) => kind),
-    ["release-health-relocation"],
-  );
-  const guidance = handoffGuidance(entry, all[0]!.condition);
+  ];
+  assert.deepEqual(handoffs(conditions), []);
+  for (const overrides of [
+    { resume_condition: "  " },
+    { classification: "unclassified-or-actionable" },
+  ])
+    assert.equal(handoffs([reviewed("k1", "provider-redirect", overrides)]).length, 1);
+  // Retained historical assessments continue to explain their original conditions.
+  const guidance = handoffGuidance(entry, { conditions });
   assert.doesNotMatch(guidance.action, /Read bounded relocation evidence/u);
   assert.match(guidance.action, /no new relocation evidence or accounting is needed/u);
   assert.doesNotMatch(guidance.invocation, /upstream-relocation-evidence\.yml/u);
@@ -635,7 +641,7 @@ void test("accounted GitHub relocation conditions follow their reviewed resume c
       subject_key: handoffSubject("release-health-relocation", "port:alpha"),
       sequence: 1,
       updated_at: "2026-11-11T00:00:00Z",
-      explanation: { condition: all[0]!.condition },
+      explanation: { condition: { conditions } },
       operation: null,
     },
   ]);
@@ -704,7 +710,7 @@ void test("release-content guidance follows what the handoff holds", () => {
     moved.action,
     /relocation evidence \(upstream-relocation-evidence\.yml\) and any rename are owner-only and follow the port's release-health-relocation handoff and its authority/u,
   );
-  assert.doesNotMatch(moved.action, /download_block_reason/u);
+  assert.doesNotMatch(moved.action, /download hold to the listing's restrictions/u);
   assert.match(
     moved.invocation,
     /^confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff/u,

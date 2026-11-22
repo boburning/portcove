@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
     "setup_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
-    "download_block_reason": "Get the Windows x64 installer from the publisher or use your Linux package manager.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get the Windows x64 installer from the publisher or use your Linux package manager.",
+        "tracking_issue": 6474
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

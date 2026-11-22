@@ -28,7 +28,8 @@ import { Field } from "./ui/field";
 import { Input } from "./ui/input";
 
 type Operation = "create" | "inspect" | "resumeCreation" | "resumeRestore";
-type FailureAction = "verify" | "review" | "planRestore";
+type RecoveryFailureAction = "operation" | "verify" | "planCreate" | "planRestore";
+
 type RecoveryStep = {
   operation: "resumeCreation" | "resumeRestore";
   path: string;
@@ -232,7 +233,11 @@ function RecoveryBundleDialog({
   const [cancelRequested, setCancelRequested] = useState(false);
   const [cancelFailure, setCancelFailure] = useState<unknown>();
   const cancelling = useRef(false);
-  const [failure, setFailure] = useState<{ error: unknown; action: FailureAction }>();
+  const [failure, setFailure] = useState<{
+    error: unknown;
+    action: RecoveryFailureAction;
+  }>();
+  const [recovery, setRecovery] = useState<RecoveryStep>();
   const error = failure?.error;
   const verificationFailed = failure?.action === "verify";
   const destinationOccupied =
@@ -245,12 +250,17 @@ function RecoveryBundleDialog({
   const needsFolderGuidance =
     verificationFailed &&
     (!verificationFeedback || verificationFeedback.presentation_key === "verification_failed");
-  const [recovery, setRecovery] = useState<RecoveryStep>();
+  const planningCreation = failure?.action === "planCreate";
+  const interruptedCreationReview = planningCreation && recovery?.operation === "resumeCreation";
+  const publishedCreationReview = planningCreation && Boolean(createReceipt?.bundle_id);
+  const planningRestore = failure?.action === "planRestore";
+  const interruptedRestoreReview = planningRestore && recovery?.operation === "resumeRestore";
+  const publishedRestoreReview = planningRestore && Boolean(restoreReceipt?.transfer_id);
 
   const run = async (
     status: string,
     work: () => Promise<void>,
-    action: FailureAction = "review",
+    action: RecoveryFailureAction = "operation",
   ) => {
     if (inFlight.current) return;
     inFlight.current = true;
@@ -262,8 +272,8 @@ function RecoveryBundleDialog({
     setFailure(undefined);
     try {
       await work();
-    } catch (error) {
-      setFailure({ error, action });
+    } catch (failure) {
+      setFailure({ error: failure, action });
     } finally {
       inFlight.current = false;
       setPending("");
@@ -566,9 +576,17 @@ function RecoveryBundleDialog({
             summary={
               needsFolderGuidance
                 ? "Portcove couldn’t verify this bundle. Check the folder and verify again, or choose another bundle."
-                : undefined
+                : publishedCreationReview
+                  ? "A previous copy was published to this folder. Check the bundle to verify its contents."
+                  : interruptedCreationReview
+                    ? "An interrupted copy is waiting for this bundle folder."
+                    : publishedRestoreReview
+                      ? "This bundle was restored to this folder. Check the recorded restore result."
+                      : interruptedRestoreReview
+                        ? "An interrupted restore is waiting in this folder."
+                        : undefined
             }
-            showMutationSummary={!verificationFailed}
+            showMutationSummary={failure?.action === "operation"}
           />
         )}
         {createReceipt &&
@@ -722,17 +740,21 @@ function RecoveryBundleDialog({
                     setVerified(bundle);
                   });
                 } else {
-                  void run("Checking library coverage…", async () => {
-                    try {
-                      setCreation(
-                        await desktopApi.planLibraryRecoveryBundle(destination, generation),
-                      );
-                    } catch (failure) {
-                      setRecovery(recoveryStep(failure, "resumeCreation"));
-                      setCreateReceipt(publishedCreationReadback(failure));
-                      throw failure;
-                    }
-                  });
+                  void run(
+                    "Checking library coverage…",
+                    async () => {
+                      try {
+                        setCreation(
+                          await desktopApi.planLibraryRecoveryBundle(destination, generation),
+                        );
+                      } catch (failure) {
+                        setRecovery(recoveryStep(failure, "resumeCreation"));
+                        setCreateReceipt(publishedCreationReadback(failure));
+                        throw failure;
+                      }
+                    },
+                    "planCreate",
+                  );
                 }
               }}
             >

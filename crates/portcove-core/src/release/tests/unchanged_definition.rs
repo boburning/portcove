@@ -1472,6 +1472,462 @@ fn variant_port() -> PortDefinition {
 }
 
 #[tokio::test]
+async fn explicit_first_package_can_skip_absence_but_refuses_bad_or_duplicate_family() {
+    let channel = ReleaseChannel::Stable;
+    let platform = Platform::WindowsX86_64;
+    let repository = || {
+        ok_json(
+            r#"{"id":51711866,"archived":false,"owner":{"id":7,"login":"owner"}}"#,
+            "",
+        )
+    };
+    let mut port = crate::Catalog::embedded()
+        .unwrap()
+        .port("jagged-alliance-2-ja2-stracciatella")
+        .unwrap()
+        .clone();
+    port.release.reviewed_package_choices_v2 = Some(crate::ReviewedPackageChoicesV2 {
+        repository_id: 51_711_866,
+        prefix: "ja2-stracciatella_".into(),
+        choices: [
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+            ("mingw64-cross".into(), "_win-mingw64-cross.zip".into()),
+        ]
+        .into(),
+    });
+    let variant =
+        ManagedPackageVariant::explicit(&port, platform, channel, "mingw64-cross").unwrap();
+    let old_name = "ja2-stracciatella_0.22.0-git+b195e15_win-mingw64-cross.zip";
+    let new_name = "ja2-stracciatella_0.22.1-git+11e9430_win-mingw64-cross.zip";
+    let new_default = "ja2-stracciatella_0.22.1-git+11e9430_win-msvc64-142.zip";
+    let old_commit = "b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb3";
+    let new_commit = "11e9430b67d788b73f7a57d22166e8b500c23dab";
+    let reviewed_asset = |name: &str, id: u64, digest: Option<char>| {
+        let mut value = asset(name, digest);
+        value["id"] = id.into();
+        value["uploader"] = serde_json::json!({"id":7,"login":"owner"});
+        value
+    };
+    let inventory = |assets: Vec<serde_json::Value>| releases(&assets);
+    let tag = |tag: &str, sha: &str| {
+        ok_json(
+            &serde_json::json!({
+                "ref": format!("refs/tags/{tag}"), "object": {"type":"commit","sha":sha}
+            })
+            .to_string(),
+            "",
+        )
+    };
+    let rows = |new_assets: Vec<serde_json::Value>| {
+        releases(&[
+            serde_json::json!({"id": 22, "tag_name":"v0.22.1", "draft":false, "prerelease":false, "assets":new_assets}),
+            serde_json::json!({"id": 21, "tag_name":"v0.22.0", "draft":false, "prerelease":false, "assets":[]}),
+        ])
+    };
+    let good_old = || reviewed_asset(old_name, 30, Some('b'));
+    let good_new = || reviewed_asset(new_name, 31, Some('c'));
+    // The fixture transport uses its own API origin. The asset host remains the
+    // provider's ordinary GitHub web origin and no package bytes are requested.
+    let asset_at = |mut value: serde_json::Value, version| {
+        let name = value["name"].as_str().unwrap().replace('+', "%2B");
+        value["browser_download_url"] = format!(
+            "https://github.com/{}/releases/download/{version}/{name}",
+            port.release.repository,
+        )
+        .into();
+        value
+    };
+    let (origin, requests, server) = serve_http(vec![
+        repository(),
+        rows(vec![]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_default, 32, Some('d')),
+            "v0.22.1",
+        )]),
+        inventory(vec![asset_at(good_old(), "v0.22.0")]),
+        tag("v0.22.0", old_commit),
+        repository(),
+        rows(vec![]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_name, 31, None),
+            "v0.22.1",
+        )]),
+        tag("v0.22.1", new_commit),
+        repository(),
+        rows(vec![]),
+        inventory(vec![
+            asset_at(good_new(), "v0.22.1"),
+            asset_at(reviewed_asset(new_name, 39, None), "v0.22.1"),
+        ]),
+        repository(),
+        rows(vec![asset_at(good_new(), "v0.22.1")]),
+        inventory(vec![asset_at(
+            reviewed_asset(new_default, 32, Some('d')),
+            "v0.22.1",
+        )]),
+    ]);
+    let mut provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+    provider.web_root = "https://github.com".into();
+    let first = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap();
+    assert_eq!(first.release.version, "v0.22.0");
+    assert_eq!(first.saved_variant.as_ref(), Some(&variant));
+    assert_eq!(first.explicit_tag_commit.as_deref(), Some(old_commit));
+    let mut retargeted = first.clone();
+    retargeted.explicit_tag_commit = Some("b195e15ab9f1f5c8bc17d1e86965d2f66b6ecbb4".into());
+    assert_eq!(first.release, retargeted.release);
+    assert_ne!(
+        first.explicit_package_proof_sha256().unwrap(),
+        retargeted.explicit_package_proof_sha256().unwrap(),
+    );
+    let missing_digest = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(missing_digest.code, crate::ErrorCode::Verification);
+    let duplicate = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        duplicate
+            .details
+            .get("saved_package_variant")
+            .map(String::as_str),
+        Some("ambiguous")
+    );
+    let conflicting_inventory = provider
+        .resolve_explicit_first_variant(&port, channel, platform, &variant)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        conflicting_inventory
+            .details
+            .get("saved_package_variant")
+            .map(String::as_str),
+        Some("inconsistent-inventory"),
+    );
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 15);
+}
+
+#[cfg(all(windows, target_arch = "x86_64"))]
+#[tokio::test]
+async fn explicit_package_plan_applies_reopens_and_holds_stale_successor_proof() {
+    use crate::{
+        Catalog, ErrorCode, Library, PortcoveService,
+        test_http::serve_routed_http_bytes,
+        windows_runtime::tests::{X64, X86, pe},
+    };
+    use std::{
+        io::{Cursor, Write},
+        sync::{
+            Arc, OnceLock,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
+
+    const PORT: &str = "fragglet-sdl-sopwith";
+    const CHOICE: &str = "mingw64-cross";
+    const REPOSITORY: &str = "fragglet/sdl-sopwith";
+    const INITIAL_COMMIT: &str = "a1234560aabbccddee1122334455667788990001";
+    const SUCCESSOR_COMMIT: &str = "b1234560aabbccddee1122334455667788990002";
+    const RETARGETED_COMMIT: &str = "b1234560aabbccddee1122334455667788990003";
+
+    let archive = |machine, marker| {
+        let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        zip.start_file("sopwith.exe", zip::write::SimpleFileOptions::default())
+            .unwrap();
+        zip.write_all(&pe(machine, &[])).unwrap();
+        zip.write_all(&[marker]).unwrap();
+        zip.finish().unwrap().into_inner()
+    };
+    let first_archive = archive(X64, 2);
+    let successor_archive = archive(X64, 3);
+    let archives = [archive(X86, 1), first_archive, successor_archive];
+    let phase = Arc::new(AtomicUsize::new(0));
+    let fixture_origin = Arc::new(OnceLock::<String>::new());
+    let (origin, requests, server) = serve_routed_http_bytes(64, {
+        let phase = phase.clone();
+        let origin = fixture_origin.clone();
+        move |request| {
+            let phase = phase.load(Ordering::SeqCst);
+            let (tag, commit, release_id) = match phase {
+                0 | 1 => ("v1.0.0", INITIAL_COMMIT, 10),
+                2 => ("v1.1.0", SUCCESSOR_COMMIT, 11),
+                _ => ("v1.1.0", RETARGETED_COMMIT, 11),
+            };
+            let archive = &archives[phase.min(2)];
+            let prefix = format!("sopwith_{}-git+{}", &tag[1..], &commit[..7]);
+            let asset_row = |family, id| {
+                let name = format!("{prefix}_win-{family}.zip");
+                let url = format!(
+                    "{}/{REPOSITORY}/releases/download/{tag}/{name}",
+                    origin.get().unwrap()
+                );
+                serde_json::json!({
+                    "name": name, "id": id, "browser_download_url": url,
+                    "size": archive.len(),
+                    "digest": format!("sha256:{}", crate::signed_catalog::digest(archive)),
+                    "uploader": {"id": 7, "login": "fixture-owner"},
+                })
+            };
+            let path = request.split_ascii_whitespace().nth(1).unwrap();
+            let repository_path = format!("/repos/{REPOSITORY}");
+            if path == repository_path {
+                return ok_json(
+                    r#"{"id":42,"archived":false,"owner":{"id":7,"login":"fixture-owner"}}"#,
+                    "",
+                )
+                .into_bytes();
+            }
+            if path.starts_with(&format!("{repository_path}/releases?")) {
+                let mut row = release(tag, vec![]);
+                row["id"] = release_id.into();
+                return releases(&[row]).into_bytes();
+            }
+            if path.starts_with(&format!("{repository_path}/releases/{release_id}/assets?")) {
+                return releases(&[
+                    asset_row(CHOICE, release_id * 100),
+                    asset_row("msvc64-142", release_id * 100 + 1),
+                ])
+                .into_bytes();
+            }
+            if path == format!("{repository_path}/git/ref/tags/{tag}") {
+                return ok_json(&serde_json::json!({"ref":format!("refs/tags/{tag}"),"object":{"type":"commit","sha":commit}}).to_string(), "").into_bytes();
+            }
+            assert_eq!(
+                path,
+                format!("/{REPOSITORY}/releases/download/{tag}/{prefix}_win-{CHOICE}.zip")
+            );
+            let mut response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                archive.len()
+            )
+            .into_bytes();
+            response.extend_from_slice(archive);
+            response
+        }
+    });
+    fixture_origin.set(origin.clone()).unwrap();
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == PORT)
+        .unwrap();
+    port.release
+        .asset_hints
+        .insert(Platform::WindowsX86_64, vec!["_win-msvc64-142.zip".into()]);
+    port.release.reviewed_package_choices_v2 = Some(crate::ReviewedPackageChoicesV2 {
+        repository_id: 42,
+        prefix: "sopwith_".into(),
+        choices: [
+            (CHOICE.into(), "_win-mingw64-cross.zip".into()),
+            ("msvc64-142".into(), "_win-msvc64-142.zip".into()),
+        ]
+        .into(),
+    });
+    let catalog = Catalog::from_document(document).unwrap();
+    let temporary = tempfile::tempdir().unwrap();
+    let open = || {
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let provider = Arc::new(GithubReleaseProvider::with_api_root(origin.clone()).unwrap());
+        let mut service = PortcoveService::with_provider(library, provider).unwrap();
+        service.replace_catalog_for_test(catalog.clone());
+        service
+    };
+    let service = open();
+    let review_first = || async {
+        let plan = service
+            .plan_game_install_with_package(PORT, Some(CHOICE))
+            .await
+            .unwrap();
+        assert_eq!(plan.package_choice.as_deref(), Some(CHOICE));
+        assert!(
+            plan.plan
+                .release
+                .asset
+                .name
+                .ends_with("_win-mingw64-cross.zip")
+        );
+        service
+            .authorize_game_install_with_package(PORT, &plan.plan_sha256, None, Some(CHOICE))
+            .await
+            .unwrap()
+    };
+    let wrong_machine = review_first().await;
+    let error = service
+        .apply_game_install_with_package(PORT, &wrong_machine.token, Some(CHOICE), |_| {})
+        .await
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Verification);
+    assert!(error.message.contains("no matching x64 executable"));
+    assert!(service.library().all_installs().unwrap().is_empty());
+
+    phase.store(1, Ordering::SeqCst);
+    let first = review_first().await;
+    let installed = service
+        .apply_game_install_with_package(PORT, &first.token, Some(CHOICE), |_| {})
+        .await
+        .unwrap();
+    assert_eq!(installed.version, "v1.0.0");
+    drop(service);
+
+    let service = open();
+    let reopened = service.status(PORT).unwrap().active.unwrap();
+    assert_eq!(installed.id, reopened.id);
+    let retained = crate::install::recorded_package_variant(&reopened)
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.explicit_id(), Some(CHOICE));
+
+    phase.store(2, Ordering::SeqCst);
+    let reviewed = service.plan_game_update(PORT, true).await.unwrap();
+    assert!(
+        reviewed
+            .plan
+            .release
+            .asset
+            .name
+            .ends_with("_win-mingw64-cross.zip")
+    );
+    let stale = service
+        .authorize_game_update(PORT, true, &reviewed.plan_sha256)
+        .await
+        .unwrap();
+    phase.store(3, Ordering::SeqCst);
+    let retargeted = service.plan_game_update(PORT, true).await.unwrap();
+    assert_eq!(reviewed.plan.release, retargeted.plan.release);
+    assert_ne!(reviewed.plan_sha256, retargeted.plan_sha256);
+    assert_eq!(
+        service
+            .apply_game_update(PORT, true, &stale.token, |_| {})
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    assert_eq!(
+        service.status(PORT).unwrap().active.unwrap().id,
+        installed.id
+    );
+
+    phase.store(2, Ordering::SeqCst);
+    let accepted = service
+        .authorize_game_update(PORT, true, &reviewed.plan_sha256)
+        .await
+        .unwrap();
+    let successor = service
+        .apply_game_update(PORT, true, &accepted.token, |_| {})
+        .await
+        .unwrap();
+    assert_eq!(successor.version, "v1.1.0");
+    assert_eq!(
+        crate::install::recorded_package_variant(&successor).unwrap(),
+        Some(retained.clone())
+    );
+    assert_eq!(
+        service.status(PORT).unwrap().previous.unwrap().id,
+        installed.id
+    );
+    server.join().unwrap();
+    assert_eq!(
+        requests
+            .try_iter()
+            .filter(|request| request.contains("/releases/download/"))
+            .count(),
+        3
+    );
+
+    let check_retained = |copy: &PortcoveService| {
+        let status = copy.status(PORT).unwrap();
+        for (actual, expected) in [
+            (status.active.unwrap(), &successor),
+            (status.previous.unwrap(), &installed),
+        ] {
+            assert_eq!(actual.id, expected.id);
+            assert_eq!(actual.manifest_sha256, expected.manifest_sha256);
+            assert_eq!(
+                crate::install::recorded_package_variant(&actual).unwrap(),
+                Some(retained.clone()),
+            );
+        }
+    };
+    let source = service.library().root().to_path_buf();
+    let settings_bytes = b"owned fixture settings";
+    std::fs::write(successor.path.join("sopwith.cfg"), settings_bytes).unwrap();
+    let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(backup.file_count, 1);
+    assert_eq!(
+        std::fs::read(backup.path.join("data/sopwith.cfg")).unwrap(),
+        settings_bytes
+    );
+    check_retained(&service);
+
+    let metadata_path = temporary.path().join("package-choice-export.json");
+    let import_root = temporary.path().join("package-choice-import");
+    service.write_library_metadata(&metadata_path).unwrap();
+    let metadata = service.export_library_metadata().unwrap();
+    assert!(metadata.portability_authority.is_some());
+    let unsigned_path = temporary.path().join("package-choice-unsigned.json");
+    let mut unsealed = metadata.clone();
+    unsealed.portability_authority = None;
+    unsealed.schema_version = 3;
+    std::fs::write(&unsigned_path, serde_json::to_vec(&unsealed).unwrap()).unwrap();
+    let missing =
+        PortcoveService::plan_library_import(&unsigned_path, &source, &import_root).unwrap_err();
+    assert_eq!(missing.code, ErrorCode::Verification);
+    assert!(
+        missing
+            .message
+            .contains("no matching portability authority")
+    );
+    assert!(!import_root.exists());
+
+    let invalid_path = temporary
+        .path()
+        .join("package-choice-invalid-authority.json");
+    let mut invalid = serde_json::to_value(&metadata).unwrap();
+    invalid["portability_authority"]["mac_sha256"] = "0".repeat(64).into();
+    std::fs::write(&invalid_path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+    let altered =
+        PortcoveService::plan_library_import(&invalid_path, &source, &import_root).unwrap_err();
+    assert_eq!(altered.code, ErrorCode::Verification);
+    assert!(altered.message.contains("not valid on this host"));
+    assert!(!import_root.exists());
+
+    let plan = PortcoveService::plan_library_import(&metadata_path, &source, &import_root).unwrap();
+    let imported =
+        PortcoveService::import_library(&metadata_path, &source, &import_root, &plan.plan_sha256)
+            .unwrap();
+    assert!(imported.completed && imported.input_retained);
+    let imported_service = PortcoveService::new(Library::open(&import_root).unwrap()).unwrap();
+    check_retained(&imported_service);
+
+    let move_root = temporary.path().join("package-choice-move");
+    let plan = imported_service.plan_library_move(&move_root).unwrap();
+    drop(imported_service);
+    let moved = PortcoveService::move_library(&import_root, &move_root, &plan.plan_sha256).unwrap();
+    assert!(moved.completed && moved.source_retained);
+    let moved_service = PortcoveService::new(Library::open(&move_root).unwrap()).unwrap();
+    check_retained(&moved_service);
+    let moved_backups = moved_service.list_backups(PORT).unwrap();
+    assert!(
+        moved_backups
+            .backups
+            .iter()
+            .any(|saved| saved.id == backup.id && saved.sha256 == backup.sha256)
+    );
+    assert_eq!(
+        std::fs::read(moved_service.library().user_dir(PORT).join("sopwith.cfg")).unwrap(),
+        settings_bytes
+    );
+}
+
+#[tokio::test]
 async fn saved_prerelease_variant_matches_the_full_snowboard_kids_beta_tag() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("snowboard-kids").unwrap();

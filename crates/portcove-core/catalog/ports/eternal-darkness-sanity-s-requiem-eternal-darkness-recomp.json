@@ -51,7 +51,16 @@
         }
       ]
     },
-    "download_block_reason": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are waiting for attributable permission covering the selected Windows package and its included translated original-game code. Upstream explicitly distinguishes that included game code from the engine/project source; a project or engine license does not by itself establish its distribution grant. Reconsider on an attributable applicable grant or a separately reviewed supported owned-input preparation/package that excludes that unresolved material.",
+        "tracking_issue": 2570
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "eternal-darkness-sanity-s-requiem",

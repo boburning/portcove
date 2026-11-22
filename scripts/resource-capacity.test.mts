@@ -20,6 +20,7 @@ interface WorkerEvent {
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import childProcess from "node:child_process";
+import fileSystem from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { mkdtemp, mkdir, writeFile, readFile, rm, readdir, copyFile } from "node:fs/promises";
 import os from "node:os";
@@ -799,6 +800,35 @@ void test("host bridge preserves UTF-8 decoding, EOF and exact byte boundaries",
 });
 
 void test(
+  "host bridge refuses a public Linux custody directory before requesting either lease",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await fixture(t);
+    const directory = fileSystem.mkdtempSync(path.join(root, "public-custody-"));
+    fileSystem.chmodSync(directory, 0o777);
+    const temporary = t.mock.method(fileSystem, "mkdtempSync", () => directory);
+    const spawnHost = t.mock.method(childProcess, "spawn", () =>
+      assert.fail("the Windows bridge must not start with public custody"),
+    );
+    syncBuiltinESMExports();
+    try {
+      await assert.rejects(
+        acquireBridgedCapacity(bridgeConfig, "browser", {}, {}, async () =>
+          assert.fail("the Linux lease must not start with public custody"),
+        ),
+        /private Linux-backed temporary directory/u,
+      );
+      assert.equal(temporary.mock.callCount(), 1);
+      assert.equal(spawnHost.mock.callCount(), 0);
+      assert.deepEqual(await readdir(directory), []);
+    } finally {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    }
+  },
+);
+
+void test(
   "host bridge Linux probe refuses changed custody, live children and missing cleanup",
   { skip: process.platform !== "linux" },
   async (t) => {
@@ -971,18 +1001,26 @@ void test("Windows bridge status receives a full queue within its response limit
   await assert.rejects(observeBridgedCapacity(oversized.config), { code: "ENOBUFS" });
 });
 
-void test("host bridge actual client preserves queue refusal and rejects changed verifier bytes", async (t) => {
+void test(
+  "Linux bridge client preserves host queue refusal before local admission",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "queue");
+    let localAcquisitions = 0;
+    await assert.rejects(
+      acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
+        localAcquisitions++;
+        throw new Error("must not acquire locally");
+      }),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.equal(localAcquisitions, 0);
+    await host.close();
+  },
+);
+
+void test("Windows host bridge launcher rejects changed verifier bytes", async (t) => {
   const host = await mockHost(t, "queue");
-  let localAcquisitions = 0;
-  await assert.rejects(
-    acquireBridgedCapacity(host.config, "analysis", {}, { waitMs: 0 }, async () => {
-      localAcquisitions++;
-      throw new Error("must not acquire locally");
-    }),
-    { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
-  );
-  assert.equal(localAcquisitions, 0);
-  await host.close();
   await writeFile(host.entry, "throw Error('unbound replacement executed');");
   assert.throws(
     () =>
@@ -1263,6 +1301,79 @@ void test("queue timeout is admission failure and external work is never reclaim
   );
   assert.equal(await readFile(path.join(root, "slot-0"), "utf8"), bytes);
   assert.deepEqual(await readdir(path.join(root, "queue")), []);
+});
+
+void test("a local command can extend both checkout scans within a finite bound", async (t) => {
+  const root = await fixture(t);
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "checkout-scan-test-"));
+  t.after(() => rm(workspace, { recursive: true, force: true }));
+  execFileSync("git", ["init", "-q", workspace]);
+  execFileSync("git", [
+    "-C",
+    workspace,
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "commit",
+    "--allow-empty",
+    "-qm",
+    "Fixture",
+  ]);
+  const logs: string[] = [];
+  const options = isolated(root, { report: (message) => logs.push(message) });
+  const key = "PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS";
+  for (const [override, budget] of [
+    [undefined, 30_000],
+    ["120", 120_000],
+    ["480", 480_000],
+  ] as const) {
+    logs.length = 0;
+    const lease = await acquireSourceBoundCapacity(
+      "analysis",
+      { workspace },
+      { ...options, environment: { ...options.environment, [key]: override } },
+    );
+    await lease.release();
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      [
+        `Resource checkout scan started (before admission); budget ${budget} ms`,
+        `Resource checkout scan started (after admission); budget ${budget} ms`,
+      ],
+    );
+  }
+  logs.length = 0;
+  for (const invalid of ["", "29", "481", "600", "1e2", "480.0"]) {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, environment: { ...options.environment, [key]: invalid } },
+      ),
+      /must be an integer from 30 to 480/u,
+    );
+  }
+  assert.equal(logs.length, 0);
+
+  const occupied = await acquireResourceCapacity("maintenance", {}, options);
+  try {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, waitMs: 0, environment: { ...options.environment, [key]: "480" } },
+      ),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      ["Resource checkout scan started (before admission); budget 480000 ms"],
+    );
+  } finally {
+    await occupied.release();
+  }
+  assert.equal((await observeCapacity({ root })).running.length, 0);
 });
 
 void test("output ownership rolls back partial capacity and source changes after queue refuse execution", async (t) => {

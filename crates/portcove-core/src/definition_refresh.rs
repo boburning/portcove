@@ -450,11 +450,22 @@ fn exact_scheduled_replay(
     Ok(true)
 }
 
-/// Start one subject later each day, including within the bounded window.
-/// Even when the deadline always cuts the window short, every stable
-/// subject eventually gets the first slot. The split visits each at most once.
+/// Consecutive days start a whole window apart, so daily windows tile the set
+/// instead of overlapping: each cycle of `c = ceil(n / limit)` days covers
+/// every stable subject (447 subjects: 14 days, not 416), and any `2c`
+/// consecutive full windows do too. Each completed
+/// cycle shifts the phase by one subject, so even when the deadline always
+/// cuts the window short, every subject eventually gets the first slot. The
+/// split visits each at most once.
 fn scheduled_subjects<T>(known: &[T], day: u64) -> impl Iterator<Item = &T> {
-    let start = day.checked_rem(known.len() as u64).unwrap_or(0) as usize;
+    let count = known.len() as u64;
+    let start = if count == 0 {
+        0
+    } else {
+        let limit = SCHEDULED_SUBJECT_LIMIT as u64;
+        let cycle = count.div_ceil(limit);
+        (((day % cycle) * limit + (day / cycle) % count) % count) as usize
+    };
     let (early, late) = known.split_at(start);
     late.iter().chain(early).take(SCHEDULED_SUBJECT_LIMIT)
 }
@@ -467,8 +478,9 @@ mod scheduled_subject_tests {
     fn short_daily_budget_eventually_visits_each_subject() {
         for count in [1, 6, 32, 33, 64, 81] {
             let subjects: Vec<_> = (0..count).collect();
+            let cycle = (count as usize).div_ceil(SCHEDULED_SUBJECT_LIMIT) as u64;
             for budget in [1, 4] {
-                let visited: BTreeSet<_> = (0..count as u64)
+                let visited: BTreeSet<_> = (0..count as u64 * cycle)
                     .flat_map(|day| scheduled_subjects(&subjects, day).take(budget).copied())
                     .collect();
                 assert_eq!(
@@ -484,10 +496,34 @@ mod scheduled_subject_tests {
     fn daily_window_wraps_within_the_bound_without_duplicates_or_overflow() {
         let subjects: Vec<_> = (0..40).collect();
         let selected: Vec<_> = scheduled_subjects(&subjects, u64::MAX).copied().collect();
-        assert_eq!(selected, (15..40).chain(0..7).collect::<Vec<_>>());
         assert_eq!(selected.len(), SCHEDULED_SUBJECT_LIMIT);
+        assert_eq!(
+            selected.iter().collect::<BTreeSet<_>>().len(),
+            SCHEDULED_SUBJECT_LIMIT
+        );
         let none = scheduled_subjects::<u32>(&[], u64::MAX).count();
         assert_eq!(none, 0);
+    }
+
+    #[test]
+    fn full_daily_windows_cover_a_large_stable_set_within_one_cycle() {
+        for count in [33_usize, 64, 96, 128, 447, 1_000] {
+            let subjects: Vec<_> = (0..count).collect();
+            let cycle = count.div_ceil(SCHEDULED_SUBJECT_LIMIT) as u64;
+            let covers = |first: u64, days: u64| {
+                (first..first + days)
+                    .flat_map(|day| scheduled_subjects(&subjects, day).copied())
+                    .collect::<BTreeSet<_>>()
+                    .len()
+                    == count
+            };
+            for aligned in [0_u64, 7] {
+                assert!(covers(aligned * cycle, cycle), "{count} cycle {aligned}");
+            }
+            for first in 0..3 * cycle {
+                assert!(covers(first, 2 * cycle), "{count} from day {first}");
+            }
+        }
     }
 }
 

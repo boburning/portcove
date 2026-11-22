@@ -96,6 +96,29 @@ describe("Library quick views", () => {
     expect(selected.updates).toBe(plain.updates);
   });
 
+  it("counts exact port entries beside one game-level Favorite", () => {
+    const presentation = {
+      ...portDefinition().presentation!,
+      original_game: {
+        format_version: 1,
+        id: "shared-game",
+        evidence_urls: [],
+        source_editions: [],
+      },
+    };
+    const counts = libraryQuickViewCounts({
+      base: [port("first", { presentation }), port("second", { presentation })],
+      filter: "all",
+      readiness: "all",
+      favoriteGroupIds: new Set(["game:shared-game"]),
+      statuses: new Map(),
+      context: {},
+      scope: (ports) => ports,
+    });
+    expect(counts.all).toBe(2);
+    expect(counts.favorites).toBe(1);
+  });
+
   it("applies the selected collection scope to every count", () => {
     const base = [port("a"), port("b"), port("c")];
     const result = libraryQuickViewCounts({

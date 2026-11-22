@@ -1,7 +1,10 @@
 import { GitHubApiError } from "./github-operation.mts";
 import { fixedReleaseToolDependencies } from "./release-tool-dependency-selection.mts";
 import { createReleaseCustodyProvider } from "./release-custody-provider.mts";
-import { nativeCompatibilitySourcePaths } from "./release-native-source-contract.mts";
+import {
+  nativeCompatibilitySourcePaths,
+  nativeSourceBlobReadByteLimit,
+} from "./release-native-source-contract.mts";
 /** Fixed trusted role commands, bundled on a separate secret-free runner.
  * Candidate packages remain data here. Only native acceptance jobs launch them. */
 import assert from "node:assert/strict";
@@ -3443,12 +3446,18 @@ async function readNativePayloadAcceptance(
       typeof source.prepared.prepared_tree === "string" &&
       typeof source.prepared.version === "string",
   );
-  const provider = await createReleaseCustodyProvider({
-    token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
-    deadline: performance.now() + (2 + 2 * nativeCompatibilitySourcePaths.length) * 30000,
-    requestTimeoutMs: 30000,
-    maxBytes: 8 * 1024 ** 2,
-  });
+  const declarationDeadline =
+    performance.now() + (2 + 2 * nativeCompatibilitySourcePaths.length) * 30000;
+  const reader = (maxBytes: number) =>
+    createReleaseCustodyProvider({
+      token: readOnlyReleaseChildEnvironment()?.GH_TOKEN ?? "",
+      deadline: declarationDeadline,
+      requestTimeoutMs: 30000,
+      maxBytes,
+    });
+  const provider = await reader(8 * 1024 ** 2);
+  // Declaration blobs have their own reader; the shared reader keeps its bound.
+  let declarationBlobs: ReturnType<typeof reader> | undefined;
   const commit = await provider.commit(current.source);
   assert.ok(
     isRecord(commit) &&
@@ -3482,7 +3491,7 @@ async function readNativePayloadAcceptance(
   const declarations = await retainNativeSourceDeclarations(
     directory,
     (pathname) => provider.file(pathname, productSource),
-    (sha) => provider.blob(sha),
+    async (sha) => (await (declarationBlobs ??= reader(nativeSourceBlobReadByteLimit))).blob(sha),
   );
   const binding: ApplicationNativeBinding = {
     control_commit: current.source,

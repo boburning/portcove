@@ -10,6 +10,11 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  auditDispatchRequest,
+  scheduledAuditRequests,
+  scheduledIntakeReceipts,
+  scheduledReceiptOutcome,
+  scheduledReceiptRequestKey,
   hostedTriggerRequest,
   readHostedOutcomes,
   runHostedIntakePasses,
@@ -26,6 +31,99 @@ const report = (...outcomes: ReturnType<typeof outcome>[]) => ({
   requests: outcomes.length,
   outcomes,
 });
+void test("only the protected scheduled caller accepts exact nonduplicate audit continuations", () => {
+  const ticket = { request: 33, binding: "a".repeat(64) };
+  const env = {
+    HOSTED_INTAKE_MODE: "resume-audits",
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify([ticket]),
+  };
+  assert.deepEqual(scheduledAuditRequests(env), [ticket]);
+  for (const key of ["GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_REPOSITORY", "GITHUB_WORKFLOW_REF"])
+    assert.throws(() => scheduledAuditRequests({ ...env, [key]: "unrelated" }));
+  for (const rows of [
+    [],
+    [ticket, ticket],
+    [{ ...ticket, binding: "bad" }],
+    [{ ...ticket, request: "33" }],
+  ])
+    assert.throws(() =>
+      scheduledAuditRequests({ ...env, HOSTED_INTAKE_AUDIT_CONTINUATIONS: JSON.stringify(rows) }),
+    );
+});
+
+void test("scheduled receipt admission distinguishes reruns without changing the source or phase", () => {
+  const run = { GITHUB_RUN_ID: "44907060987", GITHUB_RUN_ATTEMPT: "1", GITHUB_SHA: "a".repeat(40) };
+  const first = scheduledReceiptRequestKey("before-audits", run);
+  assert.equal(first, `github:44907060987:scheduled-intake:before-audits:${run.GITHUB_SHA}:1`);
+  assert.equal(scheduledReceiptRequestKey("before-audits", run), first);
+  assert.equal(
+    scheduledReceiptRequestKey("before-audits", { ...run, GITHUB_RUN_ATTEMPT: "2" }),
+    first.replace(/:1$/u, ":2"),
+  );
+  assert.notEqual(scheduledReceiptRequestKey("after-audits", run), first);
+  assert.throws(
+    () => scheduledReceiptRequestKey("before-audits", { ...run, GITHUB_RUN_ATTEMPT: undefined }),
+    /exact GitHub run attempt/u,
+  );
+});
+
+void test("a scheduled receipt-only result can finish without enqueueing an audit", async () => {
+  assert.deepEqual(
+    scheduledReceiptOutcome({
+      tickets: [],
+      revision: "hosted-intake:bound",
+      receipts: { status: "passed" },
+    }),
+    { output: "audit_continuations=[]\nreceipt_revision=hosted-intake:bound\n", succeeded: true },
+  );
+  assert.deepEqual(
+    scheduledReceiptOutcome({
+      tickets: [],
+      revision: "bound\nforged=true",
+      receipts: { status: "passed" },
+    }),
+    { output: "audit_continuations=[]\nreceipt_revision=\n", succeeded: false },
+  );
+  await assert.rejects(
+    scheduledIntakeReceipts("before-audits", { GITHUB_EVENT_NAME: "workflow_dispatch" }),
+    /protected maintenance schedule/u,
+  );
+});
+
+void test("scheduled receipt reads refuse to substitute a Project token for the repository token", async () => {
+  const result = await scheduledIntakeReceipts("after-audits", {
+    HOSTED_INTAKE_MODE: "resume-audits",
+    GITHUB_EVENT_NAME: "schedule",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_REPOSITORY: "boburning/portcove",
+    GITHUB_WORKFLOW_REF:
+      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main",
+    GH_TOKEN: "project-token",
+    PORTCOVE_DISCOVERY_DATABASE_URL: "invalid-unused-database-url",
+  });
+  assert.equal(result.receipts.status, "unavailable");
+  assert.deepEqual(result.tickets, []);
+});
+
+void test("an unrelated incomplete receipt leaves bound tickets available and withholds the collection fence", () => {
+  const ticket = { request: 33, binding: "a".repeat(64) };
+  const outcome = scheduledReceiptOutcome({
+    tickets: [ticket],
+    revision: "hosted-intake:bound",
+    receipts: { status: "failed", pending: 1, reason: "proof-pending" },
+  });
+  assert.equal(outcome.succeeded, false);
+  assert.equal(
+    outcome.output,
+    `audit_continuations=${JSON.stringify([ticket])}\nreceipt_revision=\n`,
+  );
+});
+
 void test("a progressing logical batch finishes beyond three inventory windows without operator reruns", () => {
   let passes = 0;
   const result = runHostedIntakePasses(() => {
@@ -201,6 +299,24 @@ void test("real worker exit/report/probe paths fail closed after a crash or sign
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+void test("audit dispatch binds every worker pass to one exact proposal", () => {
+  assert.equal(auditDispatchRequest("process", ""), undefined);
+  for (const bad of ["", "0", "01", "1 2", "9007199254740992"])
+    assert.throws(() => auditDispatchRequest("audit", bad));
+  assert.throws(() => auditDispatchRequest("process", "17"));
+  const id = auditDispatchRequest("audit", "17");
+  const result = runHostedIntakePasses(
+    (pass, requests) => {
+      assert.deepEqual(requests, [17]);
+      return report(outcome(17, pass === 1 ? "inventory_changed" : null));
+    },
+    Date.now,
+    id,
+  );
+  assert.equal(result.status, "passed");
+  assert.throws(() => runHostedIntakePasses(() => report(outcome(18)), Date.now, id));
 });
 
 void test("complete with holds succeeds without an automatic continuation", () => {
