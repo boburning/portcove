@@ -203,7 +203,7 @@ it("lets players browse reviewed releases without an applicable installed editio
     await galleryView.rerender(view(media, port.id, "us"));
     await expect.element(european).toBeEnabled();
     await expect.element(thumbnail).not.toBeInTheDocument();
-    await expect.element(picker).toHaveTextContent(euTitle);
+    await expect.element(picker).toHaveAccessibleName(`Screenshot source ${euTitle}`);
 
     await european.click();
     const europeanViewer = page.getByRole("dialog", { name: "European scene" });
