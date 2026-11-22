@@ -4249,10 +4249,17 @@ mod tests {
             )
             .unwrap();
         assert_eq!(retained, (5, "fixture".into(), framing, 0));
+        // Hiding retains the selection, so a hidden choice may keep its asset.
+        connection
+            .execute(
+                "UPDATE artwork_choices SET suppressed=1 WHERE slot='detail'",
+                [],
+            )
+            .unwrap();
         assert!(
             connection
                 .execute(
-                    "UPDATE artwork_choices SET suppressed=1 WHERE slot='detail'",
+                    "UPDATE artwork_choices SET suppressed=2 WHERE slot='detail'",
                     []
                 )
                 .is_err()
