@@ -871,3 +871,133 @@ fn a_broader_replacement_hold_cannot_let_an_existing_permit_win() {
     swapped.id = "exact".into();
     validate_transition(&baseline, &[whole(), swapped, elsewhere]).unwrap();
 }
+
+#[test]
+fn overlapping_artifact_scopes_are_never_reported_disjoint() {
+    let scope = |sha256: &str, asset_name: Option<&str>| RestrictionScope {
+        artifacts: vec![RestrictedArtifact {
+            version: "v1".into(),
+            sha256: sha256.into(),
+            asset_name: asset_name.map(Into::into),
+        }],
+        ..RestrictionScope::default()
+    };
+    let upper = SHA_A.to_ascii_uppercase();
+    let overlapping = [
+        (scope(&upper, None), scope(SHA_A, None)),
+        (scope(SHA_A, None), scope(SHA_A, Some("game.zip"))),
+        (scope(&upper, Some("game.zip")), scope(SHA_A, None)),
+    ];
+    for (left, right) in &overlapping {
+        assert!(!left.disjoint_from(right), "{left:?} {right:?}");
+        assert!(!right.disjoint_from(left), "{right:?} {left:?}");
+    }
+    for (left, right) in [
+        (scope(SHA_A, None), scope(SHA_B, None)),
+        (
+            scope(SHA_A, Some("game.zip")),
+            scope(SHA_A, Some("other.zip")),
+        ),
+    ] {
+        assert!(left.disjoint_from(&right), "{left:?} {right:?}");
+    }
+
+    // Replacing the exact hold with a whole one would let the equally
+    // specific permit, which lost the tie before, win for the same package.
+    let whole = || {
+        restriction(json!({
+            "id": "whole", "effect": "hold", "operations": ["install"],
+            "reason": "upstream-transition-unreviewed", "explanation": "Held."
+        }))
+    };
+    for (held, permitted) in overlapping {
+        let mut exact = whole();
+        exact.id = "exact".into();
+        exact.reason = Some(RestrictionReason::KnownDefectiveArtifact);
+        exact.scope = held;
+        let mut permit = artifact_permit(SHA_A);
+        permit.operations = BTreeSet::from([RestrictedOperation::Install]);
+        permit.scope = permitted;
+        let baseline = vec![whole(), exact, permit.clone()];
+        validate_transition(&baseline, &baseline).unwrap();
+        let mut swapped = whole();
+        swapped.id = "exact".into();
+        assert!(validate_transition(&baseline, &[whole(), swapped, permit]).is_err());
+    }
+}
+
+#[test]
+fn a_fresh_adoption_refuses_any_hold_that_an_install_permit_cleared_at_offer() {
+    let managed = EffectiveRestrictions {
+        managed: vec![
+            restriction(json!({
+                "id": "acquisition", "effect": "hold",
+                "operations": ["download", "install", "update", "adopt"],
+                "reason": "upstream-transition-unreviewed", "explanation": "Held for review."
+            })),
+            restriction(json!({
+                "id": "reviewed", "effect": "permit", "operations": ["install"],
+                "scope": {"artifacts": [{"version": "v1", "sha256": SHA_A}]}
+            })),
+        ],
+        listing: Vec::new(),
+    };
+    validate(&managed.managed, RestrictionCarrier::Managed).unwrap();
+    // The offer-phase acquisition gate clears: the permit may still win.
+    managed
+        .require(&RestrictionSubject::deferred(RestrictedOperation::Install))
+        .unwrap();
+    // The recovery gate refuses only an unprovable identity, so it clears too.
+    let recovery = managed.evaluate(
+        &RestrictionSubject::deferred(RestrictedOperation::Adopt)
+            .unverifiable_artifact()
+            .final_check(),
+    );
+    assert!(recovery.is_held() && !recovery.unverifiable);
+    let refusal = crate::managed_runtime_policy::fresh_adoption_gate(&managed).unwrap_err();
+    assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
+    assert_eq!(refusal.message, "Held for review.");
+    // Without a hold on adoption the gate stays open.
+    let unheld = EffectiveRestrictions {
+        managed: vec![restriction(json!({
+            "id": "acquisition", "effect": "hold", "operations": ["install"],
+            "reason": "upstream-transition-unreviewed", "explanation": "Held for review."
+        }))],
+        listing: Vec::new(),
+    };
+    crate::managed_runtime_policy::fresh_adoption_gate(&unheld).unwrap();
+}
+
+/// The fresh-adoption flow runs the acquisition gate, the recovery gate and
+/// then the any-hold gate. For every shipped row the added gate changes no
+/// decision or text, and recovery under a route-wide hold stays open.
+#[test]
+fn the_fresh_adoption_gate_changes_no_shipped_decision() {
+    use crate::managed_runtime_policy as policy;
+    let catalog = Catalog::embedded().unwrap();
+    let mut route_wide = 0;
+    for port in catalog.ports() {
+        let id = port.id.as_str();
+        let before = || {
+            policy::require_acquisition_available(&catalog, id)
+                .and_then(|()| policy::require_adoption_available(&catalog, id))
+        };
+        let after = before().and_then(|()| policy::require_fresh_adoption_available(&catalog, id));
+        let before = before();
+        assert_eq!(
+            before.err().map(|error| error.message),
+            after.err().map(|error| error.message),
+            "{id}"
+        );
+        if port
+            .managed_acquisition_hold
+            .as_ref()
+            .is_some_and(|hold| hold.excluded_artifacts.is_empty())
+        {
+            route_wide += 1;
+            policy::require_adoption_available(&catalog, id).unwrap();
+            assert!(policy::require_fresh_adoption_available(&catalog, id).is_err());
+        }
+    }
+    assert!(route_wide > 0);
+}
