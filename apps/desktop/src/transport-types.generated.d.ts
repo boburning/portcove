@@ -2696,11 +2696,36 @@ export interface ModLoaderBinding {
   native_game?: string | null;
   platforms: Platform[];
   repository: string;
+  /**
+   * Exact retained package identities reviewed for this loader. These facts
+   * narrow loader use; they do not select, admit or download an artifact.
+   */
+  reviewed_artifacts?: {
+    "linux-x86-64"?: ModLoaderArtifact;
+    "macos-aarch64"?: ModLoaderArtifact;
+    "macos-x86-64"?: ModLoaderArtifact;
+    "windows-x86-64"?: ModLoaderArtifact;
+  };
+  /**
+   * SHA-256 of the canonical immutable path, size and SHA-256 inventory
+   * from independently reviewed packages of this loader on each platform.
+   */
+  reviewed_payload_sha256?: {
+    "linux-x86-64"?: string;
+    "macos-aarch64"?: string;
+    "macos-x86-64"?: string;
+    "windows-x86-64"?: string;
+  };
+  reviewed_repository_id?: number | null;
   settings_file: string;
 }
 export interface LoaderContractRef {
   id: string;
   version: string;
+}
+export interface ModLoaderArtifact {
+  identity: ArtifactIdentity1;
+  tag: string;
 }
 /**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
