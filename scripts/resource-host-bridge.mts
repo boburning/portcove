@@ -583,6 +583,12 @@ export async function acquireBridgedCapacity(
           throw error;
         }
       },
+      disconnectRetained: () => {
+        // EOF leaves both reservations and the original custody evidence intact.
+        input.end();
+        child.stdout?.destroy();
+        child.unref();
+      },
       release: () =>
         (releasePromise ??= (async () => {
           try {
