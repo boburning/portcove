@@ -846,6 +846,255 @@ async fn authenticated_catalog_prior_advances_without_erasing_immutable_history(
 }
 
 #[tokio::test]
+async fn bootstrap_checkpoint_is_bound_by_the_existing_signed_policy_role() {
+    let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    let original = assemble_definition_repository(&fixture.assembly("history-base"))
+        .await
+        .unwrap();
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("history-base");
+    context["bootstrap_history"] = json!(true);
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+    }
+    fixture.set_context(context);
+    select_compact(&fixture, 1, true, false);
+    assert!(load_context(&fixture.context).await.is_err());
+    select_compact(&fixture, 1, false, false);
+    fixture.roles = fixture.root().join("history-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let assembly = fixture.assembly("history-next");
+    let mut assembly_json: serde_json::Value =
+        serde_json::from_slice(&fs::read(&assembly).unwrap()).unwrap();
+    assembly_json["history_output"] = json!("HISTORY-NEXT");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    assert!(
+        assemble_definition_repository(&assembly)
+            .await
+            .unwrap_err()
+            .to_string()
+            .contains("assembly outputs overlap")
+    );
+    let published = fixture.root().join("history-next");
+    let checkpoint = fixture.root().join("checkpoint-objects");
+    let store = checkpoint.join("sha256");
+    assembly_json["history_output"] = json!("checkpoint-objects");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+
+    fs::write(&published, b"retain wrong-kind publication root").unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!checkpoint.exists());
+    assert_eq!(
+        fs::read(&published).unwrap(),
+        b"retain wrong-kind publication root"
+    );
+    fs::remove_file(&published).unwrap();
+
+    fs::write(&checkpoint, b"retain wrong-kind history root").unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!published.exists());
+    assert_eq!(
+        fs::read(&checkpoint).unwrap(),
+        b"retain wrong-kind history root"
+    );
+    fs::remove_file(&checkpoint).unwrap();
+
+    fs::create_dir(&checkpoint).unwrap();
+    fs::write(&store, b"retain wrong-kind history store").unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!published.exists());
+    assert_eq!(
+        fs::read(&store).unwrap(),
+        b"retain wrong-kind history store"
+    );
+    fs::remove_file(&store).unwrap();
+
+    #[cfg(unix)]
+    {
+        let outside = tempfile::tempdir().unwrap();
+        std::os::unix::fs::symlink(outside.path(), &store).unwrap();
+        assert!(assemble_definition_repository(&assembly).await.is_err());
+        assert!(!published.exists());
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+        fs::remove_file(&store).unwrap();
+
+        fs::remove_dir(&checkpoint).unwrap();
+        std::os::unix::fs::symlink(outside.path(), &checkpoint).unwrap();
+        assert!(assemble_definition_repository(&assembly).await.is_err());
+        assert!(!published.exists());
+        assert_eq!(fs::read_dir(outside.path()).unwrap().count(), 0);
+        fs::remove_file(&checkpoint).unwrap();
+    }
+
+    fs::create_dir_all(&store).unwrap();
+    let context = load_context(&fixture.context).await.unwrap();
+    let (object, _) = context
+        .history
+        .as_ref()
+        .unwrap()
+        .objects
+        .iter()
+        .next()
+        .unwrap();
+    let retained = checkpoint.join(object);
+    fs::create_dir(&retained).unwrap();
+    assert!(assemble_definition_repository(&assembly).await.is_err());
+    assert!(!published.exists());
+    assert!(retained.is_dir());
+    fs::remove_dir(&retained).unwrap();
+    fs::remove_dir(&store).unwrap();
+    fs::remove_dir(&checkpoint).unwrap();
+
+    let assembled = assemble_definition_repository(&assembly).await.unwrap();
+    assert!(
+        assembled
+            .files
+            .iter()
+            .any(|row| row.target.ends_with(history_checkpoint::TARGET))
+    );
+    // Existing input directories must not prevent creating a distinct Unicode sibling.
+    assembly_json["history_output"] = json!("checkpoint-objécts");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    let reapplied = assemble_definition_repository(&assembly).await.unwrap();
+    assert_eq!(reapplied.repository_sha256, assembled.repository_sha256);
+    assert!(
+        fixture
+            .root()
+            .join("checkpoint-objécts")
+            .join("sha256")
+            .is_dir()
+    );
+    assembly_json["history_output"] = json!("checkpoint-objects");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+
+    assert!(
+        original
+            .files
+            .iter()
+            .filter(|row| row.target != "metadata/timestamp.json")
+            .all(|row| assembled.files.contains(row))
+    );
+
+    let mut verify = json!({
+        "schema_version":1,
+        "trusted_root":"root.json","trusted_root_sha256":original.root_sha256,
+        "offline_targets":"targets.json","offline_targets_sha256":original.offline_targets_sha256,
+        "repository":"history-next"
+    });
+    let config = json_file(fixture.root(), "history-verification.json", verify.clone());
+    verify_definition_repository(&config).await.unwrap();
+    verify["history_store"] = json!("checkpoint-objects");
+    let config = json_file(fixture.root(), "history-verification.json", verify);
+    verify_definition_repository(&config).await.unwrap();
+    assert!(
+        !assemble_definition_repository(&assembly)
+            .await
+            .unwrap()
+            .changed
+    );
+    let thin = fixture.root().join("history-thin");
+    let root = fixture.root().to_path_buf();
+    let mut active = BTreeSet::from([
+        "metadata/timestamp.json".to_owned(),
+        "metadata/1.root.json".to_owned(),
+        format!("metadata/{}.snapshot.json", assembled.versions["snapshot"]),
+        format!("metadata/{}.targets.json", assembled.versions["targets"]),
+    ]);
+    for (role, label) in [
+        ("official-definitions", "definitions"),
+        ("official-policy", "policy"),
+    ] {
+        let path = format!("metadata/{}.{role}.json", assembled.versions[label]);
+        let role: Signed<Targets> =
+            io::parse(&root.join("history-next").join(&path), ROLE_MAX).unwrap();
+        active.insert(path);
+        for (name, info) in &role.signed.targets {
+            active.insert(format!(
+                "targets/{}.{}",
+                hex::encode(&info.hashes.sha256),
+                name.raw()
+            ));
+        }
+    }
+    for name in &active {
+        let destination = thin.join(name);
+        fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        fs::copy(root.join("history-next").join(name), destination).unwrap();
+    }
+    assert!(!thin.join("metadata/1.snapshot.json").exists());
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("history-thin");
+    context["bootstrap_history"] = json!(false);
+    context["history_store"] = json!("checkpoint-objects");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(3);
+    }
+    fixture.set_context(context.clone());
+    select_compact(&fixture, 1, true, false);
+    assert!(load_context_mode(&fixture.context, true).await.is_err());
+    let compact_path = root
+        .join("bundle")
+        .join(portcove_listing_carrier::COMPACT_TARGET);
+    select_compact(&fixture, 1, false, false);
+    let first_wire = fs::read(&compact_path).unwrap();
+    select_compact_with_compression(&fixture, 1, false, false, flate2::Compression::fast());
+    assert_ne!(fs::read(&compact_path).unwrap(), first_wire);
+    assert!(load_context_mode(&fixture.context, true).await.is_ok());
+    fs::remove_file(thin.join("metadata/2.official-policy.json")).unwrap();
+    assert!(load_context_mode(&fixture.context, true).await.is_err());
+    fs::copy(
+        root.join("history-next/metadata/2.official-policy.json"),
+        thin.join("metadata/2.official-policy.json"),
+    )
+    .unwrap();
+    select_compact(&fixture, 2, false, true);
+    fixture.roles = fixture.root().join("history-roles-three");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("history-next");
+    fixture.set_context(context);
+    let assembly = fixture.assembly("history-third");
+    let mut assembly_json: serde_json::Value =
+        serde_json::from_slice(&fs::read(&assembly).unwrap()).unwrap();
+    assembly_json["history_output"] = json!("checkpoint-third");
+    fs::write(&assembly, serde_json::to_vec(&assembly_json).unwrap()).unwrap();
+    let third = assemble_definition_repository(&assembly).await.unwrap();
+    assert!(
+        assembled
+            .files
+            .iter()
+            .filter(|file| file.target != "metadata/timestamp.json")
+            .all(|file| third.files.contains(file))
+    );
+    let legacy = fs::read(
+        root.join("bundle")
+            .join(portcove_listing_carrier::LEGACY_TARGET),
+    )
+    .unwrap();
+    let legacy_path = format!(
+        "targets/{}.{}",
+        sha(&legacy),
+        portcove_listing_carrier::LEGACY_TARGET
+    );
+    assert_eq!(
+        fs::read(root.join("history-third").join(legacy_path)).unwrap(),
+        legacy
+    );
+    let path = fs::read_dir(fixture.root().join("checkpoint-objects/sha256"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    fs::remove_file(path).unwrap();
+    assert!(verify_definition_repository(&config).await.is_err());
+}
+
+#[tokio::test]
 async fn physical_root_key_alias_cannot_supply_a_second_catalog_quorum_member() {
     use aws_lc_rs::signature::Ed25519KeyPair;
     use tough::schema::Role;
@@ -1133,6 +1382,261 @@ async fn descriptive_inspection_rejects_extra_or_false_summaries() {
                 &serde_json::to_vec(&changed).unwrap()
             )
             .is_err()
+        );
+    }
+}
+
+#[test]
+fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal() {
+    let older = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":["older-removed"],
+        "directory":{"format_version":11,"listings":[{"id":"newly-removed"},{"id":"retained","a":1}]}
+    });
+    let newer = json!({
+        "listing_delivery_schema":1,"revision":7,"withdrawn_ids":["older-removed","newly-removed"],
+        "directory":{"format_version":11,"listings":[{"id":"retained","a":1}]}
+    });
+    let bytes = serde_json::to_vec(&older).unwrap();
+    bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&newer).unwrap()).unwrap();
+
+    let mut replaced = newer.clone();
+    replaced["directory"]["listings"][0]["a"] = json!(2);
+    let refusal = bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&replaced).unwrap());
+    assert!(
+        refusal
+            .unwrap_err()
+            .to_string()
+            .contains("changes other facts")
+    );
+    let mut resurrected = newer;
+    resurrected["withdrawn_ids"] = json!(["newly-removed"]);
+    assert!(
+        bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&resurrected).unwrap())
+            .is_err()
+    );
+}
+
+fn select_compact(fixture: &Fixture, revision: u64, altered: bool, retain_tombstone: bool) {
+    select_compact_with_compression(
+        fixture,
+        revision,
+        altered,
+        retain_tombstone,
+        flate2::Compression::default(),
+    );
+}
+
+fn select_compact_with_compression(
+    fixture: &Fixture,
+    revision: u64,
+    altered: bool,
+    retain_tombstone: bool,
+    compression: flate2::Compression,
+) {
+    select_compact_payload(fixture, revision, compression, |payload| {
+        if altered {
+            payload["directory"]["listings"][0]["name"] = json!("alternate equal revision");
+        }
+        if retain_tombstone {
+            payload["withdrawn_ids"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!("compact-only-withdrawal"));
+        }
+    });
+}
+
+fn select_compact_payload(
+    fixture: &Fixture,
+    revision: u64,
+    compression: flate2::Compression,
+    edit: impl FnOnce(&mut serde_json::Value),
+) {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use flate2::write::GzEncoder;
+    use std::io::Write as _;
+    let name = portcove_listing_carrier::COMPACT_TARGET;
+    let root = fixture.root().join("bundle");
+    let mut payload: serde_json::Value = serde_json::from_slice(
+        &fs::read(root.join(portcove_listing_carrier::LEGACY_TARGET)).unwrap(),
+    )
+    .unwrap();
+    payload["revision"] = json!(revision);
+    edit(&mut payload);
+    let decoded = serde_json::to_vec(&payload).unwrap();
+    let mut gzip = GzEncoder::new(Vec::new(), compression);
+    gzip.write_all(&decoded).unwrap();
+    let body = serde_json::to_vec(&json!({
+        "carrier": portcove_listing_carrier::COMPACT_CARRIER,
+        "decoded_bytes": decoded.len(),
+        "decoded_sha256": sha(&decoded),
+        "gzip_base64": STANDARD.encode(gzip.finish().unwrap()),
+    }))
+    .unwrap();
+    fs::write(root.join(name), &body).unwrap();
+    let files = io::tree(&root, BUNDLE_FILES, BUNDLE_MAX).unwrap();
+    let manifest_path = fixture.root().join("inspection.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    let listings = payload["directory"]["listings"].as_array().unwrap();
+    let withdrawals = payload["withdrawn_ids"].as_array().unwrap();
+    manifest["listings"] = json!({
+        "target": name,
+        "revision": revision,
+        "sha256": sha(&body),
+        "listing_count": listings.len(),
+        "withdrawn_count": withdrawals.len(),
+    });
+    manifest["files"] = json!(bundle::identities(&files));
+    let bytes = serde_json::to_vec(&manifest).unwrap();
+    fs::write(manifest_path, &bytes).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&bytes));
+    fixture.set_context(context);
+}
+
+#[tokio::test]
+async fn compact_activation_beside_its_legacy_target_must_bump_the_revision() {
+    let fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("legacy"))
+        .await
+        .unwrap();
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("legacy");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+    }
+    fixture.set_context(context);
+    // A newer compact directory format at the legacy revision is a different
+    // decoded document under one shared revision floor.
+    let compact_format = |payload: &mut serde_json::Value| {
+        payload["directory"]["format_version"] = json!(15);
+    };
+    select_compact_payload(&fixture, 1, flate2::Compression::default(), compact_format);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("listing carrier revision or equivalent decoded identity differs"),
+        "{failure}"
+    );
+    select_compact_payload(&fixture, 2, flate2::Compression::default(), compact_format);
+    load_context(&fixture.context).await.unwrap();
+}
+
+#[tokio::test]
+async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_floor() {
+    fn advance(fixture: &Fixture, previous: &str, version: u64) {
+        let mut context = fixture.context_value();
+        context["previous_repository"] = json!(previous);
+        for role in ["definitions", "policy", "snapshot", "timestamp"] {
+            context["versions"][role] = json!(version);
+        }
+        fixture.set_context(context);
+    }
+
+    let mut fixture = Fixture::new().await;
+    replace_listing_directory(&fixture, 1);
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("legacy"))
+        .await
+        .unwrap();
+    advance(&fixture, "legacy", 2);
+    select_compact(&fixture, 2, false, true);
+    fixture.roles = fixture.root().join("compact-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("compact"))
+        .await
+        .unwrap();
+    let old_target_suffix = format!(".{}", portcove_listing_carrier::LEGACY_TARGET);
+    assert_eq!(
+        published
+            .files
+            .iter()
+            .filter(|file| file.target.ends_with(old_target_suffix.as_str()))
+            .count(),
+        1
+    );
+
+    advance(&fixture, "compact", 3);
+    select_compact(&fixture, 2, true, true);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical listing revision rollback/equivocation"),
+        "{failure}"
+    );
+    select_compact(&fixture, 1, false, true);
+    assert!(load_context(&fixture.context).await.is_err());
+
+    select_compact(&fixture, 3, false, false);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("removed an authenticated historical withdrawal"),
+        "{failure}"
+    );
+
+    fs::remove_file(
+        fixture
+            .root()
+            .join("bundle")
+            .join(portcove_listing_carrier::COMPACT_TARGET),
+    )
+    .unwrap();
+    replace_listing_directory(&fixture, 1);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("compact listing cannot be withdrawn"),
+        "{failure}"
+    );
+
+    let path = fixture
+        .root()
+        .join("bundle")
+        .join(portcove_listing_carrier::LEGACY_TARGET);
+    let old_legacy = fs::read(&path).unwrap();
+    let mut legacy: serde_json::Value = serde_json::from_slice(&old_legacy).unwrap();
+    legacy["revision"] = json!(3);
+    legacy["withdrawn_ids"] = json!(["listing-0"]);
+    legacy["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .remove(0);
+    let new_legacy = serde_json::to_vec(&legacy).unwrap();
+    fs::write(&path, &new_legacy).unwrap();
+    select_compact(&fixture, 4, false, true);
+    fixture.roles = fixture.root().join("withdrawal-roles");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let published = assemble_definition_repository(&fixture.assembly("withdrawal"))
+        .await
+        .unwrap();
+    for bytes in [old_legacy, new_legacy] {
+        let target = format!(
+            "targets/{}.{}",
+            sha(&bytes),
+            portcove_listing_carrier::LEGACY_TARGET
+        );
+        assert!(published.files.iter().any(|file| file.target == target));
+        assert_eq!(
+            fs::read(fixture.root().join("withdrawal").join(target)).unwrap(),
+            bytes
         );
     }
 }

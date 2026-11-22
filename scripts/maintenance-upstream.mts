@@ -750,13 +750,24 @@ export async function readUpstreamObservations(
       throw new MaintenanceStoreError("The observer snapshot producer differs from its run");
     // The observer reads the reviewed catalog and listing directory at its own source.
     const parse = (file: string) => {
+      let bytes: Buffer;
       try {
-        return JSON.parse(readCommitted(snapshot.producer.source, file).toString("utf8")) as {
-          listings?: unknown;
-        };
+        bytes = readCommitted(snapshot.producer.source, file);
       } catch (error) {
         if (error instanceof MaintenanceStoreError) throw error;
-        throw new MaintenanceStoreError(`${file} at the producer source is not valid JSON`);
+        const code = error instanceof Error && "code" in error ? error.code : undefined;
+        const reason =
+          code === "ETIMEDOUT" || code === "ENOBUFS" || code === "ENOENT" ? ` (${code})` : "";
+        throw new MaintenanceStoreError(
+          `Could not read ${file} at ${snapshot.producer.source}${reason}`,
+        );
+      }
+      try {
+        return JSON.parse(bytes.toString("utf8")) as {
+          listings?: unknown;
+        };
+      } catch {
+        throw new MaintenanceStoreError(`${file} at ${snapshot.producer.source} is not valid JSON`);
       }
     };
     const operational = parse("crates/portcove-core/catalog/catalog.json");
