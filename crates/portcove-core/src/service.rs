@@ -1686,9 +1686,12 @@ impl PortcoveService {
             }
             Installer::new(self.library.clone())?
                 .require_github_resolution_identity(&port.id, &resolution)?;
-            if let Some(verdict) =
-                self.current_package_shape_refusal(port, platform, &resolution.release)?
-            {
+            if let Some(verdict) = self.current_package_shape_refusal(
+                port,
+                platform,
+                &resolution.release,
+                Some(&resolution),
+            )? {
                 return Err(crate::package_shape::withheld::refusal(
                     port,
                     &resolution.release,
@@ -3212,8 +3215,12 @@ impl PortcoveService {
             .resolve_release_for_status(port, channel, platform, status)
             .await?;
         if first_managed_install(status)
-            && let Some(verdict) =
-                self.current_package_shape_refusal(port, platform, &resolution.release)?
+            && let Some(verdict) = self.current_package_shape_refusal(
+                port,
+                platform,
+                &resolution.release,
+                Some(&resolution),
+            )?
         {
             return self
                 .resolve_shape_fallback(port, platform, &resolution)
@@ -3267,6 +3274,7 @@ impl PortcoveService {
         port: &PortDefinition,
         platform: Platform,
         release: &ResolvedRelease,
+        resolution: Option<&crate::ScopedResolvedRelease>,
     ) -> Result<Option<crate::package_shape::ShapeVerdict>> {
         let Some(capability) =
             crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
@@ -3279,6 +3287,7 @@ impl PortcoveService {
             platform,
             release,
             capability,
+            resolution,
             || {
                 Installer::new(self.library.clone())
                     .and_then(|installer| installer.local_shape_baseline(port, platform))
@@ -3431,12 +3440,7 @@ impl PortcoveService {
                     &status,
                 ))
                 .await?;
-            self.record_update_check(
-                port_id,
-                &status,
-                &release.release,
-                release.upstream_activity.as_ref(),
-            )
+            self.record_update_check_from_selection(port_id, &status, &release)
         }
         .await;
         self.finish_activity(activity, result)
@@ -3528,6 +3532,32 @@ impl PortcoveService {
         release: &ResolvedRelease,
         observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
+        self.record_update_check_with_resolution(port_id, status, release, observed_activity, None)
+    }
+
+    fn record_update_check_from_selection(
+        &self,
+        port_id: &str,
+        status: &PortStatus,
+        resolution: &crate::ScopedResolvedRelease,
+    ) -> Result<UpdateCheck> {
+        self.record_update_check_with_resolution(
+            port_id,
+            status,
+            &resolution.release,
+            resolution.upstream_activity.as_ref(),
+            Some(resolution),
+        )
+    }
+
+    fn record_update_check_with_resolution(
+        &self,
+        port_id: &str,
+        status: &PortStatus,
+        release: &ResolvedRelease,
+        observed_activity: Option<&crate::UpstreamActivity>,
+        resolution: Option<&crate::ScopedResolvedRelease>,
+    ) -> Result<UpdateCheck> {
         let port = self.catalog.port(port_id)?;
         let platform = Platform::current()?;
         let runtime = crate::runtime::required(port, platform);
@@ -3550,7 +3580,8 @@ impl PortcoveService {
             .transpose()?
             .is_none_or(|matches| !matches);
         if update_available
-            && let Some(verdict) = self.current_package_shape_refusal(port, platform, release)?
+            && let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, release, resolution)?
         {
             return Err(crate::package_shape::withheld::refusal(
                 port, release, &verdict,
@@ -3839,12 +3870,7 @@ impl PortcoveService {
                 ))
                 .await?;
             operation.observe_release(&release.release.version, None);
-            self.record_update_check(
-                port_id,
-                &status,
-                &release.release,
-                release.upstream_activity.as_ref(),
-            )?;
+            self.record_update_check_from_selection(port_id, &status, &release)?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -4348,12 +4374,7 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(
-                    port_id,
-                    &status,
-                    &release.release,
-                    release.upstream_activity.as_ref(),
-                )?;
+                let check = self.record_update_check_from_selection(port_id, &status, &release)?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -9057,8 +9078,14 @@ mod tests {
             programs: Some(vec!["alternate.exe".into()]),
             ..PackageShape::default()
         };
-        let (verdict, provenance) =
-            crate::package_shape::evaluate(port, platform, &latest.asset.sha256, &shape, None);
+        let (verdict, provenance) = crate::package_shape::evaluate(
+            port,
+            platform,
+            &latest.asset.sha256,
+            &shape,
+            None,
+            None,
+        );
         assert!(matches!(verdict, ShapeVerdict::Drifted { .. }));
         crate::package_shape::withheld::record(
             &library,

@@ -1388,12 +1388,46 @@ mod tests {
         let mut wrong_artifact = rule.artifact.clone();
         wrong_artifact.sha256 = "0".repeat(64);
         assert!(require_predecessor(old.path(), &proof, &wrong_artifact).is_err());
-        wrong_artifact = rule.artifact.clone();
+        let mut wrong_artifact = rule.artifact.clone();
         wrong_artifact.asset_name = "renamed.tar.gz".into();
         assert!(require_predecessor(old.path(), &proof, &wrong_artifact).is_err());
+        let scratch = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(scratch.path().join("library")).unwrap();
+        let capability = crate::package_shape::enforcement_capability(port.adapter).unwrap();
+        let record = |shape| {
+            crate::package_shape::withheld::record(
+                &library,
+                port,
+                platform,
+                &proof.release,
+                capability,
+                &shape,
+            )
+            .unwrap();
+        };
+        let cached = |resolution: Option<&crate::ScopedResolvedRelease>| {
+            crate::package_shape::withheld::current(
+                &library,
+                port,
+                platform,
+                &proof.release,
+                capability,
+                resolution,
+                || None,
+            )
+            .unwrap()
+        };
+        record(observed(old.path(), None));
+        assert!(cached(Some(&proof)).is_none());
+        assert!(cached(None).is_some());
+
         let mut wrong_proof = resolve(port);
         wrong_proof.github_identity.as_mut().unwrap().asset_id += 1;
         assert!(require_predecessor(old.path(), &wrong_proof, &rule.artifact).is_err());
+        assert!(cached(Some(&wrong_proof)).is_some());
+        record(observed(nested.path(), selected));
+        assert!(cached(Some(&proof)).is_some());
+        assert!(cached(Some(&wrong_proof)).is_none());
         let mut successor = resolve(port);
         successor.release.version = "v99.0.0".into();
         successor.release.asset.url = format!(
