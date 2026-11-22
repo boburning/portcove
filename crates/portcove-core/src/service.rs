@@ -8419,7 +8419,7 @@ mod tests {
 
     use std::{
         sync::{
-            Arc, Condvar, Mutex,
+            Arc, Mutex,
             atomic::{AtomicBool, AtomicUsize, Ordering},
             mpsc,
         },
@@ -9460,19 +9460,24 @@ mod tests {
         sha256: String,
     }
 
-    #[derive(Clone)]
+    // The first provider call follows real SQLite activity and status reads.
+    const RELEASE_START_TIMEOUT: Duration = Duration::from_secs(90);
+
     struct BlockingReleaseProvider {
         version: String,
-        first_started: mpsc::Sender<ReleaseChannel>,
+        first_call: Mutex<Option<ReleaseRendezvous>>,
         observed_channels: Arc<Mutex<Vec<ReleaseChannel>>>,
-        gate: Arc<(Mutex<bool>, Condvar)>,
-        calls: Arc<AtomicUsize>,
+    }
+
+    struct ReleaseRendezvous {
+        started: tokio::sync::oneshot::Sender<ReleaseChannel>,
+        resume: tokio::sync::oneshot::Receiver<()>,
     }
 
     struct BlockingReleaseHarness {
         provider: Arc<BlockingReleaseProvider>,
-        started: mpsc::Receiver<ReleaseChannel>,
-        gate: Arc<(Mutex<bool>, Condvar)>,
+        started: tokio::sync::oneshot::Receiver<ReleaseChannel>,
+        resume: tokio::sync::oneshot::Sender<()>,
         observed: Arc<Mutex<Vec<ReleaseChannel>>>,
     }
 
@@ -9485,13 +9490,10 @@ mod tests {
             _platform: Platform,
         ) -> Result<ResolvedRelease> {
             self.observed_channels.lock().unwrap().push(channel);
-            if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
-                self.first_started.send(channel).unwrap();
-                let (lock, wake) = &*self.gate;
-                let mut released = lock.lock().unwrap();
-                while !*released {
-                    released = wake.wait(released).unwrap();
-                }
+            let first_call = self.first_call.lock().unwrap().take();
+            if let Some(first_call) = first_call {
+                first_call.started.send(channel).unwrap();
+                first_call.resume.await.unwrap();
             }
             Ok(ResolvedRelease {
                 version: self.version.clone(),
@@ -9509,27 +9511,22 @@ mod tests {
     }
 
     fn release_blocker(version: &str) -> BlockingReleaseHarness {
-        let (started, receiver) = mpsc::channel();
-        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (resume, resume_received) = tokio::sync::oneshot::channel();
         let observed = Arc::new(Mutex::new(Vec::new()));
         BlockingReleaseHarness {
             provider: Arc::new(BlockingReleaseProvider {
                 version: version.into(),
-                first_started: started,
+                first_call: Mutex::new(Some(ReleaseRendezvous {
+                    started,
+                    resume: resume_received,
+                })),
                 observed_channels: observed.clone(),
-                gate: gate.clone(),
-                calls: Arc::new(AtomicUsize::new(0)),
             }),
-            started: receiver,
-            gate,
+            started: ready,
+            resume,
             observed,
         }
-    }
-
-    fn release_blocker_continue(gate: &Arc<(Mutex<bool>, Condvar)>) {
-        let (lock, wake) = &**gate;
-        *lock.lock().unwrap() = true;
-        wake.notify_all();
     }
 
     #[async_trait::async_trait]
@@ -22788,24 +22785,23 @@ fn main() {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn reconcile_uses_post_lock_policy_and_staged_state() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", true);
         let blocker = release_blocker("v2");
-        let service =
-            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
-        let task_service = service.clone();
-        let reconcile =
-            tokio::spawn(async move { task_service.reconcile("zelda64-recomp", |_| {}).await });
-        assert_eq!(
-            blocker
-                .started
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap(),
-            ReleaseChannel::Stable
-        );
+        let service = PortcoveService::with_provider(library.clone(), blocker.provider).unwrap();
+        let reconcile = service.reconcile("zelda64-recomp", |_| {});
+        tokio::pin!(reconcile);
+        let deadline = tokio::time::sleep(RELEASE_START_TIMEOUT);
+        let channel = tokio::select! {
+            biased;
+            _ = deadline => panic!("Timed out waiting for reconcile to resolve a release"),
+            channel = blocker.started => channel.unwrap(),
+            premature = &mut reconcile => panic!("Reconcile completed before resolving: {premature:?}"),
+        };
+        assert_eq!(channel, ReleaseChannel::Stable);
 
         register_zelda_install(&library, "v2", false);
         library
@@ -22815,9 +22811,9 @@ fn main() {
                 ReleaseChannel::Stable,
             )
             .unwrap();
-        release_blocker_continue(&blocker.gate);
+        blocker.resume.send(()).unwrap();
 
-        let result = reconcile.await.unwrap().unwrap();
+        let result = reconcile.await.unwrap();
         assert_eq!(result.policy, UpdatePolicy::Automatic);
         assert_eq!(result.action, ReconcileAction::Activated);
         assert_eq!(result.install.unwrap().version, "v2");
@@ -22826,7 +22822,7 @@ fn main() {
         assert!(status.staged.is_none());
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn reconcile_retries_a_changed_channel_before_acting() {
         let platform = Platform::current().unwrap();
         if !Catalog::embedded()
@@ -22848,25 +22844,24 @@ fn main() {
         write_host_test_executable(&path, "g-diffuser");
         register_existing_test_install(&library, "g-diffuser", "v1", &path, true);
         let blocker = release_blocker("v2");
-        let service =
-            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
-        let task_service = service.clone();
-        let reconcile =
-            tokio::spawn(async move { task_service.reconcile("g-diffuser", |_| {}).await });
-        assert_eq!(
-            blocker
-                .started
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap(),
-            ReleaseChannel::Stable
-        );
+        let service = PortcoveService::with_provider(library.clone(), blocker.provider).unwrap();
+        let reconcile = service.reconcile("g-diffuser", |_| {});
+        tokio::pin!(reconcile);
+        let deadline = tokio::time::sleep(RELEASE_START_TIMEOUT);
+        let channel = tokio::select! {
+            biased;
+            _ = deadline => panic!("Timed out waiting for reconcile to resolve a release"),
+            channel = blocker.started => channel.unwrap(),
+            premature = &mut reconcile => panic!("Reconcile completed before resolving: {premature:?}"),
+        };
+        assert_eq!(channel, ReleaseChannel::Stable);
 
         library
             .set_channel("g-diffuser", ReleaseChannel::Beta)
             .unwrap();
-        release_blocker_continue(&blocker.gate);
+        blocker.resume.send(()).unwrap();
 
-        let result = reconcile.await.unwrap().unwrap();
+        let result = reconcile.await.unwrap();
         assert_eq!(result.policy, UpdatePolicy::Notify);
         assert_eq!(result.action, ReconcileAction::Notify);
         assert_eq!(result.check.channel, ReleaseChannel::Beta);
