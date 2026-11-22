@@ -11,7 +11,7 @@ import type {
   ProviderProjectView,
   ProviderUpdateObservation,
 } from "../types";
-import { ModProviderBrowser } from "./ModProviderBrowser";
+import { mergeCatalogReads, ModProviderBrowser } from "./ModProviderBrowser";
 import { PortBrowser } from "./PortBrowser";
 import { portDefinition } from "../test-fixtures";
 import type { ModUpdateControlProps } from "./ModUpdateControl";
@@ -223,6 +223,39 @@ it("filters the catalog before paging and preserves a filtered second page when 
   await expect.element(page.getByText("22 mods")).toBeVisible();
   host.style.inlineSize = "320px";
   expect(host.scrollWidth).toBe(host.clientWidth);
+});
+
+it("continues a large catalog past its first bounded read and finds the 601st mod", async () => {
+  const first = Array.from({ length: 600 }, (_, index) =>
+    mod(String(index + 1), `Mod ${index + 1}`),
+  );
+  const read = vi
+    .spyOn(desktopApi, "modProviderCatalog")
+    .mockResolvedValueOnce({
+      ...catalog(first),
+      complete: false,
+      next_page: 13,
+      expected_total: 601,
+    })
+    .mockResolvedValueOnce({
+      ...catalog([mod("601", "Deep match")]),
+      complete: true,
+      expected_total: 601,
+    });
+  await render();
+  await page.getByRole("searchbox", { name: "Search mods" }).fill("Deep match");
+  await expect.element(page.getByRole("button", { name: /Deep match/ })).toBeVisible();
+  expect(read).toHaveBeenNthCalledWith(2, "shipwright", "gamebanana", 7, 13);
+});
+
+it("keeps a continued catalog partial when the provider total changes between reads", () => {
+  const merged = mergeCatalogReads(
+    { ...catalog([mod("1", "One")]), complete: false, next_page: 2, expected_total: 2 },
+    { ...catalog([mod("2", "Two")]), complete: true, expected_total: 3 },
+  );
+  expect(merged.projects).toHaveLength(2);
+  expect(merged.complete).toBe(false);
+  expect(merged.next_page).toBeNull();
 });
 
 it("queues exact identities, undoes one addition and applies the remainder as a single draft", async () => {

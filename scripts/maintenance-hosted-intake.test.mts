@@ -6,7 +6,9 @@ import {
   hostedIntakeObservation,
   hostedIntakeRevision,
   hostedIntakeSummary,
+  ReceiptReconciliationFailure,
 } from "./maintenance-hosted-intake.mts";
+import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { GitHubApiError } from "./github-operation.mts";
 import type { HostedRequestStatus, HostedStatusAll } from "./hosted-discovery-intake.mts";
 
@@ -165,6 +167,105 @@ void test("drift and unavailable reads are failed runs that observe nothing", as
   const complete = await hostedIntakeObservation(() => Promise.resolve(read([row(10)])));
   assert.equal(complete.failed, false);
   assert.equal(complete.facts.size, 1);
+});
+
+void test("scheduled receipt recovery shares the native read and retains source facts on a failed transaction", async () => {
+  const ticket = { request: 10, binding: "a".repeat(64) };
+  const snapshot = read([
+    row(10, { audit_retry: ticket }),
+    row(11, { withdrawn: true, audit_retry: ticket }),
+    row(12, { superseded_by: [14], audit_retry: ticket }),
+  ]);
+  let reads = 0;
+  const collect = () => {
+    reads++;
+    return Promise.resolve(snapshot);
+  };
+  const success = await hostedIntakeObservation(collect, async (queue) => {
+    assert.equal(queue, snapshot);
+    return { inspected: 1, completed: ["bound receipt"] };
+  });
+  assert.equal(reads, 1);
+  assert.deepEqual(success.auditContinuations, [ticket]);
+  assert.deepEqual(success.receipts, {
+    status: "passed",
+    inspected: 1,
+    completed: ["bound receipt"],
+  });
+  const failure = await hostedIntakeObservation(collect, async () => {
+    throw new Error("unavailable");
+  });
+  assert.equal(failure.failed, false);
+  assert.equal(failure.facts.size, 3);
+  assert.deepEqual(failure.auditContinuations, [ticket]);
+  assert.deepEqual(failure.receipts, { status: "failed", reason: "unexpected" });
+  assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
+  const held = await hostedIntakeObservation(collect, async () => ({
+    inspected: 2,
+    completed: ["independent receipt"],
+    pending: 1,
+  }));
+  assert.deepEqual(held.auditContinuations, [ticket]);
+  assert.deepEqual(held.receipts, {
+    status: "failed",
+    reason: "proof-pending",
+    inspected: 2,
+    completed: ["independent receipt"],
+    pending: 1,
+  });
+  assert.equal(held.gaps[0]?.code, "intake-receipt-fence");
+  let calls = 0;
+  const partial = await hostedIntakeObservation(
+    async () =>
+      read([
+        row(10, { audit_retry: ticket }),
+        {
+          request_comment: 20,
+          withdrawn: false,
+          superseded_by: [],
+          error: { code: "operation_failed", message: "Unrelated retained receipt is invalid" },
+        },
+      ]),
+    async () => {
+      calls++;
+      return { inspected: 0, completed: [] };
+    },
+  );
+  assert.deepEqual(partial.auditContinuations, [ticket]);
+  assert.deepEqual(partial.receipts, { status: "unavailable" });
+  assert.equal(calls, 0);
+  const unavailable = await hostedIntakeObservation(
+    async () => {
+      throw new Error("read failed");
+    },
+    async () => {
+      calls++;
+      return { inspected: 0, completed: [] };
+    },
+  );
+  assert.deepEqual(unavailable.receipts, { status: "unavailable" });
+  assert.equal(calls, 0);
+});
+
+void test("receipt failure reports its phase and role denial without leaking store text", async () => {
+  const failure = await hostedIntakeObservation(
+    async () => read([row(10)]),
+    async () => {
+      throw new ReceiptReconciliationFailure(
+        "read-plans",
+        new MaintenanceStoreError(
+          'psql exited 3: permission denied to set role "portcove_maintenance_executor"; private receipt',
+        ),
+      );
+    },
+  );
+  assert.deepEqual(failure.receipts, {
+    status: "failed",
+    phase: "read-plans",
+    reason: "executor-role-denied",
+  });
+  assert.doesNotMatch(JSON.stringify(failure), /private receipt/u);
+  assert.equal(failure.gaps[0]?.code, "receipt-reconciliation");
 });
 
 void test("attention reuses the executor classification and withdrawn requests stay quiet", () => {

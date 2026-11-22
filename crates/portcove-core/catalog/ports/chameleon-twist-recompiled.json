@@ -36,7 +36,7 @@
         }
       ],
       "warnings": [
-        "The existing managed-artifact integrity hold remains unresolved. No publisher-authenticated expected digest, curated trust approval or native/gameplay acceptance is established by these instructions.",
+        "This guide covers a copy you manage yourself. On Windows, if Chameleon Twist JP Recompiled appears in the game’s available ports, choose it for the verified v0.1 package. Both routes need the supported Japanese original.",
         "Keep that actual location and originals recoverable before replacing anything. Registration and Play stay separate; Portcove does not adopt, back up, roll back or delete these external files."
       ],
       "help_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp/blob/a2c5cbb4fbf3ca01a2f8bec4614c5aab1eb188f9/README.md",
@@ -47,7 +47,16 @@
         }
       ]
     },
-    "download_block_reason": "The v0.1 Windows ZIP still has no published independently expected SHA-256, preserving the existing artifact-integrity hold. Its pinned source also carries separately authored Chiaro font files whose applicable permission needs review; the parent GPL does not settle that scope. Keep a permitted existing copy. Reconsider fresh acquisition after the required artifact trust and affected component permissions are established or the package is appropriately replaced.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Only the signed Chameleon Twist JP Recompiled route can verify the approved v0.1 Windows ZIP. Here you can register a permitted copy you already have. The upstream package includes separately authored Chiaro fonts.",
+        "tracking_issue": 125
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "chameleon-twist",

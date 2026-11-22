@@ -18,7 +18,16 @@
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64"],
     "availability": "packages",
-    "download_block_reason": "All three v1.0.2 packages include an original Russian game font. Portcove Download requires permission covering the bundled original game data or a replacement package without that data.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "All three v1.0.2 packages include an original Russian game font. Portcove Download requires permission covering the bundled original game data or a replacement package without that data.",
+        "tracking_issue": 5434
+      }
+    ],
     "setup_url": "https://github.com/Kippykip/OpenMB2/blob/v1.0.2/README.md#instructions",
     "release_url": "https://github.com/Kippykip/OpenMB2/releases/tag/v1.0.2",
     "manual_setup": {

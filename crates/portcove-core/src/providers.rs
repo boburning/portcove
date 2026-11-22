@@ -77,6 +77,23 @@ impl ReleaseProvider for CompositeReleaseProvider {
             .await
     }
 
+    async fn resolve_explicit_first_variant(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        variant: &crate::ManagedPackageVariant,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.provider != ReleaseSource::Github {
+            return Err(PortcoveError::unsupported(
+                "the release provider cannot resolve an explicit native package",
+            ));
+        }
+        self.github
+            .resolve_explicit_first_variant(port, channel, platform, variant)
+            .await
+    }
+
     async fn resolve_shape_fallback(
         &self,
         port: &PortDefinition,
@@ -93,6 +110,10 @@ impl ReleaseProvider for CompositeReleaseProvider {
         self.github
             .resolve_shape_fallback(port, platform, scope, withheld)
             .await
+    }
+
+    fn forecast_explicit_variant_request_cost(&self) -> crate::RequestCostForecast {
+        self.github.forecast_explicit_variant_request_cost()
     }
 
     fn cached_release_notes(
@@ -215,6 +236,7 @@ mod tests {
                 rolling_tag: None,
                 github_other_stream_tag_prefixes: BTreeMap::new(),
                 asset_hints: BTreeMap::new(),
+                reviewed_package_choices_v2: None,
                 linux_tar_xz: false,
                 tar_xz_platforms: Vec::new(),
                 archive_file_links: false,
@@ -274,6 +296,7 @@ mod tests {
             upstream_active_reviewed: false,
             mod_provider_bindings: None,
             legacy_mod_provider_held: false,
+            mod_loader: None,
             managed_acquisition_hold: None,
             reviewed_package_layouts: BTreeMap::new(),
             presentation: None,

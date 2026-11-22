@@ -21,6 +21,7 @@ import { readDiscoveryCache } from "./discovery-cache.mts";
 import { HostedIntakeBridge } from "./hosted-discovery-intake.mts";
 import type { HostedRoadmapOperations } from "./hosted-discovery-intake.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
+import { scopedIssueItemData } from "./fixtures/roadmap-fixtures.mts";
 import { runScopedDoctor } from "./roadmap-scoped.mts";
 import {
   discoveryDeliveryCost,
@@ -1002,17 +1003,24 @@ void test("interrupted state preserves checkpoint work, matching review and the 
   f.rows[0]!.title = "[Port] Fixture";
   f.rows[0]!.body = body;
   f.project.length = 0;
-  session.client.graphql = f.client.graphql;
-  session.client.completeProjectContext = f.client.completeProjectContext;
-  session.client.itemList = f.client.itemList;
-  session.client.repositoryIssue = async () => ({
+  const issue = {
     number: 42,
     node_id: "I42",
     html_url: f.rows[0]!.url,
     title: "[Port] Fixture",
     body,
     state: "open",
-  });
+  };
+  let registered = 0;
+  session.client.graphql = async (query, variables) => {
+    if (!query.includes("query ScopedProjectItem")) return f.client.graphql(query, variables);
+    assert.deepEqual(variables, { id: "P42" });
+    assert.equal(registered, 1);
+    return scopedIssueItemData("PROJECT", "P42", issue);
+  };
+  session.client.completeProjectContext = f.client.completeProjectContext;
+  session.client.itemList = f.client.itemList;
+  session.client.repositoryIssue = async () => issue;
   session.sdk.request = (
     await fixtureGitHub(() => ({
       resources: {
@@ -1030,8 +1038,8 @@ void test("interrupted state preserves checkpoint work, matching review and the 
     public: true,
     repositories: { nodes: [] },
   });
-  let registered = 0;
-  session.client.ensureIssueItem = async () => {
+  session.client.ensureIssueItem = async (contentId) => {
+    assert.equal(contentId, issue.node_id);
     registered++;
     return { id: "P42" };
   };

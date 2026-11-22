@@ -1,0 +1,80 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "linewars-ii-sdl3",
+    "project_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL",
+    "name": "LineWars II SDL3",
+    "summary": "Fly combat missions in LineWars II using the freeware SDL3 port for Windows and Linux.",
+    "issue_number": 6090,
+    "listed_at": "2026-11-20",
+    "original_game_title": "LineWars II",
+    "availability": "packages",
+    "release_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/releases",
+    "setup_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/tree/v1.0.0",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": ["LineWars2-SDL3-", "-win64.zip"],
+      "linux-x86-64": ["LineWars2-SDL3-", "-linux-x86_64.tar.gz"]
+    },
+    "original_game": {
+      "format_version": 1,
+      "id": "linewars-ii",
+      "evidence_urls": [
+        "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/NOTICE.md",
+        "https://github.com/fredangstadt-lang/LineWarsII-SDL"
+      ],
+      "source_editions": []
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/fredangstadt-lang/LineWarsII-SDL/blob/v1.0.0/README.md",
+      "steps": [
+        {
+          "title": "Extract the publisher package",
+          "instruction": "Choose the Windows x64 ZIP or the Linux x64 archive. The Linux build requires glibc 2.39 or later. Keep game.dat and the matching SDL3 library in the LineWars2 folder with the player."
+        },
+        {
+          "title": "Register the extracted player",
+          "instruction": "In Portcove, select linewars2.exe on Windows or linewars2 on Linux. Use the writable LineWars2 folder as the working directory. Review the registration, then select Play."
+        }
+      ],
+      "warnings": [
+        "The original game and its data are supplied with permission for freeware use. Keep the bundled notices. The player includes the AT&T PC 6300 and IBM VGA bitmap fonts."
+      ],
+      "references": [
+        {
+          "title": "Keep your settings",
+          "instruction": "The player stores settings.dat beside its executable. When replacing a copy, preserve that file, the complete working folder and the separate LW2/LineWars2 preferences folder."
+        }
+      ]
+    },
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+        "tracking_issue": 6090
+      }
+    ]
+  },
+  "external_registration_v1": true,
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "fredangstadt-lang/LineWarsII-SDL"
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Extract the official LineWars II SDL3 package. Keep game.dat and the SDL3 library beside the player. Select linewars2.exe on Windows or linewars2 on Linux and choose its writable folder as the working directory. You manage updates and backups. Removing the registration keeps your files."
+    }
+  }
+}

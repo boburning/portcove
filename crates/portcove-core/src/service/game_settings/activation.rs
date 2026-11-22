@@ -303,7 +303,8 @@ impl PortcoveService {
         let target_contract = self.persistence_contract_for_install(staged)?;
         for port in [&prior_contract.port, &target_contract.port] {
             if port.runtime_data_policy.is_some()
-                || crate::persistence::requires_restore_receipt(port)
+                || (crate::persistence::requires_restore_receipt(port)
+                    && !crate::game_settings::admits_mirrored_package_defaults(port))
                 || !port.persistent_paths.contains(&file.path)
                 || port
                     .persistent_paths
@@ -338,8 +339,8 @@ impl PortcoveService {
             ) else {
                 return Err(hold(file, "divergent-player-settings-copies"));
             };
-            if prior_contract.port.adapter != AdapterKind::NativePortable
-                || target_contract.port.adapter != AdapterKind::NativePortable
+            if !crate::game_settings::admits_mirrored_package_defaults(&prior_contract.port)
+                || !crate::game_settings::admits_mirrored_package_defaults(&target_contract.port)
             {
                 return Err(hold(file, "divergent-player-settings-copies"));
             }
@@ -411,8 +412,8 @@ impl PortcoveService {
             }
         }
         let Some(player) = player.as_deref() else {
-            if prior_contract.port.adapter != AdapterKind::NativePortable
-                || target_contract.port.adapter != AdapterKind::NativePortable
+            if !crate::game_settings::admits_mirrored_package_defaults(&prior_contract.port)
+                || !crate::game_settings::admits_mirrored_package_defaults(&target_contract.port)
             {
                 return Err(hold(file, "missing-player-evidence"));
             }

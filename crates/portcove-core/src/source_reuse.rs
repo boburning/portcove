@@ -163,7 +163,14 @@ impl PortcoveService {
         let [contract] = contracts.as_slice() else {
             return Ok(());
         };
-        if listed_variant_support(contract, classification) != Some(false) {
+        let compatibility = listed_variant_support(contract, classification);
+        let requires_legacy_edition = self
+            .catalog()
+            .n64_legacy_migrations(profile_id)
+            .next()
+            .is_some();
+        if compatibility != Some(false) && (!requires_legacy_edition || compatibility == Some(true))
+        {
             return Ok(());
         }
         let required = catalog
@@ -196,19 +203,19 @@ fn listed_variant_support(
     contract: &crate::PortSourceContract,
     classification: &SourceClassification,
 ) -> Option<bool> {
-    match classification {
-        SourceClassification::Recognized { identity }
-            if !contract.supported_variant_ids.is_empty() =>
-        {
-            Some(
-                contract
-                    .supported_variant_ids
-                    .contains(&identity.variant_id),
-            )
-        }
-        // No list is not a known exclusion, including validator-only contracts.
-        _ => None,
+    let SourceClassification::Recognized { identity } = classification else {
+        return None;
+    };
+    // Reuse review has no selected release. Recognition data leaves
+    // compatibility open for both listed and unlisted editions.
+    if contract.variant_list_recognition_only || contract.supported_variant_ids.is_empty() {
+        return None;
     }
+    Some(
+        contract
+            .supported_variant_ids
+            .contains(&identity.variant_id),
+    )
 }
 
 fn application_review(
@@ -413,6 +420,92 @@ pub(crate) mod tests {
         let _guard = service
             .lock_source_reuse("2ship2harkinian", &review.reference, None)
             .unwrap();
+    }
+
+    #[test]
+    fn an_optional_recognition_miss_preserves_setup_review_and_the_saved_file() {
+        let (_temporary, mut service, path) = fixture("ntsc-u-gamecube");
+        let mut document = service.catalog().authoritative_document();
+        let contract = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .contracts
+            .iter_mut()
+            .find(|contract| contract.port_id == "zelda64-recomp")
+            .unwrap();
+        contract.variant_list_recognition_only = true;
+        contract.applicability = vec![crate::SourceContractApplicability {
+            upstream_ref: "fixture-v1".into(),
+            artifact_sha256: Some("a".repeat(64)),
+        }];
+        service.replace_catalog_for_test(Catalog::from_document(document).unwrap());
+
+        let review = service.review_source_reuse("majoras-mask").unwrap();
+        let application = review
+            .applications
+            .iter()
+            .find(|application| application.port_id == "zelda64-recomp")
+            .unwrap();
+        assert_eq!(
+            application.compatibility,
+            SourceReuseCompatibility::Potential
+        );
+        assert!(application.can_review_setup);
+
+        let mut listed = review
+            .inspection
+            .applications
+            .iter()
+            .find(|entry| entry.port_id == "zelda64-recomp")
+            .unwrap()
+            .clone();
+        listed.contract.supported_variant_ids = vec!["ntsc-u-gamecube".into()];
+        let listed = application_review(&review.inspection, &listed);
+        assert_eq!(listed.compatibility, SourceReuseCompatibility::Potential);
+        assert!(listed.can_review_setup);
+        let classification = &review
+            .inspection
+            .inspection
+            .as_ref()
+            .unwrap()
+            .assessment
+            .classification;
+        service
+            .require_original_setup_compatibility(
+                service.catalog().port("zelda64-recomp").unwrap(),
+                classification,
+            )
+            .unwrap();
+        let _guard = service
+            .lock_source_reuse("zelda64-recomp", &review.reference, Some(&path))
+            .unwrap();
+        let assess = |version, hash| {
+            crate::source_inspection::registered_launch_assessment(
+                service.catalog(),
+                &review.registration.profile_id,
+                SourceHealth::Current,
+                Some(&review.registration),
+                "zelda64-recomp",
+                PortSourceRole::Game,
+                Some((version, hash)),
+            )
+        };
+        let catalog_hash = "a".repeat(64);
+        let other_hash = "b".repeat(64);
+        let bound = assess("fixture-v1", &catalog_hash);
+        assert!(matches!(
+            bound.contract,
+            crate::SourceContractResult::Informational { .. }
+        ));
+        assert!(!bound.known_input_failure());
+        let other_build = assess("fixture-v1", &other_hash);
+        assert_eq!(
+            other_build.contract,
+            crate::SourceContractResult::UnreviewedForRelease
+        );
+        assert!(!other_build.known_input_failure());
+        assert_eq!(fs::read(path).unwrap(), GC_BYTES);
     }
 
     #[test]

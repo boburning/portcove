@@ -452,14 +452,13 @@ export async function gameFirstInstalledScenario(context: GameFirstInstalledCont
         10_000,
       );
       const capture = async (name: string, selector: string, expectedSize: number) => {
-        const target = await browser.wait(until.elementLocated(By.css(selector)), 15_000);
+        await browser.wait(until.elementLocated(By.css(selector)), 15_000);
         const captured = await captureGameFirstTarget({
           browser,
           output,
           name,
           scenario: gameFirstInstalledScenarioId,
           target: selector,
-          element: target,
           readiness: () =>
             executeBrowserScript(
               browser,

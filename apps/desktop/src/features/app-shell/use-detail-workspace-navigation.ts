@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { focusAndReveal, focusRegion, navigationScope } from "../../focus";
 import { scrollWorkspaceTo, workspaceScrollTop } from "../../workspace-scroll";
 import type { DetailDestination } from "../../view-model";
-import type { DetailOpening } from "../game-details/detail-sections";
+import type { DetailOpening, DetailSection } from "../game-details/detail-sections";
 
 type DetailReturn = {
   portId: string;
@@ -181,5 +181,20 @@ export function useDetailWorkspaceNavigation(
     return origin;
   }, []);
 
-  return { close, invalidate, open, replace, opening };
+  const captureReturn = (section?: DetailSection) => {
+    const origin = current.current;
+    if (!origin) return undefined;
+    return () => {
+      const token = ++sequence.current;
+      current.current = { ...origin, token };
+      setOpening({
+        token,
+        destination: section ?? opening?.destination,
+        originKey: origin.originKey,
+      });
+      setSelectedId(origin.portId);
+    };
+  };
+
+  return { close, invalidate, open, replace, opening, captureReturn };
 }

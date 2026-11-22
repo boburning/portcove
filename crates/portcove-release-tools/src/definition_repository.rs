@@ -21,6 +21,7 @@ mod bundle;
 mod io;
 mod key_inventory;
 mod policy;
+mod public_history;
 mod repository;
 mod signing;
 pub use key_inventory::{CatalogKeyInventory, inspect_catalog_key_inventory};
@@ -37,7 +38,8 @@ const DEFINITION_INDEX_MAX: u64 = 4 * 1024 * 1024;
 const DEFINITION_CONTENT_MAX: u64 = 16 * 1024 * 1024;
 const BUNDLE_MAX: u64 = 32 * 1024 * 1024;
 const BUNDLE_FILES: usize = 16385;
-const PUBLIC_REPOSITORY_MAX_BYTES: u64 = 256 * 1024 * 1024;
+// Leave room for the other Pages components below the measured site bound.
+const PUBLIC_REPOSITORY_MAX_BYTES: u64 = 768 * 1024 * 1024;
 const PUBLIC_REPOSITORY_MAX_FILES: usize = 65536;
 
 /// Authenticate prepared public inputs and check that their retained targets fit.
@@ -187,7 +189,7 @@ struct Context {
     expires: [Timestamp; 4],
     at: Timestamp,
     inputs: Vec<PathBuf>,
-    prior: Files,
+    prior: public_history::PublicHistory,
     readback: Vec<(PathBuf, u64, String)>,
     trees: Vec<(PathBuf, usize, u64, String)>,
 }
@@ -282,7 +284,7 @@ async fn load_context(path: &Path) -> Result<Context> {
         expires,
         at,
         inputs: vec![],
-        prior: Files::new(),
+        prior: public_history::PublicHistory::default(),
         readback,
         trees: vec![],
     };
@@ -294,7 +296,7 @@ async fn load_context(path: &Path) -> Result<Context> {
             previous.clone(),
             PUBLIC_REPOSITORY_MAX_FILES,
             PUBLIC_REPOSITORY_MAX_BYTES,
-            sha(&serde_json::to_vec(&bundle::identities(&context.prior))?),
+            sha(&serde_json::to_vec(&context.prior.identities())?),
         ));
         inputs.push(previous);
     } else if !config.previous_repository.is_null() {
@@ -337,7 +339,7 @@ fn recheck(context: &Context) -> Result<()> {
     }
     for (path, count, maximum, digest) in &context.trees {
         expected(
-            &serde_json::to_vec(&bundle::identities(&io::tree(path, *count, *maximum)?))?,
+            &serde_json::to_vec(&io::inventory(path, *count, *maximum)?)?,
             digest,
         )?;
     }

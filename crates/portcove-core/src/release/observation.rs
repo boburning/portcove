@@ -433,8 +433,11 @@ fn project_channel(
             .push("authenticated-digest-requires-further-resolution".into());
         return output;
     };
-    let (candidate, asset, sha256) = if let Some(hold) = &port.managed_acquisition_hold
-        && hold.excludes(&candidate.provider.tag_name, &sha256)
+    let restrictions = crate::acquisition_restriction::EffectiveRestrictions::managed_only(port);
+    let install = crate::RestrictedOperation::Install;
+    let (candidate, asset, sha256) = if restrictions
+        .artifact_exclusion(install, &candidate.provider.tag_name, &sha256)
+        .is_some()
     {
         output
             .hold_reasons
@@ -454,12 +457,15 @@ fn project_channel(
                         ) && choose_asset(port, platform, &release.provider.assets)
                             .ok()
                             .is_some_and(|asset| {
-                                hold.reviewed_artifacts
-                                    .iter()
+                                restrictions
+                                    .permitted_artifacts(
+                                        install,
+                                        crate::acquisition_restriction::Knowledge::Known(platform),
+                                    )
                                     .any(|artifact| artifact.version == release.provider.tag_name)
                                     && (asset.digest.as_deref().and_then(parse_digest).is_none()
                                         || super::reviewed_fallback_digest(
-                                            hold,
+                                            &restrictions,
                                             &release.provider,
                                             asset,
                                         )
@@ -481,7 +487,9 @@ fn project_channel(
         }
         let asset = choose_asset(port, platform, &fallback.provider.assets)
             .expect("reviewed fallback has a selected asset");
-        let Some(digest) = super::reviewed_fallback_digest(hold, &fallback.provider, asset) else {
+        let Some(digest) =
+            super::reviewed_fallback_digest(&restrictions, &fallback.provider, asset)
+        else {
             output
                 .hold_reasons
                 .push("reviewed-fallback-checksum-requires-further-resolution".into());

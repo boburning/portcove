@@ -558,6 +558,11 @@ export async function scanDriftTargets(
         ({ key, target }) => key !== resume && target.asset.size <= archiveLimit,
       );
       continuation[tier] = resume === routes[0]?.key ? (next?.key ?? resume) : resume;
+    } else {
+      // A bounded handoff can leave the previous deferred route out of this tier.
+      const prior = priorContinuation[tier];
+      if (prior !== undefined && !routes.some(({ key }) => key === prior))
+        continuation[tier] = prior;
     }
   }
   return { observations, unassessed, attempted_bytes: bytes, continuation };

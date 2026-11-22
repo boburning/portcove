@@ -12,7 +12,7 @@ export const detailSections = [
 export type DetailSection = (typeof detailSections)[number];
 export type DetailOpening = {
   token: number;
-  destination?: DetailDestination | undefined;
+  destination?: DetailDestination | DetailSection | undefined;
   originKey?: string | undefined;
 };
 
@@ -45,7 +45,7 @@ export function initialDetailSection({
   needsFiles,
   hasUpdate,
 }: {
-  destination?: DetailDestination | undefined;
+  destination?: DetailDestination | DetailSection | undefined;
   needsFiles: boolean;
   hasUpdate: boolean;
 }): DetailSection {
