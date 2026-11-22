@@ -1220,6 +1220,10 @@ to its own operation, generation and accepted preview fingerprint.
 
 ### Library identity and artwork feedback
 
+A grouped card keeps the shared game title. When it represents a selected or
+installed port, its Cover resolves for that exact port through the shared artwork
+cache. Each port retains its own manual choice and suppression.
+
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
 
 Restore review inventories the supplied content and destination; an existing empty folder can be planned. Review does not verify a complete recovery copy. Execution verifies recorded installed payloads before publication; manual copying and unrecorded external content remain independently unverified.
