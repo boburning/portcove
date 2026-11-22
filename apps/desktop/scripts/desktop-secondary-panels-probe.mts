@@ -273,16 +273,23 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
         return original.call(window, input, init);
       }
       if (!sameMetadataPath(args.path, options.refusedMetadataPath)) {
-        // Save dialogs can return a different path spelling. Keep diagnostics
-        // bounded and retain no unrelated filesystem path from a mismatch.
         if (typeof args.path !== "string") return deny("metadata path missing");
-        const leaf = args.path.split(/[\\/]/u).at(-1);
-        const expectedLeaf = [options.metadataPath, options.refusedMetadataPath].some(
-          (target) => target.split(/[\\/]/u).at(-1) === leaf,
-        );
-        return deny(
-          expectedLeaf ? "unexpected metadata directory" : "unexpected metadata file name",
-        );
+        const leaf = (value: string) => value.split(/[\\/]/u).at(-1) ?? "";
+        const observed = leaf(args.path);
+        const expected = [options.metadataPath, options.refusedMetadataPath].map(leaf);
+        // Report only known picker transformations. Never retain the returned path.
+        if (expected.includes(observed)) return deny("unexpected metadata directory");
+        if (expected.some((name) => name.toLowerCase() === observed.toLowerCase()))
+          return deny("unexpected metadata file name casing");
+        if (observed.toLowerCase() === "portcove-library.json")
+          return deny("metadata picker returned the default file name");
+        if (expected.some((name) => observed === name + ".json"))
+          return deny("metadata picker appended a second JSON extension");
+        if (expected.some((name) => observed === name.slice(0, -5)))
+          return deny("metadata picker removed the JSON extension");
+        if (expected.some((name) => observed === name + '"'))
+          return deny("metadata picker retained a closing quote");
+        return deny("unexpected metadata file name");
       }
       observation.outcome = "refused";
       return Promise.resolve(refusal("Owned presentation metadata export refusal."));
