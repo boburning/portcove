@@ -92,6 +92,7 @@ export function planDesktopExecution(
   const acquisitionJourney = selection.selected_scenarios.includes(
     "native-update-acquisition-lifecycle",
   );
+  const managedCopyJourney = selection.selected_scenarios.includes("native-managed-copy-result");
   const registeredSourceReuse = selection.selected_scenarios.includes(
     "native-registered-source-reuse",
   );
@@ -116,6 +117,7 @@ export function planDesktopExecution(
         "native-secondary-panel-presentation",
         "native-collection-artwork-presentation",
         "native-staged-update-composition",
+        "native-managed-copy-result",
         "native-local-artwork-picker-and-recovery",
         "native-artwork-catalog-correction",
         "native-game-first-choice-and-restart",
@@ -498,6 +500,7 @@ export function planDesktopExecution(
           "install-commit-refresh-recovery",
           "native-staged-update-composition",
           "native-update-acquisition-lifecycle",
+          "native-managed-copy-result",
         ].includes(id),
       ),
     },
@@ -568,6 +571,7 @@ export function planDesktopExecution(
       ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
       completionJourney,
       ...(acquisitionJourney ? { acquisitionJourney: true } : {}),
+      ...(managedCopyJourney ? { managedCopyJourney: true } : {}),
       ...(updateReviewJourney ? { updateReviewJourney: true } : {}),
       ...(registeredSourceReuse ? { registeredSourceReuse: true } : {}),
       ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
@@ -579,6 +583,7 @@ export function planDesktopExecution(
         sourceJourney ||
         completionJourney ||
         updateReviewJourney ||
+        managedCopyJourney ||
         usesHostPublicationHarness(selection.selected_scenarios)
           ? ["portcove-core/qualification-fixtures"]
           : [],

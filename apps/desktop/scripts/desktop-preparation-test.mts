@@ -1791,7 +1791,9 @@ export async function preparationScenarios({
           ? current
           : false;
       },
-      15_000,
+      // On hosted Windows the first post-prepare workspace read failed after
+      // 30.5 s and its retry took another 19.5 s (run 44940812838).
+      60_000,
       "Prepared Core state did not reach the rendered trial-launch action",
     );
     assert.ok(trial, "Rendered trial-launch action must be available");
@@ -1918,7 +1920,7 @@ export async function preparationScenarios({
           (await launch[0]!.getAttribute("aria-busy")) !== "true"
         );
       },
-      15_000,
+      45_000,
       "Library launch must settle before the card composition check",
     );
     const cardActions = await executeBrowserScript(
@@ -2381,7 +2383,12 @@ export async function preparationScenarios({
               async function checkFocusedResizeAt200() {
                 await browser.manage().window().setRect({ width: 1366, height: 768 });
                 const target = '.collection-entry button[aria-label^="More actions for "]';
-                const more = await browser.findElement(By.css(target));
+                let more = await browser.findElement(By.css(target));
+                const origin = await more.getAttribute("data-detail-origin");
+                assert.ok(origin, "The Library menu must expose its exact return identity");
+                const sameAction = By.css(
+                  target + "[data-detail-origin=" + JSON.stringify(origin) + "]",
+                );
                 const waitForVisibleAction = () =>
                   browser.wait(
                     () =>
@@ -2497,8 +2504,16 @@ export async function preparationScenarios({
                   { width: 960, height: 640 },
                   { width: 1366, height: 768 },
                 ]) {
+                  const priorElement = await more.getId();
                   await browser.manage().window().setRect(requestedWindow);
                   const state = await measure();
+                  // The native viewport may replace the DOM node. Observe the same
+                  // logical action without focusing it or choosing another card.
+                  more = await browser.wait(
+                    until.elementLocated(sameAction),
+                    5_000,
+                    "The same Library menu did not survive resizing",
+                  );
                   const continuity = await executeBrowserScript(
                     browser,
                     launchContinuityPoint,
@@ -2506,29 +2521,39 @@ export async function preparationScenarios({
                   );
                   observations.push({
                     phase: "focused-resize-200",
+                    origin_element_replaced: (await more.getId()) !== priorElement,
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
                     ...state,
                     continuity,
                   });
                   await waitForVisibleAction();
+                  const settled = await measure();
+                  const settledContinuity = await executeBrowserScript(
+                    browser,
+                    launchContinuityPoint,
+                    more,
+                  );
                   observations.push({
                     phase: "settled-focused-resize-200",
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
-                    ...(await measure()),
-                    continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                    ...settled,
+                    continuity: settledContinuity,
                   });
-                  assert.equal(state.zoom, "200");
-                  assert.equal(state.query, "Jak");
-                  assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
-                  assert.equal(state.entries, 2);
-                  assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                  assert.equal(settled.zoom, "200");
+                  assert.equal(settled.query, "Jak");
+                  assert.equal(settled.layout, layout === "Covers" ? "covers" : "rows");
+                  assert.equal(settled.entries, 2);
                   assert.ok(
-                    continuity.originFocused && continuity.originConnected,
-                    JSON.stringify(continuity),
+                    settled.scrollWidth <= settled.contentWidth + 1,
+                    JSON.stringify(settled),
                   );
-                  assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+                  assert.ok(
+                    settledContinuity.originFocused && settledContinuity.originConnected,
+                    JSON.stringify(settledContinuity),
+                  );
+                  assert.ok(settledContinuity.documentFocused, JSON.stringify(settledContinuity));
                 }
                 // One scoped target avoids claiming that the whole scrollable collection
                 // fits above the fold. The screenshot still retains the native viewport.
