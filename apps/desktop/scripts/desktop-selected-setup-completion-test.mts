@@ -113,7 +113,7 @@ interface CompletionObservations {
     | { tag: string; id: string; text: string | undefined; ariaLabel: string | null };
   return_focus?: ReturnType<typeof observeCompletionReturnFocus>;
   returned_choices?: string[];
-  alternative_review_diagnostics?: unknown;
+  returned_review_diagnostics?: Partial<Record<"alternative" | "bios" | "restarted-bios", unknown>>;
   returned_alternative_review?: {
     status: PortStatus;
     snapshot: GameFileScanSnapshot;
@@ -841,6 +841,38 @@ export async function selectedSetupCompletionScenario({
       );
 
       const installDialog = By.css('[aria-labelledby="install-review-title"]');
+      const waitForReturnedInstallReview = async (
+        portName: string,
+        stage: "alternative" | "bios" | "restarted-bios",
+      ) => {
+        try {
+          await browser.wait(
+            until.elementLocated(installDialog),
+            45_000,
+            "The exact install review must open after returning to " + portName,
+          );
+        } catch (error) {
+          try {
+            const diagnostics = await executeBrowserScript(browser, () =>
+              [...document.querySelectorAll('[role="alert"], [role="status"]')]
+                .map((node) => node.textContent?.trim().slice(0, 240))
+                .filter(Boolean)
+                .slice(0, 15),
+            );
+            report.observations.returned_review_diagnostics = { [stage]: diagnostics };
+          } catch (diagnosticError) {
+            console.error("Unable to collect returned install review diagnostics", diagnosticError);
+          }
+          throw error;
+        }
+        // The review occludes the detail title. Read the exact rendered identity.
+        assert.equal(
+          (
+            await browser.findElement(By.id("port-detail-title")).getAttribute("textContent")
+          )?.trim(),
+          portName,
+        );
+      };
       const install = By.xpath('//button[starts-with(normalize-space(.),"Install ·")]');
       const openInstall = async (trigger?: WebElement) => {
         if (trigger) await clickVisible(browser, trigger, clickOptions);
@@ -1288,33 +1320,7 @@ export async function selectedSetupCompletionScenario({
       };
       const afterCompletion = await read("get_statuses");
       await click(button(`Review ${reviewPort.name} setup`));
-      await browser
-        .wait(
-          until.elementLocated(installDialog),
-          45_000,
-          "The exact alternative must reopen its install review after the workspace returns",
-        )
-        .catch(async (error: unknown) => {
-          try {
-            report.observations.alternative_review_diagnostics = await executeBrowserScript(
-              browser,
-              () =>
-                [...document.querySelectorAll('[role="alert"], [role="status"]')]
-                  .map((node) => node.textContent?.trim().slice(0, 240))
-                  .filter(Boolean)
-                  .slice(0, 15),
-            );
-          } catch (diagnosticError) {
-            console.error("Unable to collect alternative review diagnostics", diagnosticError);
-          }
-          throw error;
-        });
-      // The open review covers the detail page, so WebDriver reports its title as
-      // not displayed; textContent still identifies which game the review is for.
-      assert.equal(
-        (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
-        reviewPort.name,
-      );
+      await waitForReturnedInstallReview(reviewPort.name, "alternative");
       await click(button("Cancel review"));
       await browser.wait(
         async () =>
@@ -1505,13 +1511,7 @@ export async function selectedSetupCompletionScenario({
       const statusesBeforeBiosPlan = await read("get_statuses");
       const acquisitionsBeforeBiosPlan = fixture.requests.length;
       await click(button(`Review ${fixture.refreshPort.name} setup`));
-      await browser.wait(until.elementLocated(installDialog), 15_000);
-      // The install dialog covers the detail title, and getText() omits occluded
-      // text (hosted run 43646110119); read the rendered text content instead.
-      assert.equal(
-        (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
-        fixture.refreshPort.name,
-      );
+      await waitForReturnedInstallReview(fixture.refreshPort.name, "bios");
       const biosPlan = await read("plan_port", {
         portId: fixture.refreshPort.id,
         channel: "stable",
@@ -1663,7 +1663,7 @@ export async function selectedSetupCompletionScenario({
         By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
       );
       await restartClick(restartButton(`Review ${fixture.refreshPort.name} setup`));
-      await browser.wait(until.elementLocated(installDialog), 15_000);
+      await waitForReturnedInstallReview(fixture.refreshPort.name, "restarted-bios");
       const restoredPlan = await read("plan_port", {
         portId: fixture.refreshPort.id,
         channel: "stable",
