@@ -2433,6 +2433,55 @@ tag prefixes. Core excludes these tags even before asset collection. Releases
 in the selected stream with incomplete package evidence still hold. Review the
 existing tag history before adding a prefix and retain exact package verification.
 
+#### Artifact roles and fact sources
+
+Core gives every release asset it classifies a typed role, target operating
+system, architecture and fact source (`crates/portcove-core/src/route_facts.rs`).
+Only a `desktop-game-runtime` role may become a launch target. A consumer
+checks a fact's `source` before treating its role as authorized.
+
+Sources are consulted in this fixed precedence; the first with a definite role
+wins:
+
+1. `release-metadata`: machine-readable metadata the release publishes.
+2. `exact-release-structured`: a reviewed observation of the exact archive
+   bytes, such as a [generated package shape](#generated-reviewed-package-shapes).
+   Its player candidates exclude toolchain, installer, server and
+   development-tool programs beside the player.
+3. `provider-cross-reference`: another provider's reviewed record.
+4. `family-extractor`: a bounded, versioned extractor for one release family.
+5. `stable-declaration`: a reviewed selector of the route matched the asset,
+   such as every reviewed asset hint for the platform or a curated pin.
+6. `filename-suggestion`: filename tokens, versioned by `rule_version`.
+
+A filename suggestion never authorizes a runtime. Selection by generic
+filename scoring, without a matching reviewed selector, records only a
+filename suggestion and keeps today's selection. Two authorizing sources that
+disagree about the role make the role unknown; when authorizing sources
+disagree about the host, the host is unknown rather than a refusal.
+
+What this release enforces:
+
+- A package named only for another operating system is never selected for this
+  host.
+- A release whose players are all for other hosts (another desktop, Android,
+  iOS or a console) is outside this platform's stream. A fresh install takes the
+  older release this host can use; an installation of the newer release is held
+  with `installed-release-newer-than-host-candidate`, never offered the older
+  one as an update.
+- Server, checksum, signature, symbol, source and license-compliance files keep
+  their existing exclusion from package selection.
+
+Reserved for later slices: refusing an asset whose authorized role is an
+installer, builder, importer, compiler, development tool, original-game input,
+mobile package, console output or documentation. The `wrong-role`,
+`wrong-host` and `contradictory-role` holds only fire when an authorizing
+source makes such a claim. In this slice, a reviewed package shape claims a
+desktop runtime and a matching reviewed selector claims the route's host, so
+none of the three triggers for current catalog entries. Prefer adding
+release-owned or structured facts over adding filename tokens or
+title-specific selectors.
+
 An ordinary compatible upstream release must resolve and install with the same
 application and unchanged definition. Author the reusable integration rules;
 let the existing provider observe each release's version, asset ID, exact name,

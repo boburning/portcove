@@ -3210,8 +3210,11 @@ impl PortcoveService {
         status: &PortStatus,
     ) -> Result<crate::ScopedResolvedRelease> {
         let variant = Self::saved_package_variant(port, channel, platform, status)?;
-        self.resolve_release_with_variant(port, channel, platform, variant.as_ref())
-            .await
+        let resolved = self
+            .resolve_release_with_variant(port, channel, platform, variant.as_ref())
+            .await?;
+        require_no_other_host_downgrade(status, &resolved)?;
+        Ok(resolved)
     }
 
     async fn resolve_release_with_variant(
@@ -8125,6 +8128,78 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
         .transpose()?
         .unwrap_or_else(|| "<library-default>".into());
     Ok(format!("{port_id}\n{destination}"))
+}
+
+/// The walk may pass newer releases whose players are only for another host.
+/// An installation of such a newer release keeps it: the older release this
+/// host can use is never offered to it as an update.
+fn require_no_other_host_downgrade(
+    status: &PortStatus,
+    resolved: &crate::ScopedResolvedRelease,
+) -> Result<()> {
+    let Some(active) = &status.active else {
+        return Ok(());
+    };
+    if resolved.newer_other_host_releases.contains(&active.version) {
+        return Err(PortcoveError::conflict(
+            "The installed version is newer than the latest release with a package for this computer. Portcove keeps the installed version.",
+        )
+        .detail("update_hold", "installed-release-newer-than-host-candidate")
+        .detail("installed_version", &active.version)
+        .detail("candidate_version", &resolved.release.version));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod other_host_downgrade_tests {
+    use super::*;
+
+    fn status(active: Option<&str>) -> PortStatus {
+        serde_json::from_value(serde_json::json!({
+            "port_id": "fixture", "channel": "stable", "update_policy": "notify",
+            "active": active.map(|version| serde_json::json!({
+                "id": "install", "port_id": "fixture", "version": version,
+                "path": "/fixture", "channel": "stable", "installed_at": 0,
+                "verified": true, "staged": false,
+            })),
+            "previous": null, "staged": null, "port_actions": [],
+        }))
+        .unwrap()
+    }
+
+    fn resolved(newer: &[&str]) -> crate::ScopedResolvedRelease {
+        let mut resolved = crate::ScopedResolvedRelease::legacy(ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "game-windows-x64.zip".into(),
+                url: "https://example.invalid/game-windows-x64.zip".into(),
+                size: 1,
+                sha256: "a".repeat(64),
+            },
+            uploader_continuity: None,
+        });
+        resolved.newer_other_host_releases = newer.iter().map(|tag| (*tag).into()).collect();
+        resolved
+    }
+
+    #[test]
+    fn an_installed_release_newer_than_the_host_candidate_is_held_not_downgraded() {
+        let error = require_no_other_host_downgrade(&status(Some("v2")), &resolved(&["v3", "v2"]))
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            error.details.get("update_hold").map(String::as_str),
+            Some("installed-release-newer-than-host-candidate")
+        );
+        // An older installation still receives the newest release for this host,
+        // and a fresh install takes it too (#8555 defect 1).
+        require_no_other_host_downgrade(&status(Some("v0")), &resolved(&["v2"])).unwrap();
+        require_no_other_host_downgrade(&status(None), &resolved(&["v2"])).unwrap();
+        require_no_other_host_downgrade(&status(Some("v1")), &resolved(&[])).unwrap();
+    }
 }
 
 fn first_managed_install(status: &PortStatus) -> bool {
