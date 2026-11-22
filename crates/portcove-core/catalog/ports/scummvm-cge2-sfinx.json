@@ -24,6 +24,38 @@
     "setup_url": "https://www.scummvm.org/games/#games-cge2:sfinx",
     "availability": "packages",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Get ScummVM for your system",
+          "instruction": "On ScummVM’s downloads page, choose the Windows 64-bit ZIP, your Linux distribution’s package, or the universal macOS disk image for Intel and Apple Silicon. Keep the package’s support files with the player."
+        },
+        {
+          "title": "Extract and add the game files",
+          "instruction": "On the ScummVM games page, find Sfinx and choose sfinx-en-v1.1.zip. Extract the ZIP, then use Add Game in ScummVM and select the sfinx-en-v1.1 folder from the ZIP."
+        },
+        {
+          "title": "Play again from the saved target",
+          "instruction": "Select your saved entry in ScummVM and press Start. The entry remembers the game folder. To launch directly from a frontend, run ScummVM with the saved target ID. Use Game Options in ScummVM to change the entry later."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://www.scummvm.org/games/#games-cge2:sfinx",
+      "references": [
+        {
+          "title": "Find your launch target",
+          "instruction": "ScummVM detects these files as cge2:sfinx. Run scummvm --list-targets to see the ID of the saved entry. Use that saved ID as the positional argument so ScummVM reuses its settings and data folder."
+        },
+        {
+          "title": "Update your player",
+          "instruction": "For the Windows ZIP, you replace the runtime. A Linux distribution package updates through your package manager. The official universal macOS disk image uses ScummVM’s updater. Portcove leaves this installation and its files with you."
+        },
+        {
+          "title": "Keep your saves and settings",
+          "instruction": "In Game Options, open Paths and check Save Path. If it shows Default, check Global Options. For a Default global path, use ScummVM’s documented location for your system or choose a save folder explicitly. Global Options also shows the configuration file path. Back up both before updating."
+        }
+      ]
+    },
     "implementation": {
       "format_version": 1,
       "methods": [
@@ -46,10 +78,6 @@
         }
       ]
     }
-  },
-  "scummvm_game_setup_v1": {
-    "archive": "sfinx-en-v1.1.zip",
-    "folder": "sfinx-en-v1.1"
   },
   "upstream_lineage": {
     "format_version": 1,

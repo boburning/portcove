@@ -18,13 +18,6 @@ import { readUpstreamObservations } from "./maintenance-upstream.mts";
 import type { UpstreamInput } from "./maintenance-upstream.mts";
 import { copyPriorRepository, publishedTargets } from "./catalog-publish.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import {
-  observeScummvmGameData,
-  projectScummvmGameData,
-  projectScummvmPreparation,
-  withoutScummvmGameData,
-  type ScummvmGameDataObservation,
-} from "./scummvm-game-data-observation.mts";
 
 import {
   compactListingCarrier,
@@ -283,7 +276,6 @@ export function projectListingDelivery(
   now = Date.now(),
   reviewedWithdrawals: readonly string[] = [],
   requireComplete = false,
-  scummvmGameData?: ScummvmGameDataObservation,
 ) {
   const raw = directory(canonical);
   const previousDocument = previous
@@ -363,7 +355,7 @@ export function projectListingDelivery(
       }
       const prior =
         old &&
-        listingDeclarationHash(withoutScummvmGameData(old, comparable)) ===
+        listingDeclarationHash(old) ===
           listingDeclarationHash(comparable) &&
         isRecord(old.upstream_observation)
           ? old.upstream_observation
@@ -385,7 +377,6 @@ export function projectListingDelivery(
         result.upstream_observation = structuredClone(proposed);
       if (result.upstream_observation !== undefined)
         result.upstream_observation = omitUnknownAssetDigests(result.upstream_observation);
-      projectScummvmPreparation(result, old, scummvmGameData);
       return {
         listing: result,
         prior,
@@ -427,30 +418,6 @@ export function projectListingDelivery(
       }
     : fitListingAdmissions(proposedRows, envelopeBytes, byteLimit, now);
   listings.sort((a, b) => String(a.id).localeCompare(String(b.id), "en"));
-  // Spend only the bytes left after the ordinary identity and observation
-  // admission decisions. Extra guidance cannot displace another listing.
-  let remaining = byteLimit - Buffer.byteLength(JSON.stringify(envelope(listings)));
-  let scummvmGuides = 0;
-  for (const listing of listings) {
-    const before = listing.manual_setup;
-    const previousListing = previousListings.get(listing.id);
-    projectScummvmGameData(
-      listing,
-      declarations.get(String(listing.id))!,
-      previousListing,
-      scummvmGameData,
-    );
-    if (listing.manual_setup === before) continue;
-    const used =
-      Buffer.byteLength(JSON.stringify(listing.manual_setup)) -
-      Buffer.byteLength(JSON.stringify(before));
-    if (used > remaining) {
-      listing.manual_setup = before;
-      continue;
-    }
-    remaining -= used;
-    scummvmGuides += 1;
-  }
   const candidate = envelope(listings);
   const bytes = Buffer.from(JSON.stringify(candidate));
   if (bytes.length > byteLimit)
@@ -474,7 +441,6 @@ export function projectListingDelivery(
       omittedObservations,
       canonical_records: raw.listings.length,
       delivered_records: listings.length,
-      scummvm_guides: scummvmGuides,
     };
   return {
     bytes,
@@ -486,7 +452,6 @@ export function projectListingDelivery(
     omittedObservations,
     canonical_records: raw.listings.length,
     delivered_records: listings.length,
-    scummvm_guides: scummvmGuides,
   };
 }
 
@@ -621,7 +586,6 @@ export async function prepareObservationBundle(options: {
   compact?: boolean;
   releasedReader?: { cli: string; sha256: string };
   readObservation?: () => Promise<UpstreamInput>;
-  readScummvmObservation?: () => Promise<ScummvmGameDataObservation>;
 }) {
   if (existsSync(options.output)) throw new Error("Observation bundle output already exists");
   mkdirSync(options.output, { recursive: true });
@@ -815,20 +779,7 @@ export async function prepareObservationBundle(options: {
       );
     }
   }
-  let gameData: ScummvmGameDataObservation | undefined;
-  if (!renewal && options.observe !== false) {
-    try {
-      gameData = await (options.readScummvmObservation ?? observeScummvmGameData)();
-    } catch (error) {
-      diagnostics.push(
-        `ScummVM game data unavailable: ${error instanceof Error ? error.message.slice(0, 200) : "read failed"}`,
-      );
-    }
-  }
-  const project = (
-    observations: readonly Record<string, unknown>[],
-    scummvm?: ScummvmGameDataObservation,
-  ) =>
+  const project = (observations: readonly Record<string, unknown>[]) =>
     projectListingDelivery(
       canonical,
       observations,
@@ -840,9 +791,8 @@ export async function prepareObservationBundle(options: {
       now,
       withdrawal?.withdrawn_ids,
       useCompact,
-      scummvm,
     );
-  let projected = renewal ?? project(candidates, gameData);
+  let projected = renewal ?? project(candidates);
   const inspect = (bytes: Buffer) => {
     const candidate = path.join(workspace, "listings.json");
     writeFileSync(candidate, bytes);
@@ -859,7 +809,7 @@ export async function prepareObservationBundle(options: {
       diagnostics.push(
         "observer candidates failed Core validation; retaining prior applicable observations",
       );
-      projected = project([], gameData);
+      projected = project([]);
       inspect(
         Buffer.from(JSON.stringify(delivery(JSON.parse(projected.bytes.toString())).directory)),
       );
@@ -902,15 +852,6 @@ export async function prepareObservationBundle(options: {
     updated: projected.updated,
     source_candidates: candidates.length,
     observer_revision: observerRevision,
-    scummvm_guides: "scummvm_guides" in projected ? projected.scummvm_guides : null,
-    scummvm_game_data: gameData
-      ? {
-          revision: gameData.revision,
-          blob: gameData.blob,
-          sha256: gameData.sha256,
-          observed_game_keys: gameData.editions.size,
-        }
-      : null,
     canonical_sha256: hash(canonicalBytes),
     catalog_sha256: hash(catalogBytes),
     canonical_records: projected.canonical_records,
