@@ -118,6 +118,7 @@ impl CatalogDownloadProvider {
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
         github_other_stream_prefixes: &[String],
+        release_window: Option<usize>,
     ) -> Result<(
         Vec<CatalogDownloadCandidate>,
         CatalogDownloadCoverage,
@@ -134,12 +135,13 @@ impl CatalogDownloadProvider {
                     })
                     .transpose()?;
                 let (candidates, coverage, releases, selected) = provider
-                    .catalog_download_options(
+                    .catalog_download_options_window(
                         repository,
                         selected,
                         channel,
                         rolling_tag,
                         github_other_stream_prefixes,
+                        release_window.unwrap_or(0),
                     )
                     .await?;
                 Ok((candidates, coverage, releases, selected.map(Into::into)))
