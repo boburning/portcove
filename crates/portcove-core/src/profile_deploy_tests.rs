@@ -287,7 +287,7 @@ fn a_plain_default_rolls_back_and_recovers_a_switch_to_an_admitted_setup() {
         &target.id,
         target.current_revision,
         Phase::Start,
-        &declared_state_paths(&service, id).unwrap(),
+        &declared_state_paths(&service, id, &path_layout).unwrap(),
     )
     .unwrap();
     let selected = service.activate_profile(id, &target.id).unwrap();
@@ -1018,7 +1018,7 @@ fn a_switch_interrupted_after_unparking_resumes_without_reparking_arrived_data()
         &other.id,
         1,
         Phase::Deployed,
-        &declared_state_paths(&w.service, "starship").unwrap(),
+        &declared_state_paths(&w.service, "starship", &layout).unwrap(),
     )
     .unwrap();
     // Recovery must neither re-park the arrived data nor fail on a name collision.
@@ -1133,7 +1133,7 @@ fn recovery_holds_instead_of_deleting_a_player_edited_owned_file() {
         &other.id,
         1,
         Phase::Start,
-        &declared_state_paths(&w.service, "starship").unwrap(),
+        &declared_state_paths(&w.service, "starship", &layout).unwrap(),
     )
     .unwrap();
     fs::write(user(&w).join("mods/mine.o2r"), b"edited by the player").unwrap();
