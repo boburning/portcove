@@ -1409,6 +1409,7 @@ impl PortcoveService {
             availability: PortActionAvailability::Held,
             reason: PortActionReason::DefinitionIneligible,
             definition: None,
+            restriction: None,
         })
         .collect();
         status
@@ -2822,6 +2823,7 @@ impl PortcoveService {
             availability,
             reason,
             definition,
+            restriction: None,
         };
         let definition = |operation| {
             status
@@ -3046,17 +3048,7 @@ impl PortcoveService {
             remove_external,
             update,
         ];
-        if crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, &status.port_id)
-            .is_some()
-        {
-            for assessment in &mut status.port_actions {
-                if crate::managed_runtime_policy::hold_withdraws(assessment.action) {
-                    assessment.availability = Availability::Held;
-                    assessment.reason = Reason::RouteNotOffered;
-                    assessment.definition = None;
-                }
-            }
-        }
+        crate::acquisition_restriction::assess_port_actions(&self.catalog, &mut status);
         let pending: bool = self.library.connection()?.query_row(
             "SELECT EXISTS(SELECT 1 FROM catalog_downloads WHERE port_id=?1)",
             [&status.port_id],
@@ -3113,6 +3105,7 @@ impl PortcoveService {
             availability,
             reason,
             definition,
+            restriction: None,
         });
         status
     }
@@ -8453,7 +8446,7 @@ mod tests {
         assert!(!options.allowed);
         assert_eq!(
             options.reason.as_deref(),
-            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, id)
+            crate::managed_runtime_policy::acquisition_hold_reason(&service.catalog, id).as_deref()
         );
     }
 

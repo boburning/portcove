@@ -5,11 +5,13 @@ import type {
   ExternalRuntimeRecord,
   InstallRecord,
   OperationEvent,
+  PortStatus,
 } from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
 import {
   invocationFailure,
   pendingInvocationConflict,
+  requiresManagedRouteReadback,
   settleInvocationResult,
   type InvocationContext,
   type InvocationRecord,
@@ -25,7 +27,8 @@ import {
 
 const noActivities: readonly ActivityRecord[] = [];
 const noUnreadPorts: ReadonlySet<string> = new Set();
-type SetupKind = "managed" | "external";
+type SetupKind = "managed" | "external" | "managed_route";
+type SetupReadback = { portId: string; kind: SetupKind; generation: number; afterRead: number };
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 export type PerformOptions<Result = unknown> = {
@@ -62,6 +65,7 @@ export function useOperationState(configuration: {
   libraryLabel?: string;
   /** The latest accepted full snapshot, unchanged by activity-only reads. */
   workspaceReadRevision?: number | undefined;
+  workspaceStatuses?: readonly PortStatus[] | undefined;
   /** Read only at a mutation's async boundary; includes in-flight/failed full reads. */
   startedWorkspaceReadRevision?: () => number;
 }) {
@@ -72,9 +76,9 @@ export function useOperationState(configuration: {
     useInvocationOwner();
   const generation = configuration.libraryGeneration ?? 0;
   const startedWorkspaceReadRevision = configuration.startedWorkspaceReadRevision;
-  const [committedSetups, setCommittedSetups] = useState<
-    ReadonlyMap<string, { portId: string; kind: SetupKind; generation: number; afterRead: number }>
-  >(new Map());
+  const [committedSetups, setCommittedSetups] = useState<ReadonlyMap<string, SetupReadback>>(
+    new Map(),
+  );
   const activeOwner = useRef<number | undefined>(generation);
   useLayoutEffect(() => {
     activeOwner.current = generation;
@@ -100,22 +104,41 @@ export function useOperationState(configuration: {
     (install: InstallRecord) => noteSetupCommitted(install.port_id, "managed"),
     [noteSetupCommitted],
   );
+  // An older external row can survive a full read while a lost native reply is
+  // still settling. A published managed route is affirmative readback.
+  const { workspaceReadRevision = 0, workspaceStatuses } = configuration;
+  const [lastSetupReadRevision, setLastSetupReadRevision] = useState(workspaceReadRevision);
+  if (lastSetupReadRevision !== workspaceReadRevision) {
+    setLastSetupReadRevision(workspaceReadRevision);
+    const current = new Map(committedSetups);
+    for (const [key, value] of committedSetups) {
+      if (value.kind !== "managed_route" || workspaceReadRevision <= value.afterRead) continue;
+      const status = workspaceStatuses?.find((entry) => entry.port_id === value.portId);
+      if (status?.active?.port_id === value.portId && !status.external_runtime) current.delete(key);
+    }
+    if (current.size !== committedSetups.size) setCommittedSetups(current);
+  }
+
   // Only a full read started after commit can confirm the setup receipt.
-  const { unreadInstallPorts, unreadExternalPorts } = useMemo(() => {
+  const { unreadInstallPorts, unreadExternalPorts, unreadManagedRoutePorts } = useMemo(() => {
     const managed = new Set<string>();
     const external = new Set<string>();
+    const managedRoutes = new Set<string>();
     for (const value of committedSetups.values()) {
       if (
         value.generation === generation &&
-        (configuration.workspaceReadRevision ?? 0) <= value.afterRead
-      )
-        (value.kind === "managed" ? managed : external).add(value.portId);
+        (value.kind === "managed_route" || workspaceReadRevision <= value.afterRead)
+      ) {
+        (value.kind === "external" ? external : managed).add(value.portId);
+        if (value.kind === "managed_route") managedRoutes.add(value.portId);
+      }
     }
     return {
       unreadInstallPorts: managed.size ? managed : noUnreadPorts,
       unreadExternalPorts: external.size ? external : noUnreadPorts,
+      unreadManagedRoutePorts: managedRoutes.size ? managedRoutes : noUnreadPorts,
     };
-  }, [committedSetups, configuration.workspaceReadRevision, generation]);
+  }, [committedSetups, workspaceReadRevision, generation]);
   const pendingOperations = useMemo(
     () => new Map([...invocations].filter(([, record]) => record.phase === "pending")),
     [invocations],
@@ -243,15 +266,19 @@ export function useOperationState(configuration: {
       const pendingId = nextId();
       let record: InvocationRecord = { id: pendingId, name, context, phase: "pending" };
       const conflict = pendingInvocationConflict(currentInvocations.current, context);
-      const awaitingExternalReadback =
-        (context.operation === "launch" || context.operation === "register_external") &&
+      const requiresReadback =
         context.target.kind === "port" &&
-        unreadExternalPorts.has(context.target.id);
-      const hold = awaitingExternalReadback
-        ? "Refresh the library to confirm the current external launch details."
-        : conflict
-          ? `Wait for ${conflict.context.action} for ${conflict.context.target.label} before trying again.`
-          : undefined;
+        (context.operation === "change_managed_route" ||
+          context.operation === "launch" ||
+          context.operation === "register_external");
+      const hold =
+        requiresReadback && unreadInstallPorts.has(context.target.id)
+          ? "Refresh the library to confirm the current installation."
+          : requiresReadback && unreadExternalPorts.has(context.target.id)
+            ? "Refresh the library to confirm the current external launch details."
+            : conflict
+              ? `Wait for ${conflict.context.action} for ${conflict.context.target.label} before trying again.`
+              : undefined;
       if (hold) {
         updateInvocations((current) =>
           new Map(current).set(pendingId, {
@@ -304,6 +331,8 @@ export function useOperationState(configuration: {
           const installed = options.installedResult(result);
           if (installed?.id && installed.port_id === context.target.id) {
             const { id, port_id, version } = installed;
+            if (context.operation === "change_managed_route" && isOwned())
+              noteSetupCommitted(port_id, "managed_route");
             record = { ...record, installed: { id, port_id, version } };
           }
         } else if (context.target.kind === "port" && options.externalRegistrationResult) {
@@ -315,6 +344,15 @@ export function useOperationState(configuration: {
         }
       } catch (value) {
         taskFailure = { value };
+        if (
+          context.operation === "change_managed_route" &&
+          context.target.kind === "port" &&
+          requiresManagedRouteReadback(value) &&
+          isOwned()
+        ) {
+          noteSetupCommitted(context.target.id, "managed_route");
+          record = { ...record, reviewCurrentState: true };
+        }
         ({ outcome, failure } = classifyInvocationFailure(value));
       } finally {
         acceptingEvents = false;
@@ -379,6 +417,7 @@ export function useOperationState(configuration: {
       refresh,
       refreshActivities,
       noteSetupCommitted,
+      unreadInstallPorts,
       unreadExternalPorts,
       updateInvocations,
     ],
@@ -391,6 +430,7 @@ export function useOperationState(configuration: {
     pendingOperations,
     unreadInstallPorts,
     unreadExternalPorts,
+    unreadManagedRoutePorts,
     noteInstallCommitted,
     invocations,
     dismissInvocation,

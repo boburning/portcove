@@ -1203,6 +1203,7 @@ impl PortcoveService {
             availability,
             reason,
             definition: None,
+            restriction: None,
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id
@@ -1262,6 +1263,7 @@ impl PortcoveService {
             availability,
             reason,
             definition: None,
+            restriction: None,
         };
         if operations.iter().any(|operation| {
             operation.port_id == port_id

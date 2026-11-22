@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
     "setup_url": "https://github.com/brettins/open-lords2/blob/v0.1.0-pre.6/README.md",
-    "download_block_reason": "Open the publisher’s preview release and choose the Windows ZIP or Linux tar.gz for your computer.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Open the publisher’s preview release and choose the Windows ZIP or Linux tar.gz for your computer.",
+        "tracking_issue": 6085
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/brettins/open-lords2/releases/tag/v0.1.0-pre.6",
       "steps": [

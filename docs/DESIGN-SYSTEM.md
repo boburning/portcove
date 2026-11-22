@@ -416,6 +416,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Browsing query/search/sort inputs also survive restart through versioned optional local view preferences, keyed by the supplied canonical library root with the existing Windows namespace aliases. They contain no selected detail, source/BIOS/adoption inputs, review authorization or DOM focus/scroll. Runtime position continuity retains its existing owner. Unsupported query predicates and legacy identifiers remain unresolved for explicit filter correction; unreadable, future-format or oversized preference documents are retained until the player explicitly saves current choices. Storage failure is visible and does not block ordinary browsing or library switching. This persistence does not provide coherent route/build matching or additional filter controls.
 - Reserve artwork and card geometry; retain useful existing content during refresh; keep loading, missing-artwork, failure, pending, and inline-confirmation states from shifting important controls. First paint uses the selected theme, application/window background, and offline typography without a bright flash or disruptive reflow.
 - When late artwork feedback grows a Library card, retain focus on its current action and reveal it within the actual scrolling pane. Keyboard return from an overflow menu also reveals that exact action. The workspace reflow owner observes the focused card; it does not move focus, override an open overlay, or pull back an action the player intentionally scrolled away from. Leading-workspace feedback keeps its existing continuity behavior.
+- When a resize replaces a virtual row, return focus to the same control. At the bottom of the scroll pane, a fractional native scroll position can be within one CSS pixel of the rounded limit.
 - Acknowledge an action promptly without inventing its outcome. Copy confirmation is local; launch distinguishes accepted, starting, running when authoritative, and failure; install/update uses real stages or an honest indeterminate state; cancellation distinguishes requested from stopped; integration results distinguish core success from optional partial failure. The existing operation/event authority owns progress and durable outcomes, while toasts remain supplemental.
 - Copying an existing installation distinguishes the native copy or confirmation command from its following workspace readback. After a fulfilled command, including native cancellation, the dialog shows `Refreshing library…` with readable pending feedback until readback settles. One dialog-local status region announces the phase. Dismissal stays blocked during the read, and native cancellation remains a cancellation. Native errors and failed readback keep their existing invocation ownership and review identity guards.
 - The Library navigation count is absent until its authoritative catalog snapshot exists. A loaded empty library shows `0`; background refresh retains the existing count alongside the retained snapshot.
@@ -1135,14 +1136,26 @@ port and next review action together. Its three routes are Browse games (Discove
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved
-folders; Settings keeps "Add folder" without scanning. Files are checked against the
-port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+folders; Settings keeps "Add folder" without scanning. The workspace retains the
+last saved scan result through navigation. Review saved scan checks that exact
+snapshot before focusing it in Add games. If a different scan or a later batch
+has replaced it, the player can explicitly choose to see the current results.
+Files are checked against the port chosen on its game page; folder search
+supplies bounded recognition (#5058 F2).
 When setup or install finishes and current readiness, including Core's launch
 assessment, reports the game ready with nothing left to confirm, the completion
 notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
 external runtimes and every other outcome keep the factual "Action · Title:
 finished." notice. A successful launch shows no visible notice; its announcement
-remains. On the game page one Cancel serves running setup: the Game files control
+remains. A registered external installation with a managed route offers the
+separate managed-copy review in Game files, including on the listing detail.
+Creating a Portcove-managed copy retains the exact installed version
+in workspace feedback. If Portcove cannot refresh the library, the player can
+retry the refresh from that feedback. Open game appears when the current
+library confirms the exact installation and its game page is available. If the result is uncertain, the previous launch route stays on hold until a
+fresh read confirms a managed installation or Portcove restarts and resolves the
+workspace state.
+On the game page one Cancel serves running setup: the Game files control
 omits its own when the page's cancellation covers the operation, and the review
 dialog keeps its own (#5058 S3, S4). Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the

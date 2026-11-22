@@ -3062,6 +3062,15 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 2_400_000);
 });
 
+void test("standalone Library layout retains enough time for both themes and cleanup", () => {
+  const layout = resolveDesktopSelection({
+    scenarios: ["native-library-layout"],
+    platform: "win32",
+  });
+  assert.deepEqual(layout.setup_scenarios, []);
+  assert.equal(desktopHarnessDeadlineMs(layout), 300_000);
+});
+
 void test("isolated reviewed backup chains retain the finite lifecycle allowance", () => {
   for (const scenarios of [
     ["native-reviewed-backup-restore-and-delete"],
@@ -3154,7 +3163,7 @@ void test("selected setup completion remains a separate Windows/Linux opt-in wit
     required(desktopScenarioById.get(id)).source,
     "desktop-selected-setup-completion-test.mts",
   );
-  assert.equal(desktopHarnessDeadlineMs(selected), 600_000);
+  assert.equal(desktopHarnessDeadlineMs(selected), 900_000);
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
   assert.throws(
     () =>

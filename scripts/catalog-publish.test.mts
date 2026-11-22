@@ -936,7 +936,14 @@ void test("observer output is delivered as bounded compatible descriptive data w
   assert.equal(directory.format_version, 11);
   assert.equal(firstListing.implementation, undefined);
   assert.deepEqual(firstListing.download_asset_hints, fixtureListing.download_asset_hints);
-  assert.deepEqual(firstListing.upstream_observation, policy.listing_update.upstream_observation);
+  const expectedObservation = fixtureRecord(
+    structuredClone(policy.listing_update.upstream_observation),
+  );
+  const expectedRelease = requiredFixture(fixtureRecords(expectedObservation.releases)[0]);
+  const expectedAsset = requiredFixture(fixtureRecords(expectedRelease.assets)[0]);
+  assert.equal(expectedAsset.sha256, null);
+  delete expectedAsset.sha256;
+  assert.deepEqual(firstListing.upstream_observation, expectedObservation);
   const before = structuredClone(canonical);
   for (const candidates of [
     [],
@@ -1028,6 +1035,70 @@ void test("observation publication retains applicable earlier rows before admitt
   assert.equal(capped.canonical_records, 2);
 });
 
+void test("an absent observed digest frees signed capacity without counting a retained observation as new", async () => {
+  const { fixtureListing, fixturePolicy } =
+    await import("./fixtures/listing-observation-delivery-fixture.mts");
+  const { projectListingDelivery } = await import("./listing-observation-delivery.mts");
+  const existing = fixturePolicy().listing_update;
+  const previous = Buffer.from(
+    JSON.stringify({
+      listing_delivery_schema: 1,
+      revision: 7,
+      withdrawn_ids: [],
+      directory: { format_version: 11, listings: [existing] },
+    }),
+  );
+  const canonical = { format_version: 11, listings: [fixtureListing] };
+  const compact = projectListingDelivery(canonical, [], previous);
+  assert.equal(compact.revision, 8);
+  assert.equal(compact.updated, 0);
+  assert.equal(compact.retained, 1);
+  assert.equal(previous.length - compact.bytes.length, Buffer.byteLength(',"sha256":null'));
+
+  const newListing = { ...fixtureListing, id: "another-project" };
+  const incoming = fixturePolicy(newListing).listing_update;
+  const incomingObservation = fixtureRecord(incoming.upstream_observation);
+  const incomingRelease = requiredFixture(fixtureRecords(incomingObservation.releases)[0]);
+  const incomingAsset = requiredFixture(fixtureRecords(incomingRelease.assets)[0]);
+  incomingAsset.sha256 = "a".repeat(64);
+  const directory = { format_version: 11, listings: [fixtureListing, newListing] };
+  const all = projectListingDelivery(directory, [incoming, existing], previous);
+  const exactLimit = all.bytes.length;
+  const bounded = projectListingDelivery(directory, [incoming, existing], previous, 0, exactLimit);
+  assert.deepEqual(bounded.bytes, all.bytes);
+  assert.equal(bounded.delivered_records, 2);
+  assert.equal(bounded.updated, 1);
+  const belowLimit = projectListingDelivery(
+    directory,
+    [incoming, existing],
+    previous,
+    0,
+    exactLimit - 1,
+  );
+  assert.deepEqual(belowLimit.omitted, [
+    { id: newListing.id, reason: "existing-target-byte-budget" },
+  ]);
+  const delivered = fixtureRecord(fixtureRecord(JSON.parse(bounded.bytes.toString())).directory);
+  const newRow = requiredFixture(
+    fixtureRecords(delivered.listings).find((row) => row.id === newListing.id),
+  );
+  assert.deepEqual(newRow.upstream_observation, incomingObservation);
+  const oldObservation = fixtureRecord(existing.upstream_observation);
+  const oldRelease = requiredFixture(fixtureRecords(oldObservation.releases)[0]);
+  assert.equal(requiredFixture(fixtureRecords(oldRelease.assets)[0]).sha256, null);
+  const replay = projectListingDelivery(
+    directory,
+    [existing, incoming],
+    bounded.bytes,
+    0,
+    exactLimit,
+  );
+  assert.equal(replay.changed, false);
+  assert.equal(replay.revision, bounded.revision);
+  assert.equal(replay.updated, 0);
+  assert.deepEqual(replay.bytes, bounded.bytes);
+});
+
 void test("descriptive delivery encodes an exact GitHub slash tag from a retained observation", async () => {
   const { fixtureListing, fixturePolicy } =
     await import("./fixtures/listing-observation-delivery-fixture.mts");
@@ -1069,7 +1140,9 @@ void test("descriptive delivery encodes an exact GitHub slash tag from a retaine
   const published = requiredFixture(fixtureRecords(directory.listings)[0]);
   const publishedObservation = fixtureRecord(published.upstream_observation);
   const publishedRelease = requiredFixture(fixtureRecords(publishedObservation.releases)[0]);
-  assert.deepEqual(publishedRelease.assets, [{ ...asset, url: encoded }]);
+  const expected: Record<string, unknown> = { ...asset, url: encoded };
+  delete expected.sha256;
+  assert.deepEqual(publishedRelease.assets, [expected]);
   assert.equal(publishedObservation.facts_sha256, observation.facts_sha256);
   assert.equal(publishedObservation.observed_at, observation.observed_at);
   assert.equal(asset.url, `${root}/download/v1.0/${name}`);
@@ -1291,7 +1364,16 @@ void test("signed directory retains equivalent completed evidence until its reco
   const renewal = advance(6);
   assert.equal(renewal.revision, first.revision + 1);
   const directory = fixtureRecord(fixtureRecord(JSON.parse(renewal.bytes.toString())).directory);
-  assert.deepEqual(fixtureRecords(directory.listings)[0]?.upstream_observation, observation);
+  const priorDirectory = fixtureRecord(fixtureRecord(JSON.parse(first.bytes.toString())).directory);
+  const priorObservation = fixtureRecord(
+    fixtureRecords(priorDirectory.listings)[0]?.upstream_observation,
+  );
+  assert.deepEqual(fixtureRecords(directory.listings)[0]?.upstream_observation, {
+    ...priorObservation,
+    attempted_at: observation.attempted_at,
+    observed_at: observation.observed_at,
+    fresh_until: observation.fresh_until,
+  });
   for (const changed of [
     { ...observation, facts_sha256: "b".repeat(64) },
     { ...observation, fresh_until: "2026-11-10T14:00:00Z" },

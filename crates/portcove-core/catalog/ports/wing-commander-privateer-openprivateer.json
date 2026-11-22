@@ -20,7 +20,16 @@
     "availability": "packages",
     "setup_url": "https://openprivateer.org/",
     "release_url": "https://github.com/schlangz/openprivateer-project/releases/tag/build_20261113_0111",
-    "download_block_reason": "The publisher reports Windows security alerts, and its linked scan does not match the Windows executable in this release. Portcove can offer downloads after the Windows package is cleared. Linux and Mac packages remain available from upstream.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "safety-evidence-mismatch",
+        "explanation": "The publisher reports Windows security alerts, and its linked scan does not match the Windows executable in this release. Portcove can offer downloads after the Windows package is cleared. Linux and Mac packages remain available from upstream.",
+        "tracking_issue": 6119
+      }
+    ],
     "manual_setup": {
       "help_url": "https://raw.githubusercontent.com/schlangz/openprivateer-project/build_20261113_0111/manual.pdf",
       "steps": [
