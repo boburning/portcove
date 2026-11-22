@@ -98761,11 +98761,11 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
+            "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Complete original-data and game selection through upstream before saving the player entry. On Windows, register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
           },
           {
             "title": "Choose the Windows nightly package",
@@ -98773,7 +98773,7 @@
           },
           {
             "title": "Choose the Linux or Mac nightly package",
-            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon. On Linux x86-64, select the complete official Nightly AppImage and its containing folder. Provide the host JACK and PipeWire libraries required by the package. If FUSE is unavailable, enter --appimage-extract-and-run as a separate first argument. On Intel or Apple Silicon Mac, keep openxcom.app intact and select Contents/MacOS/openxcom with its containing folder. On Linux and Mac, enter -master and xcom1 as separate arguments, after --appimage-extract-and-run when you use it. Confirm the selected original and master game upstream before saving the registration. Use separate writable -user and -cfg folders for each game when you want to keep the profiles apart. Enter each option and its absolute path on separate lines."
           },
           {
             "title": "Prepare this title’s original data",
@@ -98795,12 +98795,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
       "original_game": {
         "format_version": 1,
@@ -98810,7 +98804,13 @@
           "https://github.com/OpenXcom/OpenXcom"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
@@ -98838,15 +98838,15 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
+            "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. On Windows, register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --si. Do not register Exult Studio or a usecode/compiler helper as the player."
           },
           {
             "title": "Set up the upstream Linux package",
-            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle."
+            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/serpentisle or configure the actual working path. Preserve the sandbox config, serpentisle data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/serpentisle. On Linux x86-64, install the Ubuntu 26.04 exult package; version 1.12.1 was checked. Prepare this game’s configuration with that package first. Select /usr/lib/games/exult/exult and a private working folder. Do not select the packaged exult launcher script, because it can split arguments that contain spaces. Enter -c, the absolute path to your prepared configuration, and --si on separate argument lines. Start Flatpak copies through their upstream route."
           },
           {
             "title": "Prepare the official Mac app",
-            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Serpent Isle installation. The documented default original folder is /Library/Application Support/Exult/serpentisle. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/serpentisle, and every custom savegame, gamedat and mod location before replacing the app."
+            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Serpent Isle installation. The documented default original folder is /Library/Application Support/Exult/serpentisle. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/serpentisle, and every custom savegame, gamedat and mod location before replacing the app. On Intel or Apple Silicon Mac, keep the official Exult.app intact and select Contents/MacOS/exult and its containing folder. Enter -c and the absolute path to your prepared Exult configuration as separate arguments, followed by --si. Use the configuration for the matching original and preserve its actual save and gamedat locations before changing players."
           },
           {
             "title": "Import this edition in the Android launcher",
@@ -98854,7 +98854,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
           }
         ],
         "warnings": [
@@ -98874,12 +98874,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://exult.info/download.html",
       "original_game": {
         "format_version": 1,
@@ -98898,7 +98892,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "ultima-vii-the-black-gate-exult",
@@ -98926,15 +98926,15 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. Register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
+            "instruction": "Choose the official Windows installer from Exult’s download page, or keep a complete upstream-prepared player with its runtime data. Configure this installed game’s path in Exult, keeping Black Gate and Serpent Isle entries distinct. On Windows, register exult.exe with its installation folder as working directory, using the upstream game picker or the documented single argument --bg. Do not register Exult Studio or a usecode/compiler helper as the player."
           },
           {
             "title": "Set up the upstream Linux package",
-            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/blackgate or configure the actual working path. Preserve the sandbox config, blackgate data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/blackgate."
+            "instruction": "Install info.exult.exult from Flathub and open it once to create its sandbox folders. Put this game’s own STATIC directory in ~/.var/app/info.exult.exult/data/blackgate or configure the actual working path. Preserve the sandbox config, blackgate data, saves and gamedat. A native non-Flatpak Exult uses a separate profile, normally ~/.exult.cfg and ~/.exult/blackgate. On Linux x86-64, install the Ubuntu 26.04 exult package; version 1.12.1 was checked. Prepare this game’s configuration with that package first. Select /usr/lib/games/exult/exult and a private working folder. Do not select the packaged exult launcher script, because it can split arguments that contain spaces. Enter -c, the absolute path to your prepared configuration, and --bg on separate argument lines. Start Flatpak copies through their upstream route."
           },
           {
             "title": "Prepare the official Mac app",
-            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Black Gate installation. The documented default original folder is /Library/Application Support/Exult/blackgate. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/blackgate, and every custom savegame, gamedat and mod location before replacing the app."
+            "instruction": "Use Exult’s official Intel/Apple Silicon DMG. Keep the complete app and point it to your own Black Gate installation. The documented default original folder is /Library/Application Support/Exult/blackgate. Back up ~/Library/Preferences/exult.cfg, ~/Library/Application Support/exult/blackgate, and every custom savegame, gamedat and mod location before replacing the app. On Intel or Apple Silicon Mac, keep the official Exult.app intact and select Contents/MacOS/exult and its containing folder. Enter -c and the absolute path to your prepared Exult configuration as separate arguments, followed by --bg. Use the configuration for the matching original and preserve its actual save and gamedat locations before changing players."
           },
           {
             "title": "Import this edition in the Android launcher",
@@ -98942,7 +98942,7 @@
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
           }
         ],
         "warnings": [
@@ -98962,12 +98962,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://exult.info/download.html",
       "original_game": {
         "format_version": 1,
@@ -98986,7 +98980,13 @@
             ]
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "umjamlamrecomp-njh-1001-um-jammer-lammy",
@@ -105934,11 +105934,11 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Choose a build that documents TFTD support; an old UFO-only release is insufficient. Complete original-data and game selection through upstream before saving the player entry. Register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
+            "instruction": "Use the official upstream download/setup route or a complete already prepared OpenXcom player, keeping its common data and standard mod resources. No GitHub release package was observed. Choose a build that documents TFTD support; an old UFO-only release is insufficient. Complete original-data and game selection through upstream before saving the player entry. On Windows, register openxcom.exe with its installation folder as working directory, retaining the upstream game selection rather than inventing a fixed argument. The upstream Windows installer may copy a detected Steam original when you deliberately run it."
           },
           {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions."
           },
           {
             "title": "Choose the Windows nightly package",
@@ -105946,7 +105946,7 @@
           },
           {
             "title": "Choose the Linux or Mac nightly package",
-            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+            "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon. On Linux x86-64, select the complete official Nightly AppImage and its containing folder. Provide the host JACK and PipeWire libraries required by the package. If FUSE is unavailable, enter --appimage-extract-and-run as a separate first argument. On Intel or Apple Silicon Mac, keep openxcom.app intact and select Contents/MacOS/openxcom with its containing folder. On Linux and Mac, enter -master and xcom2 as separate arguments, after --appimage-extract-and-run when you use it. Confirm the selected original and master game upstream before saving the registration. Use separate writable -user and -cfg folders for each game when you want to keep the profiles apart. Enter each option and its absolute path on separate lines."
           },
           {
             "title": "Prepare this title’s original data",
@@ -105968,12 +105968,6 @@
           }
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "release_url": "https://github.com/OpenXcom/OpenXcom/actions/workflows/nightly.yml",
       "original_game": {
         "format_version": 1,
@@ -105983,7 +105977,13 @@
           "https://github.com/OpenXcom/OpenXcom"
         ],
         "source_editions": []
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "x-men-children-of-the-atom-cps2-recomp",
