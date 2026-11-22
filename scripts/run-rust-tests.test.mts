@@ -1,4 +1,4 @@
-import { errorCode } from "./runtime-values.mts";
+import { errorCode, isRecord } from "./runtime-values.mts";
 import type { SpawnOptions } from "node:child_process";
 import type { RustRunDependencies } from "./run-rust-tests.mts";
 import type { RustSupportOptions } from "./rust-support-cache.mts";
@@ -320,7 +320,10 @@ void test(
       await waitUntil(() => existsSync(ready));
       await waitUntil(() => wrapper.exitCode !== null);
       assert.equal(wrapper.exitCode, 1);
-      const record = JSON.parse(await readFile(ready, "utf8"));
+      const record: unknown = JSON.parse(await readFile(ready, "utf8"));
+      assert.ok(
+        isRecord(record) && typeof record.pid === "number" && typeof record.identity === "string",
+      );
       assert.equal(readProcessIdentity(record.pid), record.identity);
       await waitUntil(() => existsSync(eof));
       assert.equal(existsSync(settled), false);

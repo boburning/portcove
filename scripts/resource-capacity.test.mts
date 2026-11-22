@@ -1112,9 +1112,9 @@ void test(
     const [acquire] = messages;
     assert.ok(isRecord(acquire) && typeof acquire.custodyFile === "string");
     const { custodyFile } = acquire;
-    const custody = JSON.parse(await readFile(custodyFile, "utf8"));
-    assert.equal(custody.owner.pid, process.pid);
-    assert.equal(custody.child.cleanup_receipt, cleanup);
+    const custody = record(JSON.parse(await readFile(custodyFile, "utf8")));
+    assert.equal(record(custody.owner).pid, process.pid);
+    assert.equal(record(custody.child).cleanup_receipt, cleanup);
     assert.equal(released, 0);
   },
 );
