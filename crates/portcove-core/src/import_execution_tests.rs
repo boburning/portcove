@@ -1305,6 +1305,7 @@ fn add_profile(root: &Path, export: &Path, install_id: &str) -> LibraryMetadata 
         originals: Vec::new(),
         loader: None,
         packages: Vec::new(),
+        recomp_companion_sets_v1: None,
         orderings: Vec::new(),
         settings: Default::default(),
         save_group: uuid::Uuid::new_v4().to_string(),

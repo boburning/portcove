@@ -282,7 +282,7 @@ fn contract_matches(
         })
 }
 
-fn installed_loader(
+pub(crate) fn installed_loader(
     install: &InstallRecord,
     build: &RetainedBuildIdentity,
 ) -> Result<Option<ReviewedLoader>> {

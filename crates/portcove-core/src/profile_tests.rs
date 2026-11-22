@@ -48,6 +48,131 @@ fn package(id: &str, requires: &[&str]) -> ResolvedPackage {
 }
 
 #[test]
+fn companion_profile_custody_is_typed_but_held_before_any_writer() {
+    use crate::profile_package_files::profile_package_files;
+    use crate::{Platform, RecompCompanionMemberV1, RecompCompanionRole, RecompCompanionSetV1};
+
+    let (_temporary, service, _) = fixture();
+    let req = requirement(&service);
+    register_original(&service, &req, 'a', "/games/original.z64");
+    service.ensure_default_profile("starship").unwrap();
+    let mut revision = service
+        .profile_inventory("starship")
+        .unwrap()
+        .profiles
+        .remove(0)
+        .revision;
+    let legacy = serde_json::to_vec(&revision).unwrap();
+    let decoded: ProfileRevision = serde_json::from_slice(&legacy).unwrap();
+    assert_eq!(serde_json::to_vec(&decoded).unwrap(), legacy);
+    assert!(digest_matches(&decoded).unwrap());
+    assert!(decoded.recomp_companion_sets_v1.is_none());
+    let mut explicit_null = serde_json::to_value(&decoded).unwrap();
+    explicit_null["recomp_companion_sets_v1"] = serde_json::Value::Null;
+    assert!(serde_json::from_value::<ProfileRevision>(explicit_null).is_err());
+
+    let nrm = package("example.nrm", &[]);
+    revision.loader = Some(crate::profile_loader::ModEngine::N64Recomp.reference());
+    revision.build.platform = Platform::LinuxX86_64;
+    revision.packages.push(nrm.clone());
+    assert_eq!(profile_package_files(&revision).unwrap().len(), 1);
+    revision.recomp_companion_sets_v1 = Some(vec![RecompCompanionSetV1 {
+        repository: "Author/Mod".into(),
+        repository_id: 1,
+        release_id: 2,
+        asset_id: 3,
+        publisher_sha256: Some("a".repeat(64)),
+        wrapper_sha256: "a".repeat(64),
+        wrapper_size: 25,
+        install_id: revision.build.install_id.clone(),
+        platform: revision.build.platform,
+        consent_sha256: "b".repeat(64),
+        members: BTreeMap::from([
+            (
+                nrm.native_id,
+                RecompCompanionMemberV1 {
+                    size: nrm.size,
+                    sha256: nrm.sha256,
+                    role: RecompCompanionRole::Nrm,
+                },
+            ),
+            (
+                "example.so".into(),
+                RecompCompanionMemberV1 {
+                    size: 40,
+                    sha256: "d".repeat(64),
+                    role: RecompCompanionRole::PrimaryLibrary,
+                },
+            ),
+            (
+                "libexample.so.1.0".into(),
+                RecompCompanionMemberV1 {
+                    size: 50,
+                    sha256: "e".repeat(64),
+                    role: RecompCompanionRole::BundledLibrary,
+                },
+            ),
+        ]),
+    }]);
+    let supported_shape = serde_json::to_vec(&revision).unwrap();
+    let restored: ProfileRevision = serde_json::from_slice(&supported_shape).unwrap();
+    assert_eq!(restored, revision);
+    assert_eq!(
+        profile_package_files(&restored)
+            .unwrap()
+            .iter()
+            .map(|file| file.name)
+            .collect::<Vec<_>>(),
+        ["example.nrm", "example.so", "libexample.so.1.0"]
+    );
+    assert!(
+        seal(&mut revision)
+            .unwrap_err()
+            .to_string()
+            .contains("complete managed custody")
+    );
+
+    let mut wrong_platform = restored.clone();
+    wrong_platform.recomp_companion_sets_v1.as_mut().unwrap()[0].platform = Platform::WindowsX86_64;
+    assert!(profile_package_files(&wrong_platform).is_err());
+    let mut changed_nrm = restored.clone();
+    changed_nrm.packages[0].sha256 = "e".repeat(64);
+    assert!(profile_package_files(&changed_nrm).is_err());
+    let mut shared = restored.clone();
+    let mut alternate = shared.recomp_companion_sets_v1.as_ref().unwrap()[0].clone();
+    alternate.asset_id += 1;
+    let member = alternate.members.remove("example.nrm").unwrap();
+    alternate.members.insert("alternate.nrm".into(), member);
+    shared.packages.push(package("alternate.nrm", &[]));
+    shared
+        .recomp_companion_sets_v1
+        .as_mut()
+        .unwrap()
+        .push(alternate);
+    assert_eq!(profile_package_files(&shared).unwrap().len(), 4);
+    shared.packages[1].enabled = false;
+    assert!(
+        profile_package_files(&shared).is_err(),
+        "disabled owners cannot share live code"
+    );
+    shared.packages[1].enabled = true;
+    shared.recomp_companion_sets_v1.as_mut().unwrap()[1]
+        .members
+        .get_mut("example.so")
+        .unwrap()
+        .sha256 = "f".repeat(64);
+    assert!(
+        profile_package_files(&shared).is_err(),
+        "two exact owners cannot disagree on bytes"
+    );
+
+    let mut colliding = restored;
+    let members = &mut colliding.recomp_companion_sets_v1.as_mut().unwrap()[0].members;
+    members.insert("EXAMPLE.SO".into(), members["example.so"].clone());
+    assert!(profile_package_files(&colliding).is_err());
+}
+
+#[test]
 fn legacy_active_install_migrates_to_one_idempotent_default_profile() {
     let (_temporary, service, first) = fixture();
     let req = requirement(&service);

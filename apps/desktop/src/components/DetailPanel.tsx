@@ -117,8 +117,9 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import { ExternalModPortals } from "./ExternalModPortals";
 import { JakModsBrowser } from "./JakModsBrowser";
-import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
+import { GithubModHandoff, ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
 import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
@@ -583,6 +584,10 @@ function DetailBody(model: {
   const [modSupport, setModSupport] = useState<{
     key: string;
     supported: boolean | "unavailable";
+    github?: Pick<
+      import("../types").ModSetupsView,
+      "github_release_url" | "github_native_import_offered" | "external_mod_portals"
+    >;
   }>();
   const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
   const mayHaveCommunitySource = model.port.adapter === "upstream-managed-setup";
@@ -611,22 +616,35 @@ function DetailBody(model: {
       : undefined;
   const [reviewFromPlay, requestModReview] = useState(0);
   useEffect(() => {
-    if (external || !activeInstall) return;
     let current = true;
-    void readModSetupInventory(model.port.id, model.libraryGeneration)
+    const managed = !external && Boolean(activeInstall);
+    const read = managed
+      ? readModSetupInventory(model.port.id, model.libraryGeneration)
+      : desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+    void read
       .then((view) => {
-        if (current) setModSupport({ key: modsKey, supported: view.supported });
+        if (current)
+          setModSupport({ key: modsKey, supported: managed && view.supported, github: view });
       })
-      .catch(() => {
-        if (current) setModSupport({ key: modsKey, supported: "unavailable" });
+      .catch(async () => {
+        if (!managed || !current) return;
+        setModSupport({ key: modsKey, supported: "unavailable" });
+        try {
+          const view = await desktopApi.modSetups(model.port.id, model.libraryGeneration, true);
+          if (current) setModSupport({ key: modsKey, supported: "unavailable", github: view });
+        } catch {
+          // Keep the managed inventory error and its retry action.
+        }
       });
     return () => {
       current = false;
     };
   }, [external, activeInstall, model.port.id, model.libraryGeneration, modsKey, modSupportRetry]);
-  const currentModSupport = modSupport?.key === modsKey ? modSupport.supported : undefined;
+  const modState = modSupport?.key === modsKey ? modSupport : undefined;
+  const currentModSupport = modState?.supported;
   const modsAvailable = !external && Boolean(activeInstall) && currentModSupport === true;
-
+  const githubSource = modState?.github;
+  const externalModPortals = githubSource?.external_mod_portals ?? [];
   const routePresentation = setupRoutePresentation(
     model.displayPort ?? { ...model.port, definition: model.port },
     model.status,
@@ -788,10 +806,18 @@ function DetailBody(model: {
       {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        ...(modsAvailable || hasCommunitySource
+        ...(modsAvailable ||
+        hasCommunitySource ||
+        githubSource?.github_release_url ||
+        externalModPortals.length > 0
           ? {
               mods: (
                 <>
+                  <ExternalModPortals
+                    portals={externalModPortals}
+                    port={model.port.id}
+                    generation={model.libraryGeneration}
+                  />
                   {hasCommunitySource && (
                     <JakModsBrowser
                       setupUrl={communitySource.url}
@@ -800,7 +826,7 @@ function DetailBody(model: {
                       generation={model.libraryGeneration}
                     />
                   )}
-                  {modsAvailable && (
+                  {modsAvailable ? (
                     <ModSetupsControl
                       key={modsKey}
                       portId={model.port.id}
@@ -813,7 +839,9 @@ function DetailBody(model: {
                       reviewFromPlay={reviewFromPlay}
                       onAppliedFromPlay={() => reveal("overview")}
                     />
-                  )}
+                  ) : githubSource?.github_release_url ? (
+                    <GithubModHandoff view={githubSource} />
+                  ) : null}
                 </>
               ),
             }
