@@ -959,7 +959,8 @@ fn github_mods_text(catalog: &portcove_core::GithubModCatalog) -> String {
         lines.push("Download the intact ZIP from GitHub. Use Install Mods in a separate copy of the game before starting it.".into());
     } else {
         lines.push(
-            "This source does not list the required native libraries for this platform.".into(),
+            "Setting up this ZIP needs an installed copy of the game whose build supports it on this platform."
+                .into(),
         );
     }
     lines.join("\n")
@@ -1143,10 +1144,13 @@ pub(crate) async fn execute(
                         file.sha256
                     ));
                 }
-                lines.push(
+                lines.push(if report.native_import_offered {
                     "Open a separate copy of the game and choose the intact ZIP in Install Mods."
-                        .into(),
-                );
+                        .into()
+                } else {
+                    "Setting up this ZIP needs an installed copy of the game whose build meets every mod's runtime requirement on this platform."
+                        .into()
+                });
                 lines.join("\n")
             })
         }

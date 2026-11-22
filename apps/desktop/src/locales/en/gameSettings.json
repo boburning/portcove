@@ -174,7 +174,7 @@
     "gameChanged": "This game changed. Refresh its details before changing mods.",
     "github": {
       "browse": "Browse mods on GitHub",
-      "platform": "You can browse releases. This platform has no reviewed native ZIP setup for this source.",
+      "platform": "You can browse releases. Setting up this ZIP needs an installed copy of the game whose build supports it on this platform.",
       "setup": "Download the intact ZIP. Open a separate copy of the game and use Install Mods to select the ZIP. Update it in that copy when you want a newer release."
     },
     "heading": "Setups and mods",

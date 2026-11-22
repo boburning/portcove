@@ -169,6 +169,25 @@ it("offers the reviewed GitHub handoff without creating or changing a managed se
   expect(open).toHaveBeenCalledWith(url);
 });
 
+it("keeps a link-out without setup steps when Core offers no native import", async () => {
+  const url = "https://github.com/ReviewOwner/NativeMods/releases";
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({
+      supported: false,
+      inventory: null,
+      live: null,
+      github_release_url: url,
+      github_native_import_offered: false,
+    }),
+  );
+  const host = await render();
+  await expect
+    .element(page.getByRole("link", { name: "Browse mods on GitHub" }))
+    .toHaveAttribute("href", url);
+  await expect.element(page.getByText(/needs an installed copy of the game/i)).toBeVisible();
+  expect(host.textContent).not.toMatch(/open a separate copy of the game/i);
+});
+
 it("lists setups and mods in priority order and binds changes to the reviewed revision", async () => {
   const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
   const toggle = vi

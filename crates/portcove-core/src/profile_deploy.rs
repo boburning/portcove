@@ -2551,7 +2551,9 @@ pub struct ModSetupsView {
     /// Reviewed upstream GitHub Releases page for browsing and native setup.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github_release_url: Option<String>,
-    /// This host has a reviewed native companion layout for the upstream ZIP.
+    /// The active installed build admits native companion import for the
+    /// upstream ZIP on this host. Not installed, or installed before the
+    /// reviewed loader, leaves only the releases link.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub github_native_import_offered: bool,
     /// Reviewed upstream browser routes for this port and host.
@@ -2615,7 +2617,10 @@ impl PortcoveService {
         let platform = crate::Platform::current().ok();
         let external_mod_portals = crate::external_mod_portal::portals(catalog, port_id, platform);
         let (url, native) = match catalog.port(port_id) {
-            Ok(port) => crate::github_mods::github_mod_handoff(port, platform),
+            Ok(port) => (
+                crate::github_mods::github_mod_release_url(port),
+                self.github_native_import(port, platform)?,
+            ),
             Err(_) if !external_mod_portals.is_empty() => (None, false),
             Err(error) => return Err(error),
         };
@@ -2635,8 +2640,9 @@ impl PortcoveService {
         let Ok(port) = self.catalog().port(port_id) else {
             return self.preview_mod_handoff(port_id);
         };
-        let (github_release_url, github_native_import_offered) =
-            crate::github_mods::github_mod_handoff(port, crate::Platform::current().ok());
+        let github_release_url = crate::github_mods::github_mod_release_url(port);
+        let github_native_import_offered =
+            self.github_native_import(port, crate::Platform::current().ok())?;
         let external_mod_portals = crate::external_mod_portal::portals(
             self.catalog(),
             port_id,

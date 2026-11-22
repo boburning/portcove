@@ -2713,7 +2713,11 @@ Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRunti
 
 In Desktop, open the game's Mods view and choose **Browse mods on GitHub**.
 The link opens the reviewed Releases page. The view shows the native ZIP setup
-when the current platform has a reviewed companion layout.
+only when the game's active installed build binds the reviewed loader and has
+a reviewed companion layout for the current platform. A game that is not
+installed, or whose installed build predates the loader, keeps only the link.
+Core decides this from the installed build's retained definition, not from the
+current catalog definition.
 
 Run `portcove --library PATH profile github-mods zelda64-recomp` to see the
 randomizer releases recommended by Zelda64Recomp. With `--json`, the response
@@ -2730,7 +2734,9 @@ To inspect a ZIP, run
 `portcove --json profile github-mod-review PORT_ID RELEASE_ID ASSET_ID [ZIP]`.
 Provide the path to an intact local ZIP, or let Portcove fetch the selected
 GitHub asset privately. The review compares the ZIP with the published SHA-256 and reports the exact
-mods and companion libraries for the selected platform. Use the intact ZIP in
+mods and companion libraries for the selected platform. `native_import_offered`
+is true only when the active installed build admits the platform and its
+runtime meets every mod's minimum runtime version. Use the intact ZIP in
 the upstream installer. The report cannot activate a Portcove setup.
 
 ### Browsing upstream-owned mod portals

@@ -76,7 +76,7 @@ fn check_revision(plan: &GithubCompoundPlan, revision: &ProfileRevision) -> Resu
     Ok(())
 }
 
-fn check_runtime(installed: &str, review: &RecompCompoundReview) -> Result<()> {
+pub(super) fn check_runtime(installed: &str, review: &RecompCompoundReview) -> Result<()> {
     let runtime =
         crate::recomp_mod::version_parts(installed.trim_start_matches('v')).ok_or_else(|| {
             PortcoveError::unsupported("the retained runtime version cannot be checked")

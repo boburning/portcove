@@ -19,6 +19,7 @@ use crate::{
 
 #[path = "github_compound_custody.rs"]
 mod custody;
+use custody::check_runtime;
 pub use custody::{GithubCompoundConsent, GithubCompoundPlan};
 
 const API: &str = "https://api.github.com";
@@ -73,24 +74,38 @@ pub fn has_github_mod_source(port: &PortDefinition) -> bool {
     reviewed_source(port).is_some()
 }
 
-pub(crate) fn github_mod_handoff(
-    port: &PortDefinition,
-    platform: Option<Platform>,
-) -> (Option<String>, bool) {
-    let Some(source) = reviewed_source(port) else {
-        return (None, false);
+/// The reviewed upstream releases page. A link-out alone grants no native
+/// import; that comes only from an installed build.
+pub(crate) fn github_mod_release_url(port: &PortDefinition) -> Option<String> {
+    reviewed_source(port).map(|source| format!("https://github.com/{}/releases", source.repository))
+}
+
+/// Whether the exact installed runtime admits native companion import on the
+/// platform: its own retained definition must bind the reviewed Recomp loader
+/// to this build and carry a companion layout for the platform. Each mod's
+/// minimum runtime is checked separately against the reviewed wrapper.
+pub(crate) fn installed_native_import(
+    install: &crate::InstallRecord,
+    platform: Platform,
+) -> Result<bool> {
+    let build = crate::install::retained_build_identity_for_install(install)?;
+    if build.platform != platform
+        || !crate::profile_loader::installed_loader(install, &build)?
+            .is_some_and(|loader| loader.engine == ModEngine::N64Recomp)
+    {
+        return Ok(false);
+    }
+    let Some(retained) = crate::install::retained_catalog_for_install(install)? else {
+        return Ok(false);
     };
-    let native_import = platform.is_some_and(|platform| {
-        port.platforms.contains(&platform)
-            && source
+    let port = retained.port(&install.port_id)?;
+    Ok(port.platforms.contains(&platform)
+        && reviewed_source(port).is_some_and(|source| {
+            source
                 .companions
                 .iter()
                 .any(|layout| layout.platform == platform)
-    });
-    (
-        Some(format!("https://github.com/{}/releases", source.repository)),
-        native_import,
-    )
+        }))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -117,7 +132,9 @@ pub struct GithubModCatalog {
     pub repository: String,
     pub repository_id: u64,
     pub source_url: String,
-    /// The reviewed wrapper has required companions on this platform.
+    /// The active installed build admits native companion import on this
+    /// platform. False when the game is not installed or its installed build
+    /// predates the reviewed loader; the releases remain a link-out.
     pub native_import_offered: bool,
     pub releases: Vec<GithubModRelease>,
     pub complete: bool,
@@ -133,9 +150,35 @@ pub struct GithubModCompoundReview {
     pub release_id: u64,
     pub asset_id: u64,
     pub review: RecompCompoundReview,
+    /// The active installed build admits native import on the reviewed
+    /// platform and its runtime meets every mod's minimum runtime version.
+    pub native_import_offered: bool,
 }
 
 impl PortcoveService {
+    fn active_install(&self, port: &PortDefinition) -> Result<Option<crate::InstallRecord>> {
+        Ok(self
+            .library()
+            .status(&port.id, crate::service::default_channel(port))?
+            .active)
+    }
+
+    /// Native import eligibility for the active installation only. A port that
+    /// is not installed keeps a pure link-out.
+    pub(crate) fn github_native_import(
+        &self,
+        port: &PortDefinition,
+        platform: Option<Platform>,
+    ) -> Result<bool> {
+        let Some(platform) = platform else {
+            return Ok(false);
+        };
+        match self.active_install(port)? {
+            Some(install) => installed_native_import(&install, platform),
+            None => Ok(false),
+        }
+    }
+
     pub async fn github_mod_catalog(
         &self,
         port_id: &str,
@@ -181,7 +224,7 @@ impl PortcoveService {
             repository: binding.repository.into(),
             repository_id: binding.repository_id,
             source_url: format!("https://github.com/{}/releases", binding.repository),
-            native_import_offered: github_mod_handoff(port, Some(platform)).1,
+            native_import_offered: self.github_native_import(port, Some(platform))?,
             releases,
             complete,
             observed_at: identity.observed_at.min(listing.observed_at),
@@ -202,6 +245,13 @@ impl PortcoveService {
         let (source, _, _, staged) = self
             .stage_github_mod_archive(port, platform, release_id, asset_id, None, archive)
             .await?;
+        let native_import_offered = match self.active_install(port)? {
+            Some(install) => {
+                installed_native_import(&install, platform)?
+                    && check_runtime(&install.version, &staged.review).is_ok()
+            }
+            None => false,
+        };
         Ok(GithubModCompoundReview {
             port_id: port_id.into(),
             repository: source.repository.into(),
@@ -209,6 +259,7 @@ impl PortcoveService {
             release_id,
             asset_id,
             review: staged.review,
+            native_import_offered,
         })
     }
 
@@ -574,25 +625,99 @@ mod tests {
         let mut port = catalog.port("zelda64-recomp").unwrap().clone();
         assert!(has_github_mod_source(&port));
         assert!(!has_github_mod_source(catalog.port("shipwright").unwrap()));
-        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
-            let (url, native) = github_mod_handoff(&port, Some(platform));
-            assert_eq!(
-                url.as_deref(),
-                Some("https://github.com/RecompRando/MMRecompRando/releases")
-            );
-            assert!(native);
-        }
-        for platform in [
-            Some(Platform::MacosX86_64),
-            Some(Platform::MacosAarch64),
-            None,
-        ] {
-            let (url, native) = github_mod_handoff(&port, platform);
-            assert!(url.is_some());
-            assert!(!native);
-        }
+        assert_eq!(
+            github_mod_release_url(&port).as_deref(),
+            Some("https://github.com/RecompRando/MMRecompRando/releases")
+        );
+        assert_eq!(
+            github_mod_release_url(catalog.port("shipwright").unwrap()),
+            None
+        );
         port.release.repository = "unrelated/unreviewed".into();
         assert!(!has_github_mod_source(&port));
+    }
+
+    fn service_with_install(version: Option<&str>) -> (tempfile::TempDir, PortcoveService) {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path().join("library")).unwrap();
+        if let Some(version) = version {
+            crate::retained_build::tests::install_fixture_port(
+                &library,
+                &crate::Catalog::embedded().unwrap(),
+                "zelda64-recomp",
+                "installed",
+                version,
+                b"recomp runtime",
+                true,
+            );
+        }
+        (temporary, PortcoveService::new_read_only(library).unwrap())
+    }
+
+    fn host_has_layout(platform: Platform) -> bool {
+        SOURCES[0]
+            .companions
+            .iter()
+            .any(|layout| layout.platform == platform)
+    }
+
+    #[test]
+    fn native_import_comes_from_the_installed_build_not_the_definition() {
+        let platform = Platform::current().unwrap();
+        let (_temporary, service) = service_with_install(Some("v1.2.2"));
+        let port = service.catalog().port("zelda64-recomp").unwrap();
+        assert_eq!(
+            service.github_native_import(port, Some(platform)).unwrap(),
+            host_has_layout(platform)
+        );
+        assert!(!service.github_native_import(port, None).unwrap());
+        let other = [Platform::WindowsX86_64, Platform::LinuxX86_64]
+            .into_iter()
+            .find(|candidate| *candidate != platform)
+            .unwrap();
+        assert!(!service.github_native_import(port, Some(other)).unwrap());
+        let handoff = service.preview_mod_handoff("zelda64-recomp").unwrap();
+        assert_eq!(
+            handoff.github_release_url.as_deref(),
+            Some("https://github.com/RecompRando/MMRecompRando/releases")
+        );
+        assert_eq!(
+            handoff.github_native_import_offered,
+            host_has_layout(platform)
+        );
+    }
+
+    #[test]
+    fn an_install_that_predates_the_loader_keeps_only_the_link_out() {
+        let platform = Platform::current().unwrap();
+        let (_temporary, service) = service_with_install(Some("v1.1.0"));
+        let port = service.catalog().port("zelda64-recomp").unwrap();
+        assert!(!service.github_native_import(port, Some(platform)).unwrap());
+        for view in [
+            service.preview_mod_handoff("zelda64-recomp").unwrap(),
+            service.preview_mod_setups("zelda64-recomp").unwrap(),
+        ] {
+            assert!(view.github_release_url.is_some());
+            assert!(!view.github_native_import_offered);
+        }
+    }
+
+    #[test]
+    fn a_game_that_is_not_installed_is_a_pure_link_out() {
+        let platform = Platform::current().unwrap();
+        let (_temporary, service) = service_with_install(None);
+        let port = service.catalog().port("zelda64-recomp").unwrap();
+        assert!(!service.github_native_import(port, Some(platform)).unwrap());
+        for view in [
+            service.preview_mod_handoff("zelda64-recomp").unwrap(),
+            service.preview_mod_setups("zelda64-recomp").unwrap(),
+        ] {
+            assert_eq!(
+                view.github_release_url.as_deref(),
+                Some("https://github.com/RecompRando/MMRecompRando/releases")
+            );
+            assert!(!view.github_native_import_offered);
+        }
     }
 
     #[test]
