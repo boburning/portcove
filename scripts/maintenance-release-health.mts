@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
+import { isRecord } from "./runtime-values.mts";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
 import { isRoutineProviderCondition } from "./upstream-health-triage.mts";
 
@@ -69,13 +70,26 @@ export function releaseHealthFacts(report: unknown) {
     throw new MaintenanceStoreError("Unsupported release-health report");
   // The monitor partitions its ports exactly; anything else is an unsupported report.
   const listed = Object.values(lists).flat() as string[];
-  if (new Set(listed).size !== listed.length || listed.length !== inventory.total_ports)
+  const members = new Set(listed);
+  if (members.size !== listed.length || listed.length !== inventory.total_ports)
     throw new MaintenanceStoreError(
       "Unsupported release-health report: port lists are not a partition",
     );
   const conditions = new Map<string, Record<string, unknown>[]>();
-  for (const condition of value.known_conditions as Record<string, unknown>[]) {
-    if (typeof condition.port_id !== "string") continue;
+  const keys = new Set<string>();
+  for (const condition of value.known_conditions as unknown[]) {
+    if (
+      !isRecord(condition) ||
+      typeof condition.port_id !== "string" ||
+      !members.has(condition.port_id) ||
+      typeof condition.key !== "string" ||
+      !condition.key.trim() ||
+      keys.has(condition.key)
+    )
+      throw new MaintenanceStoreError(
+        "Unsupported release-health report: ambiguous condition identity",
+      );
+    keys.add(condition.key);
     const stable = Object.fromEntries(
       stableConditionFields.map((field) => [field, condition[field] ?? null]),
     );

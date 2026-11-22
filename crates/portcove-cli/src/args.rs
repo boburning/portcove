@@ -434,11 +434,17 @@ pub(crate) enum InstallationCommand {
     Plan {
         /// Catalog port ID whose managed install should be reviewed.
         port_id: String,
+        /// Reviewed native package choice ID for this first installation.
+        #[arg(long)]
+        package: Option<String>,
     },
     /// Install only when the reviewed inputs still match under the port lock.
     Run {
         /// Catalog port ID used for the preceding installation plan.
         port_id: String,
+        /// Exact reviewed package choice ID used when planning this install.
+        #[arg(long)]
+        package: Option<String>,
         /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
         #[arg(long)]
         expected_plan: String,
@@ -650,6 +656,9 @@ pub(crate) enum SteamGridDbCommand {
         /// Destination image role to propose images for.
         #[arg(long, value_enum)]
         role: DestinationArtworkRoleArg,
+        /// Provider page of 50 images, starting at 0. An empty page ends the listing.
+        #[arg(long, default_value_t = 0)]
+        page: u32,
     },
 }
 

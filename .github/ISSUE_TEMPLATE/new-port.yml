@@ -55,7 +55,7 @@ body:
     id: source
     attributes:
       label: Required game files and setup
-      description: Required lawful game data, exact revisions/hashes, setup interface, and what is still unknown.
+      description: Required lawful game data, exact revisions/hashes, setup interface, and what is still unknown. Identify the original game separately from this project and its source edition. Link an existing catalog game identity when established; explain remakes, modified games, multi-game engines, helpers, or uncertain grouping with upstream evidence.
   - type: textarea
     id: integrity
     attributes:

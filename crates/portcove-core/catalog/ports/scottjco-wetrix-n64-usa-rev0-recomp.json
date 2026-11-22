@@ -37,7 +37,16 @@
         }
       ]
     },
-    "download_block_reason": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The upstream Windows archive bundles translated game code and derived HD artwork without documented permission from the game rights holders. You can add a complete copy you are permitted to use.",
+        "tracking_issue": 4262
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "wetrix",

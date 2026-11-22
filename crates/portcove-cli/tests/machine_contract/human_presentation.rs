@@ -368,7 +368,7 @@ fn setup_references_reach_human_current_and_explicit_legacy_consumers() {
 }
 
 #[test]
-fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
+fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     let temporary = tempfile::tempdir().unwrap();
     let home = temporary.path().join("isolated-home");
     std::fs::create_dir_all(&home).unwrap();
@@ -388,15 +388,20 @@ fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
         super::json_stdout(&output)["data"].clone()
     };
     let current = read(&["--json", "catalog", "listings"]);
+    let implementation = read(&["--json", "catalog", "listings", "--format-version", "12"]);
     let legacy = read(&["--json", "catalog", "listings", "--format-version", "11"]);
-    assert_eq!(current["format_version"], 12);
+    assert_eq!(current["format_version"], 15);
+    assert_eq!(implementation["format_version"], 12);
     assert_eq!(legacy["format_version"], 11);
     // Consume the compiled producer's documents through the actual Core reader,
     // rather than accepting only a new format number or a hand-authored fixture.
-    portcove_core::CatalogListingDocument::from_json(&current.to_string()).unwrap();
-    portcove_core::CatalogListingDocument::from_json(&legacy.to_string()).unwrap();
+    for document in [&current, &implementation, &legacy] {
+        portcove_core::CatalogListingDocument::from_json(&document.to_string()).unwrap();
+    }
     let current_listings = current["listings"].as_array().unwrap();
+    let implementation_listings = implementation["listings"].as_array().unwrap();
     let legacy_listings = legacy["listings"].as_array().unwrap();
+    assert_eq!(current_listings.len(), implementation_listings.len());
     assert_eq!(current_listings.len(), legacy_listings.len());
     let zelda = current_listings
         .iter()
@@ -412,7 +417,44 @@ fn implementation_descriptions_export_with_an_explicit_legacy_reader_fence() {
             .as_str()
             .is_some_and(|reason| !reason.is_empty())
     }));
-    for (original, exported) in current_listings.iter().zip(legacy_listings) {
+    let mut removed_scenes = 0;
+    let mut removed_restrictions = 0;
+    for (original, exported) in current_listings.iter().zip(implementation_listings) {
+        let mut expected = original.clone();
+        let row = expected.as_object_mut().unwrap();
+        // Readers below listing format 15 keep only the legacy download string.
+        if row.remove("restrictions").is_some() {
+            removed_restrictions += 1;
+            assert!(
+                row["download_block_reason"]
+                    .as_str()
+                    .is_some_and(|reason| !reason.is_empty()),
+                "listing {} keeps its legacy download string",
+                original["id"]
+            );
+        }
+        if let Some(media) = row.get_mut("media").and_then(Value::as_array_mut) {
+            let count = media.len();
+            media.retain(|asset| {
+                asset["igdb"].is_null()
+                    || !matches!(asset["role"].as_str(), Some("header" | "screenshot"))
+            });
+            removed_scenes += count - media.len();
+            if media.is_empty() {
+                row.remove("media");
+            }
+        }
+        assert_eq!(&expected, exported, "listing {}", original["id"]);
+    }
+    assert!(
+        removed_scenes > 0,
+        "the bundled catalog has reviewed IGDB scenes"
+    );
+    assert!(
+        removed_restrictions > 0,
+        "the bundled catalog has typed acquisition restrictions"
+    );
+    for (original, exported) in implementation_listings.iter().zip(legacy_listings) {
         assert!(exported.get("implementation").is_none());
         // Every original-file guide, edition identity, availability and download
         // restriction survives; only inert explanations are omitted for strict

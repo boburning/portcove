@@ -1,3 +1,4 @@
+mod acquisition_restriction;
 mod activity_diagnostics;
 mod adapter;
 mod application_runtime;
@@ -102,6 +103,7 @@ pub use provider_observation::inspect_provider_observation;
 mod disc_filesystem;
 mod disc_product;
 mod gamebanana;
+mod jakmods;
 mod mod_package;
 mod mod_provider;
 mod native_mod_list;
@@ -171,6 +173,11 @@ mod windows_runtime;
 mod windows_user_access;
 mod zip_read;
 
+pub use acquisition_restriction::{
+    AcquisitionRestriction, ReconsiderCondition, RestrictedArtifact, RestrictedComponent,
+    RestrictedOperation, RestrictionCarrier, RestrictionEffect, RestrictionReason,
+    RestrictionScope,
+};
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};
@@ -179,13 +186,14 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 #[doc(hidden)]
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
-    ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkEvictedAsset, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
-    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot,
-    ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord, ArtworkWithdrawalSignal,
-    DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
-    DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
-    GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
+    ARTWORK_CACHE_MISS, ARTWORK_HANDOFF_SCHEMA, ARTWORK_RETRY, ArtworkAttribution,
+    ArtworkAvailability, ArtworkCacheClear, ArtworkCacheEpoch, ArtworkChoice, ArtworkEvictedAsset,
+    ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
+    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    ArtworkWithdrawalRecord, ArtworkWithdrawalSignal, DestinationArtworkBytes,
+    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
+    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
+    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
     STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
     SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
     SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
@@ -309,6 +317,10 @@ pub use host_tools::{
 };
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
+pub use jakmods::{
+    JAKMODS_SETUP_URL, JakModsBuild, JakModsBuildStatus, JakModsCatalog, JakModsProject,
+    JakModsProjectKind, JakModsRelease, jakmods_game,
+};
 pub use launch::forward_launch_signal;
 #[cfg(windows)]
 pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
@@ -491,10 +503,10 @@ pub use support_bundle_export::{
     prepare_support_log_directory,
 };
 pub use target_inspection::{
-    CatalogPresence, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS, LegacyCoverage,
-    MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
-    TargetInspection, TargetQualification, TargetQualificationScope, TargetQualificationState,
-    TargetRoute, TargetRoutes, Unassessed, inspect_targets,
+    CatalogPresence, ContentCapabilityState, CoreProducer, EvidenceRoute, INSPECTABLE_PLATFORMS,
+    LegacyCoverage, MAX_INSPECTED_PORTS, OfferedArtifact, PortTargetInspection, ScopeApplicability,
+    TargetContentCapabilities, TargetInspection, TargetQualification, TargetQualificationScope,
+    TargetQualificationState, TargetRoute, TargetRoutes, Unassessed, inspect_targets,
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;

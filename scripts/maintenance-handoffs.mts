@@ -7,8 +7,8 @@
  * `handoff:<kind>:<source-subject>` assessment per attention subject through
  * the store's ordinary assessment, transition and notification guards, and
  * `handoffs --record` keeps at most one planned operation per open handoff at
- * its current fence. No executor is dispatched: every entry is disabled with an
- * exact reason and resume condition, and receipt columns stay empty.
+ * its current fence. The registry cannot dispatch executors. The existing
+ * scheduled intake worker can record an eligible final audit's original receipt.
  *
  * Handoffs are not a backlog: they carry no priority, owner or status. Work
  * stays in its canonical issues, Project fields and executors.
@@ -22,7 +22,10 @@ import {
   releaseContentFindings,
   releaseContentUnscannable,
 } from "./maintenance-release-content.mts";
-import { originalLocationReasons } from "./upstream-location-reasons.mts";
+import {
+  originalLocationReasons,
+  reviewedEndpointClassification,
+} from "./upstream-location-reasons.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Stored as each handoff assessment's policy version. */
@@ -136,9 +139,9 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "hosted-intake-blocked",
     source: "hosted-intake",
     action:
-      "Follow the recorded blocker on #177: when primary evidence changed, the owner withdraws the request and submits an explicit reconciliation; any other blocker resumes through owner process dispatch of the same queue.",
+      "The daily maintenance schedule resumes verified pending final audits on their original request. When primary evidence changed, the owner withdraws the request and submits an explicit reconciliation. Other blockers use owner process dispatch when their recorded condition holds.",
     invocation:
-      "node scripts/hosted-discovery-intake.mts status --request <request_comment> --json; then either an owner reconciliation comment on #177 (docs/DAILY-PORT-DISCOVERY.md) or gh workflow run hosted-discovery-intake.yml --ref main -f mode=process",
+      "node scripts/hosted-discovery-intake.mts status --request <request_comment> --json; for eligible final audits follow the next scheduled maintenance-inventory.yml run; otherwise use the applicable owner reconciliation on #177 or gh workflow run hosted-discovery-intake.yml --ref main -f mode=process",
     authority: "owner-only",
     executor: "hosted-discovery-intake.yml",
     workflow: {
@@ -150,9 +153,9 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     receipt: "A new bot receipt on #177 for the request or its reconciliation.",
     dispatch: "disabled",
     disabled_reason:
-      "Intake runs only from an owner-authored #177 request or owner process dispatch; no executor may author owner requests and no delegated dispatch credential exists.",
+      "The registry cannot authorize new intake, edit an owner request or dispatch the owner process. The scheduled workflow can resume only an already authorized final audit.",
     resume_condition:
-      "The owner delegates #177 reconciliation authorship or process dispatch to a named executor that revalidates the blocker and records the new bot receipt.",
+      "For a scheduled final audit, the exact original request, authenticated workflow attempt, pending receipt and durable checkpoint must agree. Other blockers require the existing owner action after the recorded condition holds.",
   },
   {
     kind: "hosted-intake-holds",
@@ -179,9 +182,9 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "release-content-finding",
     source: "release-content",
     action:
-      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable GitHub release goes through the owner-only release-health relocation route, an unavailable GitLab release through a reviewed location change. If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
+      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable GitHub release goes through the owner-only release-health relocation route, an unavailable GitLab release through a reviewed location change. If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change adds a download hold to the listing's restrictions (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
     invocation:
-      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data, or a reviewed .github/release-content-accounting.json entry for a confirmed false positive; the next scheduled run of release-content-scan.yml on main reports the result",
+      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR adding a download hold to the listing's restrictions when it is game data, or a reviewed .github/release-content-accounting.json entry for a confirmed false positive; the next scheduled run of release-content-scan.yml on main reports the result",
     authority: "routine",
     executor: "release-content-scan.yml",
     workflow: {
@@ -214,9 +217,9 @@ export const withoutHandoff = [
 
 /** Explicitly disabled capabilities of this checkpoint. */
 export const disabledCapabilities = [
-  "executor dispatch (every executor is owner-only or needs an unauthorized reviewed change, and no delegated credential exists)",
+  "executor dispatch from the handoff registry",
   "digest posting",
-  "schedules",
+  "separate handoff schedules",
   "publication",
 ] as const;
 
@@ -292,9 +295,16 @@ export function releaseHealthHandoffs(facts: ReadonlyMap<string, unknown>): Hand
       Object.fromEntries(releaseConditionFields.map((field) => [field, condition[field] ?? null])),
     );
     const relocation = visible.filter(relocates);
+    const watched = relocation.every(
+      (condition) =>
+        condition.accounted_for === true &&
+        condition.classification === reviewedEndpointClassification &&
+        typeof condition.resume_condition === "string" &&
+        condition.resume_condition.trim().length > 0,
+    );
     const other = visible.filter((condition) => !relocates(condition));
     for (const [kind, conditions] of [
-      ["release-health-relocation", relocation],
+      ["release-health-relocation", watched ? [] : relocation],
       ["release-health-condition", other],
     ] as const)
       if (conditions.length)
@@ -430,7 +440,12 @@ const digestSql = (text: string) => `encode(sha256(convert_to(${text}, 'UTF8')),
  */
 export function handoffCollectionSql(
   input:
-    | { kind: HandoffKind; run: string; conditions: readonly HandoffCondition[] }
+    | {
+        kind: HandoffKind;
+        run: string;
+        conditions: readonly HandoffCondition[];
+        assessedSources?: readonly string[];
+      }
     | { retired: true; run: string },
 ) {
   const conditions =
@@ -443,9 +458,15 @@ export function handoffCollectionSql(
           .join("\n  UNION ALL ")
       : "SELECT NULL::text AS key, NULL::text AS kind, NULL::text AS source, NULL::jsonb AS condition WHERE false";
   // The current handoff subjects this run decides.
+  const scopedKeys =
+    "kind" in input && input.assessedSources
+      ? input.assessedSources.map((source) => literal(handoffSubject(input.kind, source)))
+      : undefined;
   const decided = (column: string) =>
     "kind" in input
-      ? `starts_with(${column}, ${literal(handoffPrefix(input.kind))})`
+      ? scopedKeys
+        ? `${column} = ANY(ARRAY[${scopedKeys.join(", ")}]::text[])`
+        : `starts_with(${column}, ${literal(handoffPrefix(input.kind))})`
       : `starts_with(${column}, 'handoff:') AND split_part(${column}, ':', 2) NOT IN (${handoffRegistry
           .map(({ kind }) => literal(kind))
           .join(", ")})`;
@@ -663,7 +684,7 @@ function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): 
   }
   if (findings || inspect.length) {
     actions.push(
-      "If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
+      "If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change adds a download hold to the listing's restrictions (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
     );
     invocations.push(guidance.invocation);
   }
@@ -756,7 +777,7 @@ ${
      WHERE NOT EXISTS (SELECT 1 FROM portcove_maintenance.operations o
                         WHERE o.subject_key = v.subject_key
                           AND (o.state IN ('dispatched', 'ambiguous')
-                               OR (o.state = 'planned' AND o.fence_sequence = v.fence
+                               OR ((o.state = 'planned' OR (o.state = 'completed' AND v.kind IN ('handoff.hosted-intake-holds','handoff.hosted-intake-blocked'))) AND o.fence_sequence = v.fence
                                    AND o.fence_assessment_id = v.assessment)))
   ON CONFLICT (operation_id) DO NOTHING
   RETURNING 1)
