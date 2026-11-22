@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PortDefinition, PortStatus, SourceProfile, SourceRecord } from "../types";
 import { GameFileLibraries } from "./GameFileLibraries";
+import type { ScanResultRequest } from "../features/game-file-discovery/use-game-file-scan";
 import { RegisteredSourceSetup } from "./RegisteredSourceSetup";
 import type { Perform } from "../features/operations/use-operation-state";
 import { Button } from "./ui/button";
@@ -9,7 +10,7 @@ import { Icon } from "./ui";
 
 export function AddGames({
   active,
-  scanRequest = 0,
+  scanRequest,
   generation,
   ports,
   profiles,
@@ -25,7 +26,7 @@ export function AddGames({
   setSetupSource,
 }: {
   active: boolean;
-  scanRequest?: number;
+  scanRequest?: ScanResultRequest | undefined;
   generation: number;
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -45,9 +46,9 @@ export function AddGames({
     scanRequest ? "folders" : "choose",
   );
   const [foldersVisited, setFoldersVisited] = useState(Boolean(scanRequest));
-  const [seenScanRequest, setSeenScanRequest] = useState(scanRequest);
-  if (scanRequest !== seenScanRequest) {
-    setSeenScanRequest(scanRequest);
+  const [seenScanRequest, setSeenScanRequest] = useState(scanRequest?.sequence);
+  if (scanRequest?.sequence !== seenScanRequest) {
+    setSeenScanRequest(scanRequest?.sequence);
     setFoldersVisited(true);
     setMode("folders");
   }
@@ -161,6 +162,7 @@ export function AddGames({
             active={active && mode === "folders"}
             scanAfterAdd
             instanceId="add-games-folders"
+            scanRequest={scanRequest}
             generation={generation}
             ports={ports}
             profiles={profiles}
