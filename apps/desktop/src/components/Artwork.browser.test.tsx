@@ -2025,7 +2025,7 @@ it("uses the Logo provider role and restores focus to the saved logo control", a
   await click("logo", "Find on SteamGridDB");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await page.getByRole("button", { name: "Logo game (verified)", exact: true }).click();
-  expect(candidates).toHaveBeenCalledExactlyOnceWith(55, "logo");
+  expect(candidates).toHaveBeenCalledExactlyOnceWith(55, "logo", 0);
   await page.getByRole("button", { name: /^Use image by Logo artist/ }).click();
   expect(choose).not.toHaveBeenCalled();
   await applyImageReview("logo");
