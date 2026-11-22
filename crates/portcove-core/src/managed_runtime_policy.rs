@@ -81,7 +81,9 @@ pub(crate) fn acquisition_hold_reason(catalog: &crate::Catalog, port_id: &str) -
 }
 
 /// Port actions an acquisition hold withdraws: fresh managed acquisition,
-/// whether a first install or an update.
+/// whether a first install or an update. Production paths evaluate through
+/// `assess_port_actions`; tests keep this summary of the managed form.
+#[cfg(test)]
 pub(crate) fn hold_withdraws(action: crate::PortAction) -> bool {
     matches!(
         RestrictedOperation::from_port_action(action),

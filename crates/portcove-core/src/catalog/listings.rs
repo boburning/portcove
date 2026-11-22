@@ -2085,8 +2085,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include typed IGDB scene records.
-        assert_eq!(projected.listing_document().format_version, 13);
+        // Embedded listings include typed acquisition restrictions.
+        assert_eq!(projected.listing_document().format_version, 15);
     }
 
     #[test]
@@ -2306,7 +2306,8 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        assert_eq!(current.format_version, 13);
+        // Typed acquisition restrictions lift the embedded directory to 15.
+        assert_eq!(current.format_version, 15);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();

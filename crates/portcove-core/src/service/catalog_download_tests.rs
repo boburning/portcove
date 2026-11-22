@@ -3592,7 +3592,15 @@ async fn a_permitted_package_whose_downloaded_digest_differs_is_refused() {
         fs::read_dir(&request.destination_parent).unwrap().count(),
         0
     );
-    assert!(service.pending_setups().unwrap().is_empty());
+    // As for any failed download, nothing is published; the attempt stays
+    // visible as needing attention.
+    assert!(
+        service
+            .pending_setups()
+            .unwrap()
+            .iter()
+            .all(|pending| pending.state != PendingSetupState::Downloaded)
+    );
 }
 
 #[tokio::test]

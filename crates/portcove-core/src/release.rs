@@ -2250,7 +2250,7 @@ impl GithubReleaseProvider {
             &version,
             &sha256,
         ) {
-            return excluded.into_result();
+            excluded.into_result()?;
         }
         let resolved = ResolvedRelease {
             version,
@@ -2317,7 +2317,7 @@ fn preserved_resolution(
         &record.tag,
         &record.sha256,
     ) {
-        return excluded.into_result();
+        excluded.into_result()?;
     }
     scope.require_current()?;
     scope.require_port(port)?;
