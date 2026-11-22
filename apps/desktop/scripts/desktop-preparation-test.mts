@@ -469,9 +469,33 @@ async function assertIndividualUpdateFailure({
       );
       await browser.wait(until.elementIsEnabled(check), 5_000);
       await clickVisible(browser, check);
+      const expectedRequests = theme === "dark" ? 1 : 2;
       const region = await browser.wait(
-        until.elementLocated(By.css(`[data-update-check-failure="${port.id}"]`)),
-        15_000,
+        async () => {
+          const settled = await executeBrowserScript(
+            browser,
+            (button, expected) => {
+              const ownedWindow = window as Window & {
+                __portcoveUpdateFailureProbe?: { intercepted: number };
+              };
+              return (
+                ownedWindow.__portcoveUpdateFailureProbe?.intercepted === expected &&
+                button instanceof HTMLButtonElement &&
+                button.getAttribute("aria-busy") === "false" &&
+                !button.disabled
+              );
+            },
+            check,
+            expectedRequests,
+          );
+          if (!settled) return false;
+          const [diagnostic] = await browser.findElements(
+            By.css(`[data-update-check-failure="${port.id}"]`),
+          );
+          return diagnostic && (await diagnostic.isDisplayed()) ? diagnostic : false;
+        },
+        45_000,
+        "The exact update diagnostic must render after this check and workspace read complete",
       );
       assert.equal(
         await region.getAttribute("aria-label"),
@@ -571,28 +595,35 @@ async function assertIndividualUpdateFailure({
     observations.failure = errorMessage(error);
     throw error;
   } finally {
-    observations.probe = await executeBrowserScript(browser, () => {
-      const ownedWindow = window as Window & {
-        __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
-      };
-      const probe = ownedWindow.__portcoveUpdateFailureProbe;
-      if (!probe) return { installed: false, restored: false };
-      window.fetch = probe.original;
-      delete ownedWindow.__portcoveUpdateFailureProbe;
-      return {
-        installed: true,
-        intercepted: probe.intercepted,
-        restored: window.fetch === probe.original,
-      };
-    });
-    const report = path.join(output, "update-check-failure-observations.json");
-    await writeFile(report, JSON.stringify(observations, null, 2), {
-      encoding: "utf8",
-      flag: "wx",
-    });
-    artifacts.push(report);
-    assert.equal(observations.probe.restored, true);
-    assert.equal(observations.probe.intercepted, 2);
+    try {
+      observations.probe = await executeBrowserScript(browser, () => {
+        const ownedWindow = window as Window & {
+          __portcoveUpdateFailureProbe?: { original: typeof fetch; intercepted: number };
+        };
+        const probe = ownedWindow.__portcoveUpdateFailureProbe;
+        if (!probe) return { installed: false, restored: false };
+        window.fetch = probe.original;
+        delete ownedWindow.__portcoveUpdateFailureProbe;
+        return {
+          installed: true,
+          intercepted: probe.intercepted,
+          restored: window.fetch === probe.original,
+        };
+      });
+      const report = path.join(output, "update-check-failure-observations.json");
+      await writeFile(report, JSON.stringify(observations, null, 2), {
+        encoding: "utf8",
+        flag: "wx",
+      });
+      artifacts.push(report);
+      if (observations.failure === undefined) {
+        assert.equal(observations.probe.restored, true);
+        assert.equal(observations.probe.intercepted, 2);
+      }
+    } catch (error) {
+      if (observations.failure === undefined) throw error;
+      console.error("Could not finish the update diagnostic cleanup or write its evidence", error);
+    }
   }
 }
 
