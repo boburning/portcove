@@ -189,6 +189,56 @@ it("retains a successful nullable-consent result independently from failed readb
   expect(backupsChanged).toHaveBeenCalledOnce();
 });
 
+it("returns the exact restore result while retaining exclusion and independent readback", async () => {
+  const readbackFailure = new Error("Workspace readback is unavailable");
+  let rejectWorkspace!: (error: Error) => void;
+  let finishHistory!: () => void;
+  refresh.mockReturnValueOnce(
+    new Promise((_resolve, reject) => {
+      rejectWorkspace = reject;
+    }),
+  );
+  backupsChanged.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finishHistory = resolve;
+    }),
+  );
+  const restore = vi.spyOn(desktopApi, "restoreBackup").mockResolvedValue({
+    restored_backup: backup,
+    safety_backup: null,
+  });
+  let result: unknown;
+  await act(async () => {
+    void details.restoreBackup(backup, "reviewed").then((value) => {
+      result = value;
+    });
+  });
+
+  expect(result).toBe(true);
+  expect(restore).toHaveBeenCalledExactlyOnceWith(port.id, backup.id, "reviewed", 7);
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(backupsChanged).not.toHaveBeenCalled();
+  expect(state.pendingOperations.size).toBe(1);
+  expect([...state.invocations.values()]).toMatchObject([
+    { phase: "pending", outcome: "succeeded", context: { target: { id: port.id } } },
+  ]);
+  expect(host.textContent).toContain("finished; refreshing current state.");
+
+  await act(async () => rejectWorkspace(readbackFailure));
+  expect(backupsChanged).toHaveBeenCalledOnce();
+  expect(state.pendingOperations.size).toBe(1);
+  await act(async () => finishHistory());
+
+  expect(state.pendingOperations.size).toBe(0);
+  expect([...state.invocations.values()]).toMatchObject([
+    { phase: "settled", outcome: "succeeded", refreshFailure: readbackFailure },
+  ]);
+  expect(host.textContent).toContain(
+    "The action finished, but Portcove couldn’t refresh this screen.",
+  );
+  expect(restore).toHaveBeenCalledOnce();
+});
+
 it("does not classify an unrelated null command as declined native consent", async () => {
   await act(async () => {
     await state.perform("optional lookup", async () => null);

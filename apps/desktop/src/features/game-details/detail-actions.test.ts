@@ -2,7 +2,7 @@ import { portDefinition, portStatus } from "../../test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import type { PortDefinition } from "../../types";
-import type { Perform } from "../operations/use-operation-state";
+import type { Perform, PerformOptions } from "../operations/use-operation-state";
 import { detailActions } from "./detail-actions";
 import { installRecord } from "../../components/rendered-test-fixtures";
 
@@ -437,7 +437,7 @@ describe("detail actions", () => {
     expect(close).not.toHaveBeenCalled();
   });
 
-  it("refreshes backup history after the backend authorizes a restore", async () => {
+  it("registers exact backup history readback for a committed restore", async () => {
     const backup = {
       id: "backup-1",
       port_id: port.id,
@@ -451,9 +451,9 @@ describe("detail actions", () => {
       restored_backup: backup,
       safety_backup: null,
     });
-    const perform = vi.fn(async (_name: string, task: () => Promise<unknown>) =>
-      task(),
-    ) as unknown as Perform;
+    const perform = vi.fn(
+      async (_name: string, task: () => Promise<unknown>, _options?: PerformOptions) => task(),
+    );
     const refresh = vi.fn().mockResolvedValue(undefined);
 
     await detailActions({
@@ -461,7 +461,7 @@ describe("detail actions", () => {
       status: undefined,
       sourcePath: "",
       biosPath: "",
-      perform: perform,
+      perform: perform as unknown as Perform,
       close: vi.fn(),
       backupsChanged: refresh,
       libraryGeneration: 7,
@@ -473,7 +473,7 @@ describe("detail actions", () => {
       "reviewed-restore",
       7,
     );
-    expect(refresh).toHaveBeenCalledOnce();
+    expect(perform.mock.calls[0]?.[2]?.readbackAfterSuccess).toBe(refresh);
   });
 
   it("deletes one backend-authorized backup", async () => {

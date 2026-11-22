@@ -91,8 +91,8 @@ impl RestrictedOperation {
         }
     }
 
-    // Total vocabulary maps; tested now, consumed when a carrier names these operations.
-    #[cfg_attr(not(test), allow(dead_code))]
+    // Total vocabulary maps; tested now, compiled in when a carrier names these operations.
+    #[cfg(test)]
     pub(crate) const fn from_definition_operation(
         operation: crate::DefinitionOperation,
     ) -> Option<Self> {
@@ -107,8 +107,8 @@ impl RestrictedOperation {
         }
     }
 
-    // Total vocabulary maps; tested now, consumed when a carrier names these operations.
-    #[cfg_attr(not(test), allow(dead_code))]
+    // Total vocabulary maps; tested now, compiled in when a carrier names these operations.
+    #[cfg(test)]
     pub(crate) const fn curated_operation(
         self,
     ) -> Option<crate::definition_repository::publisher_policy::CuratedArtifactOperation> {
@@ -180,15 +180,22 @@ impl RestrictionScope {
 
     /// Whether some dimension both scopes constrain has no value in common, so
     /// no subject can match both.
+    /// Values overlap under the same rules matching uses.
     fn disjoint_from(&self, other: &Self) -> bool {
-        fn disjoint<T: PartialEq>(left: &[T], right: &[T]) -> bool {
-            !left.is_empty() && !right.is_empty() && left.iter().all(|v| !right.contains(v))
+        fn disjoint<T>(left: &[T], right: &[T], overlap: impl Fn(&T, &T) -> bool) -> bool {
+            !left.is_empty()
+                && !right.is_empty()
+                && !left.iter().any(|l| right.iter().any(|r| overlap(l, r)))
         }
-        disjoint(&self.platforms, &other.platforms)
-            || disjoint(&self.releases, &other.releases)
-            || disjoint(&self.artifacts, &other.artifacts)
-            || disjoint(&self.inputs, &other.inputs)
-            || disjoint(&self.components, &other.components)
+        disjoint(&self.platforms, &other.platforms, PartialEq::eq)
+            || disjoint(&self.releases, &other.releases, PartialEq::eq)
+            || disjoint(
+                &self.artifacts,
+                &other.artifacts,
+                RestrictedArtifact::overlaps,
+            )
+            || disjoint(&self.inputs, &other.inputs, PartialEq::eq)
+            || disjoint(&self.components, &other.components, PartialEq::eq)
     }
 
     /// Whether every subject this scope covers is also covered by `self`.
@@ -211,6 +218,32 @@ pub struct RestrictedArtifact {
     pub sha256: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset_name: Option<String>,
+}
+
+impl RestrictedArtifact {
+    /// The one artifact identity rule: equal version, SHA-256 compared without
+    /// case, and no asset name here matching any. `unnamed` decides a named
+    /// artifact against an identity that names no asset.
+    fn names(&self, version: &str, sha256: &str, asset_name: Option<&str>, unnamed: bool) -> bool {
+        self.version == version
+            && self.sha256.eq_ignore_ascii_case(sha256)
+            && match (&self.asset_name, asset_name) {
+                (None, _) => true,
+                (Some(expected), Some(actual)) => expected == actual,
+                (Some(_), None) => unnamed,
+            }
+    }
+
+    /// Whether some package can match both: a missing asset name on either
+    /// side matches any name on the other.
+    fn overlaps(&self, other: &Self) -> bool {
+        self.names(
+            &other.version,
+            &other.sha256,
+            other.asset_name.as_deref(),
+            true,
+        )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -655,16 +688,8 @@ fn fit(restriction: &AcquisitionRestriction, subject: &RestrictionSubject<'_>) -
         subject.artifact,
         hold,
         phase,
-        |v, a| {
-            v.version == a.version
-                && v.sha256.eq_ignore_ascii_case(a.sha256)
-                && match (&v.asset_name, a.asset_name) {
-                    (None, _) => true,
-                    (Some(expected), Some(actual)) => expected == actual,
-                    // An unnamed subject satisfies a named hold, never a named permit.
-                    (Some(_), None) => hold,
-                }
-        },
+        // An unnamed subject satisfies a named hold, never a named permit.
+        |v, a| v.names(a.version, a.sha256, a.asset_name, hold),
     ))
     // No Core path resolves inputs or components yet, so even an offer
     // cannot defer them: a hold on them fails closed, a permit never matches.

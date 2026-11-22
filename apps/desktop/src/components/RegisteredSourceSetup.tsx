@@ -115,7 +115,7 @@ export function RegisteredSourceSetup({
         throw new ReuseError("profile_missing", reuseCodeText(t, "profile_missing"));
       const path = await pickSourcePath(profile, source.path, "game");
       if (!path || !accepts()) return;
-      const repaired = await perform(
+      await perform(
         "repair game-file location",
         async () => {
           const plan = await desktopApi.planSourceRelink(selected, path, generation);
@@ -130,7 +130,21 @@ export function RegisteredSourceSetup({
             generation,
             "library",
           ),
-          refresh: "none",
+          sourceRegistrationResult: (source) => source,
+          refresh: async (repaired) => {
+            if (!repaired) return;
+            if (accepts()) {
+              setRead(undefined);
+              setRepairedPath(repaired.path);
+            }
+            try {
+              await onChanged();
+            } catch (value) {
+              if (accepts()) setError({ core: errorText(value) });
+              throw value;
+            }
+          },
+          invalidateDiagnostics: false,
           propagateFailure: true,
         },
       ).catch((value: unknown) => {
@@ -142,12 +156,6 @@ export function RegisteredSourceSetup({
           );
         return undefined;
       });
-      if (!repaired) return;
-      if (accepts()) {
-        setRead(undefined);
-        setRepairedPath(repaired.path);
-      }
-      await onChanged();
     });
   if (!sources.length) return null;
   return (

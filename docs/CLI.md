@@ -129,6 +129,7 @@ For a GitHub-hosted upstream project:
 portcove setup candidates PORT_ID
 portcove setup candidates PORT_ID --release-id RELEASE_ID
 portcove setup candidates PORT_ID --channel beta
+portcove setup candidates PORT_ID --release-window 60
 portcove setup preview PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract
 portcove setup download PORT_ID --release-id RELEASE_ID --asset-id ASSET_ID --destination-parent C:/Games --extract --expected-preview PREVIEW_SHA256 --yes
 portcove setup pending
@@ -139,6 +140,10 @@ Choose IDs returned by `setup candidates`; Core selects a release by channel and
 assesses its packages for this host. The response includes the selected release,
 recommendation, reasons, alternatives, coverage and a read-only default download
 parent. Explicit release inspection does not require complete older history.
+The release list shows the newest 10 releases by default; `--release-window`
+lists up to 1,000 so an older release can be chosen (Desktop's **Show older
+releases** widens it in steps of 25). A selected GitHub release's asset inventory
+is read in full, up to GitHub's 1,000-asset limit per release.
 Review the actual package name, source, size, checksum evidence
 and new destination. It does not infer that every upstream asset is a playable
 package for this computer. Omit `--extract` for an installer or unsupported

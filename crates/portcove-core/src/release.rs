@@ -353,7 +353,12 @@ const PROVIDER_PAGE_SIZE: usize = 100;
 /// not a selection bound: selection reads as much history as its choice needs.
 const GITHUB_MAX_RELEASE_PAGES: usize = 10;
 const GITHUB_SAVED_RELEASE_INVENTORY_LIMIT: usize = 10;
-const GITHUB_ASSET_INVENTORY_PAGE_LIMIT: usize = 3;
+/// Asset pages of 100 a release inventory may read: GitHub allows at most
+/// 1,000 assets per release, so ten pages always reach the complete inventory.
+const GITHUB_ASSET_INVENTORY_PAGE_LIMIT: usize = 10;
+/// Asset pages the request-cost forecast budgets for a typical saved package
+/// release; the inventory itself reads to completion.
+const GITHUB_FORECAST_ASSET_PAGES: usize = 3;
 // Small provider metadata and authentication requests get an overall deadline;
 // streamed downloads intentionally use only connection and read-idle bounds.
 const PROVIDER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -1660,7 +1665,7 @@ impl ReleaseProvider for GithubReleaseProvider {
         // less, and a stale inline list cannot predict which inventories we need.
         let counted_requests = (1
             + GITHUB_MAX_RELEASE_PAGES
-            + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT * GITHUB_ASSET_INVENTORY_PAGE_LIMIT)
+            + GITHUB_SAVED_RELEASE_INVENTORY_LIMIT * GITHUB_FORECAST_ASSET_PAGES)
             as u32;
         crate::RequestCostForecast {
             counted_requests,

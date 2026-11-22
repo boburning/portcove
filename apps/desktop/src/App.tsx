@@ -52,6 +52,7 @@ import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-of
 import {
   canOpenExternalRegistration,
   canOpenInstalledResult,
+  matchingSavedSource,
   targetInvocationContext,
 } from "./features/operations/invocation-state";
 import {
@@ -527,8 +528,8 @@ type WorkspaceProps = {
   bootstrap: BootstrapStatus;
   initialBrowsingContext?: LibraryBrowsingContext | undefined;
   rememberBrowsingContext: (root: string, context: LibraryBrowsingContext) => void;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   returnToSelection?: "switch" | "reset" | undefined;
   consumeLibrarySelectionReturn: () => void;
 };
@@ -1351,6 +1352,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       unreadInstallPorts={model.operations.unreadInstallPorts}
       unreadExternalPorts={model.operations.unreadExternalPorts}
       unreadManagedRoutePorts={model.operations.unreadManagedRoutePorts}
+      sourceWriteOnHold={model.operations.sourceWriteOnHold}
       perform={model.operations.perform}
     >
       <ArtworkProvider
@@ -1448,7 +1450,7 @@ type WorkspaceFeedbackModel = Pick<
   | "dismissApplicationUpdateNotice"
   | "renderPreferenceFailure"
 > & {
-  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity">;
+  ui: Pick<WorkspaceModel["ui"], "view" | "selectedId" | "revealActivity" | "setSettingsCategory">;
   model: Pick<WorkspaceModel["model"], "entries" | "statusMap">;
   bootstrap: Pick<WorkspaceModel["bootstrap"], "generation">;
 };
@@ -1509,6 +1511,24 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           )
             return undefined;
           return () => model.openPortDetails(target.id, "external-result:" + record.id);
+        }}
+        openSavedSource={(record) => {
+          if (model.data.refreshFailure) return undefined;
+          const source = matchingSavedSource(
+            record,
+            model.data.sources,
+            model.bootstrap.generation,
+            model.data.workspaceReadRevision,
+          );
+          if (!source) return undefined;
+          const identity = referenceIdentity(source);
+          return () => {
+            model.ui.setSettingsCategory("game-files");
+            model.setPrimaryView("settings");
+            window.requestAnimationFrame(() =>
+              focusSettingsTarget("saved-source-result", source.profile_id, identity),
+            );
+          };
         }}
         completedActivityAvailable={(id) =>
           model.data.activities.some(
@@ -1843,8 +1863,8 @@ function CurrentView({
   sourceHealth: SourceHealthState;
   appearance: AppearanceState;
   bootstrap: BootstrapStatus;
-  switchLibrary: (path: string) => Promise<void>;
-  resetLibrary: () => Promise<void>;
+  switchLibrary: (path: string, review?: string) => Promise<void>;
+  resetLibrary: (review?: string) => Promise<void>;
   nativeSourceDrag: ReturnType<typeof useNativeSourceDrop>;
   gameSourceDropReview: GameSourceDropReview;
   hostToolActions: HostToolActions;
@@ -2158,6 +2178,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
       sourceNeeds={model.sourceNeeds}
@@ -2173,6 +2194,7 @@ function CurrentSettingsView({
           operations.perform,
           operations.setError,
           bootstrap.generation,
+          data.refreshAfterMutation,
         );
       }}
     />
@@ -2493,6 +2515,7 @@ function SelectedPortPanel({
         close: close,
         reviewInstall: installPlanning.review,
         backupsChanged: backups.refresh,
+        refreshRestoredBackups: backups.refreshAfterCommit,
         libraryGeneration: libraryGeneration,
         dismissInstallReview: installPlanning.invalidate,
         onInstallCommitted: operations.noteInstallCommitted,
