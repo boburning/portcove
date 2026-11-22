@@ -171,6 +171,7 @@ interface SetupObservations {
   returned_owner_focus?: boolean;
   initial?: GameFileScanSnapshot;
   continued?: GameFileScanSnapshot;
+  reopened_exact_scan?: string;
   fresh_plan?: OutputSourceImportPlan;
   originals_unchanged?: boolean;
   no_acquisition?: boolean;
@@ -302,6 +303,7 @@ import {
   openCatalogPortAfterRefresh,
   reviewControls,
   selectGameFilesSettings,
+  selectPrimaryNavigation,
   openGameFileScan,
 } from "./desktop-review-controls.mts";
 
@@ -678,7 +680,13 @@ export async function sourceDialogScenario({
       (await browser.findElement(intakeDialog).getText()).includes("Checking won't change them."),
     );
     const chooseFiles = await browser.findElement(button("Choose game files to check"));
-    await browser.wait(until.elementIsEnabled(chooseFiles), 5_000);
+    // Windows job 136993142773 was still inspecting the registered input
+    // when this exact source review's secondary action was checked.
+    await browser.wait(
+      until.elementIsEnabled(chooseFiles),
+      30_000,
+      "The registered game-file check did not settle before source review",
+    );
     // This journey already supplies a registered path, so the automatic check
     // offers its candidate. Choosing different files is the secondary action.
     const useCurrentLocation = await browser.wait(
@@ -798,10 +806,14 @@ export async function sourceDialogScenario({
       await browser.findElement(button("Close")),
     );
     await click(button("Search this folder"));
-    await browser.wait(
-      until.elementLocated(By.xpath('//p[contains(., "Found no exact matches.")]')),
+    const discoverySummary = By.xpath(
+      '//*[@aria-labelledby="source-discovery-title"]//p[@role="status" and starts-with(normalize-space(.), "Found no exact matches.")]',
+    );
+    const firstDiscoverySummary = await browser.wait(
+      until.elementLocated(discoverySummary),
       15_000,
     );
+    const exactDiscoverySummary = await firstDiscoverySummary.getText();
     await assertCompactReview(browser, '[aria-labelledby="source-discovery-title"]');
     const discoveryAccessibility = path.join(output, "source-discovery-accessibility.json");
     await captureAccessibilityReport(browser, discoveryAccessibility, artifacts);
@@ -846,7 +858,6 @@ export async function sourceDialogScenario({
     const sourceRegistrationIndex = activities.findIndex(
       (item) => item.id === sourceRegistration.id,
     );
-    const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     await click(
       By.xpath(
@@ -857,13 +868,13 @@ export async function sourceDialogScenario({
       `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceRegistration.id)}]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
     await browser.wait(until.elementLocated(By.css(".activity-list")), 15_000);
-    if (sourceActivityInRecentPreview)
+    if (sourceRegistrationIndex < 8)
       await browser.wait(until.elementLocated(sourceActivity), 15_000);
-    assert.equal(
-      (await browser.findElements(sourceActivity)).length,
-      sourceActivityInRecentPreview ? 1 : 0,
-      `source registration at history index ${sourceRegistrationIndex} must match the recent preview`,
-    );
+    // History and the CLI can have different feed revisions while background
+    // tasks settle. A displayed link must still point to this exact Core row.
+    const sourceActivityLinks = await browser.findElements(sourceActivity);
+    assert.ok(sourceActivityLinks.length <= 1, "History duplicated the exact source action");
+    const sourceActivityInRecentPreview = sourceActivityLinks.length === 1;
     if (sourceActivityInRecentPreview) {
       await click(sourceActivity);
       await browser.wait(until.elementLocated(By.id("settings-game-files-heading")), 5_000);
@@ -929,6 +940,59 @@ export async function sourceDialogScenario({
     });
     artifacts.push(discoverySettingsScreenshot);
 
+    const retainedTrigger = await browser.wait(
+      until.elementLocated(button("Review last search")),
+      15_000,
+    );
+    await browser.wait(until.elementIsEnabled(retainedTrigger), 15_000);
+    await retainedTrigger.sendKeys(Key.ENTER);
+    const retainedDialog = await browser.wait(until.elementLocated(discoveryDialog), 15_000);
+    const retainedRoot = await retainedDialog.findElement(By.id("source-search-root"));
+    const retainedProfile = await retainedDialog.findElement(By.id("source-profile-select"));
+    assert.equal(await retainedRoot.getAttribute("value"), searchRoot);
+    const retainedProfileValue = await retainedProfile.findElement(
+      By.css('[data-slot="select-value"]'),
+    );
+    assert.equal((await retainedProfileValue.getText()).trim(), profileLabel);
+    assert.equal(
+      await retainedDialog.findElement(discoverySummary).getText(),
+      exactDiscoverySummary,
+    );
+    assert.match(await retainedDialog.getText(), /Results from the last search/);
+    await assertCompactReview(browser, '[aria-labelledby="source-discovery-title"]');
+    const retainedDiscoveryScreenshot = path.join(output, "native-retained-discovery-dialog.png");
+    await writeFile(retainedDiscoveryScreenshot, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(retainedDiscoveryScreenshot);
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    await browser.wait(
+      async () => (await browser.findElements(discoveryDialog)).length === 0,
+      5_000,
+    );
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (element) => document.activeElement === element,
+          retainedTrigger,
+        ),
+      5_000,
+      "Retained discovery trigger did not regain focus after Escape",
+    );
+    const discoveryAndRegistration = (records: typeof activities) =>
+      records
+        .filter(
+          (item) => item.operation === "discover_sources" || item.operation === "register_source",
+        )
+        .map((item) => [item.id, item.status]);
+    assert.deepEqual(
+      discoveryAndRegistration(transportValue("activity", command(["activity"])).records),
+      discoveryAndRegistration(activities),
+      "Reopening the exact report must not run another search or register a source",
+    );
+
     await progressiveScanNavigation({ browser, output, artifacts, command, port, searchRoot });
 
     const report = path.join(output, "source-dialog-result.json");
@@ -944,7 +1008,14 @@ export async function sourceDialogScenario({
           nested_select_escape_preserved_dialog: true,
           intake_escape_restored_focus: true,
           discovery_escape_restored_focus: true,
-          source_activity_history_index: sourceRegistrationIndex,
+          retained_discovery_result: {
+            activity_id: sourceDiscovery.id,
+            summary: exactDiscoverySummary,
+            navigation: "activity history to Game files settings",
+            policy: "original folder and profile with no new discovery or registration",
+            escape_restored_focus: true,
+          },
+          source_activity_core_index_at_read: sourceRegistrationIndex,
           source_activity_in_recent_preview: sourceActivityInRecentPreview,
           source_activity_opened_game_files_settings: sourceActivityInRecentPreview,
           source_activity_settings_control_focused: sourceActivityInRecentPreview,
@@ -1975,6 +2046,55 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       assert.ok(newlyDiscovered);
       report.observations.continued = continued;
       await capture("hash-batch-complete");
+      report.checkpoint = "reopen the exact saved scan after navigation";
+      const scanActivities = () => {
+        const feed = transportValue("activity", command(["activity", "--limit", "100"]));
+        assert.equal(feed.active_and_actionable_complete, true);
+        assert.equal(feed.terminal_history_complete, true);
+        return feed.records.filter((record) => record.operation === "discover_sources");
+      };
+      const activitiesBeforeReview = scanActivities();
+      const receiptIdentity = JSON.stringify([
+        scanId,
+        continued.catalog_sha256,
+        continued.completed_at,
+        required(continued.coverage).batches,
+      ]);
+      await selectPrimaryNavigation(browser, "Discover");
+      const receipt = await browser.wait(
+        async () => {
+          const controls = await browser.findElements(button("Review saved scan"));
+          const [control] = controls;
+          if (!control || controls.length !== 1 || !(await control.isDisplayed())) return false;
+          return (await control.getAttribute("data-scan-result-trigger")) === receiptIdentity
+            ? control
+            : false;
+        },
+        30_000,
+        "The exact completed scan receipt must remain available on Discover",
+      );
+      assert.ok(receipt);
+      await clickVisible(browser, receipt);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () =>
+              document.activeElement?.matches(
+                '[data-saved-folders-workspace] [aria-label="Saved folder scan results"] h3',
+              ) && document.activeElement.textContent?.trim() === "Last completed scan",
+          ),
+        30_000,
+        "Review saved scan must focus its exact completed results",
+      );
+      assert.deepEqual(await nativeRead("get_game_file_scan_snapshot"), continued);
+      assert.deepEqual(
+        scanActivities(),
+        activitiesBeforeReview,
+        "Review must not start a new scan",
+      );
+      report.observations.reopened_exact_scan = receiptIdentity;
+      await capture("hash-batch-review-return");
       report.checkpoint = "fresh review and neutral cancel";
       const candidate = await browser.wait(
         until.elementLocated(

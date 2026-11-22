@@ -8,7 +8,16 @@
     "project_url": "https://github.com/3dge7161/Jiggle-or-Physics",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "download_block_reason": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "New downloads are unavailable because the project identifies checked-in translated Dead or Alive code, a startup movie and a cover-art icon without established redistribution permission. Downloads can resume with attributable permission for those components or a reviewed clean own-disc generation route that omits unlicensed components. The PSXRecomp license alone does not cover them.",
+        "tracking_issue": 3507
+      }
+    ],
     "issue_number": 3507,
     "listed_at": "2026-10-25",
     "artwork": {

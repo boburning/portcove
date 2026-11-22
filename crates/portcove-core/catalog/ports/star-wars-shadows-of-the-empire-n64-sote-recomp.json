@@ -18,7 +18,16 @@
       "game_slug": "star-wars-shadows-of-the-empire",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The exact 0.9.7 and 0.9.8 Windows and experimental Linux packages include two game-derived texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The exact 0.9.7 and 0.9.8 Windows and experimental Linux packages include two game-derived texture packs. The MIT project grant excludes game-derived and third-party media. Fresh acquisition remains held pending permission for the bundled content or a reviewed asset-clean package.",
+        "tracking_issue": 343
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/GTTeancum/SotE-Recomp/releases/tag/0.9.8",
       "steps": [

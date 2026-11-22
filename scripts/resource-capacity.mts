@@ -913,17 +913,35 @@ export function readResourceProbe(code: string, args: readonly string[], timeout
   });
 }
 
+const defaultSourceScanTimeoutMs = 30_000;
+const maximumSourceScanTimeoutSeconds = 480;
+
+function sourceScanTimeoutMs(environment: NodeJS.ProcessEnv) {
+  const value = environment.PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS;
+  if (value === undefined) return defaultSourceScanTimeoutMs;
+  if (
+    !/^[1-9][0-9]{1,2}$/u.test(value) ||
+    Number(value) < 30 ||
+    Number(value) > maximumSourceScanTimeoutSeconds
+  )
+    throw new Error(
+      `PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS must be an integer from 30 to ${maximumSourceScanTimeoutSeconds}`,
+    );
+  return Number(value) * 1000;
+}
+
 async function snapshotAdmissionSource(
   workspace: string,
   phase: string,
+  timeoutMs = defaultSourceScanTimeoutMs,
   report: (message: string) => void = (message) => console.error(message),
 ) {
-  report(`Resource checkout scan started (${phase})`);
+  report(`Resource checkout scan started (${phase}); budget ${timeoutMs} ms`);
   try {
     const source = await readResourceProbe(
       "const { fallowSource } = await import(process.argv[1]); console.log(JSON.stringify(fallowSource(process.argv[2], undefined, { includeAll: true })));",
       [new URL("./fallow-source.mts", import.meta.url).href, workspace],
-      30_000,
+      timeoutMs,
     );
     report(`Resource checkout scan completed (${phase})`);
     return source;
@@ -950,10 +968,11 @@ export async function acquireSourceBoundCapacity(
   const workspace = metadata.workspace;
   if (!options.snapshot && typeof workspace !== "string")
     throw new Error("Source-bound capacity requires a workspace");
+  const timeoutMs = sourceScanTimeoutMs(environment);
   const snapshot = (phase: string) =>
     options.snapshot
       ? options.snapshot()
-      : snapshotAdmissionSource(String(workspace), phase, options.report);
+      : snapshotAdmissionSource(String(workspace), phase, timeoutMs, options.report);
   const before = options.expectedSource ?? (await snapshot("before admission"));
   const lease = await acquireResourceCapacity(profile, metadata, options);
   try {

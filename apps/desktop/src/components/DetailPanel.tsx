@@ -1,4 +1,10 @@
+import { desktopApi } from "../api";
+import {
+  CurrentGamePlayControl,
+  currentGamePlayKey,
+} from "../features/app-shell/current-game-play";
 import { useAppTranslation } from "../localization";
+import { managedRouteReadbackGuidance } from "../features/operations/invocation-state";
 import { Trans } from "react-i18next";
 import { ImplementationFacts } from "../features/browsing/ImplementationFacts";
 import { AuthoredSetupWarnings } from "./AuthoredSetupWarnings";
@@ -43,7 +49,7 @@ import {
 import { ArtworkControls } from "./Artwork";
 import type { ApplyBackupAction } from "./BackupReview";
 import { ReleaseChannelControl } from "./ReleaseChannel";
-import { useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import {
   type LucideIcon,
   AlertTriangle,
@@ -108,6 +114,7 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import { JakModsBrowser } from "./JakModsBrowser";
 import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
@@ -115,6 +122,7 @@ import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
+import { ReleaseWithdrawalNotice } from "./ReleaseWithdrawal";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -206,7 +214,7 @@ interface DetailPanelProps {
   browsingMatch?: CatalogQueryResult | undefined;
   browsingBinding?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   /** Rereads workspace state without changing it; offered when setup or readiness is unknown. */
   checkAgain?: (() => Promise<unknown>) | undefined;
   openSourceEvidence?: ((evidenceId: string) => void) | undefined;
@@ -283,9 +291,12 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   const state: DetailState = actionState.installReadbackRequired
     ? {
-        title: "Installation finished",
-        description:
-          "The library will show this installation’s current details after it refreshes.",
+        title: actionState.managedRouteReadbackRequired
+          ? "Check the current installation"
+          : "Installation finished",
+        description: actionState.managedRouteReadbackRequired
+          ? managedRouteReadbackGuidance
+          : "The library will show this installation’s current details after it refreshes.",
         tone: "unknown",
         icon: RefreshCw,
       }
@@ -409,6 +420,7 @@ export function DetailPanel(props: DetailPanelProps) {
       sources={sources}
       installed={installed}
       installReadbackRequired={actionState.installReadbackRequired}
+      managedRouteReadbackRequired={actionState.managedRouteReadbackRequired}
       deferSetupChoices={!installed && missingRequirement !== undefined}
       sourceReady={sourceReady}
       biosReady={biosReady}
@@ -520,6 +532,7 @@ function DetailBody(model: {
   sources: SourceControls;
   installed: boolean;
   installReadbackRequired: boolean;
+  managedRouteReadbackRequired: boolean;
   deferSetupChoices: boolean;
   sourceReady: boolean;
   biosReady: boolean;
@@ -542,7 +555,7 @@ function DetailBody(model: {
   libraryGeneration: number;
   libraryRoot?: string | undefined;
   outputLocationChanged?: (() => void) | undefined;
-  externalRuntimeChanged?: (() => void) | undefined;
+  externalRuntimeChanged?: (() => void | Promise<unknown>) | undefined;
   checkAgain?: (() => Promise<unknown>) | undefined;
   outputApplying: (applying: boolean) => void;
   actions: DetailActions;
@@ -558,6 +571,24 @@ function DetailBody(model: {
     key: string;
     supported: boolean | "unavailable";
   }>();
+  const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
+  const mayHaveCommunitySource = model.port.adapter === "upstream-managed-setup";
+  useEffect(() => {
+    if (!mayHaveCommunitySource) return;
+    let current = true;
+    void desktopApi.jakModsSetupUrl(model.port.id, model.libraryGeneration).then(
+      (url) => {
+        if (current) setCommunitySource(url ? { key: modsKey, url } : undefined);
+      },
+      () => {
+        if (current) setCommunitySource(undefined);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [mayHaveCommunitySource, model.port.id, model.libraryGeneration, modsKey]);
+  const hasCommunitySource = mayHaveCommunitySource && communitySource?.key === modsKey;
   const [modSupportRetry, retryModSupport] = useState(0);
   const [observedModPlay, setModPlay] = useState<ModPlayState>();
   const modPlay =
@@ -743,21 +774,33 @@ function DetailBody(model: {
       {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        ...(modsAvailable
+        ...(modsAvailable || hasCommunitySource
           ? {
               mods: (
-                <ModSetupsControl
-                  key={modsKey}
-                  portId={model.port.id}
-                  generation={model.libraryGeneration}
-                  libraryRoot={model.libraryRoot}
-                  busy={Boolean(busy)}
-                  openGameFiles={() => reveal("files")}
-                  active={currentSection === "mods"}
-                  onPlayState={setModPlay}
-                  reviewFromPlay={reviewFromPlay}
-                  onAppliedFromPlay={() => reveal("overview")}
-                />
+                <>
+                  {hasCommunitySource && (
+                    <JakModsBrowser
+                      setupUrl={communitySource.url}
+                      key={`community-${modsKey}`}
+                      portId={model.port.id}
+                      generation={model.libraryGeneration}
+                    />
+                  )}
+                  {modsAvailable && (
+                    <ModSetupsControl
+                      key={modsKey}
+                      portId={model.port.id}
+                      generation={model.libraryGeneration}
+                      libraryRoot={model.libraryRoot}
+                      busy={Boolean(busy)}
+                      openGameFiles={() => reveal("files")}
+                      active={currentSection === "mods"}
+                      onPlayState={setModPlay}
+                      reviewFromPlay={reviewFromPlay}
+                      onAppliedFromPlay={() => reveal("overview")}
+                    />
+                  )}
+                </>
               ),
             }
           : {}),
@@ -867,7 +910,7 @@ function useStatusActionsGroup({
   installPlan?: InstallPlan | undefined;
   busy?: string | undefined;
   libraryGeneration: number;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
@@ -2415,6 +2458,7 @@ function InstalledPlayActions({
   pendingSetup,
   stagedVersion,
   selectableDiscs = 0,
+  commandPlayKey,
   busy,
   actions,
 }: {
@@ -2426,9 +2470,13 @@ function InstalledPlayActions({
   pendingSetup: boolean;
   stagedVersion?: string | undefined;
   selectableDiscs?: number | undefined;
+  commandPlayKey?: string | undefined;
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  const registerPlay = useContext(CurrentGamePlayControl);
+  const confirmedPlay = launchReady && !trial && !pendingSetup;
+  const paletteTarget = confirmedPlay && !busy ? commandPlayKey : undefined;
   // Per-view choice: Core records it as the game's own saved disc when this
   // launch starts. The default sends no disc, so the game starts its saved disc.
   const [disc, setDisc] = useState(SAVED_DISC);
@@ -2466,7 +2514,9 @@ function InstalledPlayActions({
       <Button
         data-focusable
         data-launch-action
-        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
+        data-confirmed-play={confirmedPlay ? "" : undefined}
+        data-current-game-play={paletteTarget}
+        ref={paletteTarget ? registerPlay : null}
         className={cn(compact ? undefined : "wide flex-1", hero && "detail-hero-action")}
         variant="primary"
         size="lg"
@@ -3931,6 +3981,7 @@ function DetailOverviewActions({
 }) {
   return (
     <>
+      <ReleaseWithdrawalNotice status={model.status} reviewVersions={() => reveal("versions")} />
       {!model.installReadbackRequired &&
         model.displayPort &&
         setupRoutePresentation(model.displayPort, model.status).promoteAlternative && (
@@ -4108,11 +4159,12 @@ function DetailFilesSection({
                 ? "Managed by Portcove"
                 : "Not installed"}
         </p>
-        {(model.status?.active?.path || model.status?.external_runtime?.path) && (
-          <p className="wrap-anywhere select-text">
-            {model.status?.active?.path ?? model.status?.external_runtime?.path}
-          </p>
-        )}
+        {!model.managedRouteReadbackRequired &&
+          (model.status?.active?.path || model.status?.external_runtime?.path) && (
+            <p className="wrap-anywhere select-text">
+              {model.status?.active?.path ?? model.status?.external_runtime?.path}
+            </p>
+          )}
         {model.hasFileObservations && (
           <details className="detail-file-observations">
             <summary data-focusable>File matching details</summary>
@@ -4137,18 +4189,21 @@ function DetailManageSection({
     <>
       <CurrentStateSummary
         title={
-          model.installReadbackRequired
-            ? "Installation finished · awaiting library refresh"
-            : !model.status
-              ? "Installation status unavailable"
-              : model.status.active || model.status.external_runtime
-                ? model.status.external_runtime
-                  ? "External installation"
-                  : "Managed installation"
-                : "No active installation"
+          model.managedRouteReadbackRequired
+            ? "Check the current installation"
+            : model.installReadbackRequired
+              ? "Installation finished · awaiting library refresh"
+              : !model.status
+                ? "Installation status unavailable"
+                : model.status.active || model.status.external_runtime
+                  ? model.status.external_runtime
+                    ? "External installation"
+                    : "Managed installation"
+                  : "No active installation"
         }
       >
-        {model.status?.active && (
+        {model.managedRouteReadbackRequired && <p>{managedRouteReadbackGuidance}</p>}
+        {!model.managedRouteReadbackRequired && model.status?.active && (
           <div className="text-sm wrap-anywhere">
             <p className="my-1 select-text">{model.status.active.path}</p>
             <p className="m-0 text-pc-muted-foreground">
@@ -4156,7 +4211,7 @@ function DetailManageSection({
             </p>
           </div>
         )}
-        {model.status?.external_runtime && (
+        {!model.managedRouteReadbackRequired && model.status?.external_runtime && (
           <div className="text-sm wrap-anywhere">
             <RuntimeLaunchFacts
               executable={model.status.external_runtime.executable}
@@ -4167,9 +4222,20 @@ function DetailManageSection({
               You maintain this folder and its updates. Review Saves & backups for any data Portcove
               can protect.
             </p>
-            <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
-              Edit external launch details
-            </Button>
+            {external && !model.installReadbackRequired && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  reveal("files", "detail-game-actions", {
+                    focus: "[data-external-runtime-next-action]",
+                  })
+                }
+              >
+                {usesUserSelectedRuntime(model.port, model.status)
+                  ? "Open launch details"
+                  : "Open game folder controls"}
+              </Button>
+            )}
           </div>
         )}
       </CurrentStateSummary>
@@ -4325,7 +4391,15 @@ function DetailVersionsSection({
   return (
     <div className="detail-versions-workspace">
       <div className="detail-version-main">
-        {model.status?.external_runtime ? (
+        {model.installReadbackRequired ? (
+          <CurrentStateSummary
+            title={
+              model.managedRouteReadbackRequired
+                ? "Check the current installation"
+                : "Installed version will appear after the library refreshes"
+            }
+          />
+        ) : model.status?.external_runtime ? (
           <CurrentStateSummary
             title={
               <span className="inline-flex items-center gap-2">
@@ -4342,8 +4416,6 @@ function DetailVersionsSection({
               Open upstream project <Icon glyph={ArrowRight} />
             </ProjectLink>
           </CurrentStateSummary>
-        ) : model.installReadbackRequired ? (
-          <CurrentStateSummary title="Installed version will appear after the library refreshes" />
         ) : (
           <InstallationVersionSummary
             status={model.status}
@@ -4481,7 +4553,7 @@ function ManualSetupActions({
             data-focusable
             variant="outline"
             disabled={Boolean(model.busy) || !model.onChanged}
-            onClick={() => model.onChanged?.()}
+            onClick={() => void model.onChanged?.()}
           >
             Check setup again
           </Button>
@@ -4500,6 +4572,7 @@ function DetailHeaderAction({
     <InstalledPlayActions
       hero
       compact
+      commandPlayKey={currentGamePlayKey(model.port.id, model.libraryGeneration, model.status)}
       trial={
         hasUnconfirmedLaunchInput(model.status, model.port) ||
         Boolean(

@@ -33,6 +33,7 @@ import {
   advanceCatalogObservations,
   catalogObservationSources,
   newCatalogObserverCheckpoint,
+  orderHostedObservationTurns,
   validateCatalogObserverCheckpoint,
 } from "./catalog-upstream-observer.mts";
 import type {
@@ -1065,6 +1066,10 @@ void test("N64 game entries require a single unconditional table and literal ide
     { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
     { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
   ]);
+  assert.deepEqual(
+    parseN64GameTable(gameEntryFixture.replace("0x0123456789ABCDEFULL", "0xafc33da7101fec88"))[0],
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "afc33da7101fec88" },
+  );
   for (const invalid of [
     `#if ENABLED
 ${gameEntryFixture}
@@ -1904,6 +1909,60 @@ void test("untouched managed sources are admitted before listing-only sources", 
   assert.ok(listingPositions.every((position) => position > lastManaged));
 });
 
+void test("hosted recovery rotates stale sources through ordinary managed backlog", () => {
+  const hour = 3_600_000;
+  const now = Date.parse("2026-11-21T04:37:34.422Z");
+  const clock = (age: number) => new Date(now - age * hour).toISOString();
+  const turn = (
+    key: string,
+    attemptedSequence: number,
+    freshnessObservedAt: string | null,
+    managed = false,
+    appointment = false,
+  ) => ({ key, attemptedSequence, freshnessObservedAt, managed, appointment });
+  const stale = turn("stale", 7, clock(20));
+  const never = turn("never", -1, null);
+  const recentlyFailed = turn("exception", 21, null);
+  const ordinary = Array.from({ length: 9 }, (_, index) =>
+    turn(`ordinary-${index}`, index, clock(8), true),
+  );
+  const candidates = [
+    ...ordinary,
+    recentlyFailed,
+    stale,
+    never,
+    turn("fresh-listing", 0, clock(8)),
+    turn("critical", 9, clock(11.99), true),
+    turn("appointed", 30, clock(6), false, true),
+  ];
+  const limits = { now, deadline: now + 60_000, freshnessMs: 12 * hour };
+  const order = (turns: typeof candidates) =>
+    orderHostedObservationTurns(turns, limits).map(({ key }) => key);
+  assert.deepEqual(order(candidates), [
+    "appointed",
+    "critical",
+    "never",
+    "ordinary-0",
+    "ordinary-1",
+    "ordinary-2",
+    "stale",
+    "ordinary-3",
+    "ordinary-4",
+    "ordinary-5",
+    "exception",
+    "ordinary-6",
+    "ordinary-7",
+    "ordinary-8",
+    "fresh-listing",
+  ]);
+  assert.deepEqual(
+    order(
+      candidates.map((item) => (item === never ? { ...item, attemptedSequence: 32 } : item)),
+    ).slice(0, 3),
+    ["appointed", "critical", "stale"],
+  );
+});
+
 void test("hosted listing turns protect expiring managed work and reduce purely descriptive debt", async () => {
   const h = harness();
   const input = {
@@ -1985,7 +2044,7 @@ void test("hosted listing turns protect expiring managed work and reduce purely 
 
   const reserved = await advanceCatalogObservations(input, prior, {
     ...displace,
-    reserveExpiredListingTurn: true,
+    rotateStaleSources: true,
   });
   assert.deepEqual(reserved.report.attempted_source_keys, [critical.key, oldest.key, ordinary.key]);
   assert.ok(reserved.report.completed_source_keys.includes(oldest.key));
@@ -2004,7 +2063,7 @@ void test("hosted listing turns protect expiring managed work and reduce purely 
     ...options,
     requestLimit: 0,
     excludedSources: new Set([critical.key, ordinary.key]),
-    reserveExpiredListingTurn: true,
+    rotateStaleSources: true,
   });
   assert.equal(empty.report.requests, 0);
   assert.deepEqual(empty.report.attempted_source_keys, []);
@@ -2013,7 +2072,7 @@ void test("hosted listing turns protect expiring managed work and reduce purely 
   const resumed = await advanceCatalogObservations(input, empty.checkpoint, {
     ...options,
     policyIdentity: displace.policyIdentity,
-    reserveExpiredListingTurn: true,
+    rotateStaleSources: true,
   });
   assert.ok(resumed.report.completed_source_keys.includes(next.key));
   assert.equal(resumed.report.attempted_source_keys[0], critical.key);

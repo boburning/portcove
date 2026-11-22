@@ -292,6 +292,7 @@ impl PortcoveService {
             availability: PortActionAvailability::NotOffered,
             reason: PortActionReason::RouteNotOffered,
             definition: None,
+            restriction: None,
         })
         .collect();
         let launchable = status
@@ -334,6 +335,7 @@ impl PortcoveService {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             });
         }
         status
@@ -750,6 +752,11 @@ mod tests {
         expected_retained_listing.funding_urls = None;
         if expected_creating_definition.is_none() {
             expected_retained_listing.implementation = None;
+            // Typed IGDB scenes belong to the current directory, outside the retained
+            // listing formats that preserve this registration's launch contract.
+            expected_retained_listing
+                .media
+                .retain(|asset| !asset.is_typed_igdb_scene());
         }
         let initial = service.listing_status(id).unwrap();
         assert!(

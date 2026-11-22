@@ -93,6 +93,7 @@ export type ModFilePreservationPlan = Generated.TransportOutputs["mod_file_prese
 export type ModFilePreservationResult = Generated.TransportOutputs["mod_file_preservation_result"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
 export type ModSetupDraftPreview = Generated.TransportOutputs["mod_setup_draft_preview"];
+export type JakModsCatalog = Generated.TransportOutputs["jakmods_catalog"];
 export type ProviderCatalog = Generated.TransportOutputs["provider_catalog"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];
@@ -266,6 +267,11 @@ export type LibraryMoveResult = Generated.TransportOutputs["library_move_result"
 export type LibraryImportPlan = Generated.TransportOutputs["library_import_plan"];
 
 export type LibraryImportResult = Generated.TransportOutputs["library_import_result"];
+
+export type LibraryRecoveryBundle = Generated.TransportOutputs["library_recovery_bundle"];
+export type LibraryRecoveryBundlePlan = Generated.TransportOutputs["library_recovery_bundle_plan"];
+export type LibraryRecoveryRestorePlan =
+  Generated.TransportOutputs["library_recovery_restore_plan"];
 
 export type SourceDiscoveryLimits = Requests.TransportInputs["source_discovery_limits"];
 

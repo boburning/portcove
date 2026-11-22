@@ -40,6 +40,46 @@ describe("command surface player-facing copy", () => {
     expect(actions.setView).toHaveBeenCalledWith("updates");
   });
 
+  it("routes current-game destinations and named Settings categories to their owners", () => {
+    const open = vi.fn();
+    const play = vi.fn();
+    const openSettingsCategory = vi.fn();
+    const current = {
+      ...portDefinition(),
+      id: "selected-port",
+      name: "Selected port",
+    };
+    const available = commandSurfaceCommands({
+      installedCount: 1,
+      busy: false,
+      setView: vi.fn(),
+      setAdoptOpen: vi.fn(),
+      setSelectedId: vi.fn(),
+      checkAll: vi.fn(async () => undefined),
+      focusSearch: vi.fn(),
+      focusLibrarySearch: vi.fn(),
+      currentGame: { port: current, destinations: ["files", "saves"], open, play },
+      openSettingsCategory,
+    });
+    expect(available.filter(({ group }) => group === "Current game").map(({ id }) => id)).toEqual([
+      "current-game-play",
+      "current-game-files",
+      "current-game-saves",
+    ]);
+    const saves = available.find(({ id }) => id === "current-game-saves");
+    expect(saves?.description).toBe("Selected port");
+    saves?.action();
+    expect(open).toHaveBeenCalledExactlyOnceWith("saves");
+    expect(play).not.toHaveBeenCalled();
+    available.find(({ id }) => id === "current-game-play")?.action();
+    expect(play).toHaveBeenCalledOnce();
+
+    const deepSettings = available.filter(({ id }) => id.startsWith("settings-"));
+    expect(deepSettings).toHaveLength(8);
+    deepSettings.find(({ id }) => id === "settings-integrations")?.action();
+    expect(openSettingsCategory).toHaveBeenCalledExactlyOnceWith("integrations");
+  });
+
   it("explains why the update check is unavailable", () => {
     const make = (installedCount: number, busy: boolean) =>
       commandSurfaceCommands({

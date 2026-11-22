@@ -338,12 +338,18 @@ void test("cryptographic tree reconstruction reaches its finite entry boundary a
     [maximumApplicationSourceTreeEntries, true],
     [maximumCatalogSourceTreeEntries, false],
   ] as const) {
+    // Each directory's own tree object keeps its per-object byte bound, so the
+    // entries are spread over enough folders to reach the total boundary.
+    const folders = Array.from(
+      { length: 64 },
+      (_, index) => `folder${String(index).padStart(2, "0")}`,
+    );
     const paths = Array.from(
-      { length: limit - 2 },
-      (_, index) => `folder${index % 2}/entry${String(index).padStart(4, "0")}`,
+      { length: limit - folders.length },
+      (_, index) => `${folders[index % folders.length]}/entry${String(index).padStart(6, "0")}`,
     );
     const rows = paths.map((path) => ({ path, mode: "100644", type: "blob", sha: blob }));
-    for (const directory of ["folder0", "folder1"]) {
+    for (const directory of folders) {
       const bytes = Buffer.concat(
         rows
           .filter((entry) => entry.path.startsWith(`${directory}/`))
@@ -383,9 +389,10 @@ void test("cryptographic tree reconstruction reaches its finite entry boundary a
         ),
       /oversized/u,
     );
-    assert.throws(
-      () => inspectReleaseSourceTree({ sha, truncated: false, tree: rows }, sha),
-      /oversized/u,
+    // Every comparison kind shares the same completeness bound.
+    assert.equal(
+      inspectReleaseSourceTree({ sha, truncated: false, tree: rows }, sha).entries.size,
+      limit,
     );
   }
 });

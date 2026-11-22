@@ -1,4 +1,5 @@
-import type { InstallRecord } from "../../types";
+import type { ExternalRuntimeRecord, InstallRecord, PortStatus } from "../../types";
+import { failurePresentation } from "../../view-model";
 
 /** Presentation identities only. None grants a Core lock or execution authority. */
 export type InvocationContext = {
@@ -7,7 +8,12 @@ export type InvocationContext = {
   libraryGeneration: number;
   exclusionScope: "target" | "library" | "application";
   /** Permanently bounded API contracts; event phase strings never grant compatibility. */
-  operation?: "acquire_game_update" | "launch" | undefined;
+  operation?:
+    | "acquire_game_update"
+    | "launch"
+    | "register_external"
+    | "change_managed_route"
+    | undefined;
   /** Only an identity supplied by an owned API/record, never inferred from events. */
   activityId?: string;
 };
@@ -20,8 +26,75 @@ export type InvocationRecord = {
   outcome?: "succeeded" | "failed" | "cancelled";
   failure?: unknown;
   refreshFailure?: unknown;
+  reviewCurrentState?: true;
   installed?: Pick<InstallRecord, "id" | "port_id" | "version">;
+  externalRegistration?: ExternalRuntimeRecord;
 };
+
+export const managedRouteReadbackGuidance =
+  "If your previous installation still appears after refreshing, restart Portcove before using it.";
+
+export function requiresManagedRouteReadback(error: unknown) {
+  const mutation = failurePresentation(error)?.mutation_state;
+  return mutation !== "not_started" && mutation !== "no_changes";
+}
+
+export function canOpenInstalledResult(
+  record: InvocationRecord,
+  status: PortStatus | undefined,
+  generation: number,
+  selectedPortId: string | null | undefined,
+  unreadInstallPorts: ReadonlySet<string>,
+) {
+  const { target, libraryGeneration } = record.context;
+  const active = status?.active;
+  return (
+    record.phase === "settled" &&
+    record.outcome === "succeeded" &&
+    target.kind === "port" &&
+    libraryGeneration === generation &&
+    status?.port_id === target.id &&
+    !status.external_runtime &&
+    selectedPortId !== target.id &&
+    !unreadInstallPorts.has(target.id) &&
+    active != null &&
+    record.installed != null &&
+    active.id === record.installed.id &&
+    active.port_id === target.id &&
+    record.installed.port_id === target.id &&
+    active.version === record.installed.version
+  );
+}
+
+function matchesExternalRegistration(
+  receipt: ExternalRuntimeRecord,
+  current: ExternalRuntimeRecord | null | undefined,
+) {
+  // The native command and workspace snapshot serialize the same Core record.
+  return current != null && JSON.stringify(current) === JSON.stringify(receipt);
+}
+
+export function canOpenExternalRegistration(
+  record: InvocationRecord,
+  status: PortStatus | undefined,
+  generation: number,
+  selectedPortId: string | null | undefined,
+  unreadExternalPorts: ReadonlySet<string>,
+) {
+  const { target, libraryGeneration } = record.context;
+  return (
+    record.phase === "settled" &&
+    record.outcome === "succeeded" &&
+    target.kind === "port" &&
+    libraryGeneration === generation &&
+    status?.port_id === target.id &&
+    selectedPortId !== target.id &&
+    !unreadExternalPorts.has(target.id) &&
+    !status.active &&
+    record.externalRegistration != null &&
+    matchesExternalRegistration(record.externalRegistration, status.external_runtime)
+  );
+}
 
 function invocationContextsConflict(left: InvocationContext, right: InvocationContext) {
   if (left.exclusionScope === "application" || right.exclusionScope === "application") return true;

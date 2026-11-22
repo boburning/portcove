@@ -23,8 +23,8 @@ export async function openFilterField(label: string) {
 }
 
 function filterFieldForChoice(name: string) {
-  if (/^(Windows|Linux|Apple silicon|Intel Mac|Available for this device) \(/.test(name))
-    return "Runs on";
+  if (/^Available for this device \(/.test(name)) return "Device eligibility";
+  if (/^(Windows|Linux|Apple silicon|Intel Mac) \(/.test(name)) return "Runs on";
   if (/^(Stable|Preview|Rolling) \(/.test(name)) return "Update channels";
   if (/^(In my library|Not in my library) \(/.test(name)) return "Library membership";
   if (/^(Available at last check|Matching update staged) \(/.test(name)) return "Observed updates";
@@ -51,11 +51,11 @@ export async function openAdvancedFilters() {
   const trigger = page.getByRole("button", { name: /^Filters \(\d+\)$/ });
   await expect.element(trigger).toBeVisible();
   if (trigger.element().getAttribute("aria-expanded") !== "true") await trigger.click();
-  const advanced = page.getByText("Advanced filters", { exact: true });
+  const advanced = page.getByText("More filters", { exact: true });
   if (!advanced.element().closest("details")?.open) await advanced.click();
 }
 
-async function closeOpenFilterField() {
+export async function closeOpenFilterField() {
   const trigger = globalThis.document.querySelector<HTMLButtonElement>(
     '.catalog-filter-panel button[aria-haspopup="dialog"][aria-expanded="true"]',
   );

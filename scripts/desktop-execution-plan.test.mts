@@ -373,9 +373,10 @@ void test("execution planning preserves the independently reviewed pre-change or
         });
         assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
         assert.deepEqual(selection.setup_scenarios, []);
-        // Saved-folder intake adds three picker reviews and two library handoffs.
-        // Completion was calibrated from 180 s on hosted debug-build evidence (#4879).
-        assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+        assert.equal(
+          desktopHarnessDeadlineMs(selection),
+          row.options.scenarios?.[0] === "native-selected-setup-completion" ? 900_000 : 600_000,
+        );
         const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
         assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
         continue;
@@ -433,7 +434,9 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-library-layout",
             "native-secondary-panel-presentation",
             "native-collection-artwork-presentation",
+            "native-reviewed-screenshot-display",
             "native-update-acquisition-lifecycle",
+            "native-managed-copy-result",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
             "native-game-first-installed-picori",
@@ -447,6 +450,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-saved-folder-hash-resume"));
     assert.ok(!selection.selected_scenarios.includes("native-update-acquisition-lifecycle"));
     assert.ok(selection.excluded_scenarios.includes("native-update-acquisition-lifecycle"));
+    assert.ok(!selection.selected_scenarios.includes("native-managed-copy-result"));
+    assert.ok(selection.excluded_scenarios.includes("native-managed-copy-result"));
     assert.ok(!selection.selected_scenarios.includes("native-registered-source-reuse"));
     assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
@@ -778,7 +783,7 @@ void test("selected setup completion requires identity-bound positive exit evide
   );
   assert.equal(completion.session.identityBoundSession, true);
   assert.equal(completion.session.cleanupName, "selected-setup-completion");
-  assert.equal(desktopHarnessDeadlineMs(completion.selection), 600000);
+  assert.equal(desktopHarnessDeadlineMs(completion.selection), 900_000);
   const discovery = planDesktopExecution(
     resolveDesktopSelection({
       scenarios: ["native-saved-folder-selected-setup"],
@@ -1647,6 +1652,26 @@ void test("Linux interruption is standalone, production-featured and retains nam
     );
 });
 
+void test("publication checkpoint waits for the observed clock and keeps the full exit margin", () => {
+  const entry = new URL(
+    "../apps/desktop/scripts/desktop-host-publication-test.mts",
+    import.meta.url,
+  );
+  runDesktopModuleFixture(
+    entry,
+    `
+    const {checkpointClockReady}=await import(entry);
+    const marker={entered_unix_ms:1001,deadline_unix_ms:50000};
+    assert.equal(checkpointClockReady(marker,1000),false);
+    assert.equal(checkpointClockReady(marker,1001),true);
+    assert.equal(checkpointClockReady(marker,19999),true);
+    assert.throws(()=>checkpointClockReady(marker,20000),/remaining/);
+    assert.throws(()=>checkpointClockReady({...marker, entered_unix_ms:"1001"},1001),/entry timestamp/);
+    assert.throws(()=>checkpointClockReady({...marker, deadline_unix_ms:1000},1001),/deadline/);
+  `,
+  );
+});
+
 void test("publication redirected backup containment accepts Windows path aliases and rejects escapes", () => {
   const entry = new URL(
     "../apps/desktop/scripts/desktop-host-publication-test.mts",
@@ -2356,6 +2381,21 @@ void test("secondary panel presentation keeps isolated Windows custody and compl
   );
 });
 
+void test("reviewed screenshot observation binds the embedded listing source", () => {
+  const source = "crates/portcove-core/catalog/listings.json";
+  const plan = planDesktopExecution(
+    resolveDesktopSelection({
+      scenarios: ["native-reviewed-screenshot-display"],
+      platform: "win32",
+    }),
+    { platform: "win32" },
+  );
+  assert.equal(
+    plan.receiptInputs.filter((input) => input.kind === "file" && input.path === source).length,
+    1,
+  );
+});
+
 void test("game-first production relationship expectations have selected-only immutable custody", () => {
   const fixture = "scripts/fixtures/game-first-catalog-relationships.json";
   const selected = planDesktopExecution(
@@ -2596,4 +2636,33 @@ replaceKeyboardText(browser, element, text)`,
     assert.deepEqual(await run(platform, ""), prefix);
   }
   await assert.rejects(run("linux", "must not be typed", true), /modifier release failed/u);
+});
+
+void test("managed copy result binds the real Windows fixture and identity-bound cleanup", () => {
+  const id = "native-managed-copy-result";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.managedCopyJourney, true);
+  assert.equal(plan.fixtures.owned, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.deepEqual(plan.build.cliFeatures, ["portcove-core/qualification-fixtures"]);
+  assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.ok(
+    plan.receiptInputs.some(
+      ({ kind, path }) =>
+        kind === "file" && path === "apps/desktop/scripts/desktop-install-test.mts",
+    ),
+  );
+  for (const profile of ["smoke", "full", "presentation"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });

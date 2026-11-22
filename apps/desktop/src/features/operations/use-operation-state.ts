@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listenDesktopEvent } from "../../desktop-events";
-import type { ActivityRecord, InstallRecord, OperationEvent } from "../../types";
+import type {
+  ActivityRecord,
+  ExternalRuntimeRecord,
+  InstallRecord,
+  OperationEvent,
+  PortStatus,
+} from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
 import {
   invocationFailure,
   pendingInvocationConflict,
+  requiresManagedRouteReadback,
   settleInvocationResult,
   type InvocationContext,
   type InvocationRecord,
@@ -19,12 +26,14 @@ import {
 } from "./operation-state";
 
 const noActivities: readonly ActivityRecord[] = [];
-const noUnreadInstallPorts: ReadonlySet<string> = new Set();
+const noUnreadPorts: ReadonlySet<string> = new Set();
+type SetupKind = "managed" | "external" | "managed_route";
+type SetupReadback = { portId: string; kind: SetupKind; generation: number; afterRead: number };
 
 export type OperationRefresh = "workspace" | "activities" | "none";
 export type PerformOptions<Result = unknown> = {
   /** Explicit workspace readback may propagate failures unlike an ambient retry action. */
-  refresh?: OperationRefresh | (() => Promise<unknown>);
+  refresh?: OperationRefresh | ((result: Result | undefined) => Promise<unknown>);
   invalidateDiagnostics?: boolean;
   /** Preserve the original task rejection after settlement for a current caller. */
   propagateFailure?: boolean;
@@ -33,6 +42,8 @@ export type PerformOptions<Result = unknown> = {
   context?: InvocationContext;
   /** Captures the exact installation returned by a managed setup command. */
   installedResult?: (result: Result) => InvocationRecord["installed"];
+  /** Captures the exact external registration returned by a reviewed native command. */
+  externalRegistrationResult?: (result: Result) => ExternalRuntimeRecord | undefined;
 };
 
 export type ReportError = (value: unknown, context?: InvocationContext) => void;
@@ -52,6 +63,7 @@ export function useOperationState(configuration: {
   libraryLabel?: string;
   /** The latest accepted full snapshot, unchanged by activity-only reads. */
   workspaceReadRevision?: number | undefined;
+  workspaceStatuses?: readonly PortStatus[] | undefined;
   /** Read only at a mutation's async boundary; includes in-flight/failed full reads. */
   startedWorkspaceReadRevision?: () => number;
 }) {
@@ -62,42 +74,69 @@ export function useOperationState(configuration: {
     useInvocationOwner();
   const generation = configuration.libraryGeneration ?? 0;
   const startedWorkspaceReadRevision = configuration.startedWorkspaceReadRevision;
-  const [committedInstalls, setCommittedInstalls] = useState<
-    ReadonlyMap<string, { generation: number; afterRead: number }>
-  >(new Map());
+  const [committedSetups, setCommittedSetups] = useState<ReadonlyMap<string, SetupReadback>>(
+    new Map(),
+  );
   const activeOwner = useRef<number | undefined>(generation);
   useLayoutEffect(() => {
     activeOwner.current = generation;
     return () => {
       activeOwner.current = undefined;
-      setCommittedInstalls(new Map());
+      setCommittedSetups(new Map());
     };
   }, [generation]);
-  const noteInstallCommitted = useCallback(
-    (install: InstallRecord) => {
+  const noteSetupCommitted = useCallback(
+    (portId: string, kind: SetupKind) => {
       if (!active.current || activeOwner.current !== generation || !startedWorkspaceReadRevision)
         return;
       const afterRead = startedWorkspaceReadRevision();
-      setCommittedInstalls((previous) => {
+      setCommittedSetups((previous) => {
         const next = new Map([...previous].filter(([, value]) => value.generation === generation));
-        next.set(install.port_id, { generation, afterRead });
+        next.set(kind + ":" + portId, { portId, kind, generation, afterRead });
         return next;
       });
     },
     [active, startedWorkspaceReadRevision, generation],
   );
-  // A full read started before the commit cannot confirm it. Activity-only
-  // readback and dismissing task feedback do not advance this receipt.
-  const unreadInstallPorts = useMemo(() => {
-    const ports = [...committedInstalls]
-      .filter(
-        ([, value]) =>
-          value.generation === generation &&
-          (configuration.workspaceReadRevision ?? 0) <= value.afterRead,
-      )
-      .map(([portId]) => portId);
-    return ports.length ? new Set(ports) : noUnreadInstallPorts;
-  }, [committedInstalls, configuration.workspaceReadRevision, generation]);
+  const noteInstallCommitted = useCallback(
+    (install: InstallRecord) => noteSetupCommitted(install.port_id, "managed"),
+    [noteSetupCommitted],
+  );
+  // An older external row can survive a full read while a lost native reply is
+  // still settling. A published managed route is affirmative readback.
+  const { workspaceReadRevision = 0, workspaceStatuses } = configuration;
+  const [lastSetupReadRevision, setLastSetupReadRevision] = useState(workspaceReadRevision);
+  if (lastSetupReadRevision !== workspaceReadRevision) {
+    setLastSetupReadRevision(workspaceReadRevision);
+    const current = new Map(committedSetups);
+    for (const [key, value] of committedSetups) {
+      if (value.kind !== "managed_route" || workspaceReadRevision <= value.afterRead) continue;
+      const status = workspaceStatuses?.find((entry) => entry.port_id === value.portId);
+      if (status?.active?.port_id === value.portId && !status.external_runtime) current.delete(key);
+    }
+    if (current.size !== committedSetups.size) setCommittedSetups(current);
+  }
+
+  // Only a full read started after commit can confirm the setup receipt.
+  const { unreadInstallPorts, unreadExternalPorts, unreadManagedRoutePorts } = useMemo(() => {
+    const managed = new Set<string>();
+    const external = new Set<string>();
+    const managedRoutes = new Set<string>();
+    for (const value of committedSetups.values()) {
+      if (
+        value.generation === generation &&
+        (value.kind === "managed_route" || workspaceReadRevision <= value.afterRead)
+      ) {
+        (value.kind === "external" ? external : managed).add(value.portId);
+        if (value.kind === "managed_route") managedRoutes.add(value.portId);
+      }
+    }
+    return {
+      unreadInstallPorts: managed.size ? managed : noUnreadPorts,
+      unreadExternalPorts: external.size ? external : noUnreadPorts,
+      unreadManagedRoutePorts: managedRoutes.size ? managedRoutes : noUnreadPorts,
+    };
+  }, [committedSetups, workspaceReadRevision, generation]);
   const pendingOperations = useMemo(
     () => new Map([...invocations].filter(([, record]) => record.phase === "pending")),
     [invocations],
@@ -225,15 +264,26 @@ export function useOperationState(configuration: {
       const pendingId = nextId();
       let record: InvocationRecord = { id: pendingId, name, context, phase: "pending" };
       const conflict = pendingInvocationConflict(currentInvocations.current, context);
-      if (conflict) {
+      const requiresReadback =
+        context.target.kind === "port" &&
+        (context.operation === "change_managed_route" ||
+          context.operation === "launch" ||
+          context.operation === "register_external");
+      const hold =
+        requiresReadback && unreadInstallPorts.has(context.target.id)
+          ? "Refresh the library to confirm the current installation."
+          : requiresReadback && unreadExternalPorts.has(context.target.id)
+            ? "Refresh the library to confirm the current external launch details."
+            : conflict
+              ? `Wait for ${conflict.context.action} for ${conflict.context.target.label} before trying again.`
+              : undefined;
+      if (hold) {
         updateInvocations((current) =>
           new Map(current).set(pendingId, {
             ...record,
             phase: "settled",
             outcome: "failed",
-            failure: new Error(
-              `Wait for ${conflict.context.action} for ${conflict.context.target.label} before trying again.`,
-            ),
+            failure: new Error(hold),
           }),
         );
         return undefined;
@@ -279,11 +329,28 @@ export function useOperationState(configuration: {
           const installed = options.installedResult(result);
           if (installed?.id && installed.port_id === context.target.id) {
             const { id, port_id, version } = installed;
+            if (context.operation === "change_managed_route" && isOwned())
+              noteSetupCommitted(port_id, "managed_route");
             record = { ...record, installed: { id, port_id, version } };
+          }
+        } else if (context.target.kind === "port" && options.externalRegistrationResult) {
+          const registration = options.externalRegistrationResult(result);
+          if (registration?.id && registration.port_id === context.target.id) {
+            noteSetupCommitted(registration.port_id, "external");
+            record = { ...record, externalRegistration: registration };
           }
         }
       } catch (value) {
         taskFailure = { value };
+        if (
+          context.operation === "change_managed_route" &&
+          context.target.kind === "port" &&
+          requiresManagedRouteReadback(value) &&
+          isOwned()
+        ) {
+          noteSetupCommitted(context.target.id, "managed_route");
+          record = { ...record, reviewCurrentState: true };
+        }
         ({ outcome, failure } = classifyInvocationFailure(value));
       } finally {
         acceptingEvents = false;
@@ -301,7 +368,7 @@ export function useOperationState(configuration: {
             if (isCurrent()) {
               if (options.invalidateDiagnostics ?? true) invalidateDiagnostics?.();
               const effect = options.refresh ?? "workspace";
-              if (typeof effect === "function") await effect();
+              if (typeof effect === "function") await effect(result);
               else if (effect === "workspace") await refresh();
               else if (effect === "activities") await refreshActivities();
             }
@@ -331,6 +398,9 @@ export function useOperationState(configuration: {
       invalidateDiagnostics,
       refresh,
       refreshActivities,
+      noteSetupCommitted,
+      unreadInstallPorts,
+      unreadExternalPorts,
       updateInvocations,
     ],
   );
@@ -341,6 +411,8 @@ export function useOperationState(configuration: {
     operationEvents,
     pendingOperations,
     unreadInstallPorts,
+    unreadExternalPorts,
+    unreadManagedRoutePorts,
     noteInstallCommitted,
     invocations,
     dismissInvocation,

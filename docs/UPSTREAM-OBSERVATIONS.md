@@ -403,14 +403,16 @@ binding change also permits offline reprojection of earlier facts. An incomplete
 refresh retains the prior observation and freshness clock. Manual dispatch has
 no scheduled appointments.
 
-Each hosted batch offers at most one early turn to the oldest eligible
-listing-only source with missing or expired provider freshness. Its turn follows
-the appointed scopes and healthy managed sources whose provider receipt is
-missing or will expire by the batch deadline. The remaining sources retain
-their usual order. The listing turn uses the ordinary source quantum and the
-same request, runtime, and byte limits. If the prior turns use the batch
-capacity, the listing waits in its existing durable position. The priority
-changes neither freshness evidence nor continuation rules.
+Each hosted batch starts with the appointed scopes and healthy managed sources
+whose provider receipt is missing or will expire by the batch deadline. The
+batch then offers one recovery turn before every three ordinary healthy managed
+turns while both groups have work. Recovery covers eligible listing-only
+sources and managed sources with a recorded failure whose provider freshness is
+missing or expired. Retry deadlines still apply. Within recovery, sources
+without a recorded attempt go first, followed by the least recently attempted
+sources. Every turn uses the existing source quantum and shared request,
+runtime, and byte limits. Sources that run out of capacity keep their durable
+place for a later batch.
 
 The legacy `configured-upstream-observation-RUN-ATTEMPT` artifact retains exactly
 one `report.json` and its existing consumer/configuration binding. Catalog reports
@@ -599,7 +601,8 @@ waits cannot fit the original bounds. The existing observer owns conditional
 cache reuse, facts digests, identity validation and complete-versus-prefix proofs;
 the SDK supplies bounded transport and request evidence.
 Conditional requests count against the request budget. No game artifact bytes
-are downloaded. The core input is bounded to 4 MiB, its process to thirty
+are downloaded. Core inspection reads the catalog within the 16 MiB generated-catalog
+bound and each observation within 4 MiB. Each Core process is bounded to thirty
 seconds, and the entire hosted job to ten minutes on one fixed Linux runner.
 Only observing jobs share the per-ref concurrency slot, with one active and at
 most one pending. Hourly schedules and manual runs always observe. A merge to
@@ -1058,7 +1061,7 @@ The monitor retains fair oldest-attempt rotation across bounded collector runs.
 The collector's 352-request and 512-new-location envelopes bound one monitor operation,
 not the logical catalog or retained cross-run history. Checkpoints use their
 existing 16 MiB physical envelope rather than separate 4,096-port, 8,192-record
-or 512-incident historical count ceilings. Input catalogs are bounded to 4 MiB,
+or 512-incident historical count ceilings. Input catalogs are bounded to 16 MiB,
 including programmatic invocations. Oversized physical inputs remain refused;
 no history is silently truncated to claim complete coverage.
 
@@ -1157,6 +1160,26 @@ availability from verified artifact bytes, protected catalog admission and
 player update eligibility. The latter three remain unassessed. GitHub's existing
 formats 1/2 and report format 1 remain compatible; no workflow per port, service,
 account, signing authority or production activation is introduced.
+
+For managed GitLab N64 recompilation sources, the same provider handoff can
+also report `gitlab_n64_source_declarations_v1`. It follows stable tags selected
+by the current Core metadata projection. A numeric project, exact release and
+tag commit, complete bounded directory listing and verified Git blob identify
+the source declaration. A second tag read brackets the proof, and incomplete,
+moved or ambiguous source evidence remains unassessed. These requests use the
+existing provider quota and observation deadline. A budget or quota deferral
+can bring forward the next observation, after the provider reset when known.
+A previous exact declaration may remain in the handoff as historical evidence
+when the current source scope, project, tag and commit still match. The package
+and descriptive listing projections remain independently available.
+
+A source declaration reports what the exact tagged GameEntry table says.
+Player launch and an exact release-specific original-file recommendation need
+separate reviewed evidence linking the selected shipped package and executable
+to that source. The existing signed original-file preparation requires a
+supported package/build provenance route and independent admission where
+applicable. Until those bindings are available for GitLab, keep existing
+signed guidance and treat observations as evidence for review.
 
 ## Descriptive consumers and accepted listing corrections
 
@@ -1340,6 +1363,9 @@ authored directory and public browse projection retain format 12 metadata.
 Delivery encodes slash-containing GitHub tags as single URL segments after
 checking the exact observed repository, tag and asset name. The observer
 checkpoint keeps the provider's original URL and observation clock.
+Delivery omits null provider digest fields to fit more observations within the
+same byte limit. Core reads an omitted digest as absent, and publication counts
+changes to the observation itself when tallying updates.
 Newer clients retain their existing implementation descriptions when a format-11
 row has the same project URL and exact original-game identity. The older delivery
 cannot express that field; a format-12 delivery can explicitly clear it. Changed
