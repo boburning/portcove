@@ -1219,6 +1219,7 @@ void test("runner retains ownership when a Windows supervisor cannot be terminat
 void test("runner retains ownership when a published child cannot be stopped after gate failure", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   let released = false;
+  let disconnected = 0;
   try {
     await assert.rejects(
       runRustTests([], {
@@ -1237,6 +1238,9 @@ void test("runner retains ownership when a published child cannot be stopped aft
         acquireLock: async () => ({
           childEnvironment: {},
           registerChild: async () => ({ pid: 709 }),
+          disconnectRetained: () => {
+            disconnected++;
+          },
           release: async () => {
             released = true;
           },
@@ -1245,6 +1249,7 @@ void test("runner retains ownership when a published child cannot be stopped aft
       /retaining the shared lock/u,
     );
     assert.equal(released, false);
+    assert.equal(disconnected, 1);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

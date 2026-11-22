@@ -42,6 +42,7 @@ export interface RustAdmission {
     registration: import("./heavy-rust-test-lock.mts").ChildRegistration,
   ) => Promise<unknown>;
   release: () => Promise<unknown>;
+  disconnectRetained?: () => void;
 }
 type RustResources = ResourceLease | HeavyRustLock;
 export interface RustResourceOptions extends ResourceCapacityOptions, HeavyRustLockOptions {}
@@ -814,7 +815,8 @@ export async function runRustTests(
   } finally {
     cancellation?.dispose();
     if (executionTimer) clearTimeout(executionTimer);
-    if (lock && releaseLock) await lock.release();
+    if (releaseLock) await lock?.release();
+    else lock?.disconnectRetained?.();
     if (!retained && releaseLock) rmSync(directory, { recursive: true, force: true });
   }
 }

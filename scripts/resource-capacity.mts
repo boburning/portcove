@@ -35,6 +35,7 @@ export interface ResourceLease {
     registration?: ChildRegistration,
   ) => Promise<HeavyProcessRecord | null | undefined>;
   registerExternal?: (external: unknown) => Promise<void>;
+  disconnectRetained?: () => void;
   release: () => Promise<void>;
 }
 export interface ResourceMetadata extends HeavyRustMetadata {
