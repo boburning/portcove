@@ -22,9 +22,6 @@ use crate::{
 pub const PROVIDER: &str = "gamebanana";
 const API_ROOT: &str = "https://gamebanana.com/apiv11";
 const MAX_PER_PAGE: u32 = 50;
-/// More files than this in one project is refused rather than silently truncated,
-/// so a newer file can never be missed.
-const MAX_PROJECT_FILES: usize = 256;
 const FILE_PROPERTIES: &str =
     "_sName,_sVersion,_aFiles,_bIsObsolete,_tsDateUpdated,_sProfileUrl,_aSubmitter,_aGame";
 
@@ -253,14 +250,9 @@ pub(crate) fn parse_project(
             "GameBanana project has no name",
         ));
     }
-    if object["_aFiles"]
-        .as_array()
-        .is_some_and(|files| files.len() > MAX_PROJECT_FILES)
-    {
-        return Err(PortcoveError::verification(
-            "the project lists more files than this client can review completely",
-        ));
-    }
+    // The project response is read whole under the provider response bound and
+    // every file is parsed, so a long file history is never truncated and never
+    // makes the current files unavailable.
     parse_summary(&object, web_root)
         .ok_or_else(|| PortcoveError::verification("GameBanana project record is invalid"))
 }

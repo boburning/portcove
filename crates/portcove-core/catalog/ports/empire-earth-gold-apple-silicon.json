@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/maxgraf96/ee-macos/releases/tag/v0.8.2",
     "setup_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
-    "download_block_reason": "Use the publisher’s DMG or ZIP with macOS tools so the app bundle’s toolchain links are preserved.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the publisher’s DMG or ZIP with macOS tools so the app bundle’s toolchain links are preserved.",
+        "tracking_issue": 6117
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
       "steps": [

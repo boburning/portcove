@@ -788,21 +788,61 @@ async fn authenticated_catalog_prior_advances_without_erasing_immutable_history(
     let next = assemble_definition_repository(&fixture.assembly("generation-two"))
         .await
         .unwrap();
-    let files = next
-        .files
-        .iter()
-        .map(|v| v.target.as_str())
-        .collect::<BTreeSet<_>>();
     for old in first
         .files
         .iter()
         .filter(|v| v.target != "metadata/timestamp.json")
     {
-        assert!(files.contains(old.target.as_str()));
+        assert!(next.files.contains(old));
+        assert_eq!(
+            fs::read(fixture.root().join("generation-two").join(&old.target)).unwrap(),
+            fs::read(fixture.root().join("generation-one").join(&old.target)).unwrap(),
+        );
     }
-    assert!(files.contains("metadata/2.snapshot.json"));
-    assert!(files.contains("metadata/1.snapshot.json"));
+    assert!(
+        next.files
+            .iter()
+            .any(|file| file.target == "metadata/2.snapshot.json")
+    );
     assert_ne!(first.repository_sha256, next.repository_sha256);
+
+    // A retry after an ambiguous successful write keeps the exact output.
+    let retry = assemble_definition_repository(&fixture.assembly("generation-two"))
+        .await
+        .unwrap();
+    assert!(!retry.changed);
+    assert_eq!(retry.repository_sha256, next.repository_sha256);
+
+    // An interrupted output cannot become the new historical baseline.
+    let missing = fixture
+        .root()
+        .join("generation-two/metadata/1.snapshot.json");
+    let original = fs::read(&missing).unwrap();
+    fs::remove_file(&missing).unwrap();
+    let error = assemble_definition_repository(&fixture.assembly("generation-two"))
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("output exists with different bytes"),
+        "{error}"
+    );
+    assert!(!missing.exists());
+    fs::write(missing, original).unwrap();
+
+    let extra = fixture
+        .root()
+        .join("generation-two/metadata/99.snapshot.json");
+    fs::write(&extra, b"unplanned retained metadata").unwrap();
+    let error = assemble_definition_repository(&fixture.assembly("generation-two"))
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("output exists with different bytes"),
+        "{error}"
+    );
+    assert_eq!(fs::read(extra).unwrap(), b"unplanned retained metadata");
 }
 
 #[tokio::test]

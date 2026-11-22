@@ -428,6 +428,24 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "library_recovery_bundle",
+                serde_json::json!(schema_for_contract::<portcove_core::LibraryRecoveryBundle>(
+                    contract
+                )),
+            ),
+            (
+                "library_recovery_bundle_plan",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::LibraryRecoveryBundlePlan,
+                >(contract)),
+            ),
+            (
+                "library_recovery_restore_plan",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::LibraryRecoveryRestorePlan,
+                >(contract)),
+            ),
+            (
                 "library_import_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::LibraryImportPlan>(
                     contract
@@ -816,6 +834,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "mod_setup_draft_preview",
                 serde_json::json!(schema_for_contract::<portcove_core::ModSetupDraftPreview>(
+                    contract
+                )),
+            ),
+            (
+                "jakmods_catalog",
+                serde_json::json!(schema_for_contract::<portcove_core::JakModsCatalog>(
                     contract
                 )),
             ),

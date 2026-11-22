@@ -49,7 +49,16 @@
         }
       ]
     },
-    "download_block_reason": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The upstream package bundles remastered gameplay art derived from the original game. Use the upstream game page for an external copy.",
+        "tracking_issue": 5721
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "one-must-fall-2097",

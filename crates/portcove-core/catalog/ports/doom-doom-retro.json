@@ -49,7 +49,16 @@
         }
       ]
     },
-    "download_block_reason": "The engine WAD includes bonus maps with permission documented for upstream and in-game assets whose terms need verification for Portcove Download. Use the upstream project for an external copy."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "The engine WAD includes bonus maps with permission documented for upstream and in-game assets whose terms need verification for Portcove Download. Use the upstream project for an external copy.",
+        "tracking_issue": 5664
+      }
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,
