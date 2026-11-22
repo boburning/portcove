@@ -14,12 +14,15 @@ export function encodeCompactListing(bytes: Buffer) {
     throw new Error(
       "Complete compact listing exceeds its decoded byte bound; retaining last-good publication",
     );
+  const compressed = gzipSync(bytes);
+  // Preserve the published Unix OS byte in the gzip header on every host.
+  compressed[9] = 3;
   const result = Buffer.from(
     JSON.stringify({
       carrier: compactListingCarrier,
       decoded_bytes: bytes.length,
       decoded_sha256: sha256(bytes),
-      gzip_base64: gzipSync(bytes).toString("base64"),
+      gzip_base64: compressed.toString("base64"),
     }),
   );
   if (result.length > listingDeliveryMaximum)
