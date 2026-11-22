@@ -69467,7 +69467,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=blue, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=blue as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -69542,16 +69542,20 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Open the official player",
-            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+            "title": "Get the official player",
+            "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
           },
           {
             "title": "Import your original",
-            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Crystal ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+            "instruction": "Use your own canonical US English 2 MiB Pokémon Crystal Game Boy Color ROM, revision 1.0 SHA-1 f4cd194bdee0d04ca4eac29e09b8e4e9d818c133 or revision 1.1 SHA-1 f2f52230b536214ef7c9924f483392993e226cfb. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+          },
+          {
+            "title": "Add the game and play",
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=crystal and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=crystal as its own argument."
           },
           {
             "title": "Keep your game data",
-            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+            "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
           }
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
@@ -69559,12 +69563,6 @@
           "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-crystal",
@@ -69572,8 +69570,24 @@
           "https://github.com/bryanthaboi/gen1recomp#readme",
           "https://github.com/bryanthaboi/gen1recomp"
         ],
-        "source_editions": []
-      }
+        "source_editions": [
+          {
+            "id": "pokemon-crystal-game-boy-color",
+            "title": "Pokémon Crystal (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+              "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+            ]
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-emerald-emeraldrecomp",
@@ -69688,7 +69702,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=emerald, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=emerald as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -69851,7 +69865,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=firered, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=firered as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -69926,16 +69940,20 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Open the official player",
-            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+            "title": "Get the official player",
+            "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
           },
           {
             "title": "Import your original",
-            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Gold ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+            "instruction": "Use your own canonical US English 2 MiB Pokémon Gold Game Boy Color ROM, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+          },
+          {
+            "title": "Add the game and play",
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=gold as its own argument."
           },
           {
             "title": "Keep your game data",
-            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+            "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
           }
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
@@ -69943,12 +69961,6 @@
           "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-gold",
@@ -69956,8 +69968,24 @@
           "https://github.com/bryanthaboi/gen1recomp#readme",
           "https://github.com/bryanthaboi/gen1recomp"
         ],
-        "source_editions": []
-      }
+        "source_editions": [
+          {
+            "id": "pokemon-gold-game-boy-color",
+            "title": "Pokémon Gold (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+              "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+            ]
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
@@ -70075,7 +70103,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=leafgreen, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=leafgreen as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -70426,7 +70454,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=ruby, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=ruby as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -70582,7 +70610,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=sapphire, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=sapphire as its own argument."
           },
           {
             "title": "Add the game and manage updates",
@@ -70729,16 +70757,20 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Open the official player",
-            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+            "title": "Get the official player",
+            "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
           },
           {
             "title": "Import your original",
-            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Silver ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+            "instruction": "Use your own canonical US English 2 MiB Pokémon Silver Game Boy Color ROM, SHA-1 49b163f7e57702bc939d642a18f591de55d92dae. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+          },
+          {
+            "title": "Add the game and play",
+            "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=silver and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=silver as its own argument."
           },
           {
             "title": "Keep your game data",
-            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+            "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
           }
         ],
         "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
@@ -70746,12 +70778,6 @@
           "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
         ]
       },
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "original_game": {
         "format_version": 1,
         "id": "pokemon-silver",
@@ -70759,8 +70785,24 @@
           "https://github.com/bryanthaboi/gen1recomp#readme",
           "https://github.com/bryanthaboi/gen1recomp"
         ],
-        "source_editions": []
-      }
+        "source_editions": [
+          {
+            "id": "pokemon-silver-game-boy-color",
+            "title": "Pokémon Silver (Game Boy Color)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+              "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+            ]
+          }
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
@@ -70926,7 +70968,7 @@
           },
           {
             "title": "Set up on Linux, Mac or Android",
-            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch."
+            "instruction": "On Linux x86-64, make the official AppImage executable and select it with its containing folder. On Intel or Apple Silicon Mac, keep the extracted gen1recomp.app intact. Select its Contents/MacOS/love executable and the Contents/MacOS folder. First import the matching original using the upstream player. In Portcove, review one argument, --game=yellow, before saving the registration. Use Play to start it. Flatpak and Android players use upstream setup and launch. On Linux without FUSE, add --appimage-extract-and-run before --game=yellow as its own argument."
           },
           {
             "title": "Add the game and manage updates",
