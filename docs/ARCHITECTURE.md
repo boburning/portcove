@@ -1761,6 +1761,13 @@ identity; a failed review keeps focus inside the dialog.
 
 ## Backup review presentation
 
+Core includes an optional `recovery_review` in backup inventory. Desktop uses
+it to offer the historical recovery review for the selected snapshot. The
+Windows Ghostship reader looks up the backup and retained install ID in the
+library’s qualification records. The locked plan verifies the complete seal
+and current contents before consent. Ordinary backup records and retained
+plan fingerprints omit the inventory hint.
+
 Core owns backup selection, payload/user-data fingerprints, single-use authorization,
 per-port exclusion and journal recovery. Desktop exposes a generation-bound review
 that combines the existing core preview with its saved-data path. Its custom restore
@@ -2661,6 +2668,12 @@ Core also owns the read-only output-destination preview, capacity/ownership asse
 
 Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
 
+Desktop compares existing library roots through Core validation. Reselecting
+the active root keeps the workspace generation and preference bytes when the
+canonical choice and startup source already agree. An explicit change to the
+startup choice still persists, even when the current library stays open.
+Switching to another root still requires the outgoing library to be idle.
+
 Favorites use the compatible `favorites_by_library` extension in that same
 format-1 host preference document. `HostPreferenceStore::favorite_ports` and
 `set_favorite` read or change independent canonical port IDs under a selected
@@ -2986,7 +2999,9 @@ before charging directory entries. If more than 64 owned paths
 would need omission issues, the scan fails and preserves the prior snapshot so
 none are silently omitted. If output ownership changes during traversal, the
 scan cannot publish a snapshot; the final registry comparison and snapshot
-write share one database transaction. After a successful scan, core atomically
+write share one database transaction. The foreground command returns its own
+published snapshot. A later read of the saved scan serves the latest snapshot,
+which another invocation may have replaced. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 12 retains the delivered original-file/ZIP, directory/ZIP-file-set, normalized raw GameCube, exact STFS LIVE and pinned-validator preliminary discovery contracts, plus bounded normalized disc observations admitted independently through the existing schema-2 disc matcher. CISO streams the standard GameCube logical extent without materializing a full ISO. Windows decoder inspection copies one bounded original atom into private local staging, preflights fixed container headers/maps/metadata before decoder buffering, applies an OS-enforced job memory cap, supervises output growth and time, and requires positive tree closure before consuming output or cleanup. Output polling is not a hard Windows file-write quota. Original bytes are rehashed before publishing the observation. Complete PSX sets require the pre-enumeration directory handle, all ordered members, checked aggregate sizes and hashes, and final original-byte verification. No scan registers or prepares a source. On Linux, decoder inspection uses a private user/PID namespace with an atomic init pidfd and a bounded private startup gate. Positive terminal waitid(P_PIDFD) joins namespace teardown before consuming output or cleanup, including detached and nested descendants. Per-process address-space and per-file write limits are hard bounds; output-tree polling supplies the separate aggregate/depth/entry bound. Ordinary Unix process groups cannot prove escaped-descendant closure, and other Unix platforms report tool-based normalized discovery as uninspected. Unsupported Linux namespace capabilities fail explicitly without a weaker fallback. Unknown closure retains private inspection paths and aborts publication. Selected converted-disc inspection and registration on Windows/Linux reuse the same immutable observer and closure custody. Explicit selection has no scan batch/hash allowance, while individual originals and decoded discs have a 2 GiB boundary and selected PSX directories have a 16,384-entry bound. One ordered inventory, its held directory object, and final member-byte checks precede admission; storage identity is never computed from a newly enumerated set after decoding. Preliminary NotRun selections remain separate from exact matches and do not establish compatibility. Earlier formats retain their original readable evidence and become stale until rescanned; unknown historical limits are not invented.

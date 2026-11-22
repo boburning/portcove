@@ -1,3 +1,4 @@
+import { desktopApi } from "../api";
 import {
   CurrentGamePlayControl,
   currentGamePlayKey,
@@ -113,6 +114,7 @@ import { BackupHistory } from "./BackupHistory";
 import { PortableSaves } from "./PortableSaves";
 import { ProtectionSummary } from "./ProtectionSummary";
 import { GameSettingsControl } from "./GameSettingsControl";
+import { JakModsBrowser } from "./JakModsBrowser";
 import { ModSetupsControl, type ModPlayState } from "./ModSetupsControl";
 import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import type { BackupReadState } from "../features/backups/use-port-backups";
@@ -120,6 +122,7 @@ import { GameUpdateControl, UpdatePolicyControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
 import { ExternalLink as ProjectLink } from "./ExternalLink";
 import { Icon, NavigationHints } from "./ui";
+import { ReleaseWithdrawalNotice } from "./ReleaseWithdrawal";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -568,6 +571,24 @@ function DetailBody(model: {
     key: string;
     supported: boolean | "unavailable";
   }>();
+  const [communitySource, setCommunitySource] = useState<{ key: string; url: string }>();
+  const mayHaveCommunitySource = model.port.adapter === "upstream-managed-setup";
+  useEffect(() => {
+    if (!mayHaveCommunitySource) return;
+    let current = true;
+    void desktopApi.jakModsSetupUrl(model.port.id, model.libraryGeneration).then(
+      (url) => {
+        if (current) setCommunitySource(url ? { key: modsKey, url } : undefined);
+      },
+      () => {
+        if (current) setCommunitySource(undefined);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [mayHaveCommunitySource, model.port.id, model.libraryGeneration, modsKey]);
+  const hasCommunitySource = mayHaveCommunitySource && communitySource?.key === modsKey;
   const [modSupportRetry, retryModSupport] = useState(0);
   const [observedModPlay, setModPlay] = useState<ModPlayState>();
   const modPlay =
@@ -753,21 +774,33 @@ function DetailBody(model: {
       {(reveal, currentSection) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        ...(modsAvailable
+        ...(modsAvailable || hasCommunitySource
           ? {
               mods: (
-                <ModSetupsControl
-                  key={modsKey}
-                  portId={model.port.id}
-                  generation={model.libraryGeneration}
-                  libraryRoot={model.libraryRoot}
-                  busy={Boolean(busy)}
-                  openGameFiles={() => reveal("files")}
-                  active={currentSection === "mods"}
-                  onPlayState={setModPlay}
-                  reviewFromPlay={reviewFromPlay}
-                  onAppliedFromPlay={() => reveal("overview")}
-                />
+                <>
+                  {hasCommunitySource && (
+                    <JakModsBrowser
+                      setupUrl={communitySource.url}
+                      key={`community-${modsKey}`}
+                      portId={model.port.id}
+                      generation={model.libraryGeneration}
+                    />
+                  )}
+                  {modsAvailable && (
+                    <ModSetupsControl
+                      key={modsKey}
+                      portId={model.port.id}
+                      generation={model.libraryGeneration}
+                      libraryRoot={model.libraryRoot}
+                      busy={Boolean(busy)}
+                      openGameFiles={() => reveal("files")}
+                      active={currentSection === "mods"}
+                      onPlayState={setModPlay}
+                      reviewFromPlay={reviewFromPlay}
+                      onAppliedFromPlay={() => reveal("overview")}
+                    />
+                  )}
+                </>
               ),
             }
           : {}),
@@ -3948,6 +3981,7 @@ function DetailOverviewActions({
 }) {
   return (
     <>
+      <ReleaseWithdrawalNotice status={model.status} reviewVersions={() => reveal("versions")} />
       {!model.installReadbackRequired &&
         model.displayPort &&
         setupRoutePresentation(model.displayPort, model.status).promoteAlternative && (
@@ -4188,9 +4222,20 @@ function DetailManageSection({
               You maintain this folder and its updates. Review Saves & backups for any data Portcove
               can protect.
             </p>
-            <Button variant="outline" onClick={() => reveal("files", "detail-game-actions")}>
-              Edit external launch details
-            </Button>
+            {external && !model.installReadbackRequired && (
+              <Button
+                variant="outline"
+                onClick={() =>
+                  reveal("files", "detail-game-actions", {
+                    focus: "[data-external-runtime-next-action]",
+                  })
+                }
+              >
+                {usesUserSelectedRuntime(model.port, model.status)
+                  ? "Open launch details"
+                  : "Open game folder controls"}
+              </Button>
+            )}
           </div>
         )}
       </CurrentStateSummary>

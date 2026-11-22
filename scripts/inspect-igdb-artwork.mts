@@ -152,6 +152,8 @@ export interface ArtworkPreparationOptions {
   /** Bound provider work without truncating the catalog or its identity checks. */
   selectedPortIds?: readonly string[];
   refreshPortIds?: readonly string[];
+  /** Maintenance revalidates the approved owner of each retained cover. */
+  revalidateAccepted?: boolean;
   inspectGame?: (identity: DeclaredIdentity) => unknown;
   inspectImage?: (imageId: string, remainingBytes: number) => unknown;
   signal?: AbortSignal;
@@ -193,6 +195,10 @@ const maximumBatchBytes = 512 * 1024 * 1024;
 // Only this module's fixed image request can establish a Gone observation.
 // Provider metadata, generic errors and caller-supplied status properties cannot.
 const goneImageObservations = new WeakMap<object, string>();
+
+export function isConfirmedIgdbImageGone(error: unknown, imageId: string) {
+  return isRecord(error) && goneImageObservations.get(error) === imageId;
+}
 
 function goneImageException(kind: IgdbArtworkMatch, imageId: string): ArtworkException {
   return { ...exception(kind, "image-gone"), image_id: imageId, http_status: 410 };
@@ -259,7 +265,11 @@ function evidenceUrl(value: unknown) {
   return evidence.href;
 }
 
-function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): DeclaredIdentity {
+function declaredIdentity(
+  value: unknown,
+  requestedKind?: IgdbArtworkMatch,
+  allowUnnamedExact = false,
+): DeclaredIdentity {
   const kind = requestedKind ?? (isRecord(value) ? (value.kind ?? "port") : "port");
   if (kind !== "port" && kind !== "underlying-game")
     throw new Error("Artwork identity kind is invalid.");
@@ -268,7 +278,12 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
     (value.game_id != null && !positiveId(value.game_id)) ||
     (value.slug != null && !matchesString(slugPattern, value.slug)) ||
     !Array.isArray(value.names) ||
-    !value.names.length ||
+    (!value.names.length &&
+      !(
+        allowUnnamedExact &&
+        positiveId(value.game_id) &&
+        matchesString(slugPattern, value.slug)
+      )) ||
     value.names.length > 16 ||
     !value.names.every(
       (name: unknown): name is string =>
@@ -344,6 +359,7 @@ function matchesIdentity(game: ObservedGame, declared: DeclaredIdentity) {
       : []),
   ];
   if (
+    declared.names.length > 0 &&
     !declared.names.some((name) =>
       names.some((observed) => typeof observed === "string" && nameKey(name) === nameKey(observed)),
     )
@@ -586,7 +602,7 @@ async function inspectCoverContent(
     context.signal?.throwIfAborted();
     if (!content) throw new Error("Image observation disappeared.");
   } catch (error) {
-    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
+    if (isConfirmedIgdbImageGone(error, imageId)) {
       context.goneImages.add(imageId);
       exceptions.push(goneImageException(kind, imageId));
     } else {
@@ -611,6 +627,7 @@ async function selectCover(
   context: ArtworkContext,
   exceptions: ArtworkException[],
   authoredRegional?: IgdbRegionalCover,
+  allowUnnamedExact = false,
 ): Promise<SelectedCover | null> {
   if (!identity) {
     exceptions.push(exception(kind, "identity-not-declared"));
@@ -618,7 +635,7 @@ async function selectCover(
   }
   let declared;
   try {
-    declared = declaredIdentity(identity, kind);
+    declared = declaredIdentity(identity, kind, allowUnnamedExact);
     if (declared.localization && !authoredRegional)
       throw new Error("Regional cover selection requires an authored port record.");
   } catch {
@@ -853,7 +870,11 @@ export async function prepareCatalogArtwork(
       throw new Error(`Invalid authored regional cover: ${port.id}`);
     if (priorPort?.igdb_regional_cover && priorPort.project_url !== port.project_url)
       throw new Error(`Regional cover needs new source review: ${port.id}`);
-    const reused = reusableMapping(port, priorPort, supplied);
+    const reused = reusableMapping(
+      port,
+      priorPort,
+      options.revalidateAccepted ? undefined : supplied,
+    );
     if (!workset.has(port.id)) {
       if (JSON.stringify(members) !== JSON.stringify(priorPort ? collectionCovers(priorPort) : []))
         throw new Error(`Changed collection identity outside selected workset: ${port.id}`);
@@ -974,23 +995,50 @@ export async function prepareCatalogArtwork(
     };
     context.refreshing = refresh.has(port.id);
     const exceptions: ArtworkException[] = [];
-    const selected = regional
+    const retainedIdentity =
+      options.revalidateAccepted && reused && !regional
+        ? { kind: reused.match_kind, game_id: reused.game_id, slug: reused.game_slug }
+        : null;
+    const retainedDeclaration =
+      retainedIdentity?.kind === "port" ? declarations.port : declarations.underlying_game;
+    const selected = retainedIdentity
       ? await selectCover(
           {
-            game_id: regional.game_id,
-            slug: regional.slug,
-            names: [regional.name],
-            evidence_url: port.project_url,
-            platform_ids: [regional.platform_id],
-            localization: { id: regional.localization_id, region_id: regional.region_id },
+            ...(retainedDeclaration === undefined
+              ? { names: [], evidence_url: port.project_url }
+              : isRecord(retainedDeclaration)
+                ? retainedDeclaration
+                : {}),
+            ...retainedIdentity,
           },
-          "underlying-game",
+          retainedIdentity.kind,
           context,
           exceptions,
-          regional,
+          undefined,
+          retainedDeclaration === undefined,
         )
-      : ((await selectCover(declarations.port, "port", context, exceptions)) ??
-        (await selectCover(declarations.underlying_game, "underlying-game", context, exceptions)));
+      : regional
+        ? await selectCover(
+            {
+              game_id: regional.game_id,
+              slug: regional.slug,
+              names: [regional.name],
+              evidence_url: port.project_url,
+              platform_ids: [regional.platform_id],
+              localization: { id: regional.localization_id, region_id: regional.region_id },
+            },
+            "underlying-game",
+            context,
+            exceptions,
+            regional,
+          )
+        : ((await selectCover(declarations.port, "port", context, exceptions)) ??
+          (await selectCover(
+            declarations.underlying_game,
+            "underlying-game",
+            context,
+            exceptions,
+          )));
     const companion = port.presentation?.companion_cover;
     if (context.refreshing && validArtworkMapping(companion)) {
       const content = await inspectCoverContent(
@@ -1437,7 +1485,7 @@ export function createIgdbInspector(
       deadline = Date.now() + 15 * 60 * 1000;
     },
     async inspectGame(identity: unknown): Promise<unknown> {
-      const verified = declaredIdentity(identity);
+      const verified = declaredIdentity(identity, undefined, true);
       return inspectMetadata(
         "games",
         `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id${verified.localization ? ",game_localizations.id,game_localizations.game,game_localizations.region,game_localizations.cover.id,game_localizations.cover.image_id,game_localizations.cover.game_localization" : ""}; where ${
@@ -1537,6 +1585,8 @@ type HeroMediaRecord = {
   subject: CatalogMediaSubject;
   reason: string;
   image_id?: string;
+  provider_game_id?: number;
+  withdrawn_image_ids?: string[];
 };
 type HeroPreparationContext = {
   inspector: Parameters<typeof prepareCatalogGameMedia>[1]["inspector"];
@@ -1617,14 +1667,12 @@ function eligibleHeroImage(
   value: unknown,
   game: ObservedGame,
   role: GameMediaRole,
-  gone: Set<string>,
 ): value is HeroImageCandidate {
   if (
     !isRecord(value) ||
     !positiveId(value.id) ||
     value.game !== game.id ||
     !matchesString(imagePattern, value.image_id) ||
-    gone.has(value.image_id) ||
     value.animated === true
   )
     return false;
@@ -1642,16 +1690,11 @@ function heroImageHasLogo(record: HeroImageCandidate) {
     normalizedArtworkTypeName(record.image_type.name) === "keyartwithlogo"
   );
 }
-function heroImageCandidates(
-  observed: unknown,
-  game: ObservedGame,
-  role: GameMediaRole,
-  gone: Set<string>,
-) {
+function heroImageCandidates(observed: unknown, game: ObservedGame, role: GameMediaRole) {
   if (!Array.isArray(observed) || observed.length >= 21)
     throw new Error("Game image inventory is invalid or incomplete.");
   return observed
-    .filter((value): value is HeroImageCandidate => eligibleHeroImage(value, game, role, gone))
+    .filter((value): value is HeroImageCandidate => eligibleHeroImage(value, game, role))
     .sort((a, b) => Number(heroImageHasLogo(b)) - Number(heroImageHasLogo(a)) || a.id - b.id);
 }
 
@@ -1713,6 +1756,7 @@ function observeWithdrawnHeroImage(
     if (isRecord(asset) && isRecord(asset.igdb) && asset.igdb.image_id === gone)
       media.splice(index, 1);
   }
+  return gone;
 }
 async function inspectHeroRole(
   game: ObservedGame,
@@ -1730,8 +1774,14 @@ async function inspectHeroRole(
   const observed = artwork
     ? await context.artworks.get(game.id)
     : await context.inspector.inspectGameMedia(game.id, role);
-  const candidates = heroImageCandidates(observed, game, role, context.goneImages);
-  let reason = candidates.length ? "images-unavailable-or-unsuitable" : "no-suitable-role-observed";
+  const eligible = heroImageCandidates(observed, game, role);
+  const withdrawn = new Set(
+    eligible.map(({ image_id }) => image_id).filter((id) => context.goneImages.has(id)),
+  );
+  const candidates = eligible.filter(({ image_id }) => !withdrawn.has(image_id));
+  let reason = "no-suitable-role-observed";
+  if (candidates.length) reason = "images-unavailable-or-unsuitable";
+  else if (Array.isArray(observed) && observed.length === 0) reason = "provider-role-empty";
   // Finite candidate chain; one bad file does not erase another media role.
   for (const candidate of candidates.slice(0, 4)) {
     context.signal?.throwIfAborted();
@@ -1745,17 +1795,18 @@ async function inspectHeroRole(
         media.some((existing) => isRecord(existing) && existing.id === asset.id)
       )
         continue;
-      return { asset, reason: "role-selected" };
+      return { asset, reason: "role-selected", withdrawn };
     } catch (error) {
       context.signal?.throwIfAborted();
-      observeWithdrawnHeroImage(error, media, context);
+      const gone = observeWithdrawnHeroImage(error, media, context);
+      if (gone === candidate.image_id) withdrawn.add(gone);
       if (error instanceof ArtworkBatchExhausted) {
         reason = "batch-provider-budget-exhausted";
         break;
       }
     }
   }
-  return { asset: undefined, reason };
+  return { asset: undefined, reason, withdrawn };
 }
 
 function upsertHeroMedia(media: unknown[], asset: CatalogMediaAsset) {
@@ -1793,6 +1844,7 @@ async function prepareHeroIdentity(
           role,
           subject: identity.subject,
           reason: retained ? "existing-scene-retained" : "scene-role-capacity",
+          ...(identified.game ? { provider_game_id: identified.game.id } : {}),
         });
         continue;
       }
@@ -1809,6 +1861,8 @@ async function prepareHeroIdentity(
         role,
         subject: identity.subject,
         reason: selected.reason,
+        provider_game_id: identified.game.id,
+        ...(selected.withdrawn.size ? { withdrawn_image_ids: [...selected.withdrawn] } : {}),
         ...(selected.asset?.igdb ? { image_id: selected.asset.igdb.image_id } : {}),
       });
     } catch (error) {
@@ -1821,6 +1875,7 @@ async function prepareHeroIdentity(
           error instanceof ArtworkBatchExhausted
             ? "batch-provider-budget-exhausted"
             : "media-provider-unavailable-or-incomplete",
+        provider_game_id: identified.game.id,
       });
     }
   }

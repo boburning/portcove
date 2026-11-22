@@ -247,6 +247,7 @@ function ExternalRuntimeContext({
           </div>
           <Button
             data-focusable
+            data-external-runtime-next-action
             variant="outline"
             disabled={busy}
             onClick={() => void select("relink")}
@@ -1649,6 +1650,7 @@ function ExistingRuntimeActions({
       <Button
         variant="outline"
         data-focusable
+        data-external-runtime-next-action
         disabled={model.busy || !model.canEdit}
         onClick={() => model.setEditing(true)}
       >

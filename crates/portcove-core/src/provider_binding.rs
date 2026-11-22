@@ -75,9 +75,10 @@ pub(crate) fn bindings(port: &PortDefinition) -> Vec<ModProviderBinding> {
 }
 
 pub(crate) fn configured_bindings(port: &PortDefinition) -> Option<&[ModProviderBinding]> {
-    port.mod_provider_bindings
-        .as_deref()
-        .or_else(|| port.legacy_mod_provider_held.then_some(&[]))
+    if port.legacy_mod_provider_held {
+        return Some(&[]);
+    }
+    port.mod_provider_bindings.as_deref()
 }
 
 pub(crate) fn reference_matches(
@@ -157,7 +158,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     let Some(bindings) = &port.mod_provider_bindings else {
         return Ok(());
     };
-    let valid = crate::profile_deploy::adapter_extensions(&port.id).is_some()
+    let valid = crate::profile_loader::configured_loader(port).is_some()
         && capability(port).is_some()
         && bindings.len() <= 2
         && bindings
@@ -187,6 +188,33 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bundled_provider_scopes_preserve_historical_package_identity() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        for (id, provider) in [
+            ("shipwright", crate::gamebanana::PROVIDER),
+            ("zelda64-recomp", crate::thunderstore::PROVIDER),
+        ] {
+            let port = catalog.port(id).unwrap();
+            let prior = legacy_binding(id, provider).unwrap();
+            assert_eq!(
+                configured_bindings(port),
+                Some(std::slice::from_ref(&prior))
+            );
+            assert_eq!(default_binding(port), Some(prior));
+            assert!(reference_matches(
+                port,
+                &crate::ProviderPackageRef {
+                    provider: provider.into(),
+                    binding: None,
+                    project: "legacy-project".into(),
+                    file: Some("legacy-file".into()),
+                    version: None,
+                },
+            ));
+        }
+    }
 
     #[test]
     fn explicit_reviewed_scope_is_selected_and_replayed_exactly() {
@@ -247,7 +275,9 @@ mod tests {
         withdrawn.mod_provider_bindings = Some(Vec::new());
         assert!(!reference_matches(&withdrawn, &reference));
         validate_successor(&port, &withdrawn).unwrap();
-        assert!(validate_successor(&withdrawn, catalog.port("shipwright").unwrap()).is_err());
+        let mut implicit = catalog.port("shipwright").unwrap().clone();
+        implicit.mod_provider_bindings = None;
+        assert!(validate_successor(&withdrawn, &implicit).is_err());
     }
 
     #[test]
@@ -286,6 +316,7 @@ mod tests {
             Some(vec![ModProviderBinding::Gamebanana { game_id: u64::MAX }]);
         assert!(validate(&port).is_err());
         port.id = "unreviewed-port".into();
+        port.mod_loader = None;
         port.mod_provider_bindings = Some(vec![binding]);
         assert!(validate(&port).is_err());
     }

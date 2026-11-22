@@ -29,9 +29,9 @@ The Project uses these single-select fields:
   governance.
 - **Platform:** Unknown, All, Multi-platform, Windows, Linux, Steam Deck, macOS Intel,
   macOS Apple Silicon, Android, PS5, Not applicable.
-- **Port stage:** Watchlist, Researching, Source contract known, Release
-  integrity qualified, Cataloged, Automated qualification, Manual
-  qualification, Supported, Blocked, Rejected.
+- **Port stage:** Watchlist, Researching, Blocked, Rejected, Cataloged,
+  Automated qualification, Supported. Three historical options remain visible
+  in Project readback while retained assignments still use them.
 - **Effort:** XS, S, M, L, XL, Unknown.
 
 GitHub reserves the field name `Type` for its own item-type filter, so the live
@@ -61,23 +61,11 @@ channel, catalog maturity, or Project Status:
   presence does not grant catalog support.
 - **Researching:** active investigation of upstream identity, releases, source
   requirements, platforms, persistence, or adapter fit.
-- **Source contract known:** required game/source identity and accepted
-  revisions are sufficiently documented for implementation planning. No
-  runnable release is implied.
-- **Release integrity qualified:** at least one useful runnable artifact has a
-  deterministic, reviewable integrity path for an intended platform. Portcove
-  installation or gameplay has not necessarily passed.
 - **Cataloged:** exactly one valid `catalog.json` ID exists, but no catalog-owned
   automated platform qualification has been recorded.
 - **Automated qualification:** at least one declared platform has catalog-owned
   automated evidence, but no supported platform scope has completed the
   required hands-on evidence.
-- **Manual qualification:** automated evidence exists and hands-on
-  qualification is the active next or partially completed gate. This workflow
-  stage does not itself assert a recorded hands-on pass. The stage name is
-  historical; it does not require a human operator when an agent can directly
-  observe the same behavior on the runtime and any input or device relevant to
-  the claim.
 - **Supported:** historical entries require at least one declared platform in
   both legacy qualification arrays. New exact claims require matching scoped
   automated and hands-on records for the artifact, source contract, variant,
@@ -942,6 +930,62 @@ conditions, and Rejected entries that still claim catalog support. Distinct
 games or targets may share one upstream. Grouping and sorting are verified by readback; auto-add and completion workflows
 remain explicit manual confirmations. `bootstrap` reconciles the live Project; ordinary CI runs
 only the offline `check` and tests.
+
+For the #4850 read-only migration inventory, run
+`node scripts/roadmap.mts doctor --stage-migration-dry-run --expected-head <sha> --json`.
+It uses complete, revision-checked Project inventory for active and archived
+items. The report retains current values with Project item IDs, issue links,
+and observed body digests, and reports missing or conflicting catalog links
+as unresolved. A failed or incomplete read establishes no migration counts.
+This mode reports migration coverage separately from global doctor health.
+
+The [owner-approved stage model](https://github.com/boburning/portcove/issues/4850#issuecomment-7068240241)
+keeps **Watchlist**, **Researching**, **Blocked**, and **Rejected** as deliberate
+planning values. **Cataloged**, **Automated qualification**, and **Supported**
+follow existing catalog admission and platform qualification. Intake fills an
+unset stage from a uniquely matched operational catalog definition with the
+same upstream. Unbound intake starts at Watchlist. Normalization preserves
+already assigned values and leaves a completed unbound assignment unset.
+Single and bulk edits to a catalog-derived stage require the canonical issue's
+exact current catalog projection.
+
+**Source contract known**, **Release integrity qualified**, and **Manual
+qualification** are historical options. Routine Roadmap tooling refuses new
+assignments to them and accepts them in readback. Keep their option identities
+available while retained items use them. Preserve source, artifact, and
+hands-on evidence in the owning issue before applying a separately reviewed
+transition. The report
+shows each historical value beside its catalog projection when a unique link
+exists. Doctor already computes and reports drift in either direction from
+observed catalog evidence. It reports a lower stored stage as advisory and
+continues to fail when a stored qualification claim exceeds its evidence.
+A dry-run finding proposes a review of the Project assignment at the stage
+the catalog already establishes. When the catalog link is absent or ambiguous,
+the finding asks for binding verification and proposes no target. Reporting
+does not grant catalog support or change the recorded planning values.
+
+An issue-free prepared listing can record inspection, runtime observations or
+failures independently. The report includes a catalog projection for matching
+operational ports covered by the issue-free listing rule. A listing or dated
+runtime observation alone supplies no substitute for an automated or hands-on
+qualification pass. The read-only doctor report runs under existing authority.
+The approved assignment plan covers 299 clears, 20 transitions to Researching,
+five transitions to Blocked, and 34 historical holds. Apply a transition
+only after rechecking that exact row and preserving its supporting evidence
+in the owning issue. Changed or newly identified assignments need separate
+disposition.
+
+For each historical assignment, the dry run retains the exact old value and
+issue body with the Project and issue IDs, observed revision, and body digest.
+It proposes leaving Port stage unset after evidence preservation when the
+owning issue is closed as Completed, Project Status is Done, and neither the
+issue markers nor an admitted listing establish an operational catalog binding.
+This preserves the recorded completion of limited work, including an
+upstream-owned player route. For open issues, a recorded Blocked status needs
+the existing issue blocker and resume evidence. Active investigation can map
+to Researching when the issue specifies pending qualification work and tests.
+A Triage status alone leaves the historical value on hold. An ambiguous catalog
+binding or insufficient current evidence also retains the historical value.
 
 Before a tagged release, generate a dated readiness snapshot with
 `roadmap.mts snapshot`. Review and commit that immutable evidence document under

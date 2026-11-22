@@ -792,16 +792,25 @@ status owns count announcements. Clear filters and Reset view retain distinct
 scopes. Removal labels include the visible filter group and value for speech control. Empty/unavailable results retain accurate recovery; no-match headings use
 22px/1.35 with concise explicit reset scope and natural growth for longer text.
 
-Library starts with Runs on (including Available for this device, which states acquisition availability only), Original system and Update channels. Runs on covers the managed definition's platforms plus any the accepted listing declares for its upstream download (that download can still be unavailable); a listing-only platform matches as the listing download and never as a managed setup or installation, and managed actions stay limited to the managed platforms. Other real
-groups remain in Advanced filters, which opens for restored advanced selections.
-The Library panel places heading/help in a compact row and keeps closed Advanced
-controls beside the footer where space allows. Explanations, unknown-context
-recovery and multi-selection semantics stay available. Library search/sort use
-13px text and6px control corners; contrast-qualified borders and the distinct
-3px focus indicator remain. Discover retains its existing common groups. Common filters use compact labeled checkbox popovers. Selection stays multi-select,
-with OR within a category and AND across categories; route-dependent predicates
-must still match the same observed route. Advanced filters and per-field help retain
-technical semantics. Escape closes the active popover before the containing panel.
+Library keeps quick views and Readiness primary. Game files, installation
+attention and observed updates lead its filter panel. Discover starts with
+device eligibility, Library membership, game files and port alternatives.
+More filters contains named platforms, original systems, release channels, setup
+methods and implementation techniques. Selected chips remain visible when More
+filters is closed. Restored technical selections can reveal their choices.
+
+Available for this device and named platforms use the same platform facet. Runs
+on covers the managed definition's declared targets and any upstream download
+targets the accepted listing declares. Listed targets describe acquisition
+availability. Managed actions continue to require a matching managed platform.
+Checkbox selections use OR within a facet and AND across facets. Route-dependent
+predicates must match the same observed route. Escape closes the active popover
+before the filter panel.
+
+The Library panel places heading and help in a compact row and keeps the closed
+disclosure beside the footer where space allows. Library search and sort use
+13px text and 6px control corners with contrast-qualified borders and a distinct
+3px focus indicator.
 
 Repeated collection Play controls use neutral secondary emphasis. The selected-game
 hero and Continue keep primary emphasis. Detail Back labels follow the captured
@@ -1126,8 +1135,12 @@ port and next review action together. Its three routes are Browse games (Discove
 where choosing a game always happens), Scan a folder, or use an existing
 installation. Show only the selected route's actual inputs and requirements. In
 Add games, "Choose folder to scan" saves the chosen folder and scans the saved
-folders; Settings keeps "Add folder" without scanning. Files are checked against the
-port chosen on its game page; folder search supplies bounded recognition (#5058 F2).
+folders; Settings keeps "Add folder" without scanning. The workspace retains the
+last saved scan result through navigation. Review saved scan checks that exact
+snapshot before focusing it in Add games. If a different scan or a later batch
+has replaced it, the player can explicitly choose to see the current results.
+Files are checked against the port chosen on its game page; folder search
+supplies bounded recognition (#5058 F2).
 When setup or install finishes and current readiness, including Core's launch
 assessment, reports the game ready with nothing left to confirm, the completion
 notice reads "Title is ready to play." with a primary "Play: Title" and Dismiss;
@@ -1229,6 +1242,10 @@ Detail starts with compact identity, state and its current action, followed by
 the installation and requirements. Current update decisions and saves/storage
 precede project background and diagnostics. Catalog identity wraps in full and
 installation version labels explicitly say Installed or External installation.
+In Manage, an external installation links to its matching Game files control.
+Focus moves to the folder or launch-details control when available and to the
+Game actions region when it is unavailable. Opening the section leaves the
+existing registration and any draft in place.
 
 Preparation groups Files used, What changes and During setup. Running preparation,
 managed installation and game-update observation can be left with Continue browsing;
@@ -1249,7 +1266,8 @@ connected contextual region is the fallback. A downloaded update remains separat
 from the current playable installation. Without an observed candidate,
 Check for updates is the entry point. Shared invocation feedback owns execution
 failures; a quiet, unchanged cancellation can remain local without duplicating an
-error banner.
+error banner. Archive status describes the stored download through preparation
+and activation. Installed and prepared version records describe the runtime.
 
 Activity groups authoritative attention IDs, running records and recent outcomes.
 Target identity leads each row. Unfinished setup opens a read-only file account;
