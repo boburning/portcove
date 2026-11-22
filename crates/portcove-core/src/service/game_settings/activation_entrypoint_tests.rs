@@ -230,8 +230,27 @@ fn settings_fixture_packages_for_contract(
     if seed_settings {
         fs::write(canonical.join(FILE), OLD).unwrap();
     }
-    fs::write(canonical.join("progress.sav"), b"owned saved progress").unwrap();
-    fs::write(old.path.join("progress.sav"), b"owned saved progress").unwrap();
+    // Portcove's player-data copies preserve the exact modification time, and
+    // unlaunched-data restore treats equal bytes with a different time as a
+    // conflict. Pin one stamp instead of relying on two separate writes landing
+    // on the same filesystem timestamp tick.
+    let saved_at = std::time::UNIX_EPOCH + std::time::Duration::new(1_700_000_000, 123_456_700);
+    for progress in [
+        canonical.join("progress.sav"),
+        old.path.join("progress.sav"),
+    ] {
+        fs::write(&progress, b"owned saved progress").unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&progress)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(saved_at))
+            .unwrap();
+        assert_eq!(
+            fs::metadata(&progress).unwrap().modified().unwrap(),
+            saved_at
+        );
+    }
     let mut service =
         PortcoveService::with_faults(library.clone(), Arc::new(InterruptRuntimeRename)).unwrap();
     service.replace_catalog_for_test(catalog.clone());
