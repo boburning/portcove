@@ -260,6 +260,16 @@ export type ReviewClickOptions =
       observe: (observation: WebKitPointerObservation) => void;
     };
 
+/** Re-observe the same control after scrolling. Callers must still confirm delivery. */
+function revealPointerTarget(element: Element) {
+  element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+  const bounds = element.getBoundingClientRect();
+  const centerX = bounds.x + bounds.width / 2;
+  const centerY = bounds.y + bounds.height / 2;
+  const hit = document.elementFromPoint(centerX, centerY);
+  return hit === element || element.contains(hit) ? { x: centerX, y: centerY } : false;
+}
+
 export async function clickVisible(
   browser: WebDriver,
   element: WebElement,
@@ -288,19 +298,7 @@ export async function clickVisible(
     await browser.wait(until.elementIsEnabled(element), 5_000);
     stage = "pointer-target";
     const point = await browser.wait(
-      () =>
-        executeBrowserScript(
-          browser,
-          (element) => {
-            element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
-            const bounds = element.getBoundingClientRect();
-            const centerX = bounds.x + bounds.width / 2;
-            const centerY = bounds.y + bounds.height / 2;
-            const hit = document.elementFromPoint(centerX, centerY);
-            return hit === element || element.contains(hit) ? { x: centerX, y: centerY } : false;
-          },
-          element,
-        ),
+      () => executeBrowserScript(browser, revealPointerTarget, element),
       5_000,
       "The reviewed control must receive the pointer before clicking",
     );
@@ -339,56 +337,78 @@ export async function clickVisible(
               8,
           "GTK pointer conversion requires the measured enlarged viewport",
         );
-      assert.ok(
-        Number.isFinite(point.x) &&
-          Number.isFinite(point.y) &&
-          point.x >= 0 &&
-          point.x < geometry.viewport.width &&
-          point.y >= 0 &&
-          point.y < geometry.viewport.height,
-        "The CSS target point must be inside the enlarged viewport",
-      );
-      const pointer = {
-        target: geometry.target,
-        cssPoint: point,
-        nativePoint: {
-          x: Math.floor(point.x * options.pageZoom),
-          y: Math.floor(point.y * options.pageZoom),
-        },
-        pageZoom: options.pageZoom,
-        viewport: geometry.viewport,
-        delivered: false,
+      const move = async (cssPoint: WebKitPointerObservation["cssPoint"]) => {
+        stage = "webkit-window-point";
+        assert.ok(
+          Number.isFinite(cssPoint.x) &&
+            Number.isFinite(cssPoint.y) &&
+            cssPoint.x >= 0 &&
+            cssPoint.x < geometry.viewport.width &&
+            cssPoint.y >= 0 &&
+            cssPoint.y < geometry.viewport.height,
+          "The CSS target point must be inside the enlarged viewport",
+        );
+        const pointer: WebKitPointerObservation = {
+          target: geometry.target,
+          cssPoint,
+          nativePoint: {
+            x: Math.floor(cssPoint.x * options.pageZoom),
+            y: Math.floor(cssPoint.y * options.pageZoom),
+          },
+          pageZoom: options.pageZoom,
+          viewport: geometry.viewport,
+          delivered: false,
+        };
+        webkitPointer = pointer;
+        options.observe(pointer);
+        stage = "webkit-pointer-move";
+        // GTK receives window coordinates. DOM tests below stay in CSS pixels.
+        await browser
+          .actions()
+          .move({ ...pointer.nativePoint, duration: 0 })
+          .perform();
+        stage = "webkit-delivered-target";
+        return pointer;
       };
-      webkitPointer = pointer;
-      options.observe(pointer);
-      stage = "webkit-pointer-move";
-      // WebKitGTK 2.52.6 sends these viewport-origin coordinates directly to GTK's
-      // window space. Convert page zoom once here; DOM hit tests stay in CSS pixels.
-      await browser
-        .actions()
-        .move({ ...pointer.nativePoint, duration: 0 })
-        .perform();
-      stage = "webkit-delivered-target";
+      const sample = (pointer: WebKitPointerObservation) =>
+        executeBrowserScript(
+          browser,
+          (element, point, zoom, viewport) => {
+            const eligible =
+              localStorage.getItem("portcove.appearance.interface-size") === "400" &&
+              innerWidth === viewport.width &&
+              innerHeight === viewport.height &&
+              !element.matches(":disabled");
+            const hit = document.elementFromPoint(point.x / zoom, point.y / zoom);
+            const sameTarget = hit === element || element.contains(hit);
+            return {
+              eligible,
+              sameTarget,
+              delivered: eligible && sameTarget && element.matches(":hover"),
+            };
+          },
+          element,
+          pointer.nativePoint,
+          options.pageZoom,
+          geometry.viewport,
+        );
+      let pointer = await move(point);
+      let repositioned = false;
       await browser.wait(
-        () =>
-          executeBrowserScript(
-            browser,
-            (element, nativePoint, pageZoom) => {
-              const hit = document.elementFromPoint(
-                nativePoint.x / pageZoom,
-                nativePoint.y / pageZoom,
-              );
-              return (
-                localStorage.getItem("portcove.appearance.interface-size") === "400" &&
-                !element.matches(":disabled") &&
-                element.matches(":hover") &&
-                (hit === element || element.contains(hit))
-              );
-            },
-            element,
-            pointer.nativePoint,
-            options.pageZoom,
-          ),
+        async () => {
+          const current = await sample(pointer);
+          if (current.delivered) return true;
+          if (!current.eligible || current.sameTarget || repositioned) return false;
+
+          // A measured collection row can move during native pointer delivery.
+          // Recenter the exact same control once within the existing wait.
+          repositioned = true;
+          const updated = await executeBrowserScript(browser, revealPointerTarget, element);
+          if (!updated || (updated.x === pointer.cssPoint.x && updated.y === pointer.cssPoint.y))
+            return false;
+          pointer = await move(updated);
+          return (await sample(pointer)).delivered;
+        },
         5_000,
         "The native GTK pointer must hover the reviewed target before pressing",
       );
