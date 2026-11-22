@@ -3019,13 +3019,36 @@ void test("N64 job evidence joins successful checkout and upload steps without p
 void test("provider outcomes map to stated partial, unavailable or failed coverage", async () => {
   const { statedSourceCoverage, validStatedSourceCoverage, continuationCursor } =
     await import("./catalog-observer-continuation.mts");
-  const { providerStatusFailure } = await import("./upstream-observer.mts");
+  const { providerStatusFailure, partialObservationFailure } =
+    await import("./upstream-observer.mts");
   const retryAt = "2026-11-22T12:00:00.000Z";
   const cases: [unknown, string | null, Record<string, unknown>][] = [
+    // Only a truncated page retains progress; malformed, escaping or repeating
+    // pagination under the same rule is an integrity failure.
     [
-      new ObservationFailure("pagination", "short"),
+      partialObservationFailure("pagination", "nonterminal page is incomplete"),
       "collect:2",
       { kind: "partial", rule: "pagination", next_cursor: "collect:2" },
+    ],
+    [
+      new ObservationFailure("pagination", "pagination link escaped its configured collection"),
+      "collect:2",
+      { kind: "failed", rule: "pagination" },
+    ],
+    [
+      new ObservationFailure("pagination", "collection repeated an identity across pages"),
+      "collect:2",
+      { kind: "failed", rule: "pagination" },
+    ],
+    [
+      partialObservationFailure("provider-pagination", "truncated"),
+      "reads:1:validate:0",
+      { kind: "partial", rule: "provider-pagination", next_cursor: "reads:1:validate:0" },
+    ],
+    [
+      new ObservationFailure("provider-pagination", "GitLab page coverage or cursor is invalid"),
+      "reads:1:validate:0",
+      { kind: "failed", rule: "provider-pagination" },
     ],
     [
       new ObservationFailure("budget", "spent", retryAt),
@@ -3071,6 +3094,80 @@ void test("provider outcomes map to stated partial, unavailable or failed covera
     continuationCursor({ phase: "validate", pages: {}, validation_cursor: 3 }),
     "validate:3",
   );
+});
+
+void test("provider retry clocks are bounded to the retry horizon", async () => {
+  const { boundedProviderRetryTime, boundedRetainedRetryClock, providerRetryHorizonMs } =
+    await import("./upstream-observer.mts");
+  const now = Date.parse(time);
+  const horizon = now + providerRetryHorizonMs;
+  const cases: [string | number | null, number | null][] = [
+    ["120", now + 120_000],
+    // An absurd delta cannot defer a source for centuries.
+    ["9999999999", horizon],
+    ["9".repeat(400), horizon],
+    // A far-future HTTP-date is clamped; a past one means "now".
+    ["Wed, 21 Oct 2405 07:28:00 GMT", horizon],
+    [new Date(now - 3600_000).toUTCString(), now],
+    [new Date(now + 600_000).toUTCString(), now + 600_000],
+    // Garbage, negative and fractional values are ignored.
+    ["soon", null],
+    ["-5", null],
+    ["1.5", null],
+    ["", null],
+    [null, null],
+    [Number.NaN, null],
+    [Number.POSITIVE_INFINITY, null],
+    [now + 10 * providerRetryHorizonMs, horizon],
+    [now - 1000, now],
+  ];
+  for (const [value, expected] of cases)
+    assert.equal(boundedProviderRetryTime(now, value), expected, String(value).slice(0, 40));
+  assert.equal(boundedRetainedRetryClock(now, null), null);
+  const near = new Date(now + 60_000).toISOString();
+  assert.equal(boundedRetainedRetryClock(now, near), near);
+  assert.equal(
+    boundedRetainedRetryClock(now, new Date(horizon).toISOString()),
+    new Date(horizon).toISOString(),
+  );
+  // Beyond the horizon it predates the bound and is discarded, not re-deferred.
+  assert.equal(boundedRetainedRetryClock(now, "2405-10-21T07:28:00.000Z"), null);
+});
+
+void test("an absurd GitHub Retry-After defers at most the retry horizon", async () => {
+  const { providerRetryHorizonMs } = await import("./upstream-observer.mts");
+  const now = Date.parse(time);
+  for (const retryAfter of ["9999999999", "Wed, 21 Oct 2405 07:28:00 GMT"]) {
+    const limited = await advanceObservation(config, null, {
+      project,
+      now: () => now,
+      sleep: async () => {},
+      fetch: fixture({
+        intercept: () =>
+          new Response("{}", { status: 429, headers: { "retry-after": retryAfter } }),
+      }).fetch,
+    });
+    const exception = requiredFixture(limited.report.exception);
+    assert.equal(exception.rule, "rate-limit");
+    assert.equal(exception.retry_at, new Date(now + providerRetryHorizonMs).toISOString());
+    // The bounded clock expires: the source is attempted after the horizon.
+    const resumed = await advanceObservation(config, limited.checkpoint, {
+      project,
+      now: () => now + providerRetryHorizonMs + 1000,
+      fetch: fixture().fetch,
+    });
+    assert.notEqual(resumed.report.transition, "deferred");
+    // A checkpoint written with an unbounded clock before the horizon existed
+    // is attempted rather than deferred again.
+    const legacy = structuredClone(limited.checkpoint);
+    requiredFixture(legacy.exception).retry_at = "2405-10-21T07:28:00.000Z";
+    const legacyRead = await advanceObservation(config, legacy, {
+      project,
+      now: () => now + 1000,
+      fetch: fixture().fetch,
+    });
+    assert.notEqual(legacyRead.report.transition, "deferred");
+  }
 });
 
 void test("a rate-limited single-port observation states unavailable coverage with its retry time", async () => {

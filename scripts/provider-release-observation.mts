@@ -1,7 +1,12 @@
 import { gitLabN64SourceDeclaration } from "./gitlab-n64-source-declaration.mts";
 import { boundedDiscoveryRequest } from "./discovery-http.mts";
 import { isRecord } from "./runtime-values.mts";
-import { observationHash, ObservationFailure } from "./upstream-observer.mts";
+import {
+  boundedProviderRetryTime,
+  observationHash,
+  ObservationFailure,
+  partialObservationFailure,
+} from "./upstream-observer.mts";
 export interface ProviderSource {
   key: string;
   provider: "gitlab" | "direct-manifest";
@@ -212,15 +217,13 @@ export async function observeProviderSource(
         if (remaining !== null && limit !== null && remaining <= limit) {
           quota.remaining = remaining;
           quota.limit = limit;
-          quota.reset_at =
-            reset !== null && reset * 1000 <= 8.64e15 ? new Date(reset * 1000).toISOString() : null;
+          const resetAt = boundedProviderRetryTime(now(), reset === null ? null : reset * 1000);
+          quota.reset_at = resetAt === null ? null : new Date(resetAt).toISOString();
         }
-        const retry = result.headers.get("retry-after");
-        if (retry !== null) {
-          const at = /^\d+$/u.test(retry) ? now() + Number(retry) * 1000 : Date.parse(retry);
-          if (Number.isFinite(at) && at > now() && at <= 8.64e15)
-            quota.retry_at = new Date(at).toISOString();
-        }
+        // A provider retry clock is bounded: garbage is ignored, a past date is
+        // now, and a far-future value cannot defer the source beyond the horizon.
+        const retryAt = boundedProviderRetryTime(now(), result.headers.get("retry-after"));
+        if (retryAt !== null && retryAt > now()) quota.retry_at = new Date(retryAt).toISOString();
         return result;
       },
     );
@@ -253,7 +256,10 @@ export async function observeProviderSource(
       // A quota response is the provider declining for now, not a rejection.
       if (
         response.status === 429 ||
-        (response.status === 403 && (quota?.retry_at || quota?.remaining === 0))
+        (response.status === 403 &&
+          (response.headers["retry-after"] !== undefined ||
+            quota?.retry_at ||
+            quota?.remaining === 0))
       )
         throw new ObservationFailure(
           "provider-quota",
@@ -330,12 +336,18 @@ export async function observeProviderSource(
           result.body.length > 100 ||
           result.page !== String(page) ||
           result.per_page !== "100" ||
-          result.next === null ||
-          (result.next && (result.next !== String(page + 1) || result.body.length !== 100))
+          (result.next && result.next !== String(page + 1))
         )
           throw new ObservationFailure(
             "provider-pagination",
             "GitLab page coverage or cursor is invalid",
+          );
+        // Missing next-page metadata or a truncated nonterminal page retains
+        // progress; the checks above are integrity failures under the same rule.
+        if (result.next === null || (result.next && result.body.length !== 100))
+          throw partialObservationFailure(
+            "provider-pagination",
+            "GitLab page coverage is incomplete; retained reads resume next run",
           );
         const identities = new Set(
           rows.map((row) =>

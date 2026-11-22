@@ -4884,7 +4884,47 @@ void test("GitLab provider failures export a descriptive failure candidate witho
     },
   });
   assert.equal(result.report.failures[0]?.rule, "provider-transport");
-  assert.deepEqual(failures, [{ exception: { rule: "provider-transport" } }]);
+  assert.deepEqual(failures, [
+    {
+      exception: {
+        rule: "provider-transport",
+        coverage: { kind: "unavailable", rule: "provider-transport" },
+      },
+    },
+  ]);
+  // The descriptive failure candidate uses the attempt's stated coverage word.
+  const { listingUpdatesForReport } = await import("./listing-upstream-observation.mts");
+  const source = catalogObservationSources({ ports: [], listings: [listing] }).sources[0]!;
+  const statusFor = (report: unknown) =>
+    listingUpdatesForReport([], report, new Date(h.options.now!()).toISOString(), source)[0]
+      ?.upstream_observation.status;
+  assert.equal(statusFor(failures[0]), "unavailable");
+  assert.equal(
+    statusFor({
+      exception: {
+        rule: "provider-quota",
+        coverage: { kind: "unavailable", rule: "provider-quota" },
+      },
+    }),
+    "unavailable",
+  );
+  // A report without a statement (written before #8569) keeps the rule mapping.
+  assert.equal(statusFor({ exception: { rule: "provider-quota" } }), "unavailable");
+  assert.equal(
+    statusFor({
+      exception: {
+        rule: "provider-pagination",
+        coverage: { kind: "partial", rule: "provider-pagination", next_cursor: null },
+      },
+    }),
+    "incomplete",
+  );
+  assert.equal(
+    statusFor({
+      exception: { rule: "provider-http", coverage: { kind: "failed", rule: "provider-http" } },
+    }),
+    "failed",
+  );
   const state = Object.values(result.checkpoint.sources)[0]!;
   assert.equal(state.freshness_observed_at, null);
   assert.equal(state.last_complete_facts_sha256, null);
@@ -5050,7 +5090,9 @@ type CoverageFault =
   | "retry-after-429"
   | "outage-503"
   | "timeout"
-  | "malformed-json";
+  | "malformed-json"
+  | "blocked-403"
+  | "legal-451";
 function faultySourceHarness() {
   const h = harness();
   let fault: CoverageFault | null = null;
@@ -5090,6 +5132,18 @@ function faultySourceHarness() {
         throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
       case "malformed-json":
         return new Response("{not json", { headers: json });
+      // A blocked repository is a rejection, not quota: no Retry-After and
+      // no exhausted rate-limit header.
+      case "blocked-403":
+        return new Response(JSON.stringify({ message: "Repository access blocked" }), {
+          status: 403,
+          headers: { ...json, "x-ratelimit-remaining": "4999", "x-ratelimit-limit": "5000" },
+        });
+      case "legal-451":
+        return new Response(JSON.stringify({ message: "Unavailable for legal reasons" }), {
+          status: 451,
+          headers: json,
+        });
     }
   };
   return {
@@ -5110,6 +5164,8 @@ const expectedCoverage: Record<CoverageFault, { kind: string; rule: string }> = 
   "outage-503": { kind: "unavailable", rule: "provider-status" },
   timeout: { kind: "unavailable", rule: "transport" },
   "malformed-json": { kind: "failed", rule: "invalid-metadata" },
+  "blocked-403": { kind: "failed", rule: "provider-status" },
+  "legal-451": { kind: "failed", rule: "provider-status" },
 };
 
 for (const fault of Object.keys(expectedCoverage) as CoverageFault[]) {
@@ -5160,6 +5216,9 @@ for (const fault of Object.keys(expectedCoverage) as CoverageFault[]) {
       assert.equal(shared.last_complete_facts_sha256, beforeShared.last_complete_facts_sha256);
     } else {
       assert.ok(after.coverage && !("retry_at" in after.coverage));
+      // Only a quota response is retried as transient quota; nothing else defers.
+      assert.equal(after.retry_at, null);
+      assert.equal(failed.checkpoint.provider_retry_at, null);
       // One failing source does not starve the other: it completes and advances.
       const shared = sourceByRepository(failed.checkpoint, "owner/shared");
       assert.equal(shared.coverage, undefined);
@@ -5168,6 +5227,9 @@ for (const fault of Object.keys(expectedCoverage) as CoverageFault[]) {
     }
     if (after.coverage?.kind === "partial")
       assert.match(String(after.coverage.next_cursor), /^collect:\d+$/u);
+    // A new rejection, outage or integrity failure of a managed source notifies
+    // through the ordinary exception path.
+    if (after.coverage?.kind === "failed") assert.equal(failed.notify_exception, true);
     // A stated coverage is bounded checkpoint content.
     assert.ok(Buffer.byteLength(JSON.stringify(after.coverage)) <= 256);
     assert.ok(
@@ -5315,5 +5377,233 @@ void test("GitLab quota, outage, malformed and truncated responses state coverag
     assert.ok(resumed.report.completed_source_keys.includes(key), fault);
     assert.equal(resumed.checkpoint.sources[key]!.coverage, undefined);
     state = resumed.checkpoint;
+  }
+});
+
+void test("a failure after the observation states the retained continuation cursor", async () => {
+  const { h, setFault } = faultySourceHarness();
+  const baseline = await advanceCatalogObservations(h.input, null, h.options);
+  h.advanceClock(48 * 3600_000);
+  h.bumpRelease();
+  setFault("truncated-page");
+  const exportSource = h.options.export;
+  h.options.export = async (source, ...rest) => {
+    if (source.repository === "owner/other")
+      throw new ObservationFailure("cancelled", "Handoff interrupted after the continuation");
+    return exportSource(source, ...rest);
+  };
+  const failed = await advanceCatalogObservations(h.input, baseline.checkpoint, h.options);
+  const after = sourceByRepository(failed.checkpoint, "owner/other");
+  assert.equal(after.exception_rule, "cancelled");
+  assert.equal(after.coverage?.kind, "partial");
+  // Not null ("restart"): the next run resumes from the retained pages.
+  assert.match(
+    String(after.coverage?.kind === "partial" ? after.coverage.next_cursor : ""),
+    /^collect:[1-9]\d*$/u,
+  );
+});
+
+function gitLabQuotaHarness() {
+  const h = harness();
+  const gitlab = {
+    id: "gitlab-port",
+    channels: ["stable"],
+    release: { provider: "gitlab", repository: "owner/lab" },
+  };
+  const catalog = { ports: [...h.input.ports, gitlab] };
+  let retryAfter: string | null = null;
+  let status = 200;
+  let requests = 0;
+  const options: CatalogObservationOptions = {
+    ...h.options,
+    definitionHash: (id) => observationHash(catalog.ports.find((port) => port.id === id)),
+    providerFetch: async (input) => {
+      requests++;
+      const url = new URL(input instanceof Request ? input.url : input);
+      const project = url.pathname.endsWith("lab");
+      if (!project && status !== 200)
+        return new Response(JSON.stringify({ message: "denied" }), {
+          status,
+          headers: retryAfter === null ? {} : { "retry-after": retryAfter },
+        });
+      return new Response(
+        JSON.stringify(
+          project ? { id: 27, path_with_namespace: "owner/lab", archived: false } : [],
+        ),
+        {
+          headers: {
+            "x-page": url.searchParams.get("page") ?? "1",
+            "x-per-page": "100",
+            "x-next-page": "",
+          },
+        },
+      );
+    },
+    projectProvider: async (id, observation) => ({
+      format: 2,
+      port_id: id,
+      catalog_definition_sha256: observationHash(catalog.ports.find((port) => port.id === id)),
+      facts_sha256: observation.facts_sha256,
+      projections: [],
+    }),
+    exportProvider: async () => {},
+  };
+  const key = catalogObservationSources(catalog).sources.find(
+    (source) => source.provider === "gitlab",
+  )!.key;
+  return {
+    h,
+    catalog,
+    options,
+    key,
+    requests: () => requests,
+    respond: (value: { status: number; retryAfter?: string | null }) => {
+      status = value.status;
+      retryAfter = value.retryAfter ?? null;
+    },
+  };
+}
+
+void test("an absurd, past or garbage GitLab Retry-After never defers beyond the retry horizon", async () => {
+  const { providerRetryHorizonMs } = await import("./upstream-observer.mts");
+  const cases: [string, "horizon" | "none"][] = [
+    ["9999999999", "horizon"],
+    ["Wed, 21 Oct 2405 07:28:00 GMT", "horizon"],
+    ["Mon, 01 Jan 2001 00:00:00 GMT", "none"],
+    ["eventually", "none"],
+    ["-30", "none"],
+  ];
+  for (const [retryAfter, expected, status = 429] of [
+    ...cases,
+    // A 403 naming any Retry-After is quota, as on the GitHub path.
+    ["eventually", "none", 403] as const,
+    ["9999999999", "horizon", 403] as const,
+  ]) {
+    const g = gitLabQuotaHarness();
+    const baseline = await advanceCatalogObservations(g.catalog, null, g.options);
+    assert.ok(baseline.report.completed_source_keys.includes(g.key));
+    g.h.advanceClock(48 * 3600_000);
+    g.h.bumpRelease();
+    g.respond({ status, retryAfter });
+    const deferred = await advanceCatalogObservations(g.catalog, baseline.checkpoint, g.options);
+    const progress = deferred.checkpoint.sources[g.key]!;
+    assert.equal(progress.exception_rule, "provider-quota", retryAfter);
+    assert.equal(progress.coverage?.kind, "unavailable");
+    const horizon = new Date(g.h.options.now!() + providerRetryHorizonMs).toISOString();
+    if (expected === "horizon") {
+      assert.equal(progress.retry_at, horizon, retryAfter);
+      assert.equal(progress.coverage?.retry_at, horizon);
+    } else {
+      assert.equal(progress.retry_at, null, retryAfter);
+      assert.ok(progress.coverage && !("retry_at" in progress.coverage));
+    }
+    // Once the bounded clock has passed the source is attempted and recovers.
+    g.respond({ status: 200 });
+    g.h.advanceClock(providerRetryHorizonMs + 1000);
+    const recovered = await advanceCatalogObservations(g.catalog, deferred.checkpoint, g.options);
+    assert.ok(recovered.report.completed_source_keys.includes(g.key), retryAfter);
+    assert.equal(recovered.checkpoint.sources[g.key]!.quota_deferrals, undefined);
+  }
+});
+
+void test("a checkpoint retaining an unbounded provider clock is attempted instead of deferred", async () => {
+  const g = gitLabQuotaHarness();
+  const baseline = await advanceCatalogObservations(g.catalog, null, g.options);
+  g.h.advanceClock(48 * 3600_000);
+  g.h.bumpRelease();
+  const legacy = structuredClone(baseline.checkpoint);
+  const far = "2405-10-21T07:28:00.000Z";
+  legacy.sources[g.key]!.retry_at = far;
+  legacy.provider_retry_at = far;
+  for (const rate of Object.values(legacy.provider_capacities ?? {})) rate.retry_at = far;
+  const resumed = await advanceCatalogObservations(g.catalog, legacy, g.options);
+  assert.ok(resumed.report.completed_source_keys.includes(g.key));
+  assert.equal(resumed.checkpoint.sources[g.key]!.retry_at, null);
+  assert.equal(resumed.checkpoint.provider_retry_at, null);
+  for (const rate of Object.values(resumed.checkpoint.provider_capacities ?? {}))
+    assert.notEqual(rate.retry_at, far);
+});
+
+void test("a source the provider keeps deferring for quota notifies once after repeated deferral", async () => {
+  const { quotaDeferralNotifyAfter } = await import("./catalog-upstream-observer.mts");
+  const g = gitLabQuotaHarness();
+  let state = (await advanceCatalogObservations(g.catalog, null, g.options)).checkpoint;
+  g.respond({ status: 429, retryAfter: "60" });
+  const notified: boolean[] = [];
+  for (let attempt = 1; attempt <= quotaDeferralNotifyAfter + 3; attempt++) {
+    g.h.advanceClock(48 * 3600_000);
+    g.h.bumpRelease();
+    const result = await advanceCatalogObservations(g.catalog, state, g.options);
+    state = result.checkpoint;
+    const progress = state.sources[g.key]!;
+    assert.equal(progress.exception_rule, "provider-quota");
+    assert.equal(progress.quota_deferrals, Math.min(attempt, quotaDeferralNotifyAfter + 1));
+    notified.push(result.notify_exception);
+    const status = result.report.source_statuses.find((item) => item.source_key === g.key)!;
+    assert.equal(status.quota_deferrals, progress.quota_deferrals);
+    const failure = result.report.failures.find((item) => item.source === g.key)!;
+    assert.equal(
+      failure.details.includes("consecutive attempts"),
+      attempt > quotaDeferralNotifyAfter,
+    );
+    // The bounded counter survives a checkpoint round trip.
+    validateCatalogObserverCheckpoint(JSON.parse(JSON.stringify(state)), g.h.options.now!());
+  }
+  // Quiet while transient; exactly one notification once it persists.
+  assert.deepEqual(
+    notified,
+    Array.from(
+      { length: quotaDeferralNotifyAfter + 3 },
+      (_, index) => index === quotaDeferralNotifyAfter,
+    ),
+  );
+  // Recovery clears the counter; a later deferral starts counting again quietly.
+  g.respond({ status: 200 });
+  g.h.advanceClock(48 * 3600_000);
+  g.h.bumpRelease();
+  const recovered = await advanceCatalogObservations(g.catalog, state, g.options);
+  assert.ok(recovered.report.completed_source_keys.includes(g.key));
+  assert.equal(recovered.checkpoint.sources[g.key]!.quota_deferrals, undefined);
+  assert.ok(
+    recovered.report.source_statuses.every((item) => !("quota_deferrals" in item)),
+    "zero deferrals are omitted",
+  );
+  g.respond({ status: 429, retryAfter: "60" });
+  g.h.advanceClock(48 * 3600_000);
+  g.h.bumpRelease();
+  const again = await advanceCatalogObservations(g.catalog, recovered.checkpoint, g.options);
+  assert.equal(again.checkpoint.sources[g.key]!.quota_deferrals, 1);
+  assert.equal(again.notify_exception, false);
+  // Malformed counters are refused.
+  for (const value of [0, -1, 1.5, quotaDeferralNotifyAfter + 2, "2"]) {
+    const changed = structuredClone(again.checkpoint);
+    (changed.sources[g.key] as unknown as Record<string, unknown>).quota_deferrals = value;
+    assert.throws(
+      () => validateCatalogObserverCheckpoint(changed, g.h.options.now!()),
+      /progress/u,
+    );
+  }
+});
+
+void test("a non-quota GitLab 403 is a failed rejection that notifies and is not deferred as quota", async () => {
+  const g = gitLabQuotaHarness();
+  const baseline = await advanceCatalogObservations(g.catalog, null, g.options);
+  for (const status of [403, 451]) {
+    g.h.advanceClock(48 * 3600_000);
+    g.h.bumpRelease();
+    g.respond({ status });
+    const failed = await advanceCatalogObservations(g.catalog, baseline.checkpoint, g.options);
+    const progress = failed.checkpoint.sources[g.key]!;
+    assert.equal(progress.exception_rule, "provider-http", String(status));
+    assert.deepEqual(progress.coverage, { kind: "failed", rule: "provider-http" });
+    assert.equal(progress.retry_at, null);
+    assert.equal(progress.quota_deferrals, undefined);
+    assert.equal(failed.notify_exception, true);
+    // It is attempted again on the next run rather than waiting for a quota clock.
+    const before = g.requests();
+    g.h.advanceClock(3600_000);
+    const next = await advanceCatalogObservations(g.catalog, failed.checkpoint, g.options);
+    assert.ok(g.requests() > before);
+    assert.equal(next.notify_exception, false, "the same exception notifies only once");
   }
 });

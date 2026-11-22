@@ -220,18 +220,37 @@ exception rule:
 
 | Provider outcome                                                    | Stated coverage                           | Rule                                |
 | ------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------- |
-| Truncated nonterminal page or missing next page                     | `partial`                                 | `pagination`, `provider-pagination` |
+| Truncated nonterminal page or missing next-page metadata            | `partial`                                 | `pagination`, `provider-pagination` |
 | Own request, byte or time budget spent; cancellation                | `partial`                                 | `budget`, `cancelled`               |
 | Collection changed during validation                                | `partial` (restarts, `next_cursor: null`) | `concurrent-change`                 |
 | 429, or 403 with `Retry-After` or exhausted `x-ratelimit-remaining` | `unavailable`                             | `rate-limit`, `provider-quota`      |
-| 5xx or 408 after the bounded retries                                | `unavailable`                             | `provider-status`, `provider-http`  |
+| 5xx or 408 (see retries below)                                      | `unavailable`                             | `provider-status`, `provider-http`  |
 | Network failure or timeout                                          | `unavailable`                             | `transport`, `provider-transport`   |
+| Malformed, escaping or repeating pagination; page/cursor mismatch   | `failed`                                  | `pagination`, `provider-pagination` |
 | Malformed JSON or metadata, other 4xx, identity changes             | `failed`                                  | the recorded rule                   |
 | Core stated `partial`, `unavailable` or `failed`                    | Core's kind                               | `incomplete-coverage`               |
 
+The pagination rules carry both outcomes. Only a truncated nonterminal page
+(or a GitLab page without next-page metadata) keeps retained progress and is
+`partial`; a malformed link, a link escaping its configured collection, a
+duplicate relation, a non-advancing page, a repeated identity or a GitLab
+page/cursor mismatch is an integrity failure and is `failed`.
+
+Retries differ by provider. GitHub reads retry a 5xx response up to the
+configured `budget.retries` within the run; a 408 is not retried. GitLab and
+direct-manifest reads make one request per page and do not retry a 5xx or 408
+within the run; the source is attempted again on the next scheduled run. In
+both cases a non-quota 403, 451 or other 4xx is `failed`, notifies through the
+ordinary exception path, and is not deferred as quota.
+
 Each statement is `{ "kind", "rule" }`. It adds `retry_at` only when the provider
 or its quota reserve named the earliest retry time (`Retry-After`, or
-`x-ratelimit-reset` / `ratelimit-reset`). A `partial` statement adds
+`x-ratelimit-reset` / `ratelimit-reset`). Provider retry clocks are bounded
+where they are parsed (`boundedProviderRetryTime`, shared by the GitHub and
+GitLab/direct-manifest paths): an unparsable, negative or fractional value is
+ignored, a time in the past means "now", and no clock defers a source more than
+24 hours (`providerRetryHorizonMs`). A retained clock beyond that horizon can
+only predate the bound; it is discarded and the source is attempted. A `partial` statement adds
 `next_cursor`: the retained position the next run resumes from. For GitHub
 this is `collect:<retained pages>` or `validate:<validation cursor>`; for
 GitLab and direct manifests it is `reads:<retained reads>:validate:<cursor>`;
@@ -265,11 +284,26 @@ GitLab and direct-manifest sources keep their separate reserves and continue.
 Exit status keeps the convention the hosted workflow consumes. The coordinator
 exits 0 when every attempted source completed, or when a source stopped with
 only a quiet or repeated condition. It exits 1 once for a new notifying
-exception. Budget and cancellation stops, and GitLab or direct-manifest quota
-stops, never notify; a new GitHub rate-limit or outage exception notifies once.
+exception. Budget and cancellation stops never notify; a new GitHub rate-limit
+or outage exception notifies once. A GitLab or direct-manifest quota stop
+(`provider-quota`: a 429, or a 403 with `Retry-After` or an exhausted reserve)
+stays quiet while it is transient. The source's progress counts consecutive
+quota deferrals in `quota_deferrals` (omitted when zero, capped at
+`quotaDeferralNotifyAfter + 1`, also shown on its `source_statuses` entry); the
+attempt after `quotaDeferralNotifyAfter` (3) consecutive deferrals notifies
+once through the ordinary exception path. A complete attempt or any other
+outcome clears the counter.
 The exit status therefore does not separate "all complete" from "some
 incomplete". Read that from the report: a source whose `source_statuses` entry
 carries `coverage` is incomplete.
+
+A listing's descriptive failure candidate takes its `upstream_observation.status`
+from the same statement, in the listing vocabulary Core accepts: `partial`
+becomes `incomplete`, and `unavailable` and `failed` are unchanged. A report
+without a statement keeps the earlier rule-based mapping, which also maps
+`provider-quota` to `unavailable`. Core, definition delivery, the desktop
+presentation and route-fit reporting treat only `complete` as usable, so the
+change affects only which incomplete word is shown.
 
 ## Checkpoints, interruption and exceptions
 

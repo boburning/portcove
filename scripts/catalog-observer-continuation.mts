@@ -40,14 +40,14 @@ export type StatedSourceCoverage =
   | { kind: "partial"; rule: string; next_cursor: string | null; retry_at?: string }
   | { kind: "unavailable"; rule: string; retry_at?: string }
   | { kind: "failed"; rule: string; retry_at?: string };
-/** Stopped with retained progress: our own budget, cancellation or a truncated page. */
-const partialCoverageRules: readonly string[] = [
-  "budget",
-  "cancelled",
-  "pagination",
-  "provider-pagination",
-  "concurrent-change",
-];
+/**
+ * Stopped with retained progress: our own budget, cancellation or a changed
+ * collection. A truncated page is stated `partial` by its producer
+ * (`partialObservationFailure`); every other `pagination` or
+ * `provider-pagination` failure (malformed or escaping links, repeated
+ * identities, page mismatches) is an integrity failure and states `failed`.
+ */
+const partialCoverageRules: readonly string[] = ["budget", "cancelled", "concurrent-change"];
 /** The provider declined or could not answer: quota, Retry-After, outage or transport. */
 const unavailableCoverageRules: readonly string[] = [
   "rate-limit",

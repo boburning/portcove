@@ -35,6 +35,7 @@ import {
   compactObserverCache,
   validateObserverCache,
   checksumSourcesFromProjections,
+  boundedRetainedRetryClock,
 } from "./upstream-observer.mts";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -302,7 +303,9 @@ export async function advanceObservation(
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput: Observation | null = null;
-  const retryClock = next.exception?.retry_at ? Date.parse(next.exception.retry_at) : 0;
+  // A retained provider clock never defers beyond the provider retry horizon.
+  const retainedRetry = boundedRetainedRetryClock(now(), next.exception?.retry_at ?? null);
+  const retryClock = retainedRetry ? Date.parse(retainedRetry) : 0;
   if (!retryClock || now() >= retryClock) {
     try {
       let result: Awaited<ReturnType<typeof observeUpstream>> | null = null;
