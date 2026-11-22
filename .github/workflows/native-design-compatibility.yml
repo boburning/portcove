@@ -281,8 +281,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 110
     env:
-      SOURCE_HEAD: 583b9cc3a61336d734033ad00c78d7c3eaa9bc04
-      SOURCE_TREE: 037b0913a38f9a6fd806702c3d9a0bceb0837d5d
+      SOURCE_HEAD: ff867a6c09226f0e24d5c953826059438aa39fdd
+      SOURCE_TREE: 398dff870ab73be22f15edd915f5a33b1bdb8eea
       CONTROLLER_HEAD: ${{ github.sha }}
       CARGO_TARGET_DIR: ${{ github.workspace }}/work/slice3-native-${{ github.sha }}
     steps:
@@ -365,7 +365,7 @@ jobs:
           assert.deepEqual(plan.requested_scenarios, ['native-selected-setup-completion']);
           assert.deepEqual(plan.selected_scenarios, ['native-selected-setup-completion']);
           assert.deepEqual(plan.setup_scenarios, []);
-          assert.equal(plan.harness_deadline_ms, 600000);
+          assert.equal(plan.harness_deadline_ms, 900000);
           assert.deepEqual(plan.qualification_features, ['qualification-fixtures']);
           assert.deepEqual(plan.cli_features, ['portcove-core/qualification-fixtures']);
           assert.ok(plan.paths.cli && plan.paths.owned_probe);
