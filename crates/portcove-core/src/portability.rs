@@ -164,6 +164,7 @@ impl Library {
                 )
                 .detail("port_id", &install.port_id)
                 .detail("install_id", &install.id)
+                .detail("recovery_action", "review_managed_installation_location")
             })?;
             install.path = PathBuf::from(portable_relative(relative)?);
             install.selected_executable =

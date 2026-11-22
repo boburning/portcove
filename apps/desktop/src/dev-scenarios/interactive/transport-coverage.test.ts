@@ -65,6 +65,7 @@ const unsupportedByReason: Record<string, string[]> = {
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
     plan_library_recovery_bundle inspect_library_recovery_bundle plan_library_recovery_restore
+    read_library_recovery_restore
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime

@@ -350,7 +350,7 @@ pub use library_membership::{
 pub use library_move::LibraryMoveResult;
 pub use library_recovery_bundle::{
     LibraryRecoveryBundle, LibraryRecoveryBundlePlan, LibraryRecoveryCoverage,
-    LibraryRecoveryExclusion, LibraryRecoveryRestorePlan,
+    LibraryRecoveryExclusion, LibraryRecoveryProgress, LibraryRecoveryRestorePlan,
 };
 pub use library_transfer::{LibraryMovePlan, LibraryTreePlan};
 pub use mod_package::{

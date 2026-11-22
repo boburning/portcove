@@ -451,6 +451,8 @@ export class OwnedNativeSession {
             "native-reviewed-source-reference-removal",
             "native-reviewed-steam-batch-add",
             "native-host-publication-recovery",
+            "native-library-recovery-bundle",
+            "native-library-recovery-interruption",
             "native-game-update-review",
             "native-update-acquisition-lifecycle",
             "native-selected-setup-completion",
