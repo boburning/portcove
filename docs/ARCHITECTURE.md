@@ -2941,9 +2941,18 @@ and host-authenticated receipt without opening a library. The receipt uses a sep
 proof domain from historical installation admissions. A different host cannot use
 that receipt to establish local verification or publisher authority. Restore binds
 the verified receipt and checked import plan to a new or empty destination outside
-both the bundle and its source library. The import journal owns the restore and its
-recovery. The player opens the recovered library through the separate library
+both the bundle and its source library. The import journal retains an authenticated
+bundle admission tied to the exact transfer and restore plan. Resume checks the
+bundle receipt again before publication. After publication, the retained activity
+and destination own completion of bookkeeping. The player opens the recovered library through the separate library
 selection operation.
+
+In Desktop, open **Settings**, then **Library and storage**. Select **Create
+recovery bundle** to review coverage and the destination before copying. Select
+**Inspect or restore a bundle** to verify a finished copy and review a separate
+restore. After a restore completes, choose the restored folder through library
+selection when you are ready to use it. The Settings page keeps the individual
+library information export and manual copy controls alongside the bundle flow.
 
 ## Library imports
 
@@ -2999,7 +3008,9 @@ before charging directory entries. If more than 64 owned paths
 would need omission issues, the scan fails and preserves the prior snapshot so
 none are silently omitted. If output ownership changes during traversal, the
 scan cannot publish a snapshot; the final registry comparison and snapshot
-write share one database transaction. After a successful scan, core atomically
+write share one database transaction. The foreground command returns its own
+published snapshot. A later read of the saved scan serves the latest snapshot,
+which another invocation may have replaced. After a successful scan, core atomically
 replaces one bounded versioned snapshot containing
 the exact root identities and states, authoritative catalog digest, discovery report,
 limits and completion time. Current format 12 retains the delivered original-file/ZIP, directory/ZIP-file-set, normalized raw GameCube, exact STFS LIVE and pinned-validator preliminary discovery contracts, plus bounded normalized disc observations admitted independently through the existing schema-2 disc matcher. CISO streams the standard GameCube logical extent without materializing a full ISO. Windows decoder inspection copies one bounded original atom into private local staging, preflights fixed container headers/maps/metadata before decoder buffering, applies an OS-enforced job memory cap, supervises output growth and time, and requires positive tree closure before consuming output or cleanup. Output polling is not a hard Windows file-write quota. Original bytes are rehashed before publishing the observation. Complete PSX sets require the pre-enumeration directory handle, all ordered members, checked aggregate sizes and hashes, and final original-byte verification. No scan registers or prepares a source. On Linux, decoder inspection uses a private user/PID namespace with an atomic init pidfd and a bounded private startup gate. Positive terminal waitid(P_PIDFD) joins namespace teardown before consuming output or cleanup, including detached and nested descendants. Per-process address-space and per-file write limits are hard bounds; output-tree polling supplies the separate aggregate/depth/entry bound. Ordinary Unix process groups cannot prove escaped-descendant closure, and other Unix platforms report tool-based normalized discovery as uninspected. Unsupported Linux namespace capabilities fail explicitly without a weaker fallback. Unknown closure retains private inspection paths and aborts publication. Selected converted-disc inspection and registration on Windows/Linux reuse the same immutable observer and closure custody. Explicit selection has no scan batch/hash allowance, while individual originals and decoded discs have a 2 GiB boundary and selected PSX directories have a 16,384-entry bound. One ordered inventory, its held directory object, and final member-byte checks precede admission; storage identity is never computed from a newly enumerated set after decoding. Preliminary NotRun selections remain separate from exact matches and do not establish compatibility. Earlier formats retain their original readable evidence and become stale until rescanned; unknown historical limits are not invented.

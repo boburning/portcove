@@ -501,6 +501,7 @@ export function StatusLayer({
   operation,
   busy,
   featureNotices,
+  scanResultAnnouncement,
   invocations,
   operationEvents,
   dismissInvocation,
@@ -521,6 +522,7 @@ export function StatusLayer({
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   featureNotices?: ReactNode;
+  scanResultAnnouncement?: string | undefined;
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
@@ -556,6 +558,7 @@ export function StatusLayer({
     <>
       {invocations && (
         <InvocationAnnouncements
+          scanResult={scanResultAnnouncement}
           messages={[...invocations.values()].flatMap((record) => {
             const text = invocationAnnouncement(record, operationEvents, (game) =>
               t("launchRequestAccepted", { game }),
@@ -1893,6 +1896,7 @@ export function SettingsView(props: SettingsViewProps) {
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={`recovery-${generation}`}
+        generation={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}

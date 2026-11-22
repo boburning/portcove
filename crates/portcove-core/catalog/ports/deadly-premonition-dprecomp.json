@@ -18,7 +18,16 @@
       "game_slug": "deadly-premonition",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "Selected DPRecomp source describes release-bundled pre-warmed shader storage, including original-disc shader microcode. Fresh acquisition is held until the selected package/component applicability and attributable permission for its inclusion, or a reviewed asset-clean or owned-input preparation route, are established. Sharing consent alone does not resolve this component condition. This is source-bound evidence, not an inspection certificate for unacquired archive bytes or a ban on already-permitted private working copies.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Selected DPRecomp source describes release-bundled pre-warmed shader storage, including original-disc shader microcode. Fresh acquisition is held until the selected package/component applicability and attributable permission for its inclusion, or a reviewed asset-clean or owned-input preparation route, are established. Sharing consent alone does not resolve this component condition. This is source-bound evidence, not an inspection certificate for unacquired archive bytes or a ban on already-permitted private working copies.",
+        "tracking_issue": 812
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
