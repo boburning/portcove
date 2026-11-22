@@ -32,12 +32,12 @@
           "instruction": "Use the official stable omnispeak-win64-1.1.zip. Register omnispeak.exe and its containing folder. Use separate argument lines for /EPISODE and 4 if selecting the episode explicitly. Use /GAMEPATH for a separate original-data folder and /USERPATH for a separate writable save/config folder, with each option and its value on separate lines. Confirm the launch details and choose Play separately."
         },
         {
-          "title": "Use the official Linux v1.1 launcher",
-          "instruction": "Extract the complete omnispeak-linux-1.1.tar.gz, including the architecture-specific SDL2 folders. From the extracted folder, run the upstream launcher with ./omnispeak /EPISODE 4. This package supports Linux x86-64 and 32-bit x86. Use a path without spaces if you add an explicit /USERPATH for the save/config directory."
+          "title": "Register the native Linux x86-64 player",
+          "instruction": "On Linux x86-64, extract the complete official stable package and provide the host libSDL2-2.0.so.0 library. Select the native omnispeak.x86_64 file and its containing folder. Keep the bundled matching Keen 4 v1.4 EGA shareware and support files. Use /EPISODE and 4 as separate arguments. Use /USERPATH and your separate writable save/config directory on their own argument lines. Review the selection and choose Play. The separate upstream shell launcher is an option for direct play and splits paths containing spaces."
         },
         {
           "title": "Keep upstream update ownership",
-          "instruction": "Use upstream packages to update the player and back up your game data and actual save/config folder separately. Removing the Windows registration keeps all external files. For Linux, use the upstream launcher directly."
+          "instruction": "Use upstream packages to update the player and back up your game data and actual save/config folder separately. Removing a registration keeps all external files."
         }
       ],
       "warnings": [
@@ -56,7 +56,6 @@
     "download_asset_hints": {
       "windows-x86-64": ["omnispeak-win64-", ".zip"]
     },
-    "platforms": ["linux-x86-64"],
     "original_game": {
       "format_version": 1,
       "id": "commander-keen-4",
@@ -92,7 +91,7 @@
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
-    "platforms": ["windows-x86-64"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "adapter": "staged-source-portable",
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
@@ -104,7 +103,7 @@
       "installation_method": "user-prepared-runtime",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official Windows x64 and Linux v1.1 packages already contain Keen 4 v1.4 EGA shareware and its matching support files. Extract the complete package and keep its GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 beside the player. If you want to use your own matching v1.4 EGA files, keep the bundled player and original source separate and use a separate working copy. Use the official stable omnispeak-win64-1.1.zip. Register omnispeak.exe and its containing folder. Use separate argument lines for /EPISODE and 4 if selecting the episode explicitly. Use /GAMEPATH for a separate original-data folder and /USERPATH for a separate writable save/config folder, with each option and its value on separate lines. Confirm the launch details and choose Play separately. Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback. You and upstream retain the runtime, originals and profile. Use upstream packages to update it. Removing its Windows registration preserves all external files."
+      "manual_preparation": "The official Windows x64 and Linux v1.1 packages already contain Keen 4 v1.4 EGA shareware and its matching support files. Extract the complete package and keep its GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 beside the player. If you want to use your own matching v1.4 EGA files, keep the bundled player and original source separate and use a separate working copy. Use the official stable omnispeak-win64-1.1.zip. Register omnispeak.exe and its containing folder. Use separate argument lines for /EPISODE and 4 if selecting the episode explicitly. Use /GAMEPATH for a separate original-data folder and /USERPATH for a separate writable save/config folder, with each option and its value on separate lines. Confirm the launch details and choose Play separately. Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback. You and upstream retain the runtime, originals and profile. Use upstream packages to update it. Removing its Windows registration preserves all external files. On Linux x86-64, extract the complete official stable package and provide the host libSDL2-2.0.so.0 library. Select the native omnispeak.x86_64 file and its containing folder. Keep the bundled matching Keen 4 v1.4 EGA shareware and support files. Use /EPISODE and 4 as separate arguments. Use /USERPATH and your separate writable save/config directory on their own argument lines. Review the selection and choose Play."
     }
   }
 }
