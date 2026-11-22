@@ -316,6 +316,17 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
         ownedCoverage.add(scenario);
   }
   assert.deepEqual([...ownedCoverage].sort(), [...DESKTOP_PROFILES["owned-lifecycle"]].sort());
+  // Hosted runners present a high-integrity token, which Core's settings writer
+  // refuses by design (run 44933173974). The native Game settings review is
+  // explicit acceptance on an interactive medium-integrity Windows host instead.
+  assert.ok(
+    groups.every(
+      (group: unknown) =>
+        isRecord(group) &&
+        Array.isArray(group.scenarios) &&
+        !group.scenarios.includes("native-game-settings-review"),
+    ),
+  );
   assert.ok(isRecord(job.env));
   assert.equal(job.env.NATIVE_SCENARIOS, "${{ toJSON(matrix.scenarios) }}");
   assert.equal(

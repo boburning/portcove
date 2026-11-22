@@ -35,6 +35,7 @@ type FixturePort = Pick<
   source_profile?: string | null;
   bios_source_profile?: string | null;
   launch_arguments?: string[];
+  game_settings?: NonNullable<PortDefinition["game_settings"]>;
 };
 interface NamedRecord extends Record<string, unknown> {
   id: string;
@@ -103,6 +104,7 @@ interface FixtureOptions {
   acquisitionJourney?: boolean;
   managedCopyJourney?: boolean;
   updateReviewJourney?: boolean;
+  gameSettingsJourney?: boolean;
   preparationTool?: string;
   revision?: string;
 }
@@ -626,6 +628,7 @@ async function writeFixtureCatalog({
   completionJourney,
   acquisitionWaitPath,
   updateReviewJourney,
+  gameSettingsJourney,
   managedCopyJourney,
   revision,
 }: {
@@ -634,6 +637,7 @@ async function writeFixtureCatalog({
   port: number;
   artifact: Buffer;
   updateReviewJourney: boolean;
+  gameSettingsJourney: boolean;
   managedCopyJourney: boolean;
   sourceJourney: boolean;
   preliminarySetupJourney: boolean;
@@ -667,6 +671,46 @@ async function writeFixtureCatalog({
     artifact,
     adapter: "libultraship-portable",
   });
+  if (gameSettingsJourney) {
+    const release = ownedPortDefinition.release.direct["windows-x86-64"];
+    if (!release || !revision || !/^[a-f0-9]{40}$/.test(revision))
+      throw new Error("Game settings require a Windows fixture and an exact source revision");
+    ownedPortDefinition.persistent_paths = ["fixture-settings.json"];
+    ownedPortDefinition.game_settings = {
+      format_version: 1,
+      releases: [
+        {
+          version: release.version,
+          platform: "windows-x86-64",
+          archive_sha256: release.sha256,
+          source_commit: revision,
+          evidence_urls: [`https://example.invalid/owned-settings-fixture/${revision}`],
+        },
+      ],
+      files: [
+        {
+          id: "audio",
+          path: "fixture-settings.json",
+          format: "json",
+          maximum_bytes: 4096,
+          settings: [
+            {
+              id: "master-volume",
+              label: "Master volume",
+              key: ["master"],
+              value: { kind: "integer", minimum: 0, maximum: 100, step: 1, default: 100 },
+            },
+            {
+              id: "music-volume",
+              label: "Music volume",
+              key: ["music"],
+              value: { kind: "integer", minimum: 0, maximum: 100, step: 1, default: 100 },
+            },
+          ],
+        },
+      ],
+    };
+  }
   if (acquisitionWaitPath) {
     refreshPortDefinition.launch_arguments = [
       "--game",
@@ -821,6 +865,7 @@ export async function createInstallFixture({
   acquisitionJourney = false,
   managedCopyJourney = false,
   updateReviewJourney = false,
+  gameSettingsJourney = false,
   preparationTool,
   revision,
 }: FixtureOptions) {
@@ -875,6 +920,7 @@ export async function createInstallFixture({
       completionJourney,
       acquisitionWaitPath,
       updateReviewJourney,
+      gameSettingsJourney,
       managedCopyJourney,
       revision,
     }));

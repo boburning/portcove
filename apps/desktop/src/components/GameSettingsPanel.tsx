@@ -9,7 +9,7 @@ import type {
   GameSettingsView,
   GameSettingView,
 } from "../types";
-import { failurePresentation } from "../view-model";
+import { errorText, failurePresentation } from "../view-model";
 import { useActionReview } from "../use-action-review";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { Button } from "./ui/button";
@@ -118,7 +118,9 @@ function SettingsFileDraft({
   const [selected, setSelected] = useState<{ identity: string; edits: GameSettingsEdit[] }>();
   const [error, setError] = useState<{ id: string; kind: FieldError }>();
   const [savedAtRead, setSavedAtRead] = useState<number>();
-  const [failed, setFailed] = useState<{ read: number; committed: boolean }>();
+  // A refusal Core reports as not started keeps its own explanation; an
+  // unconfirmed save keeps the generic readback guidance.
+  const [failed, setFailed] = useState<{ read: number; committed: boolean; refusal?: string }>();
   const needsRead = failed?.read === readRevision;
   const reviewButton = useRef<HTMLButtonElement>(null);
   const held = draft !== undefined && draft.identity !== identity;
@@ -183,7 +185,9 @@ function SettingsFileDraft({
         </div>
       )}
       {needsRead && !activeReview && (
-        <p role="status">{t(failed?.committed ? "review.savedReadback" : "review.failure")}</p>
+        <p role="status">
+          {failed?.refusal ?? t(failed?.committed ? "review.savedReadback" : "review.failure")}
+        </p>
       )}
       {savedAtRead === readRevision && <p role="status">{t("review.saved")}</p>}
       {(available || held) && (
@@ -239,8 +243,13 @@ function SettingsFileDraft({
             changed(next);
           }}
           failed={(failure) => {
-            const committed = failurePresentation(failure)?.mutation_state === "committed";
-            setFailed({ read: readRevision, committed });
+            const state = failurePresentation(failure)?.mutation_state;
+            const committed = state === "committed";
+            setFailed({
+              read: readRevision,
+              committed,
+              ...(state === "not_started" ? { refusal: errorText(failure) } : {}),
+            });
             if (committed) setDraft(undefined);
           }}
           disabled={disabled || needsRead}

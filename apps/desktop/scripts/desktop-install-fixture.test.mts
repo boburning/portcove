@@ -827,6 +827,7 @@ test("unselected install scenarios do not require an initialized fixture", async
     },
   });
   assert.deepEqual(registered, [
+    "native-game-settings-review",
     "install-progress-cancellation",
     "install-commit-refresh-recovery",
     "native-staged-update-composition",

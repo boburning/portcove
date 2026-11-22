@@ -2502,6 +2502,18 @@ This fixture does not establish SMB reconnect, physical storage, real-game or
 gameplay acceptance. A failed run retains the unavailable original directory
 rather than restoring it while the consented app is still live.
 
+`just desktop-verify --scenario native-game-settings-review --require-clean`
+selects one standalone Windows journey outside routine profiles and hosted
+product groups. Run it as explicit acceptance from an interactive,
+non-elevated (medium-integrity) Windows desktop session. Hosted runners present
+a high-integrity token. Core refuses settings editing there by design, so a
+hosted run can only reproduce that refusal (run 44933173974). The owned install
+fixture declares one inert settings file. Desktop reviews two edits, saves them
+through native IPC and reads both copies back. An outside edit then makes a
+second review stale. Core refuses it before starting. Desktop shows Core's
+explanation, and both outside copies stay byte-identical. The executable is
+inert and no game starts.
+
 `just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
 selects one standalone Windows or Linux review journey outside routine profiles.
 The private-X11 wrapper derives both waits from the selected harness budget:
