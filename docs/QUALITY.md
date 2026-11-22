@@ -461,9 +461,23 @@ A pass under a larger budget proves completion under that budget.
 
 Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
 the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
-Neither run reported an assertion failure before its cutoff. Each Windows case
-has a 240-second limit with the same assertions, cleanup and retry policy.
-Completion under the new limit still needs a hosted run.
+Neither run reported an assertion failure before its cutoff. The MStan case
+has a 240-second Windows limit with the same assertions, cleanup and retry
+policy. The Sonic case still reached only its final restore when run
+`44960117848` cut it at 240 seconds. These timeouts occurred only on #8478 and
+#8503 heads that added the `portcove-listing-carrier` crate without a test
+`opt-level`, so Core tests ran its shared code unoptimized. On those heads the
+populated Mega Man X2 transition took 143 to 240 seconds, against 38.4 seconds
+on pre-#8478 `main` (`63c5b009`, run `45054336807`), where the additive Sonic
+case passed in 71 seconds and every `compatible_archive_progression_*` and
+`reviewed_archive_transition_*` case passed under the 120-second default.
+#8478 set the carrier's test `opt-level` to 1 and also limited the fixture
+catalog to the port under test; no run separates the two effects. Windows run
+`45042553290`, attempt 1, then passed both families in 3.7 to 13.7 seconds, so
+they use the 120-second default again. The
+`[profile.test.package.portcove-listing-carrier]` `opt-level = 1` entry in
+`Cargo.toml` is load-bearing for these budgets; re-measure them on Windows
+before removing it.
 
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
@@ -712,6 +726,8 @@ Run 43244946189 attempt 1 then terminated
 budget (421.091 seconds, no failed assertion) in an 898-second Windows partition
 6, so MMX2 now also has 600 seconds (5s × 120) with zero retries; Super Metroid
 stays at 420. Every phase and assertion is unchanged.
+These transition budgets were removed when the shared fixture catalog shrank
+to the port under test (see the additive Sonic record above).
 
 `service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
 has an exact Windows override that went from 270 seconds (5s × 54) to

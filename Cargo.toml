@@ -117,6 +117,7 @@ overflow-checks = true
 # Core reuses this member's shared generic instantiations (serde_json
 # serialization included). Unoptimized, they made catalog-heavy Core tests
 # about nine times slower, so keep them at Core's level.
+# Load-bearing for Windows native-portable test budgets; re-measure before removing.
 [profile.test.package.portcove-listing-carrier]
 opt-level = 1
 
