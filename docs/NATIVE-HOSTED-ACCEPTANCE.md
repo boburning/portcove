@@ -224,6 +224,13 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The standalone `native-managed-copy-result` case uses the existing install fixture and an
+owned external registration. It observes the real reviewed transition, verifies
+one download and one Core install outcome, and checks that the original
+external executable and save remain byte-identical. The completed receipt must
+survive navigation and open the exact current game without launching it. The
+CLI seeds the registration. This case verifies the Desktop transition and receipt.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,

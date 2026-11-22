@@ -1,9 +1,10 @@
 import { captureParityState } from "../../test/parity-capture";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { currentCatalogPort } from "../catalog-test-fixtures";
+import { catalogEntries } from "../features/browsing/catalog-entry";
 import { canOpenInstalledResult } from "../features/operations/invocation-state";
 import { InvocationOwnerProvider } from "../features/operations/invocation-owner";
 import {
@@ -17,6 +18,7 @@ import type { InstallRecord, ManagedRouteChangePreview, PortStatus } from "../ty
 import { gameIdentityLabel } from "../port-identity";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
 import { ExternalRuntimeControl } from "./ExternalRuntime";
+import { ListingDetailPanel } from "./ListingDetailPanel";
 import { StatusLayer } from "./Chrome";
 
 const port = { ...portDefinition(), adapter: "native-portable" as const };
@@ -135,6 +137,54 @@ it("reviews a separate managed copy before consent and leaves Play explicit", as
 });
 
 const externalStatus = { ...portStatus(), external_runtime: preview.current_registration };
+it("opens the managed-copy review from the registered listing's Game files", async () => {
+  const [entry] = catalogEntries(
+    { schema_version: 2, ports: [port] },
+    {
+      format_version: 1,
+      listings: [
+        {
+          id: port.id,
+          name: port.name,
+          summary: port.summary,
+          project_url: port.project_url,
+          platforms: port.platforms,
+          availability: "unknown",
+        },
+      ],
+    },
+    [
+      {
+        port_id: port.id,
+        status: externalStatus,
+        actions: [{ action: "launch", allowed: true }],
+      },
+    ],
+    [],
+  );
+  const apply = vi.spyOn(desktopApi, "changeToManagedRuntime");
+  await root.rerender(
+    <ListingDetailPanel
+      entry={entry!}
+      status={externalStatus}
+      generation={7}
+      perform={vi.fn()}
+      onChanged={vi.fn()}
+      close={vi.fn()}
+    />,
+  );
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  const review = page.getByRole("button", { name: "Review a Portcove-managed copy…" });
+  await expect.element(review).toBeVisible();
+  await review.click();
+  await expect.element(page.getByRole("button", { name: "Create managed copy" })).toBeEnabled();
+  expect(desktopApi.previewManagedRouteChange).toHaveBeenCalledExactlyOnceWith(port.id, 7);
+  expect(apply).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect.element(review).toHaveFocus();
+});
+
 const startedWorkspaceReadRevision = () => 1;
 
 function Workspace({
