@@ -1116,6 +1116,8 @@ export async function advanceCatalogObservations(
               await commitCheckpoint();
             },
             reuseComplete,
+            sourcePolicyScope: binding,
+            priorSourcePolicies: progress.last_complete_policies,
             ...(reuseComplete && retainedListingCompletion && listingClocks
               ? {
                   retainedCompletion: {
@@ -1249,6 +1251,13 @@ export async function advanceCatalogObservations(
                   template.budget.duration_ms,
               ),
             ).toISOString();
+        if (
+          result.sourceRetryAt !== null &&
+          progress.next_due_at !== null &&
+          result.sourceRetryAt < Date.parse(progress.next_due_at)
+        ) {
+          progress.next_due_at = new Date(result.sourceRetryAt).toISOString();
+        }
         progress.completed_scope_sha256 = binding;
         progress.last_complete_facts_sha256 = String(result.observations[0]!.facts_sha256);
         progress.last_complete_policies = result.policies.map((p) => p as Record<string, unknown>);

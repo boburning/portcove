@@ -10,6 +10,7 @@ export interface SecondaryPanelProbeOptions {
   portableOutputPath: string;
   metadataPath: string;
   refusedMetadataPath: string;
+  windowsPickerPaths?: boolean;
 }
 export interface SecondaryPanelTrace {
   command: string;
@@ -221,6 +222,17 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
     mismatches: [...mismatches],
     acknowledged,
   });
+  const drivePath = (value: string) => {
+    const ordinary = value.replace(/^\\\\\?\\/u, "").replaceAll("\\", "/");
+    if (!/^[a-z]:\//iu.test(ordinary)) return null;
+    return ordinary.charAt(0).toUpperCase() + ordinary.slice(1);
+  };
+  const sameMetadataPath = (value: unknown, expected: string) => {
+    if (value === expected) return true;
+    if (typeof value !== "string" || !options.windowsPickerPaths) return false;
+    const expectedDrivePath = drivePath(expected);
+    return expectedDrivePath !== null && drivePath(value) === expectedDrivePath;
+  };
   const replacement: typeof fetch = function (input, init) {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const command = targets.get(url);
@@ -254,16 +266,34 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
       mismatches.push(`${command}: ${reason}`);
       return Promise.resolve(refusal());
     };
+    if (args.generation !== options.generation) return deny("generation changed");
     if (command === "export_library_metadata") {
-      if (args.path === options.metadataPath) {
+      if (sameMetadataPath(args.path, options.metadataPath)) {
         observation.outcome = "forwarded";
         return original.call(window, input, init);
       }
-      if (args.path !== options.refusedMetadataPath) return deny("unexpected metadata path");
+      if (!sameMetadataPath(args.path, options.refusedMetadataPath)) {
+        if (typeof args.path !== "string") return deny("metadata path missing");
+        const leaf = (value: string) => value.split(/[\\/]/u).at(-1) ?? "";
+        const observed = leaf(args.path);
+        const expected = [options.metadataPath, options.refusedMetadataPath].map(leaf);
+        // Report only known picker transformations. Never retain the returned path.
+        if (expected.includes(observed)) return deny("unexpected metadata directory");
+        if (expected.some((name) => name.toLowerCase() === observed.toLowerCase()))
+          return deny("unexpected metadata file name casing");
+        if (observed.toLowerCase() === "portcove-library.json")
+          return deny("metadata picker returned the default file name");
+        if (expected.some((name) => observed === name + ".json"))
+          return deny("metadata picker appended a second JSON extension");
+        if (expected.some((name) => observed === name.slice(0, -5)))
+          return deny("metadata picker removed the JSON extension");
+        if (expected.some((name) => observed === name + '"'))
+          return deny("metadata picker retained a closing quote");
+        return deny("unexpected metadata file name");
+      }
       observation.outcome = "refused";
       return Promise.resolve(refusal("Owned presentation metadata export refusal."));
     }
-    if (args.generation !== options.generation) return deny("generation changed");
     if (command === "assess_port_intents") {
       return Promise.resolve(
         reply(

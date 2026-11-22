@@ -50,7 +50,16 @@
         }
       ]
     },
-    "download_block_reason": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy.",
+        "tracking_issue": 5669
+      }
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,

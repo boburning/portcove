@@ -19,7 +19,7 @@ const NAMESPACE: &str = "recomp-config/";
 const MAX_CONFIG_BYTES: u64 = 128 * 1024;
 const MAX_CHOICE_BYTES: usize = 256;
 const MAX_OPTION_ID_BYTES: usize = 64;
-const MAX_CAPTURED_SETTINGS: usize = 64;
+const MAX_CAPTURED_SETTINGS: usize = crate::profile::MAX_SETTINGS;
 
 enum OptionRule {
     Enum(Vec<String>),

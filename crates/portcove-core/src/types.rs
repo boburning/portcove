@@ -1294,10 +1294,13 @@ pub struct PortListing {
     pub platforms: Vec<Platform>,
     #[serde(default)]
     pub availability: ListingAvailability,
-    /// A reviewed restriction on fresh self-service downloads only. It grants
-    /// no execution, management or permission over an existing copy.
+    /// Legacy projection of `restrictions` for older readers: the explanation
+    /// of the first hold naming Download. It grants nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_block_reason: Option<String>,
+    /// Typed acquisition restrictions. Requires listing format 14.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restrictions: Vec<crate::AcquisitionRestriction>,
     /// Advisory literal filename hints for an upstream-owned download. They do
     /// not authenticate a package or grant installation/execution ownership.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -2829,7 +2832,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

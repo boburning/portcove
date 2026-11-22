@@ -1265,6 +1265,8 @@ function SourceHealth({
           generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
+          requirementsAvailable={requirementsState === "available"}
+          fallbackFocus={sourceHeading}
           onAdded={onAdded}
         />
       </div>
@@ -1917,6 +1919,7 @@ export function SettingsView(props: SettingsViewProps) {
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={`recovery-${generation}`}
+        generation={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}

@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/STJr/SRB2/releases",
     "setup_url": "https://flathub.org/apps/org.srb2.SRB2",
-    "download_block_reason": "Get the game from Sonic Team Junior or Flathub and update it through the same source.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get the game from Sonic Team Junior or Flathub and update it through the same source.",
+        "tracking_issue": 6738
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
