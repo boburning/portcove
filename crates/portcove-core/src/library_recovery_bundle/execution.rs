@@ -988,6 +988,95 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[ignore = "requires a private 80 MiB Linux test filesystem"]
+    fn a_full_filesystem_leaves_the_exact_recovery_copy_resumable() {
+        use std::io::{self, Read};
+
+        const TEST_CAPACITY: u64 = 80 * 1024 * 1024;
+        const COPY_HEADROOM: u64 = 256 * 1024;
+        let test_mount = std::env::var_os("PORTCOVE_RECOVERY_TEST_MOUNT")
+            .expect("set PORTCOVE_RECOVERY_TEST_MOUNT to the empty private test filesystem");
+        let test_mount = Path::new(&test_mount);
+        assert_eq!(fs4::total_space(test_mount).unwrap(), TEST_CAPACITY);
+        assert_eq!(fs4::available_space(test_mount).unwrap(), TEST_CAPACITY);
+        assert!(fs::read_dir(test_mount).unwrap().next().is_none());
+        let volume = tempfile::tempdir_in(test_mount).unwrap();
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = volume.path().join("bundle");
+        let user_file = source.join("user/progress.bin");
+        let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+        let source_id = service.library().identity().unwrap();
+        let fixture = vec![0xa5; 2 * 1024 * 1024];
+        fs::create_dir_all(source.join("user")).unwrap();
+        fs::write(&user_file, &fixture).unwrap();
+        let plan = service.plan_library_recovery_bundle(&destination).unwrap();
+        drop(service);
+        assert!(plan.available_bytes >= plan.required_bytes);
+
+        let mut reservation = tempfile::NamedTempFile::new_in(volume.path()).unwrap();
+        let mut capacity_occupied = false;
+        let mut copied = 0;
+        let error = PortcoveService::create_library_recovery_bundle_with_progress(
+            &source,
+            &destination,
+            &plan.plan_sha256,
+            |progress| {
+                if let LibraryRecoveryProgress::Copying { copied_bytes, .. } = progress {
+                    copied = copied_bytes;
+                    if !capacity_occupied {
+                        // Occupy the space after Core has checked capacity and written the intent.
+                        // The observer succeeds. The actual staged file write must fail.
+                        assert_eq!(copied_bytes, 0);
+                        let available = fs4::available_space(volume.path()).unwrap();
+                        let bytes = available.checked_sub(COPY_HEADROOM).unwrap();
+                        assert_eq!(
+                            io::copy(&mut io::repeat(0).take(bytes), &mut reservation).unwrap(),
+                            bytes
+                        );
+                        assert_eq!(fs4::available_space(volume.path()).unwrap(), COPY_HEADROOM);
+                        capacity_occupied = true;
+                    }
+                }
+                Ok(())
+            },
+        )
+        .unwrap_err();
+        assert!(capacity_occupied);
+        assert!(copied > 0 && copied < fixture.len() as u64);
+        assert_eq!(error.code, crate::ErrorCode::State);
+        let disk_full = io::Error::from_raw_os_error(libc::ENOSPC).to_string();
+        assert!(
+            error.message == disk_full
+                || error.message.starts_with(&format!("{disk_full} at path ")),
+            "expected the kernel's ENOSPC during the copy, got {error}"
+        );
+        let stage = Path::new(&error.details["recovery_staging"]);
+        let intent = read_creation_intent(stage).unwrap();
+        assert_eq!(intent.plan.plan_sha256, plan.plan_sha256);
+        assert!(!destination.exists());
+        assert!(!stage.join(PAYLOAD_DIR).join(MANIFEST_FILE).exists());
+        assert_eq!(fs::read(&user_file).unwrap(), fixture);
+
+        drop(reservation);
+        let resumed = PortcoveService::resume_library_recovery_bundle(stage).unwrap();
+        assert_eq!(resumed.source_library_id, source_id);
+        assert_eq!(resumed.bundle_id, intent.bundle_id.to_string());
+        let inspected = PortcoveService::inspect_library_recovery_bundle_for_plan(
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap();
+        assert_eq!(inspected.bundle_id, resumed.bundle_id);
+        assert_eq!(
+            fs::read(destination.join(CONTENT_DIR).join("user/progress.bin")).unwrap(),
+            fixture
+        );
+        assert_eq!(fs::read(user_file).unwrap(), fixture);
+    }
+
     #[test]
     fn cancellation_waits_for_the_copy_worker_and_retains_exact_staging() {
         use std::sync::mpsc::channel;

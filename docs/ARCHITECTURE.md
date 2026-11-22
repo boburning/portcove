@@ -2972,6 +2972,34 @@ and a completed restore offers a read of its recorded result. After a restore co
 selection when you are ready to use it. The Settings page keeps the individual
 library information export and manual copy controls alongside the bundle flow.
 
+The opt-in Linux storage-exhaustion test uses an empty 80 MiB tmpfs in
+a private mount namespace. It reserves space after Core writes the authenticated
+intent, observes the kernel's write failure, then frees the reservation and
+resumes the same copy. Run it through the normal resource guard from an
+isolated checkout:
+
+```sh
+node scripts/dev-storage.mts run -- node scripts/run-rust-tests.mts --guard-command \
+  unshare --user --map-root-user --mount --propagation private bash -eu -c '
+    test_mount=$(mktemp -d "$PORTCOVE_TEMP_DIR/recovery-enospc.XXXXXXXX")
+    cleanup() {
+      if mountpoint -q "$test_mount"; then
+        umount "$test_mount"
+      fi
+      rmdir "$test_mount"
+    }
+    trap cleanup EXIT
+    mount -t tmpfs -o size=80m,mode=0700,nosuid,nodev,noexec tmpfs "$test_mount"
+    export PORTCOVE_RECOVERY_TEST_MOUNT="$test_mount"
+    cargo test --locked -p portcove-core --lib \
+      a_full_filesystem_leaves_the_exact_recovery_copy_resumable -- --ignored
+  '
+```
+
+The test exercises Core copying against a real Linux capacity limit. It
+uses the Core unit test's deterministic authority and does not qualify the
+production secure store, Windows filesystems or the Desktop presentation.
+
 ## Library imports
 
 Library import reads a metadata export and an explicitly selected copy of its content trees without opening or migrating the input database. The destination must be new or contain an empty Portcove library; merging into existing domain state is rejected. Core reviews capacity, portable paths, source references, and active/previous/staged identity, then requires the content-bound plan again under an exclusive destination lease. A bounded destination-owned import journal is also the open gate and is published before database initialization or copying. Metadata hydration uses one SQLite transaction and the same source/install writers as ordinary registration. The shared transfer verifier checks all copied bytes and manifest identities; import additionally rebuilds the current platform executable, mutable-path, and critical-file policy for comparison with each restored manifest. An exact retained definition that records prior authenticated admission remains the authority for its own installed version, including a successor port absent from the running client's embedded catalog. Export first requires the retained identity to match the source library's persisted active or rollback selection transaction, then binds the selection role plus install, manifest and selection identities to a host-local key in operating-system secure storage. Planning and every recovery read verify that receipt before using the digest-bound retained graph; this deliberately proves same-host continuity rather than inventing cross-device trust. Import restores that admitted active/rollback context into the otherwise empty destination before comparing its metadata. A bare definition snapshot, copied catalog, unknown port ID, structurally valid admission object, or self-consistent content hashes cannot create admission, and an unadmitted retained contract for an embedded port must still match the embedded installed-code contract. This preserves frozen source, execution, persistence, artwork and qualification identities without treating the current definition as permission to rewrite historical installs. It establishes consistency with a trusted local backup, not independent publisher authenticity for that backup.
