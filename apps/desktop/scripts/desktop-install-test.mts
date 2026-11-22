@@ -1416,10 +1416,12 @@ export async function installScenarios({
       await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
       observations.command_play = { port_id: active.port_id, install_id: active.id, generation };
     };
-    const play = async (startPlay = async (_active: InstallRecord) => click("Play")) => {
+    const play = async (
+      expectedActive?: InstallRecord,
+      startPlay = async (_active: InstallRecord) => click("Play"),
+    ) => {
       assert.equal(await exists(marker), false, "Each owned launch requires an unreleased marker");
-      const current = await status();
-      const active = required(current.active);
+      const active = expectedActive ?? required((await status()).active);
       const executable = path.resolve(active.path, active.selected_executable);
       const game = {
         executable,
@@ -1590,6 +1592,13 @@ export async function installScenarios({
       published: Awaited<ReturnType<typeof publish>>,
     ) => {
       assertLive("before-release");
+      const archivePath = new URL(published.release.url).pathname;
+      const held = ownedFixture.requests.filter((request) => request.request_path === archivePath);
+      assert.equal(held.length, 1, "Only one exact archive transfer may be held");
+      assert.ok(
+        held[0] && held[0].bytes_sent > 0 && !held[0].completed && !held[0].connection_closed,
+        "The exact archive transfer must still be open when the running game is observed",
+      );
       published.gate.release();
       const acquired = await browser.wait(
         async () => {
@@ -1779,7 +1788,7 @@ export async function installScenarios({
       const v2 = await publish("2.0.0-acquisition", 0x43b9a607);
       // A first launch records Core's .portcove-launched bookkeeping. Establish
       // that real pre-state before testing byte preservation during acquisition.
-      await play(playFromPalette);
+      await play(undefined, playFromPalette);
       await stopGame();
       await rm(marker);
       const beforeV2 = await preserve();
@@ -1792,8 +1801,11 @@ export async function installScenarios({
         transfer: transferV2,
       };
       await click("Continue browsing");
-      await play();
-      assertLive("during-acquire-first");
+      // Bind Play to the active executable from the pre-transfer byte baseline.
+      // Release the exact held archive while that game is still running, before
+      // the slower post-launch reads consume the downloader deadline.
+      await play(required(beforeV2.active));
+      const archiveV2 = await finish(transferV2, v2);
       await assertPreserved(beforeV2);
       const ordinaryWhilePlaying = object(
         await invoke("plan_game_update", {
@@ -1808,8 +1820,6 @@ export async function installScenarios({
         "Playing must still block ordinary exclusive review",
       );
       assert.equal(object(ordinaryWhilePlaying.error).code, "conflict");
-      const archiveV2 = await finish(transferV2, v2);
-      await assertPreserved(beforeV2);
       observations.acquire_then_play = {
         before: beforeV2,
         transfer: transferV2,
@@ -1972,8 +1982,6 @@ export async function installScenarios({
         game: liveGame,
         transfer: transferV3,
       };
-      assertLive("during-playing-first");
-      await assertPreserved(beforeV3);
       await click("Continue browsing");
       const archiveV3 = await finish(transferV3, v3);
       await assertPreserved(beforeV3);
