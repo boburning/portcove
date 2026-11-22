@@ -237,7 +237,9 @@ export async function artworkScenario({
         assert.equal(actual.palette, actual.expectedPalette);
         assert.equal(actual.background, actual.expectedBackground);
       };
-      const expectHeroText = async () => {
+      const expectOverviewTextAndReturn = async () => {
+        await closeEditor();
+        await revealDetailSection(browser, "Overview");
         const hero = await browser.wait(until.elementLocated(By.css(".game-hero-detail")), 10_000);
         await executeBrowserScript(
           browser,
@@ -254,6 +256,7 @@ export async function artworkScenario({
                 const heading = hero?.querySelector("#port-detail-title");
                 return (
                   hero?.getAttribute("data-hero-identity") === "text" &&
+                  !hero.hasAttribute("data-hero-compact") &&
                   !hero.querySelector('[data-loading="true"]') &&
                   !hero.querySelector(".game-hero-image") &&
                   heading?.textContent?.trim() === expectedTitle &&
@@ -267,6 +270,9 @@ export async function artworkScenario({
           10_000,
           "Missing cover must retain the real game heading and primary action without a decorative image",
         );
+        await revealDetailSection(browser, "Manage");
+        await openEditor();
+        await activateSlot("cover");
       };
       const open = async () => {
         await observations.capture("before-reload");
@@ -325,7 +331,7 @@ export async function artworkScenario({
       assert.equal(before.generated_fallback.style_version, 1);
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       const stale = object(
         await invoke("reset_artwork", {
           portId,
@@ -492,7 +498,8 @@ export async function artworkScenario({
       });
       artifacts.push(sheetScreenshot);
       await closeEditor();
-      // Reveal the always-mounted hero before waiting for its lazy foreground.
+      // Manage keeps the compact header. Overview renders the lazy foreground.
+      await revealDetailSection(browser, "Overview");
       await waitForArtworkImage(
         browser,
         ".game-hero-detail .game-hero-foreground img",
@@ -567,6 +574,7 @@ export async function artworkScenario({
         }
       }
       if (titleRestoreFailure) throw titleRestoreFailure.error;
+      await revealDetailSection(browser, "Manage");
       await openEditor();
       await activateSlot("cover");
       const reviewApply = By.xpath(
@@ -579,7 +587,7 @@ export async function artworkScenario({
       const hidden = await state("cover");
       assert.equal(hidden.choice.asset_sha256, null);
       assert.equal(hidden.resolved_source.kind, "generated_fallback");
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
       await click(control("cover", "Use automatic"));
       assert.deepEqual(await state("cover"), hidden);
@@ -593,7 +601,7 @@ export async function artworkScenario({
       assert.notEqual(reset.choice.suppressed, true);
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
-      await expectHeroText();
+      await expectOverviewTextAndReturn();
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);
