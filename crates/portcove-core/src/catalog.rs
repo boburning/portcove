@@ -453,6 +453,18 @@ impl Catalog {
         }
     }
 
+    /// Legacy full projections carry graph rows for unrelated ports without
+    /// their loader bindings. Keep the bindings already present in the baseline.
+    pub(crate) fn retain_unrelated_mod_loaders(&mut self, baseline: &Self, selected: &str) {
+        for port in &mut Arc::make_mut(&mut self.document).ports {
+            if port.id != selected
+                && let Ok(original) = baseline.port(&port.id)
+            {
+                port.mod_loader.clone_from(&original.mod_loader);
+            }
+        }
+    }
+
     /// A sibling projection cannot appoint or remove package-only settings.
     pub(crate) fn retain_unrelated_package_settings(&mut self, baseline: &Self, selected: &str) {
         for port in &mut Arc::make_mut(&mut self.document).ports {
@@ -469,7 +481,14 @@ impl Catalog {
     }
 
     pub(crate) fn hold_legacy_mod_provider(&mut self, port_id: &str) {
-        if let Some(index) = self.ports().iter().position(|port| port.id == port_id) {
+        let Some(index) = self.ports().iter().position(|port| port.id == port_id) else {
+            return;
+        };
+        // The floor fences both bundled and legacy scopes. Only the currently
+        // admitted definition for this exact subject may appoint a scope again.
+        let has_admitted_scope = self.ports()[index].mod_provider_bindings.is_some()
+            && self.definition_selection(port_id).is_some();
+        if !has_admitted_scope {
             Arc::make_mut(&mut self.document).ports[index].legacy_mod_provider_held = true;
         }
     }
@@ -818,6 +837,7 @@ impl Catalog {
                     port.id
                 )));
             }
+            crate::profile_loader::validate(port)?;
             crate::provider_binding::validate(port)?;
             crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
@@ -988,6 +1008,15 @@ impl Catalog {
             if let Some(presentation) = &port.presentation {
                 if let Some(game) = &presentation.original_game {
                     game.validate()?;
+                    if game
+                        .source_editions
+                        .iter()
+                        .any(|edition| !edition.verified_sources.is_empty())
+                    {
+                        return Err(PortcoveError::unsupported(
+                            "verified source edition bindings belong in listing format 14",
+                        ));
+                    }
                 }
                 let media = presentation.media.as_deref().unwrap_or_default();
                 if media
@@ -4818,6 +4847,10 @@ mod tests {
                 .unwrap();
             assert!(legacy.game_settings.is_none());
             port.game_settings = None;
+            // Frozen schema-1 rows predate both explicit loader declarations.
+            assert!(legacy.mod_loader.is_none() && legacy.mod_provider_bindings.is_none());
+            port.mod_loader = None;
+            port.mod_provider_bindings = None;
             // Archive file links are a later additive release declaration.
             assert!(!legacy.release.archive_file_links);
             port.release.archive_file_links = false;
@@ -5552,6 +5585,8 @@ mod tests {
             .iter_mut()
             .find(|port| port["id"] == "zelda64-recomp")
             .unwrap();
+        // Keep this missing-hint case focused on the generic executable contract.
+        port.as_object_mut().unwrap().remove("mod_loader");
         port["executable_hints"]
             .as_object_mut()
             .unwrap()

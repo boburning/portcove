@@ -210,8 +210,7 @@ export interface AuditContinuation {
   binding: string;
 }
 
-export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditContinuation[] {
-  if (environment.HOSTED_INTAKE_MODE !== "resume-audits") return [];
+function assertScheduledAuditCaller(environment: NodeJS.ProcessEnv) {
   if (
     environment.GITHUB_EVENT_NAME !== "schedule" ||
     environment.GITHUB_REPOSITORY !== "boburning/portcove" ||
@@ -220,6 +219,11 @@ export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditCon
       "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main"
   )
     throw new Error("Only the protected maintenance schedule may resume owner-authorized audits");
+}
+
+export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditContinuation[] {
+  if (environment.HOSTED_INTAKE_MODE !== "resume-audits") return [];
+  assertScheduledAuditCaller(environment);
   const parsed: unknown = JSON.parse(environment.HOSTED_INTAKE_AUDIT_CONTINUATIONS ?? "null");
   if (
     !Array.isArray(parsed) ||
@@ -238,7 +242,84 @@ export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditCon
   return parsed as AuditContinuation[];
 }
 
-function main() {
+export function scheduledReceiptRequestKey(
+  phase: "before-audits" | "after-audits",
+  { GITHUB_RUN_ID: run, GITHUB_RUN_ATTEMPT: attempt, GITHUB_SHA: head }: NodeJS.ProcessEnv,
+) {
+  if (
+    !run ||
+    !/^[1-9]\d*$/u.test(run) ||
+    !attempt ||
+    !/^[1-9]\d*$/u.test(attempt) ||
+    !head ||
+    !/^[0-9a-f]{40}$/u.test(head)
+  )
+    throw new Error("Scheduled receipt admission requires the exact GitHub run attempt and source");
+  return `github:${run}:scheduled-intake:${phase}:${head}:${attempt}`;
+}
+
+/** Select tickets with the existing executor checkpoint and reconcile original receipts. */
+export async function scheduledIntakeReceipts(
+  phase: "before-audits" | "after-audits",
+  base: NodeJS.ProcessEnv,
+) {
+  assertScheduledAuditCaller(base);
+  const { connectionFromEnvironment } = await import("./maintenance-store.mts");
+  const { hostedIntakeObservation, readHostedIntake } =
+    await import("./maintenance-hosted-intake.mts");
+  const { reconcileIntakeHandoffReceipts } = await import("./maintenance-intake-receipts.mts");
+  const { withMaintenanceAdmission, MaintenanceResourceDeferred } =
+    await import("./maintenance-resource-policy.mts");
+  try {
+    const token = base.REPOSITORY_TOKEN;
+    if (!token) throw new Error("Scheduled receipts require the repository token");
+    const environment = connectionFromEnvironment("PORTCOVE_DISCOVERY_DATABASE_URL", base);
+    const result = await withMaintenanceAdmission(
+      environment,
+      "handoffs",
+      () =>
+        hostedIntakeObservation(
+          () => readHostedIntake(environment, token),
+          (queue) => reconcileIntakeHandoffReceipts(environment, async () => queue),
+        ),
+      {
+        executor: true,
+        request: scheduledReceiptRequestKey(phase, base),
+        completed: (observation) => observation.receipts?.status === "passed",
+      },
+    );
+    return {
+      tickets: result.auditContinuations ?? [],
+      revision: result.revision,
+      receipts: result.receipts ?? { status: "unavailable" as const },
+    };
+  } catch (error) {
+    return {
+      tickets: [],
+      revision: undefined,
+      receipts: {
+        status: "unavailable" as const,
+        reason:
+          error instanceof MaintenanceResourceDeferred ? "resource-deferred" : "admission-failed",
+      },
+    };
+  }
+}
+
+type ScheduledReceiptPass = Awaited<ReturnType<typeof scheduledIntakeReceipts>>;
+
+export function scheduledReceiptOutcome(pass: ScheduledReceiptPass) {
+  const revision = pass.revision;
+  const succeeded = pass.receipts.status === "passed" && !!revision && !/[\r\n]/u.test(revision);
+  return {
+    output:
+      `audit_continuations=${JSON.stringify(pass.tickets)}\n` +
+      `receipt_revision=${succeeded ? revision : ""}\n`,
+    succeeded,
+  };
+}
+
+async function main() {
   const root = fileURLToPath(new URL("../", import.meta.url));
   const directory = path.join(root, "work/hosted-discovery-intake");
   mkdirSync(directory, { recursive: true });
@@ -246,13 +327,38 @@ function main() {
     process.env.HOSTED_INTAKE_MODE,
     process.env.HOSTED_INTAKE_AUDIT_REQUEST,
   );
+  const run = (requests?: number | number[]) =>
+    runHostedIntakePasses(
+      (pass, pending, remainingMs) =>
+        runHostedIntakeWorker(root, directory, pass, pending, remainingMs),
+      Date.now,
+      requests,
+    );
+  const scheduledMode = process.env.HOSTED_INTAKE_MODE;
+  const recordReceipts = (outcome: ScheduledReceiptPass) =>
+    writeFileSync(
+      path.join(directory, "scheduled-receipts.json"),
+      JSON.stringify({ ...outcome.receipts, eligible_audits: outcome.tickets.length }),
+    );
+  if (scheduledMode === "scheduled-receipts") {
+    const before = await scheduledIntakeReceipts("before-audits", process.env);
+    recordReceipts(before);
+    const { output, succeeded } = scheduledReceiptOutcome(before);
+    if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT, output, { flag: "a" });
+    if (!succeeded) process.exitCode = 1;
+    return;
+  }
   const scheduled = scheduledAuditRequests(process.env);
-  const result = runHostedIntakePasses(
-    (pass, requests, remainingMs) =>
-      runHostedIntakeWorker(root, directory, pass, requests, remainingMs),
-    Date.now,
-    scheduled.length ? scheduled.map(({ request }) => request) : audit,
-  );
+  let result: ReturnType<typeof runHostedIntakePasses>;
+  let after: ScheduledReceiptPass | undefined;
+  try {
+    result = run(scheduled.length ? scheduled.map(({ request }) => request) : audit);
+  } finally {
+    if (scheduled.length) {
+      after = await scheduledIntakeReceipts("after-audits", process.env);
+      recordReceipts(after);
+    }
+  }
   // A comment event reports its own proposal result. The ledger still retains
   // the outcomes of all other queue entries, including historical holds.
   const event: unknown =
@@ -300,11 +406,11 @@ function main() {
       { flag: "a" },
     );
   }
-  if (!passed) process.exitCode = 1;
+  if (!passed || (after && after.receipts.status !== "passed")) process.exitCode = 1;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (error) {
     console.error(error);
     process.exitCode = 1;

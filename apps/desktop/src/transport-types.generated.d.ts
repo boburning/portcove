@@ -2488,6 +2488,10 @@ export interface PortDefinition {
    */
   managed_shared_preferences_save_id?: string | null;
   manually_validated_platforms: Platform[];
+  /**
+   * Versioned native loader facts admitted with this exact definition.
+   */
+  mod_loader?: ModLoaderBinding | null;
   mod_package_policy?: ModPackagePolicy | null;
   /**
    * Provider coordinates reviewed alongside the existing mod loader contract.
@@ -2707,6 +2711,21 @@ export interface ReviewedHoldArtifact {
   version: string;
 }
 /**
+ * Native mod admission bound to a reviewed upstream runtime and platform.
+ */
+export interface ModLoaderBinding {
+  contract: LoaderContractRef;
+  minimum_version: string;
+  native_game?: string | null;
+  platforms: Platform[];
+  repository: string;
+  settings_file: string;
+}
+export interface LoaderContractRef {
+  id: string;
+  version: string;
+}
+/**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
  * documents may omit this object; current embedded definitions provide it.
  */
@@ -2802,6 +2821,19 @@ export interface SourceEdition {
    */
   system?: string | null;
   title: string;
+  /**
+   * Reviewed correspondence to an exact Core source identity. An empty list
+   * leaves the edition available for manual browsing only.
+   */
+  verified_sources?: OriginalEditionSourceBinding[];
+}
+/**
+ * Exact correspondence to an identity in the reviewed source graph.
+ */
+export interface OriginalEditionSourceBinding {
+  game_id: string;
+  representation_id: string;
+  variant_id: string;
 }
 export interface ReleaseSpec {
   /**
@@ -5004,10 +5036,6 @@ export interface RetainedBuildIdentity {
   runtime: RuntimeIdentity | null;
   selected_executable: string;
 }
-export interface LoaderContractRef {
-  id: string;
-  version: string;
-}
 /**
  * One precedence domain. A loader may need several; no universal number exists.
  */
@@ -5870,6 +5898,10 @@ export interface SourceInspectionReport {
   inspection?: SourceInspection | null;
   legacy: SourceLegacyCoverage;
   next_action: string;
+  /**
+   * Descriptive matches for this current registered observation only.
+   */
+  original_editions?: VerifiedOriginalEdition[];
   problem?: SourceInspectionProblem | null;
   profile_id: string;
   registered?: SourceRecord | null;
@@ -5995,6 +6027,15 @@ export interface SourceLegacyCoverage {
    * Historical evidence without an exact variant remains visible but is never exact coverage.
    */
   variant_unspecified_records: SourceEvidence[];
+  [k: string]: unknown;
+}
+/**
+ * A reviewed original edition for one port using the verified source profile.
+ */
+export interface VerifiedOriginalEdition {
+  original_game_id: string;
+  port_id: string;
+  source_edition_id: string;
   [k: string]: unknown;
 }
 export interface SourceInspectionProblem {
@@ -6671,6 +6712,10 @@ export interface SourceInspectionReport1 {
   inspection?: SourceInspection | null;
   legacy: SourceLegacyCoverage;
   next_action: string;
+  /**
+   * Descriptive matches for this current registered observation only.
+   */
+  original_editions?: VerifiedOriginalEdition[];
   problem?: SourceInspectionProblem | null;
   profile_id: string;
   registered?: SourceRecord | null;

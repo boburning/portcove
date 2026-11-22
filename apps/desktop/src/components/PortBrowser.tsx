@@ -96,6 +96,7 @@ import type {
 } from "../native-source-drop";
 import { ArtworkFrame, artworkDisplayNotice } from "./Artwork";
 import { useArtwork, useArtworkVisibility } from "../artwork";
+import { ReleaseWithdrawalBadge } from "./ReleaseWithdrawal";
 import { Button } from "./ui/button";
 import { Tooltip } from "./ui/tooltip";
 import { Menu } from "@base-ui/react/menu";
@@ -1483,6 +1484,7 @@ function PortCardStatus({
           : "View details";
   return (
     <div className="collection-actions mt-0 flex min-h-8 flex-wrap items-center justify-end gap-1 pt-0 text-xs">
+      <ReleaseWithdrawalBadge status={status} />
       {!taskPrimary && canLaunch && status?.external_runtime && (
         <ExternalLaunchWarnings portId={port.id} status={status} />
       )}
