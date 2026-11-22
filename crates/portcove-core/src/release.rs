@@ -5550,7 +5550,20 @@ mod tests {
                 ok_json(r#"{"archived":false}"#, "")
             }
         });
-        let provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        let mut provider = GithubReleaseProvider::with_api_root(api_root).unwrap();
+        // The one-request-per-connection fixture cannot accept a socket
+        // abandoned by the client's pooled connection checkout race.
+        provider.api_transport = reqwest::Client::builder()
+            .no_proxy()
+            .pool_max_idle_per_host(0)
+            .redirect(reqwest::redirect::Policy::none())
+            .retry(reqwest::retry::never())
+            .user_agent(PROVIDER_USER_AGENT)
+            .connect_timeout(provider.network_bounds.connect)
+            .read_timeout(provider.network_bounds.read_idle)
+            .timeout(provider.network_bounds.request)
+            .build()
+            .unwrap();
         let catalog = crate::Catalog::embedded().unwrap();
         let mut first = catalog.port("re-blue").unwrap().clone();
         first.release.repository = "shared/concurrent".into();
@@ -5571,18 +5584,23 @@ mod tests {
         );
         let first_cached = provider
             .resolve(&first, ReleaseChannel::Stable, Platform::WindowsX86_64)
-            .await
-            .unwrap();
+            .await;
         let second_cached = provider
             .resolve(&second, ReleaseChannel::Stable, Platform::WindowsX86_64)
-            .await
-            .unwrap();
-        server.join().unwrap();
+            .await;
+        // Drain the server before unwrapping client outcomes. Otherwise a
+        // later request can mask the socket error that shut the fixture down.
+        let served = server.join();
+        assert!(
+            served.is_ok(),
+            "fixture failed: {served:?}; requests: {:?}",
+            requests.try_iter().collect::<Vec<_>>()
+        );
 
         assert_eq!(first_result.unwrap().asset.name, "game-first-windows.zip");
         assert_eq!(second_result.unwrap().asset.name, "game-second-windows.zip");
-        assert_eq!(first_cached.asset.name, "game-first-windows.zip");
-        assert_eq!(second_cached.asset.name, "game-second-windows.zip");
+        assert_eq!(first_cached.unwrap().asset.name, "game-first-windows.zip");
+        assert_eq!(second_cached.unwrap().asset.name, "game-second-windows.zip");
         let requests = requests.try_iter().collect::<Vec<_>>();
         assert_eq!(requests.len(), 6);
         assert_eq!(

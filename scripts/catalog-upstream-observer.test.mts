@@ -1066,6 +1066,10 @@ void test("N64 game entries require a single unconditional table and literal ide
     { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "0123456789abcdef" },
     { game_id: "fixture.eu", mod_game_id: null, rom_hash_u64: "0000000000001234" },
   ]);
+  assert.deepEqual(
+    parseN64GameTable(gameEntryFixture.replace("0x0123456789ABCDEFULL", "0xafc33da7101fec88"))[0],
+    { game_id: "fixture.us", mod_game_id: "fixture", rom_hash_u64: "afc33da7101fec88" },
+  );
   for (const invalid of [
     `#if ENABLED
 ${gameEntryFixture}

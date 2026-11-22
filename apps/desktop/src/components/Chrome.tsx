@@ -2220,7 +2220,7 @@ export function LibrarySelectionCard({
     setPending(true);
     try {
       const path = await choose?.(selection?.root ?? "");
-      if (path && path !== selection?.root) {
+      if (path) {
         focusReturn.current = "switch";
         setReview({ kind: "switch", path });
       }
@@ -2261,6 +2261,7 @@ export function LibrarySelectionCard({
       setReview(undefined);
     }
   };
+  const saveCurrent = review?.kind === "switch" && review.path === selection?.root;
   const source =
     selection?.source === "saved"
       ? "Saved library"
@@ -2326,15 +2327,21 @@ export function LibrarySelectionCard({
             aria-describedby="library-selection-review-description"
           >
             <DialogTitle id="library-selection-review-title" className="mb-2 text-xl">
-              {review.kind === "switch" ? "Switch libraries?" : "Open the default library?"}
+              {saveCurrent
+                ? "Save this library for startup?"
+                : review.kind === "switch"
+                  ? "Switch libraries?"
+                  : "Open the default library?"}
             </DialogTitle>
             <DialogDescription
               id="library-selection-review-description"
               className="mb-4 leading-relaxed"
             >
-              {review.kind === "switch"
-                ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
-                : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
+              {saveCurrent
+                ? "Portcove will keep this library open and save it for future launches. Its files and install locations stay in place."
+                : review.kind === "switch"
+                  ? "Portcove will open this library and save it for future launches. Existing files stay in place. The library you open uses its own game install folder settings."
+                  : "Portcove will open the default library shown below and clear the saved library choice. If host preferences are damaged or from a newer format, this also resets saved language and tool paths. Files in the current library will stay where they are. The default library uses its own game install folder settings."}
             </DialogDescription>
             <code className="block break-all">{review.path}</code>
             <DialogFooter className="mt-4">
@@ -2346,11 +2353,15 @@ export function LibrarySelectionCard({
                   void applyReview();
                 }}
               >
-                {pending
-                  ? "Switching…"
-                  : review.kind === "switch"
-                    ? "Switch library"
-                    : "Open default library"}
+                {saveCurrent
+                  ? pending
+                    ? "Saving…"
+                    : "Save startup choice"
+                  : pending
+                    ? "Switching…"
+                    : review.kind === "switch"
+                      ? "Switch library"
+                      : "Open default library"}
               </Button>
               <Button
                 data-focusable
