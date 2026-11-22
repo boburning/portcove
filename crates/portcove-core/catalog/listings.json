@@ -66994,16 +66994,21 @@
             "instruction": "Use your own complete Perimeter: Emperor’s Testament resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation."
           },
           {
-            "title": "Prepare upstream and select the player",
+            "title": "Prepare the Windows player",
             "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
           },
           {
+            "title": "Prepare the Linux player",
+            "instruction": "On a 64-bit Linux system with glibc 2.28 or later, use Perimeter Release x86_64 from a successful main-branch push on the official Linux Build workflow at https://github.com/KD-lab-Open-Source/Perimeter/actions/workflows/linux_build.yml. Unzip the download and unpack Perimeter.tar. Keep the perimeter executable beside libdxvk_d3d9.so and libsteam_api.so. Use the system SDL2, SDL2_image, SDL2_mixer and SDL2_net libraries and a working Vulkan graphics driver. If a build is unavailable, follow the upstream Linux build guide. Select the native perimeter file and its containing folder. For Perimeter: Emperor's Testament, add content= followed by the absolute path of your private copy as one argument line. The folder must contain Perimeter.ini, Resource and Scripts. Keep any spaces inside that one argument."
+          },
+          {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
           }
         ],
         "warnings": [
           "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit.",
+          "Use a prepared x86-64 player and a private copy of the matching game. If a GOG installer puts Perimeter.ini in _support, copy it to the root of your prepared copy.",
           "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations.",
           "The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
         ],
@@ -67025,7 +67030,8 @@
         "source_editions": []
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
@@ -67054,16 +67060,21 @@
             "instruction": "Use your own complete Perimeter resources (models, textures, sounds, text, Resource and Scripts). The other title does not automatically supply this game. Exact retail patch/localization and shared-base requirements remain unpinned; preserve the complete matching original installation."
           },
           {
-            "title": "Prepare upstream and select the player",
+            "title": "Prepare the Windows player",
             "instruction": "The inspected 3.0.10 GitHub release inventory has no binary assets. Follow upstream INSTALL.eng.md to build the Windows player and its required DLLs, or use an already prepared working upstream player. Keep a private working game copy. Register perimeter.exe and retain its working directory. The upstream content override is one literal argument, content= followed by the absolute folder containing Resource and Scripts. Do not infer that the linked Legate Edition retail distribution includes both classic campaigns."
           },
           {
+            "title": "Prepare the Linux player",
+            "instruction": "On a 64-bit Linux system with glibc 2.28 or later, use Perimeter Release x86_64 from a successful main-branch push on the official Linux Build workflow at https://github.com/KD-lab-Open-Source/Perimeter/actions/workflows/linux_build.yml. Unzip the download and unpack Perimeter.tar. Keep the perimeter executable beside libdxvk_d3d9.so and libsteam_api.so. Use the system SDL2, SDL2_image, SDL2_mixer and SDL2_net libraries and a working Vulkan graphics driver. If a build is unavailable, follow the upstream Linux build guide. Select the native perimeter file and its containing folder. For Perimeter, add content= followed by the absolute path of your private copy as one argument line. The folder must contain Perimeter.ini, Resource and Scripts. Keep any spaces inside that one argument."
+          },
+          {
             "title": "Add the game and manage your files",
-            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions. Other platforms need their own setup instructions."
+            "instruction": "Finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
           }
         ],
         "warnings": [
           "No downloadable Windows package was found in the inspected GitHub releases. Windows CPU architecture depends on the actual prepared build; a managed package route remains pending a concrete artifact and preparation/maintenance fit.",
+          "Use a prepared x86-64 player and a private copy of the matching game. If a GOG installer puts Perimeter.ini in _support, copy it to the root of your prepared copy.",
           "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations.",
           "The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
         ],
@@ -67085,7 +67096,8 @@
         "source_editions": []
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ]
     },
     {
