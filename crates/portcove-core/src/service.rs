@@ -3525,6 +3525,7 @@ impl PortcoveService {
         Ok(forecast)
     }
 
+    #[cfg(test)]
     pub(crate) fn record_update_check(
         &self,
         port_id: &str,
