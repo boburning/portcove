@@ -2,7 +2,7 @@ import {
   requiredFixtureValue as required,
   fixtureObject as object,
 } from "./desktop-scenario-state.mts";
-import type { WebDriver, By, until } from "selenium-webdriver";
+import type { WebDriver, WebElement, By, until } from "selenium-webdriver";
 import type { ScenarioArtifacts } from "./desktop-scenario-context.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { DesktopSelection } from "../../../scripts/desktop-scenarios.mts";
@@ -111,6 +111,58 @@ export function outgoingLibraryBusyDetails(textContent: string, outgoingRoot: st
   return details;
 }
 
+interface LibraryReadObserver {
+  settled(): boolean;
+  restore(): void;
+}
+
+function installLibraryReadObserver() {
+  const runtime = window as Window & {
+    __TAURI_INTERNALS__?: { convertFileSrc(command: string, protocol: string): string };
+    __portcoveLibraryReadObserver?: LibraryReadObserver;
+  };
+  if (runtime.__portcoveLibraryReadObserver)
+    throw new Error("Library read observer already installed");
+  const bridge = runtime.__TAURI_INTERNALS__;
+  if (!bridge) throw new Error("Native bridge unavailable");
+  const targets = new Set(
+    [
+      "get_workspace_changed",
+      "get_workspace_snapshot",
+      "refresh_official_catalog_automatically",
+      "run_standing_setup",
+      "assess_port_intents",
+    ].map((command) => bridge.convertFileSrc(command, "ipc")),
+  );
+  const original = window.fetch;
+  let pending = 0;
+  let lastChange = performance.now();
+  const settle = () => {
+    pending--;
+    lastChange = performance.now();
+  };
+  const fetch: typeof window.fetch = function (this: unknown, ...args) {
+    const input = args[0];
+    const result = original.apply(this, args);
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (targets.has(url)) {
+      pending++;
+      lastChange = performance.now();
+      void result.then(settle, settle);
+    }
+    return result;
+  };
+  runtime.__portcoveLibraryReadObserver = {
+    settled: () => pending === 0 && performance.now() - lastChange >= 500,
+    restore: () => {
+      if (window.fetch !== fetch) throw new Error("Library read observer lost fetch ownership");
+      window.fetch = original;
+      delete runtime.__portcoveLibraryReadObserver;
+    },
+  };
+  window.fetch = fetch;
+}
+
 export async function librarySwitchRecoveryScenario({
   browser,
   invoke,
@@ -166,22 +218,58 @@ export async function librarySwitchRecoveryScenario({
   const trigger = By.xpath('//button[normalize-space(.)="Choose another library"]');
   const dialog = By.css('[aria-labelledby="library-selection-review-title"]');
   const selectAndReview = async (target: string, name: string) => {
-    await browser.wait(until.elementLocated(trigger), 15_000);
-    await browser.findElement(trigger).click();
-    const picker = await chooseOwnedLibrary(
-      "Choose Portcove library",
-      "Select Folder",
-      "Folder",
-      name,
-      undefined,
-      target,
-    );
-    assert.equal(canonicalPath(text(object(picker).selected_directory)), canonicalPath(target));
-    const review = await browser.wait(until.elementLocated(dialog), 15_000);
-    await browser.wait(until.elementIsVisible(review), 5_000);
-    const reviewedPath = await review.findElement(By.css("code")).getText();
-    assert.equal(canonicalPath(reviewedPath), canonicalPath(target));
-    return review;
+    await executeBrowserScript(browser, installLibraryReadObserver);
+    let observed: { review: WebElement } | { failure: unknown };
+    try {
+      await browser.wait(until.elementLocated(trigger), 15_000);
+      await browser.findElement(trigger).click();
+      const picker = await chooseOwnedLibrary(
+        "Choose Portcove library",
+        "Select Folder",
+        "Folder",
+        name,
+        undefined,
+        target,
+      );
+      assert.equal(canonicalPath(text(object(picker).selected_directory)), canonicalPath(target));
+      const review = await browser.wait(until.elementLocated(dialog), 15_000);
+      await browser.wait(until.elementIsVisible(review), 5_000);
+      const reviewedPath = await review.findElement(By.css("code")).getText();
+      assert.equal(canonicalPath(reviewedPath), canonicalPath(target));
+      // The picker returns focus, which can start a real workspace refresh.
+      // Wait inside the exact review before giving explicit switch consent.
+      await browser.wait(
+        () =>
+          executeBrowserScript(browser, () => {
+            const runtime = window as Window & {
+              __portcoveLibraryReadObserver?: LibraryReadObserver;
+            };
+            if (!runtime.__portcoveLibraryReadObserver)
+              throw new Error("Library read observer unavailable");
+            return runtime.__portcoveLibraryReadObserver.settled();
+          }),
+        60_000,
+        "The owned WebView must settle its focus-triggered library reads before switch consent",
+      );
+      observed = { review };
+    } catch (failure) {
+      observed = { failure };
+    }
+    try {
+      await executeBrowserScript(browser, () => {
+        const runtime = window as Window & {
+          __portcoveLibraryReadObserver?: LibraryReadObserver;
+        };
+        if (!runtime.__portcoveLibraryReadObserver)
+          throw new Error("Library read observer unavailable for restoration");
+        runtime.__portcoveLibraryReadObserver.restore();
+      });
+    } catch (cleanupError) {
+      if ("review" in observed) throw cleanupError;
+      console.error("Library read observer could not be restored", cleanupError);
+    }
+    if ("failure" in observed) throw observed.failure;
+    return observed.review;
   };
   const inspectSelection = async (target: string, generation: number) => {
     const result = object(await invoke("review_library_selection", { path: target, generation }));
