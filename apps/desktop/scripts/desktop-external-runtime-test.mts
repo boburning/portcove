@@ -211,8 +211,9 @@ async function verifyExternalLaunchDraft({
   const chooseExecutable = By.xpath('//button[normalize-space(.)="Choose game executable…"]');
   const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
   const inReview = (label: string) => By.xpath(`.//button[normalize-space(.)="${label}"]`);
-  const samePath = (observed: string, expected: string) =>
-    path.relative(observed.replace(/^\\\\\?\\/u, ""), expected) === "";
+  // A missing attribute is never the expected path.
+  const samePath = (observed: string | null, expected: string) =>
+    observed !== null && path.relative(observed.replace(/^\\\\\?\\/u, ""), expected) === "";
   const click = async (locator: import("selenium-webdriver").Locator) =>
     clickVisible(browser, await browser.wait(until.elementLocated(locator), 30_000));
   const assertUnregistered = async () => {
