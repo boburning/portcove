@@ -108,6 +108,9 @@ pub(crate) fn is_unknown_required_feature(error: &PortcoveError) -> bool {
         && error.details.contains_key(UNKNOWN_REQUIRED_FEATURE)
 }
 
+// Entry inspection calls this before the advisory bounds and every typed port
+// check. An unfamiliar name returns early, so a newer definition is refused as
+// needing a newer engine without first being validated by this reader.
 pub(crate) fn check_required_features(
     names: &[String],
 ) -> Result<std::collections::BTreeSet<Feature>> {

@@ -47,8 +47,11 @@ Duplicate JSON keys and additional top-level entry fields still fail.
 The index and signing envelope keep their existing closed schemas.
 
 Schemas 1 through 3 keep their existing shapes and retain their prior behavior.
-Schema 3 may point to an unchanged catalog projection contract of schema 1, 2,
-or 3. Its exact indexed bytes, including the advisory object, remain bound
+Each of those entries points to a catalog projection contract of its own
+schema. Schema 4 may point to an unchanged catalog projection contract of
+schema 1, 2, 3, or 4. A reviewed package and launch contract also needs a
+schema-3 projection, which names its single scoped subject. The entry's exact
+indexed bytes, including the advisory object, remain bound
 to authentication, retained identity, and installed contract storage. A
 reader limited to entry schemas 1 through 3 refuses a schema-4 entry, so use
 schema 4 only after the intended clients have received the reader and the
