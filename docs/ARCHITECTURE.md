@@ -1506,6 +1506,11 @@ visible alongside new events during the next bounded batch. Fresh scans, stale
 snapshots and restart-required checkpoints do not carry matches into the live
 view. These observations still require ordinary registration and Core plan
 revalidation; continuing a scan grants no additional setup authority.
+The same workspace retains the last completed one-off search for its exact
+folder and file profile. Reviewing it opens the completed report without
+another search. The Inbox and saved folders have separate results. Reopened
+matches require a fresh Core import plan for the same identity before any
+registration. Changing libraries discards the retained one-off report.
 Desktop also keeps an ephemeral selection of up to 512 independent ports (the
 Core batch bound) for setup review within the current library workspace.
 "Select all eligible" adds every currently reviewable port except ports that
