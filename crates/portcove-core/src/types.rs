@@ -1294,10 +1294,13 @@ pub struct PortListing {
     pub platforms: Vec<Platform>,
     #[serde(default)]
     pub availability: ListingAvailability,
-    /// A reviewed restriction on fresh self-service downloads only. It grants
-    /// no execution, management or permission over an existing copy.
+    /// Legacy projection of `restrictions` for older readers: the explanation
+    /// of the first hold naming Download. It grants nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub download_block_reason: Option<String>,
+    /// Typed acquisition restrictions. Requires listing format 14.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restrictions: Vec<crate::AcquisitionRestriction>,
     /// Advisory literal filename hints for an upstream-owned download. They do
     /// not authenticate a package or grant installation/execution ownership.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -2523,6 +2526,11 @@ pub struct LaunchReadiness {
     /// definition when an external runtime is registered.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_source_extension: Option<String>,
+    /// The effective active installation can use the default game-source registration
+    /// for edition artwork after fresh byte verification. Omitted when launch can
+    /// use different bytes or Core cannot establish the default's eligibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_game_source_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceHealth>,
     /// The saved game-file folder holding this game's missing or unreadable
@@ -2615,8 +2623,9 @@ pub struct UploaderContinuityRecord {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RequestCostForecast {
     /// Requests budgeted against the provider's primary rate limit. A saved
-    /// GitHub package choice budgets the bounded fresh inventory even when
-    /// cached conditional responses could lower the actual cost.
+    /// GitHub package choice budgets a typical fresh inventory (three asset
+    /// pages per release); larger releases and cached conditional responses can
+    /// make the actual cost higher or lower. The forecast is advisory.
     pub counted_requests: u32,
     /// The part of `counted_requests` that signing in would move to a higher limit.
     /// A managed-definition port deliberately sends no credential, so it never counts here.
@@ -2829,7 +2838,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+            listing_formats: vec![5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
             listing_delivery_carriers: vec![
                 "json-v1".into(),
                 crate::definition_repository::publisher_policy::listing_delivery::COMPACT_CARRIER

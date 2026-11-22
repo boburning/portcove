@@ -17,9 +17,11 @@
 //! recommend a pull, and the per-file import review still shows what changes.
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fs,
     path::{Path, PathBuf},
+    sync::{Mutex, OnceLock},
+    time::SystemTime,
 };
 
 use super::PortcoveService;
@@ -34,13 +36,31 @@ use crate::{
 const FOLDER_ROOT: &str = "portcove-saves";
 const FORMAT_DIRECTORY: &str = "v1";
 const SUPERSEDED: &str = "superseded";
-/// Saves files and set-aside markers Portcove reviews per game. Beyond this the
-/// status is incomplete rather than computed from an arbitrary subset.
-const MAX_BUNDLES: usize = 256;
 /// Raw directory entries read before giving up, counting names of any kind.
-const MAX_DIRECTORY_ENTRIES: usize = 4096;
-/// Total saves-file bytes one status read may decode.
+/// Names are small; this only bounds memory for a pathological folder. Push
+/// history is not limited by a bundle count: verified bundles are indexed.
+const MAX_DIRECTORY_ENTRIES: usize = 65_536;
+/// Saves-file bytes one status read may newly decode. Bundles already verified
+/// are reused from the index, so a larger history completes over later reads.
 const MAX_SCAN_BYTES: u64 = 256 * 1024 * 1024;
+/// Verified summaries kept in memory across reads.
+const MAX_INDEXED_BUNDLES: usize = 65_536;
+
+/// Bundles are immutable and named by their content, so a summary verified
+/// once stays valid while the file keeps the same length and modification
+/// time. Import always rereads and verifies the selected bundle in full.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct IndexKey {
+    directory: PathBuf,
+    digest: String,
+    length: u64,
+    modified: Option<SystemTime>,
+}
+
+fn summary_index() -> &'static Mutex<HashMap<IndexKey, Summary>> {
+    static INDEX: OnceLock<Mutex<HashMap<IndexKey, Summary>>> = OnceLock::new();
+    INDEX.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 fn digest_name(name: &str) -> Option<&str> {
     let digest = name.strip_suffix(".json")?;
@@ -55,6 +75,7 @@ fn valid_digest(value: &str) -> bool {
 }
 
 /// What status needs from one verified bundle; file bytes are not retained.
+#[derive(Clone)]
 struct Summary {
     identity: PortableSaveIdentity,
     content_sha256: String,
@@ -99,12 +120,14 @@ impl FolderScan {
     /// Recorded history of a bundle, following bases present in the folder.
     fn ancestors(&self, content: &str) -> Vec<String> {
         let mut found = Vec::new();
+        let mut seen = BTreeSet::new();
         let mut next = self
             .bundles
             .get(content)
             .and_then(|bundle| bundle.base_sha256.clone());
         while let Some(base) = next {
-            if found.contains(&base) || found.len() >= MAX_BUNDLES {
+            // Recorded bases are claims; a cycle ends the walk.
+            if !seen.insert(base.clone()) {
                 break;
             }
             next = self
@@ -196,25 +219,37 @@ fn scan(folder: &Path, port_id: &str) -> Result<FolderScan> {
         .iter()
         .filter(|name| digest_name(name).is_some())
         .collect();
-    if candidates.len() > MAX_BUNDLES {
-        result.complete = false;
-        result.problems.push(format!(
-            "The save folder holds more than {MAX_BUNDLES} saves files for this game; Portcove cannot review its history."
-        ));
-        return Ok(result);
-    }
     let mut decoded = 0_u64;
+    let mut deferred = false;
     for name in candidates {
         let digest = digest_name(name).unwrap_or_default();
         let path = directory.join(name);
-        decoded += fs::symlink_metadata(&path).map_or(0, |metadata| metadata.len());
-        if decoded > MAX_SCAN_BYTES {
-            result.complete = false;
+        let metadata = fs::symlink_metadata(&path).ok();
+        let key = IndexKey {
+            directory: directory.clone(),
+            digest: digest.to_owned(),
+            length: metadata.as_ref().map_or(0, fs::Metadata::len),
+            modified: metadata
+                .as_ref()
+                .and_then(|metadata| metadata.modified().ok()),
+        };
+        let indexed = summary_index()
+            .lock()
+            .ok()
+            .and_then(|index| index.get(&key).cloned());
+        if let Some(summary) = indexed.filter(|summary| summary.identity.port_id == port_id) {
             result
-                .problems
-                .push("The saves files in the folder are too large to review together.".into());
-            return Ok(result);
+                .bundles
+                .insert(summary.content_sha256.clone(), summary);
+            continue;
         }
+        // Keep reviewing names after the budget so already indexed bundles
+        // still count; only new decoding waits for a later read.
+        if deferred || decoded + key.length > MAX_SCAN_BYTES {
+            deferred = true;
+            continue;
+        }
+        decoded += key.length;
         match portable_saves::read_bundle(&path) {
             Ok(bundle) if bundle.content_sha256 == digest && bundle.identity.port_id == port_id => {
                 let Bundle {
@@ -224,15 +259,23 @@ fn scan(folder: &Path, port_id: &str) -> Result<FolderScan> {
                     files,
                     ..
                 } = bundle;
-                result.bundles.insert(
-                    content_sha256.clone(),
-                    Summary {
-                        identity,
-                        content_sha256,
-                        base_sha256,
-                        files,
-                    },
-                );
+                let summary = Summary {
+                    identity,
+                    content_sha256,
+                    base_sha256,
+                    files,
+                };
+                if key.modified.is_some()
+                    && let Ok(mut index) = summary_index().lock()
+                {
+                    if index.len() >= MAX_INDEXED_BUNDLES {
+                        index.clear();
+                    }
+                    index.insert(key, summary.clone());
+                }
+                result
+                    .bundles
+                    .insert(summary.content_sha256.clone(), summary);
             }
             Ok(_) => result
                 .problems
@@ -243,19 +286,18 @@ fn scan(folder: &Path, port_id: &str) -> Result<FolderScan> {
             )),
         }
     }
+    if deferred {
+        result.complete = false;
+        result.problems.push(
+            "Portcove is still reviewing this folder's saves history. Check again to continue."
+                .into(),
+        );
+    }
     match bounded_names(&directory.join(SUPERSEDED))? {
         Some(markers) => {
-            let markers: Vec<String> = markers
-                .into_iter()
-                .filter(|name| valid_digest(name))
-                .collect();
-            if markers.len() > MAX_BUNDLES {
-                result.complete = false;
-                result.problems.push(
-                    "The save folder holds more set-aside records than Portcove reviews.".into(),
-                );
-            }
-            result.superseded.extend(markers);
+            result
+                .superseded
+                .extend(markers.into_iter().filter(|name| valid_digest(name)));
         }
         None => {
             result.complete = false;
@@ -469,7 +511,17 @@ impl PortcoveService {
         }
         port_directory(folder, port_id)?;
         self.require_folder_outside_library(folder)?;
-        let scan = scan(folder, port_id)?;
+        // Each pass decodes a bounded amount and indexes it, so a long history
+        // finishes over several passes. Stop when a pass makes no progress.
+        let mut scan = scan(folder, port_id)?;
+        while !scan.complete {
+            let previous = scan.bundles.len();
+            let next = self::scan(folder, port_id)?;
+            if next.bundles.len() <= previous {
+                break;
+            }
+            scan = next;
+        }
         if !scan.complete {
             return Err(PortcoveError::conflict(
                 "Portcove cannot review this save folder's history completely. Import the saves file directly instead.",

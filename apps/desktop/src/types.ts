@@ -257,6 +257,7 @@ export type ApplicationUpdateProgress =
   Generated.TransportOutputs["desktop_application_update_progress"];
 
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
+export type LibrarySelectionReview = Generated.TransportOutputs["desktop_library_selection_review"];
 
 export type { LibraryMetadataFile } from "./transport-types.generated";
 
@@ -267,6 +268,11 @@ export type LibraryMoveResult = Generated.TransportOutputs["library_move_result"
 export type LibraryImportPlan = Generated.TransportOutputs["library_import_plan"];
 
 export type LibraryImportResult = Generated.TransportOutputs["library_import_result"];
+
+export type LibraryRecoveryBundle = Generated.TransportOutputs["library_recovery_bundle"];
+export type LibraryRecoveryBundlePlan = Generated.TransportOutputs["library_recovery_bundle_plan"];
+export type LibraryRecoveryRestorePlan =
+  Generated.TransportOutputs["library_recovery_restore_plan"];
 
 export type SourceDiscoveryLimits = Requests.TransportInputs["source_discovery_limits"];
 

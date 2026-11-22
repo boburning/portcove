@@ -390,7 +390,7 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     let current = read(&["--json", "catalog", "listings"]);
     let implementation = read(&["--json", "catalog", "listings", "--format-version", "12"]);
     let legacy = read(&["--json", "catalog", "listings", "--format-version", "11"]);
-    assert_eq!(current["format_version"], 13);
+    assert_eq!(current["format_version"], 15);
     assert_eq!(implementation["format_version"], 12);
     assert_eq!(legacy["format_version"], 11);
     // Consume the compiled producer's documents through the actual Core reader,
@@ -418,9 +418,21 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
             .is_some_and(|reason| !reason.is_empty())
     }));
     let mut removed_scenes = 0;
+    let mut removed_restrictions = 0;
     for (original, exported) in current_listings.iter().zip(implementation_listings) {
         let mut expected = original.clone();
         let row = expected.as_object_mut().unwrap();
+        // Readers below listing format 15 keep only the legacy download string.
+        if row.remove("restrictions").is_some() {
+            removed_restrictions += 1;
+            assert!(
+                row["download_block_reason"]
+                    .as_str()
+                    .is_some_and(|reason| !reason.is_empty()),
+                "listing {} keeps its legacy download string",
+                original["id"]
+            );
+        }
         if let Some(media) = row.get_mut("media").and_then(Value::as_array_mut) {
             let count = media.len();
             media.retain(|asset| {
@@ -437,6 +449,10 @@ fn artwork_and_implementation_export_with_explicit_legacy_reader_fences() {
     assert!(
         removed_scenes > 0,
         "the bundled catalog has reviewed IGDB scenes"
+    );
+    assert!(
+        removed_restrictions > 0,
+        "the bundled catalog has typed acquisition restrictions"
     );
     for (original, exported) in implementation_listings.iter().zip(legacy_listings) {
         assert!(exported.get("implementation").is_none());

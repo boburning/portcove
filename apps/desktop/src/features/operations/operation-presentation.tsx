@@ -9,7 +9,9 @@ type PresentationOwner = {
   pending: ReadonlyMap<number, InvocationRecord>;
   unreadInstallPorts?: ReadonlySet<string> | undefined;
   unreadExternalPorts?: ReadonlySet<string> | undefined;
+  unreadManagedRoutePorts?: ReadonlySet<string> | undefined;
   perform?: Perform | undefined;
+  sourceWriteOnHold?: ((profileId: string) => boolean) | undefined;
 };
 const OperationPresentation = createContext<PresentationOwner | null>(null);
 export function OperationPresentationProvider({
@@ -17,12 +19,30 @@ export function OperationPresentationProvider({
   pending,
   unreadInstallPorts,
   unreadExternalPorts,
+  unreadManagedRoutePorts,
   perform,
+  sourceWriteOnHold,
   children,
 }: PresentationOwner & { children: ReactNode }) {
   const owner = useMemo(
-    () => ({ generation, pending, unreadInstallPorts, unreadExternalPorts, perform }),
-    [generation, pending, unreadInstallPorts, unreadExternalPorts, perform],
+    () => ({
+      generation,
+      pending,
+      unreadInstallPorts,
+      unreadExternalPorts,
+      unreadManagedRoutePorts,
+      perform,
+      sourceWriteOnHold,
+    }),
+    [
+      generation,
+      pending,
+      unreadInstallPorts,
+      unreadExternalPorts,
+      unreadManagedRoutePorts,
+      perform,
+      sourceWriteOnHold,
+    ],
   );
   return <OperationPresentation value={owner}>{children}</OperationPresentation>;
 }
@@ -46,21 +66,28 @@ export function presentPortAction(
       })
     : undefined;
   const awaitingExternalReadback = action === "launch" && owner?.unreadExternalPorts?.has(portId);
+  const awaitingManagedReadback = owner?.unreadInstallPorts?.has(portId);
+  const managedRouteReadbackRequired = Boolean(owner?.unreadManagedRoutePorts?.has(portId));
   const reason = pending
     ? `${pending.context.action} for ${pending.context.target.label} is still in progress.`
     : awaitingExternalReadback
       ? "Refresh the library to confirm the current external launch details."
-      : undefined;
+      : action === "launch" && awaitingManagedReadback
+        ? "Refresh the library to confirm the current installation."
+        : undefined;
   return {
     readiness: portActionPresentation(status, action),
     assessment: portActionPresentation(status, action, reason),
     busy: owner ? (pending?.name ?? reason) : fallbackBusy,
     pending,
-    installReadbackRequired: Boolean(
-      action === "install" &&
-      owner?.unreadInstallPorts?.has(portId) &&
-      !status?.active &&
-      !status?.external_runtime,
-    ),
+    managedRouteReadbackRequired,
+    installReadbackRequired:
+      managedRouteReadbackRequired ||
+      Boolean(
+        action === "install" &&
+        awaitingManagedReadback &&
+        !status?.active &&
+        !status?.external_runtime,
+      ),
   };
 }

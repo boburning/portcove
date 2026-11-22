@@ -7,12 +7,40 @@ use super::*;
 #[cfg(test)]
 use crate::GithubReleaseProvider;
 use crate::PortListing;
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, Knowledge, Phase, RestrictedOperation, RestrictionSubject,
+    SubjectArtifact,
+};
 use rusqlite::{TransactionBehavior, params};
 
 const RECORD_LIMIT: usize = 64 * 1024;
 const RECORDS_LIMIT: usize = 10_000;
 const TOTAL_RECORD_BYTES: usize = 8 * 1024 * 1024;
 const RECEIPT_NAME: &str = ".portcove-download.json";
+
+/// One upstream package as a download restriction subject. An offer may judge
+/// a provider-reported digest; only the final check on downloaded bytes can
+/// let a permit decide.
+fn download_artifact_subject<'a>(
+    release_tag: &'a str,
+    asset_name: &'a str,
+    sha256: Option<&'a str>,
+    phase: Phase,
+) -> RestrictionSubject<'a> {
+    let mut subject = RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host();
+    subject.release = Knowledge::Known(release_tag);
+    if let Some(sha256) = sha256 {
+        subject = subject.artifact(SubjectArtifact {
+            version: release_tag,
+            sha256,
+            asset_name: Some(asset_name),
+        });
+    }
+    if phase == Phase::Final {
+        subject = subject.final_check();
+    }
+    subject
+}
 
 #[cfg(test)]
 #[path = "catalog_download_tests.rs"]
@@ -539,11 +567,77 @@ impl PortcoveService {
         Ok(managed_route_refusal(&status.port_actions))
     }
 
-    fn require_download_available(&self, port_id: &str) -> Result<()> {
-        crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
-        if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
-            return Err(PortcoveError::unsupported(reason.clone()));
+    fn require_download_artifact(
+        &self,
+        port_id: &str,
+        release_tag: &str,
+        asset_name: &str,
+        sha256: Option<&str>,
+        phase: Phase,
+    ) -> Result<()> {
+        EffectiveRestrictions::of(&self.catalog, port_id).require(&download_artifact_subject(
+            release_tag,
+            asset_name,
+            sha256,
+            phase,
+        ))
+    }
+
+    /// Held sibling assets leave the offer and are explained as limitations. A
+    /// provider-reported digest decides the offer only; the downloaded bytes
+    /// are checked again before anything is moved into place. The offer is
+    /// refused outright only when no release or package of this listing could
+    /// be permitted, so a permitted older release stays reachable.
+    fn withhold_restricted_candidates(
+        &self,
+        port_id: &str,
+        candidates: Vec<CatalogDownloadCandidate>,
+        mut coverage: CatalogDownloadCoverage,
+    ) -> (
+        Vec<CatalogDownloadCandidate>,
+        CatalogDownloadCoverage,
+        Option<String>,
+    ) {
+        let restrictions = EffectiveRestrictions::of(&self.catalog, port_id);
+        let mut kept = Vec::with_capacity(candidates.len());
+        let mut first = None;
+        let mut scoped = false;
+        for candidate in candidates {
+            let subject = download_artifact_subject(
+                &candidate.release_tag,
+                &candidate.name,
+                candidate.sha256.as_deref(),
+                Phase::Offer,
+            );
+            let outcome = restrictions.evaluate(&subject);
+            match outcome.explanation() {
+                Some(explanation) => {
+                    coverage
+                        .limitations
+                        .push(format!("{}: {explanation}", candidate.name));
+                    scoped |= outcome.artifact_scoped() || outcome.release_scoped();
+                    if first.is_none() {
+                        first = Some(explanation);
+                    }
+                }
+                None => kept.push(candidate),
+            }
         }
+        let refused = kept.is_empty()
+            && !scoped
+            && !restrictions.has_scoped_permit(RestrictedOperation::Download);
+        (kept, coverage, if refused { first } else { None })
+    }
+
+    fn require_download_available(&self, port_id: &str) -> Result<()> {
+        self.catalog.listing(port_id)?;
+        // Both carriers; a hold that a scoped permit may still cancel is
+        // decided per artifact in the offer and again on the actual bytes.
+        crate::acquisition_restriction::require(
+            &self.catalog,
+            port_id,
+            &RestrictionSubject::deferred(RestrictedOperation::Download).on_current_host(),
+        )?;
         if let Some(refusal) = self.listing_download_refusal(port_id)? {
             return Err(PortcoveError::unsupported(refusal.message())
                 .detail("refusal", enum_value(refusal)?));
@@ -622,7 +716,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, None, None, None)
+        self.catalog_download_options_inner(port_id, None, None, None, None)
             .await
     }
 
@@ -640,8 +734,27 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: ReleaseChannel,
     ) -> Result<CatalogDownloadCandidates> {
-        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None)
+        self.catalog_download_options_inner(port_id, selected_release_id, Some(channel), None, None)
             .await
+    }
+
+    /// As `catalog_download_options`, listing the newest `release_window`
+    /// releases (10 to 1,000) so older releases can be chosen in the workflow.
+    pub async fn catalog_download_options_window(
+        &self,
+        port_id: &str,
+        selected_release_id: Option<CatalogDownloadReleaseId>,
+        channel: ReleaseChannel,
+        release_window: usize,
+    ) -> Result<CatalogDownloadCandidates> {
+        self.catalog_download_options_inner(
+            port_id,
+            selected_release_id,
+            Some(channel),
+            None,
+            Some(release_window),
+        )
+        .await
     }
 
     #[cfg(test)]
@@ -658,6 +771,7 @@ impl PortcoveService {
             selected_release_id.map(Into::into),
             channel,
             provider.as_ref(),
+            None,
         )
         .await
     }
@@ -668,6 +782,7 @@ impl PortcoveService {
         selected_release_id: Option<CatalogDownloadReleaseId>,
         channel: Option<ReleaseChannel>,
         provider: Option<&CatalogDownloadProvider>,
+        release_window: Option<usize>,
     ) -> Result<CatalogDownloadCandidates> {
         let channel = channel.unwrap_or(self.catalog_download_channel(port_id)?);
         let listing = self.catalog.listing(port_id)?;
@@ -729,7 +844,9 @@ impl PortcoveService {
         // Shared observations only serve the non-managed browse window. They never
         // enter the managed release resolver or the exact preview/download path.
         let observed = match provider {
-            CatalogDownloadProvider::Github(provider) if self.catalog.port(port_id).is_err() => {
+            CatalogDownloadProvider::Github(provider)
+                if self.catalog.port(port_id).is_err() && release_window.is_none() =>
+            {
                 provider
                     .observed_catalog_download_options(
                         listing,
@@ -755,10 +872,17 @@ impl PortcoveService {
                         channel,
                         rolling_tag,
                         github_other_stream_prefixes,
+                        release_window,
                     )
                     .await?
             }
         };
+        let (candidates, coverage, refused) =
+            self.withhold_restricted_candidates(port_id, candidates, coverage);
+        if let Some(reason) = refused {
+            result.reason = Some(reason);
+            return Ok(result);
+        }
         result.releases = releases;
         result.selected_release_id = selected.clone();
         let hints = definition
@@ -927,14 +1051,13 @@ impl PortcoveService {
                 "upstream digest conflicts with this exact artifact's known checksum; self-service cannot bypass that failure",
             ));
         }
-        if let Some(digest) = artifact.sha256.as_deref().or(expected.as_deref()) {
-            crate::managed_runtime_policy::require_artifact_available(
-                &self.catalog,
-                &request.port_id,
-                &artifact.release_tag,
-                digest,
-            )?;
-        }
+        self.require_download_artifact(
+            &request.port_id,
+            &artifact.release_tag,
+            &artifact.name,
+            artifact.sha256.as_deref().or(expected.as_deref()),
+            Phase::Offer,
+        )?;
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
             request,
@@ -1178,11 +1301,13 @@ impl PortcoveService {
                         .detail("actual", &archive_sha256));
                     }
                 }
-                crate::managed_runtime_policy::require_artifact_available(
-                    &self.catalog,
+                // The downloaded bytes, not the provider report, decide a permit.
+                self.require_download_artifact(
                     &request.port_id,
                     &record.artifact.release_tag,
-                    &archive_sha256,
+                    &record.artifact.name,
+                    Some(&archive_sha256),
+                    Phase::Final,
                 )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()

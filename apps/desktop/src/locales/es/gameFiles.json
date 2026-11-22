@@ -213,6 +213,20 @@
     "managedInstall": "Configuración administrada",
     "managedLaunch": "Inicio administrado"
   },
+  "savedScan": {
+    "checking": "Comprobando el análisis guardado…",
+    "dismiss": "Descartar el resultado del análisis",
+    "failed": "Portcove no pudo comprobar este análisis.",
+    "heading": "Análisis de carpetas guardadas",
+    "label": "Resultados del análisis de carpetas guardadas",
+    "partial": "Se guardaron los resultados parciales del análisis.",
+    "progress": "Se guardó el progreso del análisis.",
+    "retry": "Volver a comprobar este análisis",
+    "review": "Revisar el análisis guardado",
+    "saved": "Se guardaron los resultados del análisis de carpetas.",
+    "showCurrent": "Ver resultados actuales de las carpetas",
+    "unavailable": "Este análisis ya no está disponible con sus resultados y ajustes originales."
+  },
   "setupReviews": {
     "add": "Agregar {{total}} seleccionados a la Biblioteca",
     "choiceNote_one": "Un juego tiene más de una versión que puede usar los mismos archivos. Selecciona la versión que quieras; seleccionar todas las deja fuera.",

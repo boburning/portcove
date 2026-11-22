@@ -207,13 +207,23 @@ void test("discovery joins a dispatched quota probe's cancellation and accountin
 
 void test("hosted production composition routes canonical issue writes to the repository role and Project mutations to the Project role", async () => {
   const { connectHostedGitHub } = await import("./hosted-discovery-intake.mts");
-  const { config } = await import("./fixtures/roadmap-fixtures.mts");
+  const { config, projectData, scopedIssueItemData } =
+    await import("./fixtures/roadmap-fixtures.mts");
   const { fixtureIssueInventory } = await import("./repository-issue-inventory.fixture.mts");
-  const { portFieldInitialization } = await import("./roadmap.mts");
   const { isRecord } = await import("./runtime-values.mts");
   const events: { method: string; path: string; credential: string | null }[] = [];
   let body = "",
-    title = "[Port] Role fixture";
+    title = "[Port] Role fixture",
+    scopedReads = 0,
+    fieldMutations = 0;
+  const assignedFields = { "Port stage": "Researching" };
+  const projectFields = config.fields.map((field, index) => ({
+    __typename: "ProjectV2SingleSelectField",
+    dataType: "SINGLE_SELECT",
+    id: `F${index}`,
+    name: field.name,
+    options: field.options.map((name, option) => ({ id: `O${index}_${option}`, name })),
+  }));
   const issue = () => ({
     id: 42,
     node_id: "I42",
@@ -242,8 +252,35 @@ void test("hosted production composition routes canonical issue writes to the re
         });
         const sent: unknown = typeof init?.body === "string" ? JSON.parse(init.body) : null;
         let data: unknown;
-        if (url.pathname === "/graphql") data = { data: {} };
-        else if (method === "POST" || method === "PATCH") {
+        if (url.pathname === "/graphql") {
+          assert.ok(isRecord(sent) && typeof sent.query === "string");
+          if (sent.query.includes("projectV2(number:")) {
+            data = { data: projectData("PVT", config.project.number, projectFields) };
+          } else if (sent.query.includes("query ScopedProjectItem")) {
+            assert.deepEqual(sent.variables, { id: "PVTI" });
+            scopedReads++;
+            data = { data: scopedIssueItemData("PVT", "PVTI", issue(), assignedFields) };
+          } else {
+            assert.match(sent.query, /updateProjectV2ItemFieldValue/u);
+            assert.ok(isRecord(sent.variables));
+            fieldMutations++;
+            for (const input of Object.values(sent.variables)) {
+              assert.ok(isRecord(input) && isRecord(input.value));
+              assert.equal(input.projectId, "PVT");
+              assert.equal(input.itemId, "PVTI");
+              const field = projectFields.find(({ id }) => id === input.fieldId);
+              assert.ok(field);
+              assert.notEqual(field.name, "Port stage");
+              const optionId = input.value.singleSelectOptionId;
+              const option = field.options.find(({ id }) => id === optionId);
+              assert.ok(option);
+              Object.assign(assignedFields, { [field.name]: option.name });
+            }
+            data = { data: {} };
+          }
+        } else if (method === "GET" && url.pathname === `/users/${config.owner}`) {
+          data = { type: "User", node_id: "OWNER_fixture" };
+        } else if (method === "POST" || method === "PATCH") {
           assert.ok(isRecord(sent) && typeof sent.body === "string");
           body = sent.body;
           if (typeof sent.title === "string") title = sent.title;
@@ -260,13 +297,12 @@ void test("hosted production composition routes canonical issue writes to the re
   client.projectContext = async () => ({
     number: config.project.number,
     details: { id: "PVT" },
-    fields: config.fields.map((field, index) => ({
-      id: `F${index}`,
-      name: field.name,
-      options: field.options.map((name, option) => ({ id: `O${index}_${option}`, name })),
-    })),
+    fields: projectFields,
   });
-  client.ensureIssueItem = async () => ({ id: "PVTI" });
+  client.ensureIssueItem = async (contentId) => {
+    assert.equal(contentId, "I42");
+    return { id: "PVTI" };
+  };
   await client.createPortIssue({
     title: "Role fixture",
     upstream: "https://github.com/example/role-fixture",
@@ -275,17 +311,16 @@ void test("hosted production composition routes canonical issue writes to the re
   body =
     "### Direct upstream URL\n\nhttps://github.com/example/role-fixture\n\n### Durable game or target key\n\nrole-fixture\n\n### User outcome and why this port matters\n\nPreserve role routing.";
   client.readInventory = async () => [{ id: "PVTI", project: { id: "PVT" }, isArchived: false }];
-  client.directProjectItem = async () => ({
-    id: "PVTI",
-    content: { id: "I42", number: 42, title, body, state: "OPEN", url: issue().html_url },
-    fieldValues: Object.entries(portFieldInitialization(null)).map(([name, value]) => ({
-      name: value,
-      field: { name },
-    })),
-  });
-  await client.normalizePortIssue({ number: 42, catalog: { ports: [] } });
-  assert.ok(events.some((event) => event.method === "PATCH"));
-  assert.ok(events.some((event) => event.path === "/graphql"));
+  const normalized = await client.normalizePortIssue({ number: 42, catalog: { ports: [] } });
+  assert.equal(normalized.itemId, "PVTI");
+  assert.equal(normalized.projectItemAdded, false);
+  assert.equal(normalized.bodyChanged, true);
+  assert.deepEqual(normalized.fieldsChanged, []);
+  assert.equal(scopedReads, 3);
+  assert.equal(fieldMutations, 1);
+  assert.equal(assignedFields["Port stage"], "Researching");
+  assert.ok(events.some((event) => event.method === "POST" && event.path.endsWith("/issues")));
+  assert.ok(events.some((event) => event.method === "PATCH" && event.path.endsWith("/issues/42")));
   for (const event of events)
     assert.equal(
       event.credential,

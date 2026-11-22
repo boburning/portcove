@@ -271,6 +271,7 @@ impl PortcoveService {
             pending_setup: false,
             preparation_mode: None,
             required_source_extension: None,
+            active_game_source_profile: None,
             source: None,
             source_folder_unavailable: None,
             bios: None,
@@ -292,6 +293,7 @@ impl PortcoveService {
             availability: PortActionAvailability::NotOffered,
             reason: PortActionReason::RouteNotOffered,
             definition: None,
+            restriction: None,
         })
         .collect();
         let launchable = status
@@ -334,6 +336,7 @@ impl PortcoveService {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             });
         }
         status

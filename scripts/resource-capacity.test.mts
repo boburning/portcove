@@ -1371,6 +1371,7 @@ void test("a local command can extend both checkout scans within a finite bound"
   for (const [override, budget] of [
     [undefined, 30_000],
     ["120", 120_000],
+    ["480", 480_000],
   ] as const) {
     logs.length = 0;
     const lease = await acquireSourceBoundCapacity(
@@ -1388,17 +1389,35 @@ void test("a local command can extend both checkout scans within a finite bound"
     );
   }
   logs.length = 0;
-  for (const invalid of ["", "29", "121", "1e2", "120.0"]) {
+  for (const invalid of ["", "29", "481", "600", "1e2", "480.0"]) {
     await assert.rejects(
       acquireSourceBoundCapacity(
         "analysis",
         { workspace },
         { ...options, environment: { ...options.environment, [key]: invalid } },
       ),
-      /must be an integer from 30 to 120/u,
+      /must be an integer from 30 to 480/u,
     );
   }
-  assert.deepEqual(logs, []);
+  assert.equal(logs.length, 0);
+
+  const occupied = await acquireResourceCapacity("maintenance", {}, options);
+  try {
+    await assert.rejects(
+      acquireSourceBoundCapacity(
+        "analysis",
+        { workspace },
+        { ...options, waitMs: 0, environment: { ...options.environment, [key]: "480" } },
+      ),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+    assert.deepEqual(
+      logs.filter((line) => line.startsWith("Resource checkout scan started")),
+      ["Resource checkout scan started (before admission); budget 480000 ms"],
+    );
+  } finally {
+    await occupied.release();
+  }
   assert.equal((await observeCapacity({ root })).running.length, 0);
 });
 

@@ -86,14 +86,21 @@ export function useBootstrapState(chooseLibraryFolder: ChooseLibraryFolder = pic
     }
   };
 
-  const switchLibrary = (path: string, accepted?: (generation: number) => void) =>
-    selectLibrary(() => desktopApi.setDefaultLibrary(path), accepted);
+  const switchLibrary = (path: string, accepted?: (generation: number) => void, review?: string) =>
+    selectLibrary(
+      () =>
+        review ? desktopApi.setDefaultLibrary(path, review) : desktopApi.setDefaultLibrary(path),
+      accepted,
+    );
   const chooseLibrary = (currentPath = "") =>
     selectLibrary(async (current) => {
       const path = await chooseLibraryFolder(currentPath);
       return path && current() ? desktopApi.setDefaultLibrary(path) : undefined;
     });
-  const resetLibrary = (accepted?: (generation: number) => void) =>
-    selectLibrary(() => desktopApi.resetDefaultLibrary(), accepted);
+  const resetLibrary = (accepted?: (generation: number) => void, review?: string) =>
+    selectLibrary(
+      () => (review ? desktopApi.resetDefaultLibrary(review) : desktopApi.resetDefaultLibrary()),
+      accepted,
+    );
   return { ...state, recoveryPending, switchLibrary, chooseLibrary, resetLibrary };
 }

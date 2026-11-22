@@ -15,8 +15,9 @@ use crate::{
 pub const JAKMODS_SETUP_URL: &str = "https://jakmods.dev/#installation";
 const SOURCE: &str = "https://jakmods.dev/";
 const FEED: &str = "https://jakmods.dev/mods.json";
-const MAX_PROJECTS: usize = 512;
-const MAX_RELEASES: usize = 256;
+// The feed is read whole under the shared provider response bound, so every row
+// is projected. A row count is not a coverage limit: truncating before game
+// filtering or date ordering let unrelated or older rows hide eligible ones.
 
 /// Library clones share provider backoff when the host opens a new read service.
 #[derive(Debug, Clone, Default)]
@@ -289,9 +290,9 @@ fn parse_releases(value: &Value, game: &str) -> (Vec<JakModsRelease>, bool) {
     let Some(rows) = value.as_array() else {
         return (vec![], false);
     };
-    let mut complete = rows.len() <= MAX_RELEASES;
+    let mut complete = true;
     let mut releases = Vec::new();
-    for row in rows.iter().take(MAX_RELEASES) {
+    for row in rows {
         let Some(games) = scope(&row["supportedGames"]) else {
             complete = false;
             continue;
@@ -355,9 +356,9 @@ fn project_feed(
     let rows = value["mods"]
         .as_object()
         .ok_or_else(|| PortcoveError::verification("JakMods feed has no mod inventory"))?;
-    let mut complete = rows.len() <= MAX_PROJECTS;
+    let mut complete = true;
     let mut projects = Vec::new();
-    for (id, row) in rows.iter().take(MAX_PROJECTS) {
+    for (id, row) in rows {
         let Some(supported_games) = scope(&row["supportedGames"]) else {
             complete = false;
             continue;

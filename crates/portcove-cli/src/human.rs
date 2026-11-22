@@ -4432,6 +4432,7 @@ mod tests {
             safety_backup_will_be_created: true,
             retained_runtime_copy_will_be_deleted: false,
             preview_sha256: "b".repeat(64),
+            restore_target_sha256: None,
         }
     }
 
@@ -4501,6 +4502,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingData,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4510,6 +4512,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingBackup,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4525,6 +4528,7 @@ mod tests {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             })
         };
         assert!(
@@ -4814,6 +4818,7 @@ mod tests {
                     availability: state,
                     reason,
                     definition: None,
+                    restriction: None,
                 };
                 let before = serde_json::to_value(assessment).unwrap();
                 let rendered = super::status_action(&assessment);
@@ -4876,6 +4881,7 @@ mod tests {
                     outcome: DefinitionEligibilityOutcome::Hold,
                     reason,
                 }),
+                restriction: None,
             };
             let value = serde_json::to_value(assessment).unwrap();
             let rendered = super::status_action(&assessment);
@@ -4943,6 +4949,7 @@ mod tests {
                 availability: portcove_core::PortActionAvailability::Waiting,
                 reason: portcove_core::PortActionReason::ReviewRequired,
                 definition: None,
+                restriction: None,
             });
         let output = super::statuses(
             &[empty, assessed.clone()],

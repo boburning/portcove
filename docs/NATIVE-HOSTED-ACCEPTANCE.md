@@ -224,6 +224,13 @@ separate where required by the owning issue.
 
 ## Fixed owned product workflow selections
 
+The standalone `native-managed-copy-result` case uses the existing install fixture and an
+owned external registration. It observes the real reviewed transition, verifies
+one download and one Core install outcome, and checks that the original
+external executable and save remain byte-identical. The completed receipt must
+survive navigation and open the exact current game without launching it. The
+CLI seeds the registration. This case verifies the Desktop transition and receipt.
+
 The manual `product-workflows` operation uses the same clean-source, interactive
 standard public Windows setup and native runner as `presentation`. A source-owned
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
@@ -327,8 +334,11 @@ successful launch, and the backup review's wait to close after a deletion, are c
 from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
 update review after Check for updates and after Update now, and for the ready detail cover
 to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
-includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
-selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+includes the preparation journey gets a 20-minute harness watchdog instead of 10.
+The standalone selected-setup completion journey gets 15 minutes. Linux job 137029418197
+confirmed successful preparation before the 10-minute harness deadline stopped the
+driver during the remaining readback. This budget includes restart and owned cleanup.
+The wait for the
 rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
 diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
 20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
@@ -338,7 +348,11 @@ run 43616138586 measured debug-build capability reads at 12-15 s, update plans a
 about 10 s and workspace snapshots at 6-15 s. The game update review's release and
 keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
 from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
-300 s and 180 s to 600 s. The wait for a settled update outcome to close its observation
+300 s and 180 s to 600 s. The install-refresh retry now allows 60 s for the exact game’s Ready to play
+state. Hosted job 136875392758 retained one successful transfer and install,
+but was still refreshing at the old 15 s limit. The existing no-replay
+assertions and application timing stay in force.
+The wait for a settled update outcome to close its observation
 review is calibrated from 5 s to 60 s: the review closes after the outcome's
 workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. The waits for a
 supplied update outcome to render after Apply and to show its summary are calibrated
@@ -363,6 +377,13 @@ retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
 observable; Server 2022 with a provisioned runtime is not the Windows 11 26H2
 first-beta baseline.
+In hosted Windows job 136791041548, install recovery transferred and installed
+the exact fixture once. Retrying the workspace read reached Ready to play, then
+the harness rejected the read-only CLI handoff context requested by game details.
+The retry assertion now accepts that exact read. It still requires a workspace
+snapshot and one installation command and transfer. The update-acquisition
+scenario never ran in that job.
+
 The update-acquisition group also observes #4879's automatic snapshot surfaces
 after its real activating update of a played fixture: the review and rollback
 copy, exactly one Core snapshot labelled with the from/to versions that holds the
@@ -384,10 +405,17 @@ These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated
 synthetic profile and qualification-only closed-client observation; no actual
-Steam client is launched. External-runtime registration uses inert executable
-bytes and never claims to launch that game. Controlled read failures and injected
-input observations retain their fixture labels. No private originals, real user
-profile, release signing or physical controller are required by this selection.
+Steam client is launched. The external-runtime review uses inert executable
+bytes. It checks that cancelling a native relink keeps the checked candidate,
+changed files require a fresh check, and explicit consent changes the same
+registration to the reviewed folder. Relinking and removing the registration
+preserve files in both folders. The scenario does not launch the fixture.
+Before opening removal after relink, the harness allows 60 seconds for the
+visible, enabled action to return after the renderer reads the same registration.
+The independent Core and file checks still run before removal.
+Controlled read failures and injected input observations retain their fixture
+labels. No private originals, real user profile, release signing or physical
+controller are required by this selection.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
