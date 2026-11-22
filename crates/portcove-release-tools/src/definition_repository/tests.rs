@@ -1701,7 +1701,9 @@ fn without_a_prior_compact_target_listing_admission_matches_main() {
         decoded_sha256: sha(&prior),
         withdrawn_ids: ["gone".to_owned()].into(),
     };
-    let candidates: Vec<(Option<Vec<u8>>, Option<Vec<u8>>)> = vec![
+    // Each proposal: its legacy target and, when present, its decoded compact body.
+    type Proposal = (Option<Vec<u8>>, Option<Vec<u8>>);
+    let candidates: Vec<Proposal> = vec![
         (Some(prior.clone()), None),
         (Some(legacy(6, &["gone"], None)), None),
         (Some(legacy(6, &["gone"], Some("Held"))), None),
