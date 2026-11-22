@@ -1335,7 +1335,7 @@ function LibraryEntry({
   organizationMenu: ReactNode;
 }) {
   const { element: artworkElement, visible, priority } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(presentationPort.id, "cover", visible, priority);
+  const { display: artwork } = useArtwork(port.id, "cover", visible, priority);
   const artworkNotice = artworkDisplayNotice(artwork);
   const title = gameTitle(presentationPort);
   const project = gameProjectLabel(port);
@@ -1367,7 +1367,7 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
-            portId={presentationPort.id}
+            portId={port.id}
             visible={visible}
             priority={priority}
             identityArtwork
