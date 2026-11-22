@@ -1492,7 +1492,7 @@ export function InstallationVersionSummary({
             <Icon glyph={ArrowRight} className="detail-version-direction" />
             <div className="detail-version-candidate">
               <p className="detail-version-label">
-                {status.staged ? "Prepared update" : "Available at last check"}
+                {status.staged ? "Update saved for later" : "Available at last check"}
               </p>
               <strong>{candidate}</strong>
               {channelChip(status.staged?.channel ?? selectedChannel)}
@@ -1503,7 +1503,7 @@ export function InstallationVersionSummary({
       </div>
       {status.staged && (
         <p className="detail-version-context">
-          Apply uses this prepared copy.
+          Using the update saved for later does not download it again.
           {status.active && " Portcove keeps the current version for rollback."}
         </p>
       )}
@@ -1523,7 +1523,7 @@ export function InstallationVersionSummary({
       )}
       {status.staged && checked?.update_available && !checkedUpdateMatchesStaged(status) && (
         <p className="detail-version-context">
-          Latest release at last check: {checked.release.version}. The prepared update above is a
+          Latest release at last check: {checked.release.version}. The update saved for later is a
           separate candidate.
         </p>
       )}

@@ -1052,7 +1052,7 @@ it.each([
   },
 );
 
-it("routes the prepared update to the existing activation review owner", async () => {
+it("routes the update saved for later to the existing activation review owner", async () => {
   const port = portDefinition();
   const active = installRecord({ port_id: port.id });
   const activate = vi.fn();
@@ -1072,7 +1072,7 @@ it("routes the prepared update to the existing activation review owner", async (
   );
   await page.getByRole("tab", { name: "Versions & updates", exact: true }).click();
   const summary = page.getByRole("region", { name: "Installation and release versions" });
-  await expect.element(summary.getByText("Prepared update", { exact: true })).toBeVisible();
+  await expect.element(summary.getByText("Update saved for later", { exact: true })).toBeVisible();
   await summary.getByRole("button", { name: "Apply update · 2.0", exact: true }).click();
   expect(activate).toHaveBeenCalledOnce();
   expect(page.getByRole("button", { name: "Update now", exact: true }).query()).toBeNull();

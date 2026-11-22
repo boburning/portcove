@@ -1241,7 +1241,7 @@ Prepare for later remains an advanced choice. An entry action requests the Core
 plan before confirmation. Inside review, Core's matching archive digest enables an
 explicit archive download from the release and file details already displayed.
 Core revalidates that digest before downloading. Versions labels a staged
-runtime as a prepared update and keeps it distinct from a stored archive.
+runtime “Update saved for later” and keeps it distinct from a stored archive.
 An unavailable installation read does not imply an uninstalled game.
 For player-selected launch details, Versions explains external ownership
 without showing the internal registration version. Compact mode and saved policy
