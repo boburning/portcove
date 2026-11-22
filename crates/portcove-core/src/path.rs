@@ -43,6 +43,8 @@ pub(crate) fn windows_ordinal_names_equal(left: &std::ffi::OsStr, right: &std::f
 /// Join a declared `/`-separated relative path under `root` one component at a
 /// time. A raw join keeps `/` inside the component on Windows, which the
 /// extended (`\\?\`) namespace used for atomic publication treats literally.
+/// Callers must pass an already-validated relative path: confinement (no
+/// rooted, prefixed, empty or `..` components) is enforced upstream, not here.
 pub(crate) fn join_relative(root: &Path, relative: &str) -> std::path::PathBuf {
     relative
         .split('/')
@@ -223,9 +225,16 @@ fn ancestor_check_propagates_metadata_errors() {
 fn relative_joins_use_only_native_separators_under_extended_roots() {
     use std::path::{Component, MAIN_SEPARATOR};
     let foreign = if MAIN_SEPARATOR == '/' { '\\' } else { '/' };
-    let root = Path::new(r"\\?\D:\a\_temp\library\user\port")
-        .components()
-        .collect::<std::path::PathBuf>();
+    // A canonical temporary root is an extended (`\\?\`) disk root on Windows.
+    let temporary = tempfile::tempdir().unwrap();
+    let root = std::fs::canonicalize(temporary.path())
+        .unwrap()
+        .join("port");
+    #[cfg(windows)]
+    assert!(matches!(
+        root.components().next(),
+        Some(Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::VerbatimDisk(_))
+    ));
     let joined = join_relative(&root, "DaggerfallUnity_Data/StreamingAssets/Mods");
     let suffix = joined
         .strip_prefix(&root)

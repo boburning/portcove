@@ -4324,8 +4324,17 @@ fn dfu_mods_root_is_composed_from_native_components() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("interkarma-daggerfall-unity").unwrap();
     let loader = crate::profile_loader::configured_loader(port).unwrap();
-    // A literal extended-namespace Windows user root, as atomic publication uses.
-    let user = Path::new(r"\\?\D:\a\_temp\library\user").join("interkarma-daggerfall-unity");
+    // A canonical temporary root is an extended (`\\?\`) disk root on Windows,
+    // as atomic publication uses.
+    let temporary = tempfile::tempdir().unwrap();
+    let user = std::fs::canonicalize(temporary.path())
+        .unwrap()
+        .join("interkarma-daggerfall-unity");
+    #[cfg(windows)]
+    assert!(matches!(
+        user.components().next(),
+        Some(Component::Prefix(prefix)) if matches!(prefix.kind(), std::path::Prefix::VerbatimDisk(_))
+    ));
     let layout = Layout::for_user(&user)
         .with_loader(loader)
         .for_dfu_platform(crate::Platform::WindowsX86_64);
