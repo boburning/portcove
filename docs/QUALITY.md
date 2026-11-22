@@ -461,9 +461,16 @@ A pass under a larger budget proves completion under that budget.
 
 Windows run `44903098663`, attempt 1, hit the 120-second Nextest limit on
 the additive Sonic settings lifecycle and the three-update MStan SNES fixture.
-Neither run reported an assertion failure before its cutoff. Each Windows case
-has a 240-second limit with the same assertions, cleanup and retry policy.
-Completion under the new limit still needs a hosted run.
+Neither run reported an assertion failure before its cutoff. The MStan case
+has a 240-second Windows limit with the same assertions, cleanup and retry
+policy. The Sonic case still reached only its final restore when run
+`44960117848` cut it at 240 seconds. Its time came from the shared
+compatible-archive fixture catalog: it retained every embedded port's source
+data, and each backup, activation and restore reprocessed it. #8478 keeps only
+the port under test. Windows run `45042553290`, attempt 1, then passed the
+additive case in 13.7 seconds and every `compatible_archive_progression_*` and
+`reviewed_archive_transition_*` case in 3.7 to 11.6 seconds, so those families
+use the 120-second default again.
 
 On November 21, two guarded WSL commands hit the 30-second checkout scan
 deadline before starting their payloads. One read-only scan of the #8115
@@ -701,6 +708,8 @@ Run 43244946189 attempt 1 then terminated
 budget (421.091 seconds, no failed assertion) in an 898-second Windows partition
 6, so MMX2 now also has 600 seconds (5s × 120) with zero retries; Super Metroid
 stays at 420. Every phase and assertion is unchanged.
+These transition budgets were removed when the shared fixture catalog shrank
+to the port under test (see the additive Sonic record above).
 
 `service::native_portable::tests::ready_staged_archive_observed_lifecycle_cases`
 has an exact Windows override that went from 270 seconds (5s × 54) to
