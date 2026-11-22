@@ -272,6 +272,32 @@ export async function libraryRecoveryBundleScenario({
     assert.equal(afterStale.id, initial.id);
     await close();
 
+    // A failed reviewed transfer still reopens the source with a new
+    // generation. Core being open is earlier than its workspace read settling.
+    await selectPrimaryNavigation(browser, "Library");
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (id) => {
+            const cards = document.querySelectorAll(
+              '.collection-entry button[data-detail-game-id="' + CSS.escape(id) + '"]',
+            );
+            const card = cards[0];
+            return (
+              cards.length === 1 &&
+              card !== undefined &&
+              card.getClientRects().length > 0 &&
+              !card.closest("[hidden], [inert]")
+            );
+          },
+          portId,
+        ),
+      60_000,
+      "The reopened source must render its exact installed game before a new bundle review",
+    );
+    assert.deepEqual(await identity(source), afterStale);
+
     controls = await location();
     await controls.click(controls.button("Create recovery bundle"));
     await field("New bundle folder", bundle);
