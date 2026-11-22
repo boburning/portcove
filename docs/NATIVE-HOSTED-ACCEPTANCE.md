@@ -76,7 +76,10 @@ scenario or command.
 Each isolated job checks the interactive session before provisioning, installs
 the source-pinned native prerequisites, uses a fresh application target and runs
 the maintained harness with clean source. The host-publication source also runs
-its four qualification checkpoint unit tests before native execution.
+its four qualification checkpoint unit tests before native execution. Within the existing
+checkpoint discovery window, the harness waits for its wall clock to reach the recorded Core
+entry time. It checks the marker identity and requires more than 30 seconds of the pause to
+remain before proceeding with the owned process interruption.
 
 These are feasibility observations until actual native receipts and positive
 process closure are independently reviewed. The 90-minute job allocation changes
@@ -375,20 +378,48 @@ holding the current saves. The fixture save does not change between the update a
 the rollback, so the snapshot's bytes alone do not distinguish it from the update
 snapshot; its distinct identity and rollback label do. These are owned fixture observations, not real-save (#48) or human-comprehension acceptance.
 
+The first update acquisition starts from the existing activation review. The
+harness compares the real archive-only review digest, checks the displayed
+archive and source, and expects the held transfer after a single action from
+that review. Later acquisitions retain the standalone download-review route.
+
 These scenarios exercise real Core/native mutations in disposable first-party
 fixtures. Streamed installation/update bytes, owned process launch and native
 backup/restore/removal remain distinct from gameplay. Steam uses an isolated
 synthetic profile and qualification-only closed-client observation; no actual
-Steam client is launched. External-runtime registration uses inert executable
-bytes and never claims to launch that game. Controlled read failures and injected
-input observations retain their fixture labels. No private originals, real user
-profile, release signing or physical controller are required by this selection.
+Steam client is launched. The external-runtime review uses inert executable
+bytes. It checks that cancelling a native relink keeps the checked candidate,
+changed files require a fresh check, and explicit consent changes the same
+registration to the reviewed folder. Relinking and removing the registration
+preserve files in both folders. The scenario does not launch the fixture.
+Before opening removal after relink, the harness allows 60 seconds for the
+visible, enabled action to return after the renderer reads the same registration.
+The independent Core and file checks still run before removal.
+Controlled read failures and injected input observations retain their fixture
+labels. No private originals, real user profile, release signing or physical
+controller are required by this selection.
 
 Every group keeps the existing bounded evidence codec and one-run rule. Splitting
 coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
+
+## Reviewed screenshot display
+
+Run the opt-in Windows case with
+`just desktop-verify --scenario native-reviewed-screenshot-display --require-clean`.
+The source must embed reviewed typed IGDB screenshots. The run disables automatic
+catalog refresh in its isolated preferences, verifies embedded catalog delivery and
+compares the effective screenshot inventory with the tracked listing source. The
+normal app opens each exact port through Discover, chooses its original release
+when applicable,
+and compares the decoded gallery image with Core's cache-only read of the exact
+admitted asset. The run retains the viewer screenshots and a report of media IDs,
+digests, scope and decoded geometry. It checks Escape returns focus to the same
+port's gallery. It requires live image access on a cold cache and does not use a
+provider key. A bundled directory result leaves signed delivery and released
+client acceptance open.
 
 ## Hosted installed application update
 

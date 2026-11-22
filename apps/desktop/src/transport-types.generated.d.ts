@@ -332,6 +332,7 @@ export type IgdbArtworkMatch = "port" | "underlying-game";
  * The version change an automatic snapshot protects.
  */
 export type VersionChangeKind = "update" | "activation" | "rollback";
+export type BackupRecoveryReview = "legacy_install_and_data_v1";
 /**
  * Public reviewed backup actions; persisted manifests remain an implementation detail.
  *
@@ -791,6 +792,13 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
+/**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+export type JakModsBuildStatus = "available" | "unavailable" | "unknown" | "external";
+export type JakModsProjectKind = "open_goal_build" | "external";
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
@@ -986,11 +994,6 @@ export type ProfileRecoveryProgress = "keep_current";
  * Why a provider's eligibility flag could not be determined.
  */
 export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
-/**
- * How current an observation is. A confirmed empty result is `Fresh`; an outage
- * that falls back to earlier data is `Stale`, never an empty list.
- */
-export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
 export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
@@ -1320,6 +1323,7 @@ export interface TransportOutputs {
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
+  jakmods_catalog: OutputJakmodsCatalog;
   launch_request: OutputLaunchRequest;
   launcher_library_inventory: OutputLauncherLibraryInventory;
   library_identity: LibraryIdentity;
@@ -2221,6 +2225,10 @@ export interface BackupRecord {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -2363,6 +2371,10 @@ export interface OutputCapabilities {
    */
   engine_templates: EngineTemplateCapability[];
   failure_isolated_batches: string[];
+  /**
+   * Independently negotiated signed-directory transport representations.
+   */
+  listing_delivery_carriers?: string[];
   listing_formats?: number[];
   machine_formats: string[];
   /**
@@ -2453,6 +2465,10 @@ export interface PortDefinition {
    */
   managed_shared_preferences_save_id?: string | null;
   manually_validated_platforms: Platform[];
+  /**
+   * Versioned native loader facts admitted with this exact definition.
+   */
+  mod_loader?: ModLoaderBinding | null;
   mod_package_policy?: ModPackagePolicy | null;
   /**
    * Provider coordinates reviewed alongside the existing mod loader contract.
@@ -2672,6 +2688,21 @@ export interface ReviewedHoldArtifact {
   version: string;
 }
 /**
+ * Native mod admission bound to a reviewed upstream runtime and platform.
+ */
+export interface ModLoaderBinding {
+  contract: LoaderContractRef;
+  minimum_version: string;
+  native_game?: string | null;
+  platforms: Platform[];
+  repository: string;
+  settings_file: string;
+}
+export interface LoaderContractRef {
+  id: string;
+  version: string;
+}
+/**
  * Additive catalog-owned facts intended for user-facing clients. Older catalog
  * documents may omit this object; current embedded definitions provide it.
  */
@@ -2767,6 +2798,19 @@ export interface SourceEdition {
    */
   system?: string | null;
   title: string;
+  /**
+   * Reviewed correspondence to an exact Core source identity. An empty list
+   * leaves the edition available for manual browsing only.
+   */
+  verified_sources?: OriginalEditionSourceBinding[];
+}
+/**
+ * Exact correspondence to an identity in the reviewed source graph.
+ */
+export interface OriginalEditionSourceBinding {
+  game_id: string;
+  representation_id: string;
+  variant_id: string;
 }
 export interface ReleaseSpec {
   /**
@@ -4349,6 +4393,10 @@ export interface OutputGameUpdatePlan {
    */
   acquisition?: GameUpdateAcquisition | null;
   activate: boolean;
+  /**
+   * Archive-only review for the same candidate. Acquisition still revalidates it.
+   */
+  archive_only_plan_sha256?: string | null;
   assessment: PortActionAssessment3;
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
@@ -4483,6 +4531,46 @@ export interface OutputHostToolProbeResult {
   sha256: string | null;
   state: HostToolProbeState;
   tool_id: string;
+  [k: string]: unknown;
+}
+export interface OutputJakmodsCatalog {
+  complete: boolean;
+  feed_url: string;
+  freshness: ProviderFreshness;
+  game: string;
+  observed_at: number;
+  platform: Platform;
+  port_id: string;
+  projects: JakModsProject[];
+  setup_url: string;
+  source_url: string;
+  [k: string]: unknown;
+}
+export interface JakModsProject {
+  artwork_url: string | null;
+  build_status: JakModsBuildStatus;
+  external_url: string | null;
+  id: string;
+  kind: JakModsProjectKind;
+  name: string;
+  releases: JakModsRelease[];
+  summary: string | null;
+  supported_games: string[];
+  website_url: string | null;
+  [k: string]: unknown;
+}
+export interface JakModsRelease {
+  builds: JakModsBuild[];
+  published_at: number | null;
+  version: string;
+  [k: string]: unknown;
+}
+export interface JakModsBuild {
+  /**
+   * The upstream download count for this release asset alone.
+   */
+  downloads: number | null;
+  platform: Platform;
   [k: string]: unknown;
 }
 /**
@@ -4909,10 +4997,6 @@ export interface RetainedBuildIdentity {
   runtime: RuntimeIdentity | null;
   selected_executable: string;
 }
-export interface LoaderContractRef {
-  id: string;
-  version: string;
-}
 /**
  * One precedence domain. A loader may need several; no universal number exists.
  */
@@ -5040,6 +5124,10 @@ export interface ListingDeliveryStatus {
   revision: number | null;
   selected: boolean;
   target_sha256: string | null;
+  /**
+   * Digest of the authenticated compact transport target, when applicable.
+   */
+  transport_target_sha256?: string | null;
   withdrawn_ids: string[];
   [k: string]: unknown;
 }
@@ -5674,6 +5762,10 @@ export interface BackupRecord1 {
   id: string;
   path: string;
   port_id: string;
+  /**
+   * Inventory-only discovery. Planning verifies the retained snapshot and installations again.
+   */
+  recovery_review?: BackupRecoveryReview | null;
   sha256: string;
   size: number;
   /**
@@ -5767,6 +5859,10 @@ export interface SourceInspectionReport {
   inspection?: SourceInspection | null;
   legacy: SourceLegacyCoverage;
   next_action: string;
+  /**
+   * Descriptive matches for this current registered observation only.
+   */
+  original_editions?: VerifiedOriginalEdition[];
   problem?: SourceInspectionProblem | null;
   profile_id: string;
   registered?: SourceRecord | null;
@@ -5894,6 +5990,15 @@ export interface SourceLegacyCoverage {
   variant_unspecified_records: SourceEvidence[];
   [k: string]: unknown;
 }
+/**
+ * A reviewed original edition for one port using the verified source profile.
+ */
+export interface VerifiedOriginalEdition {
+  original_game_id: string;
+  port_id: string;
+  source_edition_id: string;
+  [k: string]: unknown;
+}
 export interface SourceInspectionProblem {
   /**
    * Open, stable machine code. Unknown future values remain readable.
@@ -6013,7 +6118,8 @@ export interface RetainedBuildGap {
 }
 export interface OutputProviderBrowsePage {
   /**
-   * `stale` means the provider could not be reached and this is earlier data.
+   * How current an observation is. A confirmed empty result is `Fresh`; an outage
+   * that falls back to earlier data is `Stale`, never an empty list.
    */
   freshness: "fresh" | "revalidated" | "stale";
   /**
@@ -6567,6 +6673,10 @@ export interface SourceInspectionReport1 {
   inspection?: SourceInspection | null;
   legacy: SourceLegacyCoverage;
   next_action: string;
+  /**
+   * Descriptive matches for this current registered observation only.
+   */
+  original_editions?: VerifiedOriginalEdition[];
   problem?: SourceInspectionProblem | null;
   profile_id: string;
   registered?: SourceRecord | null;

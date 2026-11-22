@@ -16,6 +16,7 @@ pub(crate) fn embedded_listings_sha256() -> String {
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
 /// Upper bound on a listing's funding links; GitHub's `FUNDING.yml` allows four custom ones.
 const MAX_FUNDING_URLS: usize = 12;
+pub(crate) const VERIFIED_EDITION_LISTING_FORMAT: u32 = 14;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -89,6 +90,62 @@ fn has_typed_igdb_scene(listing: &PortListing) -> bool {
         .any(crate::CatalogMediaAsset::is_typed_igdb_scene)
 }
 
+fn same_original_edition(left: &crate::SourceEdition, right: &crate::SourceEdition) -> bool {
+    left.id == right.id && left.system == right.system && left.title == right.title
+}
+
+pub(crate) fn same_original_description(
+    left: Option<&crate::OriginalGameIdentity>,
+    right: Option<&crate::OriginalGameIdentity>,
+) -> bool {
+    match (left, right) {
+        (Some(left), Some(right)) => {
+            left.format_version == right.format_version
+                && left.id == right.id
+                && left.evidence_urls == right.evidence_urls
+                && left.source_editions.len() == right.source_editions.len()
+                && left
+                    .source_editions
+                    .iter()
+                    .zip(&right.source_editions)
+                    .all(|(left, right)| {
+                        same_original_edition(left, right)
+                            && left.evidence_urls == right.evidence_urls
+                    })
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+pub(crate) fn strip_verified_sources(listing: &mut PortListing) {
+    if let Some(game) = &mut listing.original_game {
+        for edition in &mut game.source_editions {
+            edition.verified_sources.clear();
+        }
+    }
+}
+
+pub(crate) fn inherit_verified_sources(
+    original: &mut crate::OriginalGameIdentity,
+    previous: &crate::OriginalGameIdentity,
+) {
+    if original.id != previous.id {
+        return;
+    }
+    for edition in &mut original.source_editions {
+        if let Some(authored) = previous
+            .source_editions
+            .iter()
+            .find(|candidate| same_original_edition(candidate, edition))
+        {
+            edition
+                .verified_sources
+                .clone_from(&authored.verified_sources);
+        }
+    }
+}
+
 fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool {
     port.project_url == listing.project_url
         && port
@@ -105,16 +162,29 @@ fn retain_directory_scenes(port: &PortDefinition, listing: &PortListing) -> bool
             })
 }
 
+pub(crate) fn has_verified_source_editions(listing: &PortListing) -> bool {
+    listing.original_game.as_ref().is_some_and(|game| {
+        game.source_editions
+            .iter()
+            .any(|edition| !edition.verified_sources.is_empty())
+    })
+}
+
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=IGDB_SCENE_LISTING_FORMAT) {
+        if !matches!(format_version, 5..=VERIFIED_EDITION_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5 through 13",
+                "listing export supports formats 5 through 14",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < VERIFIED_EDITION_LISTING_FORMAT {
+            for listing in &mut document.listings {
+                strip_verified_sources(listing);
+            }
+        }
         if format_version < IGDB_SCENE_LISTING_FORMAT {
             for listing in &mut document.listings {
                 listing.media.retain(|asset| !asset.is_typed_igdb_scene());
@@ -162,6 +232,9 @@ impl CatalogListingDocument {
     /// Only already accepted facts may be promoted; raw authored documents keep
     /// their declared version and pass the ordinary version checks unchanged.
     pub(super) fn promote_projected_format(&mut self) {
+        if self.listings.iter().any(has_verified_source_editions) {
+            self.format_version = self.format_version.max(VERIFIED_EDITION_LISTING_FORMAT);
+        }
         if self.listings.iter().any(has_typed_igdb_scene) {
             self.format_version = self.format_version.max(IGDB_SCENE_LISTING_FORMAT);
         }
@@ -275,11 +348,18 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=IGDB_SCENE_LISTING_FORMAT) {
+        if !matches!(self.format_version, 1..=VERIFIED_EDITION_LISTING_FORMAT) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
             )));
+        }
+        if self.format_version < VERIFIED_EDITION_LISTING_FORMAT
+            && self.listings.iter().any(has_verified_source_editions)
+        {
+            return Err(PortcoveError::usage(
+                "verified source edition bindings require listing format 14",
+            ));
         }
         if self.format_version < IGDB_SCENE_LISTING_FORMAT
             && self.listings.iter().any(has_typed_igdb_scene)
@@ -505,6 +585,31 @@ fn observed_release_link(
 }
 
 impl crate::OriginalGameIdentity {
+    /// Resolve only exact current observations. This result is descriptive and
+    /// never participates in source admission or launch compatibility.
+    pub(crate) fn verified_edition(
+        &self,
+        assessment: &crate::SourceAssessment,
+    ) -> Option<&crate::SourceEdition> {
+        if assessment.health != crate::SourceHealth::Current {
+            return None;
+        }
+        match (&assessment.classification, &assessment.admission) {
+            (
+                crate::SourceClassification::Recognized { identity },
+                crate::SourceAdmission::Admitted {
+                    mode: crate::SourceAdmissionMode::ExactIdentity,
+                },
+            ) => self.source_editions.iter().find(|edition| {
+                edition
+                    .verified_sources
+                    .iter()
+                    .any(|source| source.matches(identity))
+            }),
+            _ => None,
+        }
+    }
+
     pub(crate) fn validate(&self) -> Result<()> {
         fn stable_id(value: &str) -> bool {
             !value.is_empty()
@@ -522,6 +627,7 @@ impl crate::OriginalGameIdentity {
                 && urls.iter().all(|url| valid_url(url) && unique.insert(url))
         }
         let mut editions = HashSet::new();
+        let mut verified_sources = HashSet::new();
         if self.format_version != 1
             || !stable_id(&self.id)
             || !evidence(&self.evidence_urls)
@@ -535,6 +641,17 @@ impl crate::OriginalGameIdentity {
                         .as_ref()
                         .is_some_and(|system| !stable_id(system))
                     || !evidence(&edition.evidence_urls)
+                    || edition.verified_sources.len() > 16
+                    || edition.verified_sources.iter().any(|identity| {
+                        !stable_id(&identity.game_id)
+                            || !stable_id(&identity.variant_id)
+                            || !stable_id(&identity.representation_id)
+                            || !verified_sources.insert((
+                                &identity.game_id,
+                                &identity.variant_id,
+                                &identity.representation_id,
+                            ))
+                    })
             })
         {
             return Err(PortcoveError::usage(
@@ -879,6 +996,51 @@ impl Catalog {
         for listing in document
             .listings
             .iter_mut()
+            .filter(|listing| has_verified_source_editions(listing))
+        {
+            if let Ok(port) = self.port(&listing.id) {
+                let original = listing
+                    .original_game
+                    .as_mut()
+                    .expect("bindings have an original game");
+                let strict = port
+                    .presentation
+                    .as_ref()
+                    .and_then(|presentation| presentation.original_game.as_ref());
+                let identities = self
+                    .source_catalog()
+                    .and_then(|source_catalog| {
+                        let contract = source_catalog.contracts.iter().find(|contract| {
+                            contract.port_id == port.id
+                                && contract.role == crate::PortSourceRole::Game
+                                && Some(contract.profile_id.as_str())
+                                    == port.source_profile.as_deref()
+                        })?;
+                        source_catalog.current_source_identities(contract).ok()
+                    })
+                    .unwrap_or_default();
+                for edition in &mut original.source_editions {
+                    if port.project_url != listing.project_url
+                        || !strict.is_some_and(|game| {
+                            game.id == original.id
+                                && game
+                                    .source_editions
+                                    .iter()
+                                    .any(|candidate| same_original_edition(candidate, edition))
+                        })
+                    {
+                        edition.verified_sources.clear();
+                    } else {
+                        edition.verified_sources.retain(|source| {
+                            identities.iter().any(|identity| source.matches(identity))
+                        });
+                    }
+                }
+            }
+        }
+        for listing in document
+            .listings
+            .iter_mut()
             .filter(|listing| has_typed_igdb_scene(listing))
         {
             if let Ok(port) = self.port(&listing.id) {
@@ -943,10 +1105,18 @@ impl Catalog {
                 // reaching their current consumers. Preserve only the directory
                 // facts absent from the strict format while projecting its
                 // accepted display fields, including artwork, as before.
-                let original_game = projected
+                let mut original_game = projected
                     .original_game
                     .clone()
                     .or(listing.original_game.clone());
+                if let (Some(original), Some(directory)) =
+                    (original_game.as_mut(), listing.original_game.as_ref())
+                    && listing.project_url == projected.project_url
+                    && original.id == directory.id
+                    && projected.original_game.is_some()
+                {
+                    inherit_verified_sources(original, directory);
+                }
                 let strict_media = port
                     .presentation
                     .as_ref()
@@ -1006,9 +1176,12 @@ impl Catalog {
                 let setup_url = listing.setup_url.clone().or(projected.setup_url.clone());
                 let implementation = projected.implementation.clone().or_else(|| {
                     (listing.project_url == projected.project_url
-                        && listing.original_game == projected.original_game)
-                        .then(|| listing.implementation.clone())
-                        .flatten()
+                        && same_original_description(
+                            listing.original_game.as_ref(),
+                            projected.original_game.as_ref(),
+                        ))
+                    .then(|| listing.implementation.clone())
+                    .flatten()
                 });
                 *listing = PortListing {
                     implementation,
@@ -1075,6 +1248,91 @@ mod tests {
             "summary":"Known project; package and platform availability are unknown.",
             "project_url":"https://example.com/project", "availability":"source-only"
         })
+    }
+
+    #[test]
+    fn verified_original_editions_require_format_fourteen_and_unambiguous_bindings() {
+        let mut value = listing();
+        let exact = json!({
+            "game_id": "original-source",
+            "variant_id": "first-release",
+            "representation_id": "retail-file-set",
+        });
+        value["original_game"] = json!({
+            "format_version": 1,
+            "id": "original-game",
+            "evidence_urls": ["https://example.com/original"],
+            "source_editions": [
+                {
+                    "id": "retail",
+                    "title": "Retail edition",
+                    "evidence_urls": ["https://example.com/retail"],
+                    "verified_sources": [exact]
+                },
+                {
+                    "id": "other",
+                    "title": "Other edition",
+                    "evidence_urls": ["https://example.com/other"]
+                }
+            ]
+        });
+        let parse = |value: &serde_json::Value, version: u32| {
+            CatalogListingDocument::from_json(
+                &json!({"format_version": version, "listings": [value]}).to_string(),
+            )
+        };
+        assert!(parse(&value, 13).is_err());
+        let document = parse(&value, 14).unwrap();
+        let game = document.listings[0].original_game.as_ref().unwrap();
+        let mut assessment = crate::SourceAssessment {
+            health: crate::SourceHealth::Current,
+            classification: crate::SourceClassification::Recognized {
+                identity: serde_json::from_value(exact.clone()).unwrap(),
+            },
+            admission: crate::SourceAdmission::Admitted {
+                mode: crate::SourceAdmissionMode::ExactIdentity,
+            },
+            contract: crate::SourceContractResult::NotEvaluated,
+            evidence: Vec::new(),
+        };
+        assert_eq!(game.verified_edition(&assessment).unwrap().id, "retail");
+        assessment.health = crate::SourceHealth::Changed;
+        assert!(game.verified_edition(&assessment).is_none());
+        assessment.health = crate::SourceHealth::Current;
+        assessment.admission = crate::SourceAdmission::Admitted {
+            mode: crate::SourceAdmissionMode::StructuralChecks,
+        };
+        assert!(game.verified_edition(&assessment).is_none());
+        assessment.admission = crate::SourceAdmission::Admitted {
+            mode: crate::SourceAdmissionMode::ExactIdentity,
+        };
+        assessment.classification = crate::SourceClassification::Recognized {
+            identity: crate::SourceIdentity {
+                game_id: "original-source".into(),
+                variant_id: "first-release".into(),
+                representation_id: "other-file-set".into(),
+            },
+        };
+        assert!(game.verified_edition(&assessment).is_none());
+
+        let projected = document.export_format(13).unwrap();
+        let mut legacy = value.clone();
+        legacy["original_game"]["source_editions"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("verified_sources");
+        assert_eq!(projected.listings, parse(&legacy, 13).unwrap().listings);
+        value["original_game"]["source_editions"][1]["verified_sources"] = json!([exact]);
+        assert!(parse(&value, 14).is_err());
+        value["original_game"]["source_editions"][1]["verified_sources"] = json!([]);
+        assert!(parse(&value, 14).is_err());
+        value["original_game"]["source_editions"][1]
+            .as_object_mut()
+            .unwrap()
+            .remove("verified_sources");
+        value["original_game"]["source_editions"][0]["verified_sources"][0]["unknown_qualifier"] =
+            json!("unknown");
+        assert!(parse(&value, 14).is_err());
     }
 
     #[test]
@@ -1399,7 +1657,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":14,"listings":[listing()]}),
+            json!({"format_version":15,"listings":[listing()]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1765,8 +2023,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        // Embedded listings include implementation descriptions, which need format 12.
-        assert_eq!(projected.listing_document().format_version, 12);
+        // Embedded listings include typed IGDB scene records.
+        assert_eq!(projected.listing_document().format_version, 13);
     }
 
     #[test]
@@ -1955,11 +2213,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 14;
+        future.format_version = 15;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 14);
+        assert_eq!(future.format_version, 15);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 14).is_err());
+        assert!(parse(&value, 15).is_err());
     }
 
     #[test]
@@ -1986,8 +2244,7 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let current = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Embedded listings include implementation descriptions, which need format 12.
-        assert_eq!(current.format_version, 12);
+        assert_eq!(current.format_version, 13);
         // Start with format 6 to isolate setup references from later fields.
         let mut document = current.export_format(6).unwrap();
         let legacy = document.export_format(5).unwrap();

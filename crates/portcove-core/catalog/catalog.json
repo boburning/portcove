@@ -29022,6 +29022,25 @@
       "name": "Ship of Harkinian",
       "summary": "Native Ocarina of Time port from HarbourMasters.",
       "project_url": "https://github.com/HarbourMasters/Shipwright",
+      "mod_loader": {
+        "contract": {
+          "id": "libultraship",
+          "version": "1"
+        },
+        "repository": "HarbourMasters/Shipwright",
+        "minimum_version": "9.2.3",
+        "settings_file": "shipofharkinian.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
+      "mod_provider_bindings": [
+        {
+          "provider": "gamebanana",
+          "game_id": 16121
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -29158,6 +29177,19 @@
         "linux-x86-64"
       ],
       "adapter": "libultraship-portable",
+      "mod_loader": {
+        "contract": {
+          "id": "libultraship",
+          "version": "1"
+        },
+        "repository": "2ship2harkinian/2ship2harkinian",
+        "minimum_version": "5.0.1",
+        "settings_file": "2ship2harkinian.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64"
+        ]
+      },
       "windows_runtime_path_policy": "relative-file-max-path",
       "automated_tested_platforms": [
         "windows-x86-64"
@@ -29932,6 +29964,28 @@
       "name": "Zelda 64: Recompiled",
       "summary": "Native Majora's Mask recompilation.",
       "project_url": "https://github.com/Zelda64Recomp/Zelda64Recomp",
+      "mod_loader": {
+        "contract": {
+          "id": "n64-recomp",
+          "version": "1"
+        },
+        "repository": "Zelda64Recomp/Zelda64Recomp",
+        "minimum_version": "1.2.2",
+        "settings_file": "mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "native_game": "mm"
+      },
+      "mod_provider_bindings": [
+        {
+          "provider": "thunderstore",
+          "community": "zelda-64-recompiled"
+        }
+      ],
       "support_tier": "stable",
       "channels": [
         "stable"
@@ -30098,6 +30152,22 @@
         "windows-x86-64"
       ],
       "adapter": "n64-recomp-portable",
+      "mod_loader": {
+        "contract": {
+          "id": "n64-recomp",
+          "version": "1"
+        },
+        "repository": "BanjoRecomp/BanjoRecomp",
+        "minimum_version": "1.0.2",
+        "settings_file": "mods.json",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "native_game": "bk"
+      },
       "release": {
         "repository": "BanjoRecomp/BanjoRecomp",
         "asset_hints": {
@@ -40052,6 +40122,50 @@
       "executable_hints": {
         "windows-x86-64": [
           "SuperMarioWorldSNESRecomp.exe"
+        ]
+      },
+      "game_settings": {
+        "format_version": 2,
+        "releases": [
+          {
+            "version": "v0.15.9",
+            "platform": "windows-x86-64",
+            "archive_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+            "source_commit": "8c280aac7ea08456372cd2b42603bb2ad7ab51eb",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.9",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.10",
+            "platform": "windows-x86-64",
+            "archive_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+            "source_commit": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.10",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/config.c"
+            ]
+          },
+          {
+            "version": "v0.15.11",
+            "platform": "windows-x86-64",
+            "archive_sha256": "c4c0933bcbbf575ce1d74389b7ce89c9e34960aed395c18764683c483ecdc5cd",
+            "source_commit": "cbbf35c57dd637102925798d0cc092803dd44c32",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioWorldRecomp/releases/tag/v0.15.11",
+              "https://github.com/mstan/SuperMarioWorldRecomp/blob/cbbf35c57dd637102925798d0cc092803dd44c32/src/config.c"
+            ]
+          }
+        ],
+        "files": [
+          {
+            "id": "graphics-config",
+            "path": "config.ini",
+            "format": "ini",
+            "maximum_bytes": 32767,
+            "settings": []
+          }
         ]
       },
       "presentation": {
@@ -76722,7 +76836,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -76740,6 +76855,16 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -76747,7 +76872,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTFE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTFE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTFE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. On Linux x86-64, follow the Linux step on this page. Register that encounter’s native Bin/SeriousSam with its Bin working directory. Preserve your separate Linux profile and the complete matching original game copy.",
         "original_game_title": "Serious Sam: The First Encounter",
         "original_game": {
           "format_version": 1,
@@ -76773,8 +76898,8 @@
               "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
             },
             {
-              "title": "Prepare the upstream Linux player",
-              "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together and copy your own matching classic .gro files and the Help and Levels folders into that encounter folder. The player is x64/SamTFE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
+              "title": "Prepare and register the Linux player",
+              "instruction": "Use the official Linux x86-64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTFE together. Place your own matching classic First Encounter .gro files and its Help and Levels folders in that encounter folder. Use glibc 2.34 or newer with system SDL2, zlib and Vorbis (libvorbisfile.so.3). Select x64/SamTFE/Bin/SeriousSam and choose that Bin folder as its working directory. Keep the supplied engine libraries beside the executable and keep the complete encounter and its effective player profile."
             }
           ],
           "warnings": [
@@ -76809,7 +76934,8 @@
         "stable"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
@@ -76827,6 +76953,16 @@
             "immutable_tree_sha256": "",
             "executable": "",
             "mutable_paths": []
+          },
+          "linux-x86-64": {
+            "trust": "user-selected",
+            "version": "user-managed",
+            "archive_name": "",
+            "archive_size": 0,
+            "archive_sha256": "",
+            "immutable_tree_sha256": "",
+            "executable": "",
+            "mutable_paths": []
           }
         }
       },
@@ -76834,7 +76970,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. Other platforms require their own upstream flow.",
+        "manual_preparation": "Use the complete SeriousSamClassic-1.10.7-directx9-win64-bin.7z archive. The matching x64/SamTSE/Bin/SeriousSam.exe is the player. Retain all corresponding SamTSE DLLs and resources alongside your matching original data; do not select the other encounter, editor, dedicated server or conversion tools. Register the prepared player and its upstream working game directory. Keep the complete prepared tree rather than extracting only the EXE. Preserve the complete working SamTSE game folder, actual user profiles, saves, configuration and any redirected/mod storage. The inspected package/source does not establish a universal migration contract or compatibility with another encounter/engine. Keep the creating runtime and data before upstream replacement. Finish upstream preparation before registration. Register the real player with its matching working directory and separate literal argument lines. Play is a separate explicit action. You and upstream own this runtime, original files, saves and configuration. Registration-only removal preserves these external files; managed Update, Backup, Rollback, migration and deletion are unavailable for them. Preserve the working runtime and every actual data/profile location with the game closed before upstream replacement. On Linux x86-64, follow the Linux step on this page. Register that encounter’s native Bin/SeriousSam with its Bin working directory. Preserve your separate Linux profile and the complete matching original game copy.",
         "original_game_title": "Serious Sam: The Second Encounter",
         "original_game": {
           "format_version": 1,
@@ -76860,8 +76996,8 @@
               "instruction": "On Windows, finish setup with the project’s tools before adding the game. Select the game executable and its working folder, and put each launch argument on a separate line. Choose Play separately when you are ready. You manage this game’s files, originals, saves and settings. Removing its registration leaves those external files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Close the game and keep a working copy and every data and profile folder before changing versions."
             },
             {
-              "title": "Prepare the upstream Linux player",
-              "instruction": "Use the Linux AMD64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together and copy your own matching classic .gro files and the Help folder into that encounter folder. The player is x64/SamTSE/Bin/SeriousSam. Use glibc 2.34 or newer, system SDL2 and zlib. From that encounter's Bin directory, run LD_LIBRARY_PATH=. ./SeriousSam yourself. Keep your effective user profile."
+              "title": "Prepare and register the Linux player",
+              "instruction": "Use the official Linux x86-64 archive ending in -lnx-amd64-bin.tar.xz. Keep x64/SamTSE together. Place your own matching classic Second Encounter .gro files, including the Levels archive, and its Help folder in that encounter folder. Use glibc 2.34 or newer with system SDL2, zlib and Vorbis (libvorbisfile.so.3). Select x64/SamTSE/Bin/SeriousSam and choose that Bin folder as its working directory. Keep the supplied engine libraries beside the executable and keep the complete encounter and its effective player profile."
             }
           ],
           "warnings": [

@@ -4342,6 +4342,12 @@
         ],
         "type": "object"
       },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
+      },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
         "enum": [
@@ -4382,6 +4388,17 @@
       },
       "port_id": {
         "type": "string"
+      },
+      "recovery_review": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/BackupRecoveryReview"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
       },
       "sha256": {
         "type": "string"
@@ -4474,6 +4491,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4499,6 +4527,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -4654,6 +4688,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -4679,6 +4724,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DefinitionEligibility": {
         "properties": {
@@ -5246,6 +5297,13 @@
         "type": "array"
       },
       "failure_isolated_batches": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "listing_delivery_carriers": {
+        "description": "Independently negotiated signed-directory transport representations.",
         "items": {
           "type": "string"
         },
@@ -6359,6 +6417,22 @@
           }
         ]
       },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
       "ManagedAcquisitionHold": {
         "additionalProperties": false,
         "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
@@ -6453,6 +6527,44 @@
         ],
         "type": "object"
       },
+      "ModLoaderBinding": {
+        "additionalProperties": false,
+        "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
+        "properties": {
+          "contract": {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          "minimum_version": {
+            "type": "string"
+          },
+          "native_game": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "settings_file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "repository",
+          "minimum_version",
+          "settings_file",
+          "platforms"
+        ],
+        "type": "object"
+      },
       "ModPackagePolicy": {
         "description": "Preserve complete mod package versions without replacing packaged defaults.\nThis grants neither executable trust nor mod/save compatibility.",
         "enum": [
@@ -6522,6 +6634,27 @@
           "artifact_sha256",
           "game_id",
           "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
         ],
         "type": "object"
       },
@@ -6794,6 +6927,17 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "mod_loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModLoaderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned native loader facts admitted with this exact definition."
           },
           "mod_package_policy": {
             "anyOf": [
@@ -8022,6 +8166,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -10292,6 +10443,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -10581,6 +10753,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -19673,6 +19852,13 @@
       "activate": {
         "type": "boolean"
       },
+      "archive_only_plan_sha256": {
+        "description": "Archive-only review for the same candidate. Acquisition still revalidates it.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "assessment": {
         "$ref": "#/$defs/PortActionAssessment",
         "description": "Read-only decision for this exact reviewed candidate, not authorization."
@@ -19861,6 +20047,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -19886,6 +20083,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "DigestScope": {
         "enum": [
@@ -20411,6 +20614,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -20436,6 +20650,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "InstallRecord": {
         "properties": {
@@ -21385,6 +21605,219 @@
       "output_location"
     ],
     "title": "InstallPlan",
+    "type": "object"
+  },
+  "jakmods_catalog": {
+    "$defs": {
+      "JakModsBuild": {
+        "properties": {
+          "downloads": {
+            "description": "The upstream download count for this release asset alone.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          }
+        },
+        "required": [
+          "platform",
+          "downloads"
+        ],
+        "type": "object"
+      },
+      "JakModsBuildStatus": {
+        "enum": [
+          "available",
+          "unavailable",
+          "unknown",
+          "external"
+        ],
+        "type": "string"
+      },
+      "JakModsProject": {
+        "properties": {
+          "artwork_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "build_status": {
+            "$ref": "#/$defs/JakModsBuildStatus"
+          },
+          "external_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/JakModsProjectKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/$defs/JakModsRelease"
+            },
+            "type": "array"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "supported_games": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "website_url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "summary",
+          "artwork_url",
+          "website_url",
+          "external_url",
+          "supported_games",
+          "kind",
+          "build_status",
+          "releases"
+        ],
+        "type": "object"
+      },
+      "JakModsProjectKind": {
+        "enum": [
+          "open_goal_build",
+          "external"
+        ],
+        "type": "string"
+      },
+      "JakModsRelease": {
+        "properties": {
+          "builds": {
+            "items": {
+              "$ref": "#/$defs/JakModsBuild"
+            },
+            "type": "array"
+          },
+          "published_at": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "published_at",
+          "builds"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "ProviderFreshness": {
+        "description": "How current an observation is. A confirmed empty result is `Fresh`; an outage\nthat falls back to earlier data is `Stale`, never an empty list.",
+        "oneOf": [
+          {
+            "enum": [
+              "fresh"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "revalidated",
+            "description": "The provider confirmed its cached copy is unchanged (HTTP 304).",
+            "type": "string"
+          },
+          {
+            "const": "stale",
+            "description": "The provider could not be reached or is backing off; this is earlier data.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "complete": {
+        "type": "boolean"
+      },
+      "feed_url": {
+        "type": "string"
+      },
+      "freshness": {
+        "$ref": "#/$defs/ProviderFreshness"
+      },
+      "game": {
+        "type": "string"
+      },
+      "observed_at": {
+        "format": "int64",
+        "type": "integer"
+      },
+      "platform": {
+        "$ref": "#/$defs/Platform"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "projects": {
+        "items": {
+          "$ref": "#/$defs/JakModsProject"
+        },
+        "type": "array"
+      },
+      "setup_url": {
+        "type": "string"
+      },
+      "source_url": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "port_id",
+      "game",
+      "platform",
+      "projects",
+      "complete",
+      "observed_at",
+      "freshness",
+      "source_url",
+      "feed_url",
+      "setup_url"
+    ],
+    "title": "JakModsCatalog",
     "type": "object"
   },
   "launch_request": {
@@ -27634,6 +28067,13 @@
           "null"
         ]
       },
+      "transport_target_sha256": {
+        "description": "Digest of the authenticated compact transport target, when applicable.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
       "withdrawn_ids": {
         "items": {
           "type": "string"
@@ -27829,6 +28269,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -27854,6 +28305,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -34272,6 +34729,13 @@
               "null"
             ]
           },
+          "transport_target_sha256": {
+            "description": "Digest of the authenticated compact transport target, when applicable.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "withdrawn_ids": {
             "items": {
               "type": "string"
@@ -36187,6 +36651,27 @@
         ],
         "type": "object"
       },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
       "OriginalGameIdentity": {
         "additionalProperties": false,
         "description": "Reviewed descriptive identity only; port, installation and source authority remain separate.",
@@ -36537,6 +37022,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -37408,6 +37900,22 @@
           }
         ]
       },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
       "ManagedAcquisitionHold": {
         "additionalProperties": false,
         "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
@@ -37502,6 +38010,44 @@
         ],
         "type": "object"
       },
+      "ModLoaderBinding": {
+        "additionalProperties": false,
+        "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
+        "properties": {
+          "contract": {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          "minimum_version": {
+            "type": "string"
+          },
+          "native_game": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "settings_file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "repository",
+          "minimum_version",
+          "settings_file",
+          "platforms"
+        ],
+        "type": "object"
+      },
       "ModPackagePolicy": {
         "description": "Preserve complete mod package versions without replacing packaged defaults.\nThis grants neither executable trust nor mod/save compatibility.",
         "enum": [
@@ -37549,6 +38095,27 @@
             "type": "object"
           }
         ]
+      },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
       },
       "OriginalGameIdentity": {
         "additionalProperties": false,
@@ -38218,6 +38785,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -38621,6 +39195,17 @@
           "$ref": "#/$defs/Platform"
         },
         "type": "array"
+      },
+      "mod_loader": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModLoaderBinding"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Versioned native loader facts admitted with this exact definition."
       },
       "mod_package_policy": {
         "anyOf": [
@@ -39053,6 +39638,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -39078,6 +39674,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "CapabilityAdvisory": {
         "additionalProperties": false,
@@ -41947,6 +42549,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -41972,6 +42585,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -43861,6 +44480,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -44548,6 +45174,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -52163,6 +52809,17 @@
           "port_id": {
             "type": "string"
           },
+          "recovery_review": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BackupRecoveryReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Inventory-only discovery. Planning verifies the retained snapshot and installations again."
+          },
           "sha256": {
             "type": "string"
           },
@@ -52188,6 +52845,12 @@
           "sha256"
         ],
         "type": "object"
+      },
+      "BackupRecoveryReview": {
+        "enum": [
+          "legacy_install_and_data_v1"
+        ],
+        "type": "string"
       },
       "VersionChangeKind": {
         "description": "The version change an automatic snapshot protects.",
@@ -56210,6 +56873,22 @@
           }
         ]
       },
+      "LoaderContractRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "version"
+        ],
+        "type": "object"
+      },
       "ManagedAcquisitionHold": {
         "additionalProperties": false,
         "description": "Holds fresh managed acquisition and adoption for one route. Installed copies\nkeep their retained definition; only the listed reviewed artifacts may still\nbe activated or recovered.",
@@ -56304,6 +56983,44 @@
         ],
         "type": "object"
       },
+      "ModLoaderBinding": {
+        "additionalProperties": false,
+        "description": "Native mod admission bound to a reviewed upstream runtime and platform.",
+        "properties": {
+          "contract": {
+            "$ref": "#/$defs/LoaderContractRef"
+          },
+          "minimum_version": {
+            "type": "string"
+          },
+          "native_game": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platforms": {
+            "items": {
+              "$ref": "#/$defs/Platform"
+            },
+            "type": "array"
+          },
+          "repository": {
+            "type": "string"
+          },
+          "settings_file": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "repository",
+          "minimum_version",
+          "settings_file",
+          "platforms"
+        ],
+        "type": "object"
+      },
       "ModPackagePolicy": {
         "description": "Preserve complete mod package versions without replacing packaged defaults.\nThis grants neither executable trust nor mod/save compatibility.",
         "enum": [
@@ -56373,6 +57090,27 @@
           "artifact_sha256",
           "game_id",
           "rom_xxh3_64"
+        ],
+        "type": "object"
+      },
+      "OriginalEditionSourceBinding": {
+        "additionalProperties": false,
+        "description": "Exact correspondence to an identity in the reviewed source graph.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
         ],
         "type": "object"
       },
@@ -56645,6 +57383,17 @@
               "$ref": "#/$defs/Platform"
             },
             "type": "array"
+          },
+          "mod_loader": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModLoaderBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned native loader facts admitted with this exact definition."
           },
           "mod_package_policy": {
             "anyOf": [
@@ -57873,6 +58622,13 @@
           },
           "title": {
             "type": "string"
+          },
+          "verified_sources": {
+            "description": "Reviewed correspondence to an exact Core source identity. An empty list\nleaves the edition available for manual browsing only.",
+            "items": {
+              "$ref": "#/$defs/OriginalEditionSourceBinding"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -61118,6 +61874,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -61855,6 +62618,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -67591,6 +68374,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -67649,6 +68452,13 @@
       },
       "next_action": {
         "type": "string"
+      },
+      "original_editions": {
+        "description": "Descriptive matches for this current registered observation only.",
+        "items": {
+          "$ref": "#/$defs/VerifiedOriginalEdition"
+        },
+        "type": "array"
       },
       "problem": {
         "anyOf": [
@@ -69046,6 +69856,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -69733,6 +70550,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -71660,6 +72497,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -72414,6 +73258,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -73790,6 +74654,13 @@
           "next_action": {
             "type": "string"
           },
+          "original_editions": {
+            "description": "Descriptive matches for this current registered observation only.",
+            "items": {
+              "$ref": "#/$defs/VerifiedOriginalEdition"
+            },
+            "type": "array"
+          },
           "problem": {
             "anyOf": [
               {
@@ -74477,6 +75348,26 @@
           "pirs"
         ],
         "type": "string"
+      },
+      "VerifiedOriginalEdition": {
+        "description": "A reviewed original edition for one port using the verified source profile.",
+        "properties": {
+          "original_game_id": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "source_edition_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "port_id",
+          "original_game_id",
+          "source_edition_id"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

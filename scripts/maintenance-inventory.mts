@@ -24,6 +24,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { channels } from "../apps/desktop/src/catalog-values.generated.ts";
 import { isRecord } from "./runtime-values.mts";
+import { readScheduledArtworkHealth } from "./maintenance-artwork-health.mts";
 import { inspectCatalogDefinitions } from "./observe-configured-upstream.mts";
 import {
   MaintenanceStoreError,
@@ -69,6 +70,7 @@ import {
   hostedIntakeObservation,
   hostedIntakeSummary,
   readHostedIntake,
+  retainHostedIntakeHandoffs,
   type HostedIntakeObservation,
 } from "./maintenance-hosted-intake.mts";
 import type { HostedStatusAll } from "./hosted-discovery-intake.mts";
@@ -1224,6 +1226,7 @@ export function collectionSql(input: {
     core: ReadonlyMap<string, string>;
     issues?: ReadonlyMap<string, string>;
     releaseHealth?: ReadonlyMap<string, string>;
+    artworkHealth?: ReadonlyMap<string, string>;
     releaseContent?: ReadonlyMap<string, string>;
     upstream?: ReadonlyMap<string, string>;
     hostedIntake?: ReadonlyMap<string, string>;
@@ -1274,6 +1277,14 @@ export function collectionSql(input: {
     expected: number | null;
     facts: ReadonlyMap<string, unknown>;
     /** Deferred ports; each carries the findings this report already has for it. */
+    gaps: SourceGap[];
+  };
+  artworkHealth?: {
+    revision: string;
+    failed?: boolean;
+    complete: boolean;
+    expected: number | null;
+    facts: ReadonlyMap<string, unknown>;
     gaps: SourceGap[];
   };
   upstream?: UpstreamObservation;
@@ -1332,6 +1343,7 @@ export function collectionSql(input: {
            coreSource,
            ...(input.issues ? ["issues-project"] : []),
            ...(input.releaseHealth ? ["release-health"] : []),
+           ...(input.artworkHealth ? ["cover-artwork-health"] : []),
            ...(input.releaseContent ? ["release-content"] : []),
            ...(input.upstream ? ["upstream-observations"] : []),
            ...(input.hostedIntake ? ["hosted-intake"] : []),
@@ -1708,7 +1720,34 @@ export function collectionSql(input: {
       input.targets.failure ? null : input.targets.expected,
     ]);
   }
+  const artworkHealthRun = `cover-artwork-health:${token}`;
+  if (input.artworkHealth) {
+    if (input.mode !== "all")
+      throw new MaintenanceStoreError("Cover artwork health collection requires --all");
+    lines.push(
+      `INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, source_revision, started_at, acquisition) VALUES
+        (${literal(artworkHealthRun)}, 'cover-artwork-health', ${literal(input.runner)}, ${literal(input.artworkHealth.revision)}, ${literal(input.startedAt)}, ${acquisition});`,
+    );
+    const artworkFacts = new Map<string, Fact>();
+    for (const [key, payload] of input.artworkHealth.facts)
+      artworkFacts.set(key, {
+        digest: sha256(canonicalJson(payload)),
+        scope: { source: "cover-artwork-health", authority: "none" },
+        revision: input.artworkHealth.revision,
+        payload,
+      });
+    runs.push([
+      artworkHealthRun,
+      input.artworkHealth.revision,
+      input.artworkHealth.failed ? "failed" : input.artworkHealth.complete ? "complete" : "partial",
+      input.artworkHealth.gaps,
+      artworkFacts,
+      input.latest?.artworkHealth,
+      input.artworkHealth.expected,
+    ]);
+  }
   const sourceOf = new Map([
+    [artworkHealthRun, "cover-artwork-health"],
     [targetsRun, "core-target-routes"],
     [publicationRun, "definition-publication"],
     [deliveryRun, "definition-delivery"],
@@ -1919,6 +1958,7 @@ export async function collect(options: {
     | undefined;
   /** With `all`, also collect the latest scheduled release-health report. */
   releaseHealth?: (() => Promise<ReleaseHealthInput>) | undefined;
+  artworkHealth?: string | undefined;
   /** With `all`, also collect the latest scheduled release-content scan report. */
   releaseContent?: (() => Promise<ReleaseContentInput>) | undefined;
   /** With `all`, also collect the newest retained upstream observer checkpoint. */
@@ -1927,7 +1967,7 @@ export async function collect(options: {
   progress?: readonly ProgressSource[] | undefined;
   /** With `all`, also collect every #177 hosted-intake request through the executor's status. */
   hostedIntake?: (() => Promise<HostedStatusAll>) | undefined;
-  reconcileIntake?: Parameters<typeof hostedIntakeObservation>[1];
+  intakeReceiptRevision?: string | undefined;
   environment: NodeJS.ProcessEnv;
   runner?: string | undefined;
   bindCatalogDefinitions?: boolean;
@@ -2078,6 +2118,13 @@ export async function collect(options: {
     : undefined;
   if (options.releaseContent && !options.all)
     throw new MaintenanceStoreError("Release-content collection requires --all");
+  if (options.artworkHealth && !options.all)
+    throw new MaintenanceStoreError("Cover artwork health collection requires --all");
+  const artworkRead = options.artworkHealth
+    ? await sourceOutcome(() =>
+        readScheduledArtworkHealth(options.artworkHealth!, revision, cliSha256),
+      )
+    : undefined;
   const contentRead = options.releaseContent
     ? await sourceOutcome(async () => {
         const report = await options.releaseContent!();
@@ -2091,8 +2138,17 @@ export async function collect(options: {
   if (options.hostedIntake && !options.all)
     throw new MaintenanceStoreError("Hosted-intake collection requires --all");
   const hostedIntake = options.hostedIntake
-    ? await hostedIntakeObservation(options.hostedIntake, options.reconcileIntake)
+    ? await hostedIntakeObservation(options.hostedIntake)
     : undefined;
+  const receiptFence =
+    hostedIntake && options.intakeReceiptRevision !== undefined
+      ? !hostedIntake.failed &&
+        !hostedIntake.gaps.length &&
+        hostedIntake.revision === options.intakeReceiptRevision
+        ? "verified"
+        : "deferred"
+      : undefined;
+  if (hostedIntake && receiptFence === "deferred") retainHostedIntakeHandoffs(hostedIntake);
   if (options.publication && !options.all)
     throw new MaintenanceStoreError("Publication collection requires --all");
   const publicationRead = options.publication
@@ -2153,6 +2209,20 @@ export async function collect(options: {
                   expected: null,
                   facts: new Map(),
                   gaps: [failedSource("source:release-health-report", healthRead.message)],
+                },
+          }
+        : {}),
+      ...(artworkRead
+        ? {
+            artworkHealth: artworkRead.ok
+              ? artworkRead.value
+              : {
+                  revision: "cover-artwork-health:unavailable",
+                  failed: true,
+                  complete: false,
+                  expected: null,
+                  facts: new Map(),
+                  gaps: [failedSource("source:cover-artwork-health", artworkRead.message)],
                 },
           }
         : {}),
@@ -2224,6 +2294,7 @@ export async function collect(options: {
               core: members(coreSourceName(platform)),
               ...(issueRead ? { issues: members("issues-project") } : {}),
               ...(healthRead ? { releaseHealth: members("release-health") } : {}),
+              ...(artworkRead ? { artworkHealth: members("cover-artwork-health") } : {}),
               ...(contentRead ? { releaseContent: members("release-content") } : {}),
               ...(upstream ? { upstream: members("upstream-observations") } : {}),
               ...(hostedIntake ? { hostedIntake: members("hosted-intake") } : {}),
@@ -2240,6 +2311,7 @@ export async function collect(options: {
     coreSourceName(platform),
     ...(issueRead ? ["issues-project"] : []),
     ...(healthRead ? ["release-health"] : []),
+    ...(artworkRead ? ["cover-artwork-health"] : []),
     ...(contentRead ? ["release-content"] : []),
     ...(upstream ? ["upstream-observations"] : []),
     ...(hostedIntake ? ["hosted-intake"] : []),
@@ -2306,6 +2378,7 @@ export async function collect(options: {
     failed_sources: [
       ...(issueRead && !issueRead.ok ? ["issues-project"] : []),
       ...(healthRead && !healthRead.ok ? ["release-health"] : []),
+      ...(artworkRead && !artworkRead.ok ? ["cover-artwork-health"] : []),
       ...(contentRead && !contentRead.ok ? ["release-content"] : []),
       ...(upstream?.failed ? ["upstream-observations"] : []),
       ...(hostedIntake?.failed ? ["hosted-intake"] : []),
@@ -2321,6 +2394,15 @@ export async function collect(options: {
         }
       : deliveryRead
         ? { serving: "inspection-unavailable", published: 0 }
+        : null,
+    artwork_health: artworkRead?.ok
+      ? {
+          coverage: artworkRead.value.complete ? "complete" : "partial",
+          rows: artworkRead.value.rows,
+          counts: artworkRead.value.counts,
+        }
+      : artworkRead
+        ? { coverage: "failed" }
         : null,
     release_content: contentRead
       ? contentRead.ok
@@ -2348,10 +2430,7 @@ export async function collect(options: {
             : hostedIntake.gaps.length
               ? "partial"
               : "complete",
-          ...(hostedIntake.receipts ? { receipts: hostedIntake.receipts } : {}),
-          ...(hostedIntake.auditContinuations
-            ? { audit_continuations: hostedIntake.auditContinuations }
-            : {}),
+          ...(receiptFence ? { receipt_fence: receiptFence } : {}),
           requests: hostedIntake.expected,
           facts: hostedIntake.facts.size,
           gaps: hostedIntake.gaps.length,
@@ -4274,6 +4353,9 @@ export async function main(argv = process.argv.slice(2)) {
   const receipt = option(args, "--receipt");
   const concurrency = option(args, "--concurrency");
   const progressManifest = option(args, "--progress");
+  const artworkHealth = option(args, "--artwork-health");
+  if (artworkHealth !== undefined && command !== "collect")
+    throw new MaintenanceStoreError("--artwork-health applies only to collect");
   const historySubject = option(args, "--subject");
   const historyBefore = option(args, "--before");
   if ((historySubject || historyBefore) && command !== "history")
@@ -4320,6 +4402,7 @@ export async function main(argv = process.argv.slice(2)) {
   const json = flag("--json");
   const record = flag("--record");
   const reconcileIntake = flag("--reconcile-intake");
+  const intakeReceiptRevision = option(args, "--intake-receipt-revision");
   const catalogOnly = flag("--catalog-only");
   const issuesIndex = args.indexOf("--issues");
   const issues = issuesIndex >= 0;
@@ -4336,6 +4419,7 @@ export async function main(argv = process.argv.slice(2)) {
       releaseHealth ||
       releaseContent ||
       upstreamSource ||
+      artworkHealth ||
       hostedSource ||
       progressManifest)
   )
@@ -4345,16 +4429,12 @@ export async function main(argv = process.argv.slice(2)) {
   if (all && sample) throw new MaintenanceStoreError("--all and --sample are exclusive");
   if (concurrency !== undefined && !/^[1-9][0-9]?$/u.test(concurrency))
     throw new MaintenanceStoreError("--concurrency must be 1-99");
-  if (
-    reconcileIntake &&
-    !(
-      (command === "handoffs" && !record && !json) ||
-      (command === "collect" && all && hostedSource)
-    )
-  )
+  if (intakeReceiptRevision !== undefined && !(command === "collect" && all && hostedSource))
     throw new MaintenanceStoreError(
-      "--reconcile-intake requires handoffs or collect --all --hosted-intake",
+      "--intake-receipt-revision requires collect --all --hosted-intake",
     );
+  if (reconcileIntake && !(command === "handoffs" && !record && !json))
+    throw new MaintenanceStoreError("--reconcile-intake requires handoffs");
   if ((json || record) && command !== "handoffs")
     throw new MaintenanceStoreError("--json and --record apply only to handoffs");
   if (issuesTokenEnvironment !== undefined && (!issues || command !== "collect"))
@@ -4421,6 +4501,7 @@ export async function main(argv = process.argv.slice(2)) {
         concurrency: concurrency === undefined ? undefined : Number(concurrency),
         issues: issues ? () => readIssueInventory(issueCredential) : undefined,
         releaseHealth: releaseHealth ? readReleaseHealth : undefined,
+        artworkHealth,
         releaseContent: releaseContent ? readReleaseContent : undefined,
         upstream: upstreamSource ? () => readUpstreamObservations(committedBytes) : undefined,
         progress: progressManifest
@@ -4436,16 +4517,8 @@ export async function main(argv = process.argv.slice(2)) {
               ),
             )
           : undefined,
-        hostedIntake: hostedSource
-          ? () => readHostedIntake(reconcileIntake ? environment : undefined)
-          : undefined,
-        reconcileIntake: reconcileIntake
-          ? async (queue) => {
-              const { reconcileIntakeHandoffReceipts } =
-                await import("./maintenance-intake-receipts.mts");
-              return reconcileIntakeHandoffReceipts(environment, async () => queue);
-            }
-          : undefined,
+        hostedIntake: hostedSource ? readHostedIntake : undefined,
+        intakeReceiptRevision,
         publication: publication || undefined,
         delivery: delivery || undefined,
         targets: targets || undefined,

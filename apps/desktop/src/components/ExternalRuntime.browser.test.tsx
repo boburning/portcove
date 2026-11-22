@@ -8,6 +8,10 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import { canOpenExternalRegistration } from "../features/operations/invocation-state";
+import { OperationPresentationProvider } from "../features/operations/operation-presentation";
+import { useOperationState } from "../features/operations/use-operation-state";
+import { StatusLayer } from "./Chrome";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import { pickInstallFolder, pickHostToolExecutable } from "../file-picker";
 import { failureReport, portDefinition, portStatus } from "../test-fixtures";
@@ -317,6 +321,162 @@ it("retains external launch inputs after a failed review and reopening the detai
   await root.rerender(view(8));
   await expect.element(startFolder).toHaveValue("");
   expect(preview).toHaveBeenCalledTimes(2);
+});
+
+it("keeps the registered result after leaving and offers Open only for confirmed readback", async () => {
+  const registered = {
+    ...record,
+    archive_sha256: "",
+    immutable_tree_sha256: "",
+    user_selected: { arguments: [] },
+  };
+  vi.mocked(pickHostToolExecutable).mockResolvedValue(record.executable);
+  vi.spyOn(desktopApi, "previewUserSelectedRuntime").mockResolvedValue({
+    port_id: registered.port_id,
+    version: registered.version,
+    path: registered.path,
+    executable: registered.executable,
+    archive_sha256: registered.archive_sha256,
+    immutable_tree_sha256: registered.immutable_tree_sha256,
+    immutable_file_count: 0,
+    user_selected: registered.user_selected,
+    preview_sha256: "register-review",
+  });
+  const register = vi
+    .spyOn(desktopApi, "registerUserSelectedRuntime")
+    .mockResolvedValue(registered);
+  const launch = vi.spyOn(desktopApi, "launch");
+  const open = vi.fn<(portId: string) => void>();
+  const staleLaunch = vi.fn(async () => true);
+  const refresh = vi.fn().mockRejectedValue(new Error("Could not refresh the library"));
+  const status = portStatus();
+  function Workspace({
+    revision,
+    showEditor,
+    current,
+  }: {
+    revision: number;
+    showEditor: boolean;
+    current?: ExternalRuntimeRecord;
+  }) {
+    const operations = useOperationState({
+      refresh,
+      workspaceReadRevision: revision,
+      startedWorkspaceReadRevision: () => 1,
+      libraryGeneration: 7,
+    });
+    return (
+      <OperationPresentationProvider
+        generation={7}
+        pending={operations.pendingOperations}
+        unreadExternalPorts={operations.unreadExternalPorts}
+        perform={operations.perform}
+      >
+        <StatusLayer
+          invocations={operations.invocations}
+          clearError={() => undefined}
+          dismissInvocation={operations.dismissInvocation}
+          openExternalGame={(result) =>
+            canOpenExternalRegistration(
+              result,
+              { ...status, external_runtime: current ?? null },
+              7,
+              showEditor ? port.id : undefined,
+              operations.unreadExternalPorts,
+            )
+              ? () => open(result.context.target.id)
+              : undefined
+          }
+        />
+        <button
+          onClick={() =>
+            void operations.perform("launch", staleLaunch, {
+              context: {
+                action: "Launch",
+                operation: "launch",
+                target: { kind: "port", id: port.id, label: port.name },
+                libraryGeneration: 7,
+                exclusionScope: "target",
+              },
+            })
+          }
+        >
+          Launch from prior view
+        </button>
+        {showEditor ? (
+          <UserSelectedRuntimeControl
+            port={port}
+            status={status}
+            listingStatus={{
+              port_id: port.id,
+              status,
+              actions: [{ action: "attach-existing", allowed: true }],
+            }}
+            generation={7}
+            busy={Boolean(operations.busy)}
+            onChanged={refresh}
+          />
+        ) : (
+          <h1>Library</h1>
+        )}
+      </OperationPresentationProvider>
+    );
+  }
+
+  await root.rerender(<Workspace revision={1} showEditor />);
+  await click("Choose game executable…");
+  await click("Review launch details");
+  await click("Use this installation");
+  expect(refresh).toHaveBeenCalledOnce();
+  await expect
+    .element(page.getByText("Could not refresh the library", { exact: false }))
+    .toBeVisible();
+  await expect
+    .element(
+      page.getByText(
+        "Launch details saved. Waiting for the library to confirm the current registration.",
+      ),
+    )
+    .toBeVisible();
+  const result = page.getByText("Saved external launch details for", { exact: false });
+  await expect.element(result).toBeVisible();
+
+  const openGame = page.getByRole("button", { name: "Open game", exact: true });
+  await root.rerender(<Workspace revision={1} showEditor={false} current={registered} />);
+  await expect.element(result).toBeVisible();
+  await expect.element(openGame).not.toBeInTheDocument();
+  await click("Launch from prior view");
+  expect(staleLaunch).not.toHaveBeenCalled();
+
+  const replacement = { ...registered, user_selected: { arguments: ["--replacement"] } };
+  await root.rerender(<Workspace revision={2} showEditor={false} current={replacement} />);
+  await expect.element(openGame).not.toBeInTheDocument();
+
+  const newDownload = {
+    ...registered,
+    setup_download: {
+      release_id: 200,
+      asset_id: 201,
+      release_tag: "v2",
+      filename: "replacement.zip",
+      download_sha256: "c".repeat(64),
+    },
+  };
+  await root.rerender(<Workspace revision={3} showEditor={false} current={newDownload} />);
+  await expect.element(openGame).not.toBeInTheDocument();
+
+  await root.rerender(<Workspace revision={4} showEditor={false} current={registered} />);
+  await openGame.click();
+  expect(open).toHaveBeenCalledExactlyOnceWith(port.id);
+  expect(register).toHaveBeenCalledExactlyOnceWith(
+    port.id,
+    registered.executable,
+    registered.path,
+    [],
+    "register-review",
+    7,
+  );
+  expect(launch).not.toHaveBeenCalled();
 });
 
 it("registers a listing-only identity only when Core offers the action", async () => {

@@ -86,7 +86,7 @@ portcove --library <isolated-review-library> --json doctor
 
 Production users verify the public key/fingerprint through a trusted independent channel before granting trust. Key rotation requires explicitly adding the replacement key and later revoking the old one. Sequences continue increasing across keys; rotation does not reset replay protection. No production custody or infrastructure decision is implied by these examples.
 
-The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations.
+The review plan lists changed port IDs and display names from the verified candidate catalog. Desktop presents those names as catalog information changes and makes clear that applying the catalog does not install game updates. It keeps the verified signature, trusted key fingerprint, accepted sequence, expiry, changed IDs, and envelope digest available in technical details. Trusting a publisher permits changes to release download locations. Desktop keeps the selected source when the trust prompt is cancelled or accepted. Review that source again after a trust change. Each verification replaces the previous review, and applying a verified catalog requires a separate action.
 
 ## Publication and recovery
 
@@ -137,6 +137,19 @@ its key file. Assembly verifies the exact signed output and preserves prior
 immutable URLs. The verifier loads one bounded history file at a time and
 rechecks its digest before use.
 [GitHub Pages limits](https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits)
+
+Once the keyless release tool verifies and assembles the repository, the Pages
+job matches its exact file inventory against the guarded current Pages tree.
+It retains matching immutable files in place and stages only added repository
+files, the new timestamp and the browse update. A stale prior digest, a missing
+retained file, an immutable replacement or a changed assembled body stops the
+run before the Pages push. Signers and the keyless assembler still validate
+retained history under the existing TUF root and role keys. The signer extracts
+historical revision floors from the delegated role body it already verified.
+It checks each signed descriptor against a fresh SHA-256 inventory and parses
+each referenced historical target body once. If Tough has already authenticated
+that exact target body in the current generation, the signer reuses those bytes. Each new invocation computes its
+own inventory and keeps the existing write-time and post-write readbacks.
 
 Each descriptive target remains limited to 8 MiB per directory revision.
 

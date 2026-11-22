@@ -913,6 +913,46 @@ void test("typed IGDB scenes project to listing format 13 without changing stric
   }
 });
 
+void test("verified source identities belong only in the format 14 listing", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const binding = {
+    game_id: "source-game",
+    variant_id: "original-retail",
+    representation_id: "original-file",
+  };
+  const edition = {
+    id: "retail",
+    title: "Original retail",
+    evidence_urls: ["https://example.com/original"],
+    verified_sources: [binding],
+  };
+  const listing = {
+    ...authored.listing,
+    original_game: {
+      format_version: 1 as const,
+      id: "original-game",
+      evidence_urls: ["https://example.com/game"],
+      source_editions: [edition],
+    },
+  };
+  const result = assembleCatalogRecords(shared, [{ ...authored, listing }]);
+  const presentation = result.catalog.ports[0]?.presentation as Record<string, unknown>;
+  assert.equal(result.directory.format_version, 14);
+  assert.deepEqual(result.directory.listings[0]?.original_game, listing.original_game);
+  const { verified_sources: _sources, ...legacyEdition } = edition;
+  assert.deepEqual(presentation.original_game, {
+    ...listing.original_game,
+    source_editions: [legacyEdition],
+  });
+  edition.verified_sources.push(binding);
+  assert.throws(
+    () => assembleCatalogRecords(shared, [{ ...authored, listing }]),
+    /Duplicate verified source binding/,
+  );
+});
+
 void test("inherits only reviewed descriptive selectors for the same package scope", () => {
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
   const record = checkedAuthoredPort(
@@ -1042,8 +1082,7 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries implementation descriptions (format 12); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 12);
+  assert.equal(projected.directory.format_version, source.directory.format_version);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -1173,7 +1212,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 12);
+  assert.equal(source.directory.format_version, 13);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -1311,8 +1350,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; implementation descriptions lift the real directory to 12.
-  assert.equal(assembled.directory.format_version, 12);
+  assert.equal(assembled.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -1331,7 +1369,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 12);
+  assert.equal(combined.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -2112,7 +2150,10 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.adapter, before.adapter);
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
-  assert.equal(source.directory.format_version, 12);
+  const implementationOnly = structuredClone(record);
+  delete implementationOnly.listing.media;
+  const { ports: _ports, ...shared } = source.catalog;
+  assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);
   const dependency = record.listing.implementation.dependencies[0]!;
   for (const invalid of [
     { ...record.listing.implementation, format_version: 999 },
