@@ -1242,13 +1242,16 @@ export default interface Resources {
       "error": {
         "choose": "Choose one of the listed options.",
         "number": "Enter a number.",
+        "range": "Enter a number within the listed range.",
         "tooLarge": "This number is too large to save accurately.",
         "whole": "Enter a whole number."
       },
+      "pendingDefault": "Will use the default when saved.",
       "rangeNumber": "Numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
       "rangeWhole": "Whole numbers from {{minimum}} to {{maximum}}, in steps of {{step}}.",
-      "reset": "Reset to default…",
-      "review": "Review change"
+      "reset": "Use default",
+      "review": "Review changes",
+      "undo": "Undo"
     },
     "jakMods": {
       "browse": "Browse JakMods",
@@ -1710,10 +1713,15 @@ export default interface Resources {
       }
     },
     "panel": {
+      "discard": "Discard draft",
       "fileUnavailable": "This settings file is unavailable.",
       "heading": "Game settings",
-      "intro": "Review each change before saving. Other preferences stay as they are.",
+      "held": "This setup or file changed. Your draft is held here. Read the settings again or discard this draft to start over.",
+      "installTarget": "Game version {{version}}",
+      "intro": "Edit settings, then review the changes for each file before saving.",
       "label": "Game settings",
+      "limit": "Review up to 16 changes at a time. Undo some edits to continue.",
+      "setupTarget": "Setup {{setup}} · Game version {{version}}",
       "unavailable": "Settings are unavailable for this installation."
     },
     "review": {
@@ -1721,15 +1729,17 @@ export default interface Resources {
       "cancel": "Cancel",
       "current": "Current saved value",
       "default": "Default",
-      "description": "Save this one preference for the installed game. The game may need to restart to use it.",
-      "failure": "The change was not accepted. Refresh settings and review again.",
+      "description": "Check the changes below before saving. The game may need to restart to use them.",
+      "failure": "Portcove could not confirm this save. Read the settings again before trying another save.",
       "installationChanged": "The installation changed. Refresh settings and review again.",
       "new": "New value",
-      "reading": "Reading the current setting…",
-      "save": "Save setting",
-      "setting": "Setting",
+      "reading": "Checking the current settings…",
+      "requiresStandardWindowsSession": "Game settings can’t be reviewed in this Windows session. Open Portcove from the desktop without administrator privileges to edit game settings.",
+      "save": "Save changes",
+      "saved": "Changes saved.",
+      "savedReadback": "Changes saved. Read the settings again to see the current values.",
       "technical": "Technical details",
-      "title": "Review game setting"
+      "title": "Review game settings"
     },
     "value": {
       "notSaved": "Not saved",

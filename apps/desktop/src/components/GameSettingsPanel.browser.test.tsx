@@ -2,7 +2,13 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { userEvent } from "vite-plus/test/browser";
-import type { GameSettingChange, GameSettingReview, GameSettingsView } from "../types";
+import type {
+  GameSettingChange,
+  GameSettingsChangeSetReview,
+  GameSettingsChangeSetView,
+  GameSettingsEdit,
+  GameSettingsView,
+} from "../types";
 import { GameSettingsPanel, type GameSettingsActions } from "./GameSettingsPanel";
 import { GameSettingsControl } from "./GameSettingsControl";
 import { desktopApi } from "../api";
@@ -44,19 +50,28 @@ function settings(): GameSettingsView {
   };
 }
 
-function reviewed(change: GameSettingChange): GameSettingReview {
+function observed(settings: GameSettingsView): GameSettingsChangeSetView {
+  return { settings, setup: null, setup_name: null, installed_version: "1.2" };
+}
+
+function reviewed(change: GameSettingChange): GameSettingsChangeSetReview {
   return {
+    library_id: "library",
     port_id: "shipwright",
     install_id: "retained-install",
     file_id: "preferences",
-    setting_id: "master-volume",
-    label: "Master volume",
     path: "shipofharkinian.json",
-    change,
-    previous_value: 70,
-    proposed_value: change.action === "reset" ? 40 : change.value,
     configuration_sha256: "a".repeat(64),
     review_sha256: "b".repeat(64),
+    setup: null,
+    edits: [
+      {
+        edit: { setting_id: "master-volume", change },
+        label: "Master volume",
+        previous_value: 70,
+        proposed_value: change.action === "reset" ? 40 : change.value,
+      },
+    ],
   };
 }
 
@@ -71,7 +86,12 @@ async function mount(actions: GameSettingsActions, initial = settings(), replace
     if (replaceOnChange) root.render(panel(view, currentGeneration));
   });
   const panel = (view: GameSettingsView, generation: number) => (
-    <GameSettingsPanel view={view} generation={generation} actions={actions} changed={changed} />
+    <GameSettingsPanel
+      view={observed(view)}
+      generation={generation}
+      actions={actions}
+      changed={changed}
+    />
   );
   const render = async (view: GameSettingsView, generation = 1) => {
     currentGeneration = generation;
@@ -92,20 +112,19 @@ async function click(label: string) {
 }
 
 it("requires review and explicit save, then passes Core's exact binding to apply", async () => {
-  const review = vi.fn(async (_file: string, _setting: string, change: GameSettingChange) =>
-    reviewed(change),
-  );
+  const review = vi.fn(async (_file: string, [edit]: GameSettingsEdit[]) => reviewed(edit!.change));
   const apply = vi.fn(async () => settings());
   const { changed } = await mount({ review, apply });
   expect(apply).not.toHaveBeenCalled();
-  await click("Reset to default…");
-  expect(review).toHaveBeenCalledExactlyOnceWith("preferences", "master-volume", {
-    action: "reset",
-  });
+  await click("Use default");
+  await click("Review changes");
+  expect(review).toHaveBeenCalledExactlyOnceWith("preferences", [
+    { setting_id: "master-volume", change: { action: "reset" } },
+  ]);
   expect(apply).not.toHaveBeenCalled();
   expect(document.querySelector("[role=dialog]")?.textContent).toContain("Default");
-  await expect.poll(() => document.activeElement?.textContent).toBe("Review game setting");
-  await click("Save setting");
+  await expect.poll(() => document.activeElement?.textContent).toBe("Review game settings");
+  await click("Save changes");
   expect(apply).toHaveBeenCalledExactlyOnceWith(reviewed({ action: "reset" }));
   expect(changed).toHaveBeenCalledExactlyOnceWith(settings());
 });
@@ -113,16 +132,17 @@ it("requires review and explicit save, then passes Core's exact binding to apply
 it.each(["library", "installation", "availability"])(
   "invalidates a pending review after %s changes",
   async (kind) => {
-    let resolve: ((value: GameSettingReview) => void) | undefined;
+    let resolve: ((value: GameSettingsChangeSetReview) => void) | undefined;
     const review = vi.fn(
       () =>
-        new Promise<GameSettingReview>((done) => {
+        new Promise<GameSettingsChangeSetReview>((done) => {
           resolve = done;
         }),
     );
     const apply = vi.fn(async () => settings());
     const { render } = await mount({ review, apply });
-    await click("Reset to default…");
+    await click("Use default");
+    await click("Review changes");
     const updated = {
       ...settings(),
       install_id: kind === "installation" ? "other-install" : "retained-install",
@@ -143,25 +163,68 @@ it("rejects a review from another installation without enabling save", async () 
   }));
   const apply = vi.fn(async () => settings());
   await mount({ review, apply });
-  await click("Reset to default…");
+  await click("Use default");
+  await click("Review changes");
   expect(document.querySelector("[role=alert]")?.textContent).toContain("installation changed");
-  expect(button("Save setting").disabled).toBe(true);
+  expect(button("Save changes").disabled).toBe(true);
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("retains failed-write consequences and requires a fresh review before another apply", async () => {
+it("explains a refused read-only review and retains the exact draft for retry", async () => {
+  const reason = "settings editing requires an effective medium-integrity token";
+  const review = vi
+    .fn<GameSettingsActions["review"]>()
+    .mockRejectedValueOnce({
+      code: "unsupported",
+      presentation: {
+        summary: "This operation is not supported for the current selection.",
+        tone: "error",
+        mutation_state: "unknown",
+        technical_message: reason,
+        technical_context: { game_settings_access: "medium_integrity_required" },
+        recovery_actions: [],
+      },
+    })
+    .mockResolvedValue(reviewed({ action: "reset" }));
+  const apply = vi.fn(async () => settings());
+  await mount({ review, apply });
+  await click("Use default");
+  await click("Review changes");
+  const alert = document.querySelector("[role=alert]");
+  expect(alert?.textContent).toContain(
+    "Open Portcove from the desktop without administrator privileges",
+  );
+  expect(alert?.textContent).not.toContain("confirm whether anything changed");
+  expect(alert?.querySelector("details")?.textContent).toContain(reason);
+  expect(button("Save changes").disabled).toBe(true);
+  expect(apply).not.toHaveBeenCalled();
+
+  await click("Review again");
+  const edits = [{ setting_id: "master-volume", change: { action: "reset" } }];
+  expect(review.mock.calls).toEqual([
+    ["preferences", edits],
+    ["preferences", edits],
+  ]);
+  expect(document.querySelector("[role=alert]")).toBeNull();
+  expect(button("Save changes").disabled).toBe(false);
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("retains failed-write consequences and requires a new read before another apply", async () => {
   const review = vi.fn(async () => reviewed({ action: "reset" }));
   const apply = vi.fn(async (): Promise<GameSettingsView> => {
     throw new Error("Configuration changed; preserve both copies.");
   });
   const { changed } = await mount({ review, apply });
-  await click("Reset to default…");
-  await click("Save setting");
+  await click("Use default");
+  await click("Review changes");
+  await click("Save changes");
   expect(document.querySelector("[role=alert]")?.textContent).toContain("preserve both copies");
-  expect(button("Save setting").disabled).toBe(true);
+  expect(button("Save changes").disabled).toBe(true);
   expect(changed).not.toHaveBeenCalled();
-  await click("Review again");
-  expect(review).toHaveBeenCalledTimes(2);
+  await click("Cancel");
+  expect(button("Review changes").disabled).toBe(true);
+  expect(review).toHaveBeenCalledTimes(1);
   expect(apply).toHaveBeenCalledTimes(1);
 });
 
@@ -175,8 +238,9 @@ it("does not publish an old apply response into a newly selected library", async
       }),
   );
   const { changed, render } = await mount({ review, apply });
-  await click("Reset to default…");
-  await click("Save setting");
+  await click("Use default");
+  await click("Review changes");
+  await click("Save changes");
   expect(apply).toHaveBeenCalledTimes(1);
   await render(settings(), 2);
   await act(async () => resolve?.(settings()));
@@ -212,8 +276,9 @@ it("restores stable focus after save replaces the configuration and editor", asy
     apply: vi.fn(async () => updated),
   };
   const { host } = await mount(actions, settings(), true);
-  await click("Reset to default…");
-  await act(async () => button("Save setting").focus());
+  await click("Use default");
+  await click("Review changes");
+  await act(async () => button("Save changes").focus());
   await act(async () => userEvent.keyboard("{Enter}"));
   await expect.poll(() => document.activeElement?.textContent).toBe("Game settings");
   expect(host.querySelector("input")?.value).toBe("40");
@@ -226,9 +291,10 @@ it("keyboard cancellation returns focus without applying", async () => {
     apply: vi.fn(async () => settings()),
   };
   await mount(actions);
-  await click("Reset to default…");
+  await click("Use default");
+  await click("Review changes");
   await act(async () => userEvent.keyboard("{Escape}"));
-  await expect.poll(() => document.activeElement?.textContent).toBe("Game settings");
+  await expect.poll(() => document.activeElement?.textContent).toBe("Review changes");
   expect(actions.apply).not.toHaveBeenCalled();
 });
 
@@ -252,13 +318,18 @@ it.each(["shipwright", "diddy-kong-racing-golden-balloon", "decimal-fixture"])(
       setting.value = 1;
       setting.value_type = { kind: "number", minimum: 0.75, maximum: 2, step: 0.05, default: 1 };
     }
-    const review = vi.fn(async (_file: string, _setting: string, change: GameSettingChange) => ({
-      ...reviewed(change),
+    const review = vi.fn(async (_file: string, [edit]: GameSettingsEdit[]) => ({
+      ...reviewed(edit!.change),
       port_id: portId,
-      setting_id: setting.id,
-      label: setting.label,
       path: file.path,
-      previous_value: setting.value,
+      edits: [
+        {
+          edit: edit!,
+          label: setting.label,
+          previous_value: setting.value,
+          proposed_value: value,
+        },
+      ],
     }));
     const apply = vi.fn(async () => view);
     const { host } = await mount({ review, apply }, view);
@@ -270,11 +341,10 @@ it.each(["shipwright", "diddy-kong-racing-golden-balloon", "decimal-fixture"])(
       Reflect.apply(setter, input, [String(value)]);
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click("Review change");
-    expect(review).toHaveBeenCalledExactlyOnceWith("preferences", setting.id, {
-      action: "set",
-      value,
-    });
+    await click("Review changes");
+    expect(review).toHaveBeenCalledExactlyOnceWith("preferences", [
+      { setting_id: setting.id, change: { action: "set", value } },
+    ]);
     expect(apply).not.toHaveBeenCalled();
   },
 );
@@ -296,9 +366,7 @@ it.each(["boolean", "enum"])("preserves the scalar type of %s intent", async (ki
             { label: "Automatic", value: "auto" },
           ],
         };
-  const review = vi.fn(async (_file: string, _setting: string, change: GameSettingChange) =>
-    reviewed(change),
-  );
+  const review = vi.fn(async (_file: string, [edit]: GameSettingsEdit[]) => reviewed(edit!.change));
   const apply = vi.fn(async () => view);
   const { host } = await mount({ review, apply }, view);
   await act(async () => {
@@ -313,11 +381,13 @@ it.each(["boolean", "enum"])("preserves the scalar type of %s intent", async (ki
       select.dispatchEvent(new Event("change", { bubbles: true }));
     }
   });
-  await click("Review change");
-  expect(review).toHaveBeenCalledExactlyOnceWith("preferences", "master-volume", {
-    action: "set",
-    value: kind === "boolean" ? true : "auto",
-  });
+  await click("Review changes");
+  expect(review).toHaveBeenCalledExactlyOnceWith("preferences", [
+    {
+      setting_id: "master-volume",
+      change: { action: "set", value: kind === "boolean" ? true : "auto" },
+    },
+  ]);
   const dialog = document.querySelector("[role=dialog]")?.querySelector("dl");
   expect(dialog?.textContent).toContain(kind === "boolean" ? "On" : "Automatic");
   expect(dialog?.textContent).not.toContain(kind === "boolean" ? "true" : '"auto"');
@@ -330,14 +400,21 @@ it("keeps an absent saved value distinct from Off while reviewing a default", as
   if (!setting) throw new Error("Missing setting fixture");
   setting.value = null;
   setting.value_type = { kind: "boolean", default: false };
-  const review = vi.fn(async () => ({
+  const review = vi.fn(async (): Promise<GameSettingsChangeSetReview> => ({
     ...reviewed({ action: "reset" }),
-    previous_value: null,
-    proposed_value: false,
+    edits: [
+      {
+        edit: { setting_id: "master-volume", change: { action: "reset" } },
+        label: setting.label,
+        previous_value: null,
+        proposed_value: false,
+      },
+    ],
   }));
   const apply = vi.fn(async () => view);
   await mount({ review, apply }, view);
-  await click("Reset to default…");
+  await click("Use default");
+  await click("Review changes");
   const dialog = document.querySelector("[role=dialog]")?.querySelector("dl");
   expect(dialog?.textContent).toContain("Not saved");
   expect(dialog?.textContent).toContain("Off");
@@ -362,7 +439,7 @@ it.each(["integer", "number"] as const)(
       Reflect.apply(setter, input, ["9007199254740992"]);
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click("Review change");
+    await click("Review changes");
     expect(host.querySelector("[role=alert]")?.textContent).toBe(
       "This number is too large to save accurately.",
     );
@@ -393,7 +470,7 @@ it("refuses empty numeric input before review and isolates an unavailable file",
     Reflect.apply(setter, input, [""]);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
-  await click("Review change");
+  await click("Review changes");
   expect(host.querySelector("[role=alert]")?.textContent).toContain("whole number");
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
@@ -401,16 +478,16 @@ it("refuses empty numeric input before review and isolates an unavailable file",
 
 it("binds explicit settings reads to the current library and installation", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  let resolveOld: ((value: GameSettingsView) => void) | undefined;
+  let resolveOld: ((value: GameSettingsChangeSetView) => void) | undefined;
   const read = vi
-    .spyOn(desktopApi, "gameSettings")
+    .spyOn(desktopApi, "gameSettingsChangeSetView")
     .mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveOld = resolve;
         }),
     )
-    .mockResolvedValue(settings());
+    .mockResolvedValue(observed(settings()));
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -438,7 +515,7 @@ it("binds explicit settings reads to the current library and installation", asyn
       />,
     ),
   );
-  await act(async () => resolveOld?.(settings()));
+  await act(async () => resolveOld?.(observed(settings())));
   expect(host.querySelector("input")).toBeNull();
   expect(host.textContent).toContain("Read game settings");
   await click("Read game settings");
@@ -450,16 +527,18 @@ it("binds explicit settings reads to the current library and installation", asyn
 it("retries a failed settings read and preserves a local unavailable reason", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const read = vi
-    .spyOn(desktopApi, "gameSettings")
+    .spyOn(desktopApi, "gameSettingsChangeSetView")
     .mockRejectedValueOnce(new Error("controlled read failure"))
-    .mockResolvedValueOnce({
-      ...settings(),
-      available: false,
-      install_id: null,
-      reason: "Retained release does not offer settings",
-      files: [],
-    })
-    .mockResolvedValue(settings());
+    .mockResolvedValueOnce(
+      observed({
+        ...settings(),
+        available: false,
+        install_id: null,
+        reason: "Retained release does not offer settings",
+        files: [],
+      }),
+    )
+    .mockResolvedValue(observed(settings()));
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
@@ -500,13 +579,14 @@ it("presents the panel and review in the active locale while keeping catalog lab
     expect(host.querySelector("h3")?.textContent).toBe("إعدادات اللعبة");
     expect(host.textContent).toContain("Master volume");
     expect(host.textContent).toContain("أعداد صحيحة من 0 إلى 100، بخطوات قدرها 1.");
-    await click("إعادة التعيين إلى الافتراضي…");
+    await click("استخدام الافتراضي");
+    await click("مراجعة التغييرات");
     const dialog = document.querySelector("[role=dialog]");
-    expect(dialog?.textContent).toContain("مراجعة إعداد اللعبة");
+    expect(dialog?.textContent).toContain("مراجعة إعدادات اللعبة");
     expect(document.querySelector("[role=alert]")?.textContent).toContain(
       "تغيّر التثبيت. حدّث الإعدادات وراجعها مرة أخرى.",
     );
-    expect(button("حفظ الإعداد").disabled).toBe(true);
+    expect(button("حفظ التغييرات").disabled).toBe(true);
     expect(apply).not.toHaveBeenCalled();
   } finally {
     await localization.changeLanguage("en");
@@ -518,8 +598,8 @@ it("translates validation codes and review labels in the active locale", async (
   const localization = initializeLocalization(["en-US"]);
   try {
     await localization.changeLanguage("ar-XB");
-    const review = vi.fn(async (_file: string, _setting: string, change: GameSettingChange) =>
-      reviewed(change),
+    const review = vi.fn(async (_file: string, [edit]: GameSettingsEdit[]) =>
+      reviewed(edit!.change),
     );
     const apply = vi.fn(async () => settings());
     const { host } = await mount({ review, apply });
@@ -531,16 +611,200 @@ it("translates validation codes and review labels in the active locale", async (
       Reflect.apply(setter, input, ["1.5"]);
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    await click("مراجعة التغيير");
+    await click("مراجعة التغييرات");
     expect(host.querySelector("[role=alert]")?.textContent).toBe("أدخل عددًا صحيحًا.");
     expect(review).not.toHaveBeenCalled();
-    await click("إعادة التعيين إلى الافتراضي…");
-    const terms = [...document.querySelectorAll("[role=dialog] dt")].map(
-      (item) => item.textContent,
-    );
-    expect(terms.slice(0, 3)).toEqual(["الإعداد", "القيمة المحفوظة الحالية", "الافتراضي"]);
-    expect(button("حفظ الإعداد").disabled).toBe(false);
+    await click("استخدام الافتراضي");
+    await click("مراجعة التغييرات");
+    const terms = [
+      ...(document.querySelector("[role=dialog] dl")?.querySelectorAll("dt") ?? []),
+    ].map((item) => item.textContent);
+    expect(terms).toEqual(["القيمة المحفوظة الحالية", "الافتراضي"]);
+    expect(button("حفظ التغييرات").disabled).toBe(false);
   } finally {
     await localization.changeLanguage("en");
   }
+});
+
+it("reviews two edits for one file and keeps a different file's draft after saving", async () => {
+  const view = settings();
+  const file = view.files[0]!;
+  file.settings.push({
+    id: "subtitles",
+    label: "Subtitles",
+    value: false,
+    value_type: { kind: "boolean", default: false },
+  });
+  view.files.push({
+    ...file,
+    id: "controller",
+    path: "controller.ini",
+    settings: [
+      {
+        id: "rumble",
+        label: "Rumble",
+        value: false,
+        value_type: { kind: "boolean", default: false },
+      },
+    ],
+  });
+  const expected = [
+    { setting_id: "master-volume", change: { action: "set", value: 85 } },
+    { setting_id: "subtitles", change: { action: "set", value: true } },
+  ] satisfies GameSettingsEdit[];
+  const exactReview: GameSettingsChangeSetReview = {
+    ...reviewed(expected[0]!.change),
+    edits: [
+      { edit: expected[0]!, label: "Master volume", previous_value: 70, proposed_value: 85 },
+      { edit: expected[1]!, label: "Subtitles", previous_value: false, proposed_value: true },
+    ],
+  };
+  const updated = structuredClone(view);
+  updated.files[0]!.configuration_sha256 = "c".repeat(64);
+  updated.files[0]!.settings[0]!.value = 85;
+  updated.files[0]!.settings[1]!.value = true;
+  const review = vi.fn(async () => exactReview);
+  const apply = vi.fn(async () => updated);
+  const { host } = await mount({ review, apply }, view, true);
+  const [audio, controller] = host.querySelectorAll("form");
+  const volume = audio?.querySelector("input[type=number]");
+  const subtitles = audio?.querySelector("input[type=checkbox]");
+  const rumble = controller?.querySelector("input[type=checkbox]");
+  const submit = audio?.querySelector("button[type=submit]");
+  if (
+    !(volume instanceof HTMLInputElement) ||
+    !(subtitles instanceof HTMLInputElement) ||
+    !(rumble instanceof HTMLInputElement) ||
+    !(submit instanceof HTMLButtonElement)
+  ) {
+    throw new Error("Missing file editor");
+  }
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("Missing native input setter");
+    Reflect.apply(setter, volume, ["85"]);
+    volume.dispatchEvent(new Event("input", { bubbles: true }));
+    subtitles.click();
+    rumble.click();
+  });
+  await act(async () => submit.click());
+  expect(review).toHaveBeenCalledExactlyOnceWith("preferences", expected);
+  expect(document.querySelector("[role=dialog]")?.textContent).toContain("Subtitles");
+  expect(document.querySelector("[role=dialog]")?.textContent).not.toContain("Rumble");
+  await click("Save changes");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(exactReview);
+  expect(rumble.checked).toBe(true);
+  expect(controller?.querySelector("button[type=submit]")?.matches(":enabled")).toBe(true);
+});
+
+it("holds an edited file across a materialized setup revision change", async () => {
+  const settingsView = settings();
+  const initial = {
+    ...observed(settingsView),
+    setup_name: "Weekend setup",
+    setup: { id: "profile", revision: 1 },
+  };
+  const later = { ...initial, setup: { ...initial.setup, revision: 2 } };
+  const read = vi
+    .spyOn(desktopApi, "gameSettingsChangeSetView")
+    .mockResolvedValueOnce(initial)
+    .mockResolvedValueOnce(later);
+  const review = vi.spyOn(desktopApi, "reviewGameSettingsChangeSet");
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ root, host });
+  await act(async () =>
+    root.render(
+      <GameSettingsControl
+        portId="shipwright"
+        installId="newer-catalog-install"
+        generation={1}
+        busy={false}
+      />,
+    ),
+  );
+  await click("Read game settings");
+  await click("Use default");
+  expect(host.querySelector("input")?.value).toBe("40");
+  expect(host.textContent).toContain("Setup Weekend setup · Game version 1.2");
+  await click("Read settings again");
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("Your draft is held here");
+  expect(host.querySelector("input")?.value).toBe("40");
+  expect(button("Review changes").matches(":disabled")).toBe(true);
+  expect(review).not.toHaveBeenCalled();
+  await click("Discard draft");
+  expect(host.querySelector("input")?.value).toBe("70");
+});
+
+it("keeps a committed write confirmed through failed readback and refreshes the saved value", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const updated = settings();
+  updated.files[0]!.configuration_sha256 = "c".repeat(64);
+  updated.files[0]!.settings[0]!.value = 40;
+  vi.spyOn(desktopApi, "gameSettingsChangeSetView")
+    .mockResolvedValueOnce(observed(settings()))
+    .mockRejectedValueOnce(new Error("Failed to read settings again"))
+    .mockResolvedValueOnce(
+      observed({
+        ...settings(),
+        files: [
+          {
+            ...settings().files[0]!,
+            available: false,
+            configuration_sha256: null,
+            reason: "This file is unavailable",
+            settings: [],
+          },
+        ],
+      }),
+    )
+    .mockResolvedValueOnce(observed(updated));
+  vi.spyOn(desktopApi, "reviewGameSettingsChangeSet").mockResolvedValue(
+    reviewed({ action: "reset" }),
+  );
+  const apply = vi.spyOn(desktopApi, "applyGameSettingsChangeSet").mockRejectedValue({
+    message: "Settings saved; readback failed.",
+    presentation: {
+      summary: "Settings saved; readback failed.",
+      technical_message: "Temporary read failure",
+      technical_context: {},
+      recovery_actions: [],
+      mutation_state: "committed",
+      tone: "error",
+    },
+  });
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  mounted.push({ root, host });
+  await act(async () =>
+    root.render(
+      <GameSettingsControl
+        portId="shipwright"
+        installId="retained-install"
+        generation={1}
+        busy={false}
+      />,
+    ),
+  );
+  await click("Read game settings");
+  await click("Use default");
+  await click("Review changes");
+  await click("Save changes");
+  await click("Cancel");
+  expect(host.textContent).toContain("Changes saved. Read the settings again");
+  expect(button("Review changes").matches(":disabled")).toBe(true);
+  await click("Read settings again");
+  expect(host.textContent).toContain("Failed to read settings again");
+  expect(host.textContent).toContain("Changes saved. Read the settings again");
+  await click("Read settings again");
+  expect(host.textContent).toContain("This file is unavailable");
+  expect(host.textContent).toContain("Changes saved. Read the settings again");
+  await click("Read settings again");
+  expect(host.textContent).not.toContain("Read the settings again to see the current values.");
+  expect(host.querySelector("input")?.value).toBe("40");
+  expect(apply).toHaveBeenCalledTimes(1);
 });
