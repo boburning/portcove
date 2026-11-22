@@ -57,7 +57,7 @@
         },
         {
           "title": "Prepare the Linux player yourself",
-          "instruction": "Follow the upstream Linux/macOS guide with your own Call of Pripyat 1.6.02 resources. Open https://github.com/OpenXRay/xray-16/actions/workflows/cibuild.yml and choose AppImage Release amd64 from a successful push on the official dev branch. Use a system with glibc 2.38 or later. Unzip the download and make the AppImage executable. Select the AppImage and its containing folder. Where FUSE is unavailable, enter --appimage-extract-and-run on its own line. Call of Pripyat is the default. Leave out -cs. For a custom fsgame.ltx, enter -fsltx and its space-free absolute path on separate lines."
+          "instruction": "Follow the upstream Linux/macOS guide with your own Call of Pripyat 1.6.02 resources. Open https://github.com/OpenXRay/xray-16/actions/workflows/cibuild.yml and choose AppImage Release amd64 from a successful push on the official dev branch. Use a system with glibc 2.38 or later. Unzip the download and make the AppImage executable. Select the AppImage and its containing folder. Where FUSE is unavailable, enter --appimage-extract-and-run as the first argument line, before any other argument. Call of Pripyat is the default. Leave out -cs. For a custom fsgame.ltx, enter -fsltx and its space-free absolute path on separate lines."
         },
         {
           "title": "Prepare the matching Mac build yourself",
