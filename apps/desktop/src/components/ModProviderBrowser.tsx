@@ -55,6 +55,33 @@ type Props = {
   updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
 };
 
+/**
+ * Joins a continuation read onto the catalog read so far. The merged snapshot is
+ * complete only when the provider total stayed the same, the listing ended and
+ * the merged count matches that total; otherwise it stays labeled partial.
+ */
+export function mergeCatalogReads(
+  previous: ProviderCatalog,
+  next: ProviderCatalog,
+): ProviderCatalog {
+  const known = new Set(previous.projects.map((project) => project.project_id));
+  const projects = [
+    ...previous.projects,
+    ...next.projects.filter((project) => !known.has(project.project_id)),
+  ];
+  const sameTotal = previous.expected_total === next.expected_total;
+  const ended = next.next_page === undefined || next.next_page === null;
+  return {
+    ...previous,
+    projects,
+    next_page: sameTotal ? (next.next_page ?? null) : null,
+    complete:
+      sameTotal && ended && next.complete && projects.length === Number(next.expected_total),
+    observed_at: Math.min(previous.observed_at, next.observed_at),
+    freshness: previous.freshness === "stale" ? "stale" : next.freshness,
+  };
+}
+
 export function providerName(provider: string) {
   if (provider === "gamebanana") return "GameBanana";
   if (provider === "thunderstore") return "Thunderstore";
@@ -174,8 +201,30 @@ export function ModProviderBrowser({
     setCatalogFailures((current) => ({ ...current, [provider]: undefined }));
     void desktopApi
       .modProviderCatalog(portId, provider, generation)
-      .then((result) => {
-        if (alive.current) setCatalogs((current) => ({ ...current, [provider]: result }));
+      .then(async (result) => {
+        if (!alive.current) return;
+        setCatalogs((current) => ({ ...current, [provider]: result }));
+        // A large catalog arrives in bounded reads. Keep showing what is known,
+        // labeled partial, while later reads continue from the provider page.
+        let merged = result;
+        while (merged.next_page !== undefined && merged.next_page !== null) {
+          let next: ProviderCatalog;
+          try {
+            next = await desktopApi.modProviderCatalog(
+              portId,
+              provider,
+              generation,
+              merged.next_page,
+            );
+          } catch {
+            merged = { ...merged, next_page: null, complete: false };
+            if (alive.current) setCatalogs((current) => ({ ...current, [provider]: merged }));
+            return;
+          }
+          if (!alive.current) return;
+          merged = mergeCatalogReads(merged, next);
+          setCatalogs((current) => ({ ...current, [provider]: merged }));
+        }
       })
       .catch((error: unknown) => {
         if (!alive.current) return;

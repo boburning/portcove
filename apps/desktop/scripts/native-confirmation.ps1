@@ -127,7 +127,7 @@ if ($ObservePicker) {
     if ($PreparedRuntimeDirectory) {
         $allowedNames = if ($ExpectedPickerTitle -ceq 'Choose game files folder') {
             @('selected-setup-inputs', 'connected-folder-extra', 'connected-folder-replacement')
-        } else { @('player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
+        } else { @('player-owned-runtime', 'replacement-player-owned-runtime', 'real-prepared-runtime-dkc3-recomp', 'real-prepared-runtime-wave-race-64-racewave46') }
         $outputDirectory = [IO.Path]::GetFullPath([IO.Path]::GetDirectoryName($ObservationPath))
         $suppliedName = [IO.Path]::GetFileName($PreparedRuntimeDirectory)
         if ($suppliedName -cnotin $allowedNames) { throw 'Picker input is not an admitted owned fixture directory.' }
@@ -395,7 +395,16 @@ if ($FilePath) {
     $fields = @($children | Where-Object { $_.Current.ControlType -eq [System.Windows.Automation.ControlType]::Edit -and $_.Current.Name -eq 'File name:' })
     if ($fields.Count -ne 1 -or $fields[0].Current.ProcessId -ne $applicationId) { throw 'Expected one exact owned file-name field.' }
     $fileValue = $fields[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
-    $fileValue.SetValue($selected)
+    if ($saveFile -and $Title -ceq 'Export library information') {
+        $fields[0].SetFocus()
+        Assert-ExactConfirmationWindow $window
+        if (-not $fields[0].Current.HasKeyboardFocus -or $fields[0].Current.ProcessId -ne $applicationId) {
+            throw 'Exact owned metadata file-name edit did not take focus.'
+        }
+        Set-NativeMetadataSaveText $window $fields[0] $selected
+    } else {
+        $fileValue.SetValue($selected)
+    }
     if ($fileValue.Current.Value -cne $selected) { throw 'Owned file-name field did not retain the selected path.' }
 }
 if ($DirectoryPath) {

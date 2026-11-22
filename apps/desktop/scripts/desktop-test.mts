@@ -34,7 +34,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -2672,6 +2672,7 @@ try {
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
       updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
+      managedCopyJourney: Boolean(executionPlan.fixtures.managedCopyJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -2703,6 +2704,41 @@ try {
           output,
           fixture: installFixture,
         });
+    }
+    if (installFixture.managedCopyJourney) {
+      // This CLI registration seeds owned pre-state. The native case observes
+      // the reviewed transition from that registration and never runs it.
+      const directory = path.join(output, "managed-copy-external");
+      await mkdir(directory);
+      const executable = path.join(directory, "external-fixture.exe");
+      const save = path.join(directory, "external-save.txt");
+      await copyFile(required(values["preparation-tool"]), executable);
+      await writeFile(save, "owned external save to preserve", { flag: "wx" });
+      inputs.push(await fileIdentity(executable), await fileIdentity(save));
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      const args = [installFixture.port.id, executable, "--working-directory", directory];
+      const preview = transportValue(
+        "external_runtime_preview",
+        command(["external", "select-preview", ...args]),
+      );
+      const registered = transportValue(
+        "external_runtime_record",
+        command([
+          "external",
+          "select",
+          ...args,
+          "--expected-preview",
+          preview.preview_sha256,
+          "--yes",
+        ]),
+      );
+      assert.equal(registered.port_id, installFixture.port.id);
+      assert.equal(registered.executable, preview.executable);
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
     if (
@@ -4321,6 +4357,105 @@ try {
       );
     }
 
+    const shortcut = async (key: string) => {
+      const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+      await browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    };
+    const palette = By.css('[aria-labelledby="command-palette-title"]');
+    const searchPalette = async (query: string) => {
+      await shortcut("k");
+      const panel = await browser.wait(until.elementLocated(palette), 5_000);
+      const field = await panel.findElement(By.css('[role="combobox"]'));
+      await replaceKeyboardText(browser, field, query);
+      return field;
+    };
+    const choosePalette = async (label: string, optionId: string) => {
+      await searchPalette(label);
+      const option = await browser.wait(until.elementLocated(By.id(optionId)), 5_000);
+      await browser.wait(until.elementIsEnabled(option), 5_000);
+      assert.equal(await option.findElement(By.css("strong")).getText(), label);
+      await option.sendKeys(Key.ENTER);
+      await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    };
+    const localFind: string[] = [];
+    for (const [route, destination] of [
+      ["Library", "library"],
+      ["Discover", "catalog"],
+    ] as const) {
+      await selectPrimaryNavigation(browser, route);
+      const searchState = await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (route) => {
+              if (document.querySelector("#port-search")) return "search";
+              const headings = [...document.querySelectorAll("main h2")];
+              return (
+                route === "Library" &&
+                headings.some((item) => item.textContent?.trim() === "Your library is empty") &&
+                "empty-library"
+              );
+            },
+            route,
+          ),
+        30_000,
+        "The current collection did not finish opening",
+      );
+      const focused = await browser.switchTo().activeElement();
+      assert.notEqual(
+        await focused.getAttribute("id"),
+        "port-search",
+        "The current search must start unfocused",
+      );
+      await shortcut("f");
+      if (searchState === "search") {
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the current " + route + " search",
+        );
+        localFind.push(destination);
+      } else {
+        assert.equal(
+          await (await browser.switchTo().activeElement()).getId(),
+          await focused.getId(),
+          "Find without a search must preserve focus",
+        );
+        assert.equal(searchState, "empty-library");
+        localFind.push("empty-library");
+      }
+      assert.equal((await browser.findElements(palette)).length, 0);
+      const selected = await executeBrowserScript(browser, () =>
+        document
+          .querySelector('[data-navigation-destination][aria-current="page"]')
+          ?.getAttribute("data-navigation-destination"),
+      );
+      assert.equal(selected, destination, "Find must preserve the current catalog route");
+    }
+    const categories = [
+      ["appearance", "Appearance"],
+      ["library-storage", "Library and storage"],
+      ["game-files", "Game files"],
+      ["updates", "Updates"],
+      ["integrations", "Integrations"],
+      ["controls", "Keyboard and controller"],
+      ["advanced", "Advanced"],
+      ["about", "About"],
+    ] as const;
+    for (const [id, label] of categories) {
+      await choosePalette(`Open ${label} settings`, `command-settings-${id}`);
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (heading) => document.activeElement?.id === heading,
+            `settings-${id}-heading`,
+          ),
+        5_000,
+        `The palette did not focus the ${label} settings heading`,
+      );
+    }
+
     await selectPrimaryNavigation(browser, "Discover");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await clearCatalogFilters(browser);
@@ -4523,6 +4658,44 @@ try {
         { title: "Folder for a future install", open: false, visible: false },
       ]);
     };
+    await verifyDetailActionHierarchy();
+    const unavailablePlay = await searchPalette("Play this game");
+    assert.equal(
+      (await browser.findElements(By.id("command-current-game-play"))).length,
+      0,
+      "A game without the required files must have no palette Play command",
+    );
+    await unavailablePlay.sendKeys(Key.ESCAPE);
+    await browser.wait(async () => (await browser.findElements(palette)).length === 0, 5_000);
+    await revealDetailSection(browser, "Manage");
+    await choosePalette("Open Game files for this game", "command-current-game-files");
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () => {
+          const detail = document.querySelector('[data-detail-port-id="ghostship"]');
+          const selected = detail?.querySelector('[role="tab"][aria-selected="true"]');
+          return selected?.textContent?.trim() === "Game files";
+        }),
+      5_000,
+      "The contextual palette must keep Ghostship selected and open Game files",
+    );
+    const commandEvidence = path.join(output, "keyboard-layout-contextual-commands.json");
+    await writeFile(
+      commandEvidence,
+      JSON.stringify(
+        {
+          local_find: localFind,
+          focused_settings_headings: categories.map(([id]) => id),
+          contextual_port: "ghostship",
+          contextual_tab: "Game files",
+          blocked_play_command_absent: true,
+        },
+        null,
+        2,
+      ),
+      { flag: "wx" },
+    );
+    artifacts.push(commandEvidence);
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
     await browser.manage().window().setRect({ width: 960, height: 640 });

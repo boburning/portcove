@@ -18,7 +18,16 @@
       "game_slug": "the-legend-of-zelda-link-s-awakening-dx",
       "match_kind": "underlying-game"
     },
-    "download_block_reason": "The v2.0.0 Content.rar is an incomplete patch that depends on Content/Data from the withdrawn original v1.0.0 PC-port package. A ROM, patch checksum or new mirror does not supply the missing permitted original-data and executable contract. Fresh acquisition remains held until attributable permission and exact original-data/executable mapping or a clean lawful replacement are established.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "no-useful-route",
+        "explanation": "The v2.0.0 Content.rar is an incomplete patch that depends on Content/Data from the withdrawn original v1.0.0 PC-port package. A ROM, patch checksum or new mirror does not supply the missing permitted original-data and executable contract. Fresh acquisition remains held until attributable permission and exact original-data/executable mapping or a clean lawful replacement are established.",
+        "tracking_issue": 128
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "the-legend-of-zelda-link-s-awakening-dx-hd",

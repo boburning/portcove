@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/LaPingvino/The-Puzzle-Pits/releases/tag/v0.1.0",
     "setup_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
-    "download_block_reason": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Open the publisher’s preview release or browser edition. These packages include the original DOS game and its data.",
+        "tracking_issue": 6079
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/LaPingvino/The-Puzzle-Pits/blob/v0.1.0/README.md",
       "steps": [

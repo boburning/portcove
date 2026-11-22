@@ -19,7 +19,16 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Battle Arena Toshinden",
-    "download_block_reason": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
+        "tracking_issue": 826
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

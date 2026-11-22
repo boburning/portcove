@@ -100,7 +100,11 @@ import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings, CatalogUpdatesDialog } from "./CatalogUpdates";
 import { OfficialCatalogUpdates } from "./OfficialCatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
-import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
+import {
+  invocationFailure,
+  managedRouteReadbackGuidance,
+  type InvocationRecord,
+} from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -502,6 +506,7 @@ export function StatusLayer({
   operation,
   busy,
   featureNotices,
+  scanResultAnnouncement,
   invocations,
   operationEvents,
   dismissInvocation,
@@ -522,6 +527,7 @@ export function StatusLayer({
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   featureNotices?: ReactNode;
+  scanResultAnnouncement?: string | undefined;
   invocations?: ReadonlyMap<number, InvocationRecord>;
   operationEvents?: ReadonlyMap<string, OperationEvent>;
   dismissInvocation?: (id: number) => void;
@@ -557,6 +563,7 @@ export function StatusLayer({
     <>
       {invocations && (
         <InvocationAnnouncements
+          scanResult={scanResultAnnouncement}
           messages={[...invocations.values()].flatMap((record) => {
             const text = invocationAnnouncement(record, operationEvents, (game) =>
               t("launchRequestAccepted", { game }),
@@ -725,6 +732,9 @@ function ErrorNotice({
           showMutationSummary={!readbackOnly && !committed}
         />
       )}
+      {invocation?.reviewCurrentState && !committed && (
+        <p className="mt-1 text-sm">{managedRouteReadbackGuidance}</p>
+      )}
       {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
         <p>
           Refreshing the current state also failed: {errorText(invocation.refreshFailure)}. The
@@ -757,16 +767,19 @@ function ErrorNotice({
             {activityLinkLabel(invocation.context.activityId, onActivity)}
           </Button>
         )}
-        {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (
-          <Button
-            data-focusable
-            variant="outline"
-            size="sm"
-            onClick={() => void reviewCurrentState()}
-          >
-            Refresh library
-          </Button>
-        )}
+        {reviewCurrentState &&
+          (readbackOnly ||
+            invocation?.reviewCurrentState ||
+            presentation?.recovery_actions.includes("review_current_state")) && (
+            <Button
+              data-focusable
+              variant="outline"
+              size="sm"
+              onClick={() => void reviewCurrentState()}
+            >
+              Refresh library
+            </Button>
+          )}
         {reviewPreparation && (
           <Button
             data-focusable
@@ -1243,6 +1256,8 @@ function SourceHealth({
           generation={generation}
           profiles={profiles}
           disabled={Boolean(busy) || requirementsState !== "available"}
+          requirementsAvailable={requirementsState === "available"}
+          fallbackFocus={sourceHeading}
           onAdded={onAdded}
         />
       </div>
@@ -1899,6 +1914,7 @@ export function SettingsView(props: SettingsViewProps) {
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
         key={`recovery-${generation}`}
+        generation={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}
@@ -2874,7 +2890,12 @@ function SettledInvocation({
         <p data-slot="notice-body">
           {registration
             ? "Saved external launch details for " + record.context.target.label
-            : "Installed " + record.context.target.label + " · " + record.installed?.version}
+            : (record.context.operation === "change_managed_route"
+                ? "Created a managed copy of "
+                : "Installed ") +
+              record.context.target.label +
+              " · " +
+              record.installed?.version}
         </p>
         <div data-slot="notice-actions">
           {openGame && (

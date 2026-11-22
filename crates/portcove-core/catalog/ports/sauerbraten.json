@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://sourceforge.net/projects/sauerbraten/files/sauerbraten/2020_11_29/",
     "setup_url": "https://sourceforge.net/projects/sauerbraten/files/sauerbraten/2020_11_29/",
-    "download_block_reason": "Use the upstream desktop package or your Linux package manager. The game assets come with the full packages.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the upstream desktop package or your Linux package manager. The game assets come with the full packages.",
+        "tracking_issue": 6417
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

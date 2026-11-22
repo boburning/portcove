@@ -20,7 +20,16 @@
     "availability": "packages",
     "setup_url": "https://github.com/civctp2/civctp2/blob/Apolyton-Edition-2025-01-20/README.md#clone-and-complete-your-working-copy",
     "release_url": "https://github.com/civctp2/civctp2/releases/tag/Apolyton-Edition-2025-01-20",
-    "download_block_reason": "The community packages include game assets whose distribution terms still need review. Use the setup guide with a copy you’re entitled to use. Portcove can offer downloads once the exact package contents are cleared.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The community packages include game assets whose distribution terms still need review. Use the setup guide with a copy you’re entitled to use. Portcove can offer downloads once the exact package contents are cleared.",
+        "tracking_issue": 6125
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

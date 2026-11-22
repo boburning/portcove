@@ -182,9 +182,9 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "release-content-finding",
     source: "release-content",
     action:
-      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable GitHub release goes through the owner-only release-health relocation route, an unavailable GitLab release through a reviewed location change. If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
+      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable GitHub release goes through the owner-only release-health relocation route, an unavailable GitLab release through a reviewed location change. If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change adds a download hold to the listing's restrictions (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
     invocation:
-      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data, or a reviewed .github/release-content-accounting.json entry for a confirmed false positive; the next scheduled run of release-content-scan.yml on main reports the result",
+      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR adding a download hold to the listing's restrictions when it is game data, or a reviewed .github/release-content-accounting.json entry for a confirmed false positive; the next scheduled run of release-content-scan.yml on main reports the result",
     authority: "routine",
     executor: "release-content-scan.yml",
     workflow: {
@@ -684,7 +684,7 @@ function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): 
   }
   if (findings || inspect.length) {
     actions.push(
-      "If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
+      "If it bundles original game data outside the rights-basis owner exceptions, a reviewed catalog change adds a download hold to the listing's restrictions (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
     );
     invocations.push(guidance.invocation);
   }
