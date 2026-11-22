@@ -2754,12 +2754,14 @@ fn get_runtime_diagnostic_health(
 async fn create_support_bundle(
     state: tauri::State<'_, DesktopState>,
     diagnostics: tauri::State<'_, diagnostics::HostDiagnostics>,
+    generation: Option<u64>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     let state = state.inner().clone();
     let diagnostics = diagnostics.inner().clone();
     // Export is available even when service construction fails. Use the same
     // worker/restart guard as other blocking host work, without requiring ready().
-    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?)).await
+    blocking_worker(move || support_bundle_for_state(&state, diagnostics.directory()?, generation))
+        .await
 }
 
 /// Opens the host-chosen diagnostics directory that support reports are written
@@ -2787,10 +2789,14 @@ fn open_support_report_directory(directory: &Path) -> DesktopResult<()> {
 fn support_bundle_for_state(
     state: &DesktopState,
     directory: &Path,
+    expected_generation: Option<u64>,
 ) -> DesktopResult<portcove_core::SupportBundleExport> {
     // Snapshot existing initialization only. Constructing a new service would
     // load catalogs and could recreate a disappeared database before collection.
-    let (initialization, _) = initialization_snapshot(state);
+    let (initialization, generation) = initialization_snapshot(state);
+    if let Some(expected) = expected_generation {
+        require_library_generation(generation, expected)?;
+    }
     diagnostics::create_support_bundle(
         initialization.as_ref().ok().map(|ready| &ready.library),
         initialization.as_ref().err(),
@@ -2803,9 +2809,10 @@ fn support_bundle_for_state(
 async fn export_library_metadata(
     state: tauri::State<'_, DesktopState>,
     path: PathBuf,
+    generation: u64,
 ) -> DesktopResult<LibraryMetadataFile> {
     let state = state.inner().clone();
-    blocking_service(state, move |service| {
+    blocking_service_at_generation(state, generation, move |service| {
         service
             .write_library_metadata_from_picker(&path)
             .map_err(Into::into)
@@ -4689,7 +4696,7 @@ mod tests {
         assert!(status.library_root.is_none());
         assert!(service(&state).is_err());
         let exported =
-            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics"), None).unwrap();
         assert!(!exported.manifest.library_available);
         assert!(exported.path.is_file());
         assert_eq!(bootstrap_status(&state).error, Some(error));
@@ -4713,8 +4720,11 @@ mod tests {
             launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
         };
         fs::remove_file(&database).unwrap();
-        let exported =
-            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+        let destination = temporary.path().join("diagnostics");
+        let refused = support_bundle_for_state(&state, &destination, Some(0)).unwrap_err();
+        assert_eq!(refused, require_library_generation(1, 0).unwrap_err());
+        assert!(!destination.exists());
+        let exported = support_bundle_for_state(&state, &destination, Some(1)).unwrap();
         assert!(!database.exists());
         assert!(exported.path.is_file());
         assert!(exported.manifest.sections.iter().any(|section| {
@@ -4741,7 +4751,8 @@ mod tests {
         };
         assert!(service(&state).is_err());
         let exported =
-            support_bundle_for_state(&state, &temporary.path().join("diagnostics")).unwrap();
+            support_bundle_for_state(&state, &temporary.path().join("diagnostics"), Some(1))
+                .unwrap();
         assert!(exported.manifest.sections.iter().any(|section| {
             section.kind == portcove_core::SupportBundleSectionKind::Activities
                 && section.entry.as_deref() == Some("activities.json")

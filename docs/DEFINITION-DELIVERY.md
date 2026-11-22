@@ -1810,8 +1810,10 @@ the managed index, checksum-addressed definitions and official policy/launch
 records. This is separate from the compiled catalog. The existing coordinator
 freezes exact raw Git inputs, actual Core projection, accumulated changes from
 the accepted catalog baseline and current component/site identities. The catalog
-source readers reconstruct at most 6,144 entries per complete Git tree and refuse
-truncated or mismatched trees. Its neutral
+source readers reconstruct every entry of a complete Git tree and refuse
+truncated or mismatched trees. The count bound is GitHub's 100,000-entry
+recursive-tree completeness limit; in practice each reader's response byte
+bound (8 MiB for application sources, 16 MiB for catalog sources) binds first. Its neutral
 request is consumed by the selected independent whole-opportunity producer;
 parser success or persistence does not establish acceptance. Negative results
 retain the actual authenticated Check and bounded repair history in the same

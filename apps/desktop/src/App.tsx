@@ -37,6 +37,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
+import { SettingsExportResultsProvider } from "./features/workspace/settings-export-results";
 import {
   sourcesKey,
   useStandingSetupCatchUp,
@@ -50,6 +51,7 @@ import { useOperationState } from "./features/operations/use-operation-state";
 import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
 import {
   canOpenExternalRegistration,
+  canOpenInstalledResult,
   targetInvocationContext,
 } from "./features/operations/invocation-state";
 import {
@@ -1291,7 +1293,12 @@ function useWorkspace(props: WorkspaceProps) {
 }
 
 function Workspace(props: Parameters<typeof useWorkspace>[0]) {
-  return <WorkspaceView {...useWorkspace(props)} />;
+  const model = useWorkspace(props);
+  return (
+    <SettingsExportResultsProvider key={props.bootstrap.generation}>
+      <WorkspaceView {...model} />
+    </SettingsExportResultsProvider>
+  );
 }
 
 type WorkspaceModel = ReturnType<typeof useWorkspace>;
@@ -1343,6 +1350,7 @@ function WorkspaceView({ workspace, ...model }: WorkspaceModel) {
       pending={model.operations.pendingOperations}
       unreadInstallPorts={model.operations.unreadInstallPorts}
       unreadExternalPorts={model.operations.unreadExternalPorts}
+      unreadManagedRoutePorts={model.operations.unreadManagedRoutePorts}
       perform={model.operations.perform}
     >
       <ArtworkProvider
@@ -1473,14 +1481,16 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
           return id ? () => model.openPortDetails(id, "error:preparation-review") : undefined;
         }}
         openInstalledGame={(record) => {
-          const { target, libraryGeneration } = record.context;
-          const current = model.model.statusMap.get(target.id)?.active;
+          const { target } = record.context;
           if (
-            libraryGeneration !== model.bootstrap.generation ||
-            model.ui.selectedId === target.id ||
-            model.operations.unreadInstallPorts.has(target.id) ||
-            current?.id !== record.installed?.id ||
-            current?.port_id !== target.id
+            !model.model.entries.some((entry) => entry.id === target.id) ||
+            !canOpenInstalledResult(
+              record,
+              model.model.statusMap.get(target.id),
+              model.bootstrap.generation,
+              model.ui.selectedId,
+              model.operations.unreadInstallPorts,
+            )
           )
             return undefined;
           return () => model.openPortDetails(target.id, `install-result:${record.id}`);
@@ -2096,17 +2106,22 @@ function CurrentSettingsView({
       diagnosticFailure={data.diagnosticFailure?.error}
       refreshDiagnostics={data.refreshDiagnostics}
       createSupportBundle={() =>
-        operations.perform("support report", desktopApi.createSupportBundle, {
-          refresh: "none",
-          invalidateDiagnostics: false,
-        })
+        operations.perform(
+          "support report",
+          () => desktopApi.createSupportBundle(bootstrap.generation),
+          {
+            refresh: "none",
+            invalidateDiagnostics: false,
+            propagateFailure: true,
+          },
+        )
       }
       exportMetadata={() =>
         operations.perform(
           "export library metadata",
           async () => {
             const path = await pickMetadataExportPath();
-            return path ? desktopApi.exportLibraryMetadata(path) : undefined;
+            return path ? desktopApi.exportLibraryMetadata(path, bootstrap.generation) : undefined;
           },
           {
             refresh: "none",
@@ -2700,6 +2715,7 @@ function useWorkspaceLibrary({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
     workspaceReadRevision: data.workspaceReadRevision,
+    workspaceStatuses: data.statuses,
     startedWorkspaceReadRevision: data.startedWorkspaceReadRevision,
   });
   useOfficialCatalogAutoRefresh(
