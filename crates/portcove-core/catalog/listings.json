@@ -3633,7 +3633,7 @@
           },
           {
             "title": "Add a prepared Windows or Linux copy to Portcove",
-            "instruction": "After the permitted copy accepts your own matching original, choose Use an existing installation. Select starfox_pc.exe on Windows or starfox_pc on Linux and its containing folder. Choose Play separately. Use the upstream player to manage its updates and keep your external save and settings files. Removing the registration leaves the external files in place."
+            "instruction": "After the permitted copy accepts your own matching original, choose Use an existing installation. Select starfox_pc.exe on Windows or starfox_pc on Linux and its containing folder. Choose Play separately. Use the upstream player to manage its updates and keep your external save and settings files. Removing the registration leaves the external files in place. If Portcove already manages a Star Fox Enhanced installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
           }
         ],
         "references": [
@@ -4041,8 +4041,8 @@
             "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
           },
           {
-            "title": "Add the reviewed F-Zero copy to Portcove",
-            "instruction": "After the v1.8.3 game accepts your original, choose Use an existing installation. Select FZeroSNESRecomp.exe and its containing folder. Play is separate from registration. Keep the already reviewed external copy, original and data under your control. Removing the registration leaves the external files in place."
+            "title": "Add your F-Zero v1.8.3 copy to Portcove",
+            "instruction": "After the v1.8.3 game accepts your original, choose Use an existing installation. Select FZeroSNESRecomp.exe and its containing folder. Play is separate from registration. Keep this external copy, your original and its data under your control. Removing the registration leaves the external files in place. If Portcove already manages an F-Zero installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
           }
         ],
         "references": [
@@ -32504,7 +32504,7 @@
           },
           {
             "title": "Add the prepared game to Portcove",
-            "instruction": "After upstream setup completes, choose Use an existing installation in Portcove. Select tetrisphere.exe on Windows or tetrisphere on Linux and its containing installation folder. Keep data and companion files together. Choose Play separately. Use the upstream launcher for future setup and replacement. Removing the registration leaves the external files in place."
+            "instruction": "On Linux, install the SDL3 library first; the upstream launcher does not open without it. After the launcher finishes installing the game, choose Use an existing installation in Portcove. Select the game program the launcher installed and its containing folder. Keep data and companion files together. Choose Play separately. Use the upstream launcher for future setup and replacement. Removing the registration leaves the external files in place. If Portcove already manages a Blocksphere installation for you, keep using that copy. Portcove does not add an existing installation of this game while it manages one."
           }
         ],
         "warnings": [],
