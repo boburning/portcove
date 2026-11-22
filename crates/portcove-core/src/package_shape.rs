@@ -382,6 +382,29 @@ pub(crate) fn reviewed_release_digests(
         .collect()
 }
 
+/// Reviewed programs of exact archive bytes whose observations still apply to
+/// this route, with the platforms they were reviewed for.
+pub(crate) fn reviewed_archive_programs(
+    port: &PortDefinition,
+    sha256: &str,
+) -> Option<(u32, Vec<Platform>, Vec<String>)> {
+    let mut platforms = Vec::new();
+    let mut programs = std::collections::BTreeSet::new();
+    for entry in generated_table()
+        .iter()
+        .filter(|entry| entry.port_id == port.id && entry.sha256.eq_ignore_ascii_case(sha256))
+    {
+        if applicable_generated_inputs(port, entry.platform).as_deref()
+            != Some(entry.derivation_inputs_sha256.as_str())
+        {
+            continue;
+        }
+        platforms.push(entry.platform);
+        programs.extend(entry.shape.programs.iter().flatten().cloned());
+    }
+    (!platforms.is_empty()).then(|| (SHAPE_VERSION, platforms, programs.into_iter().collect()))
+}
+
 fn parse_table(text: &str) -> Result<Vec<GeneratedEntry>> {
     let table: GeneratedTable = serde_json::from_str(text)?;
     if table.format != TABLE_FORMAT

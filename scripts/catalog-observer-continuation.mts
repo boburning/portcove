@@ -1,7 +1,49 @@
 import { ObservationFailure } from "./upstream-observer.mts";
 import { isRecord } from "./runtime-values.mts";
+/** Core's typed statement of how completely one observation covered the
+ * provider's pages and assets (`fact_provenance.coverage`). Core's GitHub
+ * observation report always states it; "unstated" is a projection without it. */
+export type CoreCoverage = "complete" | "partial" | "unavailable" | "failed" | "unstated";
+const coreCoverageKinds: readonly string[] = ["complete", "partial", "unavailable", "failed"];
+export function coreProjectionCoverage(projection: unknown): CoreCoverage {
+  const provenance = isRecord(projection) ? projection.fact_provenance : null;
+  const coverage = isRecord(provenance) ? provenance.coverage : null;
+  if (!isRecord(coverage)) return "unstated";
+  return typeof coverage.kind === "string" && coreCoverageKinds.includes(coverage.kind)
+    ? (coverage.kind as CoreCoverage)
+    : "failed";
+}
+/** Stated partial, unavailable or failed coverage never advances an accepted
+ * cursor or replaces last-good facts: the caller keeps both and records
+ * `incomplete-coverage`. A projection without a statement keeps its
+ * existing acceptance rules. */
+export function requireCompleteCoreCoverage(projection: unknown) {
+  const coverage = coreProjectionCoverage(projection);
+  if (coverage !== "complete" && coverage !== "unstated")
+    throw new ObservationFailure(
+      "incomplete-coverage",
+      `Core reported ${coverage} provider coverage; the accepted cursor and last-good facts are kept`,
+    );
+}
+/** Releases whose assets one Core channel projection needs: its channel
+ * candidate and, when that candidate is excluded, its reviewed fallback. */
+export function projectionAssetReleaseIds(projection: unknown): number[] {
+  if (!isRecord(projection)) return [];
+  return [projection.channel_candidate, projection.reviewed_fallback].flatMap((release) =>
+    isRecord(release) && Number.isSafeInteger(release.id) ? [Number(release.id)] : [],
+  );
+}
+/** The Core projection as retained in checkpoints and handoffs. Per-release
+ * typed facts are derivable from the retained provider facts and are not
+ * needed for continuation, so they stay out of bounded checkpoint storage. */
+export function retainedCoreProjection<T>(projection: T): T {
+  if (!isRecord(projection) || !Object.hasOwn(projection, "release_facts")) return projection;
+  const { release_facts: _facts, ...retained } = projection;
+  return retained as T;
+}
 export function acceptedObservationPosition(value: unknown) {
-  if (!isRecord(value)) return { pages: 0, validation: 0, facts: null };
+  if (!isRecord(value))
+    return { pages: 0, validation: 0, facts: null, coverage: "unstated" as CoreCoverage };
   const continuation = isRecord(value.continuation) ? value.continuation : null;
   const complete =
     isRecord(value.last_complete) && isRecord(value.last_complete.observation)
@@ -17,6 +59,9 @@ export function acceptedObservationPosition(value: unknown) {
     validation:
       typeof continuation?.validation_cursor === "number" ? continuation.validation_cursor : 0,
     facts: typeof complete?.facts_sha256 === "string" ? complete.facts_sha256 : null,
+    coverage: coreProjectionCoverage(
+      isRecord(value.last_complete) ? value.last_complete.projection : null,
+    ),
   };
 }
 export function acceptedObservationAdvanced(
@@ -25,8 +70,14 @@ export function acceptedObservationAdvanced(
 ) {
   const a = before ?? { pages: 0, validation: 0, facts: null },
     b = after;
+  // Changed last-good facts are never an accepted advance with stated
+  // incomplete coverage.
   return (
-    b.pages > a.pages || b.validation > a.validation || (b.facts !== null && b.facts !== a.facts)
+    b.pages > a.pages ||
+    b.validation > a.validation ||
+    (b.facts !== null &&
+      b.facts !== a.facts &&
+      (b.coverage === "complete" || b.coverage === "unstated"))
   );
 }
 interface Position {

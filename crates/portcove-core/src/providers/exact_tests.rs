@@ -446,3 +446,101 @@ async fn exact_history_direct_matches_only_its_catalog_pin_and_current_scope() {
     server.join().unwrap();
     assert_eq!(requests.try_iter().count(), 0);
 }
+
+#[tokio::test]
+async fn exact_history_never_selects_an_artifact_whose_typed_role_or_host_is_wrong() {
+    // Typed role/host facts (#8557) apply to exact selection: a pin may name an
+    // older release, never a supporting file or another host's player.
+    const FOREIGN: &str = "game.ipa";
+    const SERVER: &str = "game-windows-x64-server.zip";
+    let state = Arc::new(AtomicU8::new(0));
+    let (root, _requests, server) = serve_routed_http(24, {
+        let state = state.clone();
+        move |request| {
+            let root = host_root(request);
+            let names: &[&str] = if state.load(Ordering::SeqCst) == 0 {
+                &[SERVER, FOREIGN]
+            } else {
+                &[FOREIGN, FILE]
+            };
+            let assets = names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| {
+                    github_asset(&root, "v1.0.0", 70 + index as u64, &"a".repeat(64), name)
+                })
+                .collect::<Vec<_>>();
+            match request_route(request) {
+                "repos/group/project" => response(json!({"id": 11, "archived": false})),
+                "repos/group/project/releases/tags/v1.0.0" => response(json!({
+                    "id": 22, "tag_name": "v1.0.0", "draft": false, "prerelease": false,
+                    "published_at": "2025-01-01T00:00:00Z", "assets": assets
+                })),
+                "repos/group/project/releases/22/assets" => response(json!(assets)),
+                "repos/group/project/git/ref/tags/v1.0.0" => response(json!({
+                    "ref": "refs/tags/v1.0.0",
+                    "object": {"type": "commit", "sha": COMMIT}
+                })),
+                "repos/group/project/releases" => response(json!([])),
+                path => panic!("unexpected provider path {path}"),
+            }
+        }
+    });
+    let provider = composite(&root);
+    let port = fixture_port(ReleaseSource::Github);
+    let foreign_pin = ExactReleaseSelection {
+        filename: FOREIGN.into(),
+        ..pin(ExactReleaseIdentity::Github {
+            repository_id: 11,
+            release_id: 22,
+            asset_id: 71,
+            commit_sha1: COMMIT.into(),
+        })
+    };
+
+    // Only a server and another host's player: nothing to review or resolve.
+    assert!(
+        provider
+            .review_exact(&port, CHANNEL, PLATFORM, None, "v1.0.0")
+            .await
+            .is_err()
+    );
+    assert!(
+        provider
+            .resolve_exact(&port, CHANNEL, PLATFORM, None, &foreign_pin)
+            .await
+            .is_err(),
+        "a stored pin naming another host's player is refused"
+    );
+
+    // With this host's player present, review chooses it, and the foreign
+    // player stays unselectable through a stored pin.
+    state.store(1, Ordering::SeqCst);
+    let reviewed = provider
+        .review_exact(&port, CHANNEL, PLATFORM, None, "v1.0.0")
+        .await
+        .unwrap();
+    assert_eq!(reviewed.filename, FILE);
+    let foreign_pin = ExactReleaseSelection {
+        identity: ExactReleaseIdentity::Github {
+            repository_id: 11,
+            release_id: 22,
+            asset_id: 70,
+            commit_sha1: COMMIT.into(),
+        },
+        ..foreign_pin
+    };
+    assert!(
+        provider
+            .resolve_exact(&port, CHANNEL, PLATFORM, None, &foreign_pin)
+            .await
+            .is_err()
+    );
+    let exact = provider
+        .resolve_exact(&port, CHANNEL, PLATFORM, None, &reviewed)
+        .await
+        .unwrap();
+    assert_eq!(exact.release.asset.name, FILE);
+    assert!(exact.newer_other_host_releases.is_empty());
+    server.join().unwrap();
+}

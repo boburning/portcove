@@ -2233,6 +2233,7 @@ impl PortcoveService {
                     pending_setup: false,
                     preparation_mode: None,
                     required_source_extension: None,
+                    active_game_source_profile: None,
                     source: None,
                     source_folder_unavailable: None,
                     bios: None,
@@ -2270,9 +2271,10 @@ impl PortcoveService {
             .and_then(|profile| registered_sources.get(profile));
         // Readiness only checks prior instances for availability. Launch verifies the
         // selected instance against the retained release under the N64 read budget.
+        let migrated_original =
+            retained_catalog.is_some() && self.uses_migrated_n64_original(catalog, port);
         let recheck_saved_original = installed
-            && retained_catalog.is_some()
-            && self.uses_migrated_n64_original(catalog, port)
+            && migrated_original
             && self
                 .has_saved_n64_original_to_recheck(
                     port,
@@ -2509,6 +2511,30 @@ impl PortcoveService {
         } else {
             None
         };
+        let active_game_source_profile = port.source_profile.clone().filter(|profile| {
+            let Some(active) = status.active.as_ref().filter(|active| active.verified) else {
+                return false;
+            };
+            !blockers.contains(&LaunchBlocker::InvalidInstallation)
+                && !blockers.contains(&LaunchBlocker::IncompatibleSource)
+                && !port.optional_game_source
+                && crate::preparation::launch_consumes_original(port)
+                && !release.is_some_and(|release| {
+                    crate::source_inspection::n64_release_input(catalog, &port.id, release)
+                        .is_some()
+                })
+                && Self::artwork_source_scope(catalog, &port.id, profile).is_some_and(|scope| {
+                    Self::artwork_source_scope(current_catalog, &port.id, profile) == Some(scope)
+                })
+                && default_original.is_some_and(|original| {
+                    self.launch_uses_default_original(&port.id, &active.id, original)
+                        && (!migrated_original
+                            || matches!(
+                                self.has_saved_n64_original_to_recheck(port, None, Some(original)),
+                                Ok(false)
+                            ))
+                })
+        });
         status.readiness = Some(LaunchReadiness {
             setup_contract: retained_catalog
                 .as_ref()
@@ -2551,6 +2577,7 @@ impl PortcoveService {
                 .as_ref()
                 .and_then(|active| crate::preparation::managed_mode(port, active)),
             required_source_extension,
+            active_game_source_profile,
             source,
             source_folder_unavailable,
             bios,
@@ -2563,6 +2590,27 @@ impl PortcoveService {
                 .and_then(|_| crate::adapter::managed_psx_selectable_discs(catalog, port)),
         });
         Ok(status)
+    }
+
+    fn artwork_source_scope<'a>(
+        catalog: &'a Catalog,
+        port_id: &str,
+        profile_id: &str,
+    ) -> Option<(
+        &'a crate::SourceIdentityProfile,
+        &'a crate::PortSourceContract,
+    )> {
+        let sources = catalog.source_catalog()?;
+        let profile = sources
+            .identities
+            .iter()
+            .find(|profile| profile.id == profile_id)?;
+        let contract = sources.contracts.iter().find(|contract| {
+            contract.port_id == port_id
+                && contract.profile_id == profile_id
+                && contract.role == crate::PortSourceRole::Game
+        })?;
+        Some((profile, contract))
     }
 
     fn retained_catalog_for_status(&self, status: &PortStatus) -> Result<Option<Catalog>> {
@@ -3189,14 +3237,23 @@ impl PortcoveService {
             ));
         }
         let variant = Self::saved_package_variant(port, channel, platform, status)?;
-        self.resolve_release_with_variant(
-            port,
-            channel,
-            platform,
-            variant.as_ref(),
-            status.exact_release.as_ref(),
-        )
-        .await
+        let pin = status.exact_release.as_ref();
+        let resolved = self
+            .resolve_release_with_variant(port, channel, platform, variant.as_ref(), pin)
+            .await?;
+        // Exact pin and other-host downgrade rule: the downgrade guard protects
+        // channel following from silently moving an installation to an older
+        // release only because newer releases ship players for another host.
+        // A pin is the player's reviewed choice of one exact release, so the
+        // guard does not refuse it (an exact resolution walks no newer
+        // releases). The pin still passed acquisition scope and restrictions,
+        // the stream check, typed role/host package selection, its recorded
+        // artifact identity and the artifact availability gate above; install
+        // keeps its own final artifact gate.
+        if pin.is_none() {
+            require_no_other_host_downgrade(status, &resolved)?;
+        }
+        Ok(resolved)
     }
 
     async fn resolve_release_with_variant(
@@ -8181,6 +8238,78 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
         .transpose()?
         .unwrap_or_else(|| "<library-default>".into());
     Ok(format!("{port_id}\n{destination}"))
+}
+
+/// The walk may pass newer releases whose players are only for another host.
+/// An installation of such a newer release keeps it: the older release this
+/// host can use is never offered to it as an update.
+fn require_no_other_host_downgrade(
+    status: &PortStatus,
+    resolved: &crate::ScopedResolvedRelease,
+) -> Result<()> {
+    let Some(active) = &status.active else {
+        return Ok(());
+    };
+    if resolved.newer_other_host_releases.contains(&active.version) {
+        return Err(PortcoveError::conflict(
+            "The installed version is newer than the latest release with a package for this computer. Portcove keeps the installed version.",
+        )
+        .detail("update_hold", "installed-release-newer-than-host-candidate")
+        .detail("installed_version", &active.version)
+        .detail("candidate_version", &resolved.release.version));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod other_host_downgrade_tests {
+    use super::*;
+
+    fn status(active: Option<&str>) -> PortStatus {
+        serde_json::from_value(serde_json::json!({
+            "port_id": "fixture", "channel": "stable", "update_policy": "notify",
+            "active": active.map(|version| serde_json::json!({
+                "id": "install", "port_id": "fixture", "version": version,
+                "path": "/fixture", "channel": "stable", "installed_at": 0,
+                "verified": true, "staged": false,
+            })),
+            "previous": null, "staged": null, "port_actions": [],
+        }))
+        .unwrap()
+    }
+
+    fn resolved(newer: &[&str]) -> crate::ScopedResolvedRelease {
+        let mut resolved = crate::ScopedResolvedRelease::legacy(ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "game-windows-x64.zip".into(),
+                url: "https://example.invalid/game-windows-x64.zip".into(),
+                size: 1,
+                sha256: "a".repeat(64),
+            },
+            uploader_continuity: None,
+        });
+        resolved.newer_other_host_releases = newer.iter().map(|tag| (*tag).into()).collect();
+        resolved
+    }
+
+    #[test]
+    fn an_installed_release_newer_than_the_host_candidate_is_held_not_downgraded() {
+        let error = require_no_other_host_downgrade(&status(Some("v2")), &resolved(&["v3", "v2"]))
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            error.details.get("update_hold").map(String::as_str),
+            Some("installed-release-newer-than-host-candidate")
+        );
+        // An older installation still receives the newest release for this host,
+        // and a fresh install takes it too (#8555 defect 1).
+        require_no_other_host_downgrade(&status(Some("v0")), &resolved(&["v2"])).unwrap();
+        require_no_other_host_downgrade(&status(None), &resolved(&["v2"])).unwrap();
+        require_no_other_host_downgrade(&status(Some("v1")), &resolved(&[])).unwrap();
+    }
 }
 
 fn first_managed_install(status: &PortStatus) -> bool {

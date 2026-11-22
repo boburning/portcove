@@ -133,6 +133,7 @@ mod release;
 mod release_notes;
 mod retained_build;
 mod rom_patch;
+mod route_facts;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
@@ -430,6 +431,10 @@ pub use retained_build::{
     RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
     RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
+};
+pub use route_facts::{
+    ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,
+    ObservedReleaseFacts, PlayerCandidate, RouteHold, TargetArch, TargetOs,
 };
 pub use service::{
     ADOPTION_BATCH_LIMIT, AdoptionBatchItem, AdoptionBatchItemOutcome, AdoptionBatchItemResult,

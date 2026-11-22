@@ -240,6 +240,26 @@ impl PortcoveService {
             .ok_or_else(|| source_required(requirement_id))
     }
 
+    /// Artwork based on the default registration is valid only when the active
+    /// setup uses that exact original. An unreadable selection supplies no proof.
+    pub(crate) fn launch_uses_default_original(
+        &self,
+        port_id: &str,
+        install_id: &str,
+        default: &SourceRecord,
+    ) -> bool {
+        match self.pinned_original(port_id, &default.profile_id, install_id) {
+            Ok(None) => true,
+            Ok(Some(binding)) => {
+                require_original_bytes(&binding, default).is_ok()
+                    && self
+                        .registered_profile_original(&binding)
+                        .is_ok_and(|pinned| pinned.path == default.path)
+            }
+            Err(_) => false,
+        }
+    }
+
     pub(crate) fn registered_profile_original(
         &self,
         binding: &OriginalBinding,
@@ -403,6 +423,7 @@ mod tests {
             .unwrap();
         let admitted_second = service.register_source(requirement, &second).unwrap();
         assert_ne!(admitted_first.sha256, admitted_second.sha256);
+        assert!(service.launch_uses_default_original(port, &install.id, &admitted_second));
         let instances = service
             .profile_original_instances(port, &b.id, requirement)
             .unwrap();
@@ -434,6 +455,7 @@ mod tests {
             .unwrap();
 
         service.activate_profile(port, &b.id).unwrap();
+        assert!(!service.launch_uses_default_original(port, &install.id, &admitted_second));
         let revised = service
             .select_profile_original(port, &b.id, 1, requirement, &instance.instance_id)
             .unwrap();
@@ -452,6 +474,7 @@ mod tests {
                 .unwrap(),
             Some(instance.binding.clone())
         );
+        assert!(service.launch_uses_default_original(port, &install.id, &admitted_second));
         assert_eq!(
             service
                 .select_profile_original(port, &b.id, 1, requirement, &instance.instance_id)

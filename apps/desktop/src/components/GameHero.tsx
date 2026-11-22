@@ -19,7 +19,7 @@ import {
   type HeroLogoSurface,
 } from "../hero-image-suitability";
 import { gameTitle } from "../port-identity";
-import type { HeroMediaPort } from "../hero-media";
+import type { HeroMediaContext, HeroMediaPort } from "../hero-media";
 import { ArtworkSource, ArtworkFrame } from "./Artwork";
 import { MediaCredit } from "./CatalogMedia";
 import { cn } from "cn";
@@ -34,6 +34,7 @@ export function GameHero({
   children,
   successfulLaunches,
   compact = false,
+  mediaContext,
 }: {
   port: HeroMediaPort;
   variant: "detail" | "continue";
@@ -42,11 +43,12 @@ export function GameHero({
   children: ReactNode;
   successfulLaunches?: number | undefined;
   compact?: boolean;
+  mediaContext?: HeroMediaContext | undefined;
 }) {
   const { t } = useAppTranslation("browsing");
   const { element, visible } = useArtworkVisibility();
   const artworkVisible = visible && !compact;
-  const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible);
+  const { foreground, cover, background } = useGameHeroArtwork(port, artworkVisible, mediaContext);
   const collection = useCollectionCovers(port.id, cover, artworkVisible);
   const collectionElement = useRef<HTMLDivElement>(null);
   const showCollection = collection.length > 0 && !foreground.display.image;
@@ -123,6 +125,7 @@ export function GameHero({
       {!compact && background.display.image && (
         <div className="game-hero-background" aria-hidden="true">
           <img
+            key={background.display.image}
             src={background.display.image}
             alt=""
             decoding="async"

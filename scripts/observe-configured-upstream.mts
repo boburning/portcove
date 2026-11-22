@@ -1,4 +1,9 @@
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  projectionAssetReleaseIds,
+  requireCompleteCoreCoverage,
+  retainedCoreProjection,
+} from "./catalog-observer-continuation.mts";
 import type {
   ObserverConfig,
   ObserveOptions,
@@ -284,6 +289,7 @@ export async function advanceObservation(
       exception: null,
     },
   );
+  const priorContinuation = structuredClone(next.continuation);
   let transition = "deferred";
   let changedException = false;
   let failedPolicyInput: Observation | null = null;
@@ -358,6 +364,7 @@ export async function advanceObservation(
           "core-binding",
           "core policy output is not bound to the exact observed facts",
         );
+      requireCompleteCoreCoverage(projection);
       transition = !next.last_complete
         ? "initial-baseline"
         : next.last_complete.observation.facts_sha256 === result.observation.facts_sha256
@@ -366,7 +373,7 @@ export async function advanceObservation(
       next.last_complete = {
         ...result,
         projection: {
-          ...projection,
+          ...retainedCoreProjection(projection),
           port_id: config.port_id,
           repository_id: config.repository_id,
           facts_sha256: result.observation.facts_sha256,
@@ -380,6 +387,11 @@ export async function advanceObservation(
     } catch (error) {
       if (error instanceof ObservationFailure && error.continuation)
         next.continuation = error.continuation;
+      // Stated incomplete coverage keeps the accepted cursor where it was.
+      if (error instanceof ObservationFailure && error.rule === "incomplete-coverage") {
+        if (priorContinuation === undefined) delete next.continuation;
+        else next.continuation = structuredClone(priorContinuation);
+      }
       const exception = exceptionFor(error, next.exception, config, new Date(now()).toISOString());
       changedException = exception.key !== next.exception?.key;
       next.exception = exception;
@@ -783,10 +795,8 @@ async function main(args: string[]) {
                   projection.projections.flatMap((item: unknown) =>
                     isRecord(item) &&
                     Array.isArray(item.hold_reasons) &&
-                    !item.hold_reasons.includes("channel-not-offered") &&
-                    isRecord(item.channel_candidate) &&
-                    Number.isSafeInteger(item.channel_candidate.id)
-                      ? [Number(item.channel_candidate.id)]
+                    !item.hold_reasons.includes("channel-not-offered")
+                      ? projectionAssetReleaseIds(item)
                       : [],
                   ),
                 ),

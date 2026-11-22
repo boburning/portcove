@@ -247,6 +247,107 @@ mod tests {
         }
     }
 
+    /// Channel following passes a newer release whose players are only for
+    /// another host (#8557); exact selection observes one tag.
+    struct OtherHostStream(Releases);
+
+    #[async_trait::async_trait]
+    impl crate::ReleaseProvider for OtherHostStream {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.0.resolve(port, channel, platform).await
+        }
+
+        async fn resolve_scoped(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            _scope: Option<&crate::DefinitionAcquisitionScope>,
+        ) -> Result<crate::ScopedResolvedRelease> {
+            let mut resolved =
+                crate::ScopedResolvedRelease::legacy(self.resolve(port, channel, platform).await?)
+                    .for_selection(port, platform, channel)?;
+            resolved.newer_other_host_releases = vec!["v3.0.0".into()];
+            Ok(resolved)
+        }
+
+        async fn review_exact(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            scope: Option<&crate::DefinitionAcquisitionScope>,
+            version: &str,
+        ) -> Result<ExactReleaseSelection> {
+            self.0
+                .review_exact(port, channel, platform, scope, version)
+                .await
+        }
+
+        async fn resolve_exact(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            scope: Option<&crate::DefinitionAcquisitionScope>,
+            pin: &ExactReleaseSelection,
+        ) -> Result<crate::ScopedResolvedRelease> {
+            self.0
+                .resolve_exact(port, channel, platform, scope, pin)
+                .await
+        }
+    }
+
+    #[tokio::test]
+    async fn a_pin_is_not_refused_by_the_other_host_downgrade_guard_that_still_holds_following() {
+        let root = tempfile::tempdir().unwrap();
+        let provider = Arc::new(OtherHostStream(Releases {
+            release_id: AtomicU64::new(3),
+        }));
+        let library = Library::open(root.path()).unwrap();
+        // The installation is the newer release this host can no longer get.
+        let mut active = install("active", ReleaseChannel::Stable, root.path());
+        active.version = "v3.0.0".into();
+        library.register_install(&active, true).unwrap();
+        let service = PortcoveService::with_provider(library, provider).unwrap();
+
+        // Channel following keeps the installation instead of moving it to
+        // the older release that has a package for this host.
+        let held = service.check_update(PORT).await.unwrap_err();
+        assert_eq!(
+            held.details.get("update_hold").map(String::as_str),
+            Some("installed-release-newer-than-host-candidate")
+        );
+
+        // An explicit reviewed pin of an older release is the player's choice
+        // and stays usable alongside the same stream.
+        let preview = service.review_exact_release(PORT, "v1.0.0").await.unwrap();
+        service
+            .pin_exact_release(PORT, "v1.0.0", &preview.review_sha256)
+            .await
+            .unwrap();
+        let check = service.check_update(PORT).await.unwrap();
+        assert_eq!(check.release.version, "v1.0.0");
+
+        // Following again restores the guard.
+        service.clear_exact_release(PORT).unwrap();
+        assert_eq!(
+            service
+                .check_update(PORT)
+                .await
+                .unwrap_err()
+                .details
+                .get("update_hold")
+                .map(String::as_str),
+            Some("installed-release-newer-than-host-candidate")
+        );
+    }
+
     #[tokio::test]
     async fn exact_history_review_and_current_check_share_the_saved_preference() {
         let root = tempfile::tempdir().unwrap();

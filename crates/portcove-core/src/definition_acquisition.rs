@@ -302,6 +302,10 @@ pub struct ScopedResolvedRelease {
     /// read the repository. Never part of release authority.
     pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
     pub(crate) fallback_reason: Option<String>,
+    /// Newer in-stream releases the walk passed because their players are
+    /// only for another host. An installation of one of them is not offered
+    /// this older release as an update.
+    pub(crate) newer_other_host_releases: Vec<String>,
 }
 
 impl ScopedResolvedRelease {
@@ -316,6 +320,7 @@ impl ScopedResolvedRelease {
             exact_release: None,
             upstream_activity: None,
             fallback_reason: None,
+            newer_other_host_releases: Vec::new(),
         }
     }
 
@@ -335,6 +340,7 @@ impl ScopedResolvedRelease {
             exact_release: None,
             upstream_activity: None,
             fallback_reason: None,
+            newer_other_host_releases: Vec::new(),
         })
     }
 

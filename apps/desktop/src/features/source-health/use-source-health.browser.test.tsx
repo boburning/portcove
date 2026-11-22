@@ -71,12 +71,21 @@ function Fixture({
   path,
   catalog,
   requested = true,
+  artworkRead,
 }: {
   path: string;
   catalog: string;
   requested?: boolean;
+  artworkRead?: { profileId: string; generation: number };
 }) {
-  state = useSourceHealth(perform, [source(path)], requested ? ["game"] : [], catalog, queryClient);
+  state = useSourceHealth(
+    perform,
+    [source(path)],
+    requested ? ["game"] : [],
+    catalog,
+    queryClient,
+    artworkRead,
+  );
   return null;
 }
 async function renderAndRequestCheck(path: string, catalog: string) {
@@ -126,6 +135,36 @@ describe("source inspection intent", () => {
     expect(inspect).toHaveBeenCalledTimes(1);
     expect(state.inspectionReads.get("game")?.status).toBe("idle");
     expect(state.inspections.size).toBe(0);
+  });
+
+  it("checks only the visible artwork registration with the bounded generation and preserves an explicit full retry", async () => {
+    const current = "D:/Current.z64";
+    const bounded = deferred<SourceInspectionReport>();
+    const read = vi
+      .spyOn(desktopApi, "inspectSource")
+      .mockReturnValueOnce(bounded.promise)
+      .mockResolvedValue(report(current));
+    const presentation = {
+      path: current,
+      catalog: "library|catalog",
+      artworkRead: { profileId: "game", generation: 7 },
+    };
+    await act(async () => root.render(createElement(Fixture, presentation)));
+    expect(read).toHaveBeenCalledExactlyOnceWith("game", 7);
+    expect(state.inspectionReads.get("game")?.status).toBe("pending");
+    await act(async () => root.render(createElement(Fixture, { ...presentation })));
+    expect(read).toHaveBeenCalledTimes(1);
+    let explicit: Promise<void>;
+    await act(async () => {
+      explicit = state.inspectSource("game");
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      bounded.resolve({ ...report(current), health: "not_checked" });
+      await explicit;
+    });
+    expect(state.inspections.get("game")?.health).toBe("current");
+    expect(read.mock.calls).toEqual([["game", 7], ["game"]]);
   });
 
   it("does not hash a registration during ordinary browsing", async () => {
