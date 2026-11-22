@@ -5198,6 +5198,10 @@ impl PortcoveService {
             let _operation = self.library.try_lock_port(&port_id, "adopt")?;
             crate::managed_runtime_policy::require_acquisition_available(&self.catalog, &port.id)?;
             self.require_definition_adoption(&self.catalog, port)?;
+            crate::managed_runtime_policy::require_fresh_adoption_available(
+                &self.catalog,
+                &port.id,
+            )?;
             if let Some(active) = self.status(&port_id)?.active {
                 self.require_portable_transition(&active, port)?;
             }
