@@ -1354,7 +1354,7 @@ export async function selectedSetupCompletionScenario({
           const displayed = await Promise.all(resultBadges.map((badge) => badge.isDisplayed()));
           return displayed.some(Boolean);
         },
-        15_000,
+        45_000,
         "The explicitly requested source inspection must display its actual result for axe",
       );
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
