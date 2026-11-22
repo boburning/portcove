@@ -221,18 +221,43 @@ export async function librarySwitchRecoveryScenario({
   );
   assert.deepEqual(await readFile(fixture.preferences), originalPreferences);
   await assertPreservation();
-  const futureReview = await selectAndReview(fixture.futureRoot, "future-library-picker");
-  assert.deepEqual(await read("get_bootstrap_status"), before);
-  assert.deepEqual(await readFile(fixture.preferences), originalPreferences);
-  await assertPreservation();
-  await captureScreenshot("future-library-reviewed-before-consent");
-  await futureReview
-    .findElement(By.xpath('.//button[normalize-space(.)="Switch library"]'))
-    .click();
   const alert = By.xpath(
     '//article[.//h2[normalize-space(.)="Library at startup"]]//*[@role="alert"]',
   );
-  const refusal = await browser.wait(until.elementLocated(alert), 15_000);
+  const confirmFutureChoice = async (picker: string) => {
+    const futureReview = await selectAndReview(fixture.futureRoot, picker);
+    assert.deepEqual(await read("get_bootstrap_status"), before);
+    assert.deepEqual(await readFile(fixture.preferences), originalPreferences);
+    await assertPreservation();
+    await captureScreenshot(picker + "-before-consent");
+    await futureReview
+      .findElement(By.xpath('.//button[normalize-space(.)="Switch library"]'))
+      .click();
+    return browser.wait(until.elementLocated(alert), 15_000);
+  };
+  let refusal = await confirmFutureChoice("future-library-picker");
+  let futureOutgoingBusy;
+  if ((await refusal.getText()).includes("Another task or program is using these files")) {
+    await refusal.findElement(By.css("summary")).click();
+    futureOutgoingBusy = outgoingLibraryBusyDetails(
+      await refusal.findElement(By.css("pre")).getText(),
+      fixture.currentRoot,
+    );
+    await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
+    const unchanged = await read("get_bootstrap_status");
+    assert.deepEqual(unchanged, before);
+    assert.deepEqual(
+      await read("get_library_identity", { generation: unchanged.generation }),
+      originalIdentity,
+    );
+    assert.deepEqual(await readFile(fixture.preferences), originalPreferences);
+    await assertPreservation();
+    await readWorkspaceSnapshotObservation(invoke, unchanged, workspaceReadbacks);
+    await captureScreenshot("future-library-outgoing-lease-refused");
+    // This exact refusal leaves both roots and the startup choice unchanged.
+    // Open a new native review once after the outgoing workspace read settles.
+    refusal = await confirmFutureChoice("future-library-picker-retry");
+  }
   const refusalSummary = await refusal.getText();
   assert.match(refusalSummary, /This library requires a newer Portcove database version/);
   assert.ok(refusalSummary.includes("Portcove couldn't confirm whether anything changed."));
@@ -372,7 +397,7 @@ export async function librarySwitchRecoveryScenario({
   const evidence = path.join(output, "library-switch-recovery.json");
   await writeFile(
     evidence,
-    `${JSON.stringify({ before, rejected, refusalText, originalIdentity, outgoing_busy: outgoingBusy, recovered, recoveredIdentity, restarted, kept_review: keptReview, startup_review: startupReview, saved_again: savedAgain, workspace_readbacks: workspaceReadbacks, future_database_and_markers_preserved: true, refused_preferences_preserved: true, saved_choice_survived_restart: true }, null, 2)}\n`,
+    `${JSON.stringify({ before, rejected, refusalText, originalIdentity, outgoing_busy: outgoingBusy, future_outgoing_busy: futureOutgoingBusy, recovered, recoveredIdentity, restarted, kept_review: keptReview, startup_review: startupReview, saved_again: savedAgain, workspace_readbacks: workspaceReadbacks, future_database_and_markers_preserved: true, refused_preferences_preserved: true, saved_choice_survived_restart: true }, null, 2)}\n`,
     { flag: "wx" },
   );
   artifacts.push(evidence);
