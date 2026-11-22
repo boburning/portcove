@@ -259,6 +259,8 @@ pub(crate) async fn plan_library_recovery_restore(
     .await
 }
 
+// Tauri binds these named IPC arguments and injects the app, state and event channel.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub(crate) async fn restore_library_recovery_bundle(
     app: tauri::AppHandle,
