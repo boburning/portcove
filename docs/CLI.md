@@ -323,6 +323,26 @@ The legacy `beta` spelling remains accepted on each route. Inputs remain case-se
 Stable/Rolling spellings, omitted-channel defaults, consent and eligibility checks are unchanged.
 Changing a saved channel does not install or activate a release.
 
+Use `portcove channel review-exact PORT_ID TAG` to review an exact release in the
+current channel and platform. Confirm the displayed package with
+`portcove channel pin PORT_ID TAG --review-sha256 SHA256`. The confirmation
+rechecks the exact provider identity and library preference. Future plans,
+installs, checks, and maintenance use that exact package. When the provider
+removes or changes it, the operation reports the refusal for that pin.
+A check can also report the channel's current candidate as information.
+
+Use `portcove channel follow PORT_ID` to clear the exact choice. Switching to
+another channel also clears it, whether you choose the channel or activate a
+version from another channel. A pin Core cannot read, or one saved for another
+channel, pauses checks and installs for that game only; `portcove status`
+reports it and `portcove channel follow PORT_ID` clears it. A command that names
+a different `--channel` while a pin is saved asks you to follow the channel
+first. Direct manifests can only select the current
+catalog pin. Curated definitions require the separately admitted acquisition
+route. A saved release preference establishes an intended package. Save and
+configuration compatibility still depend on the installed game and its
+reviewed data policy.
+
 ## Automation and integration reference
 
 Use the [schema history](reference/cli-schema-history.md) for each affected
@@ -687,7 +707,9 @@ bundle uses the installer’s bounded reader with file links disabled. This
 applies only to routes whose embedded definition declares that capability.
 The command returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
-`shape_version`, the derived `shape`, its `provenance`, the
+`shape_version`, the derived `shape`, its `player_candidates` (path, header
+machine and SHA-256; [CATALOG](CATALOG.md#package-shape-player-candidates)),
+its `provenance`, the
 `derivation_inputs_sha256` of the embedded catalog facts it derived with
 (absent for a route outside the embedded catalog) and a comparison `verdict`
 against the embedded generated table or explicit fingerprint

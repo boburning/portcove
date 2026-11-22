@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAppShellState, type BrowsingInputs } from "./use-app-shell-state";
 import { useWorkspaceContinuity, type WorkspaceBrowsingPositions } from "../../keyboard-shortcuts";
+import { withoutVerbatimPrefix } from "../../path-presentation";
 
 export type LibraryBrowsingContext = {
   inputs: BrowsingInputs;
@@ -117,12 +118,6 @@ function writeBrowsingInputs(root: string, serializedInputs: string): void {
   });
   if (serialized.length > maximumStoredCharacters) throw new Error("oversized preference");
   window.localStorage.setItem(libraryBrowsingPreferenceKey(root), serialized);
-}
-
-/** A Windows path as the player knows it, without the `\\?\` verbatim prefix. */
-export function withoutVerbatimPrefix(path: string): string {
-  if (path.startsWith("\\\\?\\UNC\\")) return `\\\\${path.slice(8)}`;
-  return path.startsWith("\\\\?\\") ? path.slice(4) : path;
 }
 
 export function libraryBrowsingKey(root: string): string {

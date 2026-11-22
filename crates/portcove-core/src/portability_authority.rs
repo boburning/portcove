@@ -85,44 +85,61 @@ impl PortabilityAuthority {
     }
 }
 
-/// Oldest reader contract that can carry this metadata without dropping state.
+/// Oldest reader contract that can carry this metadata without dropping state:
+/// the highest schema any present feature requires, never the first match, so
+/// a feature added at a later schema cannot be exported under an older one.
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
-    if !metadata.source_instances.is_empty()
-        || metadata.source_references.iter().any(|source| {
-            crate::portability::saved_inbox_relative(&metadata.original_root, &source.path)
-                .is_some()
-        })
-    {
-        12
-    } else if crate::profile::has_retired_history(
-        &metadata.profiles,
-        &metadata.retained_build_references,
-    ) {
-        11
-    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
-        !artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty()
-    }) {
-        10
-    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
-        artwork
-            .choices
-            .iter()
-            .any(|choice| choice.slot == crate::ArtworkSlot::Landscape)
-    }) {
-        9
-    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
-        !artwork.providers.is_empty() || !artwork.provider_only_assets.is_empty()
-    }) {
-        8
-    } else if !metadata.library_memberships.is_empty() {
-        7
-    } else if !metadata.profiles.is_empty() {
-        6
-    } else if !metadata.retained_build_references.is_empty() {
-        5
-    } else {
-        base
-    }
+    let artwork = metadata.artwork.as_ref();
+    [
+        (
+            13,
+            metadata.port_settings.iter().any(|settings| {
+                settings.exact_release.is_some() || settings.held_exact_release.is_some()
+            }),
+        ),
+        (
+            12,
+            !metadata.source_instances.is_empty()
+                || metadata.source_references.iter().any(|source| {
+                    crate::portability::saved_inbox_relative(&metadata.original_root, &source.path)
+                        .is_some()
+                }),
+        ),
+        (
+            11,
+            crate::profile::has_retired_history(
+                &metadata.profiles,
+                &metadata.retained_build_references,
+            ),
+        ),
+        (
+            10,
+            artwork.is_some_and(|artwork| {
+                !artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty()
+            }),
+        ),
+        (
+            9,
+            artwork.is_some_and(|artwork| {
+                artwork
+                    .choices
+                    .iter()
+                    .any(|choice| choice.slot == crate::ArtworkSlot::Landscape)
+            }),
+        ),
+        (
+            8,
+            artwork.is_some_and(|artwork| {
+                !artwork.providers.is_empty() || !artwork.provider_only_assets.is_empty()
+            }),
+        ),
+        (7, !metadata.library_memberships.is_empty()),
+        (6, !metadata.profiles.is_empty()),
+        (5, !metadata.retained_build_references.is_empty()),
+    ]
+    .into_iter()
+    .filter_map(|(schema, required)| required.then_some(schema))
+    .fold(base, u32::max)
 }
 
 pub(crate) fn seal(
@@ -148,8 +165,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=12) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=12) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=13) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=13) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",
@@ -371,6 +388,46 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn exported_schema_is_the_highest_schema_any_present_feature_requires() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temporary.path()).unwrap();
+        let mut metadata = library
+            .metadata_for_root(&std::fs::canonicalize(temporary.path()).unwrap())
+            .unwrap();
+        // Today's libraries keep their exact outputs.
+        assert_eq!(exported_schema(&metadata, 3), 3);
+        assert_eq!(exported_schema(&metadata, 4), 4);
+        metadata.library_memberships.push(crate::LibraryMembership {
+            format_version: 1,
+            port_id: "diablo-devilutionx".into(),
+            added_at: 0,
+            origin: crate::LibraryMembershipOrigin::Manual,
+            sources: Vec::new(),
+        });
+        assert_eq!(exported_schema(&metadata, 3), 7);
+        metadata
+            .artwork
+            .get_or_insert_default()
+            .provider_only_assets = vec!["asset".into()];
+        assert_eq!(exported_schema(&metadata, 4), 8);
+        metadata.port_settings.push(crate::LibraryPortSettings {
+            port_id: "diablo-devilutionx".into(),
+            channel: crate::ReleaseChannel::Stable,
+            update_policy: crate::UpdatePolicy::Notify,
+            active_install_id: None,
+            previous_install_id: None,
+            output_directory: None,
+            exact_release: None,
+            held_exact_release: Some("{".into()),
+        });
+        assert_eq!(exported_schema(&metadata, 3), 13);
+        // Each lower feature alone still selects its own schema, whatever the order.
+        metadata.port_settings.clear();
+        metadata.library_memberships.clear();
+        assert_eq!(exported_schema(&metadata, 3), 8);
+    }
 
     #[test]
     fn concurrent_first_use_creates_one_stable_host_key() {

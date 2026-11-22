@@ -3056,6 +3056,43 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 |result| human::status(result, service.catalog()),
             )?;
         }
+        Commands::Channel {
+            command: ChannelCommand::ReviewExact { port_id, version },
+        } => {
+            render_read_success(
+                mode,
+                "channel.review-exact",
+                service.review_exact_release(&port_id, &version).await?,
+                human::exact_release_review,
+            )?;
+        }
+        Commands::Channel {
+            command:
+                ChannelCommand::Pin {
+                    port_id,
+                    version,
+                    review_sha256,
+                },
+        } => {
+            render_read_success(
+                mode,
+                "channel.pin",
+                service
+                    .pin_exact_release(&port_id, &version, &review_sha256)
+                    .await?,
+                |result| human::status(result, service.catalog()),
+            )?;
+        }
+        Commands::Channel {
+            command: ChannelCommand::Follow { port_id },
+        } => {
+            render_read_success(
+                mode,
+                "channel.follow",
+                service.clear_exact_release(&port_id)?,
+                |result| human::status(result, service.catalog()),
+            )?;
+        }
         Commands::Policy {
             command: PolicyCommand::Set { port_id, policy },
         } => {
@@ -4124,7 +4161,12 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Rollback { .. } => "rollback",
         Commands::RemovePreview { .. } => "remove.preview",
         Commands::Remove { .. } => "remove",
-        Commands::Channel { .. } => "channel.set",
+        Commands::Channel { command } => match command {
+            ChannelCommand::Set { .. } => "channel.set",
+            ChannelCommand::ReviewExact { .. } => "channel.review-exact",
+            ChannelCommand::Pin { .. } => "channel.pin",
+            ChannelCommand::Follow { .. } => "channel.follow",
+        },
         Commands::Policy { .. } => "policy.set",
         Commands::Exec(_) => "exec",
         Commands::Capabilities => "capabilities",
@@ -5470,6 +5512,32 @@ mod tests {
             (
                 vec!["portcove", "channel", "set", "lighthouse", "beta"],
                 "channel.set",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "channel",
+                    "review-exact",
+                    "lighthouse",
+                    "v1.2.0",
+                ],
+                "channel.review-exact",
+            ),
+            (
+                vec![
+                    "portcove",
+                    "channel",
+                    "pin",
+                    "lighthouse",
+                    "v1.2.0",
+                    "--review-sha256",
+                    "review",
+                ],
+                "channel.pin",
+            ),
+            (
+                vec!["portcove", "channel", "follow", "lighthouse"],
+                "channel.follow",
             ),
             (
                 vec!["portcove", "policy", "set", "lighthouse", "stage"],

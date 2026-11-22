@@ -16,6 +16,11 @@ import {
   projectionAssetReleaseIds,
   requireCompleteCoreCoverage,
   retainedCoreProjection,
+  statedSourceCoverage,
+  validStatedSourceCoverage,
+  continuationCursor,
+  providerProgressCursor,
+  type StatedSourceCoverage,
 } from "./catalog-observer-continuation.mts";
 import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
@@ -23,6 +28,8 @@ import {
   ObservationFailure,
   validateObserverConfig,
   checksumSourcesFromProjections,
+  boundedProviderRetryTime,
+  boundedRetainedRetryClock,
 } from "./upstream-observer.mts";
 import type {
   ChecksumSource,
@@ -186,6 +193,12 @@ export interface SourceProgress {
   exception_key: string | null;
   /** Rule behind `exception_key`; absent in checkpoints written before #4779. */
   exception_rule?: string | null;
+  /** Stated partial, unavailable or failed coverage of the last attempt;
+   * omitted when the last attempt completed or none stated it (#8569). */
+  coverage?: StatedSourceCoverage;
+  /** Consecutive attempts that ended in a provider quota deferral, capped at
+   * `quotaDeferralNotifyAfter + 1`; omitted when zero (#8569). */
+  quota_deferrals?: number;
   selection_progress: SelectionProgress | null;
   policy_progress: PolicyProgress | null;
   current_config: ObserverConfig | null;
@@ -198,6 +211,12 @@ export interface SourceProgress {
  * such a stop never notifies.
  */
 export const partialProgressRules: readonly string[] = ["budget", "cancelled", "provider-quota"];
+/**
+ * A provider quota deferral stays quiet only while it is transient. The attempt
+ * after this many consecutive quota deferrals of one source notifies once
+ * through the ordinary exception path; the counter then stops at its cap.
+ */
+export const quotaDeferralNotifyAfter = 3;
 const catalogCheckpointByteLimit = 32 * 1024 * 1024;
 export interface CatalogObserverCheckpoint {
   format: 1;
@@ -472,6 +491,11 @@ export function validateCatalogObserverCheckpoint(
         progress.exception_rule !== null &&
         (typeof progress.exception_rule !== "string" ||
           !/^[a-z-]{1,80}$/u.test(progress.exception_rule))) ||
+      (progress.coverage !== undefined && !validStatedSourceCoverage(progress.coverage)) ||
+      (progress.quota_deferrals !== undefined &&
+        (!Number.isSafeInteger(progress.quota_deferrals) ||
+          Number(progress.quota_deferrals) < 1 ||
+          Number(progress.quota_deferrals) > quotaDeferralNotifyAfter + 1)) ||
       !Number.isSafeInteger(progress.change_intervals) ||
       Number(progress.change_intervals) < 0 ||
       (progress.mean_change_interval_ms !== null &&
@@ -583,7 +607,7 @@ export interface CatalogObservationOptions extends Pick<
     source: ObservableSource,
     observations: Record<string, unknown>[],
     policies: unknown[],
-    report?: { exception: { rule: string } },
+    report?: { exception: { rule: string; coverage?: StatedSourceCoverage } },
   ) => Promise<void>;
   config: ObserverConfig;
   policyIdentity: string;
@@ -707,6 +731,21 @@ export async function advanceCatalogObservations(
   };
   if (state.provider_retry_at && Date.parse(state.provider_retry_at) <= now())
     state.provider_retry_at = null;
+  // A retained provider clock beyond the retry horizon was written before the
+  // horizon existed; it is discarded rather than deferring the source.
+  state.provider_retry_at = boundedRetainedRetryClock(now(), state.provider_retry_at);
+  for (const rate of Object.values(state.provider_capacities ?? {})) {
+    rate.retry_at = boundedRetainedRetryClock(now(), rate.retry_at);
+    rate.reset_at = boundedRetainedRetryClock(now(), rate.reset_at);
+  }
+  for (const progress of Object.values(state.sources)) {
+    progress.retry_at = boundedRetainedRetryClock(now(), progress.retry_at);
+    if (
+      progress.coverage?.retry_at &&
+      boundedRetainedRetryClock(now(), progress.coverage.retry_at) === null
+    )
+      delete progress.coverage.retry_at;
+  }
   const template = validateObserverConfig(options.config);
   const requestCeiling = options.requestLimit ?? Infinity;
   const policyIdentity = options.policyIdentity;
@@ -798,12 +837,18 @@ export async function advanceCatalogObservations(
     if (available !== null && limit !== null && available <= limit) {
       remaining = available;
       providerLimit = limit;
-      resetAt = reset === null || reset * 1000 > 8.64e15 ? null : reset * 1000;
+      resetAt = boundedProviderRetryTime(now(), reset === null ? null : reset * 1000);
     }
   };
   const attempted: string[] = [];
   const completed: string[] = [];
-  const failures: { source: string; repository: string; rule: string; details: string }[] = [];
+  const failures: {
+    source: string;
+    repository: string;
+    rule: string;
+    details: string;
+    coverage?: StatedSourceCoverage;
+  }[] = [];
   const isConfigured = (source: (typeof sources)[number]) =>
     source.repository === template.repository &&
     source.ports.some((port) => port.id === template.port_id);
@@ -1274,30 +1319,52 @@ export async function advanceCatalogObservations(
         progress.exception_key = null;
         progress.exception_rule = null;
         progress.retry_at = null;
+        delete progress.coverage;
+        delete progress.quota_deferrals;
         progress.policy_progress = null;
         completed.push(source.key);
       } catch (error) {
         const rule = error instanceof ObservationFailure ? error.rule : "provider-operation-failed";
         const key = exceptionKey(source, rule);
+        // Consecutive quota deferrals are counted so a source the provider keeps
+        // declining surfaces once instead of staying quiet indefinitely.
+        const deferrals =
+          rule === "provider-quota"
+            ? Math.min((progress.quota_deferrals ?? 0) + 1, quotaDeferralNotifyAfter + 1)
+            : 0;
+        const persistentQuota =
+          deferrals > quotaDeferralNotifyAfter &&
+          (progress.quota_deferrals ?? 0) <= quotaDeferralNotifyAfter;
+        if (deferrals > 0) progress.quota_deferrals = deferrals;
+        else delete progress.quota_deferrals;
         if (
-          progress.exception_key !== key &&
-          !partialProgressRules.includes(rule) &&
+          ((progress.exception_key !== key && !partialProgressRules.includes(rule)) ||
+            persistentQuota) &&
           notifiesOnException(source)
         )
           notifyException = true;
         progress.exception_key = key;
         progress.exception_rule = rule;
         progress.retry_at = error instanceof ObservationFailure ? error.retryAt : null;
+        progress.coverage = statedSourceCoverage(
+          error,
+          providerProgressCursor(progress.provider_progress),
+        );
         failures.push({
           source: source.key,
           repository: source.repository,
           rule,
-          details: error instanceof Error ? error.message : "Provider operation failed",
+          details:
+            (error instanceof Error ? error.message : "Provider operation failed") +
+            (deferrals > quotaDeferralNotifyAfter
+              ? ` The provider quota has deferred this source for more than ${quotaDeferralNotifyAfter} consecutive attempts.`
+              : ""),
+          coverage: progress.coverage,
         });
         if (source.ports.some((port) => port.listing) && options.exportProvider) {
           try {
             await options.exportProvider(source, [], progress.last_complete_policies, {
-              exception: { rule },
+              exception: { rule, ...(progress.coverage ? { coverage: progress.coverage } : {}) },
             });
           } catch (handoffError) {
             failures.push({
@@ -1322,6 +1389,9 @@ export async function advanceCatalogObservations(
       await commitCheckpoint();
       continue;
     }
+    // The source's last retained continuation position, so a failure outside
+    // the observation itself still states where the next run resumes.
+    let retainedCursor: string | null = null;
     try {
       const legacy = isConfigured(source);
       if (
@@ -1543,6 +1613,9 @@ export async function advanceCatalogObservations(
           });
         };
         const previousPosition = position(isRecord(priorSource) ? priorSource.continuation : null);
+        retainedCursor = continuationCursor(
+          isRecord(priorSource) ? priorSource.continuation : null,
+        );
         const result = await advanceObservation(config, priorSource, {
           deadline,
           ...(options.fetch ? { fetch: options.fetch } : {}),
@@ -1562,7 +1635,12 @@ export async function advanceCatalogObservations(
             return progress.selection_progress!.checksum_sources!;
           },
           project: projectAll,
-          commitContinuation: (checkpoint) => options.save(config, checkpoint),
+          commitContinuation: async (checkpoint) => {
+            await options.save(config, checkpoint);
+            retainedCursor = continuationCursor(
+              isRecord(checkpoint) ? checkpoint.continuation : null,
+            );
+          },
         });
         const continuation = result.checkpoint.continuation;
         const readProgress =
@@ -1571,6 +1649,7 @@ export async function advanceCatalogObservations(
           position(continuation) !== previousPosition;
         if (readProgress) coreProgress++;
         await options.save(config, result.checkpoint);
+        retainedCursor = continuationCursor(continuation);
         // Historical projections retain their own facts/definition identities.
         // A changed configuration may have no current observation at all.
         const fallback = progress.last_complete_policies;
@@ -1822,6 +1901,16 @@ export async function advanceCatalogObservations(
         progress.exception_key = result.report.exception.key;
         progress.exception_rule = result.report.exception.rule;
         progress.retry_at = result.report.exception.retry_at;
+        progress.coverage = validStatedSourceCoverage(result.report.exception.coverage)
+          ? result.report.exception.coverage
+          : statedSourceCoverage(
+              new ObservationFailure(
+                result.report.exception.rule,
+                "",
+                result.report.exception.retry_at,
+              ),
+              continuationCursor(result.checkpoint.continuation),
+            );
         if (result.report.exception.rule === "rate-limit") {
           remaining = 0;
           extendProviderDeferral(result.report.exception.retry_at);
@@ -1834,6 +1923,7 @@ export async function advanceCatalogObservations(
             isRecord(result.report.exception) && typeof result.report.exception.details === "string"
               ? result.report.exception.details
               : "Source observation is incomplete; resume only after its recorded condition is satisfied.",
+          coverage: progress.coverage,
         });
       } else {
         const sameScope = progress.completed_scope_sha256 === binding;
@@ -1892,6 +1982,7 @@ export async function advanceCatalogObservations(
         progress.retry_at = null;
         progress.exception_key = null;
         progress.exception_rule = null;
+        delete progress.coverage;
         // Coverage and current Core output can change eligibility without changing provider facts.
         progress.completed_scope_sha256 = binding;
         progress.last_complete_config = config;
@@ -1928,6 +2019,7 @@ export async function advanceCatalogObservations(
         notifyException = true;
       progress.exception_key = key;
       progress.exception_rule = rule;
+      progress.coverage = statedSourceCoverage(error, retainedCursor);
       failures.push({
         source: source.key,
         repository: source.repository,
@@ -1936,6 +2028,7 @@ export async function advanceCatalogObservations(
           error instanceof ObservationFailure
             ? error.message
             : "Source operation failed before an observation could be completed; inspect its exact scope and retained execution evidence.",
+        coverage: progress.coverage,
       });
     }
     await commitCheckpoint();
@@ -2007,6 +2100,8 @@ export async function advanceCatalogObservations(
               template.stale_after_hours * 3600000,
           retry_at: progress?.retry_at ?? null,
           next_due_at: progress?.next_due_at ?? null,
+          ...(progress?.coverage ? { coverage: progress.coverage } : {}),
+          ...(progress?.quota_deferrals ? { quota_deferrals: progress.quota_deferrals } : {}),
         };
       }),
       attempted_source_keys: attempted,

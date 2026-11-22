@@ -51,7 +51,7 @@ const unsupportedByReason: Record<string, string[]> = {
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
     set_port_intent acknowledge_port_readiness
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
-    set_channel
+    set_channel pin_exact_release clear_exact_release
     set_default_library set_github_token set_host_tool_path set_locale_preference
     remove_mod_package select_mod_setup_original set_mod_package_enabled set_mod_update_policy
     set_output_location set_policy trust_catalog_key use_cached_catalog
@@ -65,6 +65,7 @@ const unsupportedByReason: Record<string, string[]> = {
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
     plan_library_recovery_bundle inspect_library_recovery_bundle plan_library_recovery_restore
+    read_library_recovery_restore
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
@@ -72,7 +73,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
+    review_exact_release plan_install_batch review_game_setting review_game_settings_change_set review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     review_library_selection scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),

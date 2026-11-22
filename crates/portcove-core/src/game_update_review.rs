@@ -66,7 +66,7 @@ impl PortcoveService {
         let offer_archive = review_data
             && plan.action == crate::InstallPlanAction::Download
             && assessment.availability == crate::PortActionAvailability::Allowed
-            && self.require_acquisition_state(&status).is_ok();
+            && self.require_acquisition_state(&status, &plan).is_ok();
         let (mut plan_sha256, mut archive_only_plan_sha256) = self.game_release_review_digests(
             "Portcove game update review v1",
             &plan,
@@ -215,6 +215,15 @@ impl PortcoveService {
                 &sources,
                 activate,
             ))?);
+            let digest = if let Some(pin) = &plan.exact_release {
+                crate::signed_catalog::digest(&serde_json::to_vec(&(
+                    "Portcove exact release review v1",
+                    digest,
+                    pin,
+                ))?)
+            } else {
+                digest
+            };
             if let Some(shared) = &plan.shared_preferences {
                 return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
                     "Portcove managed shared preference review v1",
@@ -335,7 +344,7 @@ impl PortcoveService {
             let acquired = self.acquired_inputs(&reviewed, &operation)?;
             let status = self.status(port_id)?;
             operation.observe_release(&reviewed.plan.release.version, None);
-            self.record_update_check_from_selection(port_id, &status, &resolution)?;
+            self.record_update_check_from_selection(port_id, &status, &resolution, None)?;
             if resolution.saved_variant.is_none()
                 && reviewed.plan.action == crate::InstallPlanAction::Download
                 && crate::ManagedPackageVariant::can_record(
@@ -570,6 +579,62 @@ mod tests {
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", false);
         (temporary, service_with_release(library, "v2"))
+    }
+
+    #[tokio::test]
+    async fn both_update_review_intents_bind_the_exact_provider_identity() {
+        let (_temporary, service) = fixture();
+        let (reviewed, mut status, _) = service
+            .plan_game_update_with_status(PORT, true, false)
+            .await
+            .unwrap();
+        let mut plan = reviewed.plan;
+        let release = &plan.release;
+        plan.exact_release = Some(crate::ExactReleaseSelection {
+            port_id: PORT.into(),
+            channel: plan.channel,
+            platform: plan.platform,
+            version: release.version.clone(),
+            filename: release.asset.name.clone(),
+            size: release.asset.size,
+            sha256: release.asset.sha256.clone(),
+            identity: crate::ExactReleaseIdentity::Github {
+                repository_id: 1,
+                release_id: 2,
+                asset_id: 3,
+                commit_sha1: "a".repeat(40),
+            },
+        });
+        status.exact_release = plan.exact_release.clone();
+        let digest = |plan: &crate::InstallPlan| {
+            service
+                .game_release_review_digests(
+                    "Portcove game update review v1",
+                    plan,
+                    &status,
+                    true,
+                    true,
+                )
+                .unwrap()
+        };
+        let (install, archive) = digest(&plan);
+        let archive = archive.unwrap();
+        assert_ne!(install, archive);
+        assert_eq!(
+            service
+                .game_release_review_digest("Portcove game update review v1", &plan, &status, false)
+                .unwrap(),
+            archive,
+        );
+        if let crate::ExactReleaseIdentity::Github { asset_id, .. } =
+            &mut plan.exact_release.as_mut().unwrap().identity
+        {
+            *asset_id += 1;
+        }
+        let (changed_install, changed_archive) = digest(&plan);
+        assert_ne!(changed_install, install);
+        assert_ne!(changed_archive.as_deref(), Some(archive.as_str()));
+        assert!(service.require_acquisition_state(&status, &plan).is_err());
     }
 
     struct NotesProvider {

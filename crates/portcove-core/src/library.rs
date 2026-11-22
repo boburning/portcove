@@ -1911,18 +1911,30 @@ impl Library {
             checked_at: Self::now(),
             check: check.clone(),
         };
-        connection.execute(
+        let encoded_pin = check
+            .exact_release
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()?;
+        let changed = connection.execute(
             "INSERT INTO update_snapshots(port_id, check_json, checked_at)
-             VALUES (?1, ?2, ?3)
+             SELECT ?1, ?2, ?3
+             WHERE (SELECT exact_release_json FROM port_settings WHERE port_id=?1) IS ?4
              ON CONFLICT(port_id) DO UPDATE SET
                check_json=excluded.check_json,
                checked_at=excluded.checked_at",
             params![
                 check.port_id,
                 serde_json::to_string(check)?,
-                snapshot.checked_at
+                snapshot.checked_at,
+                encoded_pin,
             ],
         )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "the saved release changed while checking for updates",
+            ));
+        }
         Ok(snapshot)
     }
 
@@ -2381,9 +2393,41 @@ impl Library {
     pub fn set_channel(&self, port_id: &str, channel: ReleaseChannel) -> Result<()> {
         self.ensure_settings(port_id, channel)?;
         self.connection()?.execute(
-            "UPDATE port_settings SET channel=?2 WHERE port_id=?1",
+            "UPDATE port_settings SET
+                 exact_release_json=CASE WHEN channel=?2 THEN exact_release_json ELSE NULL END,
+                 channel=?2
+             WHERE port_id=?1",
             params![port_id, channel.to_string()],
         )?;
+        Ok(())
+    }
+
+    pub(crate) fn set_exact_release(
+        &self,
+        port_id: &str,
+        channel: ReleaseChannel,
+        pin: Option<&crate::ExactReleaseSelection>,
+    ) -> Result<()> {
+        if let Some(pin) = pin {
+            pin.require_persisted(port_id, channel)?;
+        }
+        let encoded = pin.map(serde_json::to_string).transpose()?;
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let changed = transaction.execute(
+            "INSERT INTO port_settings(port_id, channel, update_policy, exact_release_json)
+             VALUES (?1, ?2, 'notify', ?3)
+             ON CONFLICT(port_id) DO UPDATE SET exact_release_json=excluded.exact_release_json
+             WHERE port_settings.channel=excluded.channel",
+            params![port_id, channel.to_string(), encoded],
+        )?;
+        if changed != 1 {
+            return Err(PortcoveError::conflict(
+                "the release channel changed; review the release preference again",
+            ));
+        }
+        transaction.execute("DELETE FROM update_snapshots WHERE port_id=?1", [port_id])?;
+        transaction.commit()?;
         Ok(())
     }
 
@@ -2669,9 +2713,12 @@ impl Library {
         if activate {
             crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
+                // A pin is bound to its channel; activation that changes the
+                // channel ends it, exactly as choosing another channel does.
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
                    active_install_id = ?2,
+                   exact_release_json = CASE WHEN channel = ?3 THEN exact_release_json ELSE NULL END,
                    channel = ?3
                  WHERE port_id = ?1",
                 params![install.port_id, install.id, install.channel.to_string()],
@@ -3310,7 +3357,7 @@ impl Library {
             metrics.record_query();
             let sql = format!(
                 "SELECT s.port_id, s.channel, s.update_policy, s.active_install_id,
-                        s.previous_install_id, c.from_install_id, c.outcome
+                        s.previous_install_id, s.exact_release_json, c.from_install_id, c.outcome
                  FROM port_settings s
                  LEFT JOIN carried_file_outcomes c ON c.port_id=s.port_id
                     AND c.to_install_id=s.active_install_id AND c.format={}
@@ -3331,9 +3378,10 @@ impl Library {
                         row.get::<_, String>(2)?,
                         row.get::<_, Option<String>>(3)?,
                         row.get::<_, Option<String>>(4)?,
+                        row.get::<_, Option<String>>(5)?,
                     ),
-                    row.get::<_, Option<String>>(5)?,
                     row.get::<_, Option<String>>(6)?,
+                    row.get::<_, Option<String>>(7)?,
                 ))
             })?;
             for row in rows {
@@ -3504,12 +3552,24 @@ impl Library {
                         outcome: outcome.clone(),
                     })
                 });
+                // One unusable pin holds only its own port.
+                let (exact_release, exact_release_hold) =
+                    match crate::ExactReleaseSelection::decode_or_hold(
+                        port_id,
+                        channel,
+                        stored.and_then(|settings| settings.4.as_deref()),
+                    ) {
+                        Ok(pin) => (pin, None),
+                        Err(hold) => (None, Some(hold)),
+                    };
                 Ok(PortStatus {
                     carried_files,
                     acquisition: acquisitions.get(port_id).cloned(),
                     port_id: port_id.clone(),
                     user_data_root: Some(self.user_dir(port_id)),
                     channel,
+                    exact_release,
+                    exact_release_hold,
                     update_policy,
                     active,
                     external_runtime: external_runtimes.get(port_id).cloned(),
@@ -4986,6 +5046,8 @@ mod tests {
             .unwrap();
         library
             .store_update_snapshot(&UpdateCheck {
+                exact_release: None,
+                channel_latest_version: None,
                 port_id: "target-port".into(),
                 channel: ReleaseChannel::Stable,
                 installed_version: Some("1.0.0".into()),

@@ -64,6 +64,7 @@ export type { InstallRecord } from "./transport-types.generated";
 export type PreparationPlan = Generated.TransportOutputs["preparation_plan"];
 export type PreparationCleanupPreview = Generated.TransportOutputs["preparation_cleanup_preview"];
 export type GameUpdatePlan = Generated.TransportOutputs["game_update_plan"];
+export type ExactReleaseReview = Generated.TransportOutputs["exact_release_review"];
 export type GameSettingsView = Generated.TransportOutputs["game_settings_view"];
 export type GameSettingView = GameSettingsView["files"][number]["settings"][number];
 export type GameSettingReview = Generated.TransportOutputs["game_setting_review"];

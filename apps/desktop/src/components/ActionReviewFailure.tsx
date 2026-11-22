@@ -5,10 +5,12 @@ import { FailureDetails } from "./FailureDetails";
 export function ActionReviewFailure({
   error,
   summary,
+  summaryId,
   showMutationSummary = true,
 }: {
   error: unknown;
   summary?: string | undefined;
+  summaryId?: string | undefined;
   showMutationSummary?: boolean;
 }) {
   if (error === undefined) return null;
@@ -22,7 +24,10 @@ export function ActionReviewFailure({
       : undefined;
   return (
     <div role={neutral ? "status" : "alert"}>
-      <p className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+      <p
+        id={summaryId}
+        className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]"
+      >
         {summary ?? errorText(error)}
       </p>
       {presentation && (
