@@ -597,3 +597,25 @@ void test("inventory recovery cannot renew a failed page's SDK attempt allowance
   await assert.rejects(inventory.get("repos/example/repo/issues"));
   assert.equal(dispatched, 3);
 });
+
+await test("REST intake refuses historical stage assignments before a write", async () => {
+  const { client, writes } = fixture();
+  await assert.rejects(
+    client.setItemFields("PVTI-new", { "Port stage": "Manual qualification" }),
+    /Historical Port stage/,
+  );
+  assert.deepEqual(writes, []);
+});
+
+await test("REST port creation refuses a listing-owned catalog ID without writing", async () => {
+  const { client, writes } = fixture();
+  await assert.rejects(
+    client.createPortIssue({
+      title: "Separate ticket",
+      upstream: "https://github.com/2ship2harkinian/2ship2harkinian",
+      catalogId: "2ship2harkinian",
+    }),
+    /Catalog listing 2ship2harkinian belongs to issue #59/,
+  );
+  assert.deepEqual(writes, []);
+});

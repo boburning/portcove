@@ -33,7 +33,16 @@
       ]
     },
     "platforms": ["windows-x86-64", "linux-x86-64"],
-    "download_block_reason": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Fresh package acquisition remains held for bundled original sprites/music whose component grants are not established by the root ISC license or ROM hash gate. Reconsider with an accepted clean official package or exact component permission; RAR handling alone is not an all-platform support decision.",
+        "tracking_issue": 2841
+      }
+    ],
     "artwork": {
       "game_id": 1070,
       "cover_id": 401336,

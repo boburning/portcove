@@ -118,8 +118,12 @@ export function derivationInputs(port: unknown, platform: string) {
     field(field(port, "reviewed_package_layouts"), platform),
     "classify_linux_programs_by_format",
   );
+  const portableData = field(port, "linux_portable_data_directory");
   return {
     ...(linuxFormat === null ? {} : { classify_linux_programs_by_format: linuxFormat }),
+    ...(platform === "linux-x86-64" && portableData !== null
+      ? { verified_optional_empty_portable_data: portableData }
+      : {}),
     ...(field(port, "external_profile_policy") === "openmohaa-unix-v1" &&
     ["linux-x86-64", "macos-x86-64", "macos-aarch64"].includes(platform)
       ? { openmohaa_prepared_programs: true }

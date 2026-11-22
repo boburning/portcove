@@ -567,8 +567,8 @@ export interface CatalogObservationOptions extends Pick<
   excludedSources?: ReadonlySet<string>;
   /** Hard cap on provider requests this operation may admit (#4779). */
   requestLimit?: number;
-  /** Offer one due descriptive source the existing ordinary source quantum. */
-  reserveExpiredListingTurn?: boolean;
+  /** Give stale recovery regular turns after appointments and expiring managed work. */
+  rotateStaleSources?: boolean;
   prioritizeConfigured?: boolean;
   scheduledPrioritySources?: ReadonlySet<string>;
   providerFetch?: typeof fetch;
@@ -620,6 +620,61 @@ export interface CatalogObservationOptions extends Pick<
     result: SourceResult,
     policies: unknown[],
   ) => Promise<void>;
+}
+
+type ObservationTurn = {
+  key: string;
+  appointment: boolean;
+  /** A healthy source serving a managed port. */
+  managed: boolean;
+  freshnessObservedAt: string | null;
+  attemptedSequence: number;
+};
+
+/** Order already-due and retry-admitted sources before the existing request fences. */
+export function orderHostedObservationTurns<T extends ObservationTurn>(
+  turns: T[],
+  freshness?: { now: number; deadline: number; freshnessMs: number },
+): T[] {
+  const byRole = turns.toSorted(
+    (a, b) =>
+      Number(b.appointment) - Number(a.appointment) ||
+      Number(b.managed) - Number(a.managed) ||
+      a.attemptedSequence - b.attemptedSequence ||
+      a.key.localeCompare(b.key),
+  );
+  if (!freshness) return byRole;
+
+  const expiry = (turn: ObservationTurn) =>
+    turn.freshnessObservedAt === null
+      ? -Infinity
+      : Date.parse(turn.freshnessObservedAt) + freshness.freshnessMs;
+  const protectedTurns: T[] = [];
+  const ordinaryManaged: T[] = [];
+  const recovery: T[] = [];
+  const remaining: T[] = [];
+  for (const turn of byRole) {
+    if (turn.appointment || (turn.managed && expiry(turn) <= freshness.deadline)) {
+      protectedTurns.push(turn);
+    } else if (turn.managed) {
+      ordinaryManaged.push(turn);
+    } else if (expiry(turn) <= freshness.now) {
+      recovery.push(turn);
+    } else {
+      remaining.push(turn);
+    }
+  }
+
+  // Preserve the first recovery turn, then keep one in every four ordinary
+  // turns while both groups have work. Every turn uses the existing shared
+  // quantum. Oldest attempt within recovery keeps failed sources rotating.
+  const ordered = protectedTurns;
+  let recovered = 0;
+  for (let index = 0; index < ordinaryManaged.length; index++) {
+    if (index % 3 === 0 && recovered < recovery.length) ordered.push(recovery[recovered++]!);
+    ordered.push(ordinaryManaged[index]!);
+  }
+  return ordered.concat(recovery.slice(recovered), remaining);
 }
 
 /** Finite shared runtime/quota, fair durable source turns, existing per-source continuation. */
@@ -770,54 +825,28 @@ export async function advanceCatalogObservations(
   const servesManagedPort = (source: ObservableSource) =>
     healthy(state.sources[source.key]) && source.ports.some((port) => port.kind !== "listing");
   const n64RuntimeCache = n64RuntimeSourceCache();
-  const pending = sources
-    .filter((source) => {
-      if (options.excludedSources?.has(source.key)) return false;
-      const progress = state.sources[source.key];
-      return (
-        (scopeDue(source, progress) || source.repository === template.repository) &&
-        (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
-      );
-    })
-    // Prefer the selected scopes once per hosted opportunity, then healthy
-    // sources that serve a managed port: their releases can change what
-    // players install, while listing-only sources are descriptive. A completed
-    // managed source leaves `pending` until it is due again, and one with a
-    // recorded failure rejoins ordinary rotation, so listing-only sources
-    // still receive turns. The durable rotation orders each group.
-    .sort(
-      (a, b) =>
-        Number(earlyTurn(b)) - Number(earlyTurn(a)) ||
-        Number(servesManagedPort(b)) - Number(servesManagedPort(a)) ||
-        (state.sources[a.key]?.attempted_sequence ?? -1) -
-          (state.sources[b.key]?.attempted_sequence ?? -1) ||
-        a.key.localeCompare(b.key),
-    );
-  if (options.reserveExpiredListingTurn) {
-    const listingTurn = pending.find((source) => {
-      if (!listingOnly(source) || earlyTurn(source)) return false;
-      const progress = state.sources[source.key];
-      return !progress || freshnessExpired(progress);
-    });
-    if (listingTurn) {
-      const priority = (source: ObservableSource) => {
-        if (earlyTurn(source)) return 3;
+  const pending = orderHostedObservationTurns(
+    sources
+      .filter((source) => {
+        if (options.excludedSources?.has(source.key)) return false;
         const progress = state.sources[source.key];
-        if (
-          servesManagedPort(source) &&
-          (!progress?.freshness_observed_at ||
-            Date.parse(progress.freshness_observed_at) + template.stale_after_hours * 3600000 <=
-              deadline)
-        )
-          return 2;
-        return source === listingTurn ? 1 : 0;
-      };
-      // A stable reordering keeps the admitted appointment positions and the
-      // durable rotation within each group. The selected listing uses its usual
-      // source quantum and the same shared deadline, quota and byte admission.
-      pending.sort((a, b) => priority(b) - priority(a));
-    }
-  }
+        return (
+          (scopeDue(source, progress) || source.repository === template.repository) &&
+          (!progress?.retry_at || Date.parse(progress.retry_at) <= now())
+        );
+      })
+      .map((source) => ({
+        source,
+        key: source.key,
+        appointment: earlyTurn(source),
+        managed: servesManagedPort(source),
+        freshnessObservedAt: state.sources[source.key]?.freshness_observed_at ?? null,
+        attemptedSequence: state.sources[source.key]?.attempted_sequence ?? -1,
+      })),
+    options.rotateStaleSources === true
+      ? { now: now(), deadline, freshnessMs: template.stale_after_hours * 3600000 }
+      : undefined,
+  ).map(({ source }) => source);
   const earlyTurns = new Set(pending.filter(earlyTurn).map((source) => source.key));
   const earlyTurnCount = earlyTurns.size;
   const capacity = () =>
@@ -1087,6 +1116,8 @@ export async function advanceCatalogObservations(
               await commitCheckpoint();
             },
             reuseComplete,
+            sourcePolicyScope: binding,
+            priorSourcePolicies: progress.last_complete_policies,
             ...(reuseComplete && retainedListingCompletion && listingClocks
               ? {
                   retainedCompletion: {
@@ -1220,6 +1251,13 @@ export async function advanceCatalogObservations(
                   template.budget.duration_ms,
               ),
             ).toISOString();
+        if (
+          result.sourceRetryAt !== null &&
+          progress.next_due_at !== null &&
+          result.sourceRetryAt < Date.parse(progress.next_due_at)
+        ) {
+          progress.next_due_at = new Date(result.sourceRetryAt).toISOString();
+        }
         progress.completed_scope_sha256 = binding;
         progress.last_complete_facts_sha256 = String(result.observations[0]!.facts_sha256);
         progress.last_complete_policies = result.policies.map((p) => p as Record<string, unknown>);

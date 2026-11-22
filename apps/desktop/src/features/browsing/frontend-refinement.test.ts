@@ -60,7 +60,7 @@ it.each(["library", "catalog"] as const)(
         update: {
           acquiring: "Downloading update",
           verifying: "Checking downloaded update",
-          acquired: "Update downloaded, not installed",
+          acquired: "Update archive downloaded",
           attention_required: "Downloaded update needs attention",
         }[phase],
       });

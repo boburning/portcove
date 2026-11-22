@@ -1895,6 +1895,26 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        for assessment in &status.definition_operations {
+            if assessment.operation != portcove_core::DefinitionOperation::Install
+                || assessment.eligibility.reason
+                    != portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn
+            {
+                continue;
+            }
+            let target = if assessment.retained {
+                let Some(active) = &status.active else {
+                    continue;
+                };
+                format!("Installed release {}", clean(&active.version))
+            } else {
+                "Recommended release".into()
+            };
+            output.push_str(&format!(
+                "\n{}: {target} withdrawn by the catalog maintainer.",
+                port_name(catalog, &status.port_id)
+            ));
+        }
         if let Some(carried) = &status.carried_files {
             output.push_str(&format!(
                 "\nFiles kept during the version switch for {}:\n{}",
@@ -4397,6 +4417,7 @@ mod tests {
         portcove_core::BackupActionPreview {
             action: portcove_core::BackupAction::Restore,
             backup: BackupRecord {
+                recovery_review: None,
                 automatic: None,
                 id: "backup-1".into(),
                 port_id: "zelda64-recomp".into(),
@@ -4480,6 +4501,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingData,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4489,6 +4511,7 @@ mod tests {
             availability: portcove_core::PortActionAvailability::Waiting,
             reason: portcove_core::PortActionReason::MissingBackup,
             definition: None,
+            restriction: None,
         }
     }
 
@@ -4504,6 +4527,7 @@ mod tests {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             })
         };
         assert!(
@@ -4546,6 +4570,7 @@ mod tests {
                     restore_assessment: backup_restore_fixture_assessment(),
                     state: BackupInventoryState::Healthy,
                     backups: vec![BackupRecord {
+                        recovery_review: None,
                         automatic: None,
                         id: "backup-1".into(),
                         port_id: "sample".into(),
@@ -4792,6 +4817,7 @@ mod tests {
                     availability: state,
                     reason,
                     definition: None,
+                    restriction: None,
                 };
                 let before = serde_json::to_value(assessment).unwrap();
                 let rendered = super::status_action(&assessment);
@@ -4854,6 +4880,7 @@ mod tests {
                     outcome: DefinitionEligibilityOutcome::Hold,
                     reason,
                 }),
+                restriction: None,
             };
             let value = serde_json::to_value(assessment).unwrap();
             let rendered = super::status_action(&assessment);
@@ -4865,6 +4892,33 @@ mod tests {
             assert!(!rendered.contains("(definition_ineligible)"));
             assert!(!rendered.contains("No current blocker"));
         }
+    }
+
+    #[test]
+    fn status_discloses_both_installed_and_recommended_release_withdrawals() {
+        let mut status = status_disclosure_fixture();
+        status.active = Some(
+            serde_json::from_value(serde_json::json!({
+                "id": "fixture-install", "port_id": status.port_id,
+                "version": "v1", "path": "installed", "channel": "stable",
+                "installed_at": 1, "verified": true, "staged": false
+            }))
+            .unwrap(),
+        );
+        for retained in [true, false] {
+            status.definition_operations.push(portcove_core::DefinitionOperationAssessment {
+                operation: portcove_core::DefinitionOperation::Install,
+                eligibility: portcove_core::DefinitionEligibility {
+                    outcome: portcove_core::DefinitionEligibilityOutcome::Hold,
+                    reason: portcove_core::DefinitionEligibilityReason::CuratedDistributionWithdrawn,
+                },
+                retained,
+            });
+        }
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let output = super::status(&status, &catalog);
+        assert!(output.contains("Installed release v1 withdrawn by the catalog maintainer."));
+        assert!(output.contains("Recommended release withdrawn by the catalog maintainer."));
     }
 
     #[test]
@@ -4894,6 +4948,7 @@ mod tests {
                 availability: portcove_core::PortActionAvailability::Waiting,
                 reason: portcove_core::PortActionReason::ReviewRequired,
                 definition: None,
+                restriction: None,
             });
         let output = super::statuses(
             &[empty, assessed.clone()],

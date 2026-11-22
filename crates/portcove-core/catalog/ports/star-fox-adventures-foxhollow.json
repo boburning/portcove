@@ -6,7 +6,7 @@
     "summary": "A Star Fox Adventures port that the project describes as fully playable on Windows, Linux and macOS. Obtain it through the official launcher; code-repository tags contain no runtime files. Exact launcher/package CPU architectures are unconfirmed, and mobile targets are not planned releases. The README accepts any copy of your own original disc. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Star Fox Adventures",
     "project_url": "https://github.com/JackPriceBurns/foxhollow",
-    "platforms": [],
+    "platforms": ["windows-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/JackPriceBurns/foxhollow",
     "artwork": {

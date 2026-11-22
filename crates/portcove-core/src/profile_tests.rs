@@ -439,6 +439,14 @@ fn invalid_revisions_are_rejected_without_changing_the_profile() {
     });
     // Unknown build.
     bad(&|r| r.install_id = Some("missing".into()));
+    // Settings beyond the shape bound.
+    bad(&|r| {
+        r.settings = Some(
+            (0..=super::MAX_SETTINGS)
+                .map(|index| (format!("s{index}"), "v".into()))
+                .collect(),
+        );
+    });
     let view = &service.profile_inventory("starship").unwrap().profiles[0];
     assert_eq!(view.profile.current_revision, 1);
     assert_eq!(
@@ -474,4 +482,23 @@ fn update_policy_is_persisted_intent_separate_from_revisions() {
             .len(),
         1
     );
+}
+
+#[test]
+fn a_revision_keeps_more_than_sixty_four_settings() {
+    let (_temporary, service, _first) = fixture();
+    let default = service.ensure_default_profile("starship").unwrap();
+    let settings = (0..200)
+        .map(|index| (format!("recomp-config/mod.a/{index:03}"), "on".to_string()))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let request = ProfileRevisionRequest {
+        expected_revision: 1,
+        settings: Some(settings.clone()),
+        ..Default::default()
+    };
+    service
+        .create_profile_revision("starship", &default.id, &request)
+        .unwrap();
+    let revisions = service.profile_revisions("starship", &default.id).unwrap();
+    assert_eq!(revisions.last().unwrap().settings, settings);
 }

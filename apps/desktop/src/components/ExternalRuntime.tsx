@@ -66,6 +66,8 @@ type ExternalRuntimeControlProps = {
 export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
   const owner = useOperationPresentation();
   if (props.status?.active) return null;
+  if (owner?.generation === props.generation && owner.unreadInstallPorts?.has(props.port.id))
+    return <p role="status">Refresh the library to confirm the current installation.</p>;
   if (owner?.generation === props.generation && owner.unreadExternalPorts?.has(props.port.id))
     return <ExternalRegistrationReadback />;
   return (
@@ -80,7 +82,7 @@ export function ExternalRuntimeControl(props: ExternalRuntimeControlProps) {
           port={props.port}
           generation={props.generation}
           busy={props.busy}
-          onChanged={() => void props.onChanged?.()}
+          onChanged={props.onChanged}
         />
       )}
     </>
@@ -245,6 +247,7 @@ function ExternalRuntimeContext({
           </div>
           <Button
             data-focusable
+            data-external-runtime-next-action
             variant="outline"
             disabled={busy}
             onClick={() => void select("relink")}
@@ -1647,6 +1650,7 @@ function ExistingRuntimeActions({
       <Button
         variant="outline"
         data-focusable
+        data-external-runtime-next-action
         disabled={model.busy || !model.canEdit}
         onClick={() => model.setEditing(true)}
       >

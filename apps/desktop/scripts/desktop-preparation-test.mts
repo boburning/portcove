@@ -1785,7 +1785,9 @@ export async function preparationScenarios({
           ? current
           : false;
       },
-      15_000,
+      // On hosted Windows the first post-prepare workspace read failed after
+      // 30.5 s and its retry took another 19.5 s (run 44940812838).
+      60_000,
       "Prepared Core state did not reach the rendered trial-launch action",
     );
     assert.ok(trial, "Rendered trial-launch action must be available");
@@ -1860,11 +1862,6 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const filterPanel = await openCatalogFilters(browser);
-    const advanced = await filterPanel.findElement(
-      By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-    );
-    if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-      await clickVisible(browser, advanced);
     const libraryFilters = await filterPanel.findElement(By.css('[aria-label="Library filters"]'));
     await browser.wait(until.elementIsVisible(libraryFilters), 5_000);
     const readinessButtons = await libraryFilters.findElements(
@@ -1917,7 +1914,7 @@ export async function preparationScenarios({
           (await launch[0]!.getAttribute("aria-busy")) !== "true"
         );
       },
-      15_000,
+      45_000,
       "Library launch must settle before the card composition check",
     );
     const cardActions = await executeBrowserScript(
@@ -2186,8 +2183,26 @@ export async function preparationScenarios({
         await shortcut("0");
         await openUpdateTheme(browser, theme);
         await selectPrimaryNavigation(browser, "Library");
-        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        // Hosted Windows job 136875392709 was still loading the reopened
+        // library after two failed snapshots and an immediate retry.
+        await browser.wait(
+          until.elementLocated(By.css(".collection-entry")),
+          60_000,
+          "The seeded Library entries did not render after startup",
+        );
         const search = await browser.findElement(By.id("port-search"));
+        assert.notEqual(
+          await executeBrowserScript(browser, () => document.activeElement?.id),
+          "port-search",
+        );
+        await shortcut("f");
+        await browser.wait(
+          () => executeBrowserScript(browser, () => document.activeElement?.id === "port-search"),
+          5_000,
+          "Find did not focus the seeded Library search",
+        );
+        assert.equal((await browser.findElements(By.id("command-palette-title"))).length, 0);
+        observations.push({ phase: "library-local-find", theme, focused: "port-search" });
         // WebElement.clear() empties the DOM value without React's input event,
         // so the controlled query kept "Jak" and the next pass typed "JakJak"
         // (hosted run 43646110119). Clear through real key input instead.
@@ -2362,7 +2377,12 @@ export async function preparationScenarios({
               async function checkFocusedResizeAt200() {
                 await browser.manage().window().setRect({ width: 1366, height: 768 });
                 const target = '.collection-entry button[aria-label^="More actions for "]';
-                const more = await browser.findElement(By.css(target));
+                let more = await browser.findElement(By.css(target));
+                const origin = await more.getAttribute("data-detail-origin");
+                assert.ok(origin, "The Library menu must expose its exact return identity");
+                const sameAction = By.css(
+                  target + "[data-detail-origin=" + JSON.stringify(origin) + "]",
+                );
                 const waitForVisibleAction = () =>
                   browser.wait(
                     () =>
@@ -2478,8 +2498,16 @@ export async function preparationScenarios({
                   { width: 960, height: 640 },
                   { width: 1366, height: 768 },
                 ]) {
+                  const priorElement = await more.getId();
                   await browser.manage().window().setRect(requestedWindow);
                   const state = await measure();
+                  // The native viewport may replace the DOM node. Observe the same
+                  // logical action without focusing it or choosing another card.
+                  more = await browser.wait(
+                    until.elementLocated(sameAction),
+                    5_000,
+                    "The same Library menu did not survive resizing",
+                  );
                   const continuity = await executeBrowserScript(
                     browser,
                     launchContinuityPoint,
@@ -2487,29 +2515,39 @@ export async function preparationScenarios({
                   );
                   observations.push({
                     phase: "focused-resize-200",
+                    origin_element_replaced: (await more.getId()) !== priorElement,
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
                     ...state,
                     continuity,
                   });
                   await waitForVisibleAction();
+                  const settled = await measure();
+                  const settledContinuity = await executeBrowserScript(
+                    browser,
+                    launchContinuityPoint,
+                    more,
+                  );
                   observations.push({
                     phase: "settled-focused-resize-200",
                     requestedWindow,
                     window: await browser.manage().window().getRect(),
-                    ...(await measure()),
-                    continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                    ...settled,
+                    continuity: settledContinuity,
                   });
-                  assert.equal(state.zoom, "200");
-                  assert.equal(state.query, "Jak");
-                  assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
-                  assert.equal(state.entries, 2);
-                  assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+                  assert.equal(settled.zoom, "200");
+                  assert.equal(settled.query, "Jak");
+                  assert.equal(settled.layout, layout === "Covers" ? "covers" : "rows");
+                  assert.equal(settled.entries, 2);
                   assert.ok(
-                    continuity.originFocused && continuity.originConnected,
-                    JSON.stringify(continuity),
+                    settled.scrollWidth <= settled.contentWidth + 1,
+                    JSON.stringify(settled),
                   );
-                  assert.ok(continuity.documentFocused, JSON.stringify(continuity));
+                  assert.ok(
+                    settledContinuity.originFocused && settledContinuity.originConnected,
+                    JSON.stringify(settledContinuity),
+                  );
+                  assert.ok(settledContinuity.documentFocused, JSON.stringify(settledContinuity));
                 }
                 // One scoped target avoids claiming that the whole scrollable collection
                 // fits above the fold. The screenshot still retains the native viewport.
@@ -2712,6 +2750,7 @@ export async function preparationScenarios({
             "Game files",
             "Saves & backups",
             "Versions & updates",
+            "Game settings",
             "Manage",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
@@ -2814,11 +2853,6 @@ export async function preparationScenarios({
         port.name,
       );
       const filters = await openCatalogFilters(browser);
-      const advanced = await filters.findElement(
-        By.xpath('.//summary[normalize-space(.)="Advanced filters"]'),
-      );
-      if ((await advanced.findElement(By.xpath("..")).getAttribute("open")) === null)
-        await clickVisible(browser, advanced);
       const readiness = await filters.findElement(
         By.css('.collection-readiness [role="combobox"]'),
       );

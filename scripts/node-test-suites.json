@@ -1561,6 +1561,7 @@
             "packages the scan could not inspect are shown and open the release-content handoff",
             "a finding on a port with deferred targets is visible from the latest scan's gap",
             "published maintenance report reads retained pending-to-eligible history once per candidate",
+            "partial CDN windows leave prior good observations intact in the maintenance store",
             "upstream observations record coverage, quiet recurrence, attention and failed reads",
             "hosted intake records requests, quiet recurrence, attention, gaps and failed reads",
             "handoffs plan once, stay quiet, clear and abandon only after complete runs, and refuse stale fences",
@@ -1638,6 +1639,7 @@
           "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
           "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
           "cases": [
+            "ordinary maintenance report and history page preserve the full restored timeline",
             "maintenance store guards history and survives an independent PostgreSQL restore",
             "a receipt-only login can verify migrations and reserve handoffs through its explicit SQL role",
             "an interrupted maintenance migration leaves no partial schema and resumes cleanly",
@@ -1654,6 +1656,13 @@
       "memberships": [
         ["catalog-full-2", 9500],
         ["repository-tools-2", 4500]
+      ]
+    },
+    {
+      "file": "scripts/migrate-acquisition-restrictions.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9501],
+        ["repository-tools-2", 4501]
       ]
     },
     {

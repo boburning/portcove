@@ -1059,3 +1059,60 @@ for (const unavailableMedia of [false, true]) {
       );
   });
 }
+
+void test("an exact 410 for an unselected scene stays attached to its provider game and role", async () => {
+  const { createIgdbInspector, prepareCatalogGameMedia } =
+    await import("./inspect-igdb-artwork.mts");
+  const { sceneCoverage } = await import("./artwork-operations.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-scene-withdrawal-"));
+  const privateFile = join(scratch, "private-fixture.json");
+  writeFileSync(
+    privateFile,
+    JSON.stringify({ client_id: "fixture-id", client_secret: "fixture-secret" }),
+  );
+  const fetched: string[] = [];
+  const project = "https://example.org/withdrawn-scene";
+  const inspector = createIgdbInspector(
+    privateFile,
+    () => ({ format: "png", width: 400, height: 200, validator: "portcove-core" }),
+    async (url) => {
+      if (url.includes("oauth2")) return new Response('{"access_token":"fixture-token"}');
+      if (url.endsWith("/games"))
+        return Response.json([
+          {
+            id: 7,
+            name: "Sample",
+            slug: "sample",
+            websites: [{ url: project }],
+          },
+        ]);
+      if (url.endsWith("/logos")) return Response.json([]);
+      if (url.endsWith("/artworks"))
+        return Response.json([
+          {
+            id: 10,
+            game: 7,
+            image_id: "keyartgone",
+            image_type: { id: 4, name: "Key Art Without Logo" },
+          },
+        ]);
+      if (url.endsWith("/screenshots"))
+        return Response.json([{ id: 9, game: 7, image_id: "scenegone" }]);
+      assert.match(url, /(?:scenegone|keyartgone)\.png$/u);
+      fetched.push(url.split("/").at(-1)!);
+      return new Response(null, { status: 410 });
+    },
+  );
+  const catalog = { ports: [{ id: "sample", name: "Sample", project_url: project }] };
+  const proposal = await prepareCatalogGameMedia(catalog, { inspector });
+  assert.deepEqual(proposal.gone_image_ids, ["keyartgone", "scenegone"]);
+  assert.deepEqual(fetched, ["keyartgone.png", "scenegone.png"]);
+  const screenshot = sceneCoverage(catalog, proposal).find(({ role }) => role === "screenshot");
+  assert.deepEqual(screenshot?.provider_game_ids, [7]);
+  assert.equal(screenshot?.state, "withdrawn");
+  assert.deepEqual(screenshot?.withdrawn_image_ids, ["scenegone"]);
+  assert.deepEqual(screenshot?.proposed_image_ids, []);
+  const header = sceneCoverage(catalog, proposal).find(({ role }) => role === "header");
+  assert.equal(header?.state, "withdrawn");
+  assert.deepEqual(header?.withdrawn_image_ids, ["keyartgone"]);
+});

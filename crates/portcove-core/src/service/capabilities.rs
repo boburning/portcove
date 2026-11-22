@@ -2,6 +2,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::acquisition_restriction::{
+    EffectiveRestrictions, RestrictedOperation, RestrictionSubject,
+};
 use crate::{
     ListingAction, ListingActionAssessment, PortAction, PortActionAssessment,
     PortActionAvailability, PortStatus,
@@ -74,7 +77,7 @@ fn action_feature(
     status: &PortStatus,
     feature: CapabilityFeature,
     action: PortAction,
-    acquisition_hold: Option<&str>,
+    restrictions: &EffectiveRestrictions,
 ) -> PortCapabilityFeature {
     let matches = status
         .port_actions
@@ -91,16 +94,15 @@ fn action_feature(
         }
         None => CapabilityMode::Unknown,
     };
-    let hold = match action {
-        PortAction::Install | PortAction::Update => acquisition_hold,
-        _ => None,
-    };
+    let hold = restrictions
+        .action_hold(action)
+        .and_then(|outcome| outcome.explanation());
     PortCapabilityFeature {
         feature,
         mode,
-        explanation: hold
-            .unwrap_or("Current operation assessment; execution rechecks its requirements.")
-            .into(),
+        explanation: hold.unwrap_or_else(|| {
+            "Current operation assessment; execution rechecks its requirements.".into()
+        }),
         next_step: "Review this operation's requirements and any current refusal.".into(),
         action: assessment,
         listing_action: None,
@@ -128,7 +130,7 @@ impl PortCapabilityReport {
     pub(crate) fn from_status(
         status: &PortStatus,
         actions: &[ListingActionAssessment],
-        acquisition_hold: Option<&str>,
+        restrictions: &EffectiveRestrictions,
     ) -> Self {
         use CapabilityFeature as F;
         use CapabilityMode as M;
@@ -149,7 +151,7 @@ impl PortCapabilityReport {
             routes.push(PortCapabilityRoute {
                 route: route.into(),
                 install_id: None,
-                features: vec![action_feature(status, F::Setup, action, acquisition_hold)],
+                features: vec![action_feature(status, F::Setup, action, restrictions)],
             });
         }
         let attach = actions
@@ -174,25 +176,15 @@ impl PortCapabilityReport {
             simple(F::Updates, M::Manual, "Updates are handled by you or upstream.", "Follow the upstream update instructions."),
             simple(F::Backup, M::Unavailable, "Portcove does not collect backups of this external copy. This says nothing about the game's ability to save.", "Protect external saved data using the upstream instructions.")] });
         let mut features = vec![
-            action_feature(status, F::Launch, PortAction::Launch, acquisition_hold),
-            action_feature(status, F::Updates, PortAction::Update, acquisition_hold),
-            action_feature(
-                status,
-                F::Backup,
-                PortAction::BackupCreate,
-                acquisition_hold,
-            ),
-            action_feature(
-                status,
-                F::Restore,
-                PortAction::BackupRestore,
-                acquisition_hold,
-            ),
+            action_feature(status, F::Launch, PortAction::Launch, restrictions),
+            action_feature(status, F::Updates, PortAction::Update, restrictions),
+            action_feature(status, F::Backup, PortAction::BackupCreate, restrictions),
+            action_feature(status, F::Restore, PortAction::BackupRestore, restrictions),
             action_feature(
                 status,
                 F::PreviousVersion,
                 PortAction::Rollback,
-                acquisition_hold,
+                restrictions,
             ),
             simple(
                 F::OriginalFiles,
@@ -301,7 +293,10 @@ impl PortCapabilityReport {
                     .unwrap_or(listing.project_url.as_str())
             );
         }
-        if let Some(reason) = &listing.download_block_reason {
+        if let Some(reason) = EffectiveRestrictions::listing_only(listing)
+            .evaluate(&RestrictionSubject::deferred(RestrictedOperation::Download))
+            .explanation()
+        {
             setup.explanation = format!("Fresh downloads are restricted: {reason}");
         }
         if let Some(pending) = pending {
@@ -336,7 +331,7 @@ impl super::PortcoveService {
             PortCapabilityReport::from_status(
                 &status.status,
                 &status.actions,
-                crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, port_id),
+                &EffectiveRestrictions::of(&self.catalog, port_id),
             )
         });
         let catalog = self.catalog_for_installed_fallback(port_id)?;
@@ -428,7 +423,8 @@ mod tests {
             allowed: true,
             reason: None,
         }];
-        let report = PortCapabilityReport::from_status(&status, &actions, None);
+        let report =
+            PortCapabilityReport::from_status(&status, &actions, &EffectiveRestrictions::default());
         assert_eq!(
             report.routes[0].features[0].mode,
             CapabilityMode::Unavailable
@@ -452,7 +448,8 @@ mod tests {
             json!({ "format_version": 1, "records": "wrong" }),
         ] {
             listing.compatibility = Some(value);
-            let mut report = PortCapabilityReport::from_status(&status, &[], None);
+            let mut report =
+                PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
             report.add_advisories(&listing, &status);
             assert_ne!(report.advisory_state, "available");
             assert_eq!(report.routes[3].features[0].mode, CapabilityMode::Automatic);
@@ -502,7 +499,8 @@ mod tests {
                 "provenance":"https://example.com/evidence", "observed_at":1,"evidence":"observed"
             }]}));
             let before = serde_json::to_value(&status).unwrap();
-            let mut report = PortCapabilityReport::from_status(&status, &[], None);
+            let mut report =
+                PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
             report.add_advisories(&listing, &status);
             assert_eq!(
                 serde_json::to_value(&report.advisories[0].applicability).unwrap(),
@@ -529,7 +527,8 @@ mod tests {
             "launch_behavior":{"first_launch":"asks-for-game-files", "repeat_launch":"starts-game-directly"}
         });
         listing.compatibility = Some(json!({"format_version":2,"records":[record.clone()]}));
-        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        let mut report =
+            PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
         report.add_advisories(&listing, &status);
         let notice = serde_json::to_value(&report.advisories[0]).unwrap();
         assert_eq!(notice["applicability"], "context-required");
@@ -545,7 +544,8 @@ mod tests {
 
         record["artifact_sha256"] = serde_json::Value::Null;
         listing.compatibility = Some(json!({"format_version":2,"records":[record]}));
-        let mut report = PortCapabilityReport::from_status(&status, &[], None);
+        let mut report =
+            PortCapabilityReport::from_status(&status, &[], &EffectiveRestrictions::default());
         report.add_advisories(&listing, &status);
         assert_eq!(report.advisory_state, "invalid");
         assert!(report.advisories.is_empty());
@@ -590,7 +590,9 @@ mod tests {
         assert!(dated.export_format(11).is_ok());
         assert!(dated.export_format(12).is_ok());
         assert!(dated.export_format(13).is_ok());
-        assert!(dated.export_format(14).is_err());
+        assert!(dated.export_format(14).is_ok());
+        assert!(dated.export_format(15).is_ok());
+        assert!(dated.export_format(16).is_err());
     }
 
     fn funded_listing(urls: &[&str]) -> crate::PortListing {

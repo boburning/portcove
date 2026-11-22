@@ -45,7 +45,16 @@
         }
       ]
     },
-    "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy.",
+        "tracking_issue": 5909
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "dune-ii",

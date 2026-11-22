@@ -552,6 +552,9 @@ impl InstallQualification {
             .unwrap()
             .clone();
         port.id = port_id.into();
+        // This synthetic installer port clears the loader's required persistent paths.
+        port.mod_loader = None;
+        port.mod_provider_bindings = None;
         port.source_profile = None;
         port.presentation = None;
         port.source_environment = None;
@@ -1555,6 +1558,7 @@ impl Installer {
                 let captured = crate::game_settings::capture_shipped_settings(
                     port,
                     platform,
+                    request.release.channel,
                     &request.release.version,
                     &artifact.sha256,
                     &settings_root,
@@ -3292,7 +3296,12 @@ impl Installer {
             .game_settings
             .as_ref()
             .filter(|settings| {
-                settings.covers_archive(platform, &manifest.version, &manifest.artifact.sha256)
+                settings.accepts_archive_receipt(
+                    platform,
+                    install.channel,
+                    &manifest.version,
+                    &manifest.artifact.sha256,
+                )
             })
         else {
             return Ok(None);
@@ -4297,6 +4306,7 @@ pub(crate) fn write_downloaded_settings_fixture_manifest(
     let captured = crate::game_settings::capture_shipped_settings(
         port,
         qualification.platform,
+        crate::ReleaseChannel::Stable,
         version,
         &artifact.sha256,
         &settings_root,
@@ -5014,6 +5024,7 @@ fn verified_manifest_with_budget(
         crate::game_settings::verify_shipped_defaults(
             port,
             platform,
+            install.channel,
             &manifest.version,
             &manifest.artifact.sha256,
             &manifest.shipped_settings_defaults,
