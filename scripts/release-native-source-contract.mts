@@ -37,6 +37,13 @@ export function nativeSourceBlobResponseByteLimit(
   return base64 + 2 * Math.ceil(base64 / 60) + nativeSourceBlobEnvelopeBytes;
 }
 
+/** Response bound for a reader dedicated to declaration blobs: the largest
+ * declaration's blob. Every release reader of declaration blobs uses this, and
+ * keeps its other reads on their own bounds. */
+export const nativeSourceBlobReadByteLimit = Math.max(
+  ...nativeCompatibilitySourcePaths.map(nativeSourceBlobResponseByteLimit),
+);
+
 export function readCliApiDeclaration(source: string): number {
   const matches = [
     ...source.matchAll(/^pub const API_SCHEMA_VERSION: u32 = ([1-9][0-9]{0,8});\r?$/gmu),

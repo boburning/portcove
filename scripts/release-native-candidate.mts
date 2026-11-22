@@ -2,7 +2,7 @@ import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import type { ReleaseEvidenceOptions } from "./release-run-evidence.mts";
 import {
   nativeCompatibilitySourcePaths,
-  nativeSourceBlobResponseByteLimit,
+  nativeSourceBlobReadByteLimit,
 } from "./release-native-source-contract.mts";
 import { nativePlatformsForReleaseProfile } from "./release-package-policy.mts";
 import { isInitialBetaReleaseProfile } from "./release-package-policy.mts";
@@ -545,11 +545,7 @@ async function sourceTransport(parent: Parent, directory: string) {
       file: (pathname: string, revision: string) => read(() => contents.file(pathname, revision)),
       blob: (sha: string) =>
         read(async () => {
-          // Bound the declaration blob response by its largest declaration.
-          blobs ??= metadata(
-            deadline,
-            Math.max(...nativeCompatibilitySourcePaths.map(nativeSourceBlobResponseByteLimit)),
-          );
+          blobs ??= metadata(deadline, nativeSourceBlobReadByteLimit);
           return (await blobs).blob(sha);
         }),
     };

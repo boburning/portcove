@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   nativeCompatibilitySourcePaths,
+  nativeSourceBlobReadByteLimit,
   nativeSourceDeclarationByteLimit,
   inspectNativeCompatibilitySources,
 } from "./release-native-source-contract.mts";
@@ -199,34 +200,90 @@ void test("actual maintained source recipe supplies declarations without runtime
 
 void test("locked source transport bounds immutable blob JSON separately from metadata", async () => {
   const sha = "a".repeat(40);
+  const catalog = nativeCompatibilitySourcePaths[2];
+  const size = nativeSourceDeclarationByteLimit(catalog);
+  // An at-limit catalog in GitHub's Git blob shape: base64 wrapped every 60
+  // characters, each newline JSON-escaped.
   const payload = {
     sha,
-    size: 4 * 1024 * 1024,
+    node_id: `B_kwDO${"A".repeat(40)}`,
+    size,
+    url: `https://api.github.com/repos/boburning/portcove/git/blobs/${sha}`,
+    content: Buffer.alloc(size, 32).toString("base64").replace(/.{60}/gu, "$&\n"),
     encoding: "base64",
-    content: Buffer.alloc(4 * 1024 * 1024, 32).toString("base64"),
   };
+  const body = JSON.stringify(payload);
+  assert.ok(Buffer.byteLength(body) <= nativeSourceBlobReadByteLimit);
   const observed: string[] = [];
-  const reader = (maxBytes: number) =>
+  const reader = (maxBytes: number, response = body) =>
     createReleaseCustodyProvider({
       token: "fixed-native-source-fixture",
-      deadline: performance.now() + 5000,
+      deadline: performance.now() + 30000,
       maxBytes,
       async fetch(input, init) {
         const request = new Request(input, init);
         assert.equal(request.headers.get("authorization"), "token fixed-native-source-fixture");
         observed.push(new URL(request.url).pathname);
-        return Response.json(payload);
+        return new Response(response, { headers: { "content-type": "application/json" } });
       },
     });
   const metadata = await reader(2 * 1024 * 1024);
-  const blobs = await reader(8 * 1024 * 1024);
+  await assert.rejects(metadata.file(catalog, sha), /byte|limit|size/u);
+  assert.deepEqual(await (await reader(nativeSourceBlobReadByteLimit)).blob(sha), payload);
+  // The former fixed 8 MiB reader cannot carry an at-limit catalog blob, and the
+  // derived reader still refuses a response one byte over its bound.
+  await assert.rejects((await reader(8 * 1024 * 1024)).blob(sha), /byte|limit|size/u);
+  const padding = " ".repeat(nativeSourceBlobReadByteLimit - Buffer.byteLength(body) + 1);
+  const oversized = body.replace('"encoding"', `${padding}"encoding"`);
+  assert.equal(Buffer.byteLength(oversized), nativeSourceBlobReadByteLimit + 1);
   await assert.rejects(
-    metadata.file("crates/portcove-core/catalog/catalog.json", sha),
+    (await reader(nativeSourceBlobReadByteLimit, oversized)).blob(sha),
     /byte|limit|size/u,
   );
-  assert.deepEqual(await blobs.blob(sha), payload);
   assert.deepEqual(observed, [
     "/repos/boburning/portcove/contents/crates%2Fportcove-core%2Fcatalog%2Fcatalog.json",
-    `/repos/boburning/portcove/git/blobs/${sha}`,
+    ...Array.from({ length: 3 }, () => `/repos/boburning/portcove/git/blobs/${sha}`),
   ]);
+});
+
+void test("every release reader of declaration blobs uses the shared derived bound", async () => {
+  // Each reader resolves declaration blobs through its own dedicated reader.
+  const sites = {
+    "application-release-native-execution.mts":
+      "declarationBlobs??=metadata(declarationDeadline,nativeSourceBlobReadByteLimit,)",
+    "application-release-private.mts": "declarationBlobs??=reader(nativeSourceBlobReadByteLimit)",
+    "release-hosted-native-candidate.mts": "blobs??=scoped(nativeSourceBlobReadByteLimit)",
+    "release-native-candidate.mts": "blobs??=metadata(deadline,nativeSourceBlobReadByteLimit)",
+  };
+  const { readdir } = await import("node:fs/promises");
+  const directory = new URL("./", import.meta.url);
+  const readers: string[] = [];
+  for (const name of (await readdir(directory)).sort()) {
+    if (!name.endsWith(".mts") || name.endsWith(".test.mts")) continue;
+    if (name === "release-native-source-provider.mts") continue;
+    const source = (await readFile(new URL(name, directory))).toString("utf8");
+    if (source.includes("retainNativeSourceDeclarations(")) readers.push(name);
+  }
+  assert.deepEqual(readers, Object.keys(sites), "a new declaration reader needs the shared bound");
+  for (const [name, use] of Object.entries(sites)) {
+    const compact = (await readFile(new URL(name, directory)))
+      .toString("utf8")
+      .replace(/\s+/gu, "");
+    assert.match(
+      compact,
+      /import\{[^}]*nativeSourceBlobReadByteLimit[^}]*\}from"\.\/release-native-source-contract\.mts"/u,
+      name,
+    );
+    assert.ok(compact.includes(use), `${name} must read declaration blobs through ${use}`);
+  }
+  // Where one provider serves other reads, declaration blobs never reuse it.
+  for (const name of [
+    "application-release-native-execution.mts",
+    "application-release-private.mts",
+  ]) {
+    const compact = (await readFile(new URL(name, directory)))
+      .toString("utf8")
+      .replace(/\s+/gu, "");
+    assert.doesNotMatch(compact, /=>provider\.blob\(/u, name);
+  }
 });
