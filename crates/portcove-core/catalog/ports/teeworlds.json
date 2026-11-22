@@ -19,7 +19,16 @@
     "availability": "packages",
     "release_url": "https://www.teeworlds.com/?page=downloads",
     "setup_url": "https://www.teeworlds.com/?page=docs",
-    "download_block_reason": "Choose a download from the Teeworlds project or install the game through your package manager.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Choose a download from the Teeworlds project or install the game through your package manager.",
+        "tracking_issue": 6509
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

@@ -302,46 +302,27 @@ fn merge_immutable_records<T: Clone + PartialEq>(
     Ok(())
 }
 
-/// A selected definition may keep or narrow an existing managed acquisition
-/// hold, but never remove it or allow an artifact the baseline did not review.
-/// Clearing a hold is a reviewed catalog change shipped with the application.
+/// A selected definition may keep or add restriction to an existing managed
+/// acquisition hold, but never remove it or permit an artifact the baseline did
+/// not review. Clearing a hold is a reviewed catalog change shipped with the
+/// application.
 fn validate_acquisition_hold_transition(
     baseline: &[crate::PortDefinition],
     candidate: &[crate::PortDefinition],
     selected_port_id: &str,
 ) -> Result<()> {
-    fn hold<'a>(
-        ports: &'a [crate::PortDefinition],
-        id: &str,
-    ) -> Option<&'a crate::ManagedAcquisitionHold> {
+    let restrictions = |ports: &[crate::PortDefinition]| {
         ports
             .iter()
-            .find(|port| port.id == id)
-            .and_then(|port| port.managed_acquisition_hold.as_ref())
-    }
-    let Some(baseline_hold) = hold(baseline, selected_port_id) else {
-        return Ok(());
+            .find(|port| port.id == selected_port_id)
+            .map(crate::acquisition_restriction::definition_restrictions)
+            .unwrap_or_default()
     };
-    match hold(candidate, selected_port_id) {
-        Some(candidate_hold)
-            if (candidate_hold.excluded_artifacts.is_empty()
-                || (!baseline_hold.excluded_artifacts.is_empty()
-                    && baseline_hold
-                        .excluded_artifacts
-                        .iter()
-                        .all(|artifact| candidate_hold.excluded_artifacts.contains(artifact))))
-                && candidate_hold
-                    .reviewed_artifacts
-                    .iter()
-                    .all(|artifact| baseline_hold.reviewed_artifacts.contains(artifact)) =>
-        {
-            Ok(())
-        }
-        Some(_) => Err(out_of_scope(
-            "a managed acquisition hold permits an unreviewed artifact",
-        )),
-        None => Err(out_of_scope("a managed acquisition hold was removed")),
-    }
+    crate::acquisition_restriction::validate_transition(
+        &restrictions(baseline),
+        &restrictions(candidate),
+    )
+    .map_err(out_of_scope)
 }
 
 /// A selected definition may replace a reviewed package-layout fingerprint with

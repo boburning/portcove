@@ -2,6 +2,7 @@ import { readReviewFieldStyles } from "./desktop-review-presentation.mts";
 import type { ScenarioContext, ScenarioInvoke } from "./desktop-scenario-context.mts";
 import { transportValue } from "./transport-values.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import type { ActivityFeed } from "../src/transport-types.generated.d.ts";
 import type { LinuxInspectorProtocol } from "./desktop-linux-webkit-inspector.mts";
 interface CatalogContext extends Omit<ScenarioContext, "browser"> {
   browser: WebDriver | LinuxInspectorProtocol | undefined;
@@ -19,6 +20,26 @@ import {
   captureAccessibilityReport,
   reviewControls,
 } from "./desktop-review-controls.mts";
+
+/** Compare complete activity snapshots while official catalog maintenance can run. */
+export function activityOutsideCatalog(feed: ActivityFeed): ActivityFeed {
+  assert.ok(feed.terminal_history_complete && feed.active_and_actionable_complete);
+  const maintenance = feed.records.filter(({ operation }) => operation === "update_catalog");
+  const excluded = new Set(maintenance.map(({ id }) => id));
+  return {
+    ...feed,
+    records: feed.records.filter(({ id }) => !excluded.has(id)),
+    current_activity_ids: feed.current_activity_ids.filter((id) => !excluded.has(id)),
+    attention_required_activity_ids: feed.attention_required_activity_ids.filter(
+      (id) => !excluded.has(id),
+    ),
+    recovery_required_activity_ids: feed.recovery_required_activity_ids.filter(
+      (id) => !excluded.has(id),
+    ),
+    terminal_history_count:
+      feed.terminal_history_count - maintenance.filter(({ status }) => status !== "running").length,
+  };
+}
 
 export async function catalogUpdateScenario({
   browser,

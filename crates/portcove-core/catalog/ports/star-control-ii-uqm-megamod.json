@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://github.com/JHGuitarFreak/UQM-MegaMod/releases/tag/0.8.5",
     "setup_url": "https://uqm-mods.sourceforge.net/Download",
-    "download_block_reason": "Use the upstream installer, Linux package or Flatpak. The packages include modified game content and use their own installation and replacement tools.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the upstream installer, Linux package or Flatpak. The packages include modified game content and use their own installation and replacement tools.",
+        "tracking_issue": 6061
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

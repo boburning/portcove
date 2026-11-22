@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://www.freeciv.org/download.html",
     "setup_url": "https://www.freeciv.org/download.html",
-    "download_block_reason": "Choose the publisher’s installer or AppImage, or use a package manager that offers the current release.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Choose the publisher’s installer or AppImage, or use a package manager that offers the current release.",
+        "tracking_issue": 6502
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

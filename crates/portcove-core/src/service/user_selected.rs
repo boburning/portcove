@@ -292,6 +292,7 @@ impl PortcoveService {
             availability: PortActionAvailability::NotOffered,
             reason: PortActionReason::RouteNotOffered,
             definition: None,
+            restriction: None,
         })
         .collect();
         let launchable = status
@@ -334,6 +335,7 @@ impl PortcoveService {
                 availability,
                 reason,
                 definition: None,
+                restriction: None,
             });
         }
         status

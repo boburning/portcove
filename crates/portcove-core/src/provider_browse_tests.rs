@@ -244,3 +244,43 @@ async fn oversized_thunderstore_community_has_a_direct_browse_handoff() {
         Some(url)
     );
 }
+
+#[tokio::test]
+async fn the_mods_catalog_continues_past_six_hundred_projects() {
+    let page = |page: u64, count: u64, complete: bool| {
+        let records = (0..count)
+            .map(|index| {
+                let id = (page - 1) * 50 + index + 1;
+                serde_json::json!({
+                    "_idRow": id,
+                    "_sName": if id == 601 { "Deep match".to_string() } else { format!("Mod {id}") },
+                    "_aGame": {"_idRow": 777}
+                })
+            })
+            .collect::<Vec<_>>();
+        json_response(
+            &serde_json::json!({
+                "_aMetadata": {"_nRecordCount": 601, "_bIsComplete": complete},
+                "_aRecords": records
+            })
+            .to_string(),
+        )
+    };
+    let mut responses = (1..=12)
+        .map(|number| page(number, 50, false))
+        .collect::<Vec<_>>();
+    responses.push(page(13, 1, true));
+    let (root, requests, server) = serve_http_bytes(responses);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let first = gamebanana_catalog(&client, 777, 1, None).await.unwrap();
+    assert_eq!(first.projects.len(), 600);
+    assert!(!first.complete);
+    assert_eq!(first.next_page, Some(13));
+    assert_eq!(first.expected_total, Some(601));
+    let rest = gamebanana_catalog(&client, 777, 13, None).await.unwrap();
+    server.join().unwrap();
+    assert!(rest.complete);
+    assert_eq!(rest.next_page, None);
+    assert_eq!(rest.projects[0].name, "Deep match");
+    assert_eq!(requests.try_iter().count(), 13);
+}

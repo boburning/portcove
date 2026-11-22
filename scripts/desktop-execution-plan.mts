@@ -391,6 +391,8 @@ export function planDesktopExecution(
     receiptSource(new URL("desktop-catalog-update-test.mts", harnessUrl)),
     receiptSource(new URL("desktop-default-cover-test.mts", harnessUrl)),
   );
+  if (selection.selected_scenarios.includes("native-reviewed-screenshot-display"))
+    inputs.push(receiptSource(new URL("crates/portcove-core/catalog/listings.json", rootUrl)));
   if (selection.prerequisites.includes("owned-fixture")) {
     if (selection.selected_scenarios.includes("native-artwork-catalog-correction"))
       for (const name of [

@@ -59,7 +59,16 @@
         }
       ]
     },
-    "download_block_reason": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-prohibition",
+        "explanation": "Fresh acquisition of a derived Downpour player remains held: the selected upstream README expressly excludes generated game code from its BSD grant and prohibits distribution of the game executable or a binary linked against game data. Resume with applicable permission for that exact derived component or a reviewed compatible package resolving it. Independently permitted existing-copy registration does not clear this acquisition hold.",
+        "tracking_issue": 358
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "silent-hill-downpour",

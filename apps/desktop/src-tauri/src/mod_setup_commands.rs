@@ -693,13 +693,14 @@ pub(crate) async fn get_mod_provider_catalog(
     generation: u64,
     port_id: String,
     source: String,
+    start_page: Option<u32>,
 ) -> DesktopResult<portcove_core::ProviderCatalog> {
     crate::blocking_async_service_at_generation(
         state.inner().clone(),
         generation,
         move |service| async move {
             service
-                .mod_provider_catalog(&port_id, &source)
+                .mod_provider_catalog_from(&port_id, &source, start_page.unwrap_or(1))
                 .await
                 .map_err(Into::into)
         },

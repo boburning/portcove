@@ -3964,11 +3964,14 @@ outer callers must allow the bounded queue as well as setup and execution.
 Each local source-bound checkout scan has a 30-second default budget. Under
 measured filesystem pressure, a local caller can set
 `PORTCOVE_RESOURCE_SOURCE_SCAN_TIMEOUT_SECONDS` to an integer from 30 through
-120 for one command. The override applies separately to the before-admission
-and after-admission scans. Allow both scans and the existing queue wait in
-the outer command budget. A timeout stops the scan and the payload does not
-start. The existing source identity comparison and reservation limits still
-apply.
+480 for one command. During portable-game qualification on Linux, a complete
+checkout scan under disk contention took 338 seconds. Git commands took
+2.4 seconds of that time. The override applies separately to the full
+before-admission and after-admission scans. Allow both scans, the existing
+queue wait, setup and execution in the outer command budget. The override
+leaves the queue and execution budgets unchanged. A scan timeout prevents
+payload launch. After admission, the guard releases the reservation through
+the existing custody checks.
 
 The initial `pending` mode admits no new heavy payload: requests wait boundedly
 while older work finishes. An unmodified PID-only native guard cannot safely

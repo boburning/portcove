@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://xonotic.org/download/",
     "setup_url": "https://xonotic.org/download/",
-    "download_block_reason": "Get Xonotic from its official download page or Flathub. Upstream serves the ZIP outside Portcove's package providers.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Get Xonotic from its official download page or Flathub. Upstream serves the ZIP outside Portcove's package providers.",
+        "tracking_issue": 6394
+      }
+    ],
     "manual_setup": {
       "steps": [
         {
