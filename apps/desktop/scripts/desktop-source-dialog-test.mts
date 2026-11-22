@@ -948,7 +948,10 @@ export async function sourceDialogScenario({
     const retainedRoot = await retainedDialog.findElement(By.id("source-search-root"));
     const retainedProfile = await retainedDialog.findElement(By.id("source-profile-select"));
     assert.equal(await retainedRoot.getAttribute("value"), searchRoot);
-    assert.equal((await retainedProfile.getText()).trim(), profileLabel);
+    const retainedProfileValue = await retainedProfile.findElement(
+      By.css('[data-slot="select-value"]'),
+    );
+    assert.equal((await retainedProfileValue.getText()).trim(), profileLabel);
     assert.equal(
       await retainedDialog.findElement(discoverySummary).getText(),
       exactDiscoverySummary,
