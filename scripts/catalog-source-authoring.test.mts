@@ -896,6 +896,63 @@ void test("authoring split preserves unknown metadata and ordered operational ar
   assert.equal(Object.hasOwn(authored.integration?.presentation ?? {}, "artwork"), false);
 });
 
+void test("typed IGDB scenes project to listing format 13 without changing strict media", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const typed = { id: "igdb", role: "screenshot", igdb: { kind: "screenshot" } };
+  const legacy = { id: "legacy", role: "header" };
+  for (const strict of [[legacy], []]) {
+    const projection = assembleCatalogRecords(shared, [
+      { ...authored, listing: { ...authored.listing, media: [...strict, typed] } },
+    ]);
+    assert.equal(projection.directory.format_version, 13);
+    assert.deepEqual(projection.directory.listings[0]?.media, [...strict, typed]);
+    const presentation = projection.catalog.ports[0]?.presentation as Record<string, unknown>;
+    assert.deepEqual(presentation.media, strict.length ? strict : undefined);
+  }
+});
+
+void test("verified source identities belong only in the format 14 listing", () => {
+  const catalog = fixtureCatalog(fixtureJson(readFileSync(join(catalogRoot, "catalog.json"))));
+  const authored = authoringRecordFromPort(requiredFixture(catalog.ports[0]), 0);
+  const { ports: _ports, ...shared } = catalog;
+  const binding = {
+    game_id: "source-game",
+    variant_id: "original-retail",
+    representation_id: "original-file",
+  };
+  const edition = {
+    id: "retail",
+    title: "Original retail",
+    evidence_urls: ["https://example.com/original"],
+    verified_sources: [binding],
+  };
+  const listing = {
+    ...authored.listing,
+    original_game: {
+      format_version: 1 as const,
+      id: "original-game",
+      evidence_urls: ["https://example.com/game"],
+      source_editions: [edition],
+    },
+  };
+  const result = assembleCatalogRecords(shared, [{ ...authored, listing }]);
+  const presentation = result.catalog.ports[0]?.presentation as Record<string, unknown>;
+  assert.equal(result.directory.format_version, 14);
+  assert.deepEqual(result.directory.listings[0]?.original_game, listing.original_game);
+  const { verified_sources: _sources, ...legacyEdition } = edition;
+  assert.deepEqual(presentation.original_game, {
+    ...listing.original_game,
+    source_editions: [legacyEdition],
+  });
+  edition.verified_sources.push(binding);
+  assert.throws(
+    () => assembleCatalogRecords(shared, [{ ...authored, listing }]),
+    /Duplicate verified source binding/,
+  );
+});
+
 void test("inherits only reviewed descriptive selectors for the same package scope", () => {
   const shared = fixtureJson(readFileSync(join(catalogRoot, "catalog-shared.json")));
   const record = checkedAuthoredPort(
@@ -1025,8 +1082,7 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries implementation descriptions (format 12); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 12);
+  assert.equal(projected.directory.format_version, source.directory.format_version);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -1156,7 +1212,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 12);
+  assert.equal(source.directory.format_version, 13);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -1294,8 +1350,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; implementation descriptions lift the real directory to 12.
-  assert.equal(assembled.directory.format_version, 12);
+  assert.equal(assembled.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -1314,7 +1369,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 12);
+  assert.equal(combined.directory.format_version, accepted.directory.format_version);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -2095,7 +2150,10 @@ void test("implementation descriptions project without changing source, route or
   assert.deepEqual(projected.adapter, before.adapter);
   assert.deepEqual(projected.platforms, before.platforms);
   assert.deepEqual(record.listing.original_game, without.listing.original_game);
-  assert.equal(source.directory.format_version, 12);
+  const implementationOnly = structuredClone(record);
+  delete implementationOnly.listing.media;
+  const { ports: _ports, ...shared } = source.catalog;
+  assert.equal(assembleCatalogRecords(shared, [implementationOnly]).directory.format_version, 12);
   const dependency = record.listing.implementation.dependencies[0]!;
   for (const invalid of [
     { ...record.listing.implementation, format_version: 999 },
@@ -2133,14 +2191,19 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
   const { records } = readCatalogSource(catalogRoot);
   const accepted = new Map(fixtureRecords(schema3Fixture.ports).map((port) => [port.id, port]));
   const family = records.filter((record) => record.openx_portable_v1);
-  assert.deepEqual(family.map(({ listing }) => listing.id).sort(), [
+  for (const historicalId of [
     "star-wars-x-wing-openxw",
     "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
-  ]);
+  ]) {
+    const historical = family.find(({ listing }) => listing.id === historicalId);
+    assert.ok(historical);
+    assert.deepEqual(projectAuthoredPort(historical), accepted.get(historicalId));
+  }
+  for (const record of records) {
+    assert.equal(compactOpenXPortable(record), record, record.listing.id);
+  }
   for (const record of family) {
-    const id = record.listing.id;
     const explicit = projectOpenXPortable(record);
-    assert.equal(JSON.stringify(projectAuthoredPort(record)), JSON.stringify(accepted.get(id)));
     assert.deepEqual(compactOpenXPortable(explicit), record);
     assert.deepEqual(explicit.integration?.persistent_paths, ["config.yaml"]);
     assert.deepEqual(
@@ -2148,13 +2211,38 @@ void test("OpenXW and OpenXvT share their exact package selectors and local conf
       record.integration?.reviewed_package_layouts,
     );
 
+    const another = structuredClone(record);
+    another.listing.id = "compatible-player";
+    another.upstream_lineage!.target_key = "original-game-shared-by-alternatives";
+    another.listing.project_url = "https://github.com/example/compatible-player";
+    another.upstream_lineage!.origin.project_url = another.listing.project_url;
+    another.upstream_lineage!.origin.repository!.id = "12345";
+    another.openx_portable_v1 = "12345";
+    (another.integration!.release as Record<string, unknown>).repository =
+      "example/compatible-player";
+    assert.deepEqual(compactOpenXPortable(projectOpenXPortable(another)), another);
+
     const otherIdentity = structuredClone(record);
-    otherIdentity.upstream_lineage!.origin.repository!.id = "1";
-    assert.throws(() => checkedAuthoredPort(otherIdentity), /reviewed OpenXW or OpenXvT/u);
+    otherIdentity.upstream_lineage!.origin.project_url = "https://github.com/example/other";
+    assert.throws(() => checkedAuthoredPort(otherIdentity), /accepted lineage identity/u);
 
     const missingOrigin = structuredClone(record);
     Reflect.deleteProperty(missingOrigin.upstream_lineage!, "origin");
-    assert.throws(() => checkedAuthoredPort(missingOrigin), /reviewed OpenXW or OpenXvT/u);
+    assert.throws(() => checkedAuthoredPort(missingOrigin), /lineage|upstream/iu);
+
+    const wrongId = structuredClone(record);
+    wrongId.upstream_lineage!.origin.repository!.id = "1";
+    assert.throws(() => checkedAuthoredPort(wrongId), /repository ID differs/u);
+    assert.deepEqual(projectOpenXPortable({ ...record, openx_portable_v1: true }), explicit);
+    assert.throws(
+      () => projectOpenXPortable({ ...wrongId, openx_portable_v1: true }),
+      /historical portable package identity/iu,
+    );
+
+    const wrongLayout = structuredClone(record);
+    const layouts = wrongLayout.integration!.reviewed_package_layouts as Record<string, unknown>;
+    layouts["linux-x86-64"] = { executables: ["unexpected"] };
+    assert.throws(() => checkedAuthoredPort(wrongLayout), /reviewed layouts/u);
 
     const duplicate = structuredClone(record);
     duplicate.integration!.persistent_paths = [];

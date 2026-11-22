@@ -25,6 +25,7 @@ import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwo
 import { ExternalLink } from "../../components/ExternalLink";
 import { CapabilityNoticeScope } from "../../components/PortCapabilities";
 import { LaunchBehaviorStages } from "../../components/LaunchBehaviorStages";
+import { ReleaseWithdrawalBadge } from "../../components/ReleaseWithdrawal";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../components/ui/dialog";
@@ -388,13 +389,10 @@ export function GroupedDiscover({
               />
               <FavoritePreferenceFailure favorites={favorites} organization={organization} />
               {dropComparison && <p className="my-3 text-sm">{t("discover.drop.choose")}</p>}
-              <details className="my-4 text-xs text-pc-muted-foreground">
-                <summary data-focusable className="disclosure-pad-2 cursor-pointer">
-                  {t("discover.compare.options")}
-                </summary>
-                <p>{t("discover.compare.optionsIntro")}</p>
-                <GameComparisonControls comparison={evidence} />
-              </details>
+              <GameComparisonControls comparison={evidence} />
+              <p className="mb-4 text-xs text-pc-muted-foreground">
+                {t("discover.compare.optionsIntro")}
+              </p>
               <div className="port-comparison-grid">
                 {comparison.ports.map((port) => {
                   const status = statuses.get(port.id);
@@ -784,6 +782,7 @@ function DiscoverGameCardView({
           <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
         )}
       </Button>
+      {exact && <ReleaseWithdrawalBadge status={status} />}
       <div className="collection-personal-actions">
         <FavoriteGameButton
           card

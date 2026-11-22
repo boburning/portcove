@@ -56,10 +56,10 @@ describe("desktop components", () => {
             loading={false}
           />,
         );
-      expect(render(base)).not.toContain("Update downloaded, not installed");
+      expect(render(base)).not.toContain("Update archive downloaded");
       expect(render(base)).not.toContain("Update saved for later");
       const downloaded = render({ ...base, acquisition });
-      expect(downloaded).toContain("Update downloaded, not installed");
+      expect(downloaded).toContain("Update archive downloaded");
       expect(downloaded).not.toContain("Update saved for later");
       expect(downloaded).toContain("Ready to play");
       const prepared = render({
@@ -69,7 +69,7 @@ describe("desktop components", () => {
       expect(prepared).toContain(
         view === "library" ? "Update saved for later" : "Update saved for later",
       );
-      expect(prepared).not.toContain("Update downloaded, not installed");
+      expect(prepared).not.toContain("Update archive downloaded");
     },
   );
 

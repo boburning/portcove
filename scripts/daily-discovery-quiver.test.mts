@@ -55,6 +55,22 @@ await test("joins differently ordered feeds by stable app ID and exhausts each c
   assert.match(f.urls[3]!, /cursor=release-cursor/u);
   assert.equal(f.saved.length, 5);
 });
+await test("retains manual HTTPS provenance alongside repository names without requesting it", async () => {
+  const manual = {
+    ...release("manual", "https://sourceforge.net/projects/example/"),
+    provider: "manual",
+  };
+  const f = fixture([page([app("a"), app("manual")]), page([manual, release("a")])]);
+  const result = await f.collect();
+  assert.equal(result.status, "complete");
+  assert.deepEqual(
+    result.records.map((r) => r.key),
+    ["a", "manual"],
+  );
+  assert.equal(f.urls.length, 2);
+  assert(f.urls.every((url) => new URL(url).hostname === "api.quiverlauncher.com"));
+  assert.match(JSON.stringify(f.saved.at(-1)), /https:\/\/sourceforge\.net\/projects\/example\//u);
+});
 await test("deduplicates identical boundary records, refusing conflicting identity observations", async () => {
   const same = fixture([page([app("a")], "next"), page([app("a")]), page([release("a")])]);
   assert.equal((await same.collect()).records.length, 1);
@@ -74,6 +90,18 @@ for (const [name, pages] of Object.entries({
   empty: [page([], "next")],
   malformed: [{ items: {}, isDone: true, nextCursor: null }],
   missingIdentity: [page([{}])],
+  manualWithCredentials: [
+    page([app("a")]),
+    page([{ ...release("a", "https://user:pass@example.org/project"), provider: "manual" }]),
+  ],
+  manualInsecureUrl: [
+    page([app("a")]),
+    page([{ ...release("a", "http://example.org/project"), provider: "manual" }]),
+  ],
+  typedRepositoryUrl: [
+    page([app("a")]),
+    page([{ ...release("a", "https://github.com/owner/repo"), provider: "github" }]),
+  ],
   missingProvenance: [page([app("a")]), page([{ id: "a" }])],
   malformedGames: [page([{ ...app("a"), games: [{}] }]), page([release("a")])],
   contradictoryCatalog: [

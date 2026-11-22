@@ -144,7 +144,7 @@ fn inspect_content(
     use ContentCapabilityState::{Declared, RequiresReviewedRuntime, Unknown, UpstreamGuidance};
 
     let loader = port.and_then(|port| definition_loader(port, platform));
-    let runtime = loader.map_or(Unknown, |_| RequiresReviewedRuntime);
+    let runtime = loader.as_ref().map_or(Unknown, |_| RequiresReviewedRuntime);
     let provider_bindings = port.map_or_else(Vec::new, crate::provider_binding::bindings);
     let provider_browse = if provider_bindings.is_empty() {
         Unknown
@@ -190,7 +190,7 @@ fn inspect_content(
     };
     TargetContentCapabilities {
         platform,
-        loader: loader.map(|loader| loader.engine.reference()),
+        loader: loader.as_ref().map(|loader| loader.engine.reference()),
         provider_browse,
         provider_bindings,
         local_import: runtime,

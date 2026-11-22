@@ -1009,6 +1009,64 @@ async fn corrupt_archive_and_changed_source_definition_never_publish_runtime() {
 }
 
 #[tokio::test]
+async fn update_review_offers_exact_archive_digest_for_both_install_intents() {
+    let (_temporary, mut service, server) = fixture(false, false);
+    let archive = service.plan_game_update_acquisition(PORT).await.unwrap();
+    let install = service.plan_game_update(PORT, true).await.unwrap();
+    let prepare = service.plan_game_update(PORT, false).await.unwrap();
+
+    assert_eq!(install.plan.release, archive.plan.release);
+    assert_eq!(install.plan.download_bytes, archive.plan.download_bytes);
+    assert_eq!(
+        install.archive_only_plan_sha256.as_deref(),
+        Some(archive.plan_sha256.as_str())
+    );
+    assert_eq!(
+        prepare.archive_only_plan_sha256,
+        install.archive_only_plan_sha256
+    );
+    assert_ne!(install.plan_sha256, archive.plan_sha256);
+    let digest = install.archive_only_plan_sha256.unwrap();
+    service
+        .authorize_game_update_acquisition(PORT, &digest)
+        .await
+        .unwrap();
+
+    let mut document = service.catalog.authoritative_document();
+    document.ports[0].summary.push_str(" changed after review");
+    service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    assert_eq!(
+        service
+            .authorize_game_update_acquisition(PORT, &digest)
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    assert!(!server.arrived.load(Ordering::SeqCst));
+    assert!(service.status(PORT).unwrap().acquisition.is_none());
+}
+
+#[tokio::test]
+async fn update_review_omits_archive_offer_when_recorded_runtime_bytes_have_changed() {
+    let (_temporary, service, server) = fixture(false, false);
+    let active = service.status(PORT).unwrap().active.unwrap();
+    assert!(active.verified);
+    fs::write(active.path.join("game.exe"), b"changed after install").unwrap();
+
+    assert!(
+        service
+            .plan_game_update(PORT, true)
+            .await
+            .unwrap()
+            .archive_only_plan_sha256
+            .is_none()
+    );
+    assert!(service.plan_game_update_acquisition(PORT).await.is_err());
+    assert!(!server.arrived.load(Ordering::SeqCst));
+}
+
+#[tokio::test]
 async fn unregistered_source_requirement_cannot_be_bypassed_by_acquisition() {
     let (_temporary, mut service, server) = fixture(false, false);
     let mut document = service.catalog.authoritative_document();

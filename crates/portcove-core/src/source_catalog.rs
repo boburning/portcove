@@ -337,6 +337,11 @@ pub enum SourceReleasePolicy {
 }
 
 impl PortSourceContract {
+    pub(crate) fn migrates_n64_legacy_admission(&self) -> bool {
+        self.admission_mode == CatalogAdmissionMode::Enforced
+            && !self.n64_recomp_inputs_v1.is_empty()
+    }
+
     pub(crate) fn applies_to_release(&self, upstream_ref: &str, artifact_sha256: &str) -> bool {
         !upstream_ref.is_empty()
             && artifact_sha256.len() == 64
@@ -586,8 +591,8 @@ impl SourceCatalog {
                 if contract.n64_recomp_inputs_v1.len() > 64
                     || contract.role != PortSourceRole::Game
                     || profile.kind != SourceIdentityKind::File
-                    || contract.admission_mode != CatalogAdmissionMode::Informational
-                    || (!contract.supported_variant_ids.is_empty()
+                    || (contract.admission_mode == CatalogAdmissionMode::Informational
+                        && !contract.supported_variant_ids.is_empty()
                         && !contract.variant_list_recognition_only)
                     || contract.validator_contract_id.is_some()
                     || !self.evidence.iter().any(|item| {
@@ -596,7 +601,21 @@ impl SourceCatalog {
                     })
                 {
                     return Err(PortcoveError::usage(
-                        "N64 release input requires an informational single-file game contract with upstream support evidence",
+                        "N64 release input requires a single-file game contract with upstream support evidence",
+                    ));
+                }
+                if contract.migrates_n64_legacy_admission()
+                    && profile.variants.iter().any(|variant| {
+                        variant.representations.iter().any(|representation| {
+                            !matches!(
+                                representation.kind,
+                                SourceRepresentationKind::CanonicalN64 { .. }
+                            )
+                        })
+                    })
+                {
+                    return Err(PortcoveError::usage(
+                        "N64 release migration requires a canonical N64 source profile",
                     ));
                 }
                 let mut bindings = HashSet::new();

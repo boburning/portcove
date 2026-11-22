@@ -35,8 +35,6 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
     const game = selectedExtra?.game_id ?? canonical?.presentation?.original_game?.id;
     const title = selectedExtra?.game_title ?? canonical?.presentation?.original_game_title;
     const reviewedFamily = Object.entries(reviewed).find(([key]) => key === game)?.[1];
-    expect(game).toBeDefined();
-    expect(title).toBeDefined();
     const projected = catalogEntries(
       {
         ...embedded,
@@ -47,13 +45,22 @@ it.each(definitionIndex.definitions.map((row) => [row.stable_id, row.target] as 
       [],
     );
     const selectedGroups = groupCatalog(projected);
-    const group = selectedGroups.find((entry) => entry.id === `game:${game}`)!;
-    expect(gameGroupTitle(group)).toBe(title);
-    expect(group.ports.map((entry) => entry.id).sort()).toEqual(
-      [...(selectedExtra?.family_port_ids ?? reviewedFamily ?? [id])].sort(),
-    );
-    expect(projected.find((entry) => entry.id === id)?.definition).toBe(port);
-    expect(projected.find((entry) => entry.id === id)?.source_profile).toBe(port.source_profile);
+    const selected = projected.find((entry) => entry.id === id);
+    expect(selected?.definition).toBe(port);
+    expect(selected?.source_profile).toBe(port.source_profile);
+    const reviewedProject = Object.hasOwn(expected.project_entries, id);
+    expect(game === undefined).toBe(reviewedProject);
+    const groupId = reviewedProject ? "port:" + id : "game:" + game;
+    const group = selectedGroups.find((entry) => entry.id === groupId);
+    const expectedPortIds = reviewedProject
+      ? [id]
+      : (selectedExtra?.family_port_ids ?? reviewedFamily ?? [id]);
+    expect(group?.ports.map((entry) => entry.id).sort()).toEqual([...expectedPortIds].sort());
+    expect(title).toBeDefined();
+    expect(group && gameGroupTitle(group)).toBe(title);
+    const original = selected?.presentation?.original_game;
+    expect(original === undefined).toBe(reviewedProject);
+    expect(original?.id).toBe(game);
     expect(projected).toHaveLength(entries.length + (canonical ? 0 : 1));
     expect(selectedGroups).toHaveLength(groups.length);
     expect(
