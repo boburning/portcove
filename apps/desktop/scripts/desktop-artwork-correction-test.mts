@@ -287,7 +287,55 @@ export async function artworkCorrectionScenario({
     const artwork = () =>
       transportValue("artwork_state", command(["artwork", "show", portId], library));
     await open();
-    await browser.findElement(By.id("catalog-public-key")).sendKeys(red.public_key);
+    const originalStatus = await status();
+    assert.ok(!originalStatus.trusted_keys.some((key) => key.key_id === red.key_id));
+    const reviewSection = By.css('[aria-label="Catalog update review"]');
+    const sourceMode = await browser.findElement(By.id("catalog-update-source"));
+    const sourceField = await browser.findElement(By.id("catalog-update-location"));
+    const applyButton = button("Apply catalog update");
+    const assertSourceRetained = async () => {
+      assert.equal(await sourceField.getAttribute("value"), red.envelope);
+      assert.ok((await sourceMode.getText()).includes("Local file"));
+      assert.equal((await browser.findElements(reviewSection)).length, 0);
+      assert.equal((await browser.findElements(applyButton)).length, 0);
+    };
+    await review(red.envelope);
+    const refusal = await browser.wait(
+      until.elementLocated(By.css('.catalog-update-dialog [role="alert"]')),
+      45000,
+      "The exact catalog source must be refused before its publisher is trusted",
+    );
+    assert.ok((await refusal.getText()).trim());
+    const untrusted = object(
+      await invoke("plan_catalog_update", { source: { kind: "file", value: red.envelope } }),
+    );
+    assert.equal(untrusted.ok, false);
+    assert.equal(object(untrusted.error).code, "verification");
+    assert.match(text(object(untrusted.error).message), /catalog signing key is not trusted/i);
+    await assertSourceRetained();
+    assert.deepEqual(await status(), originalStatus);
+
+    const publisherKey = await browser.findElement(By.id("catalog-public-key"));
+    await publisherKey.sendKeys(red.public_key);
+    await click(button("Trust publisher"));
+    await confirmNative(
+      "Trust catalog publisher",
+      "Cancel",
+      red.key_id,
+      "artwork-fixture-publisher-cancelled",
+    );
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//*[@role="status" and normalize-space(.)="Catalog action cancelled."]'),
+      ),
+      15000,
+      "The native refusal must return to the current catalog review",
+    );
+    await assertSourceRetained();
+    assert.deepEqual(await status(), originalStatus);
+    await capture("catalog-trust-cancel-retained-source");
+
+    assert.equal(await publisherKey.getAttribute("value"), red.public_key);
     await click(button("Trust publisher"));
     await confirmNative(
       "Trust catalog publisher",
@@ -295,9 +343,60 @@ export async function artworkCorrectionScenario({
       red.key_id,
       "artwork-fixture-publisher",
     );
-    await browser.wait(async () => (await status()).trusted_keys.length === 1, 10000);
+    await browser.wait(
+      until.elementLocated(
+        By.xpath('//*[@role="status" and normalize-space(.)="Publisher trusted."]'),
+      ),
+      45000,
+      "The exact isolated publisher trust must settle before a fresh review",
+    );
+    const trustedStatus = await status();
+    assert.deepEqual(trustedStatus.provenance, originalStatus.provenance);
+    assert.equal(trustedStatus.highest_sequence, originalStatus.highest_sequence);
+    assert.deepEqual(
+      trustedStatus.trusted_keys.map((key) => key.key_id).sort(),
+      [...originalStatus.trusted_keys.map((key) => key.key_id), red.key_id].sort(),
+    );
+    await assertSourceRetained();
+
+    // Use the retained source without re-entering it. Technical details bind
+    // this new visible review to the exact immutable envelope and publisher.
+    const envelopeSha256 = digest(await readFile(red.envelope));
+    await click(button("Review update"));
+    const reviewed = await browser.wait(until.elementLocated(reviewSection), 45000);
+    const affected = await reviewed.findElement(By.css('[aria-label="Affected ports"]'));
+    assert.ok((await affected.getText()).includes(originalName));
+    await click(By.css('[aria-label="Catalog update review"] summary'));
+    const details = await reviewed.getText();
+    assert.ok(details.includes(red.key_id));
+    assert.ok(details.includes(envelopeSha256));
+    assert.deepEqual(await status(), trustedStatus);
+    await capture("catalog-trust-fresh-review");
+    await click(applyButton);
+    await browser.wait(
+      async () => {
+        const applied = (await status()).provenance;
+        return applied.sequence === 1 && applied.key_id === red.key_id;
+      },
+      45000,
+      "Separate Apply must activate the exact newly reviewed catalog",
+    );
+    const trustEvidence = path.join(output, "catalog-trust-retained-source.json");
+    await writeFile(
+      trustEvidence,
+      JSON.stringify({
+        source: { kind: "file", value: red.envelope, sha256: envelopeSha256 },
+        isolated_publisher_key_id: red.key_id,
+        initial_catalog_sha256: originalStatus.state_sha256,
+        catalog_unchanged_after_cancel: true,
+        source_retained_after_cancel_and_trust: true,
+        fresh_review_preserved_active_catalog: true,
+        applied_sequence: 1,
+      }),
+      { flag: "wx" },
+    );
+    artifacts.push(trustEvidence);
     await close();
-    await apply(red.envelope, 1);
     const first = await render("igdb_cover");
     assert.ok(required(required(first.pixel)[0]) > required(required(first.pixel)[2]) + 100);
     assert.deepEqual(object(artwork().resolved_source).artwork, required(mappings.get("red")));
