@@ -10,7 +10,16 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/khasinski/rage-racer-pc",
-    "download_block_reason": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "New downloads are waiting for an attributable grant covering the selected project release/package. The current upstream source-only review tree expressly has no selected project license; earlier matching package bytes do not establish applicable use or redistribution permission.",
+        "tracking_issue": 349
+      }
+    ],
     "original_game_title": "Rage Racer",
     "manual_setup": {
       "help_url": "https://github.com/khasinski/rage-racer-pc/blob/e6b6de9a157094848074c8979c32a33a4f980c2a/README.md",

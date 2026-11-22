@@ -59,7 +59,16 @@
         }
       ]
     },
-    "download_block_reason": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it."
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Portcove downloads are paused because the package’s in-game title announcement comes from an audio file of unknown origin, possibly another ClayFighter game. They can resume when upstream identifies that audio’s source or publishes a package without it.",
+        "tracking_issue": 2830
+      }
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,
