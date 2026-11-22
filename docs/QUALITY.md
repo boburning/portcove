@@ -486,6 +486,17 @@ now explicitly set the normal-motion media preference they exercise and restore
 the browser default after each case. Their rendering and transition assertions
 remain in place.
 
+Linux `main` job 135397217271 failed the narrow portrait-cards capture while it
+waited for document images under the default one-second poll. The two pending
+images were the App shell's sidebar avatar, a protected 949 KB PNG served by
+the test server, not the fixture covers. Local network throttling to 600 KB/s
+reproduced the same assertion in 30 of 30 runs. The shared
+`settleDocumentImages` helper now waits for each incomplete image's load, error
+or abort event within a six-second harness budget, matching the finite-animation
+and virtual-row mount waits. The same throttled case then passed 30 of 30 runs
+and still passed at 300 KB/s. Interactive-app captures use the same helper.
+Screenshot, layout and containment assertions are unchanged.
+
 Windows owned-backups job 136906004836 reached the 600-second harness deadline
 after verifying restore, deletion and the first degraded-history capture. The
 backup chain has a 1,200-second allowance to finish the remaining checks and

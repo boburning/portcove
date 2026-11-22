@@ -1,5 +1,5 @@
 import { mountLibraryPort } from "./discover-test-helpers";
-import { captureParityState } from "../../test/parity-capture";
+import { captureParityState, settleDocumentImages } from "../../test/parity-capture";
 import { openAdvancedFilters } from "../../test/filter-fields";
 import { navigateTo } from "../../test/primary-navigation";
 import { settingsCategories } from "../features/app-shell/settings-categories";
@@ -51,7 +51,7 @@ async function settleCapture(animationTimeout = 10_000) {
   phase("fonts");
   await document.fonts.ready;
   phase("images");
-  await expect.poll(() => [...document.images].every((image) => image.complete)).toBe(true);
+  await settleDocumentImages();
   phase("paint");
   // Let the resized workspace and the theme owner's deferred invalidation paint.
   await new Promise<void>((resolve) =>
