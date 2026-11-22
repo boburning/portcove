@@ -14,7 +14,7 @@ use crate::{PortcoveError, Result};
 mod concurrency_tests;
 
 // The native release source recipe reads this declaration as a literal.
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 73;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 74;
 pub(crate) const SETTINGS_ACTIVATION_WRITER_SCHEMA_VERSION: i64 = 71;
 
 struct Migration {
@@ -463,7 +463,28 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_73,
         verify: verify_migration_72,
     },
+    Migration {
+        version: 74,
+        name: "exact release selection writer protocol",
+        apply: migration_74,
+        verify: verify_migration_74,
+    },
 ];
+
+fn migration_74(transaction: &Transaction<'_>) -> Result<()> {
+    // The exclusive library migration keeps writers that would ignore a pin
+    // from automatically replacing its installed runtime.
+    transaction.execute_batch(
+        "ALTER TABLE port_settings ADD COLUMN exact_release_json TEXT
+         CHECK(exact_release_json IS NULL OR (typeof(exact_release_json)='text'
+             AND length(CAST(exact_release_json AS BLOB)) BETWEEN 1 AND 4096));",
+    )?;
+    verify_migration_74(transaction)
+}
+
+fn verify_migration_74(connection: &Connection) -> Result<()> {
+    require_columns(connection, "port_settings", &["exact_release_json"])
+}
 
 fn migration_73(transaction: &Transaction<'_>) -> Result<()> {
     // Keep readers which cannot enforce an explicit package receipt outside
@@ -1691,7 +1712,8 @@ pub(crate) fn recreate_schema_33_fixture(root: &Path) -> Result<()> {
                 ("definition_publisher_admission", "launch_assessment_revision") => {
                     format!("{quoted_column}!=0")
                 }
-                (
+                ("port_settings", "exact_release_json")
+                | (
                     "lifecycle_operations",
                     "ghostship_recovery_json"
                     | "backup_deletion_json"
@@ -3501,6 +3523,11 @@ mod tests {
                 "column installs.future_payload",
             ),
             (
+                "INSERT INTO port_settings(port_id,channel,update_policy,active_install_id,exact_release_json)
+                 VALUES('starship','stable','notify','retained-install','{}');",
+                "column port_settings.exact_release_json",
+            ),
+            (
                 "UPDATE curated_artifact_history SET admission_count=1;",
                 "populated table curated_artifact_history",
             ),
@@ -4365,6 +4392,7 @@ mod tests {
         schema_70: 70,
         schema_71: 71,
         schema_72: 72,
+        schema_73: 73,
     }
 
     #[test]

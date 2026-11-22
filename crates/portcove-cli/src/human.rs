@@ -1825,6 +1825,21 @@ fn platform_list(platforms: &[Platform]) -> String {
     }
 }
 
+pub(crate) fn exact_release_review(review: &portcove_core::ExactReleaseReview) -> String {
+    let selection = &review.selection;
+    format!(
+        "Review exact release {} for {} ({}, {})\nPackage  {}\nBytes    {}\nSHA-256  {}\nReview   {}",
+        clean(&selection.version),
+        clean(&selection.port_id),
+        release_channel(selection.channel),
+        platform_name(selection.platform),
+        clean(&selection.filename),
+        selection.size,
+        selection.sha256,
+        review.review_sha256,
+    )
+}
+
 pub(crate) fn status(status: &PortStatus, catalog: &portcove_core::Catalog) -> String {
     statuses(std::slice::from_ref(status), catalog)
 }
@@ -1895,6 +1910,36 @@ pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog
         format!("{summary}\nActions:\n{actions}")
     };
     for status in statuses {
+        if let Some(hold) = &status.exact_release_hold {
+            let cause = match hold.reason {
+                portcove_core::ExactReleaseHoldReason::Unreadable => {
+                    "Portcove can't read its saved release pin"
+                }
+                portcove_core::ExactReleaseHoldReason::ChannelMismatch => {
+                    "its saved release pin belongs to a different channel"
+                }
+            };
+            output.push_str(&format!(
+                "\n{}: updates are paused because {cause}. To follow the channel again: portcove channel follow {}",
+                port_name(catalog, &status.port_id),
+                clean(&status.port_id),
+            ));
+        }
+        if let Some(pin) = &status.exact_release {
+            output.push_str(&format!(
+                "\n{} follows exact release {} on {}.",
+                port_name(catalog, &status.port_id),
+                clean(&pin.version),
+                platform_name(pin.platform),
+            ));
+            if let Some(latest) = status
+                .last_update_check
+                .as_ref()
+                .and_then(|reported| reported.check.channel_latest_version.as_deref())
+            {
+                output.push_str(&format!(" The channel currently offers {}.", clean(latest)));
+            }
+        }
         for assessment in &status.definition_operations {
             if assessment.operation != portcove_core::DefinitionOperation::Install
                 || assessment.eligibility.reason

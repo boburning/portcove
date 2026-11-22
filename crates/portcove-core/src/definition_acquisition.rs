@@ -297,6 +297,7 @@ pub struct ScopedResolvedRelease {
     pub(crate) github_identity: Option<GithubArtifactIdentity>,
     pub(crate) saved_variant: Option<crate::ManagedPackageVariant>,
     pub(crate) explicit_tag_commit: Option<String>,
+    pub(crate) exact_release: Option<crate::ExactReleaseSelection>,
     /// Repository maintenance facts read during this resolution, when the provider
     /// read the repository. Never part of release authority.
     pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
@@ -316,6 +317,7 @@ impl ScopedResolvedRelease {
             github_identity: None,
             saved_variant: None,
             explicit_tag_commit: None,
+            exact_release: None,
             upstream_activity: None,
             fallback_reason: None,
             newer_other_host_releases: Vec::new(),
@@ -335,6 +337,7 @@ impl ScopedResolvedRelease {
             github_identity: None,
             saved_variant: None,
             explicit_tag_commit: None,
+            exact_release: None,
             upstream_activity: None,
             fallback_reason: None,
             newer_other_host_releases: Vec::new(),

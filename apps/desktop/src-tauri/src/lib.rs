@@ -1810,6 +1810,73 @@ async fn set_channel(
 }
 
 #[tauri::command]
+async fn can_review_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<bool> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .can_review_exact_release(&port_id)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn review_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    version: String,
+    generation: u64,
+) -> DesktopResult<portcove_core::ExactReleaseReview> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .review_exact_release(&port_id, &version)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn pin_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    version: String,
+    review_sha256: String,
+    generation: u64,
+) -> DesktopResult<PortStatus> {
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .pin_exact_release(&port_id, &version, &review_sha256)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+async fn clear_exact_release(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<PortStatus> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.clear_exact_release(&port_id).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 async fn set_policy(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
@@ -3294,6 +3361,10 @@ pub fn run() -> std::process::ExitCode {
             source_removal::preview_source_removal,
             source_removal::remove_source,
             set_channel,
+            can_review_exact_release,
+            review_exact_release,
+            pin_exact_release,
+            clear_exact_release,
             set_policy,
             install_port,
             verify_port,

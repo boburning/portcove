@@ -1772,6 +1772,27 @@ export default interface Resources {
       "unconfirmed": "Channel change was not confirmed. Check the current selection before retrying.",
       "unlisted": "This update channel is no longer listed. Your saved choice has not changed.",
       "unrecognized": "This saved channel is not recognized in this version. Your saved choice has not changed."
+    },
+    "releasePreference": {
+      "cancel": "Cancel release review",
+      "channelCandidate": "The channel offers {{version}}.",
+      "choose": "Choose exact release",
+      "follow": "Follow channel",
+      "followFailed": "Portcove couldn’t confirm the change. Refresh to check the saved choice.",
+      "following": "Following the selected channel.",
+      "heldChannel": "The saved release pin belongs to a different channel, so Portcove won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "heldUnreadable": "Portcove can’t read the saved release pin, so it won’t check for or install updates for this game. Choose Follow channel to clear it.",
+      "package": "{{version}} · {{filename}} · {{size}}",
+      "pin": "Pin this release",
+      "pinConsequence": "Future installs and update checks use this release, even when the channel offers a newer one.",
+      "pinFailed": "Portcove couldn’t confirm the pin. Review the release again.",
+      "pinned": "Pinned to {{version}}.",
+      "review": "Review release",
+      "reviewFailed": "Portcove couldn’t review this release. Check the tag and try again.",
+      "reviewing": "Reviewing release…",
+      "saveCompatibility": "Check the release’s save compatibility before installing a different version.",
+      "tag": "Release tag or version",
+      "title": "Release selection"
     }
   },
   "installation": {

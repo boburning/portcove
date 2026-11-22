@@ -89,6 +89,28 @@ export type DefinitionEligibilityReason =
   | "source_identity_mismatch"
   | "required_source_missing";
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
+export type ExactReleaseIdentity =
+  | {
+      asset_id: number;
+      commit_sha1: string;
+      provider: "github";
+      release_id: number;
+      repository_id: number;
+    }
+  | {
+      commit_sha1: string;
+      link_id: number;
+      package_file_id: number;
+      project_id: number;
+      provider: "gitlab";
+    }
+  | {
+      provider: "direct-manifest";
+    };
+/**
+ * Why Core cannot use a port's saved release pin as written.
+ */
+export type ExactReleaseHoldReason = "unreadable" | "channel-mismatch";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -1436,6 +1458,7 @@ export interface TransportOutputs {
   destination_artwork_bytes: OutputDestinationArtworkBytes;
   destination_artwork_handoff: DestinationArtworkHandoff;
   doctor: OutputDoctor;
+  exact_release_review: OutputExactReleaseReview;
   external_runtime_preview: ExternalRuntimePreview;
   external_runtime_record: ExternalRuntimeRecord;
   external_runtime_relink_preview: OutputExternalRuntimeRelinkPreview;
@@ -1869,6 +1892,15 @@ export interface PortStatus {
    * Successor-definition policy decisions. Legacy catalog ports retain an empty list.
    */
   definition_operations?: DefinitionOperationAssessment[];
+  /**
+   * User-selected exact release, when this port does not follow its channel.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * A saved pin Core cannot use. Checks and installs for this port stay held
+   * until the player follows the channel again; other ports are unaffected.
+   */
+  exact_release_hold?: ExactReleaseHold | null;
   external_runtime?: ExternalRuntimeRecord | null;
   last_launched_at: number | null;
   last_update_check?: UpdateSnapshot | null;
@@ -1977,6 +2009,35 @@ export interface DefinitionEligibility {
   reason: DefinitionEligibilityReason;
   [k: string]: unknown;
 }
+/**
+ * An exact release and package chosen for one port, channel and platform.
+ * Only the configured provider can supply their current metadata and download URL.
+ */
+export interface ExactReleaseSelection {
+  channel: ReleaseChannel;
+  filename: string;
+  identity: ExactReleaseIdentity;
+  platform: Platform;
+  port_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Exact upstream tag or declared direct-manifest version.
+   */
+  version: string;
+}
+/**
+ * A saved release pin Core cannot use. Update checks and installs for this
+ * port stay held instead of silently following the channel; choosing Follow
+ * clears it. Other ports are unaffected.
+ */
+export interface ExactReleaseHold {
+  /**
+   * Technical cause for diagnosis; never player copy.
+   */
+  detail: string;
+  reason: ExactReleaseHoldReason;
+}
 export interface ExternalRuntimeRecord {
   archive_sha256: string;
   executable: string;
@@ -2058,6 +2119,11 @@ export interface UpdateSnapshot {
 }
 export interface UpdateCheck {
   channel: ReleaseChannel;
+  /**
+   * The channel's ordinary candidate when it differs from the exact target.
+   */
+  channel_latest_version?: string | null;
+  exact_release?: ExactReleaseSelection | null;
   installed_artifact: ArtifactIdentity1 | null;
   installed_runtime: RuntimeIdentity | null;
   installed_version: string | null;
@@ -3973,6 +4039,14 @@ export interface JournalRowProblem {
   stage: JournalValidationStage;
   [k: string]: unknown;
 }
+/**
+ * A read-only preview of saving one release as this port's maintenance target.
+ */
+export interface OutputExactReleaseReview {
+  review_sha256: string;
+  selection: ExactReleaseSelection;
+  [k: string]: unknown;
+}
 export interface ExternalRuntimePreview {
   archive_sha256: string;
   executable: string;
@@ -4524,6 +4598,7 @@ export interface InstallPlan {
   bundled_runtime: BundledRuntime | null;
   channel: ReleaseChannel;
   download_bytes: number;
+  exact_release?: ExactReleaseSelection | null;
   output_location: PortOutputLocation;
   platform: Platform;
   port_id: string;
@@ -5269,6 +5344,16 @@ export interface LibraryMembershipSource {
 export interface LibraryPortSettings {
   active_install_id: string | null;
   channel: ReleaseChannel;
+  /**
+   * Version 13 binds user release preferences without admitting artifacts.
+   */
+  exact_release?: ExactReleaseSelection | null;
+  /**
+   * Version 13: the stored text of a saved pin Core cannot use, carried
+   * unchanged so the destination keeps the same hold instead of silently
+   * following the channel. Following the channel there clears it.
+   */
+  held_exact_release?: string | null;
   output_directory?: string | null;
   port_id: string;
   previous_install_id: string | null;

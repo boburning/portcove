@@ -2417,6 +2417,31 @@ bundle.
 
 ### Release selection and maintenance
 
+Core's exact release selector binds one port, platform and channel to a specific
+tag or declared direct-manifest version, filename, size and SHA-256. GitHub
+revalidates the numeric repository, release and asset IDs, published digest and
+tag commit. GitLab revalidates the numeric project, release-link and registry
+file IDs, registry digest and tag commit. The configured direct manifest can
+resolve only its declared stable package.
+
+Exact checks apply the catalog's package, platform and channel rules. They
+revalidate provider metadata independently of the latest-release cache. A
+missing or changed artifact returns a hold for that selection. Curated
+integrations continue to require their separately admitted acquisition route.
+A matching selector describes provider metadata. The installer still verifies
+the downloaded bytes and applicable package layout before activation.
+Review evaluates the port's typed acquisition restrictions for the observed
+version and SHA-256 with the same final artifact gate that install and update
+apply, so a held package is refused at review with the restriction's
+explanation; a permitted package of the same port can still be pinned.
+
+A saved pin that Core cannot decode, or that names a channel the port no longer
+follows, becomes that port's `exact_release_hold`: other ports' status,
+checks and export are unaffected, the held port's checks and installs refuse
+instead of following the channel, and Follow clears it. Library metadata
+carries such a pin's stored text unchanged in `held_exact_release` (schema 13),
+so the destination keeps the same hold.
+
 Release asset hints should identify a stable port, platform, architecture and
 package shape when automatic release selection is offered. A controlled N/N+1
 test supports an automatic-update claim; it is not a prerequisite for a useful

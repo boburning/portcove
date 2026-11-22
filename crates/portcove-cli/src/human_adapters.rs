@@ -593,7 +593,24 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         output.push_str(&format!("\nNext step: {next}"));
         return output;
     }
-    let mut output = human::failure(&error.report(), technical);
+    let report = error.report();
+    let mut output = human::failure(&report, technical);
+    // Core's summary names the remedy; the CLI adds its command form.
+    if matches!(
+        report.presentation.presentation_key.as_str(),
+        "exact_release_channel_differs"
+            | "exact_release_unreadable"
+            | "exact_release_channel_changed"
+    ) && let Some(port_id) = error.details.get("port_id").filter(|id| {
+        !id.is_empty()
+            && id
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
+    }) {
+        output.push_str(&format!(
+            "\nTo follow the channel again: portcove channel follow {port_id}"
+        ));
+    }
     if error.code == ErrorCode::Usage {
         // The command comes only from this adapter's fixed command-name map.
         let help = match command {
