@@ -2004,6 +2004,25 @@ A format-14 replacement can remove those bindings. Carrier support and format
 support are advertised separately, so compact transport alone does not
 establish format-14 compatibility.
 
+Listing format 15 carries typed [acquisition restrictions](CATALOG.md#acquisition-restrictions).
+Its `download_block_reason` must equal the projection of those restrictions, so
+a format-14 reader keeps enforcing at least the same download hold, and exports
+up to format 14 omit `restrictions` and keep that string. Signed listing
+delivery stays at format 11: the observer's projection accepts the format-15
+canonical directory as input and still publishes Core's format-11 export. A
+delivered listing that repeats the current string for the same project and
+game keeps the reader's typed restrictions; any other delivered value replaces
+them with a whole-listing download hold, or clears them. Publishing a format-15
+signed target is a later, separately gated change.
+
+Managed acquisition holds keep their delivered `managed_acquisition_hold`
+form; Core normalizes it to typed decisions when it loads, and the definition
+loader accepts a selected definition only when it keeps or adds restriction. A
+typed definition field is not deliverable yet. It needs a reader gate that
+older applications refuse, planned as a named definition feature under
+definition schema 4 once [#8496](https://github.com/boburning/portcove/pull/8496)
+lands; until then authoring emits only the legacy hold.
+
 Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
 A delivered directory declares one format for the whole snapshot, so publishing at
 format 10 stops listing updates for every reader that understands at most format 9:

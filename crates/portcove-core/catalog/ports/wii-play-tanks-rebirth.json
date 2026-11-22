@@ -18,7 +18,16 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/RighteousRyan1/TanksRebirth/tree/59a29ec272275ed655b70fc85d078f0b0a8aee02",
-    "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled music and sound effects include original Wii Play assets. You can use the setup guide with a copy you have permission to use.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "package-facts-unresolved",
+        "explanation": "Portcove downloads are on hold pending review of whether the bundled music and sound effects include original Wii Play assets. You can use the setup guide with a copy you have permission to use.",
+        "tracking_issue": 6004
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

@@ -1,3 +1,4 @@
+mod acquisition_restriction;
 mod activity_diagnostics;
 mod adapter;
 mod application_runtime;
@@ -172,6 +173,11 @@ mod windows_runtime;
 mod windows_user_access;
 mod zip_read;
 
+pub use acquisition_restriction::{
+    AcquisitionRestriction, ReconsiderCondition, RestrictedArtifact, RestrictedComponent,
+    RestrictedOperation, RestrictionCarrier, RestrictionEffect, RestrictionReason,
+    RestrictionScope,
+};
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
 pub use adapter::{Adapter, AdapterRegistry, LaunchSpecRequest};
 pub use adapter::{host_tool_statuses, recheck_host_tool};

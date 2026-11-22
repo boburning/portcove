@@ -1,4 +1,5 @@
 import { requireOriginalGameDecision } from "./catalog-game-review.mts";
+import { listingDownloadBlockReason } from "./catalog-acquisition-restrictions.mts";
 import {
   checkedAuthoredPort,
   readCatalogSource,
@@ -91,9 +92,9 @@ export function promotePort(port: unknown, options: PromoteOptions): Json {
   if (!isRecord(port) || !isRecord(port.listing)) throw new Error("Port file has no listing.");
   if ("integration" in port) throw new Error("This port already has an integration.");
   const listing = port.listing;
-  if (listing.download_block_reason !== undefined)
+  if (listingDownloadBlockReason(listing) !== undefined || "download_block_reason" in listing)
     throw new Error(
-      "The listing has a download_block_reason, which a managed route cannot keep; remove it once the route resolves that condition, and rewrite the listing guide to match.",
+      "The listing restrictions hold Download (its derived download_block_reason), which a managed route cannot keep; remove that hold once the route resolves its condition, and rewrite the listing guide to match.",
     );
   if (typeof listing.summary === "string") {
     const summary = ` ${listing.summary.toLowerCase()} `;

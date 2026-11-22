@@ -463,11 +463,18 @@ admission under the selected Game contract before Desktop can use a matching
 edition's artwork. The binding leaves the launch requirements unchanged.
 The directory format applies independently of the signed carrier.
 
+Listing format 15 adds typed acquisition restrictions (`restrictions`). Exports
+through format 14 omit them and keep the derived `download_block_reason`, which
+always equals the explanation of the first download hold. See
+[acquisition restrictions](CATALOG.md#acquisition-restrictions).
+
 The catalog listing document has its own format version. Readers accept formats
-1–14 with independent field gates: format 7 adds advice, format 8 adds GitLab
+1–15 with independent field gates: format 7 adds advice, format 8 adds GitLab
 descriptive observations using provider-qualified project/tag identities, format 9
 adds the first-listed date, format 10 adds funding links, format 11 adds cover collections
-and format 12 adds implementation descriptions. `catalog listings --format-version 8` preserves advice and
+format 12 adds implementation descriptions, format 13 adds IGDB backgrounds and
+screenshots, format 14 adds verified source-edition bindings and format 15 adds
+typed acquisition restrictions. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
