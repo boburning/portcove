@@ -71,16 +71,26 @@ void test("actual maintained source recipe supplies declarations without runtime
     });
   }
   assert.deepEqual(result.catalog_formats, [3]);
+  // The generated catalog declaration follows Core's supported catalog bound,
+  // not the retired 4 MiB client floor.
+  const { capacityConstant } = await import("./catalog-capacity.mts");
+  const signedCatalog = (
+    await readFile(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url))
+  ).toString("utf8");
   const catalogLimit = nativeSourceDeclarationByteLimit(catalog);
-  assert.equal(catalogLimit, 4 * 1024 * 1024);
-  const atLimit = Buffer.concat([
-    files[catalog]!,
-    Buffer.alloc(catalogLimit - files[catalog]!.length, 32),
-  ]);
-  assert.deepEqual(
-    inspectNativeCompatibilitySources({ ...files, [catalog]: atLimit }).catalog_formats,
-    [3],
-  );
+  assert.equal(catalogLimit, capacityConstant(signedCatalog, "MAX_CATALOG_BYTES"));
+  const legacyFloor = capacityConstant(signedCatalog, "LEGACY_MAX_CATALOG_BYTES");
+  assert.ok(catalogLimit > legacyFloor);
+  const padded = (length: number) =>
+    Buffer.concat([files[catalog]!, Buffer.alloc(length - files[catalog]!.length, 32)]);
+  assert.ok(files[catalog]!.length <= catalogLimit, "generated catalog exceeds its bound");
+  const atLimit = padded(catalogLimit);
+  assert.equal(atLimit.length, catalogLimit);
+  for (const accepted of [padded(Math.max(legacyFloor + 1, files[catalog]!.length)), atLimit])
+    assert.deepEqual(
+      inspectNativeCompatibilitySources({ ...files, [catalog]: accepted }).catalog_formats,
+      [3],
+    );
   assert.throws(
     () =>
       inspectNativeCompatibilitySources({
