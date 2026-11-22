@@ -8,6 +8,7 @@ import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-saf
 import { isRecord } from "./runtime-values.mts";
 
 type RecordValue = Record<string, unknown>;
+type SourceIdentity = { game_id: string; variant_id: string; representation_id: string };
 type FileIdentity = { relative_path: string; sha256: string };
 export interface ReviewedGameLifecycleCase {
   port_id: string;
@@ -24,6 +25,7 @@ export interface ReviewedGameLifecycleCase {
     relative_path: string;
     sha256: string;
     storage_sha256: string;
+    variant: SourceIdentity;
   };
   predecessor_executable: FileIdentity;
   successor_executable: FileIdentity;
@@ -108,6 +110,62 @@ async function requireFile(file: string, sha256: string) {
   } finally {
     await handle.close();
   }
+  return before;
+}
+
+function sourceScopeMatches(
+  source: RecordValue,
+  item: ReviewedGameLifecycleCase,
+  subject: RecordValue,
+) {
+  const report = source.inspection;
+  if (
+    !isRecord(report) ||
+    !isRecord(report.inspection) ||
+    !isRecord(report.inspection.assessment) ||
+    !Array.isArray(report.applications)
+  )
+    return false;
+  const { classification, admission } = report.inspection.assessment;
+  if (
+    !isRecord(classification) ||
+    classification.state !== "recognized" ||
+    !isDeepStrictEqual(classification.identity, item.source.variant) ||
+    !isRecord(admission) ||
+    admission.state !== "admitted"
+  )
+    return false;
+  const matching = report.applications.filter(
+    (application: unknown) =>
+      isRecord(application) &&
+      application.port_id === item.port_id &&
+      application.role === "game" &&
+      isRecord(application.contract) &&
+      application.contract.id === subject.contract_id,
+  );
+  const application: unknown = matching[0];
+  if (
+    matching.length !== 1 ||
+    !isRecord(application) ||
+    !isRecord(application.contract) ||
+    application.contract.port_id !== item.port_id ||
+    application.contract.role !== "game" ||
+    application.contract.profile_id !== item.source.profile_id ||
+    application.contract.admission_mode !== "enforced" ||
+    application.contract.release_policy !== "integration-contract-v1" ||
+    !isRecord(application.contract_result) ||
+    application.contract_result.state !== "supported" ||
+    application.contract_result.contract_id !== subject.contract_id ||
+    !isRecord(application.release_applicability) ||
+    !Array.isArray(application.release_applicability.reviewed_bindings)
+  )
+    return false;
+  return application.release_applicability.reviewed_bindings.some(
+    (binding: unknown) =>
+      isRecord(binding) &&
+      binding.upstream_ref === subject.tag &&
+      binding.artifact_sha256 === subject.artifact_sha256,
+  );
 }
 
 async function runCli(cli: string, args: string[], cwd: string, env: NodeJS.ProcessEnv) {
@@ -130,6 +188,12 @@ function validateCase(item: ReviewedGameLifecycleCase) {
     !identifier.test(item.source.profile_id) ||
     !digest.test(item.source.sha256) ||
     !digest.test(item.source.storage_sha256) ||
+    !isRecord(item.source.variant) ||
+    ![
+      item.source.variant.game_id,
+      item.source.variant.variant_id,
+      item.source.variant.representation_id,
+    ].every((value) => typeof value === "string" && value.length > 0 && value.length <= 128) ||
     !digest.test(item.successor_executable.sha256)
   )
     throw new Error("Lifecycle case has no reviewed native input scope");
@@ -140,6 +204,12 @@ function validateCase(item: ReviewedGameLifecycleCase) {
       subject.definition.stable_id !== item.port_id ||
       subject.platform !== item.platform ||
       subject.channel !== item.channel ||
+      typeof subject.contract_id !== "string" ||
+      !subject.contract_id ||
+      !Array.isArray(subject.variants) ||
+      !subject.variants.some((variant: unknown) =>
+        isDeepStrictEqual(variant, item.source.variant),
+      ) ||
       typeof subject.tag !== "string" ||
       typeof subject.artifact_sha256 !== "string" ||
       !digest.test(subject.artifact_sha256)
@@ -222,7 +292,10 @@ export async function materializeGameLifecycleLibraries(options: MaterializerOpt
         if (!isRecord(result.data)) throw new Error("Core response is not an object");
         return { ...result, data: result.data };
       };
-      const observePredecessor = async (library: string): Promise<ActiveInstall> => {
+      const observePredecessor = async (
+        library: string,
+        subject: RecordValue,
+      ): Promise<ActiveInstall> => {
         const { data: status } = await readObject(library, "status", ["status", item.port_id]);
         const active = status.active;
         if (
@@ -254,6 +327,7 @@ export async function materializeGameLifecycleLibraries(options: MaterializerOpt
         if (!item.source.relative_path.startsWith("source-inbox/"))
           throw new Error("Source is not in the reviewed disposable inbox");
         const expectedSource = await member(library, item.source.relative_path);
+        const sourcePreimage = await requireFile(expectedSource, item.source.storage_sha256);
         const { data: sources } = await command(library, "source.list", ["source", "list"]);
         if (
           !Array.isArray(sources) ||
@@ -276,9 +350,23 @@ export async function materializeGameLifecycleLibraries(options: MaterializerOpt
           source.storage_sha256 !== item.source.storage_sha256 ||
           !samePath(source.path, expectedSource) ||
           !isRecord(source.inspection) ||
-          source.inspection.health !== "current"
+          source.inspection.health !== "current" ||
+          source.storage_size !== sourcePreimage.size ||
+          !sourceScopeMatches(source, item, subject)
         )
           throw new Error("Core refused exact reviewed source verification");
+        const sourceAfter = await requireFile(
+          await member(library, item.source.relative_path),
+          item.source.storage_sha256,
+        );
+        if (
+          sourceAfter.dev !== sourcePreimage.dev ||
+          sourceAfter.ino !== sourcePreimage.ino ||
+          sourceAfter.size !== sourcePreimage.size ||
+          sourceAfter.ctimeMs !== sourcePreimage.ctimeMs ||
+          sourceAfter.mtimeMs !== sourcePreimage.mtimeMs
+        )
+          throw new Error("Reviewed source changed during Core verification");
         return {
           install_id: active.id,
           install_path: install,
@@ -307,8 +395,8 @@ export async function materializeGameLifecycleLibraries(options: MaterializerOpt
         throw new Error("Core prepared another evidence pair");
       reason = "exact-predecessor-or-lawful-source-unavailable";
       await member(scope, item.successor_executable.relative_path);
-      const previousActive = await observePredecessor(predecessor);
-      const nextActive = await observePredecessor(successor);
+      const previousActive = await observePredecessor(predecessor, item.predecessor);
+      const nextActive = await observePredecessor(successor, item.successor);
       if (!isDeepStrictEqual(previousActive.artifact, nextActive.artifact))
         throw new Error("Materialized libraries do not share the exact predecessor package");
       work.push({

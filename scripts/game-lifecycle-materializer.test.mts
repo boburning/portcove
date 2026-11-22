@@ -17,6 +17,7 @@ const source = {
   relative_path: "source-inbox/original.dat",
   sha256: sha("original"),
   storage_sha256: sha("original"),
+  variant: { game_id: "test-source", variant_id: "original", representation_id: "binary" },
 };
 const exeIdentity = { relative_path: "game.exe", sha256: sha(exe) };
 const base = {
@@ -34,6 +35,8 @@ const predecessor = {
   channel: base.channel,
   tag: "v1",
   artifact_sha256: sha("v1"),
+  contract_id: "test-contract",
+  variants: [source.variant],
 };
 const successor = { ...predecessor, tag: "v2", artifact_sha256: sha("v2") };
 const prepared = {
@@ -82,6 +85,9 @@ async function fixture(t: TestContext) {
     blocked: false,
     external: false,
     wrongRuntime: false,
+    foreignGame: false,
+    foreignVariant: false,
+    replaceSource: false,
   };
   const commands: string[] = [];
   const environments: NodeJS.ProcessEnv[] = [];
@@ -120,10 +126,49 @@ async function fixture(t: TestContext) {
       case "source":
         if (args[5] === "list")
           return emit("source.list", [{ ...source, path: outcomes.external ? cli : location }]);
+        if (outcomes.replaceSource) {
+          await rm(location);
+          await writeFile(location, "original");
+        }
+        const exact = library === path.join(root, "old") ? predecessor : successor;
         return emit("source.verify", {
           ...source,
           path: location,
-          inspection: { health: "current" },
+          storage_size: Buffer.byteLength("original"),
+          inspection: {
+            health: "current",
+            inspection: {
+              assessment: {
+                classification: {
+                  state: "recognized",
+                  identity: outcomes.foreignVariant
+                    ? { ...source.variant, variant_id: "wrong" }
+                    : source.variant,
+                },
+                admission: { state: "admitted", mode: "exact_identity" },
+              },
+            },
+            applications: [
+              {
+                port_id: outcomes.foreignGame ? "different-game" : base.port_id,
+                role: "game",
+                contract: {
+                  id: exact.contract_id,
+                  port_id: base.port_id,
+                  role: "game",
+                  profile_id: source.profile_id,
+                  admission_mode: "enforced",
+                  release_policy: "integration-contract-v1",
+                },
+                contract_result: { state: "supported", contract_id: exact.contract_id },
+                release_applicability: {
+                  reviewed_bindings: [
+                    { upstream_ref: exact.tag, artifact_sha256: exact.artifact_sha256 },
+                  ],
+                },
+              },
+            ],
+          },
         });
       default:
         return assert.fail("unexpected materializer command");
@@ -242,4 +287,15 @@ void test("Core receives only isolated transport essentials and no ambient crede
     f.environments.every((value) => value === env),
     true,
   );
+});
+
+void test("matching file bytes cannot substitute a foreign applied game or variant", async (t) => {
+  const f = await fixture(t);
+  for (const rejected of ["foreignGame", "foreignVariant", "replaceSource"] as const) {
+    f.outcomes[rejected] = true;
+    const result = await f.run();
+    assert.equal(result.work.length, 0, rejected);
+    assert.equal(result.holds[0]?.reason, "exact-predecessor-or-lawful-source-unavailable");
+    f.outcomes[rejected] = false;
+  }
 });
