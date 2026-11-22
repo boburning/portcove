@@ -826,6 +826,16 @@ export type UpdateReleaseNotesCoverage =
   "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
+/**
+ * How current an observation is. A confirmed empty result is `Fresh`; an outage
+ * that falls back to earlier data is `Stale`, never an empty list.
+ */
+export type ProviderFreshness = "fresh" | "revalidated" | "stale";
+/**
+ * What the package would run on the player's machine if enabled.
+ */
+export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
+export type RecompModHold = "other_game" | "executable_content" | "host_executable_files";
 export type HostToolProbeState =
   | "missing"
   | "invalid"
@@ -836,11 +846,6 @@ export type HostToolProbeState =
   | "incompatible_version"
   | "cancelled"
   | "success";
-/**
- * How current an observation is. A confirmed empty result is `Fresh`; an outage
- * that falls back to earlier data is `Stale`, never an empty list.
- */
-export type ProviderFreshness = "fresh" | "revalidated" | "stale";
 export type JakModsBuildStatus = "available" | "unavailable" | "unknown" | "external";
 export type JakModsProjectKind = "open_goal_build" | "external";
 export type OutputLaunchRequest = LaunchSessionView | null;
@@ -904,9 +909,15 @@ export type LaunchEntryBehavior = "starts-game-directly" | "opens-project-launch
 export type PendingSetupState = "downloaded" | "attention-required";
 export type OutputListingStatuses = PortListingStatus[];
 /**
- * What the package would run on the player's machine if enabled.
+ * Upstream-owned browser routes. These grant no download or import capability.
  */
-export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
+export type ExternalModPortalSource =
+  | "nexus-daggerfall-unity"
+  | "coop-dx"
+  | "mod-io-open-xcom"
+  | "quaddicted"
+  | "mod-db-open-xcom"
+  | "mod-db-arcane-dimensions";
 /**
  * `Present` is limited to ordinary setup metadata previews; it does not
  * establish current immutable payload integrity. Strict inspection uses `Verified`.
@@ -1045,6 +1056,8 @@ export type ProfileRecoveryProgress = "keep_current";
  */
 export type ProviderStatusUnknown = "omitted" | "null" | "malformed";
 export type ProviderUpdateState = "current" | "newer_files" | "installed_file_removed" | "unavailable";
+export type QuakeEngine = "vk_quake" | "ironwail";
+export type QuaddictedEngineCompatibility = "unverified" | "declares_another_required_engine";
 export type RecipeInputStatus = "available" | "acquirable" | "unavailable";
 /**
  * One documented outcome in the assessed scope, not a universal judgment about a project.
@@ -1447,6 +1460,8 @@ export interface TransportOutputs {
   github_auth_status: GithubAuthStatus;
   github_device_login: OutputGithubDeviceLogin;
   github_device_login_result: OutputGithubDeviceLoginResult;
+  github_mod_catalog: OutputGithubModCatalog;
+  github_mod_compound_review: OutputGithubModCompoundReview;
   host_tool_probe_result: OutputHostToolProbeResult;
   host_tool_status: HostToolStatus;
   install_plan: InstallPlan;
@@ -1475,6 +1490,7 @@ export interface TransportOutputs {
   mod_file_preservation_result: OutputModFilePreservationResult;
   mod_setup_draft_preview: OutputModSetupDraftPreview;
   mod_setups_view: OutputModSetupsView;
+  moddb_file_notices: OutputModdbFileNotices;
   official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
@@ -1507,6 +1523,7 @@ export interface TransportOutputs {
   provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
+  quaddicted_catalog: OutputQuaddictedCatalog;
   recipe_acquisition_plan: RecipeAcquisitionPlan;
   recipe_import_plan: RecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
@@ -4767,6 +4784,102 @@ export interface OutputGithubDeviceLoginResult {
   status: GithubAuthStatus | null;
   [k: string]: unknown;
 }
+export interface OutputGithubModCatalog {
+  complete: boolean;
+  freshness: ProviderFreshness;
+  /**
+   * The active installed build admits native companion import on this
+   * platform. False when the game is not installed or its installed build
+   * predates the reviewed loader; the releases remain a link-out.
+   */
+  native_import_offered: boolean;
+  observed_at: number;
+  platform: Platform;
+  port_id: string;
+  releases: GithubModRelease[];
+  repository: string;
+  repository_id: number;
+  source_url: string;
+  [k: string]: unknown;
+}
+export interface GithubModRelease {
+  asset: GithubModAsset;
+  published_at: number | null;
+  release_id: number;
+  release_url: string;
+  tag: string;
+  [k: string]: unknown;
+}
+export interface GithubModAsset {
+  asset_id: number;
+  bytes: number;
+  name: string;
+  published_sha256: string | null;
+  [k: string]: unknown;
+}
+export interface OutputGithubModCompoundReview {
+  asset_id: number;
+  /**
+   * The active installed build admits native import on the reviewed
+   * platform and its runtime meets every mod's minimum runtime version.
+   */
+  native_import_offered: boolean;
+  port_id: string;
+  release_id: number;
+  repository: string;
+  repository_id: number;
+  review: RecompCompoundReview;
+  [k: string]: unknown;
+}
+export interface RecompCompoundReview {
+  archive_bytes: number;
+  archive_sha256: string;
+  companions: ReviewedRecompCompanion[];
+  mods: RecompModInspection[];
+  platform: Platform;
+  [k: string]: unknown;
+}
+export interface ReviewedRecompCompanion {
+  bytes: number;
+  file_name: string;
+  sha256: string;
+  [k: string]: unknown;
+}
+export interface RecompModInspection {
+  authors: string[];
+  dependencies: RecompDependency[];
+  display_name: string;
+  enabled_by_default: boolean;
+  execution: RecompExecution[];
+  file_name: string;
+  game_id: string;
+  has_settings: boolean;
+  holds: RecompModHold[];
+  minimum_runtime_version: string;
+  /**
+   * The runtime's identity for the mod (from `mod.json`).
+   */
+  native_id: string;
+  /**
+   * Library name → exported functions the manifest declares.
+   */
+  native_libraries: {
+    [k: string]: string[];
+  };
+  native_version: string;
+  optional_dependencies: RecompDependency[];
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
+/**
+ * A dependency on another native mod, with an optional minimum version.
+ */
+export interface RecompDependency {
+  id: string;
+  minimum_version: string | null;
+  [k: string]: unknown;
+}
 export interface OutputHostToolProbeResult {
   clear_action_available: boolean;
   message: string;
@@ -5680,6 +5793,20 @@ export interface OutputModSetupsView {
    */
   current_install_id?: string | null;
   /**
+   * Reviewed upstream browser routes for this port and host.
+   */
+  external_mod_portals?: ExternalModPortal[];
+  /**
+   * The active installed build admits native companion import for the
+   * upstream ZIP on this host. Not installed, or installed before the
+   * reviewed loader, leaves only the releases link.
+   */
+  github_native_import_offered?: boolean;
+  /**
+   * Reviewed upstream GitHub Releases page for browsing and native setup.
+   */
+  github_release_url?: string | null;
+  /**
    * Unattended provider updates waiting for the player's review, for each
    * setup's current revision.
    */
@@ -5719,10 +5846,18 @@ export interface OutputModSetupsView {
    */
   providers?: string[];
   /**
-   * False when the game has no reviewed mod package contract; nothing else is
-   * offered then.
+   * False when the game has no reviewed managed mod package contract.
    */
   supported: boolean;
+  [k: string]: unknown;
+}
+export interface ExternalModPortal {
+  /**
+   * The current port and platform qualify for the optional read-only provider browser.
+   */
+  browse_available?: boolean;
+  source: ExternalModPortalSource;
+  url: string;
   [k: string]: unknown;
 }
 /**
@@ -5774,6 +5909,37 @@ export interface ProviderAutoUpdateCheck {
    * None means a current observation offered no update.
    */
   result: ProviderAutoUpdateOutcome | null;
+  [k: string]: unknown;
+}
+export interface OutputModdbFileNotices {
+  freshness: ProviderFreshness;
+  /**
+   * Unix seconds when the provider data was last confirmed.
+   */
+  observed_at: number;
+  value: ModDbFileNotices;
+  [k: string]: unknown;
+}
+/**
+ * Provider-attributed Arcane Dimensions file notices, including nonrelease notices.
+ */
+export interface ModDbFileNotices {
+  attribution: string;
+  notices: FileNotice[];
+  platform: Platform;
+  port_id: string;
+  source_url: string;
+  [k: string]: unknown;
+}
+/**
+ * Mod DB's Files channel also contains tutorials and patches. A notice
+ * identifies a page to open, without classifying it as an installable release.
+ */
+export interface FileNotice {
+  page_url: string;
+  published_at: string | null;
+  source_id: string;
+  title: string;
   [k: string]: unknown;
 }
 /**
@@ -6684,6 +6850,66 @@ export interface OutputProviderUpdateObservation {
    * False with `NewerFiles` means files changed under an unchanged version label.
    */
   version_changed: boolean;
+  [k: string]: unknown;
+}
+export interface OutputQuaddictedCatalog {
+  freshness: ProviderFreshness;
+  /**
+   * Unix seconds when the provider data was last confirmed.
+   */
+  observed_at: number;
+  value: QuaddictedPage;
+  [k: string]: unknown;
+}
+export interface QuaddictedPage {
+  attribution: string;
+  engine: QuakeEngine;
+  entries: QuaddictedEntry[];
+  /**
+   * A full page below the client limit suggests another page may be available.
+   */
+  may_have_more: boolean;
+  page: number;
+  source_url: string;
+  unreadable_rows: number;
+  [k: string]: unknown;
+}
+export interface QuaddictedEntry {
+  authors: string[];
+  claimed_bytes: number | null;
+  /**
+   * Publisher metadata claim. This adapter never verifies or downloads bytes.
+   */
+  claimed_sha256: string;
+  content_kind: string[];
+  engine_compatibility: QuaddictedEngineCompatibility;
+  engine_requirements: string[];
+  filename: string | null;
+  install_notes: QuaddictedInstallNotes;
+  page_url: string;
+  /**
+   * Provider notes, for text rendering only. May contain markup as literal text.
+   */
+  provider_notes: string[];
+  release_date: string | null;
+  /**
+   * Exact provider-declared locations. These are display data.
+   */
+  source_urls: string[];
+  title: string;
+  [k: string]: unknown;
+}
+/**
+ * Inert extraction/launch descriptions. Never interpreted by this adapter.
+ */
+export interface QuaddictedInstallNotes {
+  command_line: string[];
+  dependencies: string[];
+  extract: string | null;
+  extract_mapping: {
+    [k: string]: string;
+  };
+  start_maps: string[];
   [k: string]: unknown;
 }
 /**

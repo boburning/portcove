@@ -3990,8 +3990,7 @@ mod reviewed_loader_payload_tests {
                 .unwrap()
                 .with_acquisition_resolution(resolved)
                 .unwrap();
-            let shape =
-                installer.package_shape_record(port, &qualification, &root, &artifact.sha256);
+            let shape = installer.package_shape_record(port, &qualification, &root, &artifact);
             let (manifest_sha256, selected_executable, runtime) = write_manifest_with_shape(
                 &install_id,
                 &port_id,

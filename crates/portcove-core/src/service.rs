@@ -8203,7 +8203,7 @@ fn repair_path_identity(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
-fn default_channel(port: &PortDefinition) -> ReleaseChannel {
+pub(crate) fn default_channel(port: &PortDefinition) -> ReleaseChannel {
     if port.channels.contains(&ReleaseChannel::Stable) {
         ReleaseChannel::Stable
     } else {

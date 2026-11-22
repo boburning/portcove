@@ -33,6 +33,7 @@ use crate::{
     ResolvedPackage, Result, TypedOrdering, inspect_asset_archive,
     native_mod_list::{self, LoaderList, NativeList},
     profile,
+    profile_package_files::{profile_package_files, require_managed_custody},
 };
 
 pub(crate) const STORE: &str = ".portcove-profiles";
@@ -394,6 +395,9 @@ fn code_not_allowed(recomp: &crate::RecompModInspection) -> PortcoveError {
 /// switch or deployment changes anything, and again inside `deploy`. Packages
 /// whose bytes are neither stored nor live are left to the missing-bytes checks.
 pub(crate) fn require_code_allowed(layout: &Layout, revision: &ProfileRevision) -> Result<()> {
+    // The custody fence applies to every revision kind, including Daggerfall
+    // Unity bundles, before any loader-specific admission.
+    require_managed_custody(revision)?;
     if let Some(platform) = layout.dfu_platform {
         return require_dfu_packages(layout, revision, platform);
     }
@@ -712,11 +716,14 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
     }
     let mut expected: std::collections::BTreeMap<&str, BTreeSet<(&str, u64)>> = Default::default();
     for owner in owners {
-        for package in enabled(owner) {
+        for file in profile_package_files(owner)?
+            .into_iter()
+            .filter(|file| file.enabled)
+        {
             expected
-                .entry(package.native_id.as_str())
+                .entry(file.name)
                 .or_default()
-                .insert((package.sha256.as_str(), package.size));
+                .insert((file.sha256, file.size));
         }
     }
     for (index, entry) in fs::read_dir(&mods)?.enumerate() {
@@ -792,12 +799,16 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     require_code_allowed(layout, to)?;
     if layout.dfu_platform.is_some() {
         if let Some(from) = from {
+            require_managed_custody(from)?;
             require_dfu_basename_stability(from, to)?;
         }
         return dfu_deploy::deploy_owned_files(layout, from, to);
     }
-    let wanted = enabled(to)
-        .map(|package| package.native_id.as_str())
+    let files = profile_package_files(to)?;
+    let wanted = files
+        .iter()
+        .filter(|file| file.enabled)
+        .map(|file| file.name)
         .collect::<BTreeSet<_>>();
     // Exact directory names distinguish a Windows case-only replacement from
     // a target that has already been materialized.
@@ -811,31 +822,33 @@ fn deploy(layout: &Layout, from: Option<&ProfileRevision>, to: &ProfileRevision)
     // Verify every destination first so a missing or corrupt stored package fails
     // before any departing file is removed.
     let mut to_place = Vec::new();
-    for package in enabled(to) {
-        let live = live_package_path(layout, &package.native_id)?;
-        if names.contains(std::ffi::OsStr::new(&package.native_id))
+    for file in files.iter().filter(|file| file.enabled) {
+        let live = live_package_path(layout, file.name)?;
+        if names.contains(std::ffi::OsStr::new(file.name))
             && live.try_exists()?
-            && sha256_file(&live)? == package.sha256
+            && sha256_file(&live)? == file.sha256
         {
             continue;
         }
-        let stored = layout.package(&package.sha256, &package.native_id);
-        if !stored.try_exists()? || sha256_file(&stored)? != package.sha256 {
+        let stored = layout.package(file.sha256, file.name);
+        if !stored.try_exists()? || sha256_file(&stored)? != file.sha256 {
             return Err(PortcoveError::verification(
                 "stored package bytes are missing or no longer match their recorded digest; nothing was changed",
             )
-            .detail("package", &package.native_id));
+            .detail("package", file.name));
         }
         to_place.push((stored, live));
     }
     if let Some(from) = from {
-        for package in enabled(from) {
+        require_managed_custody(from)?;
+        for file in profile_package_files(from)?
+            .into_iter()
+            .filter(|file| file.enabled)
+        {
             // Same-name replacements are atomic in stage_copy. If an earlier
             // attempt already placed the target, leave those target bytes in place.
-            if !wanted.contains(package.native_id.as_str())
-                && names.contains(std::ffi::OsStr::new(&package.native_id))
-            {
-                let live = live_package_path(layout, &package.native_id)?;
+            if !wanted.contains(file.name) && names.contains(std::ffi::OsStr::new(file.name)) {
+                let live = live_package_path(layout, file.name)?;
                 if live.try_exists()? {
                     fs::remove_file(live)?;
                 }
@@ -1150,8 +1163,10 @@ fn require_exact_managed_packages(
     revision: &ProfileRevision,
     hold: impl Fn() -> PortcoveError,
 ) -> Result<()> {
-    let mut remaining = enabled(revision)
-        .map(|package| (package.native_id.as_str(), package))
+    let mut remaining = profile_package_files(revision)?
+        .into_iter()
+        .filter(|file| file.enabled)
+        .map(|file| (file.name, file))
         .collect::<std::collections::BTreeMap<_, _>>();
     let mods = root.join(layout.mods_relative());
     crate::path::refuse_symlink_ancestors(&mods)?;
@@ -2821,8 +2836,7 @@ pub struct ModSetupPackageEdit {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ModSetupsView {
     pub port_id: String,
-    /// False when the game has no reviewed mod package contract; nothing else is
-    /// offered then.
+    /// False when the game has no reviewed managed mod package contract.
     pub supported: bool,
     /// Package file types the game loads, such as `o2r`.
     pub package_types: Vec<String>,
@@ -2847,6 +2861,17 @@ pub struct ModSetupsView {
     /// Reviewed provider choices when the game offers more than one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
+    /// Reviewed upstream GitHub Releases page for browsing and native setup.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github_release_url: Option<String>,
+    /// The active installed build admits native companion import for the
+    /// upstream ZIP on this host. Not installed, or installed before the
+    /// reviewed loader, leaves only the releases link.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub github_native_import_offered: bool,
+    /// Reviewed upstream browser routes for this port and host.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub external_mod_portals: Vec<crate::ExternalModPortal>,
     /// Count from the materialized revision, including disabled mods.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub applied_package_count: Option<usize>,
@@ -2860,6 +2885,34 @@ pub struct ModSetupsView {
     pub progress_copy_supported: bool,
 }
 
+impl ModSetupsView {
+    fn browse_only(
+        port_id: &str,
+        github_release_url: Option<String>,
+        github_native_import_offered: bool,
+        external_mod_portals: Vec<crate::ExternalModPortal>,
+    ) -> Self {
+        Self {
+            port_id: port_id.into(),
+            supported: false,
+            package_types: Vec::new(),
+            later_mods_take_priority: false,
+            inventory: None,
+            live: None,
+            held_updates: Vec::new(),
+            last_automatic_checks: Vec::new(),
+            provider: None,
+            github_release_url,
+            github_native_import_offered,
+            external_mod_portals,
+            providers: Vec::new(),
+            applied_package_count: None,
+            current_install_id: None,
+            progress_copy_supported: false,
+        }
+    }
+}
+
 impl PortcoveService {
     pub fn mod_setups(&self, port_id: &str) -> Result<ModSetupsView> {
         self.mod_setups_with_inventory(port_id, |id| self.profile_inventory(id))
@@ -2871,28 +2924,50 @@ impl PortcoveService {
         self.mod_setups_with_inventory(port_id, |id| self.preview_profile_inventory(id))
     }
 
+    /// Public source handoff without reading or changing managed profile state.
+    pub fn preview_mod_handoff(&self, port_id: &str) -> Result<ModSetupsView> {
+        let catalog = self.catalog();
+        let platform = crate::Platform::current().ok();
+        let external_mod_portals = crate::external_mod_portal::portals(catalog, port_id, platform);
+        let (url, native) = match catalog.port(port_id) {
+            Ok(port) => (
+                crate::github_mods::github_mod_release_url(port),
+                self.github_native_import(port, platform)?,
+            ),
+            Err(_) if !external_mod_portals.is_empty() => (None, false),
+            Err(error) => return Err(error),
+        };
+        Ok(ModSetupsView::browse_only(
+            port_id,
+            url,
+            native,
+            external_mod_portals,
+        ))
+    }
+
     fn mod_setups_with_inventory(
         &self,
         port_id: &str,
         inventory: impl FnOnce(&str) -> Result<crate::ProfileInventory>,
     ) -> Result<ModSetupsView> {
-        let port = self.catalog().port(port_id)?;
+        let Ok(port) = self.catalog().port(port_id) else {
+            return self.preview_mod_handoff(port_id);
+        };
+        let github_release_url = crate::github_mods::github_mod_release_url(port);
+        let github_native_import_offered =
+            self.github_native_import(port, crate::Platform::current().ok())?;
+        let external_mod_portals = crate::external_mod_portal::portals(
+            self.catalog(),
+            port_id,
+            crate::Platform::current().ok(),
+        );
         let Some(layout) = self.optional_deploy_layout(port_id)? else {
-            return Ok(ModSetupsView {
-                port_id: port_id.into(),
-                supported: false,
-                package_types: Vec::new(),
-                later_mods_take_priority: false,
-                inventory: None,
-                live: None,
-                held_updates: Vec::new(),
-                last_automatic_checks: Vec::new(),
-                provider: None,
-                providers: Vec::new(),
-                applied_package_count: None,
-                current_install_id: None,
-                progress_copy_supported: false,
-            });
+            return Ok(ModSetupsView::browse_only(
+                port_id,
+                github_release_url,
+                github_native_import_offered,
+                external_mod_portals,
+            ));
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
         // leave staging; reading the setups is a regular point to prune it.
@@ -2913,6 +2988,9 @@ impl PortcoveService {
             })
             .transpose()?;
         Ok(ModSetupsView {
+            github_release_url,
+            github_native_import_offered,
+            external_mod_portals,
             held_updates,
             last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_binding::default_binding(port)
@@ -3190,7 +3268,7 @@ pub(crate) fn proposed_mod_setup(
             }
         }
         profile::validate_revision(&next)?;
-        require_projectable(&layout, &next)?;
+        require_projectable(layout, &next)?;
     }
     Ok(next)
 }

@@ -1074,6 +1074,51 @@ void test(
   },
 );
 
+void test(
+  "retained bridge custody closes the real helper without releasing either reservation",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const host = await mockHost(t, "none");
+    let released = 0;
+    const cleanup = path.join(host.root, "containment-cleanup.json");
+    const lease = await acquireBridgedCapacity(
+      host.config,
+      "analysis",
+      {},
+      { waitMs: 1000 },
+      async () => ({
+        inherited: false,
+        queueMs: 0,
+        childEnvironment: {},
+        registerChild: async () => ({
+          pid: process.pid,
+          identity: readProcessIdentity(process.pid)!,
+          containment: "unix-watchdog",
+          cleanup_receipt: cleanup,
+        }),
+        release: async () => {
+          released++;
+        },
+      }),
+    );
+    await lease.registerChild({ pid: process.pid });
+    assert.ok(lease.disconnectRetained);
+    lease.disconnectRetained();
+    const messages = await host.close();
+    assert.deepEqual(
+      messages.map((message) => (isRecord(message) ? message.action : undefined)),
+      ["acquire", "register"],
+    );
+    const [acquire] = messages;
+    assert.ok(isRecord(acquire) && typeof acquire.custodyFile === "string");
+    const { custodyFile } = acquire;
+    const custody = record(JSON.parse(await readFile(custodyFile, "utf8")));
+    assert.equal(record(custody.owner).pid, process.pid);
+    assert.equal(record(custody.child).cleanup_receipt, cleanup);
+    assert.equal(released, 0);
+  },
+);
+
 void test("host identity ignores worktree and writable tool-cache overrides", async (t) => {
   const root = await fixture(t);
   const domains = [];

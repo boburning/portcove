@@ -4102,7 +4102,9 @@ verifier rather than a mutable worktree.
 The exact Linux supervisor is registered before the host ACK permits the original
 payload gate to open. Release independently checks supervisor exit, cleanup
 receipt and directory identity. Connection loss or uncertain cleanup retains
-custody. While admission is pending, input EOF or error aborts acquisition while
+custody. If the guard cannot confirm cleanup, it closes its bridge connection
+and exits while retaining both reservations and their original evidence. While
+admission is pending, input EOF or error aborts acquisition while
 preserving buffered protocol bytes. A lease that resolves despite cancellation
 retains external custody; connection loss never authorizes its release.
 The host bounds queued raw bytes to 32 KiB; UTF-8 decoding stays inside the

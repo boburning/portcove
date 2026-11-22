@@ -33,6 +33,7 @@ interface Cancellation {
 export interface ManagedRustChild extends Pick<EventEmitter, "once"> {
   pid?: number | undefined;
   stdin?: ChildProcess["stdin"];
+  unref?: ChildProcess["unref"];
 }
 export interface RustAdmission {
   inherited?: boolean;
@@ -42,6 +43,7 @@ export interface RustAdmission {
     registration: import("./heavy-rust-test-lock.mts").ChildRegistration,
   ) => Promise<unknown>;
   release: () => Promise<unknown>;
+  disconnectRetained?: () => void;
 }
 type RustResources = ResourceLease | HeavyRustLock;
 export interface RustResourceOptions extends ResourceCapacityOptions, HeavyRustLockOptions {}
@@ -503,6 +505,7 @@ export async function runRustTests(
   let retained = false;
   let lock: RustAdmission | null = null;
   let releaseLock = true;
+  let tested: ManagedRustChild | undefined;
   let cancellation: Cancellation | null = null;
   let executionTimer: ReturnType<typeof setTimeout> | undefined;
   let compiler: CompilerIdentity | null = null;
@@ -641,7 +644,7 @@ export async function runRustTests(
               mode.executable,
               ...mode.args,
             ];
-    const tested = start(command, commandArgs, {
+    const child = start(command, commandArgs, {
       cwd: executionRoot,
       detached: platform !== "win32" && platform !== "linux",
       stdio: dependencies.output
@@ -660,13 +663,14 @@ export async function runRustTests(
         ...(mode.kind === "nextest" ? { PORTCOVE_HOST_TOOL_FIXTURE: fixtureExecutable } : {}),
       },
     });
-    const observation = waitForChild(tested);
+    tested = child;
+    const observation = waitForChild(child);
     let gateOpened = false;
     let cleanupAttempted = false;
     const proveQuiescence = async (force: boolean) => {
       cleanupAttempted = true;
       try {
-        await closeChildTree(tested, observation, dependencies, force);
+        await closeChildTree(child, observation, dependencies, force);
         if (platform === "linux" || (platform !== "win32" && gateOpened))
           await waitForUnixCleanupReceipt(cleanupReceiptPath, dependencies);
         if (
@@ -687,12 +691,12 @@ export async function runRustTests(
         platform === "linux"
           ? await waitForLinuxSupervisor(
               registrationPath,
-              tested,
+              child,
               observation,
               cancellation,
               dependencies,
             )
-          : tested;
+          : child;
       registered = await lock.registerChild(registrationChild, {
         containment: platform === "win32" ? "windows-job" : "unix-watchdog",
         cleanupReceipt: platform === "win32" ? undefined : cleanupReceiptPath,
@@ -814,7 +818,14 @@ export async function runRustTests(
   } finally {
     cancellation?.dispose();
     if (executionTimer) clearTimeout(executionTimer);
-    if (lock && releaseLock) await lock.release();
+    if (releaseLock) await lock?.release();
+    else {
+      // The owned reaper already has its registration and cleanup paths.
+      // Close its control pipe and stop waiting on its OS process handle.
+      tested?.stdin?.destroy();
+      tested?.unref?.();
+      lock?.disconnectRetained?.();
+    }
     if (!retained && releaseLock) rmSync(directory, { recursive: true, force: true });
   }
 }
