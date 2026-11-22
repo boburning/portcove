@@ -766,7 +766,7 @@ impl PortcoveService {
             .or_else(|| listing.download_asset_hints.get(&platform))
             .map(Vec::as_slice)
             .unwrap_or_default();
-        let (packages, recommended) = super::package_selection::recommend_packages(
+        let (packages, recommended, any_suitable) = super::package_selection::recommend_packages(
             &candidates,
             platform,
             hints,
@@ -781,11 +781,7 @@ impl PortcoveService {
                 .into()
         } else if !coverage.candidates_complete {
             "Some upstream files could not be assessed. Review the available downloads or open upstream setup.".into()
-        } else if result
-            .packages
-            .iter()
-            .any(|package| package.suitability == "suitable")
-        {
+        } else if any_suitable {
             "Several plausible packages remain. Choose the build you want from this release.".into()
         } else {
             "No native package could be recommended. Check other downloads or follow upstream setup instructions.".into()

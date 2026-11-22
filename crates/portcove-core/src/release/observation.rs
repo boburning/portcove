@@ -31,7 +31,8 @@ pub struct UpstreamObservationReport {
     pub eligibility_scope: String,
     pub evidence: ObservationEvidence,
     pub projections: Vec<ChannelObservation>,
-    /// Typed role and host facts for every observed release.
+    /// Typed role and host facts for each release a projection observed
+    /// (latest observed, channel candidate or eligible), in provider order.
     pub release_facts: Vec<ObservedReleaseFacts>,
     pub fact_provenance: FactProvenance,
 }
@@ -682,8 +683,32 @@ pub fn inspect_upstream_observation(
         .as_str()
         .expect("validated clock")
         .into();
+    // Facts for the releases a projection observed: each latest observed,
+    // channel candidate and eligible release. This bounds the report by the
+    // projections instead of the whole provider history.
+    let observed = projections
+        .iter()
+        .flat_map(|projection| {
+            [
+                projection
+                    .latest_observed
+                    .as_ref()
+                    .map(|release| release.id),
+                projection
+                    .channel_candidate
+                    .as_ref()
+                    .map(|release| release.id),
+                projection
+                    .latest_eligible
+                    .as_ref()
+                    .map(|resolution| resolution.release_id),
+            ]
+        })
+        .flatten()
+        .collect::<HashSet<_>>();
     let release_facts = releases
         .iter()
+        .filter(|release| observed.contains(&release.id))
         .map(|release| release_facts(port, release, covered_assets.as_ref()))
         .collect();
     Ok(UpstreamObservationReport {

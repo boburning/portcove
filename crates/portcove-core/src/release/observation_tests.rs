@@ -1322,9 +1322,12 @@ fn incomplete_asset_coverage_stops_the_walk_with_a_typed_hold() -> Result<()> {
         ["release-asset-observation-incomplete"]
     );
     assert_eq!(windows.route_holds, [RouteHold::IncompleteCoverage]);
+    // Only the releases a projection observed carry facts; the held walk
+    // never reached the older release.
+    assert_eq!(report.release_facts.len(), 1);
+    assert_eq!(report.release_facts[0].release_id, 3);
     assert!(!report.release_facts[0].assets_complete);
     assert!(report.release_facts[0].artifacts.is_empty());
-    assert!(report.release_facts[1].assets_complete);
     assert_eq!(
         report.fact_provenance.coverage,
         crate::Coverage::Partial { next_cursor: None }

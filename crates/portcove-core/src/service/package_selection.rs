@@ -240,6 +240,8 @@ pub(crate) fn is_license_compliance_archive(name: &str) -> bool {
             .any(|token| tokens.contains(token))
 }
 
+/// Assessments, the unique recommendation, and whether any package is a
+/// suitable native choice for this host (decided from the typed suitability).
 pub(super) fn recommend_packages(
     assets: &[CatalogDownloadCandidate],
     platform: Platform,
@@ -248,6 +250,7 @@ pub(super) fn recommend_packages(
 ) -> (
     Vec<CatalogPackageAssessment>,
     Option<CatalogDownloadAssetId>,
+    bool,
 ) {
     let assessed = assets
         .iter()
@@ -273,12 +276,34 @@ pub(super) fn recommend_packages(
             .map(|(assessment, _)| assessment)
             .collect(),
         recommended,
+        !ranked.is_empty(),
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn recommend_packages(
+        assets: &[CatalogDownloadCandidate],
+        platform: Platform,
+        hints: &[String],
+        complete: bool,
+    ) -> (
+        Vec<CatalogPackageAssessment>,
+        Option<CatalogDownloadAssetId>,
+    ) {
+        let (assessments, recommended, any_suitable) =
+            super::recommend_packages(assets, platform, hints, complete);
+        assert_eq!(
+            any_suitable,
+            assessments
+                .iter()
+                .any(|assessment| assessment.suitability == "suitable"),
+            "the typed suitable decision matches its serialized projection"
+        );
+        (assessments, recommended)
+    }
     fn asset(id: u64, name: &str) -> CatalogDownloadCandidate {
         CatalogDownloadCandidate {
             release_id: 1.into(),
