@@ -338,6 +338,14 @@
       "category": "explicit-acceptance"
     },
     {
+      "source": "crates/portcove-core/src/recomp_companion_review.rs",
+      "test": "real_successor_changes_the_companion_set_without_changing_the_nrms",
+      "reason": "natural-event observation, not ordinary coverage: requires the externally retained exact predecessor and successor wrapper ZIPs in PORTCOVE_GITHUB_MOD_ARCHIVES",
+      "package": "portcove-core",
+      "platforms": ["linux", "darwin", "win32"],
+      "category": "explicit-acceptance"
+    },
+    {
       "source": "crates/portcove-core/src/runtime_tests/psx_progression.rs",
       "test": "owned_progression_fixture",
       "reason": "isolated first-party provider, codec and builder control; invoked by parent",

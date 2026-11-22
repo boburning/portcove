@@ -318,7 +318,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "requires externally retained exact predecessor and successor ZIPs"]
+    #[ignore = "natural-event observation, not ordinary coverage: requires the externally retained exact predecessor and successor wrapper ZIPs in PORTCOVE_GITHUB_MOD_ARCHIVES"]
     fn real_successor_changes_the_companion_set_without_changing_the_nrms() {
         let dir =
             std::path::PathBuf::from(std::env::var_os("PORTCOVE_GITHUB_MOD_ARCHIVES").unwrap());
