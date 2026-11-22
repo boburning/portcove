@@ -1397,11 +1397,11 @@ fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal
         "directory":{"format_version":11,"listings":[{"id":"retained","a":1}]}
     });
     let bytes = serde_json::to_vec(&older).unwrap();
-    bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&newer).unwrap()).unwrap();
+    bundle::check_legacy_successor(&bytes, &serde_json::to_vec(&newer).unwrap()).unwrap();
 
     let mut replaced = newer.clone();
     replaced["directory"]["listings"][0]["a"] = json!(2);
-    let refusal = bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&replaced).unwrap());
+    let refusal = bundle::check_legacy_successor(&bytes, &serde_json::to_vec(&replaced).unwrap());
     assert!(
         refusal
             .unwrap_err()
@@ -1411,8 +1411,170 @@ fn explicit_legacy_withdrawal_preserves_other_rows_and_cannot_clear_a_withdrawal
     let mut resurrected = newer;
     resurrected["withdrawn_ids"] = json!(["newly-removed"]);
     assert!(
-        bundle::check_legacy_withdrawal(&bytes, &serde_json::to_vec(&resurrected).unwrap())
-            .is_err()
+        bundle::check_legacy_successor(&bytes, &serde_json::to_vec(&resurrected).unwrap()).is_err()
+    );
+}
+
+#[test]
+fn reviewed_legacy_successor_adds_or_keeps_holds_and_never_loosens_one() {
+    let older = json!({
+        "listing_delivery_schema":1,"revision":3,"withdrawn_ids":[],
+        "directory":{"format_version":11,"listings":[
+            {"id":"held","download_block_reason":"Held","a":1},
+            {"id":"open","a":2}
+        ]}
+    });
+    let bytes = serde_json::to_vec(&older).unwrap();
+    let check = |value: &serde_json::Value| {
+        bundle::check_legacy_successor(&bytes, &serde_json::to_vec(value).unwrap())
+            .map_err(|error| error.to_string())
+    };
+    let mut added = older.clone();
+    added["revision"] = json!(9);
+    added["directory"]["listings"][1]["download_block_reason"] = json!("New hold");
+    check(&added).unwrap();
+    // A reviewed explanation may replace an existing hold's text; it stays held.
+    let mut retold = added.clone();
+    retold["directory"]["listings"][0]["download_block_reason"] = json!("Held, revised");
+    check(&retold).unwrap();
+    // A held row absent from the frozen legacy target may be added.
+    let mut new_row = older.clone();
+    new_row["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"absent","download_block_reason":"New hold"}));
+    check(&new_row).unwrap();
+
+    let refusals = [
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("download_block_reason");
+                v
+            },
+            "may not clear a download hold",
+        ),
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"][0]["download_block_reason"] = json!("");
+                v
+            },
+            "may not clear a download hold",
+        ),
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"].as_array_mut().unwrap().remove(0);
+                v
+            },
+            "may not clear a download hold",
+        ),
+        (
+            {
+                let mut v = added.clone();
+                v["directory"]["listings"][1]["a"] = json!(3);
+                v
+            },
+            "changes other facts",
+        ),
+        (
+            {
+                let mut v = older.clone();
+                v["directory"]["listings"]
+                    .as_array_mut()
+                    .unwrap()
+                    .push(json!({"id":"absent"}));
+                v
+            },
+            "may add only a held row",
+        ),
+        (
+            {
+                let mut v = added.clone();
+                v["directory"]["format_version"] = json!(15);
+                v
+            },
+            "changes other facts",
+        ),
+        (
+            older.clone(),
+            "must add a safety withdrawal or download hold",
+        ),
+    ];
+    for (proposal, expected) in refusals {
+        let failure = check(&proposal).unwrap_err();
+        assert!(failure.contains(expected), "{failure}");
+    }
+}
+
+#[test]
+fn legacy_only_return_exceeds_both_floors_and_keeps_compact_withdrawals() {
+    use super::history_checkpoint::{ListingFloor, check_listings};
+    let legacy = |revision: u64, withdrawn: &[&str]| {
+        serde_json::to_vec(&json!({
+            "listing_delivery_schema":1,"revision":revision,"withdrawn_ids":withdrawn,
+            "directory":{"format_version":11,"listings":[{"id":"held","download_block_reason":"Held"}]}
+        }))
+        .unwrap()
+    };
+    let floor = |revision: u64, bytes: &[u8], withdrawn: &[&str]| ListingFloor {
+        revision,
+        decoded_sha256: sha(bytes),
+        withdrawn_ids: withdrawn.iter().map(|id| (*id).to_owned()).collect(),
+    };
+    let prior_legacy = legacy(3, &[]);
+    let legacy_floor = floor(3, &prior_legacy, &[]);
+    let compact_floor = floor(7, b"compact", &["gone"]);
+    let proposal =
+        |bytes: Vec<u8>| Files::from([(portcove_listing_carrier::LEGACY_TARGET.to_owned(), bytes)]);
+    let check = |bytes: Vec<u8>| {
+        check_listings(
+            &proposal(bytes),
+            Some((&legacy_floor, prior_legacy.as_slice())),
+            Some(&compact_floor),
+        )
+        .map_err(|error| error.to_string())
+    };
+    check(legacy(8, &["gone"])).unwrap();
+    // A legacy successor at or below the compact revision would be a replay for
+    // every compact reader, which would then stop refreshing.
+    for revision in [4, 7] {
+        let failure = check(legacy(revision, &["gone"])).unwrap_err();
+        assert!(
+            failure.contains("must exceed the compact revision"),
+            "{failure}"
+        );
+    }
+    let failure = check(legacy(8, &[])).unwrap_err();
+    assert!(
+        failure.contains("removed an authenticated compact withdrawal"),
+        "{failure}"
+    );
+    let failure = check_listings(
+        &Files::new(),
+        Some((&legacy_floor, prior_legacy.as_slice())),
+        Some(&compact_floor),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(failure.contains("without a carrier"), "{failure}");
+    // After the return the retained legacy floor is above the compact floor.
+    let returned = legacy(8, &["gone"]);
+    let returned_floor = floor(8, &returned, &["gone"]);
+    let failure = check_listings(
+        &proposal(legacy(8, &["gone", "other"])),
+        Some((&returned_floor, returned.as_slice())),
+        Some(&compact_floor),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(
+        failure.contains("must exceed the compact revision"),
+        "{failure}"
     );
 }
 
@@ -1602,7 +1764,9 @@ async fn compact_directory_successor_keeps_legacy_bytes_and_one_decompressed_flo
         .unwrap()
         .to_string();
     assert!(
-        failure.contains("compact listing cannot be withdrawn"),
+        // A legacy-only return is reviewed recovery, never a replay below
+        // the compact floor that every compact reader already admitted.
+        failure.contains("legacy-only listing return must exceed the compact revision"),
         "{failure}"
     );
 

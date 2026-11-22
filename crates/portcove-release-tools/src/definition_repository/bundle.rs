@@ -167,23 +167,83 @@ fn collect_listing_withdrawals<'a>(
     Ok(ids)
 }
 
-/// An older reader remains on its verified directory. A new safety withdrawal
-/// may remove only the listed identities, without replacing other legacy facts.
-pub(super) fn check_legacy_withdrawal(prior: &[u8], proposal: &[u8]) -> Result<()> {
-    let mut expected: serde_json::Value = serde_json::from_slice(prior)?;
+/// An older reader remains on its verified directory. A reviewed successor may
+/// withdraw identities and may add or keep a legacy download hold. It never
+/// drops or clears a hold, resurrects a withdrawal or replaces other legacy facts.
+/// A row it adds must carry a hold, so it can only make a download stricter.
+pub(super) fn check_legacy_successor(prior: &[u8], proposal: &[u8]) -> Result<()> {
+    const HOLD: &str = "download_block_reason";
+    let prior: serde_json::Value = serde_json::from_slice(prior)?;
     let proposal: serde_json::Value = serde_json::from_slice(proposal)?;
-    let prior_ids = listing_withdrawals(&expected)?;
+    let prior_ids = listing_withdrawals(&prior)?;
     let next_ids = listing_withdrawals(&proposal)?;
-    if !prior_ids.is_subset(&next_ids) || prior_ids == next_ids {
-        return invalid("legacy listing replacement must add a safety withdrawal");
+    if !prior_ids.is_subset(&next_ids) {
+        return invalid("legacy listing replacement removed a safety withdrawal");
     }
-    let Some(listings) = expected["directory"]["listings"].as_array_mut() else {
-        return invalid("legacy listing withdrawal directory differs");
+    let rows = |document: &serde_json::Value| -> Result<BTreeMap<String, serde_json::Value>> {
+        let Some(listings) = document["directory"]["listings"].as_array() else {
+            return invalid("legacy listing withdrawal directory differs");
+        };
+        let mut rows = BTreeMap::new();
+        for row in listings {
+            let Some(id) = row["id"].as_str() else {
+                return invalid("legacy listing withdrawal directory differs");
+            };
+            if rows.insert(id.to_owned(), row.clone()).is_some() {
+                return invalid("legacy listing withdrawal directory differs");
+            }
+        }
+        Ok(rows)
     };
-    listings.retain(|row| !row["id"].as_str().is_some_and(|id| next_ids.contains(id)));
-    expected["withdrawn_ids"] = proposal["withdrawn_ids"].clone();
-    expected["revision"] = proposal["revision"].clone();
-    if expected != proposal {
+    let held =
+        |row: &serde_json::Value| row[HOLD].as_str().is_some_and(|reason| !reason.is_empty());
+    let (before, after) = (rows(&prior)?, rows(&proposal)?);
+    let mut tightened = false;
+    for (id, row) in &after {
+        if next_ids.contains(id) {
+            return invalid("legacy listing withdrawal directory differs");
+        }
+        match before.get(id) {
+            Some(old) if old == row => {}
+            Some(old) => {
+                let (mut old, mut next) = (old.clone(), row.clone());
+                for value in [&mut old, &mut next] {
+                    if let Some(fields) = value.as_object_mut() {
+                        fields.remove(HOLD);
+                    }
+                }
+                if old != next {
+                    return invalid("legacy listing withdrawal changes other facts");
+                }
+                if !held(row) {
+                    return invalid("legacy listing replacement may not clear a download hold");
+                }
+                tightened = true;
+            }
+            None if held(row) => tightened = true,
+            None => return invalid("legacy listing replacement may add only a held row"),
+        }
+    }
+    for (id, old) in &before {
+        if !after.contains_key(id) && !next_ids.contains(id) {
+            return invalid(if held(old) {
+                "legacy listing replacement may not clear a download hold"
+            } else {
+                "legacy listing replacement removed a row without a safety withdrawal"
+            });
+        }
+    }
+    if !tightened && prior_ids == next_ids {
+        return invalid("legacy listing replacement must add a safety withdrawal or download hold");
+    }
+    let mut expected = prior.clone();
+    let mut actual = proposal.clone();
+    for document in [&mut expected, &mut actual] {
+        document["directory"]["listings"] = serde_json::Value::Null;
+        document["withdrawn_ids"] = serde_json::Value::Null;
+        document["revision"] = serde_json::Value::Null;
+    }
+    if expected != actual {
         return invalid("legacy listing withdrawal changes other facts");
     }
     Ok(())

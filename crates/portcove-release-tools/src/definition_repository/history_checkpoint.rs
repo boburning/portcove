@@ -73,17 +73,38 @@ pub(super) fn check_listings(
     use portcove_listing_carrier::LEGACY_TARGET;
 
     let next = super::bundle::listing_targets(proposal)?;
+    // After a reviewed return to legacy-only delivery the retained legacy floor
+    // can exceed the last compact floor; every successor must exceed both.
+    let floor = [prior_compact, prior_legacy.map(|(legacy, _)| legacy)]
+        .into_iter()
+        .flatten()
+        .max_by_key(|floor| floor.revision);
     if let Some(prior) = prior_compact {
-        let Some(compact) = &next.compact else {
-            return invalid("catalog compact listing cannot be withdrawn to the legacy carrier");
+        // Returning to legacy-only delivery keeps every compact reader's replay
+        // floor and authenticated withdrawals: the legacy successor must exceed
+        // both carriers' revisions and retain every compact withdrawal.
+        let (carrier, withdrawals) = match (&next.compact, &next.legacy) {
+            (Some(compact), _) => ("compact", &compact.withdrawn_ids),
+            (None, Some(legacy)) => {
+                if floor.is_some_and(|floor| legacy.revision <= floor.revision) {
+                    return invalid(
+                        "catalog legacy-only listing return must exceed the compact revision",
+                    );
+                }
+                ("legacy", &legacy.withdrawn_ids)
+            }
+            (None, None) => {
+                return invalid("catalog compact listing cannot be withdrawn without a carrier");
+            }
         };
-        if !prior.withdrawn_ids.is_subset(&compact.withdrawn_ids) {
-            return invalid(
-                "catalog compact listing removed an authenticated historical withdrawal",
-            );
+        if !prior.withdrawn_ids.is_subset(withdrawals) {
+            return invalid(if carrier == "compact" {
+                "catalog compact listing removed an authenticated historical withdrawal"
+            } else {
+                "catalog legacy-only listing return removed an authenticated compact withdrawal"
+            });
         }
     }
-    let floor = prior_compact.or(prior_legacy.map(|(legacy, _)| legacy));
     if let Some(next_legacy) = next.legacy.as_ref().filter(|_| next.compact.is_some()) {
         let Some((legacy, prior)) = prior_legacy else {
             return invalid("catalog compact publication needs authenticated legacy history");
@@ -96,7 +117,7 @@ pub(super) fn check_listings(
                     "catalog compact publication must preserve its last legacy listing bytes",
                 );
             }
-            super::bundle::check_legacy_withdrawal(prior, &proposal[LEGACY_TARGET])?;
+            super::bundle::check_legacy_successor(prior, &proposal[LEGACY_TARGET])?;
         }
     }
     if let Some(floor) = floor
