@@ -3227,9 +3227,11 @@ derivation version and a provenance (`reviewed` for an exactly listed artifact,
 `inherited` when every compared part equals a reviewed or inherited baseline's,
 which says nothing about content outside those parts, else `unreviewed`). The
 field is additive, does not change the manifest schema version and grants
-nothing. Core stores it as untyped JSON and parses it only when it is read: a
-record with another derivation version, or with a part, status or reason this
-build does not know, reads as no record and never makes the manifest, its
+nothing. Installs record components only and write derivation version 1 (the
+component rules version), so earlier builds keep reading them; this build reads
+versions 1 and 2. Core stores it as untyped JSON and parses it only when it is
+read: a record with a derivation version outside that range, or with a part,
+status or reason this build does not know, reads as no record and never makes the manifest, its
 verification, launch checks or rollback fail. Manifest rewrites, such as an
 archive-data admission, carry the stored value unchanged. An active
 installation's recorded shape is eligible as a local fallback baseline when the

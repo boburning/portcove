@@ -152,8 +152,11 @@ impl FactSource {
 #[serde(deny_unknown_fields)]
 pub struct PlayerCandidate {
     pub path: String,
-    /// The PE/ELF/Mach-O machine in the `0x%04x` form package player
-    /// observations record; absent when the source recorded only a path.
+    /// The machine its PE, ELF or Mach-O header names, for example
+    /// `pe-x86-64`, `elf64-x86-64`, `macho-arm64` or
+    /// `macho-universal-arm64+x86-64`; an unnamed machine keeps its raw
+    /// number, for example `pe-0x01c2`. Absent when the source recorded only
+    /// a path.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub machine: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -668,9 +671,26 @@ pub(crate) fn player_candidates(programs: &[String]) -> Vec<PlayerCandidate> {
 }
 
 /// The claim a reviewed exact package observation makes, if one applies.
+///
+/// Shape version 2 entries record the players derived from the reviewed bytes,
+/// with machine and digest. When any applicable entry predates them, the
+/// claim keeps the version 1 path-only rule and names version 1.
 pub(crate) fn structured_claim(port: &crate::PortDefinition, sha256: &str) -> Option<RoleClaim> {
-    let (shape_version, platforms, programs) =
-        crate::package_shape::reviewed_archive_programs(port, sha256)?;
+    crate::package_shape::reviewed_archive(port, sha256)
+        .map(|archive| archive_claim(archive, sha256))
+}
+
+/// The claim one reviewed archive observation makes.
+pub(crate) fn archive_claim(
+    archive: crate::package_shape::ReviewedArchive,
+    sha256: &str,
+) -> RoleClaim {
+    let crate::package_shape::ReviewedArchive {
+        shape_version,
+        platforms,
+        programs,
+        players,
+    } = archive;
     let os = platforms
         .iter()
         .map(|platform| TargetOs::of(*platform))
@@ -693,8 +713,8 @@ pub(crate) fn structured_claim(port: &crate::PortDefinition, sha256: &str) -> Op
             }
         })
         .unwrap_or(TargetArch::Unknown);
-    let players = player_candidates(&programs);
-    Some(RoleClaim {
+    let players = players.unwrap_or_else(|| player_candidates(&programs));
+    RoleClaim {
         source: FactSource::ExactReleaseStructured {
             shape_version,
             archive_sha256: sha256.to_owned(),
@@ -707,7 +727,7 @@ pub(crate) fn structured_claim(port: &crate::PortDefinition, sha256: &str) -> Op
         os,
         arch,
         players,
-    })
+    }
 }
 
 /// The claim the catalog's reviewed selectors make for the asset they choose.

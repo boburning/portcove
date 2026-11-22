@@ -462,3 +462,55 @@ async fn a_manifest_without_a_shape_reads_as_no_record() {
             .contains_key("package_shape")
     );
 }
+
+#[tokio::test]
+async fn installs_keep_writing_version_one_records_and_read_both_component_versions() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let installer = Installer::new(library.clone()).unwrap();
+    install(
+        &installer,
+        &library,
+        "v1",
+        &["sample-game.exe", "config.ini"],
+    )
+    .await;
+    // Installs derive components only, so earlier Portcove builds keep
+    // reading what this build records.
+    let record = recorded(&installer, "v1");
+    assert_eq!(
+        record.shape_version,
+        crate::package_shape::COMPONENT_RULES_VERSION
+    );
+    assert_eq!(record.shape_version, 1);
+    let original = install_record(&library, "v1");
+    for (version, status) in [
+        (1, InstalledShapeStatus::Recorded),
+        (
+            crate::package_shape::SHAPE_VERSION,
+            InstalledShapeStatus::Recorded,
+        ),
+        (
+            crate::package_shape::SHAPE_VERSION + 1,
+            InstalledShapeStatus::Unrecognized,
+        ),
+        (0, InstalledShapeStatus::Unrecognized),
+    ] {
+        let mut value = serde_json::to_value(&record).unwrap();
+        value["shape_version"] = serde_json::json!(version);
+        let rewritten = rewrite_manifest(&original, |manifest| {
+            manifest.insert("package_shape".into(), value.clone());
+        });
+        library.update_install_manifest(&rewritten).unwrap();
+        let shapes = installer.installed_package_shapes("sample").unwrap();
+        assert_eq!(shapes[0].status, status, "{version}");
+        assert_eq!(
+            installer
+                .local_shape_baseline(&sample_definition(), Platform::WindowsX86_64)
+                .unwrap()
+                .is_some(),
+            status == InstalledShapeStatus::Recorded,
+            "{version}"
+        );
+    }
+}

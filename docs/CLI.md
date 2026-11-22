@@ -687,7 +687,9 @@ bundle uses the installer’s bounded reader with file links disabled. This
 applies only to routes whose embedded definition declares that capability.
 The command returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
-`shape_version`, the derived `shape`, its `provenance`, the
+`shape_version`, the derived `shape`, its `player_candidates` (path, header
+machine and SHA-256; [CATALOG](CATALOG.md#package-shape-player-candidates)),
+its `provenance`, the
 `derivation_inputs_sha256` of the embedded catalog facts it derived with
 (absent for a route outside the embedded catalog) and a comparison `verdict`
 against the embedded generated table or explicit fingerprint

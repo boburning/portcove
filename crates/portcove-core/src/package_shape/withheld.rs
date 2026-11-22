@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use super::{
-    LocalBaseline, PackageShape, PackageShapeRecord, SHAPE_VERSION, ShapeVerdict,
-    derivation_inputs_sha256, evaluate, withholds_release,
+    COMPONENT_RULES_VERSION, LocalBaseline, PackageShape, PackageShapeRecord, ShapeVerdict,
+    derivation_inputs_sha256, evaluate, readable_shape_version, withholds_release,
 };
 use crate::{
     ArtifactIdentity, Library, Platform, PortDefinition, PortcoveError, ReleaseChannel,
@@ -75,7 +75,7 @@ pub(crate) fn record(
         return Ok(());
     };
     let observation = Observation {
-        shape_version: SHAPE_VERSION,
+        shape_version: COMPONENT_RULES_VERSION,
         capability,
         candidate_key,
         shape_inputs: shape_inputs(port, platform)?,
@@ -116,7 +116,7 @@ pub(crate) fn current(
     crate::path::refuse_symlink_ancestors(&path)?;
     let observation: Observation =
         serde_json::from_slice(&crate::path::read_bounded_regular(&path, MAX_BYTES)?)?;
-    if observation.shape_version != SHAPE_VERSION
+    if !readable_shape_version(observation.shape_version)
         || observation.capability != capability
         || observation.candidate_key != candidate_key
         || observation.shape_inputs != shape_inputs(port, platform)?
@@ -183,7 +183,7 @@ mod tests {
             version: "1.0.0".into(),
             sha256: "a".repeat(64),
             record: PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(shape),
                 provenance: ShapeProvenance::Reviewed,
                 verdict: ShapeVerdict::Unknown {
@@ -246,7 +246,7 @@ mod tests {
             &release,
             capability,
             &PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(changed.clone()),
                 provenance,
                 verdict,
@@ -423,7 +423,7 @@ mod tests {
             &release,
             old.capability,
             &PackageShapeRecord {
-                shape_version: SHAPE_VERSION,
+                shape_version: COMPONENT_RULES_VERSION,
                 shape: Some(new_drift),
                 provenance,
                 verdict,

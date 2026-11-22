@@ -7638,8 +7638,11 @@ export interface ArtifactFact {
  */
 export interface PlayerCandidate {
   /**
-   * The PE/ELF/Mach-O machine in the `0x%04x` form package player
-   * observations record; absent when the source recorded only a path.
+   * The machine its PE, ELF or Mach-O header names, for example
+   * `pe-x86-64`, `elf64-x86-64`, `macho-arm64` or
+   * `macho-universal-arm64+x86-64`; an unnamed machine keeps its raw
+   * number, for example `pe-0x01c2`. Absent when the source recorded only
+   * a path.
    */
   machine?: string | null;
   path: string;
