@@ -288,6 +288,8 @@ async function main(argv: string[]) {
         "output-parent",
         "original-input-checkpoint",
         "observer-cli",
+        "game-lifecycle-directory",
+        "game-lifecycle-expectation",
       ].map((name) => [name, { type: "string" as const }]),
     ),
   });
@@ -296,8 +298,56 @@ async function main(argv: string[]) {
     if (typeof value !== "string" || !value) throw new Error(`--${key} is required`);
     return value;
   };
+  if (command === "inspect-game-lifecycle") {
+    const directory = path.resolve(requireString("game-lifecycle-directory"));
+    const expectation = path.resolve(requireString("game-lifecycle-expectation"));
+    const { readBoundedPublicBuildInputFile } = await import("./release-public-build-inputs.mts");
+    const { verifyAttestedGameLifecycle } = await import("./game-lifecycle-receipt.mts");
+    const document: unknown = JSON.parse(
+      (
+        await readBoundedPublicBuildInputFile(
+          path.dirname(expectation),
+          path.basename(expectation),
+          8192,
+        )
+      ).toString("utf8"),
+    );
+    if (
+      !isRecord(document) ||
+      typeof document.preparation_sha256 !== "string" ||
+      typeof document.executable_sha256 !== "string" ||
+      typeof document.check_plan_sha256 !== "string" ||
+      typeof document.run_id !== "string" ||
+      typeof document.run_attempt !== "number" ||
+      typeof document.job_id !== "string" ||
+      typeof document.source_commit !== "string" ||
+      typeof document.selected_at !== "number" ||
+      document.platform !== "windows-x86-64"
+    )
+      throw new Error("Review requires an exact game lifecycle expectation");
+    const receipt = await verifyAttestedGameLifecycle(directory, {
+      preparation_sha256: document.preparation_sha256,
+      executable_sha256: document.executable_sha256,
+      check_plan_sha256: document.check_plan_sha256,
+      run_id: document.run_id,
+      run_attempt: document.run_attempt,
+      job_id: document.job_id,
+      source_commit: document.source_commit,
+      selected_at: document.selected_at,
+      platform: document.platform,
+      now: Math.floor(Date.now() / 1000),
+    });
+    process.stdout.write(`${JSON.stringify(receipt)}
+`);
+    return;
+  }
   if (command !== "project" && command !== "prepare")
-    throw new Error("expected project or prepare");
+    throw new Error("expected project, prepare or inspect-game-lifecycle");
+  if (
+    values["game-lifecycle-directory"] !== undefined ||
+    values["game-lifecycle-expectation"] !== undefined
+  )
+    throw new Error("Game lifecycle verification cannot authorize catalog publication");
   const id = requireString("port");
   const deadline = performance.now() + 90_000;
   const checkpointPath = values["original-input-checkpoint"];

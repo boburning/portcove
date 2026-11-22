@@ -26,7 +26,8 @@ type AttestationScope =
   | "application-controller"
   | "application-package"
   | "application-assembly"
-  | "application-native";
+  | "application-native"
+  | "game-lifecycle";
 function attestationWorkflow(scope: AttestationScope) {
   if (scope === "release") return workflow;
   if (scope === "application-controller") return ".github/workflows/application-release.yml";
@@ -34,9 +35,16 @@ function attestationWorkflow(scope: AttestationScope) {
   if (scope === "application-package") return ".github/workflows/application-release-package.yml";
   if (scope === "application-assembly") return ".github/workflows/application-release-assembly.yml";
   if (scope === "application-native") return ".github/workflows/application-release-native.yml";
+  if (scope === "game-lifecycle") return ".github/workflows/game-lifecycle-qualification.yml";
   throw new Error("unknown source attestation scope");
 }
 export const releaseProcessPredicate = "https://slsa.dev/provenance/v1";
+export const gameLifecyclePredicate =
+  "https://github.com/boburning/portcove/attestations/game-lifecycle/v1";
+
+function predicateFor(scope: AttestationScope | undefined) {
+  return scope === "game-lifecycle" ? gameLifecyclePredicate : releaseProcessPredicate;
+}
 
 /** Pure interpretation has no authentication authority. Only the direct gh
  * verification below establishes the signature; each consumer still checks its
@@ -46,6 +54,8 @@ export function inspectReleaseSourceAttestation(
   expected: ReleaseSourceAttestationExpectation,
   scope: AttestationScope = "release",
 ) {
+  if (scope === "game-lifecycle" && expected.ref !== "refs/heads/main")
+    throw new Error("game lifecycle attestation requires protected main");
   // Native failed-only reruns can legitimately attest the same original bytes
   // in another attempt. Select the explicitly expected authenticated attempt;
   // duplicate attestations for that exact identity still refuse as ambiguous.
@@ -54,7 +64,8 @@ export function inspectReleaseSourceAttestation(
       scope === "application-controller" ||
       scope === "application-package" ||
       scope === "application-assembly" ||
-      scope === "application-native") &&
+      scope === "application-native" ||
+      scope === "game-lifecycle") &&
     Array.isArray(raw) &&
     raw.length > 1
   ) {
@@ -120,7 +131,7 @@ export function inspectReleaseSourceAttestation(
     .sort((a, b) => a.name.localeCompare(b.name));
   if (
     statement._type !== "https://in-toto.io/Statement/v1" ||
-    statement.predicateType !== releaseProcessPredicate ||
+    statement.predicateType !== predicateFor(scope) ||
     !isDeepStrictEqual(subjects, wanted) ||
     !isRecord(statement.predicate)
   )
@@ -155,7 +166,9 @@ export async function verifyReleaseSourceAttestation(
           "refs/tags/portcove-upstream-rehearsal-20261104r4",
           upstreamRehearsalExecutionRef,
         ].includes(expected.ref)
-      : /^refs\/tags\/[A-Za-z0-9._/-]{1,192}$/u.test(expected.ref)) ||
+      : options.scope === "game-lifecycle"
+        ? expected.ref === "refs/heads/main"
+        : /^refs\/tags\/[A-Za-z0-9._/-]{1,192}$/u.test(expected.ref)) ||
     expected.subjects.length < 1 ||
     expected.subjects.length > 8
   )
@@ -190,7 +203,7 @@ export async function verifyReleaseSourceAttestation(
         "https://token.actions.githubusercontent.com",
         "--deny-self-hosted-runners",
         "--predicate-type",
-        releaseProcessPredicate,
+        predicateFor(options.scope),
         "--limit",
         "5",
         "--format",

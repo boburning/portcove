@@ -12,6 +12,7 @@ import {
   inspectReleaseSourceAttestation,
   verifyReleaseSourceAttestation,
   releaseProcessPredicate,
+  gameLifecyclePredicate,
   upstreamRehearsalExecutionRef,
 } from "./release-source-attestation.mts";
 
@@ -415,4 +416,38 @@ void test("timed-out attestation cannot publish complete-looking partial proof",
   await assert.rejects(access(path.join(directory, "source-attestation-verification.json")), {
     code: "ENOENT",
   });
+});
+
+void test("game lifecycle attestations are confined to their appointed main workflow and predicate", () => {
+  const game = { ...expected, ref: "refs/heads/main" };
+  const good = fixture();
+  const { signature, statement } = good[0]!.verificationResult;
+  signature.certificate.buildSignerURI =
+    "https://github.com/boburning/portcove/.github/workflows/game-lifecycle-qualification.yml@refs/heads/main";
+  signature.certificate.sourceRepositoryRef = game.ref;
+  statement.predicateType = gameLifecyclePredicate;
+  assert.equal(inspectReleaseSourceAttestation(good, game, "game-lifecycle").authority, "none");
+  assert.throws(() => inspectReleaseSourceAttestation(good, game, "application-native"));
+  assert.throws(() => inspectReleaseSourceAttestation(good, expected, "game-lifecycle"));
+  for (const change of [
+    {
+      buildSignerURI: signature.certificate.buildSignerURI.replace(
+        "game-lifecycle-qualification",
+        "application-release-native",
+      ),
+    },
+    { runnerEnvironment: "self-hosted" },
+    {
+      runInvocationURI: signature.certificate.runInvocationURI.replace(
+        "/attempts/2",
+        "/attempts/3",
+      ),
+    },
+  ]) {
+    const wrong = structuredClone(good);
+    Object.assign(wrong[0]!.verificationResult.signature.certificate, change);
+    assert.throws(() => inspectReleaseSourceAttestation(wrong, game, "game-lifecycle"));
+  }
+  statement.predicateType = releaseProcessPredicate;
+  assert.throws(() => inspectReleaseSourceAttestation(good, game, "game-lifecycle"));
 });

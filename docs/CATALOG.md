@@ -2978,6 +2978,16 @@ protected run, job, check, attempt and source revision to verified report
 bytes recording the successor package integrity and tested lifecycle
 transition. The app-release hosted-native attestation describes Portcove
 itself. It supplies no reviewed game-lifecycle producer or game proof.
+The protected-main appointment is limited to the dedicated game lifecycle
+workflow. Regular application release qualification keeps its own authority.
+Inspect an original game receipt, exact Core preparation bytes and its
+independently reviewed expectation using
+`node scripts/catalog-prepare-publication.mts inspect-game-lifecycle
+--game-lifecycle-directory DIR --game-lifecycle-expectation FILE`.
+This read-only route verifies the exact named signer, original hosted native
+job, check plan, executable and bounded phase evidence. It grants no package
+or catalog authority. A successful immutable receipt stays historical. The
+active claim follows the current scoped selector and newer contrary evidence.
 A released reader must verify the game contract before publication. A player
 label requires a fresh successful scoped selector result and must expire after
 a later failed operation, withdrawal or scope change. Prior local update
