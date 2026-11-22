@@ -1,13 +1,25 @@
 import { captureParityState } from "../../test/parity-capture";
 import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { currentCatalogPort } from "../catalog-test-fixtures";
-import { failureReport, portDefinition } from "../test-fixtures";
-import type { InstallRecord, ManagedRouteChangePreview } from "../types";
+import { catalogEntries } from "../features/browsing/catalog-entry";
+import { canOpenInstalledResult } from "../features/operations/invocation-state";
+import { InvocationOwnerProvider } from "../features/operations/invocation-owner";
+import {
+  OperationPresentationProvider,
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
+import { useOperationState } from "../features/operations/use-operation-state";
+import { failureReport, portDefinition, portStatus } from "../test-fixtures";
+import type { InstallRecord, ManagedRouteChangePreview, PortStatus } from "../types";
 import { gameIdentityLabel } from "../port-identity";
 import { ManagedRouteChangeControl } from "./ManagedRouteChange";
+import { ExternalRuntimeControl } from "./ExternalRuntime";
+import { ListingDetailPanel } from "./ListingDetailPanel";
+import { StatusLayer } from "./Chrome";
 
 const port = { ...portDefinition(), adapter: "native-portable" as const };
 const installation: InstallRecord = {
@@ -122,6 +134,221 @@ it("reviews a separate managed copy before consent and leaves Play explicit", as
   expect(changed).toHaveBeenCalledOnce();
   expect(remove).not.toHaveBeenCalled();
   expect(launch).not.toHaveBeenCalled();
+});
+
+const externalStatus = { ...portStatus(), external_runtime: preview.current_registration };
+it("opens the managed-copy review from the registered listing's Game files", async () => {
+  const [entry] = catalogEntries(
+    { schema_version: 2, ports: [port] },
+    {
+      format_version: 1,
+      listings: [
+        {
+          id: port.id,
+          name: port.name,
+          summary: port.summary,
+          project_url: port.project_url,
+          platforms: port.platforms,
+          availability: "unknown",
+        },
+      ],
+    },
+    [
+      {
+        port_id: port.id,
+        status: externalStatus,
+        actions: [{ action: "launch", allowed: true }],
+      },
+    ],
+    [],
+  );
+  const apply = vi.spyOn(desktopApi, "changeToManagedRuntime");
+  await root.rerender(
+    <ListingDetailPanel
+      entry={entry!}
+      status={externalStatus}
+      generation={7}
+      perform={vi.fn()}
+      onChanged={vi.fn()}
+      close={vi.fn()}
+    />,
+  );
+  await page.getByRole("tab", { name: "Game files", exact: true }).click();
+  const review = page.getByRole("button", { name: "Review a Portcove-managed copy…" });
+  await expect.element(review).toBeVisible();
+  await review.click();
+  await expect.element(page.getByRole("button", { name: "Create managed copy" })).toBeEnabled();
+  expect(desktopApi.previewManagedRouteChange).toHaveBeenCalledExactlyOnceWith(port.id, 7);
+  expect(apply).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
+  await expect.element(review).toHaveFocus();
+});
+
+const startedWorkspaceReadRevision = () => 1;
+
+function Workspace({
+  status,
+  revision,
+  refresh,
+  open,
+}: {
+  status: PortStatus;
+  revision: number;
+  refresh: () => Promise<unknown>;
+  open: () => void;
+}) {
+  const operations = useOperationState({
+    refresh,
+    libraryGeneration: 7,
+    workspaceReadRevision: revision,
+    workspaceStatuses: [status],
+    startedWorkspaceReadRevision,
+  });
+  return (
+    <OperationPresentationProvider
+      generation={7}
+      pending={operations.pendingOperations}
+      unreadInstallPorts={operations.unreadInstallPorts}
+      unreadManagedRoutePorts={operations.unreadManagedRoutePorts}
+      perform={operations.perform}
+    >
+      <ExternalRuntimeControl
+        port={port}
+        status={status}
+        generation={7}
+        busy={false}
+        onChanged={refresh}
+      />
+      <LaunchReadback status={status} />
+      <StatusLayer
+        invocations={operations.invocations}
+        clearError={() => operations.setError(undefined)}
+        reviewCurrentState={refresh}
+        openInstalledGame={(result) =>
+          canOpenInstalledResult(result, status, 7, undefined, operations.unreadInstallPorts)
+            ? open
+            : undefined
+        }
+      />
+    </OperationPresentationProvider>
+  );
+}
+
+function LaunchReadback({ status }: { status: PortStatus }) {
+  const launch = presentPortAction(useOperationPresentation(), port.id, status, "launch");
+  return (
+    <>
+      <button disabled={Boolean(launch.busy)}>Play current installation</button>
+      {launch.installReadbackRequired && <p>Current installation is awaiting readback.</p>}
+    </>
+  );
+}
+
+it("retains the managed copy through failed readback and opens only the exact current copy", async () => {
+  const apply = vi.spyOn(desktopApi, "changeToManagedRuntime").mockResolvedValue({
+    installation,
+    previous_registration: preview.current_registration,
+    external_files_preserved: true,
+  });
+  const refresh = vi.fn().mockRejectedValueOnce(new Error("Library read interrupted"));
+  const open = vi.fn();
+  const workspace = (status: PortStatus, revision: number) => (
+    <InvocationOwnerProvider>
+      <Workspace status={status} revision={revision} refresh={refresh} open={open} />
+    </InvocationOwnerProvider>
+  );
+
+  await root.rerender(workspace(externalStatus, 1));
+  await page.getByRole("button", { name: "Review a Portcove-managed copy…" }).click();
+  await page.getByRole("button", { name: "Create managed copy" }).click();
+  const result = page.getByText("Created a managed copy of " + gameIdentityLabel(port) + " · v2");
+  await expect.element(result).toBeVisible();
+  await expect.element(page.getByText(/finished, but Portcove couldn’t refresh/)).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Play current installation" }))
+    .toBeDisabled();
+  await expect
+    .element(page.getByRole("button", { name: "Review a Portcove-managed copy…" }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("button", { name: "Open game" })).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Refresh library" }).click();
+  expect(refresh).toHaveBeenCalledTimes(2);
+
+  await root.rerender(
+    workspace({ ...portStatus(), active: { ...installation, id: "other-copy" } }, 2),
+  );
+  await expect.element(result).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "Open game" })).not.toBeInTheDocument();
+  await root.rerender(workspace({ ...portStatus(), active: installation }, 3));
+  await page.getByRole("button", { name: "Open game" }).click();
+  expect(open).toHaveBeenCalledOnce();
+  expect(apply).toHaveBeenCalledExactlyOnceWith(port.id, preview.preview_sha256, 7);
+});
+
+it("holds the old launch route when Core reports a committed copy without a receipt", async () => {
+  const error = failureReport();
+  error.presentation.mutation_state = "committed";
+  const apply = vi.spyOn(desktopApi, "changeToManagedRuntime").mockRejectedValue(error);
+  const refresh = vi.fn().mockResolvedValue(undefined);
+  await root.rerender(
+    <InvocationOwnerProvider>
+      <Workspace status={externalStatus} revision={1} refresh={refresh} open={vi.fn()} />
+    </InvocationOwnerProvider>,
+  );
+  await page.getByRole("button", { name: "Review a Portcove-managed copy…" }).click();
+  await page.getByRole("button", { name: "Create managed copy" }).click();
+  await expect
+    .element(page.getByText("Your change was saved. Check the result before trying again."))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Play current installation" }))
+    .toBeDisabled();
+  await expect.element(page.getByRole("button", { name: "Open game" })).not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Refresh library" }).click();
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(apply).toHaveBeenCalledOnce();
+});
+
+it("requires readback after a lost reply without fabricating an installation receipt", async () => {
+  const apply = vi
+    .spyOn(desktopApi, "changeToManagedRuntime")
+    .mockRejectedValue(new Error("Native reply interrupted"));
+  const refresh = vi.fn().mockResolvedValue(undefined);
+  const open = vi.fn();
+  const workspace = (revision: number, status: PortStatus = externalStatus) => (
+    <InvocationOwnerProvider>
+      <Workspace status={status} revision={revision} refresh={refresh} open={open} />
+    </InvocationOwnerProvider>
+  );
+
+  await root.rerender(workspace(1));
+  await page.getByRole("button", { name: "Review a Portcove-managed copy…" }).click();
+  await page.getByRole("button", { name: "Create managed copy" }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Play current installation" }))
+    .toBeDisabled();
+  await expect
+    .element(page.getByRole("button", { name: "Review a Portcove-managed copy…" }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByText(/Created a managed copy/)).not.toBeInTheDocument();
+  await expect.element(page.getByText(/restart Portcove before using it/)).toBeVisible();
+  await page.getByRole("button", { name: "Refresh library" }).click();
+  await root.rerender(workspace(2));
+  await expect.element(page.getByText("Current installation is awaiting readback.")).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Review a Portcove-managed copy…" }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("button", { name: "Play current installation" }))
+    .toBeDisabled();
+  await root.rerender(workspace(3, { ...portStatus(), active: installation }));
+  await expect
+    .element(page.getByRole("button", { name: "Play current installation" }))
+    .toBeEnabled();
+  await expect.element(page.getByRole("button", { name: "Open game" })).not.toBeInTheDocument();
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(apply).toHaveBeenCalledOnce();
 });
 
 it.each(["windows-x86-64", "linux-x86-64"] as const)(

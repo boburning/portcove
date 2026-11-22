@@ -1506,6 +1506,11 @@ visible alongside new events during the next bounded batch. Fresh scans, stale
 snapshots and restart-required checkpoints do not carry matches into the live
 view. These observations still require ordinary registration and Core plan
 revalidation; continuing a scan grants no additional setup authority.
+The same workspace retains the last completed one-off search for its exact
+folder and file profile. Reviewing it opens the completed report without
+another search. The Inbox and saved folders have separate results. Reopened
+matches require a fresh Core import plan for the same identity before any
+registration. Changing libraries discards the retained one-off report.
 Desktop also keeps an ephemeral selection of up to 512 independent ports (the
 Core batch bound) for setup review within the current library workspace.
 "Select all eligible" adds every currently reviewable port except ports that
@@ -4397,6 +4402,11 @@ host's secure-storage key; ordinary copying does not mint another host's trust.
 The UI reports metadata export only, never a verified backup or a manual checkbox
 as verification. Existing content-bound import checks publication into a new/empty
 destination; Move separately switches authority and retains its original tree.
+The Desktop metadata export checks the starting library generation after the
+save picker returns. A support report from Settings checks the generation of the
+diagnostics snapshot it collects. Settings retains the last confirmed library information
+export and support report while navigating in the same library generation.
+Opening Settings again uses the saved receipt and does not rerun either export.
 Profile/workspace presentation state cannot change these Core guarantees.
 
 The manual-copy guide must also disclose host-local version credentials before

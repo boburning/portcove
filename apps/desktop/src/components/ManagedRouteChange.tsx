@@ -3,11 +3,16 @@ import { useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../localization";
 import { desktopApi } from "../api";
+import {
+  requiresManagedRouteReadback,
+  targetInvocationContext,
+} from "../features/operations/invocation-state";
+import { useOperationPresentation } from "../features/operations/operation-presentation";
 import { gameIdentityLabel } from "../port-identity";
 import { authoredManagedSetupReview } from "../features/browsing/managed-setup-review";
 import type { PortDefinition } from "../types";
 import { useActionReview } from "../use-action-review";
-import { failurePresentation, formatBytes, platformLabel } from "../view-model";
+import { formatBytes, platformLabel } from "../view-model";
 import { ActionReviewFailure } from "./ActionReviewFailure";
 import { OutputLocationControl } from "./OutputLocation";
 import { ReleaseChannelControl } from "./ReleaseChannel";
@@ -18,7 +23,7 @@ type Props = {
   port: PortDefinition;
   generation: number;
   busy: boolean;
-  onChanged?: (() => void) | undefined;
+  onChanged?: (() => void | Promise<unknown>) | undefined;
 };
 
 export function ManagedRouteChangeControl(props: Props) {
@@ -41,22 +46,57 @@ function useManagedRouteChangeDialog({
   close,
 }: Props & { close: () => void }) {
   const { t } = useAppTranslation("installation");
+  const owner = useOperationPresentation();
   const cancel = useRef<HTMLButtonElement>(null);
   const descriptionId = useId();
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [optionsApplying, setOptionsApplying] = useState(false);
-  const { preview, pending, error, review, execute, dismiss } = useActionReview({
+  const { preview, pending, error, failurePhase, review, execute, dismiss } = useActionReview({
     identity: JSON.stringify([port.id, generation]),
     load: () => desktopApi.previewManagedRouteChange(port.id, generation),
     apply: async (review) => {
-      await desktopApi.changeToManagedRuntime(port.id, review.preview_sha256, generation);
-      onChanged?.();
-      return true;
+      const task = async () => {
+        const receipt = await desktopApi.changeToManagedRuntime(
+          port.id,
+          review.preview_sha256,
+          generation,
+        );
+        if (!receipt?.installation?.id || receipt.installation.port_id !== port.id)
+          throw new Error(t("managedRoute.failure"));
+        return receipt;
+      };
+      if (!owner?.perform) {
+        await task();
+        void onChanged?.();
+        return true;
+      }
+      const action = t("managedRoute.create");
+      const result = await owner.perform(action, task, {
+        ...(onChanged
+          ? {
+              invalidateDiagnostics: false,
+              refresh: async (receipt) => {
+                if (receipt) await onChanged();
+              },
+            }
+          : {}),
+        context: {
+          ...targetInvocationContext(
+            action,
+            { kind: "port", id: port.id, label: gameIdentityLabel(port) },
+            generation,
+          ),
+          operation: "change_managed_route",
+        },
+        installedResult: (receipt) => receipt.installation,
+        propagateFailure: true,
+      });
+      return result !== undefined;
     },
     close,
     failureMessage: t("managedRoute.failure"),
   });
-  const committed = failurePresentation(error)?.mutation_state === "committed";
+  const needsReadback = failurePhase === "apply" && requiresManagedRouteReadback(error);
   const preservesExternalData =
     preview?.external_files_will_be_preserved === true &&
     preview.external_data_will_be_copied === false;
@@ -77,7 +117,7 @@ function useManagedRouteChangeDialog({
     review,
     execute,
     dismiss,
-    committed,
+    needsReadback,
     preservesExternalData,
   };
 }
@@ -115,7 +155,7 @@ function ManagedRouteChangeDialogView({
         </DialogDescription>
         {model.pending === "review" && <p role="status">{t("managedRoute.checking")}</p>}
         {<ManagedRoutePreview {...{ model }} />}
-        {!model.committed && (
+        {!model.needsReadback && (
           <details onToggle={(event) => model.setOptionsOpen(event.currentTarget.open)}>
             <summary data-focusable className="cursor-pointer">
               {t("managedRoute.options")}
@@ -166,11 +206,11 @@ function ManagedRouteChangeDialogView({
           >
             {t("managedRoute.cancel")}
           </Button>
-          {model.committed ? (
+          {model.needsReadback ? (
             <Button
               data-focusable
               onClick={() => {
-                model.onChanged?.();
+                void model.onChanged?.();
                 model.close();
               }}
             >
