@@ -60,7 +60,16 @@
         }
       ]
     },
-    "download_block_reason": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "Use a complete copy you already have permission to use. The release packages include original Cave Story data whose distribution permission still needs verification.",
+        "tracking_issue": 2647
+      }
+    ],
     "original_game": {
       "format_version": 1,
       "id": "cave-story",

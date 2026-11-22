@@ -19,7 +19,16 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Bloody Roar II",
-    "download_block_reason": "Fresh package acquisition remains held pending exact notice-complete artifact qualification. The retained v0.7.0 ZIP omitted project/consolidated notices; the newer v0.7.1 is not assumed notice-complete. Register only a permitted noncommercial prepared copy with applicable project/framework/component notices. No original-game redistribution is authorized.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "legacy-rights-review",
+        "explanation": "Fresh package acquisition remains held pending exact notice-complete artifact qualification. The retained v0.7.0 ZIP omitted project/consolidated notices; the newer v0.7.1 is not assumed notice-complete. Register only a permitted noncommercial prepared copy with applicable project/framework/component notices. No original-game redistribution is authorized.",
+        "tracking_issue": 827
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

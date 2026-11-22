@@ -7,7 +7,7 @@
 use std::path::Path;
 
 use crate::{
-    Adapter, Catalog, DefinitionOperation, InstallQualification, InstallRecord, Installer,
+    Catalog, DefinitionOperation, InstallQualification, InstallRecord, Installer,
     OperationCoordinator, Platform, PortDefinition, PortcoveError, Result, SourceRecord,
     definition_eligibility::DefinitionOperationContext, operation::LifecycleFaultPoint,
 };
@@ -22,6 +22,7 @@ pub(super) struct ManagedLaunchInputs {
     /// A registered optional game source was changed or unreadable, so this launch
     /// proceeds without it and unpacks nothing.
     optional_source_skipped: bool,
+    n64_input_proof: Option<crate::source_inspection::N64ReleaseInputProof>,
 }
 
 impl PortcoveService {
@@ -58,9 +59,12 @@ impl PortcoveService {
                 "launch installation belongs to another port",
             ));
         }
-        let catalog = self.installed_catalog(active)?;
+        self.managed_install_root(&active.port_id, &active.path)?;
+        let retained = Installer::new(self.library.clone())?.retained_catalog(active)?;
+        let has_retained = retained.is_some();
+        let catalog = self.installed_catalog_or_fallback(active, retained)?;
         let port = catalog.port(&active.port_id)?;
-        crate::install::check_retained_runtime_paths(active, &active.path)?;
+        crate::install::check_retained_launch_destination(active, &active.path)?;
         self.require_installed_shared_preferences(active)?;
         self.require_ghostship_install_data_compatibility(active, None)?;
         crate::runtime_path_policy::check_user_data_root(
@@ -86,6 +90,19 @@ impl PortcoveService {
         crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let self_contained = crate::preparation::self_contained_launch(&self.library, port, active);
+        let release = (active.version.as_str(), active.artifact.sha256.as_str());
+        let n64_input_required = has_retained
+            && crate::source_inspection::n64_release_input(&catalog, &port.id, release).is_some();
+        let migrated_n64 = has_retained && self.uses_migrated_n64_original(&catalog, port);
+        let verify_migrated_original = |source: &SourceRecord| {
+            crate::source_inspection::verify_saved_n64_original(
+                &catalog,
+                &port.id,
+                source,
+                release,
+                &mut crate::source_inspection::n64_input_hash_budget(&checkpoint),
+            )
+        };
         let mut optional_source_skipped = false;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
@@ -101,9 +118,12 @@ impl PortcoveService {
             if let Some(binding) = self.pinned_original(&port.id, profile_id, &active.id)? {
                 crate::profile_originals::require_original_bytes(&binding, &source)?;
             }
+            if migrated_n64 && !n64_input_required {
+                verify_migrated_original(&source)?;
+            }
             checkpoint()?;
             Some(source)
-        } else if self_contained {
+        } else if self_contained && !n64_input_required {
             // The installed data holds every game input; the original is
             // needed only to repair, rebuild or prepare again.
             None
@@ -111,7 +131,22 @@ impl PortcoveService {
             let source = self
                 .pinned_original(&port.id, profile, &active.id)
                 .and_then(|binding| match binding {
-                    Some(binding) => self.registered_profile_original(&binding).map(Some),
+                    Some(binding) => {
+                        let source = self.registered_profile_original(&binding)?;
+                        if migrated_n64 && !n64_input_required {
+                            verify_migrated_original(&source)?;
+                        }
+                        Ok(Some(source))
+                    }
+                    None if migrated_n64 => self
+                        .resolve_saved_n64_original(
+                            &catalog,
+                            &port.id,
+                            profile,
+                            release,
+                            &checkpoint,
+                        )
+                        .map(Some),
                     None => self.library.source(profile),
                 })
                 .and_then(|source| match source {
@@ -122,7 +157,13 @@ impl PortcoveService {
                         Ok(None)
                     }
                     Some(record) => {
-                        Self::verify_source_record_with_checkpoint(&catalog, &record, &checkpoint)?;
+                        if !migrated_n64 {
+                            Self::verify_source_record_with_checkpoint(
+                                &catalog,
+                                &record,
+                                &checkpoint,
+                            )?;
+                        }
                         Ok(Some(record))
                     }
                     None => Ok(None),
@@ -146,6 +187,17 @@ impl PortcoveService {
                 }
                 Err(error) => return Err(error),
             }
+        } else {
+            None
+        };
+        let n64_input_proof = if n64_input_required {
+            crate::source_inspection::verify_n64_release_input(
+                &catalog,
+                &port.id,
+                source.as_ref(),
+                release,
+                &checkpoint,
+            )?
         } else {
             None
         };
@@ -200,6 +252,7 @@ impl PortcoveService {
             source,
             bios,
             optional_source_skipped,
+            n64_input_proof,
         })
     }
 
@@ -275,6 +328,7 @@ impl PortcoveService {
             source,
             bios,
             optional_source_skipped,
+            n64_input_proof,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
         self.require_selected_loader_for_install(active)?;
@@ -313,7 +367,7 @@ impl PortcoveService {
                     events(disc_unpack_event(operation, phase, completed, total));
                 }
             };
-        let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
+        let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_n64_input(
             crate::LaunchSpecRequest {
                 library: &self.library,
                 port,
@@ -324,6 +378,7 @@ impl PortcoveService {
                 source_record: source.as_ref(),
                 disc_progress: Some(crate::adapter::DiscProgressSink(&report_disc)),
             },
+            n64_input_proof.as_ref(),
             &checkpoint,
         )?;
         if active.port_id == "ghostship" && active.version == "2.0.0" && !spec.arguments.is_empty()
@@ -337,10 +392,29 @@ impl PortcoveService {
             spec.environment.remove("SHIP_HOME");
             self.require_ghostship_legacy_runtime_archive(active, &spec.working_directory)?;
         }
+        if let Some(proof) = n64_input_proof {
+            let path = crate::adapter::runtime_source_path(
+                port,
+                &spec.working_directory,
+                &self.library.user_dir(&port.id),
+            )
+            .ok_or_else(|| PortcoveError::state("N64 release input omitted its runtime file"))?;
+            proof.require_materialized(&path, &checkpoint)?;
+        }
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;
         if let Some(source) = &source {
-            Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
+            if self.uses_migrated_n64_original(&catalog, port) {
+                crate::source_inspection::verify_saved_n64_original(
+                    &catalog,
+                    &port.id,
+                    source,
+                    (&active.version, &active.artifact.sha256),
+                    &mut crate::source_inspection::n64_input_hash_budget(&checkpoint),
+                )?;
+            } else {
+                Self::verify_source_record_with_checkpoint(&catalog, source, &checkpoint)?;
+            }
         }
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;

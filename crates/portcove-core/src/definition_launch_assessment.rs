@@ -392,6 +392,7 @@ impl Library {
                     PortcoveError::state("launch assessment authority has no replay floor")
                 })?;
         accepted.provenance.check_advance(&floor)?;
+        let floor_current = accepted.provenance.matches_authority_floor(&floor);
         let established =
             established_revision(&transaction, &document.namespace, &document.stable_id)?;
         let previous: Option<(String, String, String)> = transaction.query_row(
@@ -428,7 +429,7 @@ impl Library {
                     "launch assessment replay or equivocation",
                 ));
             }
-            document == &prior && accepted.provenance == provenance && accepted.provenance == floor
+            document == &prior && accepted.provenance == provenance && floor_current
         } else {
             if established > 0 || !prior_inventory.1.is_empty() {
                 return Err(PortcoveError::state(
@@ -510,11 +511,13 @@ impl Library {
             document_json=excluded.document_json,provenance_json=excluded.provenance_json,
             inventory_sha256=excluded.inventory_sha256",
             params![document.namespace, document.stable_id, bytes, provenance, inventory_sha256])?;
-        transaction.execute(
-            "UPDATE definition_publisher_authority SET replay_floor_json=?1
-            WHERE anchor_sha256=?2",
-            params![provenance, accepted.provenance.anchor_sha256],
-        )?;
+        if !floor_current {
+            transaction.execute(
+                "UPDATE definition_publisher_authority SET replay_floor_json=?1
+                WHERE anchor_sha256=?2",
+                params![provenance, accepted.provenance.anchor_sha256],
+            )?;
+        }
         accepted.provenance.require_fresh()?;
         grant_provenance.require_fresh()?;
         transaction.execute(

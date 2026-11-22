@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
+import type { AuditContinuation } from "./hosted-discovery-intake-runner.mts";
 import type { HostedCandidateSlot, HostedStatusAll } from "./hosted-discovery-intake.mts";
 
 export interface HostedIntakeGap {
@@ -20,12 +21,42 @@ export interface HostedIntakeGap {
   message: string;
 }
 
+type ReceiptReconciliationPhase = "read-plans" | "record-receipts" | "verify-recorded";
+
+export class ReceiptReconciliationFailure extends Error {
+  readonly phase: ReceiptReconciliationPhase;
+  readonly reason: "executor-role-denied" | "store-error" | "readback-mismatch" | "unexpected";
+
+  constructor(phase: ReceiptReconciliationPhase, error: unknown) {
+    const reason =
+      error === null
+        ? "readback-mismatch"
+        : error instanceof MaintenanceStoreError
+          ? /permission denied to set role "portcove_maintenance_executor"/u.test(error.message)
+            ? "executor-role-denied"
+            : "store-error"
+          : "unexpected";
+    super(`Original intake receipt reconciliation failed during ${phase} (${reason})`);
+    this.phase = phase;
+    this.reason = reason;
+  }
+}
+
 export interface HostedIntakeObservation {
   revision: string;
   failed: boolean;
   expected: number | null;
   facts: ReadonlyMap<string, unknown>;
   gaps: HostedIntakeGap[];
+  auditContinuations?: AuditContinuation[];
+  receipts?: {
+    status: "unavailable" | "failed" | "passed";
+    inspected?: number;
+    completed?: unknown[];
+    phase?: ReceiptReconciliationPhase;
+    reason?: ReceiptReconciliationFailure["reason"] | "proof-pending";
+    pending?: number;
+  };
 }
 
 /** One stored request fact, as the report reads it. */
@@ -139,15 +170,65 @@ export function hostedIntakeFacts(read: HostedStatusAll) {
  * read or budget failure are a failed run with one gap: nothing is observed,
  * so every prior fact stays current.
  */
+export function retainHostedIntakeHandoffs(observation: HostedIntakeObservation) {
+  observation.gaps.push({
+    subject_key: failedSubject,
+    code: "intake-receipt-fence",
+    message:
+      "Original intake receipts were not reconciled against this queue revision. The next collection retries.",
+  });
+}
+
 export async function hostedIntakeObservation(
   read: () => Promise<HostedStatusAll>,
+  reconcile?: (
+    snapshot: HostedStatusAll,
+  ) => Promise<{ inspected: number; completed: unknown[]; pending?: number }>,
 ): Promise<HostedIntakeObservation> {
   try {
-    return { failed: false, ...hostedIntakeFacts(await read()) };
+    const queue = await read();
+    const observation: HostedIntakeObservation = { failed: false, ...hostedIntakeFacts(queue) };
+    if (!reconcile) return observation;
+    // Trusted retry tickets belong to individual requests in this complete
+    // queue read. An unrelated malformed receipt cannot park a valid audit.
+    observation.auditContinuations = queue.requests.flatMap((row) =>
+      "error" in row || row.withdrawn || row.superseded_by.length || !row.audit_retry
+        ? []
+        : [row.audit_retry],
+    );
+    if (observation.gaps.length) return { ...observation, receipts: { status: "unavailable" } };
+    try {
+      const receipts = await reconcile(queue);
+      if (!receipts.pending) return { ...observation, receipts: { status: "passed", ...receipts } };
+      retainHostedIntakeHandoffs(observation);
+      return {
+        ...observation,
+        receipts: { status: "failed", reason: "proof-pending", ...receipts },
+      };
+    } catch (error) {
+      // Keep the original operation current so the next complete read can retry.
+      // Unrelated sources and all positively observed native facts still commit.
+      observation.gaps.push({
+        subject_key: failedSubject,
+        code: "receipt-reconciliation",
+        message:
+          "Original maintenance handoff receipts could not be verified and recorded. The next collection retries.",
+      });
+      return {
+        ...observation,
+        receipts: {
+          status: "failed",
+          ...(error instanceof ReceiptReconciliationFailure
+            ? { phase: error.phase, reason: error.reason }
+            : { reason: "unexpected" as const }),
+        },
+      };
+    }
   } catch (error) {
     const changed = (error as { code?: unknown } | null)?.code === "inventory_changed";
     return {
       revision: changed ? "hosted-intake:inventory-changed" : "hosted-intake:unavailable",
+      ...(reconcile ? { receipts: { status: "unavailable" as const } } : {}),
       failed: true,
       expected: null,
       facts: new Map(),
@@ -170,7 +251,10 @@ export async function hostedIntakeObservation(
 }
 
 /** The complete read-only status read, GET-only within the executor's request budget. */
-export async function readHostedIntake(): Promise<HostedStatusAll> {
+export async function readHostedIntake(
+  checkpointEnvironment?: NodeJS.ProcessEnv,
+  repositoryToken?: string,
+): Promise<HostedStatusAll> {
   const { hostedStatusAll, readOnlyHostedBridge } = await import("./hosted-discovery-intake.mts");
   const { localDeveloperCredential } = await import("./github-cli.mts");
   const { validateConfig } = await import("./roadmap.mts");
@@ -179,10 +263,18 @@ export async function readHostedIntake(): Promise<HostedStatusAll> {
   );
   const deadline = performance.now() + 120_000;
   const bridge = await readOnlyHostedBridge(config, {
-    credential: localDeveloperCredential({ deadline, command: process.env.PORTCOVE_ROADMAP_GH }),
+    credential: localDeveloperCredential({
+      ...(repositoryToken ? { environment: { GH_TOKEN: repositoryToken } } : {}),
+      deadline,
+      command: process.env.PORTCOVE_ROADMAP_GH,
+    }),
     deadline,
   });
-  return await hostedStatusAll(bridge);
+  const { postgresIntakeCheckpoints } = await import("./hosted-discovery-intake-checkpoint.mts");
+  return await hostedStatusAll(
+    bridge,
+    checkpointEnvironment ? postgresIntakeCheckpoints(checkpointEnvironment) : undefined,
+  );
 }
 
 const stored = (payload: unknown) => payload as HostedIntakeFact | null | undefined;

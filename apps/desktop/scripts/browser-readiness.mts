@@ -125,3 +125,14 @@ export function observeVisibleTarget(selector: string, policy: "semantic" | "vis
     ),
   };
 }
+
+/** Wait for the existing renderer's responsive restoration before one explicit reveal. */
+export function observeCollectionLayoutReady() {
+  return Array.from(
+    globalThis.document.querySelectorAll<HTMLElement>("[data-virtual-collection]"),
+  ).every(
+    (collection) =>
+      collection.dataset.collectionLayoutPending === "false" &&
+      Number(collection.dataset.collectionLayoutWidth) === collection.getBoundingClientRect().width,
+  );
+}

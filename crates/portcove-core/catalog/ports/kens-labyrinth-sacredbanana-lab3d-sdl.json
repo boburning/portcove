@@ -20,7 +20,16 @@
     "availability": "packages",
     "setup_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
     "release_url": "https://github.com/sacredbanana/lab3d-sdl/releases/tag/4.4.0",
-    "download_block_reason": "The publisher packages include game data from several original releases. Use the setup guide for a copy you already have. Portcove can offer downloads after the bundled game data is cleared for these packages.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "bundled-game-data",
+        "explanation": "The publisher packages include game data from several original releases. Use the setup guide for a copy you already have. Portcove can offer downloads after the bundled game data is cleared for these packages.",
+        "tracking_issue": 6129
+      }
+    ],
     "manual_setup": {
       "help_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
       "steps": [

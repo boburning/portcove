@@ -480,7 +480,12 @@ mod tests {
             match failure {
                 "rate" => responses.push("HTTP/1.1 403 Forbidden\r\nx-ratelimit-limit: 60\r\nx-ratelimit-remaining: 0\r\nx-ratelimit-reset: 2000000000\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()),
                 "network" => responses.push("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()),
-                _ => for page in 0..GITHUB_MAX_RELEASE_PAGES { responses.push(response(&history((page * PROVIDER_PAGE_SIZE + 1) as u64, PROVIDER_PAGE_SIZE as u64))); },
+                // A long stable history keeps being read; a failure after the
+                // former 1,000-release bound is still never a preview fallback.
+                _ => {
+                    for page in 0..GITHUB_MAX_RELEASE_PAGES { responses.push(response(&history((page * PROVIDER_PAGE_SIZE + 1) as u64, PROVIDER_PAGE_SIZE as u64))); }
+                    responses.push("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into());
+                }
             }
             let count = responses.len();
             let (root, requests, server) = serve_http(responses);
@@ -489,11 +494,7 @@ mod tests {
                 .catalog_download_options("owner/game", None, ReleaseChannel::Beta, None, &[])
                 .await
                 .unwrap_err();
-            if failure == "bound" {
-                assert!(error.message.contains("1000-release bound"), "{error}");
-            } else {
-                assert_eq!(error.code, crate::ErrorCode::Network);
-            }
+            assert_eq!(error.code, crate::ErrorCode::Network, "{failure}: {error}");
             if failure == "rate" {
                 assert_eq!(
                     error.details.get("rate_remaining").map(String::as_str),

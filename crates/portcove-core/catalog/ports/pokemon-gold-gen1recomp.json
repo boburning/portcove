@@ -26,16 +26,20 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Open the official player",
-          "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          "title": "Get the official player",
+          "instruction": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle."
         },
         {
           "title": "Import your original",
-          "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Gold ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          "instruction": "Use your own canonical US English 2 MiB Pokémon Gold Game Boy Color ROM, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly."
+        },
+        {
+          "title": "Add the game and play",
+          "instruction": "On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=gold as its own argument."
         },
         {
           "title": "Keep your game data",
-          "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          "instruction": "The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
         }
       ],
       "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
@@ -43,7 +47,6 @@
         "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
       ]
     },
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "original_game": {
       "format_version": 1,
       "id": "pokemon-gold",
@@ -51,7 +54,17 @@
         "https://github.com/bryanthaboi/gen1recomp#readme",
         "https://github.com/bryanthaboi/gen1recomp"
       ],
-      "source_editions": []
+      "source_editions": [
+        {
+          "id": "pokemon-gold-game-boy-color",
+          "title": "Pokémon Gold (Game Boy Color)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/README.md",
+            "https://github.com/bryanthaboi/gen1recomp/blob/v0.4.8/docs/guides/launch-options.md"
+          ]
+        }
+      ]
     }
   },
   "upstream_lineage": {
@@ -65,5 +78,24 @@
       }
     },
     "decisions": []
-  }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "adapter": "staged-source-portable",
+    "automated_tested_platforms": [],
+    "manually_validated_platforms": [],
+    "release": {
+      "provider": "user-prepared",
+      "repository": "bryanthaboi/gen1recomp"
+    },
+    "presentation": {
+      "installation_method": "user-prepared-runtime",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "Obtain the official upstream release. On Windows x64 extract the entire Windows ZIP. On Linux x86-64 make the official AppImage executable. On either Mac architecture extract and keep the complete gen1recomp.app bundle. Use your own canonical US English 2 MiB Pokémon Gold Game Boy Color ROM, SHA-1 d8b8a3600a465308c9953dfa04f0081c05bdcb94. Import it with the upstream player and verify it has accepted this edition. The upstream player validates the ROM. Import may start the game directly. On Windows select gen1recomp.exe and its containing folder. On Linux select the AppImage and its containing folder. On Mac select Contents/MacOS/love and the Contents/MacOS folder. Review the one literal argument --game=gold and save the registration. Start the selected player with Play. Gen II gameplay is in development upstream. On Linux without FUSE, add --appimage-extract-and-run before --game=gold as its own argument. The upstream player owns import, runtime replacement and the shared profile. Keep your original separate and retain imports, saves, settings, mods and the actual shared profile locations. Removal clears the Portcove registration only. Launch and update Flatpak and mobile copies through upstream."
+    }
+  },
+  "external_registration_v1": true
 }

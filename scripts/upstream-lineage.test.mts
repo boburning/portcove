@@ -11,6 +11,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
 import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
+import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { preparePort } from "./prepare-port.mts";
 import {
   assessUpstreamLineage,
@@ -342,7 +343,9 @@ void test("real retained decisions preserve Star Fox history and release authori
   // Resolve recipes that require the reviewed origin while it is still available.
   // This comparison checks the resulting catalog and directory without lineage.
   const legacy = authored.records.map((record) => {
-    const { upstream_lineage: _lineage, ...explicit } = projectOpenMohaaPortable(record);
+    const { upstream_lineage: _lineage, ...explicit } = projectOpenXPortable(
+      projectOpenMohaaPortable(record),
+    );
     return explicit;
   });
   const withoutMetadata = assembleCatalogRecords(shared, legacy);

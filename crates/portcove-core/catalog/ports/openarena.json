@@ -20,7 +20,16 @@
     "availability": "packages",
     "release_url": "https://sourceforge.net/projects/oarena/files/",
     "setup_url": "https://sourceforge.net/projects/oarena/files/",
-    "download_block_reason": "Use the complete publisher ZIP or the Linux distribution package. These players are installed and updated outside Portcove.",
+    "restrictions": [
+      {
+        "id": "download",
+        "effect": "hold",
+        "operations": ["download"],
+        "reason": "upstream-owned-route",
+        "explanation": "Use the complete publisher ZIP or the Linux distribution package. These players are installed and updated outside Portcove.",
+        "tracking_issue": 6385
+      }
+    ],
     "manual_setup": {
       "steps": [
         {

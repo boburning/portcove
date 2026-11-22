@@ -550,6 +550,49 @@ async function readPages(pages: readonly unknown[]) {
   return client.itemList(1);
 }
 
+void test("exact Project item hydration is bounded and refuses a different Project or archived result", async () => {
+  const ids = Array.from({ length: 11 }, (_, i) => `PVTI_${i + 1}`);
+  const batches: number[] = [];
+  let wrongProject = false;
+  let archived = false;
+  let unordered = false;
+  const client = await sdkRoadmap(config, {
+    graphql(query, variables) {
+      assert.match(query, /DoctorProjectItemDetails/u);
+      assert.match(query, /fieldValues/u);
+      assert.match(query, /blockedBy/u);
+      const selected = variables.ids as string[];
+      batches.push(selected.length);
+      const nodes = selected.map((id) => ({
+        ...draft(Number(id.slice(5))),
+        project: { id: wrongProject ? "OTHER" : "PVT" },
+        isArchived: archived,
+      }));
+      return { nodes: unordered ? nodes.reverse() : nodes };
+    },
+  });
+  const read = () =>
+    client.itemList(1, {
+      details: { id: "PVT" },
+      itemIds: ids,
+      includeDependencies: true,
+      includeItemRevision: true,
+    });
+  assert.deepEqual(
+    (await read()).map((r) => r.id),
+    ids,
+  );
+  assert.deepEqual(batches, [10, 1]);
+  wrongProject = true;
+  await assert.rejects(read, /changed identity/u);
+  wrongProject = false;
+  archived = true;
+  await assert.rejects(read, /changed identity/u);
+  archived = false;
+  unordered = true;
+  await assert.rejects(read, /changed identity/u);
+});
+
 void test("GraphQL Project item pagination preserves full content and normalized fields", async () => {
   const first = {
     id: "I1",

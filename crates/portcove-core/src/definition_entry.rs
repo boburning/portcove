@@ -154,7 +154,7 @@ impl DefinitionContentIndex {
         self.verify_content(indexed.target(), bytes)?;
         let value: strict_json::UniqueValue = serde_json::from_slice(bytes)?;
         let document: EntryDocument = serde_json::from_value(value.0)?;
-        if !matches!(document.definition_schema, 1 | 2) {
+        if !matches!(document.definition_schema, 1 | 2 | 3) {
             return Err(PortcoveError::unsupported(
                 "unsupported definition entry schema",
             ));
@@ -173,10 +173,19 @@ impl DefinitionContentIndex {
                 "entry port identity or complete typed projection is invalid",
             ));
         }
-        if port.upstream_active_reviewed && document.definition_schema != 2 {
+        if port.upstream_active_reviewed && document.definition_schema < 2 {
             return Err(PortcoveError::unsupported(
                 "a reviewed active project requires indexed definition schema 2",
             ));
+        }
+        crate::profile_loader::validate(&port)?;
+        if port.mod_loader.is_some() && document.definition_schema != 3 {
+            return Err(PortcoveError::verification(
+                "native mod loader bindings require indexed definition schema 3",
+            ));
+        }
+        if let Some(settings) = &port.game_settings {
+            settings.validate_port(&port)?;
         }
         crate::provider_binding::validate(&port)?;
         port.release.validate_github_streams(&port.platforms)?;
@@ -197,16 +206,14 @@ impl DefinitionContentIndex {
         }
         let adapter = serde_json::to_value(port.adapter)?;
         crate::managed_runtime_policy::validate_exact_exclusions(&port)?;
-        if crate::managed_runtime_policy::has_exact_exclusions(&port)
+        if let Some((template, minimum)) =
+            crate::managed_runtime_policy::exact_exclusion_capability(&port)
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable"
-                    && requirement.minimum_version
-                        >= crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+                requirement.template == template && requirement.minimum_version >= minimum
             })
         {
             return Err(PortcoveError::verification(format!(
-                "exact release exclusions require staged-source capability version {}",
-                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+                "exact release exclusions require {template} capability version {minimum}"
             )));
         }
         if (!retained && !port.reviewed_package_layouts.is_empty())

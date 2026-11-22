@@ -181,3 +181,48 @@ void test("public summary command fails without exposing a malformed report", ()
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+void test("open handoffs count current operations and keep incomplete evidence unknown", () => {
+  const summary = (handoffs: unknown) =>
+    renderMaintenancePublicSummary({ ...report(), handoffs }, usage, digest);
+  const row = (id: string, operation: unknown) => ({
+    subject_key: `handoff:${id}`,
+    sequence: 1,
+    assessment_id: 9,
+    updated_at: "2026-11-19T18:00:00.000001+00:00",
+    operation,
+  });
+  const op = {
+    operation_id: privateInput,
+    executor: privateInput,
+    fence_sequence: 1,
+    fence_assessment_id: 9,
+    revision: 2,
+    state: "planned",
+  };
+  const rows = [
+    row("a", null),
+    row("b", op),
+    row("c", { ...op, state: "dispatched" }),
+    row("d", { ...op, state: "ambiguous" }),
+    row("e", { ...op, fence_sequence: 2 }),
+    row("f", { ...op, fence_assessment_id: null }),
+  ];
+  const rendered = summary(rows);
+  assert.match(
+    rendered,
+    /6 open maintenance handoffs: 1 without an open operation, 1 planned, 1 dispatched, 1 ambiguous, and 2 with an operation/,
+  );
+  assert.match(rendered, /updated 6.0 h ago/);
+  assert.doesNotMatch(rendered, /private.invalid/);
+  assert.match(summary([]), /0 open maintenance handoffs/);
+  for (const invalid of [
+    undefined,
+    [...rows, rows[0]],
+    [row("bad", {})],
+    [row("bad", { ...op, state: "complete" })],
+    [{ ...row("future", null), updated_at: "2026-12-01T00:00:00Z" }],
+  ]) {
+    assert.match(summary(invalid), /Open maintenance handoff counts are unknown/);
+  }
+});

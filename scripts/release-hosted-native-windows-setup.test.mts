@@ -646,10 +646,13 @@ $type=[Portcove.NativeQualification.AccountLauncher].Assembly.GetType('Portcove.
 $flags=[Reflection.BindingFlags]'NonPublic,Static'
 $open=$type.GetMethod('OpenProcessToken',$flags);$check=$type.GetMethod('GrantedRights',$flags);$close=$type.GetMethod('CloseHandle',$flags)
 $identity=[Security.Principal.WindowsIdentity]::GetCurrent();$sid=$identity.User.Value
-$arguments=[object[]]@([Diagnostics.Process]::GetCurrentProcess().Handle,[uint32]8,[IntPtr]::Zero)
-if(-not $open.Invoke($null,$arguments)){throw 'Actual query-only primary token open failed'}
-$token=$arguments[2]
+$currentProcess=[Diagnostics.Process]::GetCurrentProcess();$token=[IntPtr]::Zero
 try{
+ $arguments=[object[]]@($currentProcess.Handle,[uint32]8,[IntPtr]::Zero)
+ # Exercise finalization before the native call while its Process owner retains the handle.
+ [GC]::Collect();[GC]::WaitForPendingFinalizers()
+ if(-not $open.Invoke($null,$arguments)){throw 'Actual query-only primary token open failed'}
+ $token=$arguments[2]
  $observe=$type.GetMethod('ReadTokenObservation',$flags)
  $snapshot=$observe.Invoke($null,@($token));$brokerSnapshot=[Portcove.NativeQualification.AccountLauncher]::ObserveBrokerToken()
  if($snapshot.IntegritySid -cnotmatch '^S-1-16-[0-9]+$' -or $snapshot.IntegritySid -cne $brokerSnapshot.IntegritySid -or $snapshot.MandatoryPolicy -ne $brokerSnapshot.MandatoryPolicy){throw 'Query-only token integrity/policy observations differ'}
@@ -670,7 +673,7 @@ try{
  }
  $refused=$false;try{$check.Invoke($null,[object[]]@($bytes,[IntPtr]::Zero,$false))|Out-Null}catch{$refused=$true}
  if(-not $refused){throw 'Unavailable token gained ambient evaluator authority'}
-}finally{$close.Invoke($null,@($token))|Out-Null;$identity.Dispose()}
+}finally{if($token -ne [IntPtr]::Zero){$close.Invoke($null,@($token))|Out-Null};$identity.Dispose();$currentProcess.Dispose()}
 'actual AuthzAccessCheck query-only primary-token controls passed; no object mutation'
 `);
     assert.match(result, /actual AuthzAccessCheck query-only primary-token controls passed/u);

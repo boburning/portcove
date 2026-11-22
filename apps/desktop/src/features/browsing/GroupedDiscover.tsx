@@ -25,10 +25,11 @@ import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwo
 import { ExternalLink } from "../../components/ExternalLink";
 import { CapabilityNoticeScope } from "../../components/PortCapabilities";
 import { LaunchBehaviorStages } from "../../components/LaunchBehaviorStages";
+import { ReleaseWithdrawalBadge } from "../../components/ReleaseWithdrawal";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../components/ui/dialog";
-import { gameIdentityLabel, gameProjectLabel, gameTitle } from "../../port-identity";
+import { gameIdentityLabel, gameProjectLabel } from "../../port-identity";
 import {
   platformLabel,
   installationMethodLabel,
@@ -40,10 +41,20 @@ import { IdentityIcon } from "../identity/IdentityIcon";
 import { identityLabel, identityStyle } from "../identity/identity-style";
 import { availablePlatforms } from "./catalog-entry";
 import type { CatalogEntry } from "./catalog-entry";
-import type { NativeSourceDragState } from "../../native-source-drop";
+import type {
+  ExactNativeSourceDrop,
+  NativeSourceGameDrop,
+  NativeSourceDragState,
+} from "../../native-source-drop";
 import { browsePortPresentation } from "../port-actions/browse-presentation";
 import { BrowsePortObservationsContent } from "../port-actions/BrowsePortObservations";
-import { groupCatalog, originalSystems, type GameGroup } from "./original-game";
+import {
+  gameGroupPresentationPort,
+  gameGroupTitle,
+  groupCatalog,
+  originalSystems,
+  type GameGroup,
+} from "./original-game";
 import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
 import { resolveGameChoice } from "./game-choice";
 
@@ -105,7 +116,13 @@ export function GroupedDiscover({
   restoreAfter,
   nativeSourceDrag = idleNativeSourceDrag,
   devicePlatform,
+  pendingGameDrop,
+  onGameDropSelect,
+  onGameDropDismiss,
 }: {
+  pendingGameDrop?: NativeSourceGameDrop | undefined;
+  onGameDropSelect?: ((drop: ExactNativeSourceDrop) => void) | undefined;
+  onGameDropDismiss?: (() => void) | undefined;
   resultsReady?: boolean | undefined;
   queryKey?: string | undefined;
   /** Known only when Core reports this device; otherwise platforms stay listed. */
@@ -126,11 +143,16 @@ export function GroupedDiscover({
   const descriptionPrefix = useId();
   const [comparisonSelection, setComparison] = useState<GameGroup>();
   const [comparisonPin, setComparisonPin] = useState<string>();
+  const dropComparison =
+    resultsReady && pendingGameDrop
+      ? groups.find((group) => group.id === pendingGameDrop.gameId)
+      : undefined;
   const comparison =
-    comparisonSelection &&
-    groupCatalog(all, all).find((group) =>
-      group.ports.some((port) => port.id === comparisonSelection.ports[0]?.id),
-    );
+    dropComparison ??
+    (comparisonSelection &&
+      groupCatalog(all, all).find((group) =>
+        group.ports.some((port) => port.id === comparisonSelection.ports[0]?.id),
+      ));
   const owner = useOperationPresentation();
   const comparisonObservationKey = JSON.stringify([
     comparison?.ports,
@@ -155,32 +177,62 @@ export function GroupedDiscover({
     | undefined
   >(undefined);
   const dialogRoot = useRef<HTMLDivElement>(null);
-  const comparisonIntent = useRef({ active: false });
-  const currentIntent = comparisonIntent.current;
+  const comparisonId = comparison?.id;
+  const intentBinding = useMemo(
+    () => [comparisonSelection, pendingGameDrop, comparisonId, owner?.generation] as const,
+    [comparisonSelection, pendingGameDrop, comparisonId, owner?.generation],
+  );
+  const currentIntent = useMemo(() => ({ active: Boolean(intentBinding[2]) }), [intentBinding]);
+  const comparisonIntent = useRef(currentIntent);
+  useLayoutEffect(() => {
+    comparisonIntent.current = currentIntent;
+    return () => {
+      currentIntent.active = false;
+    };
+  }, [currentIntent]);
   const heading = useRef<HTMLHeadingElement>(null);
   const leaving = useRef(false);
-  // Cards are memoized, so these handlers keep their identity until something a
-  // card shows changes; otherwise every search or filter change re-renders every card.
-  const compare = useCallback(
-    (group: GameGroup, trigger: HTMLButtonElement) => {
-      const card = trigger.closest<HTMLElement>("[data-detail-return-group]");
+  const handledDrop = useRef<NativeSourceGameDrop | undefined>(undefined);
+  const rememberOrigin = useCallback(
+    (groupKey: string, trigger: HTMLButtonElement | null) => {
+      const card = trigger?.closest<HTMLElement>("[data-detail-return-group]");
       origin.current = {
-        collection: trigger.closest<HTMLElement>("[data-virtual-collection]"),
-        groupKey: group.id,
-        originKey: trigger.dataset.detailOrigin,
-        controlKey: trigger.dataset.collectionControl,
-        controlIndex: card ? focusableControls(card).indexOf(trigger) : -1,
+        collection: trigger?.closest<HTMLElement>("[data-virtual-collection]") ?? null,
+        groupKey,
+        originKey: trigger?.dataset.detailOrigin,
+        controlKey: trigger?.dataset.collectionControl,
+        controlIndex: card && trigger ? focusableControls(card).indexOf(trigger) : -1,
         generation: owner?.generation,
         queryKey,
       };
-      comparisonIntent.current = { active: true };
+    },
+    [owner?.generation, queryKey],
+  );
+  // Cards are memoized, so these handlers keep their identity until something a
+  // card shows changes.
+  const compare = useCallback(
+    (group: GameGroup, trigger: HTMLButtonElement) => {
+      if (!resultsReady) return;
+      rememberOrigin(group.id, trigger);
+      comparisonIntent.current.active = false;
       leaving.current = false;
       setComparisonPin(group.id);
       setComparison(group);
     },
-    [owner?.generation, queryKey],
+    [rememberOrigin, resultsReady],
   );
   useLayoutEffect(() => {
+    if (handledDrop.current !== pendingGameDrop) {
+      handledDrop.current = pendingGameDrop;
+      if (pendingGameDrop) {
+        const trigger = document.querySelector<HTMLButtonElement>(
+          `[data-detail-return-group="${CSS.escape(pendingGameDrop.gameId)}"] .discover-game-identity`,
+        );
+        rememberOrigin(pendingGameDrop.gameId, trigger);
+        leaving.current = false;
+        return;
+      }
+    }
     const saved = origin.current;
     if (!saved || (saved.generation === owner?.generation && saved.queryKey === queryKey)) return;
     comparisonIntent.current.active = false;
@@ -188,7 +240,8 @@ export function GroupedDiscover({
     origin.current = undefined;
     setComparison(undefined);
     setComparisonPin(undefined);
-  }, [owner?.generation, queryKey]);
+    if (pendingGameDrop) onGameDropDismiss?.();
+  }, [onGameDropDismiss, owner?.generation, pendingGameDrop, queryKey, rememberOrigin]);
   useLayoutEffect(() => {
     if (!comparisonPin) return;
     const release = (event: FocusEvent) => {
@@ -211,9 +264,20 @@ export function GroupedDiscover({
       comparisonIntent.current.active = false;
       leaving.current = true;
       setComparison(undefined);
+      onGameDropDismiss?.();
       onSelect(port.id, originKey);
     },
-    [onSelect],
+    [onSelect, onGameDropDismiss],
+  );
+  const reviewDroppedFiles = useCallback(
+    (port: CatalogEntry, paths: readonly string[]) => {
+      if (!port.source_profile || !onGameDropSelect) return;
+      comparisonIntent.current.active = false;
+      leaving.current = true;
+      setComparison(undefined);
+      onGameDropSelect({ portId: port.id, profileId: port.source_profile, paths: [...paths] });
+    },
+    [onGameDropSelect],
   );
   return (
     <>
@@ -223,7 +287,7 @@ export function GroupedDiscover({
         groups={groups}
         layout={layout}
         generation={owner?.generation}
-        overlayPin={comparisonPin}
+        overlayPin={dropComparison?.id ?? comparisonPin}
         label={t("discover.label")}
       >
         {(group, index) => (
@@ -236,7 +300,7 @@ export function GroupedDiscover({
             showCompanion={layout === "covers"}
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
-            nativeSourceDrag={nativeSourceDrag}
+            nativeSourceDrag={resultsReady ? nativeSourceDrag : idleNativeSourceDrag}
             devicePlatform={devicePlatform}
             organization={organization}
             favorites={favorites}
@@ -254,7 +318,9 @@ export function GroupedDiscover({
         onOpenChange={(open) => {
           if (!open) {
             comparisonIntent.current.active = false;
+            if (dropComparison) setComparisonPin(dropComparison.id);
             setComparison(undefined);
+            onGameDropDismiss?.();
           }
         }}
       >
@@ -308,7 +374,7 @@ export function GroupedDiscover({
           {comparison && (
             <>
               <DialogTitle ref={heading} tabIndex={-1}>
-                {gameTitle(comparison.matchingPorts[0]!)}
+                {gameGroupTitle(comparison)}
               </DialogTitle>
               <DialogDescription>
                 {comparison.ports.length === 1
@@ -316,13 +382,17 @@ export function GroupedDiscover({
                   : t("discover.compare.several", { total: comparison.ports.length })}
               </DialogDescription>
               <FavoriteGameButton
-                port={comparison.matchingPorts[0]!}
+                port={gameGroupPresentationPort(comparison)}
                 groupPorts={comparison.ports}
                 favorites={favorites}
                 organization={organization}
               />
               <FavoritePreferenceFailure favorites={favorites} organization={organization} />
+              {dropComparison && <p className="my-3 text-sm">{t("discover.drop.choose")}</p>}
               <GameComparisonControls comparison={evidence} />
+              <p className="mb-4 text-xs text-pc-muted-foreground">
+                {t("discover.compare.optionsIntro")}
+              </p>
               <div className="port-comparison-grid">
                 {comparison.ports.map((port) => {
                   const status = statuses.get(port.id);
@@ -331,6 +401,15 @@ export function GroupedDiscover({
                   const describedBy =
                     observation.input || observation.setup ? descriptionId : undefined;
                   const dropEligible = sourceDropEligible(port, status, nativeSourceDrag);
+                  const canCheckDroppedFiles = Boolean(
+                    dropComparison &&
+                    pendingGameDrop &&
+                    onGameDropSelect &&
+                    sourceDropEligible(port, status, {
+                      active: true,
+                      pathCount: pendingGameDrop.paths.length,
+                    }),
+                  );
                   // With one port there is nothing to compare an absence against; rows
                   // without a value are omitted. Several ports keep every row aligned.
                   const single = comparison.ports.length === 1;
@@ -394,6 +473,21 @@ export function GroupedDiscover({
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-3">
+                        {canCheckDroppedFiles && pendingGameDrop && (
+                          <Button
+                            data-focusable
+                            variant="outline"
+                            onClick={() => reviewDroppedFiles(port, pendingGameDrop.paths)}
+                          >
+                            <Trans
+                              t={t}
+                              i18nKey="discover.drop.checkWith"
+                              components={{
+                                name: <bdi>{gameProjectLabel(port) || port.name}</bdi>,
+                              }}
+                            />
+                          </Button>
+                        )}
                         {comparison.ports.length > 1 && (
                           <ImplementationChoice
                             port={port}
@@ -403,8 +497,11 @@ export function GroupedDiscover({
                                 comparisonIntent.current === currentIntent &&
                                 currentIntent.active &&
                                 ownsChoiceFocus(trigger, dialogRoot.current)
-                              )
-                                open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`);
+                              ) {
+                                if (canCheckDroppedFiles && pendingGameDrop)
+                                  reviewDroppedFiles(port, pendingGameDrop.paths);
+                                else open(port, `catalog:card:${comparison.matchingPorts[0]!.id}`);
+                              }
                             }}
                           />
                         )}
@@ -588,27 +685,31 @@ function DiscoverGameCardView({
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
   const { t } = useAppTranslation("browsing");
-  const { first, actionGroup, status, exact, firstProject, projectLabel } = discoverCardIdentity(
-    t,
-    group,
-    statuses,
-    organization,
-    devicePlatform,
-  );
+  const { first, dropChosen, actionGroup, status, exact, firstProject, projectLabel } =
+    discoverCardIdentity(t, group, statuses, organization, devicePlatform);
+  const presentation = gameGroupPresentationPort(group);
+  const title = gameGroupTitle(group);
   const observation = browsePortPresentation(first, status, "catalog");
   const descriptionId = `${descriptionPrefix}:${encodeURIComponent(first.id)}`;
   const describedBy = exact && (observation.input || observation.setup) ? descriptionId : undefined;
-  const dropEligible =
-    group.ports.length === 1 && sourceDropEligible(first, status, nativeSourceDrag);
-  const dropTarget = dropEligible && nativeSourceDrag.targetPortId === first.id;
+  // A device-based click shortcut does not choose where dropped originals belong.
+  const dropEligible = Boolean(dropChosen) && sourceDropEligible(first, status, nativeSourceDrag);
+  const groupDropEligible =
+    !dropEligible &&
+    nativeSourceDrag.active &&
+    group.ports.some((port) => sourceDropEligible(port, statuses.get(port.id), nativeSourceDrag));
+  const dropTarget =
+    (dropEligible && nativeSourceDrag.targetPortId === first.id) ||
+    (groupDropEligible && nativeSourceDrag.targetGameId === group.id);
   const detailOrigin = `catalog:card:${first.id}`;
-  const { element: artworkElement, visible } = useArtworkVisibility();
-  const { display: artwork } = useArtwork(first.id, "cover", visible);
+  const { element: artworkElement, visible, priority } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(presentation.id, "cover", visible, priority);
   const companion = useCompanionCover(
-    first.id,
-    showCompanion ? first.presentation?.companion_cover?.image_sha256 : undefined,
+    presentation.id,
+    showCompanion ? presentation.presentation?.companion_cover?.image_sha256 : undefined,
     artwork,
     visible,
+    priority,
   );
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
@@ -620,16 +721,17 @@ function DiscoverGameCardView({
       aria-label={
         exact
           ? t("discover.cardLabel", {
-              game: gameIdentityLabel(first),
+              game: firstProject.trim() === title.trim() ? title : `${title} · ${firstProject}`,
               state: observation.state.label,
             })
           : t("discover.groupLabel", {
-              title: gameTitle(first),
+              title,
               count: group.ports.length,
               matching: group.matchingPorts.length,
             })
       }
       aria-describedby={describedBy}
+      data-source-drop-game-id={groupDropEligible ? group.id : undefined}
       data-source-drop-port-id={dropEligible ? first.id : undefined}
       data-source-drop-profile-id={dropEligible ? first.source_profile : undefined}
       data-discover-port-ids={JSON.stringify(group.ports.map((port) => port.id))}
@@ -648,14 +750,14 @@ function DiscoverGameCardView({
             ? undefined
             : group.ports.length > 1
               ? t("discover.identity.matching", {
-                  title: gameTitle(first),
+                  title,
                   project: projectLabel ?? "",
                   port: firstProject,
                   state: observation.state.label,
                   action: memberLabel(t, first, status),
                 })
               : t("discover.identity.single", {
-                  identity: projectLabel ? `${gameTitle(first)} ${projectLabel}` : gameTitle(first),
+                  identity: projectLabel ? `${title} ${projectLabel}` : title,
                   state: observation.state.label,
                   action: memberLabel(t, first, status),
                 })
@@ -668,21 +770,23 @@ function DiscoverGameCardView({
         <ArtworkFrame
           element={artworkElement}
           display={artwork}
-          portId={first.id}
+          portId={presentation.id}
           visible={visible}
+          priority={priority}
           companion={companion}
           identityArtwork
           className="collection-art"
         />
-        <h2 className="collection-title font-semibold">{gameTitle(first)}</h2>{" "}
+        <h2 className="collection-title font-semibold">{title}</h2>{" "}
         {projectLabel && (
           <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
         )}
       </Button>
+      {exact && <ReleaseWithdrawalBadge status={status} />}
       <div className="collection-personal-actions">
         <FavoriteGameButton
           card
-          port={first}
+          port={presentation}
           groupPorts={group.ports}
           organization={organization}
           favorites={favorites}
@@ -718,12 +822,16 @@ function DiscoverGameCardView({
         open={open}
         compare={compare}
       />
-      {dropEligible && (
+      {(dropEligible || groupDropEligible) && (
         <div
           aria-hidden="true"
           className="source-drop-target pointer-events-none absolute inset-0 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-3 text-center text-sm font-bold text-pc-action-foreground"
         >
-          {dropTarget ? t("discover.drop.release") : t("discover.drop.hover")}
+          {groupDropEligible
+            ? t("discover.drop.review")
+            : dropTarget
+              ? t("discover.drop.release")
+              : t("discover.drop.hover")}
         </div>
       )}
     </article>
@@ -801,6 +909,8 @@ function discoverCardIdentity(
   const firstProject = gameProjectLabel(first);
   return {
     first,
+    chosen,
+    dropChosen: choice.port,
     actionGroup: chosen ? { ...group, matchingPorts: [chosen] } : group,
     status: statuses.get(first.id),
     exact: Boolean(chosen) || group.matchingPorts.length === 1,
