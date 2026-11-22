@@ -2270,10 +2270,12 @@ sync tools are harmless. Portcove never overwrites or deletes files in the
 folder. Temporary files from interrupted copies are ignored; saves files that are
 damaged or do not match their name are ignored and listed under `problems`, and
 a damaged file under this device's own name is kept for inspection and the push
-is refused. Portcove reviews at most 256 saves files and 256 set-aside records per
-game and at most 256 MiB of saves files at once; beyond that `complete` is false,
-`next_step` is `incomplete`, and pulls from the folder are refused until older
-files are moved out (a saves file can still be imported directly).
+is refused. Push history has no saves-file count limit. Each status read newly
+verifies at most 256 MiB of saves files and remembers what it verified, so a
+longer history finishes over later reads: until then `complete` is false and
+`next_step` is `incomplete`. A pull continues reviewing until the history is
+complete. A folder holding more than 65,536 names of any kind is reported as
+incomplete (a saves file can still be imported directly).
 
 `folder-status` is read-only. It lists every saves file with its source version
 and platform, whether it matches this device's qualified game version
