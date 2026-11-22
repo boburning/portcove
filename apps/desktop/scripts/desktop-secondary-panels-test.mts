@@ -278,6 +278,25 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       const actionName = (await primaryAction.getText()).trim();
       assert.ok(actionName);
       let primary: { error: unknown } | undefined;
+      // Restore on both paths; only a passing scenario may fail on the restore.
+      const restoreScale = async () => {
+        try {
+          await shortcut("0");
+          await browser.wait(
+            () =>
+              executeBrowserScript(browser, () =>
+                ["100", null].includes(localStorage.getItem("portcove.appearance.interface-size")),
+              ),
+            10_000,
+          );
+        } catch (error) {
+          if (!primary) throw error;
+          console.error(
+            "Could not restore the interface size after the compact detail failure",
+            error,
+          );
+        }
+      };
       try {
         for (const scale of [125, 150, 175, 200, 250]) {
           await shortcut("+");
@@ -301,6 +320,8 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
             15_000,
             "The exact game must expose its narrow section picker",
           );
+          // browser.wait resolves only with the displayed picker, never with false.
+          assert.ok(trigger);
           assert.equal(await browser.findElement(By.css(".detail-tab-list")).isDisplayed(), false);
           await clickVisible(browser, trigger);
           const option = await browser.wait(
@@ -358,25 +379,10 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
         }
       } catch (error) {
         primary = { error };
+        await restoreScale();
         throw error;
-      } finally {
-        try {
-          await shortcut("0");
-          await browser.wait(
-            () =>
-              executeBrowserScript(browser, () =>
-                ["100", null].includes(localStorage.getItem("portcove.appearance.interface-size")),
-              ),
-            10_000,
-          );
-        } catch (error) {
-          if (!primary) throw error;
-          console.error(
-            "Could not restore the interface size after the compact detail failure",
-            error,
-          );
-        }
       }
+      await restoreScale();
     };
     const openMods = async () => {
       await openDetails();
