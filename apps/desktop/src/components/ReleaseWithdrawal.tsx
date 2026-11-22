@@ -22,7 +22,7 @@ export function ReleaseWithdrawalBadge({ status }: { status: PortStatus | undefi
   const style =
     "inline-flex rounded-sm border border-pc-border px-1.5 py-0.5 text-xs font-semibold";
   return (
-    <span className="inline-flex flex-wrap gap-1">
+    <span data-release-withdrawal className="inline-flex flex-wrap gap-1">
       {installed && <span className={style}>{t("withdrawal.installedBadge")}</span>}
       {recommended && <span className={style}>{t("withdrawal.recommendedBadge")}</span>}
     </span>
