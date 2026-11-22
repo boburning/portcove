@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -437,4 +438,129 @@ void test("public GitLab metadata without archive state remains explicitly unkno
       assert.equal(result.observations.length, 1);
     }
   }
+});
+
+void test("normal GitLab observation binds and exports N64 source declarations separately", async () => {
+  const { source, options } = fixture(0);
+  source.ports[0]!.original_source_family = "n64-recomp";
+  options.maximumRequests = 12;
+  options.maximumBytes = 24 * 1024 * 1024;
+  const commit = "1".repeat(40);
+  const bytes = Buffer.from(`std::vector<recomp::GameEntry> supported_games = {
+    { .rom_hash = 0xafc33da7101fec88, .game_id = u8"fixture.us" },
+  };`);
+  const path = "src/main/main.cpp";
+  const blobSha = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+  const fetchProvider = options.fetch;
+  let fault: string | null;
+  let tagReads = 0;
+  const fetchFixture: typeof fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    const reply = (body: unknown, headers?: Record<string, string>) =>
+      new Response(JSON.stringify(body), headers ? { headers } : {});
+    if (url.pathname.endsWith("/releases")) {
+      return reply(
+        [
+          {
+            tag_name: "v1",
+            commit: { id: commit },
+            upcoming_release: false,
+            released_at: "2026-10-26T00:00:00Z",
+            assets: { links: [] },
+          },
+        ],
+        { "x-next-page": "", "x-page": "1", "x-per-page": "100" },
+      );
+    }
+    if (url.pathname.endsWith("owner%2Fproject")) {
+      // Public GitLab project metadata can omit archived.
+      return reply({ id: 7, path_with_namespace: source.repository });
+    }
+    if (!url.pathname.includes("/repository/")) return fetchProvider(input, init);
+    assert.ok(url.pathname.startsWith("/api/v4/projects/7/repository/"));
+    if (url.pathname.endsWith("/tags/v1")) {
+      tagReads++;
+      return reply({
+        name: fault === "alias" ? "1" : "v1",
+        commit: { id: fault === "identity" ? "9".repeat(40) : commit },
+        target: fault === "move" && tagReads > 1 ? "9".repeat(40) : commit,
+      });
+    }
+    if (url.pathname.endsWith("/tree")) {
+      assert.equal(url.searchParams.get("ref"), commit);
+      assert.equal(url.searchParams.get("path"), "src/main");
+      const entry = { path, type: "blob", mode: "100644", id: blobSha };
+      return reply(
+        fault === "path-alias" ? [entry, { ...entry, path: "src/main/Main.cpp" }] : [entry],
+        fault === "unknown-coverage"
+          ? {}
+          : { "x-next-page": fault === "partial" ? "2" : "", "x-page": "1", "x-per-page": "100" },
+      );
+    }
+    assert.ok(url.pathname.endsWith(`/blobs/${blobSha}`));
+    return reply({
+      sha: blobSha,
+      content: (fault === "blob" ? Buffer.alloc(bytes.length) : bytes).toString("base64"),
+      size: bytes.length,
+      encoding: "base64",
+    });
+  };
+  const policy = {
+    eligibility_scope: "core-provider-metadata-only",
+    provider_identity: { provider: "gitlab", project_id: 7, repository: source.repository },
+    projections: [
+      {
+        channel: "stable",
+        channel_candidate: { tag: "v1" },
+        latest_eligible: { identity: { project_id: 7, tag: "v1" } },
+      },
+    ],
+  };
+  const preview = async (problem: string | null) => {
+    fault = problem;
+    tagReads = 0;
+    const result = await observeProviderSource(source, undefined, {
+      ...options,
+      fetch: fetchFixture,
+      project: async () => policy,
+    });
+    const [handoff] = result.policies as [
+      typeof policy & {
+        gitlab_n64_source_declarations_v1: Record<string, unknown>[];
+      },
+    ];
+    assert.deepEqual(handoff.projections, policy.projections);
+    assert.equal(handoff.eligibility_scope, policy.eligibility_scope);
+    return handoff.gitlab_n64_source_declarations_v1[0];
+  };
+  for (const problem of [
+    "alias",
+    "path-alias",
+    "move",
+    "partial",
+    "unknown-coverage",
+    "identity",
+    "blob",
+  ]) {
+    assert.deepEqual(await preview(problem), {
+      status: "unassessed",
+      reason: "source-proof-incomplete",
+      tag: "v1",
+    });
+  }
+  const recovered = await preview(null);
+  assert.equal(recovered!.status, "observed");
+  assert.equal(tagReads, 2);
+  assert.deepEqual(recovered!.declaration, {
+    authority: "source-declaration-only",
+    project_id: 7,
+    tag: "v1",
+    commit_sha: commit,
+    tag_target_sha: commit,
+    path,
+    blob_sha: blobSha,
+    source_sha256: createHash("sha256").update(bytes).digest("hex"),
+    observed_at: new Date(options.now()).toISOString(),
+    entries: [{ game_id: "fixture.us", mod_game_id: null, rom_hash_u64: "afc33da7101fec88" }],
+  });
 });
