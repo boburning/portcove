@@ -317,11 +317,12 @@ mod tests {
         assert!(crate::permissions::executable_intent(&engine).unwrap());
         assert!(!crate::permissions::executable_intent(&other).unwrap());
         assert!(!crate::permissions::executable_intent(&root.join("cgame.so")).unwrap());
-        crate::package_layout::require_reviewed_layout(port, platform, &root, None).unwrap();
+        crate::package_layout::require_reviewed_layout(port, platform, &root, None, None).unwrap();
 
         crate::permissions::normalize_archive_entry(&other, false, true).unwrap();
-        let drift = crate::package_layout::require_reviewed_layout(port, platform, &root, None)
-            .unwrap_err();
+        let drift =
+            crate::package_layout::require_reviewed_layout(port, platform, &root, None, None)
+                .unwrap_err();
         assert!(drift.message.contains("launch_openmohaa_base"));
     }
 

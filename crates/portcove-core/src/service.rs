@@ -1690,9 +1690,12 @@ impl PortcoveService {
             }
             Installer::new(self.library.clone())?
                 .require_github_resolution_identity(&port.id, &resolution)?;
-            if let Some(verdict) =
-                self.current_package_shape_refusal(port, platform, &resolution.release)?
-            {
+            if let Some(verdict) = self.current_package_shape_refusal(
+                port,
+                platform,
+                &resolution.release,
+                Some(&resolution),
+            )? {
                 return Err(crate::package_shape::withheld::refusal(
                     port,
                     &resolution.release,
@@ -3259,8 +3262,12 @@ impl PortcoveService {
             .resolve_release_for_status(port, channel, platform, status)
             .await?;
         if first_managed_install(status)
-            && let Some(verdict) =
-                self.current_package_shape_refusal(port, platform, &resolution.release)?
+            && let Some(verdict) = self.current_package_shape_refusal(
+                port,
+                platform,
+                &resolution.release,
+                Some(&resolution),
+            )?
         {
             return self
                 .resolve_shape_fallback(port, platform, &resolution)
@@ -3314,6 +3321,7 @@ impl PortcoveService {
         port: &PortDefinition,
         platform: Platform,
         release: &ResolvedRelease,
+        resolution: Option<&crate::ScopedResolvedRelease>,
     ) -> Result<Option<crate::package_shape::ShapeVerdict>> {
         let Some(capability) =
             crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
@@ -3326,6 +3334,7 @@ impl PortcoveService {
             platform,
             release,
             capability,
+            resolution,
             || {
                 Installer::new(self.library.clone())
                     .and_then(|installer| installer.local_shape_baseline(port, platform))
@@ -3478,12 +3487,7 @@ impl PortcoveService {
                     &status,
                 ))
                 .await?;
-            self.record_update_check(
-                port_id,
-                &status,
-                &release.release,
-                release.upstream_activity.as_ref(),
-            )
+            self.record_update_check_from_selection(port_id, &status, &release)
         }
         .await;
         self.finish_activity(activity, result)
@@ -3568,12 +3572,39 @@ impl PortcoveService {
         Ok(forecast)
     }
 
+    #[cfg(test)]
     pub(crate) fn record_update_check(
         &self,
         port_id: &str,
         status: &PortStatus,
         release: &ResolvedRelease,
         observed_activity: Option<&crate::UpstreamActivity>,
+    ) -> Result<UpdateCheck> {
+        self.record_update_check_with_resolution(port_id, status, release, observed_activity, None)
+    }
+
+    fn record_update_check_from_selection(
+        &self,
+        port_id: &str,
+        status: &PortStatus,
+        resolution: &crate::ScopedResolvedRelease,
+    ) -> Result<UpdateCheck> {
+        self.record_update_check_with_resolution(
+            port_id,
+            status,
+            &resolution.release,
+            resolution.upstream_activity.as_ref(),
+            Some(resolution),
+        )
+    }
+
+    fn record_update_check_with_resolution(
+        &self,
+        port_id: &str,
+        status: &PortStatus,
+        release: &ResolvedRelease,
+        observed_activity: Option<&crate::UpstreamActivity>,
+        resolution: Option<&crate::ScopedResolvedRelease>,
     ) -> Result<UpdateCheck> {
         let port = self.catalog.port(port_id)?;
         let platform = Platform::current()?;
@@ -3597,7 +3628,8 @@ impl PortcoveService {
             .transpose()?
             .is_none_or(|matches| !matches);
         if update_available
-            && let Some(verdict) = self.current_package_shape_refusal(port, platform, release)?
+            && let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, release, resolution)?
         {
             return Err(crate::package_shape::withheld::refusal(
                 port, release, &verdict,
@@ -3886,12 +3918,7 @@ impl PortcoveService {
                 ))
                 .await?;
             operation.observe_release(&release.release.version, None);
-            self.record_update_check(
-                port_id,
-                &status,
-                &release.release,
-                release.upstream_activity.as_ref(),
-            )?;
+            self.record_update_check_from_selection(port_id, &status, &release)?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -4395,12 +4422,7 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(
-                    port_id,
-                    &status,
-                    &release.release,
-                    release.upstream_activity.as_ref(),
-                )?;
+                let check = self.record_update_check_from_selection(port_id, &status, &release)?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -8520,7 +8542,7 @@ mod tests {
 
     use std::{
         sync::{
-            Arc, Condvar, Mutex,
+            Arc, Mutex,
             atomic::{AtomicBool, AtomicUsize, Ordering},
             mpsc,
         },
@@ -9180,8 +9202,14 @@ mod tests {
             programs: Some(vec!["alternate.exe".into()]),
             ..PackageShape::default()
         };
-        let (verdict, provenance) =
-            crate::package_shape::evaluate(port, platform, &latest.asset.sha256, &shape, None);
+        let (verdict, provenance) = crate::package_shape::evaluate(
+            port,
+            platform,
+            &latest.asset.sha256,
+            &shape,
+            None,
+            None,
+        );
         assert!(matches!(verdict, ShapeVerdict::Drifted { .. }));
         crate::package_shape::withheld::record(
             &library,
@@ -9555,19 +9583,24 @@ mod tests {
         sha256: String,
     }
 
-    #[derive(Clone)]
+    // The first provider call follows real SQLite activity and status reads.
+    const RELEASE_START_TIMEOUT: Duration = Duration::from_secs(90);
+
     struct BlockingReleaseProvider {
         version: String,
-        first_started: mpsc::Sender<ReleaseChannel>,
+        first_call: Mutex<Option<ReleaseRendezvous>>,
         observed_channels: Arc<Mutex<Vec<ReleaseChannel>>>,
-        gate: Arc<(Mutex<bool>, Condvar)>,
-        calls: Arc<AtomicUsize>,
+    }
+
+    struct ReleaseRendezvous {
+        started: tokio::sync::oneshot::Sender<ReleaseChannel>,
+        resume: tokio::sync::oneshot::Receiver<()>,
     }
 
     struct BlockingReleaseHarness {
         provider: Arc<BlockingReleaseProvider>,
-        started: mpsc::Receiver<ReleaseChannel>,
-        gate: Arc<(Mutex<bool>, Condvar)>,
+        started: tokio::sync::oneshot::Receiver<ReleaseChannel>,
+        resume: tokio::sync::oneshot::Sender<()>,
         observed: Arc<Mutex<Vec<ReleaseChannel>>>,
     }
 
@@ -9580,13 +9613,10 @@ mod tests {
             _platform: Platform,
         ) -> Result<ResolvedRelease> {
             self.observed_channels.lock().unwrap().push(channel);
-            if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
-                self.first_started.send(channel).unwrap();
-                let (lock, wake) = &*self.gate;
-                let mut released = lock.lock().unwrap();
-                while !*released {
-                    released = wake.wait(released).unwrap();
-                }
+            let first_call = self.first_call.lock().unwrap().take();
+            if let Some(first_call) = first_call {
+                first_call.started.send(channel).unwrap();
+                first_call.resume.await.unwrap();
             }
             Ok(ResolvedRelease {
                 version: self.version.clone(),
@@ -9604,27 +9634,22 @@ mod tests {
     }
 
     fn release_blocker(version: &str) -> BlockingReleaseHarness {
-        let (started, receiver) = mpsc::channel();
-        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let (started, ready) = tokio::sync::oneshot::channel();
+        let (resume, resume_received) = tokio::sync::oneshot::channel();
         let observed = Arc::new(Mutex::new(Vec::new()));
         BlockingReleaseHarness {
             provider: Arc::new(BlockingReleaseProvider {
                 version: version.into(),
-                first_started: started,
+                first_call: Mutex::new(Some(ReleaseRendezvous {
+                    started,
+                    resume: resume_received,
+                })),
                 observed_channels: observed.clone(),
-                gate: gate.clone(),
-                calls: Arc::new(AtomicUsize::new(0)),
             }),
-            started: receiver,
-            gate,
+            started: ready,
+            resume,
             observed,
         }
-    }
-
-    fn release_blocker_continue(gate: &Arc<(Mutex<bool>, Condvar)>) {
-        let (lock, wake) = &**gate;
-        *lock.lock().unwrap() = true;
-        wake.notify_all();
     }
 
     #[async_trait::async_trait]
@@ -22883,24 +22908,23 @@ fn main() {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn reconcile_uses_post_lock_policy_and_staged_state() {
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", true);
         let blocker = release_blocker("v2");
-        let service =
-            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
-        let task_service = service.clone();
-        let reconcile =
-            tokio::spawn(async move { task_service.reconcile("zelda64-recomp", |_| {}).await });
-        assert_eq!(
-            blocker
-                .started
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap(),
-            ReleaseChannel::Stable
-        );
+        let service = PortcoveService::with_provider(library.clone(), blocker.provider).unwrap();
+        let reconcile = service.reconcile("zelda64-recomp", |_| {});
+        tokio::pin!(reconcile);
+        let deadline = tokio::time::sleep(RELEASE_START_TIMEOUT);
+        let channel = tokio::select! {
+            biased;
+            _ = deadline => panic!("Timed out waiting for reconcile to resolve a release"),
+            channel = blocker.started => channel.unwrap(),
+            premature = &mut reconcile => panic!("Reconcile completed before resolving: {premature:?}"),
+        };
+        assert_eq!(channel, ReleaseChannel::Stable);
 
         register_zelda_install(&library, "v2", false);
         library
@@ -22910,9 +22934,9 @@ fn main() {
                 ReleaseChannel::Stable,
             )
             .unwrap();
-        release_blocker_continue(&blocker.gate);
+        blocker.resume.send(()).unwrap();
 
-        let result = reconcile.await.unwrap().unwrap();
+        let result = reconcile.await.unwrap();
         assert_eq!(result.policy, UpdatePolicy::Automatic);
         assert_eq!(result.action, ReconcileAction::Activated);
         assert_eq!(result.install.unwrap().version, "v2");
@@ -22921,7 +22945,7 @@ fn main() {
         assert!(status.staged.is_none());
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[tokio::test]
     async fn reconcile_retries_a_changed_channel_before_acting() {
         let platform = Platform::current().unwrap();
         if !Catalog::embedded()
@@ -22943,25 +22967,24 @@ fn main() {
         write_host_test_executable(&path, "g-diffuser");
         register_existing_test_install(&library, "g-diffuser", "v1", &path, true);
         let blocker = release_blocker("v2");
-        let service =
-            Arc::new(PortcoveService::with_provider(library.clone(), blocker.provider).unwrap());
-        let task_service = service.clone();
-        let reconcile =
-            tokio::spawn(async move { task_service.reconcile("g-diffuser", |_| {}).await });
-        assert_eq!(
-            blocker
-                .started
-                .recv_timeout(Duration::from_secs(5))
-                .unwrap(),
-            ReleaseChannel::Stable
-        );
+        let service = PortcoveService::with_provider(library.clone(), blocker.provider).unwrap();
+        let reconcile = service.reconcile("g-diffuser", |_| {});
+        tokio::pin!(reconcile);
+        let deadline = tokio::time::sleep(RELEASE_START_TIMEOUT);
+        let channel = tokio::select! {
+            biased;
+            _ = deadline => panic!("Timed out waiting for reconcile to resolve a release"),
+            channel = blocker.started => channel.unwrap(),
+            premature = &mut reconcile => panic!("Reconcile completed before resolving: {premature:?}"),
+        };
+        assert_eq!(channel, ReleaseChannel::Stable);
 
         library
             .set_channel("g-diffuser", ReleaseChannel::Beta)
             .unwrap();
-        release_blocker_continue(&blocker.gate);
+        blocker.resume.send(()).unwrap();
 
-        let result = reconcile.await.unwrap().unwrap();
+        let result = reconcile.await.unwrap();
         assert_eq!(result.policy, UpdatePolicy::Notify);
         assert_eq!(result.action, ReconcileAction::Notify);
         assert_eq!(result.check.channel, ReleaseChannel::Beta);

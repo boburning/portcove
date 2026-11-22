@@ -135,7 +135,7 @@ impl PortcoveService {
             let (reviewed, reviewed_status) = {
                 #[cfg(test)]
                 eprintln!("immutable acquisition phase: fresh review ({:?})", observed.elapsed());
-                let (reviewed, reviewed_status) = operation
+                let (reviewed, reviewed_status, _) = operation
                     .interruptible(self.plan_game_update_with_status(port_id, false, false))
                     .await?;
                 #[cfg(test)]
