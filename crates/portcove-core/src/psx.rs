@@ -727,8 +727,10 @@ fn prepare_install_inner(
         &python,
         &cli,
         root,
-        &preparation.toolchain_root,
-        artifact,
+        PinnedToolchain {
+            root: &preparation.toolchain_root,
+            artifact,
+        },
         generate_arguments,
         operation,
         quiesced,
@@ -743,8 +745,10 @@ fn prepare_install_inner(
         &python,
         &cli,
         root,
-        &preparation.toolchain_root,
-        artifact,
+        PinnedToolchain {
+            root: &preparation.toolchain_root,
+            artifact,
+        },
         rebuild_arguments(&config, root, &build_dir, configuration.executable_basename)?,
         operation,
         quiesced,
@@ -1619,24 +1623,36 @@ fn run_cli(
         python,
         cli,
         project_root,
-        toolchain_root,
-        toolchain_artifact(Platform::current()?)?,
+        PinnedToolchain {
+            root: toolchain_root,
+            artifact: toolchain_artifact(Platform::current()?)?,
+        },
         arguments,
         operation,
         quiesced,
     )
 }
 
+/// The pinned toolchain directory and the reviewed artifact it must match.
+#[derive(Clone, Copy)]
+struct PinnedToolchain<'a> {
+    root: &'a Path,
+    artifact: &'a ToolchainArtifact,
+}
+
 fn run_cli_with_artifact(
     python: &Path,
     cli: &Path,
     project_root: &Path,
-    toolchain_root: &Path,
-    artifact: &ToolchainArtifact,
+    toolchain: PinnedToolchain<'_>,
     arguments: impl IntoIterator<Item = String>,
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    let PinnedToolchain {
+        root: toolchain_root,
+        artifact,
+    } = toolchain;
     operation.checkpoint()?;
     let platform = Platform::current()?;
     if !validate_toolchain_with_checkpoint(toolchain_root, platform, artifact, || {

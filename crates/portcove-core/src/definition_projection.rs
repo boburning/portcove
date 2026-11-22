@@ -114,8 +114,7 @@ pub fn canonical_definition_projection(path: &std::path::Path) -> Result<String>
     let bytes = crate::path::read_bounded_regular(path, limit)?;
     let value: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
     let mut document: ProjectionDocument = serde_json::from_value(value.0)?;
-    if !matches!(document.contract_schema, 1 | 2 | 3 | 4)
-        || document.representation != "catalog_projection"
+    if !matches!(document.contract_schema, 1..=4) || document.representation != "catalog_projection"
     {
         return Err(PortcoveError::unsupported(
             "unsupported definition catalog projection contract",
