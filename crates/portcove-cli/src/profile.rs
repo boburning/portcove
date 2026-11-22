@@ -311,6 +311,7 @@ pub(crate) enum ProfileCommand {
     },
     /// Browse reviewed GitHub mod releases and their upstream import route.
     GithubMods {
+        /// Catalog port ID with a reviewed GitHub mod source.
         port_id: String,
         /// Platform for the upstream import information. Defaults to the current platform.
         #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]
@@ -318,9 +319,13 @@ pub(crate) enum ProfileCommand {
     },
     /// Inspect a local intact ZIP against a reviewed GitHub release and asset.
     GithubModReview {
+        /// Catalog port ID with a reviewed GitHub mod source.
         port_id: String,
+        /// Numeric GitHub release ID from profile github-mods.
         release_id: u64,
+        /// Numeric GitHub asset ID of the reviewed ZIP in that release.
         asset_id: u64,
+        /// Local copy of that exact ZIP. Omit it to download the asset.
         archive: Option<PathBuf>,
         /// Platform whose companion layout to inspect. Defaults to the current platform.
         #[arg(long, value_parser = ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"])]

@@ -64,10 +64,9 @@ fn matching_binding(catalog: &Catalog, id: &str, platform: Platform) -> Option<&
                 .as_ref()
                 .and_then(|value| value.original_game.as_ref()),
         )
-    } else if let Some(listing) = listing {
-        (listing.project_url.as_str(), listing.original_game.as_ref())
     } else {
-        return None;
+        let listing = listing?;
+        (listing.project_url.as_str(), listing.original_game.as_ref())
     };
     let game = game?;
     let defined_platform = port.is_some_and(|port| port.platforms.contains(&platform));

@@ -2946,7 +2946,7 @@ pub(crate) fn proposed_mod_setup(
             }
         }
         profile::validate_revision(&next)?;
-        require_projectable(&layout, &next)?;
+        require_projectable(layout, &next)?;
     }
     Ok(next)
 }
