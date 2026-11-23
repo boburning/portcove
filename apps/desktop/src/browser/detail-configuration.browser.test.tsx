@@ -274,6 +274,8 @@ it("keeps the selected mod setup and settings draft through version and save tas
   const modHeading = modsPanel.getByRole("heading", { name: "Review changes", exact: true });
   await expect.element(modHeading).toHaveFocus();
   await configuration.click();
+  await expect.element(configuration).toHaveFocus();
+  await expect.element(volume).toHaveValue(84);
   await reviewChanges.click();
   await reviewMods.click();
   await expect.element(modHeading).toHaveFocus();
