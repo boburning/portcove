@@ -2667,8 +2667,8 @@ impl crate::StoreInstallHost for SteamClientAt {
         vec![self.0.clone()]
     }
 
-    fn gog_registered_installs(&self) -> Vec<crate::RegisteredStoreInstall> {
-        Vec::new()
+    fn gog_registered_installs(&self) -> crate::RegisteredStoreInstalls {
+        crate::RegisteredStoreInstalls::default()
     }
 
     fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
@@ -2737,6 +2737,127 @@ fn originals_inside_a_store_install_can_be_copied_or_used_but_never_moved() {
         fs::read(&source).unwrap(),
         b"synthetic format-only disc source"
     );
+}
+
+#[test]
+fn an_unreadable_store_library_blocks_move_but_not_copy() {
+    let (temporary, library, _) = library_fixture();
+    let client = temporary.path().join("Steam");
+    fs::create_dir_all(client.join("steamapps")).unwrap();
+    // Steam's library list cannot be read, so a library could be anywhere.
+    fs::write(
+        client.join("steamapps").join("libraryfolders.vdf"),
+        "\"libraryfolders\" { \"0\" {",
+    )
+    .unwrap();
+    let originals = temporary.path().join("Originals");
+    fs::create_dir_all(&originals).unwrap();
+    let source = originals.join("disc.iso");
+    fs::write(&source, b"synthetic format-only disc source").unwrap();
+    let service = traced_service(library)
+        .unwrap()
+        .with_store_install_host(Arc::new(SteamClientAt(client.clone())));
+
+    let error = service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(
+        error.details.get("store_ownership").map(String::as_str),
+        Some("not_checked")
+    );
+    assert!(source.is_file());
+    service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Copy)
+        .unwrap();
+    // Once the list is readable and names no covering folder, Move is planned.
+    fs::write(
+        client.join("steamapps").join("libraryfolders.vdf"),
+        "\"libraryfolders\" { }",
+    )
+    .unwrap();
+    service
+        .plan_source_import(PROFILE, &source, SourceImportMode::Move)
+        .unwrap();
+}
+
+/// Reads a readable Steam client until `switched`, then a client whose
+/// library list is damaged.
+struct SwitchingSteamHost {
+    readable: PathBuf,
+    damaged: PathBuf,
+    switched: Arc<AtomicBool>,
+}
+
+impl crate::StoreInstallHost for SwitchingSteamHost {
+    fn steam_client_roots(&self) -> Vec<PathBuf> {
+        if self.switched.load(Ordering::SeqCst) {
+            vec![self.damaged.clone()]
+        } else {
+            vec![self.readable.clone()]
+        }
+    }
+
+    fn gog_registered_installs(&self) -> crate::RegisteredStoreInstalls {
+        crate::RegisteredStoreInstalls::default()
+    }
+
+    fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
+        Vec::new()
+    }
+}
+
+struct SwitchAt(LifecycleFaultPoint, Arc<AtomicBool>);
+
+impl LifecycleFaultInjector for SwitchAt {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == self.0 {
+            self.1.store(true, Ordering::SeqCst);
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn move_keeps_the_original_when_store_ownership_is_unknown_at_removal() {
+    let (temporary, library, source) = library_fixture();
+    let readable = temporary.path().join("Steam");
+    fs::create_dir_all(readable.join("steamapps")).unwrap();
+    let damaged = temporary.path().join("Damaged Steam");
+    fs::create_dir_all(damaged.join("steamapps")).unwrap();
+    fs::write(
+        damaged.join("steamapps").join("libraryfolders.vdf"),
+        "\"libraryfolders\" { \"0\" {",
+    )
+    .unwrap();
+    let switched = Arc::new(AtomicBool::new(false));
+    // The records become unreadable after the copy is registered, just
+    // before the original would be removed.
+    let service = traced_service_with_faults(
+        library,
+        Arc::new(SwitchAt(
+            LifecycleFaultPoint::SourceImportRegistered,
+            switched.clone(),
+        )),
+    )
+    .unwrap()
+    .with_store_install_host(Arc::new(SwitchingSteamHost {
+        readable,
+        damaged,
+        switched,
+    }));
+    let result = import(&service, &source, SourceImportMode::Move);
+    assert_eq!(result.outcome, SourceImportOutcome::CopiedOriginalRetained);
+    assert!(!result.original_deleted);
+    assert_eq!(
+        result.retained_original_path.as_deref(),
+        Some(source.as_path())
+    );
+    assert_eq!(
+        fs::read(&source).unwrap(),
+        b"synthetic format-only disc source"
+    );
+    assert!(service.library().source(PROFILE).unwrap().is_some());
 }
 
 #[cfg(target_os = "linux")]

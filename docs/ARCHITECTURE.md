@@ -3242,11 +3242,17 @@ default to a host that reads no store.
 The result is a read-only suggestion: it adds no saved root, registration, setup
 intent or second scanner, and store titles never identify a source. Search and
 admission stay with the existing discovery and inspector. Source import refuses
-Move for an original inside a detected store game folder or a Steam library's
+Move for an original inside a recorded store game folder or a Steam library's
 `steamapps` folder, for a folder that contains one, and for any path through a
-folder named `steamapps`, so Portcove does not remove a recognized store's
-files; Copy and Use current location are unchanged. Recognition depends on
-readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
+folder named `steamapps`, so Portcove does not remove a store's files; Copy and
+Use current location are unchanged. That decision does not use the bounded
+suggestion list. Core's ownership check streams every install record of each
+store the host can read (Steam libraries and app manifests, GOG registry
+entries, Epic manifests) with no count bound and keeps only the first match.
+A record whose location does not exist is a definite absence. An unreadable,
+oversized, malformed or relative record, or an unreadable registry entry or
+manifest folder, makes ownership `not_checked`, which blocks Move with a typed
+refusal rather than allowing it. CLI `source roots stores` and the Tauri
 `get_store_game_installs` command expose the same Core result, and Desktop **Find
 required files** loads it only when the player asks and uses a chosen folder as
 the ordinary search folder.

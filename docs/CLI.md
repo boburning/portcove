@@ -1347,9 +1347,9 @@ and other launchers are not read.
 The list is a suggestion only: it never saves a folder, registers files,
 records setup intent or changes anything in a store's folder, and the store's
 title is a label, not an identity. Exact source checks decide whether any file
-matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
-libraries and 4,096 games are listed, and these are skipped and counted in
-`skipped_entries`: an `installdir` that is not a single folder name, a library
+matches. Store metadata files are read up to 1 MiB each, at most 4,096 games are
+listed and 16,384 entries are read from each manifest folder, and these are
+skipped and counted in `skipped_entries`: an `installdir` that is not a single folder name, a library
 listed by Steam or a game location that is relative or missing, unreadable
 metadata, and a folder that is a filesystem root, your home folder or contains
 this Portcove library. `limited` reports a reached bound. A store that cannot be
@@ -1362,15 +1362,25 @@ PK4 set before registration. Use the file picker if the store provides no
 unambiguous compatible folder suggestion.
 
 Files inside a game a store installed can be copied into Portcove or used where
-they are, but not moved. A Move import is refused with a `conflict` error naming
-the store when its original is inside a listed game folder or a Steam library's
-`steamapps` folder, when it is a folder that contains one of those (a folder Move
-removes the whole folder at the end), or when any folder on its path is named
-`steamapps`, because the store's game would lose the files. Protection otherwise
-depends on the stores' metadata: a GOG or Epic game whose registry entry or
-manifest cannot be read, a Steam library beyond the 64-library bound outside a
-`steamapps` folder, or an unlisted folder that merely holds such a game, is not
-recognized, so choose Copy for files from a store's folder.
+they are, but not moved. Before a Move, Portcove reads every install record of
+each store this system can check, with no count limit: every Steam library and
+app manifest, every GOG registry entry and every Epic manifest. The suggestion
+list bounds above do not apply. A Move import is refused with a `conflict`
+error when its original is inside a recorded game folder or a Steam library's
+`steamapps` folder, when it is a folder that contains one of those (a folder
+Move removes the whole folder at the end), or when any folder on its path is
+named `steamapps`. These refusals carry `store_ownership: store_owned` and name
+the store, because the store's game would lose the files. An unfinished Epic
+install is protected too.
+
+If any record cannot be read, Portcove cannot confirm that the files are safe
+to move. The Move is then refused with `store_ownership: not_checked`,
+`unchecked_stores`, the first `unread_record` and the `unread_records` count.
+Unreadable records include a damaged or oversized `libraryfolders.vdf`, app
+manifest or Epic manifest, a relative or inaccessible recorded location, and a
+GOG registry entry that cannot be read. A record whose folder no longer exists
+is not a problem: nothing is installed there. Copy and Use current location
+remain available, and Move works again once the records can be read.
 
 ### Disc formats and optional tools
 

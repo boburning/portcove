@@ -1097,7 +1097,12 @@ fn cleanup_original(
         return Ok(Some(quarantine));
     }
     if source_exists {
-        if let Err(error) = revalidate_source(service, plan, source) {
+        if let Err(error) = revalidate_source(service, plan, source)
+            .and_then(|_| service.refuse_store_install_move(&plan.profile_id, source))
+        {
+            // Store ownership is checked again from current records: a store
+            // may have installed here since the plan, or its records may now
+            // be unreadable. Either way the original is kept.
             operation.last_error = Some(error.message);
             store.put(operation)?;
             return Ok(Some(source.clone()));
@@ -1119,6 +1124,11 @@ fn cleanup_original(
         && inspect_admitted_source(service, plan, &quarantine)
             .is_ok_and(|record| cleanup_source_equivalent(&quarantine, &plan.source, &record));
     if !identity_matches {
+        return Ok(Some(quarantine));
+    }
+    if let Err(error) = service.refuse_store_install_move(&plan.profile_id, &quarantine) {
+        operation.last_error = Some(error.message);
+        store.put(operation)?;
         return Ok(Some(quarantine));
     }
     if let Err(error) = service
