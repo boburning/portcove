@@ -274,6 +274,22 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/catalog-released-reader.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3505],
+        ["release-check", 4305]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
+      "file": "scripts/github-release-attestation.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3506],
+        ["release-check", 4306]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 3502],
