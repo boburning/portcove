@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { MaintenanceStoreError, runSql, sqlLiteral } from "./maintenance-store.mts";
+import {
+  MaintenanceStoreError,
+  outputLimitBytes,
+  runSql,
+  sqlLiteral,
+} from "./maintenance-store.mts";
+import { isRecord } from "./runtime-values.mts";
 
 /**
  * PostgreSQL adapter for unattended discovery collection (migration 0007).
@@ -70,8 +76,12 @@ export interface DiscoveryStore {
       state: Record<string, unknown>;
       observations: readonly DiscoveryProviderObservation[];
       watches: readonly DiscoveryWatchChange[];
+      /** Lead records that changed since the last commit; each carries its numeric `id`. */
+      leadRecords: readonly { id: number }[];
     },
   ): { revision: number; bytes: number };
+  /** The scope's stored lead records, read after acquire. */
+  loadLeadRecords(scope: string): { records: unknown[]; bytes: number };
   finish(
     lease: DiscoveryLease,
     outcome: "complete" | "partial" | "failed",
@@ -101,7 +111,11 @@ function classify(error: unknown): never {
 
 const uuid = (value: string) => `${sqlLiteral(value)}::uuid`;
 
-export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): DiscoveryStore {
+export function postgresDiscoveryStore(
+  environment: NodeJS.ProcessEnv,
+  /** Bytes per lead-record page; half of one client command's output by default. */
+  pageBytes = Math.floor(outputLimitBytes / 2),
+): DiscoveryStore {
   return {
     acquire(lease, options) {
       try {
@@ -127,7 +141,8 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
         ${uuid(lease.attempt)}, ${uuid(lease.token)}, ${expectedRevision},
         ${sqlLiteral(options.definition)}, ${sqlLiteral(JSON.stringify(options.state))}::jsonb,
         ${options.leaseSeconds}, ${sqlLiteral(JSON.stringify(options.observations))}::jsonb,
-        ${sqlLiteral(JSON.stringify(options.watches))}::jsonb);`;
+        ${sqlLiteral(JSON.stringify(options.watches))}::jsonb,
+        ${sqlLiteral(JSON.stringify(options.leadRecords))}::jsonb);`;
       try {
         const revision = Number(runSql(environment, sql, { timeoutMs: 300_000 }).trim());
         if (revision !== expectedRevision + 1)
@@ -135,6 +150,38 @@ export function postgresDiscoveryStore(environment: NodeJS.ProcessEnv): Discover
         return { revision, bytes: Buffer.byteLength(sql) };
       } catch (error) {
         return classify(error);
+      }
+    },
+    loadLeadRecords(scope) {
+      // Read in pages by key, so the stored lead set is bounded by the database
+      // rather than by one client read.
+      const records: unknown[] = [];
+      let bytes = 0;
+      let after = 0;
+      for (;;) {
+        const output = runSql(
+          environment,
+          `SET TRANSACTION READ ONLY;
+           WITH ordered AS (
+             SELECT lead_id, record,
+               sum(octet_length(record::text)) OVER (ORDER BY lead_id) AS running
+             FROM portcove_maintenance.discovery_lead_records
+             WHERE scope = ${sqlLiteral(scope)} AND lead_id > ${after})
+           SELECT coalesce(json_agg(record ORDER BY lead_id), '[]')::text FROM ordered
+           WHERE running <= ${pageBytes} OR lead_id = (SELECT min(lead_id) FROM ordered);`,
+          { timeoutMs: 300_000 },
+        ).trim();
+        bytes += Buffer.byteLength(output);
+        const page: unknown = JSON.parse(output);
+        if (!Array.isArray(page))
+          throw new MaintenanceStoreError("Malformed discovery lead records");
+        if (page.length === 0) return { records, bytes };
+        for (const record of page) records.push(record);
+        const last: unknown = page.at(-1);
+        const id = isRecord(last) ? Number(last.id) : Number.NaN;
+        if (!Number.isSafeInteger(id) || id <= after)
+          throw new MaintenanceStoreError("Discovery lead records are not ordered by id");
+        after = id;
       }
     },
     finish(lease, outcome, summary) {

@@ -1737,7 +1737,8 @@
             "watch evidence changes open new episodes and unchanged evidence stays quiet",
             "a restored store starts discovery collection inactive and refuses pre-restore leases",
             "local lead state imports once with its recorded strength",
-            "stored collector state is not capped at a fixed size"
+            "stored collector state is not capped at a fixed size",
+            "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten"
           ],
           "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
         }

@@ -26,6 +26,7 @@ import {
   parseWorkerState,
   providerWake,
   learnedDigest,
+  physicalLeadEnvelope,
   discoveryTransferForecastQuery,
   runDiscoveryPasses,
   renderDiscoveryStatus,
@@ -74,6 +75,7 @@ const commit = (
     state,
     observations,
     watches,
+    leadRecords: [],
   });
 const count = (environment: NodeJS.ProcessEnv, table: string) =>
   queryJson(environment, `SELECT count(*) FROM portcove_maintenance.${table};`) as number;
@@ -140,6 +142,7 @@ void test(
       queryJson(environment, discoveryTransferForecastQuery),
       {
         state_bytes: Buffer.byteLength(JSON.stringify({ cursor: 2 }).replace(":", ": ")),
+        record_bytes: 0,
         previous_transfer_bytes: 5000,
       },
       "the forecast reads measured state and the recent runs' transfer",
@@ -247,6 +250,8 @@ function memoryStore() {
   let holder: string | undefined;
   let refuse = false;
   let breakAfter = Infinity;
+  const leads = new Map<number, unknown>();
+  const leadWrites: number[] = [];
   const store: DiscoveryStore = {
     acquire(owner) {
       holder = owner.token;
@@ -265,9 +270,15 @@ function memoryStore() {
       if (commits.length >= breakAfter) throw new Error("psql exited 2: connection reset");
       for (const o of input.observations) rows.set(`${o.provider_id}:${o.content_sha256}`, o);
       for (const w of input.watches) watches.set(w.provider_id, w);
+      for (const r of input.leadRecords) leads.set(r.id, structuredClone(r));
+      leadWrites.push(input.leadRecords.length);
       commits.push({ observations: input.observations.length, watches: input.watches.length });
       state = JSON.parse(JSON.stringify(input.state)) as Record<string, unknown>;
       return { revision: ++revision, bytes: 100 };
+    },
+    loadLeadRecords() {
+      const records = [...leads.values()];
+      return { records, bytes: Buffer.byteLength(JSON.stringify(records)) };
     },
     finish(owner, outcome) {
       if (owner.token !== holder) throw new DiscoveryStoreRefused("stale-writer", "stale");
@@ -282,6 +293,8 @@ function memoryStore() {
     commits,
     finished,
     state: () => state,
+    leads,
+    leadWrites,
     refuseCommits: () => (refuse = true),
     failCommitsAfter: (count: number) => (breakAfter = count),
   };
@@ -391,7 +404,9 @@ void test("the unattended worker retains an unseen project and reconsiders it wh
   assert.equal(retained.repository, "holdout/unseen-native-port");
   assert.equal(memory.watches.get("9001")?.status, "waiting");
   const stored = parseWorkerState(memory.state());
-  assert.equal(stored.leads.records["9001"]?.release_hint?.assets_observed, false);
+  assert.deepEqual(stored.leads.records, {}, "the state document carries no lead records");
+  const record = memory.leads.get(9001) as DiscoveryLead | undefined;
+  assert.equal(record?.release_hint?.assets_observed, false, "the record is its own row");
 
   // A week later the same project publishes desktop assets. No issue, allowlist or
   // title-specific input is supplied; the same subject becomes due.
@@ -855,4 +870,126 @@ void test("a pass that throws keeps the record of earlier passes", async () => {
   assert.equal(run.outcome, "failed");
   assert.deepEqual(run.passes, [first], "the committed first pass stays in the record");
   assert.match(run.reason ?? "", /pass 2 failed: .*connection reset/u);
+});
+
+void test("lead records are rows and each commit sends only the records that changed", async (context) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-worker-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const memory = memoryStore();
+  const run = async (at: string, projects: number) => {
+    const now = () => Date.parse(at);
+    const budget = new DiscoveryBudget("hosted", () => {}, now, at);
+    return await runDiscoveryWorker({
+      store: memory.store,
+      runDir: root,
+      sourceRevision: "fixture",
+      runner: "fixture",
+      covered: () => new Set(),
+      budget,
+      now,
+      connect: async () => await providers(budget, () => [], projects),
+    });
+  };
+  await run("2026-11-01T05:00:00.000Z", 5);
+  assert.equal(memory.leads.size, 6);
+  assert.equal(memory.leadWrites.at(-1), 6, "the first commit writes every new record");
+  // A later run finds a seventh project.
+  await run("2026-11-09T05:00:00.000Z", 6);
+  assert.equal(memory.leads.size, 7);
+  // Another pass of that run learns nothing new and sends no record at all.
+  const writes = memory.leadWrites.length;
+  await run("2026-11-09T05:00:00.000Z", 6);
+  assert.ok(memory.leadWrites.length > writes, "the pass still commits its state");
+  assert.equal(memory.leadWrites.at(-1), 0, "unchanged records are not resent");
+});
+
+void test("the unattended lead envelope follows physical memory", () => {
+  assert.equal(physicalLeadEnvelope(8 * 1024 ** 3), 2 ** 29 - 24, "bounded by serializable size");
+  assert.equal(
+    physicalLeadEnvelope(1024 ** 3),
+    256 * 1024 ** 2,
+    "a quarter of the runner's memory",
+  );
+});
+
+void test(
+  "stored lead records round-trip through PostgreSQL and unchanged rows are not rewritten",
+  { skip: server.skip ?? false, timeout: 120_000 },
+  (context) => {
+    const environment = postgresFixture(context, server.directory!).start("records").owner;
+    migrate(environment);
+    const store = postgresDiscoveryStore(environment);
+    const owner = lease("1");
+    store.acquire(owner, options);
+    const record = { id: 77, repository: "ports/game", url: "https://github.com/ports/game" };
+    store.commit(owner, 0, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {},
+      observations: [],
+      watches: [],
+      leadRecords: [record],
+    });
+    assert.deepEqual(store.loadLeadRecords("primary").records, [record]);
+    // Many records read back completely across small pages, in key order.
+    const many = Array.from({ length: 25 }, (_, index) => ({
+      id: 1000 + index,
+      padding: "x".repeat(200),
+    }));
+    store.commit(owner, 1, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {},
+      observations: [],
+      watches: [],
+      leadRecords: many,
+    });
+    const paged = postgresDiscoveryStore(environment, 1024).loadLeadRecords("primary");
+    assert.deepEqual(
+      (paged.records as { id: number }[]).map((r) => r.id),
+      [77, ...many.map((r) => r.id)],
+    );
+    store.commit(owner, 2, {
+      definition: hex("d"),
+      leaseSeconds: 600,
+      state: {},
+      observations: [],
+      watches: [],
+      leadRecords: [record],
+    });
+    assert.equal(
+      queryJson(
+        environment,
+        "SELECT count(DISTINCT updated_attempt_id) FROM portcove_maintenance.discovery_lead_records;",
+      ),
+      1,
+    );
+    assert.deepEqual(
+      (queryJson(environment, discoveryTransferForecastQuery) as { record_bytes: number })
+        .record_bytes > 0,
+      true,
+    );
+  },
+);
+
+void test("a failed lead-record load finishes the attempt instead of holding the lease", async () => {
+  const memory = memoryStore();
+  memory.store.loadLeadRecords = () => {
+    throw new Error("psql exited 2: out of memory");
+  };
+  const at = "2026-11-01T05:00:00.000Z";
+  const result = await runDiscoveryWorker({
+    store: memory.store,
+    runDir: os.tmpdir(),
+    sourceRevision: "fixture",
+    runner: "fixture",
+    covered: () => new Set(),
+    now: () => Date.parse(at),
+    connect: async () => {
+      throw new Error("not reached");
+    },
+  });
+  assert.equal(result.outcome, "failed");
+  assert.match(result.reason ?? "", /lead records could not be loaded/u);
+  assert.deepEqual(memory.finished, ["failed"]);
 });

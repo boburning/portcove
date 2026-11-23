@@ -794,8 +794,12 @@ quota reset, then starts a new pass. A pass that changed no state is not
 repeated. Passes share the run's start, so a release already checked or a
 search window already completed in this run is not redone. Fair ordering means
 sustained new hints cannot starve older work. The interactive runner keeps its
-bounded slices and reserves for in-run research. The collector's shared 32 MiB
-lead-state envelope remains until lead records move to row storage.
+bounded slices and reserves for in-run research, and its 32 MiB lead-state
+envelope, which also bounds its local journal files. Unattended collection keeps
+lead records as database rows, read back in pages, and bounds its in-memory
+lead state, source checkpoint and research progress by the runner: a quarter of
+its memory, within the longest string the runtime can serialize. Each commit sends the state document with only the records that
+changed.
 
 Canonical ownership is `unknown` in this path. The worker reads catalog lineage
 but not the Roadmap inventory. A retained observation is a lead, not intake,

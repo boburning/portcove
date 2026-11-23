@@ -1,4 +1,4 @@
-import { discoveryCheckpointBytes } from "./discovery-checkpoint.mts";
+import { discoveryCheckpointEnvelope } from "./discovery-checkpoint.mts";
 import { GitHubApiError, nextLink } from "./github-operation.mts";
 import type { Octokit } from "@octokit/core";
 
@@ -39,7 +39,6 @@ interface Progress {
   reads: Read[];
   validation_cursor: number;
 }
-const maximumBytes = discoveryCheckpointBytes;
 const freshnessMs = 12 * 3600000;
 const canRecordAbsentFile = (endpoint: string) =>
   /\/(?:readme\?ref=[a-f0-9]{40}$|contents\/\.recomp\.json\?ref=)/u.test(endpoint);
@@ -118,7 +117,7 @@ export class DiscoveryPrimaryReads {
     this.persist();
   }
   private persist() {
-    if (Buffer.byteLength(JSON.stringify(this.journal.entries)) > maximumBytes)
+    if (Buffer.byteLength(JSON.stringify(this.journal.entries)) > discoveryCheckpointEnvelope())
       throw new Error("Research continuation exceeds the bounded journal byte envelope");
     try {
       this.journal.persist();
@@ -176,7 +175,7 @@ export class DiscoveryPrimaryReads {
       const candidate = { ...this.state, reads: [...this.state.reads, read] };
       if (
         Buffer.byteLength(JSON.stringify({ ...this.journal.entries, [this.key]: candidate })) >
-        maximumBytes
+        discoveryCheckpointEnvelope()
       )
         throw new Error("Research continuation exceeds the bounded journal byte envelope");
       this.state.reads.push(read);
