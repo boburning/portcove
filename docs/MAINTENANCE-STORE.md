@@ -239,11 +239,14 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
       trusts the build's recorded revision; the hosted workflow builds from
       the checked-out commit. Build profile and flags outside the keyed
       files are assumed fixed.
-    - The latest Core run of the source is complete, and a complete full
-      read finished within 7 days (by store order, not a runner's clock).
-      That weekly full read is the periodic reconciliation: it re-reads every
-      subject under one build, so a dependency the model below missed cannot
-      persist for more than a week.
+    - The latest Core run of the source is complete, and the latest
+      complete full read is less than 7 days old. The store picks that read
+      by acquisition order; its age is its `started_at`, written by the
+      runner that took it, compared with the collecting runner's clock, so
+      clock skew between runners shifts the window by that skew. That weekly
+      full read is the periodic reconciliation: it re-reads every subject
+      under one build, so a dependency the model below missed cannot
+      persist for more than about a week.
     - The binary's catalog inspection succeeded in the same run. Core
       validates the whole embedded catalog on load and refuses every port
       when it fails, so a selective run never reuses results across a
@@ -269,9 +272,15 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
     - the subject's partition: its `ports[]` and `listings[]` entries and the
       `source_catalog` records it reaches. A record is reached when it names
       the port in `port_id` or `scope.port_id`, or when its `id` equals any
-      string already in the partition, repeated to a fixpoint;
+      string already in the partition, repeated to a fixpoint. Another port's
+      or listing's entries join in both directions when either names the
+      other's ID in any field (today `original_game.id` and
+      `artwork.game_slug`), whether or not Core follows that field;
     - the policy: API schema, projection, platform identity, compiled
-      features and isolation;
+      features and isolation, and the Git blob IDs of the collector's own
+      code (`scripts/maintenance-inventory.mts` and
+      `scripts/maintenance-assessment-scope.mts`), so any edit to either
+      re-assesses every subject once even without a version bump;
     - time: Core compares numeric `observed_at` values with its clock.
   - The subject's scoped key digests the mechanism, shared data, policy and
     its own partition. Doubt never narrows it. Missing, stale, unparseable or
@@ -518,8 +527,13 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
     that advertises `port-capabilities-batch` reads up to 200 ports (and
     24,000 argument characters) per process with one catalog load; each
     port's report, or refusal code and message, is what the single-port
-    command returns. A batch process whose output is not a valid envelope
-    stops the collection, which then records nothing. On the 1,649-port catalog (debug build,
+    command returns. A batch that exceeds its 120-second or 16 MiB budget is
+    split in half, down to single ports; a single port that still exceeds it
+    is a gap (`batch-time-budget` or `batch-output-budget`), so the run is
+    partial and the next one reads everything. `collect` reports the largest
+    batch output and the number of splits. A batch process whose output is
+    otherwise not a valid envelope stops the collection, which then records
+    nothing. On the 1,649-port catalog (debug build,
     Linux x86-64) that is 9 processes and about 16 seconds instead of 1,649
     processes and about 410 seconds. An older CLI is read one port per
     process.

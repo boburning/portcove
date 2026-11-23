@@ -29,6 +29,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** Bump when the dependency model below changes. */
 export const assessmentScopeVersion = 1;
@@ -76,6 +77,29 @@ export const buildEnvironment: Readonly<
     reason: "the GitHub sign-in client ID; capability reports do not authenticate",
   },
 };
+
+/**
+ * The collector code that turns a Core report into a stored state and decides
+ * reuse. Its version constants are bumped by hand, so the files themselves are
+ * keyed too: any edit to either re-assesses every subject once.
+ */
+export const collectorSources = [
+  "scripts/maintenance-inventory.mts",
+  "scripts/maintenance-assessment-scope.mts",
+] as const;
+
+/** A file's Git blob ID, computed from the bytes that are running. */
+export function gitBlobId(bytes: Uint8Array) {
+  return createHash("sha1").update(`blob ${bytes.byteLength}\0`).update(bytes).digest("hex");
+}
+
+/** The Git blob IDs of `collectorSources` as this process loaded them. */
+export function collectorIdentity(): Record<string, string> {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+  return Object.fromEntries(
+    collectorSources.map((file) => [file, gitBlobId(readFileSync(path.join(root, file)))]),
+  );
+}
 
 /** Paths whose content defines every build (in addition to dep-info). */
 export const buildDefinitionPaths = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "vendor"];
@@ -125,7 +149,7 @@ export interface DataPartition {
   /** Clock values in the shared data. */
   sharedClock: number[];
   /** Per port: digest of its partition and its clock values. */
-  subjects: Map<string, { digest: string; clock: number[]; records: number }>;
+  subjects: Map<string, { digest: string; clock: number[]; records: number; related: number }>;
   /** Source-catalog records no port reaches (kept in the shared digest). */
   unassignedRecords: number;
   /** Keys present in the data but not declared above (kept in the shared digest). */
@@ -188,21 +212,52 @@ export function partitionData(
     if (typeof listing?.id === "string")
       listingsById.set(listing.id, [...(listingsById.get(listing.id) ?? []), listing]);
 
+  // Port and listing entries that name another entry's ID (such as
+  // `original_game.id`, `artwork.game_slug` or presentation fields). Both sides
+  // are pulled into each other's partitions: a cheap over-approximation that
+  // needs no knowledge of which fields Core follows.
+  const entryIds = new Set([...portsById.keys(), ...listingsById.keys()]);
+  const entriesOf = (entry: string) => ({
+    ports: portsById.get(entry) ?? [],
+    listings: listingsById.get(entry) ?? [],
+  });
+  const mentionedBy = new Map<string, Set<string>>();
+  for (const entry of entryIds)
+    for (const value of strings(entriesOf(entry), new Set()))
+      if (value !== entry && entryIds.has(value))
+        mentionedBy.set(value, (mentionedBy.get(value) ?? new Set()).add(entry));
   const assigned = new Set<RecordRef>();
-  const subjects = new Map<string, { digest: string; clock: number[]; records: number }>();
+  const subjects = new Map<
+    string,
+    { digest: string; clock: number[]; records: number; related: number }
+  >();
   for (const id of ids) {
-    const own = { ports: portsById.get(id) ?? [], listings: listingsById.get(id) ?? [] };
+    const own = entriesOf(id);
     const reached = new Set<RecordRef>(byPort.get(id) ?? []);
+    const related = new Set<string>();
     const seen = strings(own, new Set([id]));
     for (const ref of reached) strings(ref.record, seen);
-    // Fixpoint over id references; each new record can name further records.
+    // Fixpoint over id references; each new record or entry can name further ones.
     for (let changed = true; changed;) {
       changed = false;
-      for (const value of [...seen])
+      for (const value of [...seen]) {
         for (const ref of byId.get(value) ?? [])
           if (!reached.has(ref)) {
             reached.add(ref);
             strings(ref.record, seen);
+            changed = true;
+          }
+        if (value !== id && entryIds.has(value) && !related.has(value)) {
+          related.add(value);
+          strings(entriesOf(value), seen);
+          changed = true;
+        }
+      }
+      for (const entry of [id, ...related])
+        for (const mentioning of mentionedBy.get(entry) ?? [])
+          if (mentioning !== id && !related.has(mentioning)) {
+            related.add(mentioning);
+            strings(entriesOf(mentioning), seen);
             changed = true;
           }
     }
@@ -213,11 +268,13 @@ export function partitionData(
     const partition = {
       ...own,
       source_catalog: ordered.map(({ array, record }) => ({ array, record })),
+      related: [...related].sort().map((entry) => ({ id: entry, ...entriesOf(entry) })),
     };
     subjects.set(id, {
       digest: sha256(canonical(partition)),
       clock: clockValues(partition),
       records: ordered.length,
+      related: related.size,
     });
   }
   // Shared: the documents without the partitioned parts. Records no port
@@ -465,6 +522,8 @@ export function assessmentScope(input: {
   listings: Json;
   ids: readonly string[];
   policy: ScopePolicy;
+  /** The collector's own code (`collectorIdentity()`). */
+  collector: Readonly<Record<string, string>>;
   nowSeconds: number;
 }): AssessmentScope {
   const partition = partitionData(input.catalog, input.listings, input.ids);
@@ -476,6 +535,7 @@ export function assessmentScope(input: {
       // per-subject split below then cannot narrow anything.
       shared: partition.shared,
       policy: { ...input.policy, features: [...input.policy.features].sort() },
+      collector: input.collector,
     }),
   );
   const visible = (values: readonly number[]) => newestVisible(values, input.nowSeconds);

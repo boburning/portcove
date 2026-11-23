@@ -44,6 +44,7 @@ import { buildUniverse, type UniverseEntry } from "./maintenance-universe.mts";
 import {
   assessmentScope,
   boundVisible,
+  collectorIdentity,
   listingsPath,
   mechanismOf,
   type AssessmentScope,
@@ -304,7 +305,31 @@ export const isolationScope = "fresh-empty-library-preferences-diagnostics-lock"
  * lock (the CLI's maintained isolation overrides), so a collection never
  * touches or rotates the maintainer's real Portcove state.
  */
-async function isolatedCli(cli: string, args: string[]) {
+/** A Core process exceeded its time or output budget; the read said nothing about its ports. */
+export class CoreBudgetExceeded extends MaintenanceStoreError {
+  readonly budget: "time" | "output";
+  constructor(budget: "time" | "output", command: string) {
+    super(`portcove ${command} exceeded its ${budget} budget`);
+    this.budget = budget;
+  }
+}
+
+/** Per-process budgets for an isolated Core read. */
+export interface CoreBudget {
+  timeoutMs: number;
+  maxBufferBytes: number;
+}
+export const defaultCoreBudget: CoreBudget = {
+  timeoutMs: 120_000,
+  maxBufferBytes: 16 * 1024 * 1024,
+};
+
+async function isolatedCli(
+  cli: string,
+  args: string[],
+  budget: CoreBudget = defaultCoreBudget,
+  onOutputBytes?: (bytes: number) => void,
+) {
   // Core refuses paths below a symlink (macOS /var, a linked TMPDIR) and diagnostics
   // would then fall back to the platform directory, so the root is a resolved real path.
   const root = mkdtempSync(path.join(realpathSync(os.tmpdir()), "portcove-inventory-"));
@@ -318,8 +343,8 @@ async function isolatedCli(cli: string, args: string[]) {
           ["--library", library, "--json", ...args],
           {
             encoding: "utf8",
-            timeout: 120_000,
-            maxBuffer: 16 * 1024 * 1024,
+            timeout: budget.timeoutMs,
+            maxBuffer: budget.maxBufferBytes,
             windowsHide: true,
             env: {
               ...process.env,
@@ -339,9 +364,15 @@ async function isolatedCli(cli: string, args: string[]) {
             },
           },
           (error, stdout, stderr) => {
-            if (error && (error.killed || error.signal || typeof error.code !== "number"))
+            if ((error?.code as unknown) === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER")
+              reject(new CoreBudgetExceeded("output", args[0] ?? "command"));
+            else if (error?.killed) reject(new CoreBudgetExceeded("time", args[0] ?? "command"));
+            else if (error && (error.signal || typeof error.code !== "number"))
               reject(new MaintenanceStoreError(`portcove ${args[0]} did not finish`));
-            else resolve({ status: error ? (error.code as number) : 0, stdout, stderr });
+            else {
+              onOutputBytes?.(Buffer.byteLength(stdout));
+              resolve({ status: error ? (error.code as number) : 0, stdout, stderr });
+            }
           },
         );
       },
@@ -385,7 +416,16 @@ export const coreBatchArgumentChars = 24_000;
 export async function coreCapabilitiesMany(
   cli: string,
   ids: readonly string[],
-  options: { batch: boolean; concurrency: number; onProcess?: () => void },
+  options: {
+    batch: boolean;
+    concurrency: number;
+    onProcess?: () => void;
+    /** Per-process budgets; the defaults otherwise. */
+    budget?: CoreBudget;
+    /** Each batch process's output size, and each split of a chunk that exceeded a budget. */
+    onOutputBytes?: (bytes: number) => void;
+    onSplit?: (ports: number) => void;
+  },
 ): Promise<Map<string, CapabilityObservation>> {
   const results = new Map<string, CapabilityObservation>();
   if (!options.batch) {
@@ -409,19 +449,45 @@ export async function coreCapabilitiesMany(
       chars += cost;
     }
   }
-  await mapBounded(chunks, options.concurrency, async (chunk) => {
+  const failure = (code: unknown, message: unknown): CapabilityObservation => ({
+    ok: false,
+    error: {
+      code: typeof code === "string" ? code : "unknown",
+      message: typeof message === "string" ? message : "",
+    },
+  });
+  // A chunk that exceeds its time or output budget is split in half, down to
+  // single ports, so one slow or oversized port cannot fail every scheduled run.
+  // A single port that still exceeds it is a gap: the run is partial and the
+  // next one reads everything again.
+  const read = async (chunk: string[]): Promise<void> => {
     options.onProcess?.();
-    const envelope = await isolatedCli(cli, [
-      "port-capabilities-batch",
-      ...chunk.flatMap((id) => ["--port", id]),
-    ]);
-    const failure = (code: unknown, message: unknown): CapabilityObservation => ({
-      ok: false,
-      error: {
-        code: typeof code === "string" ? code : "unknown",
-        message: typeof message === "string" ? message : "",
-      },
-    });
+    let envelope: Awaited<ReturnType<typeof isolatedCli>>;
+    try {
+      envelope = await isolatedCli(
+        cli,
+        ["port-capabilities-batch", ...chunk.flatMap((id) => ["--port", id])],
+        options.budget,
+        options.onOutputBytes,
+      );
+    } catch (error) {
+      if (!(error instanceof CoreBudgetExceeded)) throw error;
+      if (chunk.length === 1) {
+        results.set(
+          chunk[0]!,
+          failure(
+            `batch-${error.budget}-budget`,
+            `Core exceeded its ${error.budget} budget for this port`,
+          ),
+        );
+        return;
+      }
+      options.onSplit?.(chunk.length);
+      const half = Math.ceil(chunk.length / 2);
+      await read(chunk.slice(0, half));
+      await read(chunk.slice(half));
+      return;
+    }
     if (!envelope.ok) {
       for (const id of chunk)
         results.set(id, failure(envelope.error?.code, envelope.error?.message));
@@ -446,7 +512,8 @@ export async function coreCapabilitiesMany(
           ? { ok: true, report: entry.report }
           : failure(entry.error?.code, entry.error?.message),
       );
-  });
+  };
+  await mapBounded(chunks, options.concurrency, read);
   return results;
 }
 
@@ -2234,6 +2301,7 @@ export async function collect(options: {
             platform: `${platform};cli-doctor-platform-v1`,
             isolation: isolationScope,
           },
+          collector: collectorIdentity(),
           nowSeconds: Math.floor(Date.now() / 1000),
         })
       : null;
@@ -2284,11 +2352,15 @@ export async function collect(options: {
     Array.isArray(capabilities.commands) &&
     capabilities.commands.includes("port-capabilities-batch");
   let coreProcesses = 0;
+  let coreLargestOutput = 0;
+  let coreSplits = 0;
   const coreReadStarted = performance.now();
   const coreRead = await coreCapabilitiesMany(options.cli, toRead, {
     batch: coreBatch,
     concurrency: options.concurrency ?? 4,
     onProcess: () => coreProcesses++,
+    onOutputBytes: (bytes) => (coreLargestOutput = Math.max(coreLargestOutput, bytes)),
+    onSplit: () => coreSplits++,
   });
   const coreReadSeconds = (performance.now() - coreReadStarted) / 1000;
   // A clock value that became visible while Core read is unknown to the plan;
@@ -2582,6 +2654,8 @@ export async function collect(options: {
       batch: coreBatch,
       processes: coreProcesses,
       seconds: Math.round(coreReadSeconds * 10) / 10,
+      largest_output_bytes: coreLargestOutput,
+      splits: coreSplits,
     },
     cli_sha256: cliSha256,
     subjects: subjects.length,

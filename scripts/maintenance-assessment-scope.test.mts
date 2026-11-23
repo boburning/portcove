@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,6 +8,9 @@ import { test } from "node:test";
 import {
   assessmentScope,
   boundVisible,
+  collectorIdentity,
+  collectorSources,
+  gitBlobId,
   catalogPath,
   declaredCatalogKeys,
   declaredListingsKeys,
@@ -299,6 +303,89 @@ void test("a binding records its clock value only when it did not move during th
   assert.equal(boundVisible({ key: "k", visibleUntil: null, clock: [] }, 300), null);
 });
 
+void test("the collector's own code is keyed by the Git blob IDs of what is running", () => {
+  const identity = collectorIdentity();
+  assert.deepEqual(Object.keys(identity), [...collectorSources]);
+  for (const file of collectorSources) {
+    // The same ID Git gives the file's bytes.
+    const expected = execFileSync("git", ["hash-object", file], { encoding: "utf8" }).trim();
+    assert.equal(identity[file], expected, file);
+  }
+  assert.equal(gitBlobId(new TextEncoder().encode("")), "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391");
+  // Any edit to either file changes every key once.
+  const scope = (collector: Record<string, string>) =>
+    assessmentScope({
+      mechanism: { mode: "dep-info", digest: "m".repeat(64), files: 1 },
+      catalog: { schema_version: 3, ports: [] },
+      listings: { listings: [{ id: "a" }] },
+      ids: ["a"],
+      policy,
+      collector,
+      nowSeconds: 0,
+    });
+  assert.notEqual(
+    scope(identity).subjects.get("a")!.key,
+    scope({ ...identity, [collectorSources[0]]: "0".repeat(40) }).subjects.get("a")!.key,
+  );
+});
+
+void test("a port or listing entry that names another rekeys both, in either direction", () => {
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as {
+    ports: Record<string, unknown>[];
+  };
+  const listings = JSON.parse(readFileSync(listingsPath, "utf8")) as {
+    listings: Record<string, unknown>[];
+  };
+  const ids = readdirSync("crates/portcove-core/catalog/ports")
+    .map((file) => file.replace(/\.json$/u, ""))
+    .sort();
+  const known = new Set(ids);
+  const mentions = (value: unknown, into: Set<string>): Set<string> => {
+    if (typeof value === "string" && known.has(value)) into.add(value);
+    else if (Array.isArray(value)) for (const item of value) mentions(item, into);
+    else if (value && typeof value === "object")
+      for (const [key, item] of Object.entries(value)) {
+        mentions(key, into);
+        mentions(item, into);
+      }
+    return into;
+  };
+  // Every cross-entry reference in the real data, whatever field holds it.
+  const pairs: [string, string][] = [];
+  for (const entry of [...catalog.ports, ...listings.listings])
+    for (const other of mentions(entry, new Set()))
+      if (other !== entry.id) pairs.push([entry.id as string, other]);
+  assert.ok(pairs.length > 0, "the real catalog has cross-entry references to exercise");
+  const digests = (catalogDocument: unknown, listingsDocument: unknown) =>
+    partitionData(
+      catalogDocument as Record<string, unknown>,
+      listingsDocument as Record<string, unknown>,
+      ids,
+    ).subjects;
+  const before = digests(catalog, listings);
+  const edit = (id: string) => {
+    const edited = structuredClone(listings);
+    const entry = edited.listings.find((listing) => listing.id === id);
+    assert.ok(entry, id);
+    entry.summary = `${typeof entry.summary === "string" ? entry.summary : ""} (edited)`;
+    return digests(catalog, edited);
+  };
+  for (const [mentioning, mentioned] of new Map(
+    pairs.map((pair) => [pair.join(" "), pair]),
+  ).values())
+    for (const [edited, other] of [
+      [mentioning, mentioned],
+      [mentioned, mentioning],
+    ] as const) {
+      const after = edit(edited);
+      assert.notEqual(
+        after.get(other)!.digest,
+        before.get(other)!.digest,
+        `editing ${edited} must rekey ${other}`,
+      );
+    }
+});
+
 void test("the declared catalog shape matches the embedded data, so new structure is reviewed", () => {
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as Record<string, unknown>;
   const listings = JSON.parse(readFileSync(listingsPath, "utf8")) as Record<string, unknown>;
@@ -337,6 +424,8 @@ interface World {
   code: Record<string, string>;
   compiled: string[];
   policy: ScopePolicy;
+  /** The collector's own code, which also decides the stored result. */
+  collector: Record<string, string>;
 }
 
 type Records = Record<string, Record<string, unknown>[]>;
@@ -387,6 +476,7 @@ function evaluate(world: World, id: string, now: number) {
       ),
       code: world.compiled.map((file) => world.code[file]),
       policy: world.policy,
+      collector: world.collector,
     }),
   );
 }
@@ -407,6 +497,7 @@ function scopeOf(world: World, now: number) {
     listings: world.listings,
     ids: world.ids,
     policy: world.policy,
+    collector: world.collector,
     nowSeconds: now,
   });
 }
@@ -479,6 +570,7 @@ function generatedWorld(size: number, seed = 1): World {
     code: { "core/service.rs": "v1", "core/adapter.rs": "v1", "core/adapter_tests.rs": "v1" },
     compiled: ["core/service.rs", "core/adapter.rs"],
     policy,
+    collector: { "scripts/maintenance-inventory.mts": "v1" },
   };
 }
 
@@ -521,6 +613,9 @@ const changes: Record<string, Change> = {
   },
   "an unrelated module edited": (world) => {
     world.code["core/adapter_tests.rs"] = "v2";
+  },
+  "collector code edited without a version bump": (world) => {
+    world.collector = { ...world.collector, "scripts/maintenance-inventory.mts": "v2" };
   },
   "evaluator version bumped": (world) => {
     world.policy = { ...world.policy, projection: world.policy.projection + 1 };
@@ -571,6 +666,7 @@ void test("selective reassessment equals complete reassessment over generated ch
   assert.equal(counts["an unrelated module edited"], 0);
   for (const all of [
     "one adapter module edited",
+    "collector code edited without a version bump",
     "evaluator version bumped",
     "unreferenced record edited",
     "an undeclared field added",
@@ -612,6 +708,7 @@ void test("on the real embedded catalog a data-only change rekeys only its subje
       listings: listingsDocument as Record<string, unknown>,
       ids,
       policy,
+      collector: {},
       nowSeconds: 1_800_000_000,
     }).subjects;
   const before = keys(catalog, listings);

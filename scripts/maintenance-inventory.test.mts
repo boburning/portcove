@@ -23,6 +23,7 @@ import {
 } from "./maintenance-interventions.mts";
 import {
   clockWindowCrossed,
+  coreCapabilitiesMany,
   dueReasons,
   reassessmentDue,
   deferralChanges,
@@ -4484,6 +4485,52 @@ void test("each subject names its assessment inputs, when they last changed and 
   );
 });
 
+void test(
+  "a batch over its time or output budget is split down to single ports, and a port that still exceeds it is a gap",
+  {
+    skip: process.platform === "win32" ? "the stub Core is a POSIX script" : false,
+    timeout: 60_000,
+  },
+  async (context) => {
+    const root = mkdtempSync(path.join(os.tmpdir(), "portcove-batch-budget-"));
+    context.after(() => rmSync(root, { recursive: true, force: true }));
+    const cli = path.join(root, "portcove");
+    // A stub Core: "slow" outlasts the time budget and "huge" overflows the output budget
+    // whenever they are in the batch; every other port reports normally.
+    writeFileSync(
+      cli,
+      `#!/usr/bin/env node
+const args = process.argv.slice(2);
+const ports = args.flatMap((arg, index) => (args[index - 1] === "--port" ? [arg] : []));
+const finish = () => {
+  const reports = ports.map((port_id) => ({ port_id, ok: true, report: { port_id } }));
+  const padding = ports.includes("huge") ? "x".repeat(300000) : "";
+  process.stdout.write(JSON.stringify({ ok: true, data: { format_version: 1, reports }, padding }));
+};
+if (ports.includes("slow")) setTimeout(finish, 5000);
+else finish();
+`,
+    );
+    chmodSync(cli, 0o755);
+    const splits: number[] = [];
+    let largest = 0;
+    const results = await coreCapabilitiesMany(cli, ["a", "b", "slow", "c", "huge", "d"], {
+      batch: true,
+      concurrency: 1,
+      budget: { timeoutMs: 1_500, maxBufferBytes: 100_000 },
+      onSplit: (ports) => splits.push(ports),
+      onOutputBytes: (bytes) => (largest = Math.max(largest, bytes)),
+    });
+    for (const id of ["a", "b", "c", "d"])
+      assert.deepEqual(results.get(id), { ok: true, report: { port_id: id } }, id);
+    assert.equal(results.get("slow")?.error?.code, "batch-time-budget");
+    assert.equal(results.get("huge")?.error?.code, "batch-output-budget");
+    // 6 -> 3 + 3; [a, b, slow] -> [a, b] + [slow]; [c, huge, d] -> [c, huge] + [d]; [c, huge] -> [c] + [huge].
+    assert.deepEqual(splits, [6, 3, 3, 2]);
+    assert.ok(largest > 0 && largest < 100_000, String(largest));
+  },
+);
+
 void test("selective reassessment reuses only subjects the store did not select", () => {
   const key = "k".repeat(64);
   const now = new Date("2026-11-13T12:00:00Z");
@@ -4747,6 +4794,128 @@ void test(
             WHERE run_id = 'reassessment-fixed';`,
         ),
       /fixed when it starts/u,
+    );
+  },
+);
+
+void test(
+  "in dep-info mode a selective run reuses by scoped key, an unchanged read leaves its binding alone, and an older run cannot rebind",
+  { skip: server.skip ?? false, timeout: 240_000 },
+  async (context) => {
+    const fixture = postgresFixture(context, server.directory!);
+    const store = fixture.start("selective-dep-info");
+    migrate(store.owner);
+    const { cli, responses } = stubCli(fixture.root);
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const embedded = (file: string) =>
+      createHash("sha256")
+        .update(
+          execFileSync("git", ["show", `${head}:crates/portcove-core/catalog/${file}`], {
+            maxBuffer: 64 * 1024 * 1024,
+          }),
+        )
+        .digest("hex");
+    const producer = {
+      source_revision: head,
+      features: [],
+      embedded_catalog_sha256: embedded("catalog.json"),
+      embedded_listings_sha256: embedded("listings.json"),
+      catalog_override: false,
+    };
+    // A fixture dep-info beside the stub CLI naming real, committed build inputs.
+    const repository = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+    }).trim();
+    writeFileSync(
+      `${cli}.d`,
+      `${cli}: ${[
+        "crates/portcove-core/src/lib.rs",
+        "crates/portcove-core/src/service/capabilities.rs",
+        "crates/portcove-core/catalog/catalog.json",
+        "crates/portcove-core/catalog/listings.json",
+      ]
+        .map((file) => path.join(repository, file))
+        .join(" ")}\n`,
+    );
+    const respond = (core: unknown) =>
+      writeFileSync(
+        responses,
+        JSON.stringify({
+          "2ship2harkinian": core,
+          "targets:not-a-catalog-port": "not_found",
+          producer,
+        }),
+      );
+    const run = (reassess: "full" | "changed") =>
+      collect({
+        cli,
+        all: true,
+        ports: ["2ship2harkinian"],
+        targets: true,
+        reassess,
+        environment: store.owner,
+        runner: "fixture",
+      });
+    const binding = () =>
+      JSON.parse(
+        runSql(
+          store.owner,
+          `SELECT row_to_json(b) FROM portcove_maintenance.core_reuse_bindings b
+            WHERE subject_key = 'port:2ship2harkinian';`,
+        ),
+      ) as Record<string, unknown>;
+    respond(report("automatic"));
+    const first = await run("changed");
+    if (first.reassessment.reuse_key === null) {
+      context.skip("Core sources are not clean in this checkout, so reuse cannot be keyed");
+      return;
+    }
+    assert.equal(first.reassessment.mechanism, "dep-info");
+    const bound = binding();
+    // An unchanged full read finds the same key, fact, result and clock: the
+    // upsert's no-op branch leaves the binding, including its run, untouched.
+    await run("full");
+    assert.deepEqual(binding(), bound);
+    // Core now fails; the subject is reused under its dep-info key without a read.
+    respond("network");
+    const reused = await run("changed");
+    assert.deepEqual(
+      [reused.reassessment.mode, reused.reassessment.reused, reused.core_gaps],
+      ["selective", 1, 0],
+    );
+    assert.equal(reused.reassessment.mechanism, "dep-info");
+    // A compiled input that differs from the revision falls back to the whole tree.
+    writeFileSync(
+      `${cli}.d`,
+      `${cli}: ${path.join(repository, "crates/portcove-core/src/not-in-the-revision.rs")}\n`,
+    );
+    respond(report("automatic"));
+    assert.equal((await run("changed")).reassessment.mechanism, "whole-tree");
+    // The guard refuses a binding from a run that is not newer than the binding's
+    // own run, even when admission is bypassed to create such a run.
+    const acquisition = Number(
+      runSql(
+        store.owner,
+        `SELECT r.acquisition FROM portcove_maintenance.core_reuse_bindings b
+           JOIN portcove_maintenance.collection_runs r ON r.run_id = b.run_id
+          WHERE b.subject_key = 'port:2ship2harkinian';`,
+      ).trim(),
+    );
+    assert.throws(
+      () =>
+        runSql(
+          store.owner,
+          `ALTER TABLE portcove_maintenance.collection_runs DISABLE TRIGGER collection_runs_admission;
+           INSERT INTO portcove_maintenance.collection_runs (run_id, source, runner, started_at, acquisition)
+             VALUES ('older-acquisition', 'core-port-capabilities-linux-x86-64', 'fixture', now(), ${acquisition});
+           ALTER TABLE portcove_maintenance.collection_runs ENABLE TRIGGER collection_runs_admission;
+           UPDATE portcove_maintenance.core_reuse_bindings
+              SET run_id = 'older-acquisition',
+                  read_at = (SELECT started_at FROM portcove_maintenance.collection_runs
+                              WHERE run_id = 'older-acquisition')
+            WHERE subject_key = 'port:2ship2harkinian';`,
+        ),
+      /is newer than run older-acquisition/u,
     );
   },
 );
