@@ -368,14 +368,18 @@ async function isolatedCli(cli: string, args: string[]) {
 
 /** Ports per Core process when the CLI offers the batch read; bounds each process's output. */
 export const coreBatchSize = 200;
+/** Argument characters per batch process, well under the Windows command-line limit. */
+export const coreBatchArgumentChars = 24_000;
 
 /**
  * Core assessments for many ports. With `port-capabilities-batch` one process
- * loads the catalog once per chunk of `coreBatchSize` ports; each port's
- * report or refusal is exactly what the single-port command returns. A
- * process-level failure records every port of its chunk as that failure, as
- * the single-port command would for each. Without the batch command, one
- * process per port.
+ * loads the catalog once per chunk of at most `coreBatchSize` ports and
+ * `coreBatchArgumentChars` argument characters; each port's report, or its
+ * refusal code and message, is what the single-port command returns. A
+ * refused envelope records every port of its chunk as that failure, as the
+ * single-port command would for each; output that is not a valid envelope
+ * stops the collection, which then records nothing. Without the batch
+ * command, one process per port.
  */
 export async function coreCapabilitiesMany(
   cli: string,
@@ -392,8 +396,18 @@ export async function coreCapabilitiesMany(
     return results;
   }
   const chunks: string[][] = [];
-  for (let index = 0; index < ids.length; index += coreBatchSize)
-    chunks.push(ids.slice(index, index + coreBatchSize));
+  let chars = 0;
+  for (const id of ids) {
+    const cost = id.length + " --port ".length;
+    const last = chunks.at(-1);
+    if (!last || last.length >= coreBatchSize || chars + cost > coreBatchArgumentChars) {
+      chunks.push([id]);
+      chars = cost;
+    } else {
+      last.push(id);
+      chars += cost;
+    }
+  }
   await mapBounded(chunks, options.concurrency, async (chunk) => {
     options.onProcess?.();
     const envelope = await isolatedCli(cli, [
@@ -1549,19 +1563,21 @@ export function collectionSql(input: {
       payload: capabilityFact,
     });
     if (subject.scope && input.mode === "all" && input.reassessment?.reuseKey)
-      // The read binds the subject's scoped key. An unchanged binding is left
-      // alone unless a clock value became visible since its read.
+      // The read binds the subject's scoped key and the newest clock value it
+      // saw. An unchanged binding is left alone.
       lines.push(
         `INSERT INTO portcove_maintenance.core_reuse_bindings AS b
-           (source, subject_key, scope_key, catalog_digest, content_sha256, run_id, read_at)
+           (source, subject_key, scope_key, catalog_digest, content_sha256, run_id, read_at, visible_until)
          VALUES (${literal(coreSource)}, ${literal(key)}, ${literal(subject.scope.key)}, ${literal(catalogDigest)},
-           ${literal(capabilityDigest)}, ${literal(coreRun)}, ${literal(input.startedAt)})
+           ${literal(capabilityDigest)}, ${literal(coreRun)}, ${literal(input.startedAt)},
+           ${subject.scope.visibleUntil ?? "NULL"})
          ON CONFLICT (source, subject_key) DO UPDATE SET
            scope_key = EXCLUDED.scope_key, catalog_digest = EXCLUDED.catalog_digest,
-           content_sha256 = EXCLUDED.content_sha256, run_id = EXCLUDED.run_id, read_at = EXCLUDED.read_at
-         WHERE (b.scope_key, b.catalog_digest, b.content_sha256)
-                 IS DISTINCT FROM (EXCLUDED.scope_key, EXCLUDED.catalog_digest, EXCLUDED.content_sha256)
-            OR ${subject.scope.visibleUntil ?? "NULL"} > extract(epoch FROM b.read_at);`,
+           content_sha256 = EXCLUDED.content_sha256, run_id = EXCLUDED.run_id, read_at = EXCLUDED.read_at,
+           visible_until = EXCLUDED.visible_until
+         WHERE (b.scope_key, b.catalog_digest, b.content_sha256, b.visible_until)
+                 IS DISTINCT FROM (EXCLUDED.scope_key, EXCLUDED.catalog_digest, EXCLUDED.content_sha256,
+                                   EXCLUDED.visible_until);`,
       );
     // Core results are per host platform, so is the assessment history.
     const assessed = assessmentSubject(subject.id, input.platform);

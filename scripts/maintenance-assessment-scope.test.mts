@@ -257,6 +257,38 @@ void test("every build environment variable compiled code reads is declared with
   }
 });
 
+void test("source-catalog records name a port only through the declared owner fields", () => {
+  // The partition follows references from a port to records by id, and from a
+  // record to its port only through `port_id` or `scope.port_id`. A record that
+  // named another port any other way would be missed for that port, so it fails here.
+  const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as {
+    source_catalog: Record<string, Record<string, unknown>[]>;
+  };
+  const ports = new Set(
+    readdirSync("crates/portcove-core/catalog/ports").map((file) => file.replace(/\.json$/u, "")),
+  );
+  const strings = (value: unknown, into: string[] = []): string[] => {
+    if (typeof value === "string") into.push(value);
+    else if (Array.isArray(value)) for (const item of value) strings(item, into);
+    else if (value && typeof value === "object")
+      for (const [key, item] of Object.entries(value)) {
+        into.push(key);
+        strings(item, into);
+      }
+    return into;
+  };
+  const undeclared: string[] = [];
+  for (const [array, records] of Object.entries(catalog.source_catalog))
+    for (const { id, port_id: owner, scope, ...rest } of records) {
+      const { port_id: scopedOwner, ...scopeRest } = (scope ?? {}) as Record<string, unknown>;
+      // Naming its own port again (such as a profile with the port's ID) is reached anyway.
+      for (const value of strings([rest, scopeRest]))
+        if (ports.has(value) && value !== owner && value !== scopedOwner)
+          undeclared.push(`${array}:${String(id)}:${value}`);
+    }
+  assert.deepEqual(undeclared, []);
+});
+
 void test("the declared catalog shape matches the embedded data, so new structure is reviewed", () => {
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8")) as Record<string, unknown>;
   const listings = JSON.parse(readFileSync(listingsPath, "utf8")) as Record<string, unknown>;

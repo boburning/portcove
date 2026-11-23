@@ -1,8 +1,10 @@
 -- Scoped Core reassessment (#1422). Each subject's stored Core result is bound
 -- to the scoped key it was read under: the mechanism the binary was built from,
 -- the shared catalog data, the subject's own catalog partition and the policy.
--- A selective run reuses a subject only while its key, catalog fact and result
--- are unchanged and no clock-dated value became visible since the read; the
+-- A selective run reuses a subject only while its key, catalog fact, result and
+-- newest visible clock-dated value are unchanged since the read. The clock
+-- value is compared for equality, so a reader whose clock runs behind the
+-- original reader's is never handed a result that saw a later value. The
 -- store selects the subjects that need Core, so a run transfers only those.
 --
 -- A binding is current state, not history: runs, observations and assessments
@@ -18,6 +20,8 @@ CREATE TABLE portcove_maintenance.core_reuse_bindings (
   content_sha256 text NOT NULL CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
   run_id text NOT NULL REFERENCES portcove_maintenance.collection_runs,
   read_at timestamptz NOT NULL,
+  -- The newest numeric observed_at (seconds) visible to the read; NULL when none.
+  visible_until bigint,
   PRIMARY KEY (source, subject_key)
 );
 
@@ -64,8 +68,8 @@ CREATE TRIGGER core_reuse_bindings_no_truncate
 -- "c": catalog digest, "v": newest visible clock value in seconds or null})
 -- that need a Core read, with the first reason that applies. Every other
 -- desired subject may be reused: its binding has the same key and catalog
--- fact, its result is still the source's latest member, and no clock value
--- became visible after the read started.
+-- fact, its result is still the source's latest member, and the newest clock
+-- value visible now is the one its read saw.
 CREATE FUNCTION portcove_maintenance.core_reassessment_due(target_source text, desired jsonb)
 RETURNS TABLE (subject_key text, reason text)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
@@ -93,6 +97,6 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
       OR b.scope_key <> w.scope_key
       OR b.catalog_digest <> w.catalog_digest
       OR m.content_sha256 IS DISTINCT FROM b.content_sha256
-      OR (w.visible_until IS NOT NULL AND w.visible_until > extract(epoch FROM b.read_at))
+      OR w.visible_until IS DISTINCT FROM b.visible_until
    ORDER BY w.subject_key COLLATE "C"
 $$;

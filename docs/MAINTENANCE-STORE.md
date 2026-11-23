@@ -283,14 +283,16 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
     digest of its last real read, the run and the run's start. Only an
     in-progress run of the same source may write a row, and never over a row
     from a newer acquisition; rows are never deleted. A read rewrites its row
-    only when the key, fact or result changed or a clock value became
-    visible since the row's read.
+    only when the key, fact, result or newest visible clock value changed.
+    The row keeps that clock value (`visible_until`).
   - **Store-side selection.** `core_reassessment_due(source, desired)` takes
     each subject's key, fact digest and newest `observed_at` visible now. It
     returns only the subjects that need Core, with the first reason that
     applies: `unbound`, `scope-changed`, `catalog-changed`, `result-changed`
     (the binding's result is no longer the source's latest member) or `clock`
-    (a value became visible after the read started). The collector reads
+    (the newest `observed_at` visible now differs from the one the read saw,
+    so a later value, or a runner whose clock is behind the reader's, both
+    force a read). The collector reads
     those subjects and reuses the rest. Time-dependent inputs therefore stay
     in the decision through each subject's read time; they are never cached.
   - A reused subject is an unchanged member: no observation, assessment,
@@ -512,9 +514,11 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
 
 - `--all` covers every authored record committed at `HEAD`, not a sample.
   - Core is read with bounded concurrency (`--concurrency`, default 4). A CLI
-    that advertises `port-capabilities-batch` reads up to 200 ports per
-    process with one catalog load; each port's report or refusal is what the
-    single-port command returns. On the 1,649-port catalog (debug build,
+    that advertises `port-capabilities-batch` reads up to 200 ports (and
+    24,000 argument characters) per process with one catalog load; each
+    port's report, or refusal code and message, is what the single-port
+    command returns. A batch process whose output is not a valid envelope
+    stops the collection, which then records nothing. On the 1,649-port catalog (debug build,
     Linux x86-64) that is 9 processes and about 16 seconds instead of 1,649
     processes and about 410 seconds. An older CLI is read one port per
     process.

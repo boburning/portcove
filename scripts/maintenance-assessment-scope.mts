@@ -222,8 +222,9 @@ export function partitionData(
   }
   // Shared: the documents without the partitioned parts. Records no port
   // reaches stay here, in their original order.
-  const sharedCatalog: Json = { ...catalog, ports: undefined };
-  delete sharedCatalog.ports;
+  // A non-array `ports` or `listings` partitions nothing and stays shared.
+  const sharedCatalog: Json = { ...catalog };
+  if (Array.isArray(catalog.ports)) delete sharedCatalog.ports;
   const sharedSource: Json = { ...sourceCatalog };
   const assignedAt = new Set([...assigned].map((ref) => `${ref.array}:${ref.index}`));
   for (const array of declaredSourceCatalogArrays)
@@ -236,7 +237,7 @@ export function partitionData(
   // over a subset never ignores them.
   const subjectIds = new Set(ids);
   const sharedListings: Json = { ...listings };
-  delete sharedListings.listings;
+  if (Array.isArray(listings.listings)) delete sharedListings.listings;
   const shared = {
     catalog: sharedCatalog,
     other_ports: ports.filter((port) => !subjectIds.has(port?.id as string)),
@@ -349,7 +350,13 @@ export function mechanismOf(input: MechanismInput): Mechanism {
   const repository: Record<string, string> = {};
   const external: Record<string, string> = {};
   for (const file of depInfo.files) {
-    const absolute = path.resolve(path.dirname(depInfoPath), file);
+    // Compare real paths, so a symlinked checkout keeps its repository inputs.
+    let absolute = path.resolve(path.dirname(depInfoPath), file);
+    try {
+      absolute = realpathSync(absolute);
+    } catch {
+      // A missing input is reported below as missing or unreadable.
+    }
     const relative = path.relative(root, absolute).split(path.sep).join("/");
     if (!relative.startsWith("../") && !path.isAbsolute(relative)) {
       if ((partitionedDocuments as readonly string[]).includes(relative)) continue;
@@ -376,9 +383,9 @@ export function mechanismOf(input: MechanismInput): Mechanism {
       )
     )
       return fallback(`the dep-info does not name ${document}`);
-  // Every package manifest, because features and dependencies live there.
+  // Every package manifest at any depth, because features and dependencies live there.
   const manifests = Object.fromEntries(
-    [...input.blobs].filter(([file]) => /^crates\/[^/]+\/Cargo\.toml$/u.test(file)),
+    [...input.blobs].filter(([file]) => /(^|\/)Cargo\.toml$/u.test(file)),
   );
   return {
     mode: "dep-info",

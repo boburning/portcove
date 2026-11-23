@@ -4652,7 +4652,13 @@ void test(
         `SELECT row_to_json(b) FROM portcove_maintenance.core_reuse_bindings b
           WHERE subject_key = 'port:2ship2harkinian';`,
       ),
-    ) as { scope_key: string; catalog_digest: string; content_sha256: string; run_id: string };
+    ) as {
+      scope_key: string;
+      catalog_digest: string;
+      content_sha256: string;
+      run_id: string;
+      visible_until: number | null;
+    };
     assert.match(binding.scope_key, /^[0-9a-f]{64}$/u);
     // The store selects only subjects whose key, catalog fact, result or clock moved.
     const source = "core-port-capabilities-linux-x86-64";
@@ -4660,7 +4666,7 @@ void test(
       s: "port:2ship2harkinian",
       k: binding.scope_key,
       c: binding.catalog_digest,
-      v: null as number | null,
+      v: binding.visible_until,
     };
     assert.deepEqual([...reassessmentDue(store.owner, source, [desired])], []);
     assert.deepEqual(
@@ -4679,12 +4685,13 @@ void test(
       [...reassessmentDue(store.owner, source, [{ ...desired, c: "0".repeat(64) }])],
       [["port:2ship2harkinian", "catalog-changed"]],
     );
-    // A clock value that became visible after the read started makes it due.
-    assert.deepEqual(
-      [...reassessmentDue(store.owner, source, [{ ...desired, v: 4_102_444_800 }])],
-      [["port:2ship2harkinian", "clock"]],
-    );
-    assert.deepEqual([...reassessmentDue(store.owner, source, [{ ...desired, v: 1 }])], []);
+    // Any other newest visible clock value makes it due, whether the reader's
+    // clock is ahead (a later value) or behind (an earlier one or none).
+    for (const v of [4_102_444_800, 1, ...(binding.visible_until === null ? [] : [null])])
+      assert.deepEqual(
+        [...reassessmentDue(store.owner, source, [{ ...desired, v }])],
+        [["port:2ship2harkinian", "clock"]],
+      );
     // Bindings are written only by their in-progress run and never deleted.
     for (const [statement, pattern] of [
       [
