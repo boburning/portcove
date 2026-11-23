@@ -76,7 +76,13 @@ export const discoveryDefinitionDigest = createHash("sha256")
 const sha256 = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
 /** Clocks a pass stamps even when it learns nothing new. */
-const passClocks = new Set(["completed_at", "observed_at", "checked_at", "attempted_at"]);
+const passClocks = new Set([
+  "completed_at",
+  "observed_at",
+  "checked_at",
+  "attempted_at",
+  "unchanged_at",
+]);
 
 /** Digest of what a pass learned: collector state without its observation clocks. */
 export function learnedDigest(value: unknown) {

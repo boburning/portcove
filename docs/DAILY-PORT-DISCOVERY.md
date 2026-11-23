@@ -481,21 +481,46 @@ The fixed source scope is:
 | Quiver                  | Current `https://api.quiverlauncher.com/api/v1/apps?limit=100&sort=added` and `/api/v1/release-status?limit=100`; exhaust each cursor through `isDone`, join by stable app ID, and retain page provenance and collection time. `quiver-api` is one complete source only when both identity sets agree; failures preserve the prior checkpoint. `quiver-current` contains `entries` with `id`, `app` (including project/game identities), and `release` (including repository). Cached releases are hints requiring primary upstream refresh. Repository transfers retain app identity; exact implementation identity is resolved with primary repository IDs during research. The archived community JSON is historical evidence only. |
 | GithubLauncher          | `SirDiabo/GHLAppList/apps.json`, exact commit/blob; inspect current launcher catalog-selection code only when served-source mapping changes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | RetComM                 | Current `RetroPortingToolKit/Retro-Catalog/index.json` plus referenced platform title manifests (repository ID `1316230812`, transferred from `TechnicallyComputers/retcomm-catalog`). Preserve the `retcomm-*` checkpoint identities; changed manifests first, then rotation. Index-only coverage is partial for title facts.                                                                                                                                                                                                                                                                                                                                                                                                         |
-| PortForge               | `zamiba/portforge-mediaitems`, exact commit tree, at most eight changed `.mediaitem.json`/`.forge.json` records per run; preserve continuation and tree truncation. Never execute recipes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| PCGamingWiki            | Capture the normal response for manual revision and changed-row review. Corroborate proposed leads upstream. Denied or empty responses are inaccessible.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| PortForge               | Suspended (see [source policies](#reviewed-source-policies)). One `repos/zamiba/portforge-mediaitems` metadata probe per run; when the same repository reads again without a redirect, the exact-commit tree collection of changed `.mediaitem.json`/`.forge.json` records resumes with its retained continuation and truncation. Never execute recipes.                                                                                                                                                                                                                                                                                                                                                                               |
+| PCGamingWiki            | Reference capture (see [source policies](#reviewed-source-policies)): at most every 30 days, one page fingerprint for manual review; never automated coverage.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | Primary/community leads | Resource-admitted bounded search pages across upstream announcements/docs, native-port/decomp/recomp and relevant game communities, including attributable developer posts. Verify worthwhile leads against primary upstreams; no expansion to whole new registries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Curated community lists | Lead hints only: the Decomp Buddy finds feed, portsdr.com and the Alexbeav PS1 catalog, read at most weekly as repository URLs plus inert titles. Bounded primary metadata reads turn uncovered GitHub hints into ordinary leads; see [curated list leads](#curated-list-leads).                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Curated community lists | Lead hints only: the Decomp Buddy finds feed, portsdr.com, the Alexbeav PS1 catalog and the structured lists below, read on their refresh interval as repository or official URLs plus inert titles and attributed claims. Bounded primary metadata reads turn uncovered GitHub hints into ordinary leads; see [curated list leads](#curated-list-leads).                                                                                                                                                                                                                                                                                                                                                                              |
 
 Quiver manual listings may carry an external HTTPS source URL. The collector
 retains that URL as provenance and fetches only the two Quiver feeds. Each feed
 still requires terminal pagination and the same complete set of app IDs.
 
-PCGamingWiki is a manual lead source. The collector retains an accessible page
-as a partial observation and emits no automated row coverage. The reviewer
-records the wiki revision and relevant changed rows, then verifies candidate
-leads against primary upstreams. On November 18, 2026, normal requests to both
-the page and the MediaWiki parse endpoint returned HTTP 403. Keep the source
-gap visible until normal access returns or the wiki offers a supported feed.
+#### Reviewed source policies
+
+`sourcePolicies` in `daily-discovery-sources.mts` names the reviewed sources
+outside normal automated collection. Each is reported in every run with its
+role, reason and reconsideration condition, and neither role makes a run's
+coverage partial.
+
+- **Reference: PCGamingWiki.** The unofficial-ports page yields no structured
+  rows, so it is captured at most every 30 days as one page fingerprint
+  (`snapshot_kind: reference-capture`). A changed page enters manual review
+  once; the reviewer records the wiki revision and changed rows and verifies
+  candidate leads against primary upstreams. On 2026-11-18 and 2026-11-23 the
+  page, MediaWiki `parse`/`query` and Cargo `cargoquery` endpoints answered
+  HTTP 403 from a Cloudflare edge block. Promote it to collection once a
+  supported structured surface answers and yields rows.
+- **Suspended: PortForge.** `zamiba/portforge-mediaitems` answered HTTP 404 to
+  the 2026-11-23 audit; Git reported authentication required and raw files 404,
+  so private, renamed and deleted are indistinguishable. A winget installer
+  redirect ties the earlier `portforge` publisher to `zamiba`; no successor
+  repository is attributable. Each run makes one metadata probe and records
+  its HTTP status, error class, environment and the last good tree clock.
+  The retained checkpoint and provenance stay. Full collection resumes when the
+  same repository reads again; a publisher-named successor needs review before
+  it becomes the source, and a surviving fork never replaces it.
+
+A failed reviewed-source read records the request URL, error class, HTTP status
+and execution environment (`github-actions` or `local`). A runtime access
+failure is not evidence that a source retired or a project was removed. Quiver
+records its failing feed request; its evidence is Portcove's own API request,
+and `tgeorgiadis/quiver-launcher` is named as the publisher's client of the same
+API.
 
 The additional recomp.board source reads the published
 `https://recomp.fyi/feed.xml` Atom feed, not the restricted bulk table. It validates
@@ -534,17 +559,33 @@ Four structured sources follow the same contract:
   on every later read; a different repository at that path is a failed read
   that keeps the last good clock.
 
-Each list is read at most once per run, again seven days after its
-last complete collection, and only while twenty-two requests (the research
+Each list is read at most once per run, again after its refresh interval
+(seven days by default), and only while twenty-two requests (the research
 reserve plus four possible redirects) and the list cap plus 1 MiB remain. A
 malformed, oversized, count-mismatched or failed list keeps its prior complete
 clock and hints, records its failed attempt, waits two days before another read
 and is recorded as a partial note. Parser diagnostics never copy list bytes. A
 failure anywhere in this step leaves the rest of `collect` running.
 
-Only HTTPS GitHub and Codeberg `owner/name` and GitLab project paths (up to four
+Lists that answer conditional requests (the Decomp Buddy finds feed, decomp.fun
+and unbaked additions) are read daily with the validators of their retained
+read. A 304 records `unchanged_at` and keeps the retained entries and hints
+without a new parse. Validators apply only to a copy parsed by the list's
+current parser version, so a parser change always reads the source in full.
+Each list clock records the bytes its read transferred. A single read is
+bounded by the run's byte budget and the physical read ceiling (an eighth of
+the machine's memory, at most 512 MiB).
+
+HTTPS GitHub and Codeberg `owner/name` and GitLab project paths (up to four
 group segments) and a truncated inert title are retained in `leads.json` as
-hints, with the lists that named them and first/last observation clocks.
+resolvable hints, with the lists that named them, the list whose read created
+them (`discovered_by`) and first/last observation clocks. An official project
+URL on any other host (a SourceForge project root, a self-hosted forge or an
+independent site) is retained as a `web` hint in the `unsupported-host` state.
+It is taken up when a provider adapter supports its host or an attributed
+source names a resolvable repository for the project; it is never researched
+as a GitHub repository. Video, social, chat, storefront, encyclopedia, archive,
+donation, link-shortening and aggregator pages are not upstreams.
 Name-only entries are counted, never mapped. A list no longer naming a
 repository is not deletion evidence. Hints are not leads: they grant no
 admission, support, catalog or planning facts, and list text is never followed
@@ -587,12 +628,33 @@ read, and `lead-dispose` acknowledges it after the existing primary research and
 canonical overlap guards. The recorded hold/resume condition is retained for that
 review. New/changed claims cannot grant support or reverse a deliberate deferral.
 
+A source's claims about a repository are attributed source entries. Beyond the
+RecompSoftware fields, an entry may carry its relation (`implementation`,
+`distribution` or `mirror`), every game the source associates, a progress band
+in tenths, its lineage (`origin`: the sources it was copied from), a
+distribution channel and that channel's pinned version. A change of any claim
+hands the repository to primary research once; a progress move inside one band
+is not a change. One repository can carry several games and one game several
+repositories; neither is merged.
+
 Resolved leads record `external_lists` provenance and then follow the unchanged
 ranking, research, disposition and intake guards. Non-GitHub hints remain manual
 research hints. The lead summary's `external` entry reports each list's last
 complete collection, last attempt and due state, and covered, queued, unresolved,
-unavailable, conflict, failed and non-GitHub hints; without a validated inventory,
-canonical overlap is unknown. List collection does not count toward
+unavailable, conflict, failed, non-GitHub and unsupported-host hints; without a
+validated inventory, canonical overlap is unknown. Each list also reports its
+contribution:
+
+- `hints`: hints it names;
+- `discovered`: hints its read created;
+- `originated`: hints whose claims name it as their origin, or that it
+  discovered when no lineage is given, so a claim repeated by several
+  aggregators counts once for its originating source;
+- `platform_claims`, `pending_changes`, `unresolved_hosts` and its hints by
+  coverage state.
+
+`unsupported_hosts` counts web hints by host, and `origins` counts originating
+sources that are not configured lists. List collection does not count toward
 quiet-rotation lead coverage. Hints live in `leads.json` and its recovery copy
 in the run journal, never in registry checkpoint sources.
 

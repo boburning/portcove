@@ -2,6 +2,36 @@ import { createHash } from "node:crypto";
 import { parse as parseYaml } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import { observationHash } from "./upstream-observer.mts";
+import {
+  bounded,
+  collect,
+  entity,
+  externalLocation,
+  externalRepository,
+  inert,
+  json,
+  listId,
+  maxTitle,
+  validClaimExtensions,
+} from "./discovery-claims.mts";
+import type {
+  ExternalListEntry,
+  ExternalSourceEntry,
+  ParsedExternalList,
+} from "./discovery-claims.mts";
+export {
+  externalLocation,
+  externalRepository,
+  externalWebLocation,
+  progressBand,
+  sourceEntry,
+} from "./discovery-claims.mts";
+export type {
+  ExternalHost,
+  ExternalListEntry,
+  ExternalSourceEntry,
+  ParsedExternalList,
+} from "./discovery-claims.mts";
 
 // Curated community lists are lead inputs only. A list entry names a repository
 // someone else tracks; it never admits, qualifies or describes a Portcove port.
@@ -12,6 +42,9 @@ export const externalLeadLists = [
     url: "https://tanookistudios.com/decomp-buddy/finds.json",
     format: "finds-json",
     cap: 8 * 1024 * 1024,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
   },
   { id: "portsdr", url: "https://portsdr.com/", format: "portsdr-html", cap: 4 * 1024 * 1024 },
   {
@@ -35,6 +68,9 @@ export const externalLeadLists = [
     url: "https://decomp.fun/v1/projects.json",
     format: "decomp-fun-json",
     cap: 8 * 1024 * 1024,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
   },
   // unbaked's weekly additions: every project the registry gained, newest week first.
   {
@@ -42,6 +78,9 @@ export const externalLeadLists = [
     url: "https://unbaked.games/api/additions.json",
     format: "unbaked-additions-json",
     cap: 8 * 1024 * 1024,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
   },
   // PortMaster's package index names upstream projects only in its prose; those
   // links are read as hints. Its handheld ARM packages say nothing about desktop builds.
@@ -63,6 +102,10 @@ export const externalLeadLists = [
 ] as const;
 export type ExternalLeadListId = (typeof externalLeadLists)[number]["id"];
 export const externalListIds: readonly string[] = externalLeadLists.map((list) => list.id);
+/**
+ * Default days between list reads. A list that answers conditional requests is
+ * read daily: an unchanged list costs one 304 with no body.
+ */
 export const externalListRefreshDays = 7;
 export const externalResolutionsPerRun = 8;
 /** Retry clocks for per-hint outcomes; none of them stops later hints in the run. */
@@ -70,36 +113,7 @@ export const externalHintRetryDays = { unavailable: 30, conflict: 30, failed: 1 
 /** A failed list read waits this long before another attempt, keeping its last good clock. */
 export const externalListFailureRetryDays = 2;
 // Retired list ids remain readable in retained state; only configured lists are collected.
-const listId = /^[a-z0-9][a-z0-9-]{0,63}$/u;
-const maxTitle = 160;
 
-/** External claims only: source slug/subject never establish Portcove game identity. */
-export interface ExternalSourceEntry {
-  id: string;
-  subject: string;
-  category: string;
-  method: string;
-  status: string;
-  targets: string[];
-  needs_original: boolean | null;
-  latest_release: string | null;
-  fingerprint: string;
-}
-export interface ExternalListEntry {
-  key: string;
-  url: string;
-  host: "github" | "gitlab" | "codeberg";
-  title: string;
-  source_entries?: ExternalSourceEntry[];
-}
-export interface ParsedExternalList {
-  entries: ExternalListEntry[];
-  /** Entries without a usable repository link: name-only hints that are not invented mappings. */
-  unlinked: number;
-  /** Entries the list itself classifies outside native-port scope (clones, similar games, tools). */
-  excluded?: number;
-  source?: { url: string; revision: string; content_sha256: string; repository_id?: number };
-}
 export interface ExternalListClock {
   completed_at: string;
   evidence: string;
@@ -107,6 +121,17 @@ export interface ExternalListClock {
   unlinked: number;
   fingerprint: string;
   source?: ParsedExternalList["source"];
+  /** Entries the list itself places outside native-port scope. */
+  excluded?: number;
+  /** Bytes the read transferred. */
+  bytes?: number;
+  /** The list's parser version when this read was parsed; validators apply only to it. */
+  parser?: number;
+  /** Validators of the read, sent with the next one; a 304 keeps the retained copy. */
+  etag?: string;
+  last_modified?: string;
+  /** The last time the source answered that nothing changed since `completed_at`. */
+  unchanged_at?: string;
 }
 export interface ExternalListAttempt {
   attempted_at: string;
@@ -118,6 +143,8 @@ export interface ExternalHint {
   host: ExternalListEntry["host"];
   title: string;
   lists: string[];
+  /** The list whose read created this hint. */
+  discovered_by?: string;
   first_observed_at: string;
   last_observed_at: string;
   source_entries?: Record<string, ExternalSourceEntry[]>;
@@ -136,79 +163,6 @@ export interface ExternalLeadState {
   lists: Record<string, ExternalListClock>;
   hints: Record<string, ExternalHint>;
   attempts?: Record<string, ExternalListAttempt>;
-}
-
-const hosts = {
-  "github.com": "github",
-  "gitlab.com": "gitlab",
-  "codeberg.org": "codeberg",
-} as const;
-const segment = /^[A-Za-z0-9_.-]{1,100}$/u;
-/** Normalizes one credential-free repository URL to its host and project path, or null.
- * GitHub and Codeberg use owner/name. GitLab keeps its full group path (up to four
- * segments before a `/-/` route) so a nested project is not mistaken for another.
- */
-export function externalRepository(value: string) {
-  let url: URL;
-  try {
-    url = new URL(value.trim());
-  } catch {
-    return null;
-  }
-  const host = hosts[url.hostname.toLowerCase() as keyof typeof hosts];
-  if (url.protocol !== "https:" || url.username || url.password || url.port || !host) return null;
-  const parts = url.pathname.split("/").filter(Boolean);
-  let project = parts.slice(0, 2);
-  if (host === "gitlab") {
-    const route = parts.indexOf("-");
-    project = route === -1 ? parts : parts.slice(0, route);
-    if (project.length > 4) return null;
-  }
-  if (project.length < 2) return null;
-  project[project.length - 1] = project.at(-1)!.replace(/\.git$/iu, "");
-  if (project.some((part) => !segment.test(part) || /^\.+$/u.test(part))) return null;
-  const canonical = `https://${url.hostname.toLowerCase()}/${project.join("/")}`;
-  return { key: canonical.toLowerCase(), url: canonical, host } as const;
-}
-const inert = (value: unknown) =>
-  typeof value === "string"
-    ? Array.from(
-        value
-          .replace(/[\p{Cc}\p{Cf}]+/gu, " ")
-          .replace(/\s+/gu, " ")
-          .trim(),
-      )
-        .slice(0, maxTitle)
-        .join("")
-    : "";
-const entity = (value: string) =>
-  value.replace(/&(?:amp|lt|gt|quot|apos|#39|#(\d{1,7}));/gu, (match, code?: string) => {
-    if (code) {
-      const point = Number(code);
-      return point > 0 && point <= 0x10ffff ? String.fromCodePoint(point) : "";
-    }
-    return (
-      { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'", "&#39;": "'" }[
-        match
-      ] ?? ""
-    );
-  });
-function bounded(text: string, cap: number, label: string) {
-  if (Buffer.byteLength(text) > cap) throw new Error(`Oversized ${label}`);
-}
-function collect(rows: { url: string; title: string }[], unlinked: number): ParsedExternalList {
-  if (!rows.length && !unlinked) throw new Error("External list has no entries");
-  const entries = new Map<string, ExternalListEntry>();
-  for (const row of rows) {
-    const repository = externalRepository(row.url);
-    if (!repository) {
-      unlinked++;
-      continue;
-    }
-    if (!entries.has(repository.key))
-      entries.set(repository.key, { ...repository, title: inert(row.title) });
-  }
-  return { entries: [...entries.values()].sort((a, b) => a.key.localeCompare(b.key)), unlinked };
 }
 
 /** Decomp Buddy's published finds feed: `{ updatedAt, games: [{ repo: "owner/name", title }] }`. */
@@ -379,15 +333,6 @@ export function bindExternalListSource(
     source: { url, revision, content_sha256: createHash("sha256").update(text).digest("hex") },
   };
 }
-
-const json = (text: string, label: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    // Never copy list bytes into notes through the parser's diagnostic.
-    throw new Error(`Malformed ${label} JSON`);
-  }
-};
 
 /** decomp.fun `projects.json`: `{ projects: [{ repository, game_title, name }] }`. */
 export function parseDecompFunProjects(text: string): ParsedExternalList {
@@ -565,7 +510,20 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       !Number.isSafeInteger(raw.entries) ||
       Number(raw.entries) < 0 ||
       !Number.isSafeInteger(raw.unlinked) ||
-      Number(raw.unlinked) < 0
+      Number(raw.unlinked) < 0 ||
+      (["excluded", "bytes", "parser"] as const).some(
+        (field) =>
+          raw[field] !== undefined && (!Number.isSafeInteger(raw[field]) || Number(raw[field]) < 0),
+      ) ||
+      (["etag", "last_modified"] as const).some(
+        (field) =>
+          raw[field] !== undefined &&
+          (typeof raw[field] !== "string" ||
+            !raw[field] ||
+            String(raw[field]).length > 512 ||
+            /[\r\n]/u.test(String(raw[field]))),
+      ) ||
+      (raw.unchanged_at !== undefined && !clock(raw.unchanged_at))
     )
       throw new Error("Invalid retained external list clock");
     if (
@@ -584,7 +542,7 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       throw new Error("Invalid retained immutable external source");
   }
   for (const [key, raw] of Object.entries(value.hints)) {
-    const repository = isRecord(raw) && typeof raw.url === "string" && externalRepository(raw.url);
+    const repository = isRecord(raw) && typeof raw.url === "string" && externalLocation(raw.url);
     if (
       !repository ||
       !isRecord(raw) ||
@@ -598,7 +556,9 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       !raw.lists.every((id) => typeof id === "string" && listId.test(id)) ||
       new Set(raw.lists).size !== raw.lists.length ||
       !clock(raw.first_observed_at) ||
-      !clock(raw.last_observed_at)
+      !clock(raw.last_observed_at) ||
+      (raw.discovered_by !== undefined &&
+        (typeof raw.discovered_by !== "string" || !raw.lists.includes(raw.discovered_by)))
     )
       throw new Error("Invalid retained external hint");
     if (
@@ -629,6 +589,7 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
                 !row.targets.every((v) => typeof v === "string") ||
                 !(row.needs_original === null || typeof row.needs_original === "boolean") ||
                 !(row.latest_release === null || typeof row.latest_release === "string") ||
+                !validClaimExtensions(row) ||
                 fingerprint !== observationHash(claims)
               );
             }),
@@ -662,8 +623,14 @@ export function externalListDue(state: ExternalLeadState | undefined, id: string
     Date.parse(now) - Date.parse(attempt.attempted_at) < externalListFailureRetryDays * 86400000
   )
     return false;
-  const previous = state?.lists[id]?.completed_at;
-  return !previous || Date.parse(now) - Date.parse(previous) >= externalListRefreshDays * 86400000;
+  const clockValue = state?.lists[id];
+  const previous = [clockValue?.completed_at, clockValue?.unchanged_at]
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1);
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  const days = list && "refresh_days" in list ? Number(list.refresh_days) : externalListRefreshDays;
+  return !previous || Date.parse(now) - Date.parse(previous) >= days * 86400000;
 }
 /** Records a failed list read without touching its hints or last successful clock. */
 export function recordExternalListFailure(
@@ -690,6 +657,7 @@ export function mergeExternalList(
   parsed: ParsedExternalList,
   observedAt: string,
   evidence: string,
+  read: { bytes?: number; etag?: string | undefined; last_modified?: string | undefined } = {},
 ): ExternalLeadState {
   if (!externalListIds.includes(id)) throw new Error("Unknown external lead list");
   if (!clock(observedAt)) throw new Error("Invalid external list clock");
@@ -727,10 +695,12 @@ export function mergeExternalList(
           host: entry.host,
           title: entry.title,
           lists: [id],
+          discovered_by: id,
           first_observed_at: observedAt,
           last_observed_at: observedAt,
         };
   }
+  const parser = parserVersion(id);
   next.lists[id] = {
     completed_at: observedAt,
     evidence,
@@ -738,7 +708,59 @@ export function mergeExternalList(
     unlinked: parsed.unlinked,
     fingerprint: observationHash(parsed.entries),
     ...(parsed.source ? { source: parsed.source } : {}),
+    ...(parsed.excluded !== undefined ? { excluded: parsed.excluded } : {}),
+    ...(read.bytes !== undefined ? { bytes: read.bytes } : {}),
+    ...(parser !== undefined ? { parser } : {}),
+    ...(read.etag ? { etag: read.etag } : {}),
+    ...(read.last_modified ? { last_modified: read.last_modified } : {}),
   };
+  next.attempts = { ...next.attempts, [id]: { attempted_at: observedAt, outcome: "complete" } };
+  return next;
+}
+
+/** The list's configured parser version; a retained copy from another version is re-read. */
+export function parserVersion(id: string) {
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  return list && "parser" in list ? Number(list.parser) : undefined;
+}
+/**
+ * Validators to send for a list's next read: only for a list that supports
+ * conditional reads and only when its retained copy was parsed by the current
+ * parser version, so a parser change always reads the source in full.
+ */
+export function externalListValidators(state: ExternalLeadState | undefined, id: string) {
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  const previous = state?.lists[id];
+  if (!list || !("conditional" in list) || !previous || previous.parser !== parserVersion(id))
+    return undefined;
+  const validators = {
+    ...(previous.etag ? { etag: previous.etag } : {}),
+    ...(previous.last_modified ? { last_modified: previous.last_modified } : {}),
+  };
+  return Object.keys(validators).length ? validators : undefined;
+}
+/** A response validator header worth retaining, or undefined. */
+export function responseValidator(value: unknown) {
+  return typeof value === "string" && value && value.length <= 512 && !/[\r\n]/u.test(value)
+    ? value
+    : undefined;
+}
+/**
+ * A conditional read the source answered with 304: the retained entries and
+ * hints still describe it, so the list is current again without a new parse.
+ */
+export function markExternalListUnchanged(
+  state: ExternalLeadState | undefined,
+  id: string,
+  observedAt: string,
+  bytes: number,
+): ExternalLeadState {
+  const previous = state?.lists[id];
+  if (!state || !previous) throw new Error("An unchanged list needs its retained complete read");
+  if (!clock(observedAt) || Date.parse(observedAt) < Date.parse(previous.completed_at))
+    throw new Error("Invalid unchanged external list clock");
+  const next = structuredClone(state);
+  next.lists[id] = { ...previous, unchanged_at: observedAt, bytes };
   next.attempts = { ...next.attempts, [id]: { attempted_at: observedAt, outcome: "complete" } };
   return next;
 }
@@ -757,6 +779,7 @@ export type ExternalHintCoverage =
   | "covered"
   | "queued"
   | "non-github"
+  | "unsupported-host"
   | "unresolved"
   | "unavailable"
   | "conflict"
@@ -770,6 +793,7 @@ export function externalHintCoverage(
 ): ExternalHintCoverage {
   const changed = hint.source_change !== undefined;
   if (!changed && covered.has(key)) return "covered";
+  if (hint.host === "web") return "unsupported-host";
   if (hint.host !== "github") return "non-github";
   if (paths.has(key.slice(19))) return "queued";
   const resolution = hint.resolution;
@@ -823,13 +847,65 @@ export function externalHintSummary(
     covered: 0,
     queued: 0,
     "non-github": 0,
+    "unsupported-host": 0,
     unresolved: 0,
     unavailable: 0,
     conflict: 0,
     failed: 0,
   };
-  for (const [key, hint] of Object.entries(state?.hints ?? {}))
-    counts[externalHintCoverage(hint, key, covered ?? new Set(), paths, now)]++;
+  // Contribution per list. A hint counts as discovered by the list whose read
+  // created it, and as originated by the sources its claims name as lineage
+  // (or, without lineage, by its discovering list), so a claim several
+  // aggregators repeat counts once for its originating source.
+  const contribution: Record<
+    string,
+    {
+      hints: number;
+      discovered: number;
+      originated: number;
+      platform_claims: number;
+      pending_changes: number;
+      unresolved_hosts: number;
+      coverage: Partial<Record<ExternalHintCoverage, number>>;
+    }
+  > = {};
+  const row = (id: string) =>
+    (contribution[id] ??= {
+      hints: 0,
+      discovered: 0,
+      originated: 0,
+      platform_claims: 0,
+      pending_changes: 0,
+      unresolved_hosts: 0,
+      coverage: {},
+    });
+  const unsupportedHosts: Record<string, number> = {};
+  for (const [key, hint] of Object.entries(state?.hints ?? {})) {
+    const status = externalHintCoverage(hint, key, covered ?? new Set(), paths, now);
+    counts[status]++;
+    if (status === "unsupported-host") {
+      const hostname = new URL(hint.url).hostname;
+      unsupportedHosts[hostname] = (unsupportedHosts[hostname] ?? 0) + 1;
+    }
+    const origins = new Set(
+      Object.values(hint.source_entries ?? {}).flatMap((rows) =>
+        rows.flatMap((r) => r.origin ?? []),
+      ),
+    );
+    if (!origins.size && hint.discovered_by) origins.add(hint.discovered_by);
+    for (const origin of origins) row(origin).originated++;
+    for (const id of hint.lists) {
+      const entry = row(id);
+      entry.hints++;
+      entry.coverage[status] = (entry.coverage[status] ?? 0) + 1;
+      if (hint.discovered_by === id) entry.discovered++;
+      if (hint.host === "web") entry.unresolved_hosts++;
+      if (hint.source_change) entry.pending_changes++;
+      entry.platform_claims += (hint.source_entries?.[id] ?? []).filter(
+        (claim) => claim.targets.length,
+      ).length;
+    }
+  }
   return {
     lists: Object.fromEntries(
       externalLeadLists.map((list) => [
@@ -838,9 +914,19 @@ export function externalHintSummary(
           last_complete: state?.lists[list.id] ?? null,
           last_attempt: state?.attempts?.[list.id] ?? null,
           due: externalListDue(state, list.id, now),
+          contribution: contribution[list.id] ?? null,
         },
       ]),
     ),
+    // Originating sources outside the configured lists (lineage named by a claim).
+    origins: Object.fromEntries(
+      Object.entries(contribution)
+        .filter(([id]) => !externalListIds.includes(id))
+        .map(([id, value]) => [id, value.originated]),
+    ),
+    unsupported_hosts: unsupportedHosts,
+    unsupported_host_reconsideration:
+      "Retained as unresolved; taken up when a provider adapter supports the host or an attributed source names a resolvable repository for the project",
     hints: Object.keys(state?.hints ?? {}).length,
     // Without a validated canonical inventory, covered hints are reported as unresolved.
     canonical_overlap: covered ? "observed" : "unknown",

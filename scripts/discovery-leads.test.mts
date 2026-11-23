@@ -35,6 +35,11 @@ import {
   parseFindsFeed,
   parsePortsdrPage,
   selectExternalResolutions,
+  externalListValidators,
+  externalWebLocation,
+  markExternalListUnchanged,
+  sourceEntry,
+  progressBand,
 } from "./discovery-external-lists.mts";
 import type { ExternalLeadState } from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
@@ -1260,9 +1265,19 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   await rerun("2026-10-26T12:56:46.011Z", 150);
   assert.deepEqual(
     fetched.slice(4).map((u) => new URL(u).hostname),
-    ["portsdr.com", "alexbeavs-ps1-ports.github.io", "raw.githubusercontent.com"],
+    [
+      // The finds feed is a daily conditional read.
+      "tanookistudios.com",
+      "portsdr.com",
+      "alexbeavs-ps1-ports.github.io",
+      "raw.githubusercontent.com",
+    ],
   );
-  assert.deepEqual(session.leads.external?.lists["decomp-buddy-finds"], findsClock);
+  assert.equal(
+    session.leads.external?.lists["decomp-buddy-finds"]?.fingerprint,
+    findsClock?.fingerprint,
+    "an unchanged feed keeps its entries",
+  );
   const recovered: ExternalLeadState["lists"] = session.leads.external?.lists ?? {};
   assert.equal(recovered["portsdr"]?.entries, 1);
   assert.equal(session.leads.external?.lists["alexbeav-psx"], undefined);
@@ -1436,10 +1451,14 @@ void test("new structured sources yield repository hints and apply their own sco
     }),
   );
   assert.deepEqual(
-    unbaked.entries.map((e) => e.key),
-    ["https://github.com/louisvarley/ffers"],
+    unbaked.entries.map((e) => [e.key, e.host]),
+    [
+      ["https://github.com/louisvarley/ffers", "github"],
+      ["https://sourceforge.net/projects/other", "web"],
+    ],
+    "an official URL on a host Portcove cannot resolve is kept as an unresolved web hint",
   );
-  assert.equal(unbaked.unlinked, 1, "a host Portcove cannot resolve stays an unlinked hint");
+  assert.equal(unbaked.unlinked, 0);
 
   const portmaster = parsePortMasterIndex(
     JSON.stringify({
@@ -1882,4 +1901,195 @@ void test("a local lead whose path the store holds under another provider ID is 
     },
   );
   assert.deepEqual(Object.keys(merged.records).sort(), ["6", "9"]);
+});
+
+void test("official URLs on unsupported hosts are retained as unresolved web hints", () => {
+  assert.deepEqual(externalWebLocation("https://sourceforge.net/p/openlara/code/ci/master/tree/"), {
+    key: "https://sourceforge.net/projects/openlara",
+    url: "https://sourceforge.net/projects/openlara",
+    host: "web",
+  });
+  assert.equal(
+    externalWebLocation("https://git.example.dev/team/engine.git?tab=readme#top")?.key,
+    "https://git.example.dev/team/engine.git",
+  );
+  for (const rejected of [
+    "https://www.youtube.com/watch?v=x",
+    "https://store.steampowered.com/app/1",
+    "https://github.com/owner/repo",
+    "https://user:pass@example.org/p",
+    "https://example.org:8443/p",
+    "https://192.168.0.1/p",
+    "ftp://example.org/p",
+    "https://decomp.fun/owner/repo/",
+  ])
+    assert.equal(externalWebLocation(rejected), null, rejected);
+  const parsed = parseUnbakedAdditions(
+    JSON.stringify({
+      weeks: [
+        {
+          games: [
+            {
+              title: "Doom",
+              projects: [{ url: "https://git.example.dev/team/engine", name: "engine" }],
+            },
+          ],
+        },
+      ],
+    }),
+  );
+  const state = mergeExternalList(undefined, "unbaked-additions", parsed, now, "evidence.json");
+  assert.deepEqual(parseExternalLeadState(state), state, "web hints round-trip");
+  const summary = externalHintSummary(state, new Set(), new Map(), now);
+  assert.equal(summary["unsupported-host"], 1);
+  assert.deepEqual(summary.unsupported_hosts, { "git.example.dev": 1 });
+  assert.match(summary.unsupported_host_reconsideration, /provider adapter/u);
+  assert.deepEqual(
+    selectExternalResolutions(state, new Set(), new Map(), now, Infinity, "fair"),
+    [],
+    "a web hint is never researched as a GitHub repository",
+  );
+});
+
+void test("a claim several aggregators repeat counts once for its originating source", () => {
+  const claim = (id: string, origin: string[]) =>
+    sourceEntry({
+      id,
+      subject: "Game",
+      category: "gc",
+      method: "",
+      status: "latest",
+      targets: ["Windows", "Linux"],
+      needs_original: null,
+      latest_release: "v1",
+      relation: "implementation",
+      games: ["game"],
+      origin,
+    });
+  const entry = (origin: string[]) => ({
+    key: "https://github.com/ports/game",
+    url: "https://github.com/ports/game",
+    host: "github" as const,
+    title: "Game",
+    source_entries: [claim("github:ports/game", origin)],
+  });
+  let state = mergeExternalList(
+    undefined,
+    "portsdr",
+    parsePortsdrPage(
+      '<article class="port-card"><h3>Game</h3><a href="https://github.com/ports/game">Repository</a></article>',
+    ),
+    now,
+    "portsdr.json",
+  );
+  state = mergeExternalList(
+    state,
+    "decomp-buddy-finds",
+    { entries: [entry(["portsdr", "decomp-buddy-finds"])], unlinked: 0 },
+    now,
+    "finds.json",
+  );
+  assert.deepEqual(parseExternalLeadState(state), state);
+  const summary = externalHintSummary(state, new Set(), new Map(), now);
+  assert.equal(summary.hints, 1, "one upstream identity");
+  assert.equal(summary.lists.portsdr?.contribution?.discovered, 1);
+  assert.equal(summary.lists["decomp-buddy-finds"]?.contribution?.discovered, 0);
+  assert.equal(summary.lists.portsdr?.contribution?.originated, 1);
+  assert.equal(summary.lists["decomp-buddy-finds"]?.contribution?.platform_claims, 1);
+  assert.deepEqual(state.hints["https://github.com/ports/game"]?.lists, [
+    "decomp-buddy-finds",
+    "portsdr",
+  ]);
+  // A small progress move stays in one band; crossing a band is a research change.
+  assert.equal(progressBand(41.2), progressBand(48.9));
+  assert.notEqual(progressBand(48.9), progressBand(51));
+  assert.equal(progressBand(100), 10);
+  assert.equal(progressBand(0.5), 5, "a fraction is read as a share");
+  assert.equal(progressBand(null), null);
+});
+
+void test("a conditional list read keeps its retained copy until the source changes", async (t) => {
+  const first = mergeExternalList(
+    undefined,
+    "decomp-buddy-finds",
+    parseFindsFeed(finds(["ports/game-1"])),
+    now,
+    "finds.json",
+    { bytes: 120, etag: '"v1"' },
+  );
+  assert.equal(first.lists["decomp-buddy-finds"]?.parser, 1);
+  assert.deepEqual(externalListValidators(first, "decomp-buddy-finds"), { etag: '"v1"' });
+  assert.equal(externalListValidators(first, "portsdr"), undefined, "no conditional support");
+  const stale = structuredClone(first);
+  stale.lists["decomp-buddy-finds"]!.parser = 0;
+  assert.equal(
+    externalListValidators(stale, "decomp-buddy-finds"),
+    undefined,
+    "a copy parsed by another parser version is read in full",
+  );
+  const later = new Date(Date.parse(now) + 2 * 86400000).toISOString();
+  assert.ok(externalListDue(first, "decomp-buddy-finds", later), "daily list is due");
+  const unchanged = markExternalListUnchanged(first, "decomp-buddy-finds", later, 0);
+  assert.equal(unchanged.lists["decomp-buddy-finds"]?.completed_at, now);
+  assert.equal(unchanged.lists["decomp-buddy-finds"]?.unchanged_at, later);
+  assert.deepEqual(unchanged.hints, first.hints);
+  assert.ok(!externalListDue(unchanged, "decomp-buddy-finds", later));
+  assert.deepEqual(parseExternalLeadState(unchanged), unchanged);
+  assert.throws(() => markExternalListUnchanged(undefined, "decomp-buddy-finds", later, 0));
+
+  // The collector sends the retained validators and keeps the copy on 304.
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-conditional-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const leads = parseLeadState(undefined);
+  leads.external = structuredClone(first);
+  leads.external.attempts = Object.fromEntries(
+    externalListIds
+      .filter((id) => id !== "decomp-buddy-finds")
+      .map((id) => [id, { attempted_at: later, outcome: "partial" as const }]),
+  );
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: later, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set();
+  const sent: unknown[] = [];
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      http: {
+        request: async (
+          _method: string,
+          url: string,
+          _body?: string,
+          _binary?: boolean,
+          _cap?: number,
+          options?: { conditional?: unknown },
+        ) => {
+          assert.match(url, /finds\.json/u);
+          sent.push(options?.conditional);
+          return { requests: 1, bytes: 0, status: 304, headers: {}, text: "" };
+        },
+      },
+      sdk: await fixtureGitHub(() => assert.fail("no hint is due")),
+    },
+  });
+  await session.collectExternalLists();
+  assert.deepEqual(sent, [{ etag: '"v1"' }]);
+  assert.equal(session.leads.external?.lists["decomp-buddy-finds"]?.unchanged_at, later);
+  assert.deepEqual(session.leads.external?.hints, first.hints);
 });

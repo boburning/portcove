@@ -36,6 +36,9 @@ import {
   externalHintSummary,
   externalLeadLists,
   externalListDue,
+  externalListValidators,
+  markExternalListUnchanged,
+  responseValidator,
   leadPaths,
   mergeExternalList,
   parseExternalList,
@@ -195,6 +198,7 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
       let revision: string | undefined;
       let parsed: ParsedExternalList;
       let responseText: string;
+      let read: Parameters<typeof mergeExternalList>[5] = {};
       if ("revision_directory" in list) {
         // A directory of files at one exact revision. The repository identity is
         // pinned on the first complete read and must match on every later read.
@@ -236,17 +240,35 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
         } else {
           sourceUrl = list.url;
         }
+        const conditional = revision
+          ? undefined
+          : externalListValidators(host.leads.external, list.id);
         const response = await host.source.http.request(
           "GET",
           sourceUrl,
           undefined,
           false,
           list.cap,
+          conditional ? { conditional } : {},
         );
         host.save(name, { url: sourceUrl, revision, ...response });
+        if (response.status === 304 && conditional) {
+          // Unchanged since the retained read: its entries and hints stand.
+          host.leads = {
+            ...host.leads,
+            external: markExternalListUnchanged(host.leads.external, list.id, at, response.bytes),
+          };
+          host.persist();
+          continue;
+        }
         if (response.status !== 200)
           throw new Error(`External list returned HTTP ${String(response.status)}`);
         responseText = response.text;
+        read = {
+          bytes: response.bytes,
+          etag: responseValidator(response.headers.etag),
+          last_modified: responseValidator(response.headers["last-modified"]),
+        };
         parsed = parseExternalList(list.id, response.text);
         if (revision) parsed = bindExternalListSource(parsed, response.text, sourceUrl, revision);
       }
@@ -294,6 +316,7 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
             parsed,
             at,
             path.join(host.runDir, `${name}.json`),
+            read,
           ),
         },
         at,
@@ -740,8 +763,15 @@ export async function collectDiscoveryRun(host: DiscoveryCollectionHost) {
     sources: host.journal.sources,
   });
   host.journal.collection_done = true;
+  // Reference and suspended sources are reported with their reason; they make
+  // no automated coverage claim, so they do not make a run partial.
   host.journal.coverage =
-    host.journal.sources.some((s) => s.status !== "complete") || host.journal.notes.length
+    host.journal.sources.some(
+      (s) =>
+        s.status !== "complete" &&
+        s.coverage_role !== "reference" &&
+        s.coverage_role !== "suspended",
+    ) || host.journal.notes.length
       ? "partial"
       : "complete";
   host.persist();

@@ -8,7 +8,7 @@ import {
   createDiscoveryTransport,
   selectDiscoveryProfile,
 } from "./discovery-budget.mts";
-import { boundedDiscoveryRequest } from "./discovery-http.mts";
+import { boundedDiscoveryRequest, discoveryReadCeiling } from "./discovery-http.mts";
 import { boundedDiscoveryInput } from "./daily-discovery-session.mts";
 import { readDiscoveryReport } from "./discovery-artifact.mts";
 import { deflateRawSync, crc32 } from "node:zlib";
@@ -576,20 +576,50 @@ void test("bounded stream stops on response cap, counts redirects, and strips cr
     boundedDiscoveryRequest({ ...envelope, method: "POST" }),
     /Invalid bounded/u,
   );
-  // Named curated lists may raise the cap to 8 MiB, never beyond.
+  // Named reads may raise the cap to the physical read ceiling, never beyond.
   const largest = await boundedDiscoveryRequest(
-    { ...envelope, cap: 8 * 1024 * 1024 },
+    { ...envelope, cap: discoveryReadCeiling },
     async () => new Response("ok"),
   );
   assert.equal(largest.bytes, 2);
   await assert.rejects(
-    boundedDiscoveryRequest({ ...envelope, cap: 8 * 1024 * 1024 + 1 }, async () =>
+    boundedDiscoveryRequest({ ...envelope, cap: discoveryReadCeiling + 1 }, async () =>
       assert.fail("Oversized cap must not dispatch"),
     ),
     /Invalid bounded/u,
   );
+  // A conditional read sends the retained validators on the first request only.
+  const seen: Headers[] = [];
+  const unchanged = await boundedDiscoveryRequest(
+    { ...envelope, conditional: { etag: '"abc"', last_modified: "Mon, 01 Jan 2026 00:00:00 GMT" } },
+    async (_url, init) => {
+      seen.push(new Headers(init?.headers));
+      return new Response(null, { status: 304 });
+    },
+  );
+  assert.equal(unchanged.status, 304);
+  assert.equal(seen[0]!.get("if-none-match"), '"abc"');
+  assert.equal(seen[0]!.get("if-modified-since"), "Mon, 01 Jan 2026 00:00:00 GMT");
+  const redirected: Headers[] = [];
+  await boundedDiscoveryRequest(
+    { ...envelope, conditional: { etag: '"abc"' } },
+    async (_url, init) => {
+      redirected.push(new Headers(init?.headers));
+      return redirected.length === 1
+        ? new Response(null, { status: 302, headers: { location: "https://example.org/next" } })
+        : new Response("moved");
+    },
+  );
+  assert.equal(redirected[1]!.get("if-none-match"), null, "a redirect target is read in full");
+  for (const conditional of [{ etag: "a\r\nX: y" }, { etag: "" }, "etag"])
+    await assert.rejects(
+      boundedDiscoveryRequest({ ...envelope, conditional }, async () =>
+        assert.fail("Invalid validators must not dispatch"),
+      ),
+      /Invalid bounded/u,
+    );
   const transport = createDiscoveryTransport(new DiscoveryBudget("ordinary"), "token");
-  for (const limit of [0, 8 * 1024 * 1024 + 1, 1.5])
+  for (const limit of [0, discoveryReadCeiling + 1, 1.5])
     await assert.rejects(
       transport.request("GET", "https://example.org/list.json", undefined, false, limit),
       (error: unknown) => error instanceof GitHubApiError && error.code === "request_refused",
