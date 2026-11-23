@@ -66,8 +66,10 @@ pub use adoption_batch::{
 };
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
-    CatalogDownloadPreview, CatalogDownloadRefusal, CatalogDownloadRequest, PendingSetupRecord,
-    PendingSetupState,
+    CatalogDownloadPreview, CatalogDownloadRefusal, CatalogDownloadRequest, PendingSetupBinding,
+    PendingSetupInvalidation, PendingSetupMessage, PendingSetupProgress, PendingSetupRecord,
+    PendingSetupStage, PendingSetupStageKind, PendingSetupState, RetainedSetupBytes,
+    SelectedSetupResult, UpstreamSetupHandoff, pending_setup_message,
 };
 pub use launcher_library::{
     GITHUB_LAUNCHER_FORMAT_REVISION, LauncherAppsRootOrigin, LauncherEntryHints,

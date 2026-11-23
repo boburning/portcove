@@ -289,8 +289,59 @@ The `catalog_downloads` table retains the listing, selected asset, observed
 digest and continuation identity. An atomic workspace snapshot includes
 listings, action assessments and pending setup. Explicit registration consumes
 only the reviewed pending row, and keeps the existing user-selected execution
-intent, native-file and path checks. Relinking preserves registration identity
-and history. Forgetting pending setup or removing a registration leaves user
+intent, native-file and path checks.
+
+A finished download also records the player's typed setup stage
+(`service/pending_setup_stage.rs`). Only stages the existing flow reaches
+exist: `artifact-obtained` (the download), `upstream-setup-opened` (Desktop
+opened the setup folder or retained setup guide), `final-selected` (the
+player's program choice through `choose_user_selected_runtime`, used by
+`external select-preview` and Desktop's preview command),
+`registration-reviewed` (authorization of the user-selected registration) and
+`invalidated`. Portcove never runs the upstream installer from a pending
+setup, so it observes no upstream exit; completion is the player's checked
+selection followed by reviewed registration.
+
+Publication keeps record format 1 (GitHub) or 2 (GitLab), which earlier
+releases read; `artifact-obtained` is a read-time mapping that is never
+written. Format 3 is written only at the first stage change past it, binding
+the stage to the retained source address, a definition digest, the artifact's
+typed route-fact role and the retained package or publication receipt. The
+definition digest covers the retained signed definition entry and contract
+bytes when one is selected, else an explicit list of setup fields of the
+embedded definition (identity, project address, adapter, platforms, release
+provider, repository, rolling tag, package and executable hints), else their
+absence for a listing-only project; it never hashes Portcove's own
+serialization, so an application update alone keeps it. That list is a
+deliberate subset: it does not see later-added managed, curated or direct
+routes or changes to `user_prepared` or `reviewed_package_choices_v2`, which is
+safe because registration uses the retained listing and stays non-owning. An
+earlier release
+refuses a format 3 row, as it refuses any unknown record format: its startup
+download recovery fails, so it cannot open that library while the row exists.
+Running the newer release again and finishing or forgetting that setup removes
+the row. Only a player who opened, chose or reviewed a setup carries one.
+
+Each stage change replaces the exact row in one SQLite transaction, under the
+port lock, so an interruption leaves the earlier or the later stage. Opening
+the folder or guide only records the handoff; a failure to record it is logged
+and never fails the open. Choosing and reviewing recheck the bound catalog
+facts and the retained file's presence and size. Registration also verifies
+the retained package digest, bounded by its recorded size and cancellable.
+A changed source, definition, held restriction, artifact role or retained
+bytes invalidates the stage with a typed reason and Core's player message.
+Only a missing or non-file package, a size or digest mismatch, or a missing or
+different receipt counts as changed bytes. Any other read failure, such as
+another program holding the file, is a retryable error with Core's player
+message that records nothing, as cancellation does.
+A newer upstream release never invalidates: Core compares release identity
+and publication time as the download candidate does, and reports a newer
+version as a notice while registration proceeds. Capability reports and
+`setup pending` recheck the catalog facts on read without writing, so a stage
+a catalog change invalidated never reads as continuable. Stages grant no
+update, removal or runtime ownership of the upstream output.
+
+Relinking preserves registration identity and history. Forgetting pending setup or removing a registration leaves user
 files in place. Neither operation grants updates, save migration, backup,
 rollback or external deletion.
 

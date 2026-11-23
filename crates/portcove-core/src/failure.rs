@@ -171,6 +171,9 @@ pub(crate) enum KnownFailureCause {
     Busy,
     CancellationUnavailable,
     OperationInterrupted,
+    /// A waiting setup's retained download could not be read right now, for
+    /// example while another program had it open. Nothing was recorded.
+    RetainedDownloadUnreadable,
     RequiredRuntimeUnverified,
     LaunchArgumentsUnsupported,
     SourceChanged,
@@ -329,6 +332,10 @@ impl KnownFailureCause {
             Self::OperationInterrupted => (
                 "operation_interrupted",
                 "Portcove stopped before this task finished. Review the current state before trying again.",
+            ),
+            Self::RetainedDownloadUnreadable => (
+                "retained_download_unreadable",
+                "Portcove couldn’t read the downloaded files right now, so your setup wasn’t changed. Close any program that might be using them, then try again.",
             ),
             Self::RequiredRuntimeUnverified => (
                 "required_runtime_unverified",

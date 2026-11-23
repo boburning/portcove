@@ -33412,6 +33412,16 @@
         ],
         "type": "object"
       },
+      "PendingSetupStageKind": {
+        "enum": [
+          "artifact-obtained",
+          "upstream-setup-opened",
+          "final-selected",
+          "registration-reviewed",
+          "invalidated"
+        ],
+        "type": "string"
+      },
       "PendingSetupState": {
         "enum": [
           "downloaded",
@@ -33695,6 +33705,17 @@
                 "type": "null"
               }
             ]
+          },
+          "pending_setup_stage": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupStageKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The setup stage the player reached; absent while a download is not\nfinished or no setup is pending."
           },
           "port_id": {
             "type": "string"
@@ -40233,6 +40254,28 @@
         ],
         "type": "object"
       },
+      "ArtifactRole": {
+        "description": "What an artifact is. Only [`ArtifactRole::DesktopGameRuntime`] may become a\nlaunch target.",
+        "enum": [
+          "desktop-game-runtime",
+          "desktop-game-data",
+          "dedicated-server",
+          "builder",
+          "installer",
+          "importer",
+          "compiler",
+          "dev-tool",
+          "original-game-input",
+          "mobile-package",
+          "console-output",
+          "documentation",
+          "source-archive",
+          "integrity-metadata",
+          "debug-symbols",
+          "unknown"
+        ],
+        "type": "string"
+      },
       "CatalogDownloadAssetId": {
         "anyOf": [
           {
@@ -40494,6 +40537,133 @@
               "kind",
               "game_id",
               "source_edition_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "FactSource": {
+        "description": "Where a fact came from, highest precedence first.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "Machine-readable metadata the release itself publishes.",
+            "properties": {
+              "document": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "release-metadata",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "document"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A reviewed structural observation of these exact archive bytes.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "exact-release-structured",
+                "type": "string"
+              },
+              "shape_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "shape_version",
+              "archive_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Another provider's reviewed record for the same artifact.",
+            "properties": {
+              "kind": {
+                "const": "provider-cross-reference",
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "provider",
+              "reference"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bounded, versioned extractor for one family of releases.",
+            "properties": {
+              "extractor": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "family-extractor",
+                "type": "string"
+              },
+              "version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "extractor",
+              "version"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog's reviewed release selectors for this route.",
+            "properties": {
+              "kind": {
+                "const": "stable-declaration",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Filename tokens only; never authorizing.",
+            "properties": {
+              "kind": {
+                "const": "filename-suggestion",
+                "type": "string"
+              },
+              "rule_version": {
+                "format": "uint32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "rule_version"
             ],
             "type": "object"
           }
@@ -40927,6 +41097,153 @@
         ],
         "type": "object"
       },
+      "PendingSetupBinding": {
+        "additionalProperties": false,
+        "description": "The exact facts a stage belongs to. A change invalidates the stage.",
+        "properties": {
+          "artifact_role": {
+            "$ref": "#/$defs/ArtifactRole",
+            "description": "Typed route fact for the downloaded artifact. A filename suggestion\ndescribes it; it never authorizes a runtime."
+          },
+          "definition_sha256": {
+            "description": "Digest of the catalog content this setup depends on: the retained\nsigned definition entry and its contracts when one is selected, else\nthe documented setup fields of the embedded definition, else their\nabsence for a listing-only project. It never covers Portcove's own\nserialization of a definition, so an application update alone keeps\nthe binding.",
+            "type": "string"
+          },
+          "retained": {
+            "$ref": "#/$defs/RetainedSetupBytes"
+          },
+          "role_source": {
+            "$ref": "#/$defs/FactSource"
+          },
+          "source_url": {
+            "description": "Upstream project or release address of the retained listing.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_url",
+          "definition_sha256",
+          "artifact_role",
+          "role_source",
+          "retained"
+        ],
+        "type": "object"
+      },
+      "PendingSetupInvalidation": {
+        "description": "A fact that makes this setup route itself invalid. A newer upstream\nrelease is not one; Core reports it as a notice instead.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The current listing names another upstream source.",
+            "properties": {
+              "current_source_url": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "source-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "current_source_url"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The catalog content this setup depends on changed.",
+            "properties": {
+              "kind": {
+                "const": "definition-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A download restriction now holds for these exact bytes.",
+            "properties": {
+              "explanation": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "restriction-holds",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "explanation"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Typed route facts now give the artifact a different role.",
+            "properties": {
+              "current_role": {
+                "$ref": "#/$defs/ArtifactRole"
+              },
+              "kind": {
+                "const": "artifact-role-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "current_role"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The retained package or its receipt changed or is missing.",
+            "properties": {
+              "kind": {
+                "const": "retained-bytes-changed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingSetupProgress": {
+        "additionalProperties": false,
+        "description": "Where the player is in an upstream setup, and what that place is bound to.",
+        "properties": {
+          "binding": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupBinding"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Absent only on the read-time mapping of a format 1 or 2 record. Core\nbinds it to the current facts when the player first moves the setup\npast `artifact-obtained`."
+          },
+          "stage": {
+            "$ref": "#/$defs/PendingSetupStage"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "PendingSetupRecord": {
         "additionalProperties": false,
         "properties": {
@@ -40958,6 +41275,17 @@
           "port_id": {
             "type": "string"
           },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PendingSetupProgress"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the player is in the upstream setup that follows the download.\nPublication writes format 1 or 2 without it, which earlier releases\nread; Core maps a finished download to `artifact-obtained` on read\nwithout writing it back. Format 3 persists it only once the player\nmoves the setup past that stage."
+          },
           "reason": {
             "type": [
               "string",
@@ -40980,6 +41308,118 @@
           "reason"
         ],
         "type": "object"
+      },
+      "PendingSetupStage": {
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The verified package is retained; nothing has been run. Never stored:\nit is the read-time stage of a format 1 or 2 record.",
+            "properties": {
+              "stage": {
+                "const": "artifact-obtained",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player opened the setup folder or the retained setup guide.",
+            "properties": {
+              "handoff": {
+                "$ref": "#/$defs/UpstreamSetupHandoff"
+              },
+              "opened_at": {
+                "type": "string"
+              },
+              "stage": {
+                "const": "upstream-setup-opened",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "handoff",
+              "opened_at"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player chose the resulting program and Core checked it.",
+            "properties": {
+              "selection": {
+                "$ref": "#/$defs/SelectedSetupResult"
+              },
+              "stage": {
+                "const": "final-selected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "selection"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The player confirmed this registration plan.",
+            "properties": {
+              "preview_sha256": {
+                "type": "string"
+              },
+              "selection": {
+                "$ref": "#/$defs/SelectedSetupResult"
+              },
+              "stage": {
+                "const": "registration-reviewed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "selection",
+              "preview_sha256"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A bound fact changed; the earlier stage cannot continue.",
+            "properties": {
+              "previous": {
+                "$ref": "#/$defs/PendingSetupStageKind"
+              },
+              "reason": {
+                "$ref": "#/$defs/PendingSetupInvalidation"
+              },
+              "stage": {
+                "const": "invalidated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "stage",
+              "previous",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "PendingSetupStageKind": {
+        "enum": [
+          "artifact-obtained",
+          "upstream-setup-opened",
+          "final-selected",
+          "registration-reviewed",
+          "invalidated"
+        ],
+        "type": "string"
       },
       "PendingSetupState": {
         "enum": [
@@ -41387,6 +41827,99 @@
         },
         "type": "object"
       },
+      "RetainedSetupBytes": {
+        "description": "Verified bytes the setup folder retains.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The downloaded package itself, kept unextracted in the setup folder.",
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "package",
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "size": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "kind",
+              "file",
+              "sha256",
+              "size"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Files extracted from the package; the publication receipt binds them\nto the downloaded archive digest.",
+            "properties": {
+              "archive_sha256": {
+                "type": "string"
+              },
+              "kind": {
+                "const": "extracted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "archive_sha256"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SelectedSetupResult": {
+        "additionalProperties": false,
+        "description": "Identity facts of the program the player chose, as Core checked them.",
+        "properties": {
+          "arguments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "executable_sha256": {
+            "type": "string"
+          },
+          "executable_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "selected_at": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "working_directory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "executable",
+          "working_directory",
+          "arguments",
+          "executable_sha256",
+          "executable_size",
+          "version",
+          "selected_at"
+        ],
+        "type": "object"
+      },
       "SourceEdition": {
         "additionalProperties": false,
         "properties": {
@@ -41423,6 +41956,43 @@
           "evidence_urls"
         ],
         "type": "object"
+      },
+      "UpstreamSetupHandoff": {
+        "description": "What the player opened. Portcove never runs the upstream installer itself\nfrom a pending setup.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The retained setup folder was opened.",
+            "properties": {
+              "kind": {
+                "const": "folder",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The retained upstream setup guide was opened.",
+            "properties": {
+              "kind": {
+                "const": "guide",
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "url"
+            ],
+            "type": "object"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -45160,6 +45730,16 @@
         ],
         "type": "object"
       },
+      "PendingSetupStageKind": {
+        "enum": [
+          "artifact-obtained",
+          "upstream-setup-opened",
+          "final-selected",
+          "registration-reviewed",
+          "invalidated"
+        ],
+        "type": "string"
+      },
       "PendingSetupState": {
         "enum": [
           "downloaded",
@@ -46348,6 +46928,17 @@
             "type": "null"
           }
         ]
+      },
+      "pending_setup_stage": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PendingSetupStageKind"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The setup stage the player reached; absent while a download is not\nfinished or no setup is pending."
       },
       "port_id": {
         "type": "string"

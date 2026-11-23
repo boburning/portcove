@@ -432,7 +432,7 @@ pub(crate) async fn execute(
                     .iter()
                     .map(|record| {
                         format!(
-                            "{}\t{}\t{}{}",
+                            "{}\t{}\t{}{}{}",
                             human::clean(&record.port_id),
                             record.id,
                             record.path.display(),
@@ -440,6 +440,21 @@ pub(crate) async fn execute(
                                 .reason
                                 .as_ref()
                                 .map(|reason| format!("\n{}", human::clean(reason)))
+                                .unwrap_or_default(),
+                            // Core's current stage message: what happened, any
+                            // notice, then the next step.
+                            service
+                                .pending_setup_presentation(record)
+                                .map(|(_, message)| format!(
+                                    "\n{}{}\n{}",
+                                    human::clean(&message.summary),
+                                    message
+                                        .notice
+                                        .as_deref()
+                                        .map(|notice| format!("\n{}", human::clean(notice)))
+                                        .unwrap_or_default(),
+                                    human::clean(&message.next_step)
+                                ))
                                 .unwrap_or_default()
                         )
                     })
