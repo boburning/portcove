@@ -4,11 +4,11 @@
   "generator_version": 2,
   "enrollments": [],
   "blocked": {
-    "operational-route": 459,
+    "operational-route": 460,
     "scummvm-engine": 25,
     "upstream-unavailable": 28,
     "no-readable-upstream": 26,
-    "no-observation": 1111,
+    "no-observation": 1110,
     "repository-mismatch": 0,
     "stale-parser": 0,
     "no-stable-release": 0,
