@@ -1131,7 +1131,9 @@ fn cleanup_original(
         // uses it keeps working; keep the quarantine name only if that fails.
         operation.last_error = Some(error.message);
         store.put(operation)?;
-        if !source.try_exists()? && crate::durability::rename_noreplace(&quarantine, source).is_ok()
+        // An unknown original name keeps the earlier, safe outcome.
+        if !source.try_exists().unwrap_or(true)
+            && crate::durability::rename_noreplace(&quarantine, source).is_ok()
         {
             return Ok(Some(source.clone()));
         }

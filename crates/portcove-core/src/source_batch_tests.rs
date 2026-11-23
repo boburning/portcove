@@ -1055,3 +1055,26 @@ fn time_budget_reports_are_not_missing_or_unreadable() {
     assert_eq!(report.health, SourceHealth::NotChecked);
     assert_eq!(report.state_code, "source_not_checked_yet");
 }
+
+#[test]
+fn only_the_deadline_itself_counts_as_not_yet_checked() {
+    assert!(is_time_budget_error(&time_budget_error()));
+    let late_read = PortcoveError::from(std::io::Error::new(
+        std::io::ErrorKind::TimedOut,
+        DEADLINE_READ_MESSAGE,
+    ));
+    assert!(is_time_budget_error(&late_read));
+    // A missing file or a failed verification keeps its own meaning even when
+    // it is reported after the deadline.
+    let missing = PortcoveError::from(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "no such file",
+    ));
+    assert!(!is_time_budget_error(&missing));
+    assert!(!is_time_budget_error(&PortcoveError::verification(
+        "registered-source location changed during inspection"
+    )));
+    assert!(!is_time_budget_error(&PortcoveError::unsupported(
+        "registered source exceeds its file budget"
+    )));
+}
