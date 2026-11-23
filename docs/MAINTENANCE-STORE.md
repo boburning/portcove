@@ -212,13 +212,13 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   transaction runs at `READ COMMITTED`, so its checks see every run committed
   while it waited for its locks.
 
-- **Reassessment.** Every complete collection re-reads Core for every authored
-  port; with unchanged inputs that only re-verifies (`verified_run_id`,
-  `verified_at`). A new assessment is recorded only when the subject's catalog
+- **Reassessment.** A full collection re-reads Core for every authored port,
+  and a selective one for every port the store selects; with unchanged inputs
+  a read only re-verifies (`verified_run_id`, `verified_at`). A new assessment is recorded only when the subject's catalog
   fact changes (authored record, operational definition or scoped
   qualification at the pinned revision), Core's output for the port changes
-  (embedded catalog and listings, Core code, catalog-wide hold policy, the
-  platform, or recommendation observations Core filters by the current time),
+  (embedded catalog and listings, Core code, the port's holds and listing
+  restrictions, the platform, or recommendation observations Core filters by the current time),
   or the assessment policy changes (API schema or projection version). Only a
   changed result records a transition. A rebuild with the same output, a failed
   run, or a port Core could not read in a partial run records neither. The
@@ -228,37 +228,84 @@ in this section runs unchanged against any PostgreSQL host and generic runner.
   latest of those and the assessment time, because assessments are deduplicated
   by input and a return to earlier inputs reuses the older assessment) and when
   it was last re-verified.
-  - **Selective reassessment (opt-in, migration 0004).** `collect --all
+  - **Selective reassessment (migrations 0004 and 0010).** `collect --all
     --targets --reassess changed` reuses a subject's stored Core result
-    without calling Core. Every condition must hold, otherwise the run is full
-    and `collect` reports why:
+    without calling Core. The daily workflow uses it. Every run-level
+    condition must hold, otherwise the run is full and `collect` reports why:
     - The Core build's source binding is verified: its recorded source
       revision is this checkout's, every keyed path is clean at collection
-      time, and it uses the compiled catalog with no features. The binding
-      trusts the build's recorded revision; the hosted workflow builds from the
-      checked-out commit. Build profile, flags and toolchain settings outside
-      the keyed files are assumed fixed.
-    - The reuse key matches the latest Core run of the source, which is
-      complete. The key is a digest of the Git object IDs of `crates`,
-      `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and `vendor`, the
-      producer's compiled catalog and listings digests and features, the API
-      schema, projection, platform and isolation; the binary digest is
-      excluded because every rebuild changes it.
-    - A full read under that key completed within 7 days (the latest full
-      read by store order, not by a runner's clock).
-    - No catalog `observed_at` falls between that full read and now: Core
-      shows clock-dated observations only once their time has passed.
-    - The subject's catalog fact and stored Core result are unchanged members
-      of the baselines the decision read; if another collection finishes in
-      between, the run is refused whole.
+      time, it uses the compiled catalog with no features, and its embedded
+      catalog and listings digests equal the reviewed files. The binding
+      trusts the build's recorded revision; the hosted workflow builds from
+      the checked-out commit. Build profile and flags outside the keyed
+      files are assumed fixed.
+    - The latest Core run of the source is complete, and a complete full
+      read finished within 7 days (by store order, not a runner's clock).
+      That weekly full read is the periodic reconciliation: it re-reads every
+      subject under one build, so a dependency the model below missed cannot
+      persist for more than a week.
+    - The binary's catalog inspection succeeded in the same run. Core
+      validates the whole embedded catalog on load and refuses every port
+      when it fails, so a selective run never reuses results across a
+      catalog that no longer loads.
+  - **Each subject's dependencies** (`scripts/maintenance-assessment-scope.mts`).
+    A fresh-library `port-capabilities` report depends on:
+    - the mechanism: each repository file in the binary's Cargo dep-info
+      (`target/<profile>/portcove.d`) by Git object ID, every package
+      manifest, `Cargo.lock`, `rust-toolchain.toml`, `vendor`, other
+      out-of-tree build inputs by content. Cargo's binary dep-info does not
+      record build environment values, so every variable compiled sources
+      read with `env!` or `option_env!` (other than Cargo's manifest-derived
+      `CARGO_*`) is declared with its readers and why it cannot change a
+      capability report: `PORTCOVE_SOURCE_REVISION` only labels the producer
+      in target inspection, and `PORTCOVE_GITHUB_CLIENT_ID` only serves
+      sign-in. A test fails when a source reads an undeclared variable or a
+      declared one elsewhere. Test-only modules, other crates and data that
+      the binary does not embed are not mechanism.
+    - the shared data: everything in the embedded `catalog.json` and
+      `listings.json` that is not partitioned to one port, including fields
+      or `source_catalog` arrays the module does not declare and records that
+      no port reaches;
+    - the subject's partition: its `ports[]` and `listings[]` entries and the
+      `source_catalog` records it reaches. A record is reached when it names
+      the port in `port_id` or `scope.port_id`, or when its `id` equals any
+      string already in the partition, repeated to a fixpoint;
+    - the policy: API schema, projection, platform identity, compiled
+      features and isolation;
+    - time: Core compares numeric `observed_at` values with its clock.
+  - The subject's scoped key digests the mechanism, shared data, policy and
+    its own partition. Doubt never narrows it. Missing, stale, unparseable or
+    foreign dep-info, or a dep-info input that is missing or dirty at the
+    revision, keys the mechanism by the whole Core tree as before; that tree
+    contains the catalog, so any change then reassesses everything.
+  - **Bindings (migration 0010).** `core_reuse_bindings` holds one row per
+    source and subject: the scoped key, catalog fact digest and Core result
+    digest of its last real read, the run and the run's start. Only an
+    in-progress run of the same source may write a row, and never over a row
+    from a newer acquisition; rows are never deleted. A read rewrites its row
+    only when the key, fact or result changed or a clock value became
+    visible since the row's read.
+  - **Store-side selection.** `core_reassessment_due(source, desired)` takes
+    each subject's key, fact digest and newest `observed_at` visible now. It
+    returns only the subjects that need Core, with the first reason that
+    applies: `unbound`, `scope-changed`, `catalog-changed`, `result-changed`
+    (the binding's result is no longer the source's latest member) or `clock`
+    (a value became visible after the read started). The collector reads
+    those subjects and reuses the rest. Time-dependent inputs therefore stay
+    in the decision through each subject's read time; they are never cached.
   - A reused subject is an unchanged member: no observation, assessment,
     transition or verification, so its `verified_at` stays at the last real
     Core read. The run records `reassessment` (`full` or `selective`),
-    `reuse_key` and `reused_count`, all fixed when it starts; full runs record
-    their key too, as later anchors. The report's Sources table shows a
-    selective run's reused count. Because the key covers the whole `crates`
-    tree, reuse applies only while no Core code or catalog file changed; at
-    today's commit rate most runs are full. The daily workflow stays full.
+    `reuse_key` (the shared base key) and `reused_count`, all fixed when it
+    starts. `collect` also reports the mechanism mode, the selection's
+    reasons and the Core read's process count and duration. The report's
+    Sources table shows a selective run's reused count.
+  - Measured on `main` from 2026-11-17 to 2026-11-23 (550 first-parent
+    commits): 98 commits changed only catalog data and would reassess 1,495
+    subjects in total instead of 155,880; 35 changed only Core files outside
+    the binary and reassess none instead of 57,315. Every day in that window
+    also changed compiled Core code, which reassesses every subject, so the
+    daily scheduled run remained a full read.
 - **Reconsiderations.** Typed as `technical_hold`, `intentional_deferral`,
   `upstream_change` or `evidence_refresh`, each with the owner or policy reference
   required to revisit it. Conditions are immutable, and an intentional deferral is
@@ -464,7 +511,13 @@ node scripts/maintenance-inventory.mts collect --cli target/release/portcove --a
 ```
 
 - `--all` covers every authored record committed at `HEAD`, not a sample.
-  - Core is called for each port with bounded concurrency (`--concurrency`, default 4).
+  - Core is read with bounded concurrency (`--concurrency`, default 4). A CLI
+    that advertises `port-capabilities-batch` reads up to 200 ports per
+    process with one catalog load; each port's report or refusal is what the
+    single-port command returns. On the 1,649-port catalog (debug build,
+    Linux x86-64) that is 9 processes and about 16 seconds instead of 1,649
+    processes and about 410 seconds. An older CLI is read one port per
+    process.
   - The Core source is per host platform, for example
     `core-port-capabilities-linux-x86-64`. Assessments, transitions and
     notifications use the platform-qualified subject `port:<id>@<platform>`, so
@@ -1407,9 +1460,11 @@ checkpoint 5 and is recorded there.
 
 The daily 04:47 UTC run collects every declared source, records eligible
 handoffs, takes a portable recovery point and renders inventory and digest files
-from that recovery point on a local PostgreSQL server. Existing Core input
-digests let unchanged assessments be reused. A full Core pass still runs when
-inputs change or the last compatible full pass reaches seven days. A failed
+from that recovery point on a local PostgreSQL server. Core results whose
+[scoped dependencies](#storage-contract) are unchanged are reused; the store
+selects the subjects whose inputs changed or whose clock-dated facts became
+visible. A full Core pass still runs when no complete full pass finished in
+the last seven days. A failed
 source preserves its last verified data. The backup checks the committed store
 independently of the collection exit status.
 

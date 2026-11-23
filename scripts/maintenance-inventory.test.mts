@@ -23,7 +23,8 @@ import {
 } from "./maintenance-interventions.mts";
 import {
   clockWindowCrossed,
-  coreReuseKey,
+  dueReasons,
+  reassessmentDue,
   deferralChanges,
   deliveryFacts,
   planReassessment,
@@ -41,8 +42,6 @@ import {
   targetSummary,
   assessmentSubject,
   readAssessmentPlatform,
-  isolationScope,
-  capabilityProjectionVersion,
   acknowledgeDigest,
   buildDigest,
   renderDigestMarkdown,
@@ -4485,35 +4484,40 @@ void test("each subject names its assessment inputs, when they last changed and 
   );
 });
 
-void test("selective reassessment is planned only under the same verified Core semantics", () => {
+void test("selective reassessment reuses only subjects the store did not select", () => {
   const key = "k".repeat(64);
   const now = new Date("2026-11-13T12:00:00Z");
   const base = {
     requested: "changed" as const,
     reuseKey: key,
     history: {
-      latest: { coverage: "complete", reuse_key: key },
+      latest: { coverage: "complete", reuse_key: "o".repeat(64) },
       full_started_at: "2026-11-12T12:00:00Z",
     },
     now,
-    clockCrossed: () => false,
+    due: new Map([["port:c", "scope-changed"]]),
     subjects: [
       { key: "port:a", catalogDigest: "1" },
       { key: "port:b", catalogDigest: "2" },
+      { key: "port:c", catalogDigest: "3" },
     ],
     catalogMembers: new Map([
       ["port:a", "1"],
       ["port:b", "changed"],
+      ["port:c", "3"],
     ]),
     coreMembers: new Map([
       ["port:a", "x"],
       ["port:b", "y"],
+      ["port:c", "z"],
     ]),
   };
   const selective = planReassessment(base);
   assert.equal(selective.reassessment.mode, "selective");
-  // Only an unchanged catalog fact with a stored Core result is reused.
+  // A latest run under another base key does not prevent reuse: each subject's
+  // own binding decides. The store's selection and the decided baselines both bind.
   assert.deepEqual([...selective.reused], ["port:a"]);
+  assert.match(selective.reason, /1 subjects reused.*2 read/u);
   for (const [override, reason] of [
     [{ requested: "full" }, /requested/u],
     [{ reuseKey: null }, /not verified/u],
@@ -4521,58 +4525,40 @@ void test("selective reassessment is planned only under the same verified Core s
       { history: { ...base.history, latest: { coverage: "partial", reuse_key: key } } },
       /complete read/u,
     ],
-    [
-      { history: { ...base.history, latest: { coverage: "complete", reuse_key: "o".repeat(64) } } },
-      /same key/u,
-    ],
+    [{ history: null }, /complete read/u],
     [{ history: { ...base.history, full_started_at: "2026-11-01T00:00:00Z" } }, /7 days/u],
-    [{ clockCrossed: () => true }, /clock-dated/u],
-    [{ coreMembers: new Map() }, /no subject is unchanged/u],
+    [{ history: { ...base.history, full_started_at: null } }, /7 days/u],
+    [{ due: null }, /selection is unavailable/u],
+    [
+      {
+        due: new Map([
+          ["port:a", "clock"],
+          ["port:c", "unbound"],
+        ]),
+      },
+      /changed or are due/u,
+    ],
+    [{ coreMembers: new Map() }, /changed or are due/u],
   ] as const) {
     const plan = planReassessment({ ...base, ...override });
     assert.equal(plan.reassessment.mode, "full", String(reason));
     assert.equal(plan.reused.size, 0);
     assert.match(plan.reason, reason);
   }
-  // The key ignores the binary and changes with any semantic input.
-  const producer = { features: [], embedded_catalog_sha256: "c", embedded_listings_sha256: "l" };
-  const keyed = (trees: Record<string, string>, platform = "linux-x86-64") =>
-    coreReuseKey({ trees, producer, apiSchema: 88, platform });
-  assert.equal(keyed({ crates: "t1" }), keyed({ crates: "t1" }));
-  assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t2" }));
-  assert.notEqual(keyed({ crates: "t1" }), keyed({ crates: "t1" }, "windows-x86-64"));
-  const trees = { crates: "t1" };
-  const platform = "macos-x86-64";
-  const legacy = createHash("sha256")
-    .update(
-      canonicalJson({
-        trees,
-        features: [...producer.features],
-        embedded_catalog_sha256: producer.embedded_catalog_sha256,
-        embedded_listings_sha256: producer.embedded_listings_sha256,
-        api: 88,
-        projection: capabilityProjectionVersion,
-        platform,
-        isolation: isolationScope,
-      }),
-    )
-    .digest("hex");
-  const current = keyed(trees, platform);
-  assert.notEqual(current, legacy, "launcher-derived x64 keys cannot authorize Core reuse");
-  for (const [reuse_key, mode] of [
-    [legacy, "full"],
-    [current, "selective"],
-  ] as const) {
-    assert.equal(
-      planReassessment({
-        ...base,
-        reuseKey: current,
-        history: { ...base.history, latest: { coverage: "complete", reuse_key } },
-      }).reassessment.mode,
-      mode,
-    );
-  }
-  // A clock-dated observation inside the window forces a full read.
+  assert.deepEqual(
+    dueReasons(
+      new Map([
+        ["a", "clock"],
+        ["b", "clock"],
+        ["c", "unbound"],
+      ]),
+    ),
+    {
+      clock: 2,
+      unbound: 1,
+    },
+  );
+  // A clock-dated observation inside the window is detected (hosted coalescing).
   const catalog = { ports: [{ observations: [{ observed_at: 150 }] }] };
   assert.equal(clockWindowCrossed([catalog], 100, 200), true);
   assert.equal(clockWindowCrossed([catalog], 150, 200), false);
@@ -4588,11 +4574,20 @@ void test(
     migrate(store.owner);
     const { cli, responses } = stubCli(fixture.root);
     const head = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const embedded = (file: string) =>
+      createHash("sha256")
+        .update(
+          execFileSync("git", ["show", `${head}:crates/portcove-core/catalog/${file}`], {
+            maxBuffer: 64 * 1024 * 1024,
+          }),
+        )
+        .digest("hex");
+    // Scoped keys need the reviewed catalog and listings to be what the binary embeds.
     const producer = {
       source_revision: head,
       features: [],
-      embedded_catalog_sha256: "d".repeat(64),
-      embedded_listings_sha256: "e".repeat(64),
+      embedded_catalog_sha256: embedded("catalog.json"),
+      embedded_listings_sha256: embedded("listings.json"),
       catalog_override: false,
     };
     const respond = (core: unknown) =>
@@ -4631,9 +4626,9 @@ void test(
       ).trim();
     respond(report("automatic"));
     const first = await run("changed");
-    // No earlier read under this key: the first run is full and records the key.
+    // No earlier complete read: the first run is full and binds each subject's key.
     assert.equal(first.reassessment.mode, "full");
-    assert.match(first.reassessment.reason, /same key/u);
+    assert.match(first.reassessment.reason, /complete read/u);
     if (first.reassessment.reuse_key === null) {
       // Uncommitted Core sources here leave the binding unverified; reuse is refused.
       assert.match((await run("changed")).reassessment.reason, /not verified/u);
@@ -4648,6 +4643,59 @@ void test(
       observed_count: 1,
       expected_count: 1,
     });
+    // The stub has no Cargo dep-info: the mechanism is the whole Core tree.
+    assert.equal(first.reassessment.mechanism, "whole-tree");
+    assert.match(String(first.reassessment.mechanism_reason), /dep-info/u);
+    const binding = JSON.parse(
+      runSql(
+        store.owner,
+        `SELECT row_to_json(b) FROM portcove_maintenance.core_reuse_bindings b
+          WHERE subject_key = 'port:2ship2harkinian';`,
+      ),
+    ) as { scope_key: string; catalog_digest: string; content_sha256: string; run_id: string };
+    assert.match(binding.scope_key, /^[0-9a-f]{64}$/u);
+    // The store selects only subjects whose key, catalog fact, result or clock moved.
+    const source = "core-port-capabilities-linux-x86-64";
+    const desired = {
+      s: "port:2ship2harkinian",
+      k: binding.scope_key,
+      c: binding.catalog_digest,
+      v: null as number | null,
+    };
+    assert.deepEqual([...reassessmentDue(store.owner, source, [desired])], []);
+    assert.deepEqual(
+      [
+        ...reassessmentDue(store.owner, source, [
+          { ...desired, k: "0".repeat(64) },
+          { ...desired, s: "port:unbound" },
+        ]),
+      ],
+      [
+        ["port:2ship2harkinian", "scope-changed"],
+        ["port:unbound", "unbound"],
+      ],
+    );
+    assert.deepEqual(
+      [...reassessmentDue(store.owner, source, [{ ...desired, c: "0".repeat(64) }])],
+      [["port:2ship2harkinian", "catalog-changed"]],
+    );
+    // A clock value that became visible after the read started makes it due.
+    assert.deepEqual(
+      [...reassessmentDue(store.owner, source, [{ ...desired, v: 4_102_444_800 }])],
+      [["port:2ship2harkinian", "clock"]],
+    );
+    assert.deepEqual([...reassessmentDue(store.owner, source, [{ ...desired, v: 1 }])], []);
+    // Bindings are written only by their in-progress run and never deleted.
+    for (const [statement, pattern] of [
+      [
+        `UPDATE portcove_maintenance.core_reuse_bindings SET scope_key = repeat('0', 64)
+          WHERE subject_key = 'port:2ship2harkinian';`,
+        /in-progress run/u,
+      ],
+      [`DELETE FROM portcove_maintenance.core_reuse_bindings;`, /never deleted/u],
+      [`TRUNCATE portcove_maintenance.core_reuse_bindings;`, /never deleted/u],
+    ] as const)
+      assert.throws(() => runSql(store.owner, statement), pattern);
     const verifiedBefore = verified();
     // Core would now fail on this host; a reused subject is never sent to Core.
     respond("network");
@@ -4670,8 +4718,17 @@ void test(
     const third = await run("full");
     assert.equal(third.core_gaps, 1);
     assert.equal(latestCore().coverage, "failed");
-    // After a partial run, nothing is reused until a complete read.
+    // After a failed run, nothing is reused until a complete read.
     assert.match((await run("changed")).reassessment.reason, /complete read/u);
+    // A failed read wrote no binding over the last real read.
+    assert.equal(
+      runSql(
+        store.owner,
+        `SELECT run_id FROM portcove_maintenance.core_reuse_bindings
+          WHERE subject_key = 'port:2ship2harkinian';`,
+      ).trim(),
+      binding.run_id,
+    );
     // How a run was taken is fixed when it starts, even while it is in progress.
     assert.throws(
       () =>

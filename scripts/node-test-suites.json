@@ -1699,6 +1699,13 @@
       ]
     },
     {
+      "file": "scripts/maintenance-assessment-scope.test.mts",
+      "memberships": [
+        ["catalog-full", 1482],
+        ["repository-tools", 551]
+      ]
+    },
+    {
       "file": "scripts/maintenance-universe.test.mts",
       "memberships": [
         ["catalog-full", 1276],
