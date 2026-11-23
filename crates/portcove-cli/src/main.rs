@@ -424,9 +424,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             portcove_core::classify_listing_names(&names)?,
             |classification| {
                 format!(
-                    "Listing names: {} releases, {} assets classified.",
+                    "Listing names: {} releases, {} assets, {} programs classified.",
                     classification.releases.len(),
-                    classification.assets.len()
+                    classification.assets.len(),
+                    classification.programs.len()
                 )
             },
         )?;

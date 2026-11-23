@@ -35,7 +35,7 @@
         "provider_prerelease": false
       },
       {
-        "tag": "v1.0\u202e",
+        "tag": "v1.0‮",
         "provider_prerelease": false
       }
     ],
@@ -59,7 +59,38 @@
       "Game-win32.zip",
       "Game-linux-arm64.tar.gz",
       "Game-windows-arm64.zip",
-      "Game-v1.0-linux-x86_64.tar.xz"
+      "Game-v1.0-linux-x86_64.tar.xz",
+      "Patcher-v1.0-windows-x64.zip",
+      "Game-v1.1-patch.zip",
+      "GameRandomizer-v1.0-windows-x64.zip",
+      "MarioKart64Recomp-v1.0-windows-x64.zip",
+      "N64Recomp-v1.0-windows-x64.zip",
+      "PatchQuest-v1.0-windows-x64.zip"
+    ],
+    "programs": [
+      "game.exe",
+      "Game.exe",
+      "Unseen.exe",
+      "mygame.exe",
+      "Game",
+      "Unseen",
+      "server.exe",
+      "gаme.exe",
+      "Game.x86_64.exe",
+      "Game.x86_64",
+      "Patcher.exe",
+      "UnityCrashHandler64.exe",
+      "GameUpdater.exe",
+      "Launcher.exe",
+      "Zelda64Recompiled.exe",
+      "LevelEditor.exe",
+      "PatchQuest.exe",
+      "crashpad_handler.exe",
+      "A.exe",
+      "B.exe",
+      "C.exe",
+      "D.exe",
+      "E.exe"
     ]
   },
   "output": {
@@ -106,7 +137,7 @@
         "prerelease": false
       },
       {
-        "tag": "v1.0\u202e",
+        "tag": "v1.0‮",
         "provider_prerelease": false,
         "prerelease": false
       }
@@ -116,121 +147,277 @@
         "name": "Game-v1.0-windows-x64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": null
       },
       {
         "name": "Game-v1.0-linux-x86_64.tar.gz",
         "role": "desktop-game-runtime",
         "os": "linux",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": null
       },
       {
         "name": "Game-v1.0-macos-universal.zip",
         "role": "desktop-game-runtime",
         "os": "macos",
-        "arch": "universal"
+        "arch": "universal",
+        "tool_token": null
       },
       {
         "name": "Game-v1.0-macos-arm64.zip",
         "role": "desktop-game-runtime",
         "os": "macos",
-        "arch": "aarch64"
+        "arch": "aarch64",
+        "tool_token": null
       },
       {
         "name": "Game-v1.0.zip",
         "role": "desktop-game-runtime",
         "os": "unknown",
-        "arch": "unknown"
+        "arch": "unknown",
+        "tool_token": null
       },
       {
         "name": "MyGame-dedicated-server-win64.zip",
         "role": "dedicated-server",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": "server"
       },
       {
         "name": "Game-installer-windows-x64.zip",
         "role": "installer",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": "installer"
       },
       {
         "name": "Game-builder-windows-x64.zip",
         "role": "builder",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": "builder"
       },
       {
         "name": "Game-compiler-windows-x64.zip",
         "role": "compiler",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": "compiler"
       },
       {
         "name": "Game-tools-windows-x64.zip",
         "role": "dev-tool",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": "tools"
       },
       {
         "name": "Game-importer-windows-x64.zip",
         "role": "importer",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": "importer"
       },
       {
         "name": "Game-android-arm64.zip",
         "role": "mobile-package",
         "os": "android",
-        "arch": "aarch64"
+        "arch": "aarch64",
+        "tool_token": null
       },
       {
         "name": "Game-switch.zip",
         "role": "console-output",
         "os": "console",
-        "arch": "unknown"
+        "arch": "unknown",
+        "tool_token": null
       },
       {
         "name": "Game-notices.zip",
         "role": "documentation",
         "os": "unknown",
-        "arch": "unknown"
+        "arch": "unknown",
+        "tool_token": null
       },
       {
         "name": "Game-symbols-windows-x64.zip",
         "role": "debug-symbols",
         "os": "windows",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": null
       },
       {
         "name": "Game-source.zip",
         "role": "source-archive",
         "os": "unknown",
-        "arch": "unknown"
+        "arch": "unknown",
+        "tool_token": null
       },
       {
         "name": "Game-win32.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
-        "arch": "x86"
+        "arch": "x86",
+        "tool_token": null
       },
       {
         "name": "Game-linux-arm64.tar.gz",
         "role": "desktop-game-runtime",
         "os": "linux",
-        "arch": "aarch64"
+        "arch": "aarch64",
+        "tool_token": null
       },
       {
         "name": "Game-windows-arm64.zip",
         "role": "desktop-game-runtime",
         "os": "windows",
-        "arch": "aarch64"
+        "arch": "aarch64",
+        "tool_token": null
       },
       {
         "name": "Game-v1.0-linux-x86_64.tar.xz",
         "role": "desktop-game-runtime",
         "os": "linux",
-        "arch": "x86-64"
+        "arch": "x86-64",
+        "tool_token": null
+      },
+      {
+        "name": "Patcher-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "patcher"
+      },
+      {
+        "name": "Game-v1.1-patch.zip",
+        "role": "desktop-game-runtime",
+        "os": "unknown",
+        "arch": "unknown",
+        "tool_token": "patch"
+      },
+      {
+        "name": "GameRandomizer-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "randomizer"
+      },
+      {
+        "name": "MarioKart64Recomp-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null
+      },
+      {
+        "name": "N64Recomp-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": "n64recomp"
+      },
+      {
+        "name": "PatchQuest-v1.0-windows-x64.zip",
+        "role": "desktop-game-runtime",
+        "os": "windows",
+        "arch": "x86-64",
+        "tool_token": null
+      }
+    ],
+    "programs": [
+      {
+        "name": "game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Unseen.exe",
+        "tool_token": null
+      },
+      {
+        "name": "mygame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game",
+        "tool_token": null
+      },
+      {
+        "name": "Unseen",
+        "tool_token": null
+      },
+      {
+        "name": "server.exe",
+        "tool_token": "server"
+      },
+      {
+        "name": "gаme.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x86_64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game.x86_64",
+        "tool_token": null
+      },
+      {
+        "name": "Patcher.exe",
+        "tool_token": "patcher"
+      },
+      {
+        "name": "UnityCrashHandler64.exe",
+        "tool_token": "crashhandler"
+      },
+      {
+        "name": "GameUpdater.exe",
+        "tool_token": "updater"
+      },
+      {
+        "name": "Launcher.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Zelda64Recompiled.exe",
+        "tool_token": null
+      },
+      {
+        "name": "LevelEditor.exe",
+        "tool_token": "editor"
+      },
+      {
+        "name": "PatchQuest.exe",
+        "tool_token": null
+      },
+      {
+        "name": "crashpad_handler.exe",
+        "tool_token": "crashpad"
+      },
+      {
+        "name": "A.exe",
+        "tool_token": null
+      },
+      {
+        "name": "B.exe",
+        "tool_token": null
+      },
+      {
+        "name": "C.exe",
+        "tool_token": null
+      },
+      {
+        "name": "D.exe",
+        "tool_token": null
+      },
+      {
+        "name": "E.exe",
+        "tool_token": null
       }
     ]
   }

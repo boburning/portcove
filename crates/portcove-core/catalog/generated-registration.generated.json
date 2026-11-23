@@ -1,7 +1,8 @@
 {
   "format": 1,
   "generator": "scripts/generate-catalog.mts",
-  "generator_version": 2,
+  "generator_version": 3,
+  "facts_provenance": null,
   "enrollments": [],
   "blocked": {
     "operational-route": 460,
@@ -31,5 +32,6 @@
     "no-player-for-host": 0,
     "route-held": 0,
     "guide-bound": 0
-  }
+  },
+  "blocked_exclusions": []
 }

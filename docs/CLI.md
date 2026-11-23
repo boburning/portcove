@@ -736,13 +736,15 @@ launch authority. `scripts/listing-package-facts.mts` uses it
 ([CATALOG](CATALOG.md#generated-user-selected-registration)).
 
 Run `portcove --json catalog classify-listing-names INPUT` with a JSON file of
-`releases` (`tag`, `provider_prerelease`) and asset names in `assets`. It
-returns `catalog.classify-listing-names` data: `filename_rule_version`, each
-release with Core's reviewed `prerelease` verdict, and each asset name with the
-`role`, `os` and `arch` its filename suggests. A filename suggestion never
+`releases` (`tag`, `provider_prerelease`), asset names in `assets` and player
+program file names in `programs`. It returns `catalog.classify-listing-names`
+data: `filename_rule_version`, each release with Core's reviewed `prerelease`
+verdict, each asset name with the `role`, `os` and `arch` its filename suggests
+and its listing-only `tool_token`, and each program name with its `tool_token`
+([tool veto](CATALOG.md#listing-only-tool-veto)). A filename suggestion never
 authorizes a runtime; the facts worker uses it only to veto one. The input is
-at most 8 MiB, 50,000 names and 1,024 bytes per name. It runs before opening a
-library and reads nothing else.
+at most 8 MiB, 50,000 names and 1,024 bytes per name; a larger request is
+refused whole. It runs before opening a library and reads nothing else.
 
 `portcove --library PATH --json installation package-shape PORT_ID` lists each
 registered installation of the port with `install_id`, `version`, `active`,

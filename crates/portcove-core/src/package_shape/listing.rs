@@ -9,7 +9,9 @@
 //!
 //! [`classify_listing_names`] exposes the single filename classifier and the
 //! reviewed prerelease tag rule to the facts worker. A filename never
-//! authorizes a runtime; the worker uses it only to veto one.
+//! authorizes a runtime; the worker uses it only to veto one. It adds a
+//! listing-only tool-name veto ([`listing_tool_token`]) for asset names and
+//! player program names. Managed routes keep the shared classifier unchanged.
 
 use std::{
     fs,
@@ -148,7 +150,7 @@ fn collect_files(
 const MAXIMUM_CLASSIFIED_NAMES: usize = 50_000;
 const MAXIMUM_CLASSIFIED_NAME_BYTES: usize = 1024;
 
-/// Release tags and asset names to classify.
+/// Release tags, asset names and player program names to classify.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ListingNamesInput {
@@ -156,6 +158,9 @@ pub struct ListingNamesInput {
     pub releases: Vec<ListingReleaseName>,
     #[serde(default)]
     pub assets: Vec<String>,
+    /// Player program file names (basenames) found inside archives.
+    #[serde(default)]
+    pub programs: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -176,6 +181,8 @@ pub struct ListingNamesClassification {
     /// Each asset name in input order with what its filename suggests. A
     /// suggestion never authorizes a runtime.
     pub assets: Vec<ListingNameSuggestion>,
+    /// Each program name in input order with the tool token that excludes it.
+    pub programs: Vec<ListingProgramVerdict>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -194,16 +201,137 @@ pub struct ListingNameSuggestion {
     pub role: ArtifactRole,
     pub os: TargetOs,
     pub arch: TargetArch,
+    /// The listing-only tool token the name carries; any token vetoes the
+    /// whole archive.
+    pub tool_token: Option<String>,
 }
 
-/// Classify release tags and asset names with Core's reviewed rules only.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListingProgramVerdict {
+    pub name: String,
+    /// The listing-only tool token the program name carries; any token
+    /// excludes that player candidate only.
+    pub tool_token: Option<String>,
+}
+
+/// Tool words matched as whole words, camel-case words or two adjacent words
+/// joined (`Crash` `Handler` is `crashhandler`), case-insensitively. Each marks
+/// a program that is not the game itself, so registering it would start the
+/// wrong program. Words that also name real game ports stay out: `recomp`,
+/// `recompiled`, `psxrecomp`, `launcher` and `demo` are not vetoed.
+pub const LISTING_TOOL_TOKENS: &[&str] = &[
+    // Patching and ROM tooling: needs the player's own input and changes it.
+    "patcher",
+    "randomizer",
+    "recompiler",
+    "decompiler",
+    "disassembler",
+    "n64recomp",
+    // Installation, update and crash handling programs beside the game.
+    "setup",
+    "installer",
+    "uninstall",
+    "uninstaller",
+    "updater",
+    "autoupdater",
+    "crashhandler",
+    "crashreporter",
+    "crashpad",
+    "crashsender",
+    // Development and asset tools.
+    "builder",
+    "compiler",
+    "importer",
+    "extractor",
+    "unpacker",
+    "converter",
+    "editor",
+    "viewer",
+    "debugger",
+    "benchmark",
+    "configurator",
+    "modmanager",
+    "sdk",
+    "devkit",
+    "tool",
+    "tools",
+    "toolkit",
+    "server",
+];
+/// Tool words matched only as whole words between separators, because as a
+/// camel-case word they also start real titles (`PatchQuest`).
+pub const LISTING_DELIMITED_TOOL_TOKENS: &[&str] = &["patch"];
+
+/// Words a name holds: separator-delimited words, their camel-case and
+/// letter/digit parts, all lowercase.
+fn name_words(name: &str) -> (Vec<String>, Vec<String>) {
+    let delimited = name
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .collect::<Vec<_>>();
+    let mut parts = Vec::new();
+    for word in &delimited {
+        let characters = word.chars().collect::<Vec<_>>();
+        let mut start = 0;
+        for index in 1..characters.len() {
+            let (previous, current) = (characters[index - 1], characters[index]);
+            let next = characters.get(index + 1).copied();
+            let boundary = (previous.is_ascii_lowercase() && current.is_ascii_uppercase())
+                || (previous.is_ascii_alphabetic() && current.is_ascii_digit())
+                || (previous.is_ascii_digit() && current.is_ascii_alphabetic())
+                || (previous.is_ascii_uppercase()
+                    && current.is_ascii_uppercase()
+                    && next.is_some_and(|next| next.is_ascii_lowercase()));
+            if boundary {
+                parts.push(characters[start..index].iter().collect::<String>());
+                start = index;
+            }
+        }
+        parts.push(characters[start..].iter().collect::<String>());
+    }
+    (
+        delimited
+            .iter()
+            .map(|word| word.to_ascii_lowercase())
+            .collect(),
+        parts.iter().map(|part| part.to_ascii_lowercase()).collect(),
+    )
+}
+
+/// The listing-only tool token a file name carries, if any.
+pub fn listing_tool_token(name: &str) -> Option<&'static str> {
+    let (delimited, parts) = name_words(name);
+    let joined = delimited
+        .windows(2)
+        .chain(parts.windows(2))
+        .map(|pair| pair.concat())
+        .collect::<Vec<_>>();
+    let among = |tokens: &'static [&'static str], word: &String| {
+        tokens.iter().copied().find(|token| *token == word.as_str())
+    };
+    delimited
+        .iter()
+        .chain(&parts)
+        .chain(&joined)
+        .find_map(|word| among(LISTING_TOOL_TOKENS, word))
+        .or_else(|| {
+            delimited
+                .iter()
+                .find_map(|word| among(LISTING_DELIMITED_TOOL_TOKENS, word))
+        })
+}
+
+/// Classify release tags, asset names and program names with Core's reviewed
+/// rules only.
 pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesClassification> {
-    if input.releases.len() + input.assets.len() > MAXIMUM_CLASSIFIED_NAMES
+    if input.releases.len() + input.assets.len() + input.programs.len() > MAXIMUM_CLASSIFIED_NAMES
         || input
             .releases
             .iter()
             .map(|release| release.tag.as_str())
             .chain(input.assets.iter().map(String::as_str))
+            .chain(input.programs.iter().map(String::as_str))
             .any(|name| name.len() > MAXIMUM_CLASSIFIED_NAME_BYTES)
     {
         return Err(PortcoveError::usage(
@@ -234,7 +362,16 @@ pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesC
                     role: suggestion.role,
                     os: suggestion.os,
                     arch: suggestion.arch,
+                    tool_token: listing_tool_token(name).map(str::to_owned),
                 }
+            })
+            .collect(),
+        programs: input
+            .programs
+            .iter()
+            .map(|name| ListingProgramVerdict {
+                name: name.clone(),
+                tool_token: listing_tool_token(name).map(str::to_owned),
             })
             .collect(),
     })
@@ -350,6 +487,7 @@ mod tests {
                 "MyGame-dedicated-server-win64.zip".into(),
                 "MyGame-v1.0-windows-x64.zip".into(),
             ],
+            programs: Vec::new(),
         };
         let output = classify_listing_names(&input).unwrap();
         assert!(output.releases[0].prerelease);
@@ -361,7 +499,299 @@ mod tests {
         let oversized = ListingNamesInput {
             releases: Vec::new(),
             assets: vec!["a".repeat(MAXIMUM_CLASSIFIED_NAME_BYTES + 1)],
+            programs: Vec::new(),
         };
         assert!(classify_listing_names(&oversized).is_err());
+        let oversized = ListingNamesInput {
+            releases: Vec::new(),
+            assets: Vec::new(),
+            programs: vec!["a".repeat(MAXIMUM_CLASSIFIED_NAME_BYTES + 1)],
+        };
+        assert!(classify_listing_names(&oversized).is_err());
+    }
+
+    #[test]
+    fn tool_names_are_vetoed_and_game_port_names_are_not() {
+        for (name, token) in [
+            ("Patcher-v1.0-windows-x64.zip", "patcher"),
+            ("Patcher.exe", "patcher"),
+            ("GamePatcher.exe", "patcher"),
+            ("Game-v1.1-patch.zip", "patch"),
+            ("SM64Randomizer.exe", "randomizer"),
+            ("N64Recomp.exe", "n64recomp"),
+            ("n64recomp-linux.tar.gz", "n64recomp"),
+            ("RecompilerGUI.exe", "recompiler"),
+            ("UnityCrashHandler64.exe", "crashhandler"),
+            ("crashpad_handler.exe", "crashpad"),
+            ("crash_reporter", "crashreporter"),
+            ("GameUpdater.exe", "updater"),
+            ("LevelEditor.exe", "editor"),
+            ("AssetViewer", "viewer"),
+            ("Mod-Manager.exe", "modmanager"),
+            ("GameSetup.exe", "setup"),
+            ("GameServer.x86_64", "server"),
+            ("assets_extractor.exe", "extractor"),
+        ] {
+            assert_eq!(listing_tool_token(name), Some(token), "{name}");
+        }
+        for name in [
+            "Game-v1.0-windows-x64.zip",
+            "Zelda64Recompiled.exe",
+            "MarioKart64Recomp-v1.0-windows.zip",
+            "PSXRecomp.exe",
+            "Game Launcher.exe",
+            "GameDemo.exe",
+            "PatchQuest.exe",
+            "PatchQuest-v1.0-windows-x64.zip",
+            "Dispatcher.exe",
+            "Toolbox.exe",
+            "Game.x86_64",
+            "UnseenGame-v2.0-linux-x86_64.tar.xz",
+        ] {
+            assert_eq!(listing_tool_token(name), None, "{name}");
+        }
+        let output = classify_listing_names(&ListingNamesInput {
+            releases: Vec::new(),
+            assets: vec!["Patcher-v1.0-windows-x64.zip".into()],
+            programs: vec!["Game.exe".into(), "Patcher.exe".into()],
+        })
+        .unwrap();
+        // The shared classifier still calls it a desktop package.
+        assert_eq!(output.assets[0].role, ArtifactRole::DesktopGameRuntime);
+        assert_eq!(output.assets[0].tool_token.as_deref(), Some("patcher"));
+        assert_eq!(output.programs[0].tool_token, None);
+        assert_eq!(output.programs[1].tool_token.as_deref(), Some("patcher"));
+    }
+
+    // -----------------------------------------------------------------------
+    // Forged-fact guard: every recorded fact the generated registration route
+    // reads must equal what Core's own rules compute for it. This needs no
+    // network: names, tags, paths and machines are all in the table.
+
+    fn machine_os(machine: &str) -> &'static str {
+        if machine.starts_with("pe-") {
+            "windows"
+        } else if machine.starts_with("elf") {
+            "linux"
+        } else if machine.starts_with("macho-") {
+            "macos"
+        } else {
+            "unknown"
+        }
+    }
+
+    fn machine_arch(machine: &str) -> &'static str {
+        if machine.starts_with("macho-universal-") {
+            return "universal";
+        }
+        let arch = machine.split_once('-').map_or("", |(_, arch)| arch);
+        match arch {
+            "arm64" => "aarch64",
+            "x86-64" => "x86-64",
+            "x86" => "x86",
+            _ => "unknown",
+        }
+    }
+
+    fn agreed(values: impl Iterator<Item = &'static str>) -> &'static str {
+        let values = values.collect::<Vec<_>>();
+        match values.first() {
+            Some(first) if values.iter().all(|value| value == first) => first,
+            _ => "unknown",
+        }
+    }
+
+    fn basename(path: &str) -> &str {
+        path.rsplit('/').next().unwrap_or(path)
+    }
+
+    /// Facts in `table` that Core's rules contradict.
+    fn facts_problems(table: &serde_json::Value) -> Vec<String> {
+        let mut problems = Vec::new();
+        let text = |value: &serde_json::Value| value.as_str().unwrap_or_default().to_owned();
+        for entry in table["entries"].as_array().into_iter().flatten() {
+            let id = text(&entry["port_id"]);
+            if entry["ineligible"].is_null()
+                && let Some(tag) = entry["observation"]["tag"].as_str()
+                && crate::release::is_prerelease(false, tag)
+            {
+                problems.push(format!(
+                    "{id}: release {tag} is a prerelease by Core's rule"
+                ));
+            }
+            for artifact in entry["artifacts"].as_array().into_iter().flatten() {
+                let name = text(&artifact["name"]);
+                let at = format!("{id} {name}");
+                let players = artifact["players"].as_array().cloned().unwrap_or_default();
+                let excluded = artifact["excluded_players"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
+                let programs = players
+                    .iter()
+                    .chain(&excluded)
+                    .map(|player| basename(&text(&player["display_path"])).to_owned())
+                    .collect::<Vec<_>>();
+                let output = classify_listing_names(&ListingNamesInput {
+                    releases: Vec::new(),
+                    assets: vec![name.clone()],
+                    programs,
+                })
+                .unwrap();
+                let suggestion = &output.assets[0];
+                let expected = serde_json::json!({
+                    "rule_version": FILENAME_RULE_VERSION,
+                    "role": suggestion.role,
+                    "os": suggestion.os,
+                    "arch": suggestion.arch,
+                    "tool_token": suggestion.tool_token,
+                });
+                if artifact["name_suggestion"] != expected {
+                    problems.push(format!("{at}: name suggestion differs from Core's"));
+                }
+                for (index, player) in players.iter().chain(&excluded).enumerate() {
+                    let path = text(&player["path"]);
+                    let machine = text(&player["machine"]);
+                    let windows_program = path.ends_with(".exe");
+                    if !machine::is_machine_name(&machine)
+                        || windows_program != machine.starts_with("pe-")
+                    {
+                        problems.push(format!("{at}: {path} has no producible {machine}"));
+                    }
+                    if crate::route_facts::player_candidates(std::slice::from_ref(&path)).is_empty()
+                    {
+                        problems.push(format!("{at}: {path} is not a player candidate path"));
+                    }
+                    let token = output.programs[index].tool_token.as_deref();
+                    let recorded = player.get("token").and_then(serde_json::Value::as_str);
+                    if token != recorded {
+                        problems.push(format!("{at}: {path} tool token differs from Core's"));
+                    }
+                }
+                let machines = players.iter().map(|player| text(&player["machine"]));
+                let machines = machines.collect::<Vec<_>>();
+                let os = agreed(machines.iter().map(|machine| machine_os(machine)));
+                let arch = agreed(machines.iter().map(|machine| machine_arch(machine)));
+                let named_os = serde_json::to_value(suggestion.os).unwrap();
+                let named_arch = serde_json::to_value(suggestion.arch).unwrap();
+                let named_role = serde_json::to_value(suggestion.role).unwrap();
+                let arch_agrees = named_arch == "unknown"
+                    || named_arch == arch
+                    || (arch == "universal" && (named_arch == "x86-64" || named_arch == "aarch64"));
+                let contradictory = !players.is_empty()
+                    && (!(named_role == "desktop-game-runtime" || named_role == "unknown")
+                        || suggestion.tool_token.is_some()
+                        || (named_os != "unknown" && named_os != os)
+                        || !arch_agrees);
+                let role = if players.is_empty() {
+                    "unknown"
+                } else {
+                    "desktop-game-runtime"
+                };
+                if artifact["contradictory"] != contradictory
+                    || artifact["role"] != role
+                    || artifact["os"] != os
+                    || artifact["arch"] != arch
+                {
+                    problems.push(format!("{at}: role, system or contradiction differs"));
+                }
+            }
+        }
+        problems
+    }
+
+    #[test]
+    fn committed_listing_facts_equal_what_core_computes() {
+        let table: serde_json::Value = serde_json::from_str(include_str!(
+            "../../catalog/listing-package-facts.generated.json"
+        ))
+        .unwrap();
+        assert_eq!(facts_problems(&table), Vec::<String>::new());
+    }
+
+    /// The worker's own output for a sample run, written by its tests.
+    #[test]
+    fn worker_sample_facts_equal_what_core_computes_and_forgeries_do_not() {
+        let sample: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../scripts/fixtures/listing-package-facts-sample.json"
+        ))
+        .unwrap();
+        assert!(
+            sample["entries"]
+                .as_array()
+                .is_some_and(|entries| entries.iter().any(|entry| entry["artifacts"]
+                    .as_array()
+                    .is_some_and(|artifacts| !artifacts.is_empty()))),
+            "the sample holds artifacts"
+        );
+        assert_eq!(facts_problems(&sample), Vec::<String>::new());
+        let artifact = |table: &mut serde_json::Value| -> serde_json::Value {
+            table["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|entry| entry["artifacts"].as_array().unwrap())
+                .find(|artifact| !artifact["players"].as_array().unwrap().is_empty())
+                .unwrap()
+                .clone()
+        };
+        let forge = |change: &dyn Fn(&mut serde_json::Value)| {
+            let mut table = sample.clone();
+            let original = artifact(&mut table);
+            for entry in table["entries"].as_array_mut().unwrap() {
+                for candidate in entry["artifacts"].as_array_mut().unwrap() {
+                    if *candidate == original {
+                        change(candidate);
+                    }
+                }
+            }
+            facts_problems(&table)
+        };
+        let changes: [fn(&mut serde_json::Value); 6] = [
+            |artifact| artifact["name"] = "Game-dedicated-server-windows-x64.zip".into(),
+            |artifact| artifact["name_suggestion"]["tool_token"] = "patcher".into(),
+            |artifact| artifact["contradictory"] = true.into(),
+            |artifact| artifact["players"][0]["machine"] = "pe-forged".into(),
+            |artifact| artifact["players"][0]["path"] = "tools/game.exe".into(),
+            |artifact| artifact["players"][0]["display_path"] = "Patcher.exe".into(),
+        ];
+        for change in changes {
+            assert!(!forge(&change).is_empty());
+        }
+        let mut prerelease = sample.clone();
+        let entry = prerelease["entries"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|entry| entry["ineligible"].is_null())
+            .unwrap();
+        entry["observation"]["tag"] = "v2.0-nightly".into();
+        assert!(!facts_problems(&prerelease).is_empty());
+    }
+
+    #[test]
+    fn machine_names_are_the_ones_the_classifier_produces() {
+        for machine in [
+            "pe-x86-64",
+            "pe-x86",
+            "pe-0x01c2",
+            "elf64-x86-64",
+            "elf32be-arm",
+            "macho-arm64",
+            "macho-universal-arm64+x86-64",
+        ] {
+            assert!(machine::is_machine_name(machine), "{machine}");
+        }
+        for machine in [
+            "pe-",
+            "pe-x86_64",
+            "elf16-x86",
+            "macho-universal-x86-64+arm64",
+            "macho-universal-arm64+arm64",
+            "pe-0x1",
+            "macho-0x0100000C",
+        ] {
+            assert!(!machine::is_machine_name(machine), "{machine}");
+        }
     }
 }

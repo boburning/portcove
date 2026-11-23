@@ -26,14 +26,16 @@
 //     the last-good retention);
 //  7. that entry's observation is `complete` with a complete asset list, its
 //     facts are at most `maxFactsAgeDays` older than the table, and any run of
-//     non-complete attempts since is at most `lastGoodRetentionDays` long
-//     (anything else is UNKNOWN or stale, never eligible);
+//     non-complete upstream attempts since is at most `lastGoodRetentionDays`
+//     long; the worker's own backlog (`pending-inspection`) is not an upstream
+//     attempt (anything else is UNKNOWN or stale, never eligible);
 //  8. for at least one supported desktop platform P there is an artifact whose
 //     typed role is `desktop-game-runtime` from exact digest-bound archive
-//     bytes, which neither its asset name (Core's filename classifier, a veto
-//     only) nor another source contradicts, whose operating system and
-//     architecture are P's, and which holds a player candidate whose header
-//     machine runs on P;
+//     bytes, which neither its asset name (Core's filename classifier and
+//     listing-only tool veto, vetoes only) nor another source contradicts,
+//     whose operating system and architecture are P's, and which holds a
+//     player candidate whose header machine runs on P and whose name carries
+//     no tool token;
 //  9. on P no acquisition restriction holds `register-external` or `launch`
 //     (a `download` hold does not block registration; this route never offers
 //     a download).
@@ -47,11 +49,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 2;
+export const GENERATOR_VERSION = 3;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 2;
-export const FACTS_TABLE_FORMAT = 2;
+export const FACTS_PARSER_VERSION = 3;
+export const FACTS_TABLE_FORMAT = 3;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -129,6 +131,12 @@ export interface NameSuggestion {
   role: Role;
   os: string;
   arch: string;
+  /** Core's listing-only tool token in the asset name; any token vetoes the archive. */
+  tool_token: string | null;
+}
+/** A native program Core's listing-only tool veto excluded from the players. */
+export interface ExcludedPlayer extends PlayerFact {
+  token: string;
 }
 export interface ArtifactFactV2 {
   asset_id: number;
@@ -141,7 +149,10 @@ export interface ArtifactFactV2 {
   source: { kind: typeof authorizingSource; shape_version: number; archive_sha256: string };
   /** What Core's filename classifier suggests; it can only veto. */
   name_suggestion: NameSuggestion;
+  /** Native programs outside tool locations whose names carry no tool token. */
   players: PlayerFact[];
+  /** Native programs whose names carry a listing-only tool token. */
+  excluded_players: ExcludedPlayer[];
   contradictory: boolean;
 }
 export interface ListingFactsEntry {
@@ -173,11 +184,24 @@ export interface ListingFactsEntry {
   } | null;
   artifacts: ArtifactFactV2[];
 }
+/**
+ * Where an unattended worker run came from. Absent for local runs; when
+ * present, its shape is checked and it is carried into the enrollment table.
+ */
+export interface FactsProvenance {
+  /** The workflow run id of the job that ran the worker. */
+  workflow_run_id: string;
+  /** The repository commit the worker ran from. */
+  source_commit: string;
+  /** SHA-256 of the Portcove CLI binary the worker ran. */
+  cli_sha256: string;
+}
 export interface ListingFactsTable {
   format: number;
   generator: string;
   /** The worker run that wrote the table: the reference time for facts age. */
   generated_at: string;
+  provenance?: FactsProvenance;
   entries: ListingFactsEntry[];
   entries_sha256: string;
 }
@@ -228,6 +252,7 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
       "source",
       "name_suggestion",
       "players",
+      "excluded_players",
       "contradictory",
     ],
     where,
@@ -243,7 +268,9 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
     !targetArch.includes(value.arch as string) ||
     typeof value.contradictory !== "boolean" ||
     !Array.isArray(value.players) ||
-    value.players.length > 64
+    value.players.length > 64 ||
+    !Array.isArray(value.excluded_players) ||
+    value.excluded_players.length > 64
   )
     throw new Error(`${where} is not a typed artifact fact.`);
   // Generator v1 trusts only exact structural observations of digest-bound bytes.
@@ -254,27 +281,64 @@ function checkArtifact(value: unknown, where: string): asserts value is Artifact
     throw new Error(`${where} structural source must bind these exact archive bytes.`);
   const suggestion = value.name_suggestion;
   if (!isRecord(suggestion)) throw new Error(`${where}.name_suggestion must be an object.`);
-  exact(suggestion, ["rule_version", "role", "os", "arch"], `${where}.name_suggestion`);
+  exact(
+    suggestion,
+    ["rule_version", "role", "os", "arch", "tool_token"],
+    `${where}.name_suggestion`,
+  );
   if (
     !positive(suggestion.rule_version) ||
+    !(suggestion.tool_token === null || toolToken(suggestion.tool_token)) ||
     !(roles as readonly unknown[]).includes(suggestion.role) ||
     !targetOs.includes(suggestion.os as string) ||
     !targetArch.includes(suggestion.arch as string)
   )
     throw new Error(`${where}.name_suggestion is not a filename classification.`);
-  for (const [index, player] of value.players.entries()) {
-    const at = `${where}.players[${index}]`;
-    if (!isRecord(player)) throw new Error(`${at} must be an object.`);
-    exact(player, ["path", "display_path", "machine", "sha256"], at);
+  const paths = new Set<string>();
+  for (const [index, player] of [
+    ...value.players.map((item: unknown) => ["players", item] as const),
+    ...value.excluded_players.map((item: unknown) => ["excluded_players", item] as const),
+  ].entries()) {
+    const [list, item] = player;
+    const at = `${where}.${list}[${index}]`;
+    if (!isRecord(item)) throw new Error(`${at} must be an object.`);
+    const excluded = list === "excluded_players";
+    exact(item, ["path", "display_path", "machine", "sha256", ...(excluded ? ["token"] : [])], at);
     if (
-      !relativePath(player.path) ||
-      !relativePath(player.display_path) ||
-      player.display_path.toLowerCase() !== player.path ||
-      !bounded(player.machine, 64) ||
-      !sha(player.sha256)
+      !relativePath(item.path) ||
+      !relativePath(item.display_path) ||
+      item.display_path.toLowerCase() !== item.path ||
+      !bounded(item.machine, 64) ||
+      !sha(item.sha256) ||
+      (excluded && !toolToken(item.token)) ||
+      paths.has(item.path)
     )
       throw new Error(`${at} needs a package-relative path, header machine and SHA-256.`);
+    paths.add(item.path);
   }
+  if ((value.role === "desktop-game-runtime") !== value.players.length > 0)
+    throw new Error(`${where} claims a runtime role exactly when it holds players.`);
+}
+
+/** A Core tool token: a lowercase ASCII word. */
+const toolToken = (value: unknown): value is string =>
+  typeof value === "string" && /^[a-z0-9]{1,32}$/u.test(value);
+
+const provenanceFields = ["workflow_run_id", "source_commit", "cli_sha256"] as const;
+/** The optional table-level provenance an unattended worker run records. */
+export function checkFactsProvenance(value: unknown): asserts value is FactsProvenance {
+  if (!isRecord(value)) throw new Error("Listing package facts provenance must be an object.");
+  exact(value, provenanceFields, "Listing package facts provenance");
+  if (
+    typeof value.workflow_run_id !== "string" ||
+    !/^[1-9][0-9]{0,19}$/u.test(value.workflow_run_id) ||
+    typeof value.source_commit !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(value.source_commit) ||
+    !sha(value.cli_sha256)
+  )
+    throw new Error(
+      "Listing package facts provenance needs a workflow run id, a 40-digit source commit and the CLI SHA-256.",
+    );
 }
 
 /** One entry's strict syntax; the worker checks each identity with it. */
@@ -372,11 +436,13 @@ export function checkListingFactsEntry(
 /** Strict syntax of the generated facts table; content binding is the producer's. */
 export function checkListingFactsTable(value: unknown): asserts value is ListingFactsTable {
   if (!isRecord(value)) throw new Error("Listing package facts must be an object.");
+  const { provenance, ...rest } = value;
   exact(
-    value,
+    rest,
     ["format", "generator", "generated_at", "entries", "entries_sha256"],
     "Listing package facts",
   );
+  if (Object.hasOwn(value, "provenance")) checkFactsProvenance(provenance);
   if (
     value.format !== FACTS_TABLE_FORMAT ||
     value.generator !== factsGenerator ||
@@ -551,7 +617,9 @@ export function factsFreshness(
       reason: "stale-facts",
       detail: `Facts were last confirmed ${Math.floor(age)} days before this table; the bound is ${maxFactsAgeDays}.`,
     };
-  if (entry.attempt) {
+  // The worker's own inspection backlog (`pending-inspection`) is not an
+  // upstream attempt: upstream was complete, so only the facts age applies.
+  if (entry.attempt && entry.attempt.status !== "pending-inspection") {
     const unknown = (reference - Date.parse(entry.attempt.first_at)) / day;
     if (unknown > lastGoodRetentionDays)
       return {
@@ -624,7 +692,15 @@ export function fitDecision(
     if (held.length)
       return blocked("route-held", `Registration or launch is held on ${held.join(", ")}.`);
     const reason = reasonPriority.find((candidate) => misses.has(candidate)) ?? "no-runtime-role";
-    return blocked(reason, `No supported desktop platform fits: ${[...misses].sort().join(", ")}.`);
+    const vetoes = entry.artifacts
+      .flatMap(artifactExclusions)
+      .map((item) => `${item.reason} ${item.token} (${item.name})`);
+    return blocked(
+      reason,
+      `No supported desktop platform fits: ${[...misses].sort().join(", ")}.${
+        vetoes.length ? ` Fail-safe exclusions: ${vetoes.slice(0, 8).join(", ")}.` : ""
+      }`.slice(0, 1000),
+    );
   }
   if (!authoredGuideFits(record))
     return blocked(
@@ -649,6 +725,109 @@ export function fitDecision(
       runtimes,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Fail-safe exclusions: every name-based veto, so groups of wrongly excluded
+// real games can be found and the rule, not a single game, fixed.
+
+export const exclusionReasons = [
+  "asset-tool-name",
+  "asset-role-name",
+  "asset-system-name",
+  "asset-architecture-name",
+  "player-tool-name",
+] as const;
+export interface Exclusion {
+  reason: (typeof exclusionReasons)[number];
+  /** The vetoing token, role, system or architecture. */
+  token: string;
+  /** The vetoed asset name or program file name. */
+  name: string;
+}
+
+/** The name-based vetoes that excluded a native runtime or player of one artifact. */
+export function artifactExclusions(artifact: ArtifactFactV2): Exclusion[] {
+  const named = artifact.name_suggestion;
+  const exclusions: Exclusion[] = [];
+  // An archive name vetoes only an archive that holds native programs.
+  if (artifact.players.length || artifact.excluded_players.length) {
+    if (named.tool_token !== null)
+      exclusions.push({ reason: "asset-tool-name", token: named.tool_token, name: artifact.name });
+    if (named.role !== "desktop-game-runtime" && named.role !== "unknown")
+      exclusions.push({ reason: "asset-role-name", token: named.role, name: artifact.name });
+  }
+  // System and architecture compare with the kept players' header machines.
+  if (artifact.players.length) {
+    if (named.os !== "unknown" && named.os !== artifact.os)
+      exclusions.push({ reason: "asset-system-name", token: named.os, name: artifact.name });
+    const archAgrees =
+      named.arch === "unknown" ||
+      named.arch === artifact.arch ||
+      (artifact.arch === "universal" && ["x86-64", "aarch64"].includes(named.arch));
+    if (!archAgrees)
+      exclusions.push({
+        reason: "asset-architecture-name",
+        token: named.arch,
+        name: artifact.name,
+      });
+  }
+  for (const player of artifact.excluded_players)
+    exclusions.push({
+      reason: "player-tool-name",
+      token: player.token,
+      name: basename(player.display_path),
+    });
+  return exclusions;
+}
+
+export interface ExclusionGroup {
+  reason: Exclusion["reason"];
+  token: string;
+  /** Identities with at least one such exclusion. */
+  count: number;
+  /** Up to `exclusionExamples` identities, in port_id order, with their outcome. */
+  examples: { port_id: string; name: string; outcome: string }[];
+}
+export const exclusionExamples = 5;
+
+/** Exclusions grouped by reason and token, most frequent first. */
+export function failSafeExclusions(generation: Generation): ExclusionGroup[] {
+  const outcomes = new Map(
+    generation.decisions.map((decision) => [
+      decision.port_id,
+      decision.fit ? "enrolled" : decision.reason,
+    ]),
+  );
+  const groups = new Map<string, ExclusionGroup>();
+  for (const entry of generation.facts.entries) {
+    const seen = new Set<string>();
+    for (const exclusion of entry.artifacts.flatMap(artifactExclusions)) {
+      const key = `${exclusion.reason}\u0000${exclusion.token}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const group = groups.get(key) ?? {
+        reason: exclusion.reason,
+        token: exclusion.token,
+        count: 0,
+        examples: [],
+      };
+      group.count++;
+      if (group.examples.length < exclusionExamples)
+        group.examples.push({
+          port_id: entry.port_id,
+          name: exclusion.name,
+          outcome: outcomes.get(entry.port_id) ?? "unknown",
+        });
+      groups.set(key, group);
+    }
+  }
+  return [...groups.values()].toSorted(
+    (left, right) =>
+      right.count - left.count ||
+      left.reason.localeCompare(right.reason) ||
+      left.token.localeCompare(right.token),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -895,8 +1074,12 @@ export interface EnrollmentTable {
   format: number;
   generator: string;
   generator_version: number;
+  /** The facts worker run's provenance, when an unattended run recorded one. */
+  facts_provenance: FactsProvenance | null;
   enrollments: GeneratedEnrollment[];
   blocked: Record<string, number>;
+  /** Every name-based veto, grouped by reason and token, with examples. */
+  blocked_exclusions: ExclusionGroup[];
 }
 
 export function enrollmentTable(generation: Generation): EnrollmentTable {
@@ -909,8 +1092,10 @@ export function enrollmentTable(generation: Generation): EnrollmentTable {
     format: ENROLLMENT_TABLE_FORMAT,
     generator: enrollmentGenerator,
     generator_version: GENERATOR_VERSION,
+    facts_provenance: generation.facts.provenance ?? null,
     enrollments: generation.enrollments,
     blocked,
+    blocked_exclusions: failSafeExclusions(generation),
   };
 }
 
@@ -1032,7 +1217,11 @@ function gateEnrollmentProblems(
   const reference = Date.parse(generatedAt);
   if (reference - Date.parse(entry.observation.observed_at) > 30 * gateDay)
     problems.push(`${id} rests on facts older than 30 days.`);
-  if (entry.attempt && reference - Date.parse(entry.attempt.first_at) > 14 * gateDay)
+  if (
+    entry.attempt &&
+    entry.attempt.status !== "pending-inspection" &&
+    reference - Date.parse(entry.attempt.first_at) > 14 * gateDay
+  )
     problems.push(`${id} rests on last-good facts kept beyond 14 days.`);
   const platformsSeen = new Set<string>();
   if (!enrollment.platforms.length) problems.push(`${id} has no platform.`);
@@ -1063,6 +1252,16 @@ function gateEnrollmentProblems(
     if (artifact.role !== "desktop-game-runtime" || artifact.contradictory)
       problems.push(`${where} rests on a contradicted or non-runtime artifact.`);
     const named = artifact.name_suggestion;
+    if (named.tool_token !== null)
+      problems.push(
+        `${where} rests on an artifact whose name carries the tool token ${named.tool_token}.`,
+      );
+    if (
+      runtime.players.some((player) =>
+        artifact.excluded_players.some((excluded) => excluded.path === player.path),
+      )
+    )
+      problems.push(`${where} names a player the tool veto excluded.`);
     if (
       !["desktop-game-runtime", "unknown"].includes(named.role) ||
       !["unknown", host.os].includes(named.os) ||
@@ -1095,9 +1294,20 @@ export function gateGeneration(
   baseline: unknown,
   generation: Generation,
   bounds: { added: number; withdrawn: number; changed: number } = deltaBounds,
+  baselineFacts: unknown = null,
 ) {
   const delta = enrollmentDelta(baseline, generation);
   const problems: string[] = [];
+  // Facts age is measured against the table's own time, so that time must
+  // never move backwards from the baseline's.
+  if (baselineFacts !== null && baselineFacts !== undefined) {
+    const before = isRecord(baselineFacts) ? Date.parse(String(baselineFacts.generated_at)) : NaN;
+    if (Number.isNaN(before)) problems.push("The baseline facts table has no generation time.");
+    else if (Date.parse(generation.facts.generated_at) < before)
+      problems.push(
+        `The facts table was generated at ${generation.facts.generated_at}, before the baseline's ${String((baselineFacts as Record<string, unknown>).generated_at)}.`,
+      );
+  }
   for (const name of ["added", "withdrawn", "changed"] as const)
     if (delta[name].length > bounds[name])
       problems.push(
@@ -1121,6 +1331,7 @@ export function gateGeneration(
 // The gate's baseline: the committed table at the merge base.
 
 export const enrollmentTablePath = `crates/portcove-core/catalog/${enrollmentTableName}`;
+export const factsTablePath = `crates/portcove-core/catalog/${factsTableName}`;
 /** Runs git and returns stdout, or undefined when the command fails. */
 export type GitRunner = (args: string[]) => string | undefined;
 
@@ -1150,19 +1361,23 @@ export function gateBaselineRevision(env: NodeJS.ProcessEnv, git: GitRunner): st
  * or no git repository at all). Inside a repository an unresolvable baseline
  * is an error: the gate never falls back to the working tree.
  */
-export function readGateBaseline(env: NodeJS.ProcessEnv, git: GitRunner): unknown {
+export function readGateBaseline(
+  env: NodeJS.ProcessEnv,
+  git: GitRunner,
+  file: string = enrollmentTablePath,
+): unknown {
   if (git(["rev-parse", "--is-inside-work-tree"])?.trim() !== "true") return null;
   const revision = gateBaselineRevision(env, git);
   if (!revision)
     throw new Error(
       "The generated registration gate needs the merge base's history; fetch the base branch (CI: checkout fetch-depth 2 or more).",
     );
-  const listed = git(["ls-tree", "--name-only", revision, "--", enrollmentTablePath]);
+  const listed = git(["ls-tree", "--name-only", revision, "--", file]);
   if (listed === undefined)
     throw new Error(`The generated registration gate cannot read revision ${revision}.`);
   if (!listed.trim()) return null;
-  const text = git(["show", `${revision}:${enrollmentTablePath}`]);
-  if (text === undefined) throw new Error(`Cannot read ${enrollmentTablePath} at ${revision}.`);
+  const text = git(["show", `${revision}:${file}`]);
+  if (text === undefined) throw new Error(`Cannot read ${file} at ${revision}.`);
   return JSON.parse(text) as unknown;
 }
 

@@ -20,22 +20,25 @@
 //    an archive without a provider digest, over the per-archive or per-release
 //    limit, more bytes than one whole run may read, a permanent Core refusal,
 //    repeated transient failures, invalid facts, or a changed repository id.
-//  - Identities that need bytes are inspected in port_id order after a cursor,
-//    at most `maxIdentities` and `maxBytes` per run. The cursor moves past every
-//    identity it reaches; one that does not fit the remaining bytes is skipped
-//    and queued. A bounded retry queue (oldest first, at most a quarter of the
-//    identity budget) retries transient failures before the cursor pass.
-//  - A non-complete observation (rate limit, not found, partial) keeps the
-//    last-good complete facts for `lastGoodRetentionDays`; only a complete
-//    observation that no longer fits withdraws immediately.
-//  - Each identity's facts are validated alone; a bad one is completed as
-//    `invalid-facts` instead of failing the run.
+//  - Each identity is evaluated alone: a name Core cannot classify, a
+//    malformed observation or any unexpected failure settles that identity as
+//    `invalid-facts` and never fails the run.
+//  - Identities that need bytes share `maxIdentities` and `maxBytes` per run:
+//    the cursor pass's next new identity first, then offered identities whose
+//    release changed (all but a reserved share), new identities' retries, the
+//    rest of the cursor pass, and offered identities with what is left.
+//  - A non-complete upstream observation (rate limit, not found, partial)
+//    keeps the last-good complete facts for `lastGoodRetentionDays`; the
+//    worker's own backlog (`pending-inspection`) is not an upstream attempt
+//    and only the facts age bounds it. A complete observation that no longer
+//    fits withdraws immediately.
 //  - New facts land as one bounded batch per run (`boundFactsBatch`); the rest
 //    are held in the worker state and offered again next run.
 //
 //   node scripts/listing-package-facts.mts --check
 //   node scripts/listing-package-facts.mts derive --observations REPORT.json \
-//     --cli PORTCOVE [--state STATE.json] [--output TABLE.json]
+//     --cli PORTCOVE [--state STATE.json] [--output TABLE.json] [--cadence-hours N] \
+//     [--workflow-run-id ID --source-commit SHA]
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -48,14 +51,19 @@ import { fileURLToPath } from "node:url";
 import { parseCatalogSource, readCatalogSource, type AuthoredPort } from "./catalog-authoring.mts";
 import {
   boundFactsBatch,
+  checkFactsProvenance,
   checkListingFactsEntry,
   checkListingFactsTable,
   digestOf,
   emptyFactsTable,
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
+  fitDecision,
   lastGoodRetentionDays,
+  roles,
   type ArtifactFactV2,
+  type ExcludedPlayer,
+  type FactsProvenance,
   type IneligibleReason,
   type ListingFactsEntry,
   type ListingFactsTable,
@@ -120,11 +128,13 @@ export type ByteInspector = (asset: ObservedAsset, readerPlatform: string) => Pr
 export interface NameClassification {
   filename_rule_version: number;
   releases: { tag: string; provider_prerelease: boolean; prerelease: boolean }[];
-  assets: { name: string; role: Role; os: string; arch: string }[];
+  assets: { name: string; role: Role; os: string; arch: string; tool_token: string | null }[];
+  programs: { name: string; tool_token: string | null }[];
 }
 export type NameClassifier = (input: {
   releases: { tag: string; provider_prerelease: boolean }[];
   assets: string[];
+  programs: string[];
 }) => Promise<NameClassification>;
 
 const archiveForms = [".zip", ".tar.gz", ".tgz", ".tar.xz"];
@@ -268,14 +278,31 @@ const archAgrees = (named: string, actual: string) =>
  */
 export function artifactFact(
   asset: ObservedAsset & { sha256: string },
-  players: PlayerFact[],
+  candidates: readonly PlayerFact[],
   suggestion: NameSuggestion,
+  programToken: (name: string) => string | null,
 ): ArtifactFactV2 {
+  // Core's listing-only tool veto excludes a player, never the whole archive;
+  // a tool token in the archive's own name vetoes the archive below.
+  const players: PlayerFact[] = [];
+  const excluded: ExcludedPlayer[] = [];
+  for (const candidate of candidates) {
+    const player = {
+      path: candidate.path,
+      display_path: candidate.display_path,
+      machine: candidate.machine,
+      sha256: candidate.sha256,
+    };
+    const token = programToken(basenameOf(candidate.display_path));
+    if (token === null) players.push(player);
+    else excluded.push({ ...player, token });
+  }
   const os = agreed(players.map(({ machine }) => machineOs(machine)));
   const arch = agreed(players.map(({ machine }) => machineArch(machine)));
   const contradictory =
     players.length > 0 &&
     (!["desktop-game-runtime", "unknown"].includes(suggestion.role) ||
+      suggestion.tool_token !== null ||
       (suggestion.os !== "unknown" && suggestion.os !== os) ||
       !archAgrees(suggestion.arch, arch));
   return {
@@ -293,9 +320,17 @@ export function artifactFact(
     },
     name_suggestion: suggestion,
     players: players.toSorted((left, right) => (left.path < right.path ? -1 : 1)),
+    excluded_players: excluded.toSorted((left, right) => (left.path < right.path ? -1 : 1)),
     contradictory,
   };
 }
+
+const basenameOf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+/** Every program an artifact fact recorded, kept or excluded, as Core reported it. */
+const candidatesOf = (artifact: ArtifactFactV2): PlayerFact[] =>
+  [...artifact.players, ...artifact.excluded_players].map(
+    ({ path, display_path, machine, sha256 }) => ({ path, display_path, machine, sha256 }),
+  );
 
 export interface DeriveInputs {
   records: readonly AuthoredPort[];
@@ -306,6 +341,10 @@ export interface DeriveInputs {
   inspect: ByteInspector;
   classify: NameClassifier;
   now: string;
+  /** Recorded in the table by an unattended run; absent for local runs. */
+  provenance?: FactsProvenance;
+  /** The schedule's cadence, for the backlog drain estimate. */
+  cadenceHours?: number;
 }
 export interface ReportRow {
   port_id: string;
@@ -329,6 +368,8 @@ export interface DeriveResult {
   /** Identities whose facts were completed as ineligible, by reason. */
   ineligible: Record<string, number>;
   bytes: number;
+  /** The worker's own inspection backlog; never counted as an upstream attempt. */
+  backlog: ReturnType<typeof backlogOf>;
 }
 
 /** Display-safe placeholder for a value that failed validation. */
@@ -342,69 +383,214 @@ const assetsDigest = (release: ObservedRelease | undefined) =>
       .toSorted((left, right) => Number(left[0]) - Number(right[0])),
   );
 
-async function classifyInChunks(
-  classify: NameClassifier,
-  tags: ObservedRelease[],
-  assets: string[],
-) {
-  const chunk = 20_000;
-  const prerelease = new Map<string, boolean>();
-  const named = new Map<string, NameSuggestion>();
-  const key = (release: { tag: string; provider_prerelease: boolean }) =>
-    `${release.provider_prerelease ? 1 : 0}:${release.tag}`;
-  const uniqueTags = [
-    ...new Map(
-      tags.map((release) => [
-        key({ tag: release.version, provider_prerelease: release.provider_prerelease }),
-        { tag: release.version, provider_prerelease: release.provider_prerelease },
-      ]),
-    ).values(),
-  ];
-  for (let index = 0; index < uniqueTags.length; index += chunk) {
-    const input = uniqueTags.slice(index, index + chunk);
-    const result = await classify({ releases: input, assets: [] });
-    if (result.releases.length !== input.length) throw new Error("Core classified other tags.");
-    for (const [position, release] of result.releases.entries()) {
-      if (release.tag !== input[position]!.tag) throw new Error("Core classified other tags.");
-      prerelease.set(key(input[position]!), release.prerelease);
-    }
+/** Core refuses a classification request holding a longer name. */
+export const maximumNameBytes = 1024;
+/** Names one classification request carries, by count and by serialized size. */
+const chunkNames = 10_000;
+const chunkBytes = 4 * 1024 * 1024;
+/** A name Core can classify: well-formed Unicode within Core's byte bound. */
+export const sendableName = (name: string) =>
+  name.isWellFormed() && Buffer.byteLength(name) <= maximumNameBytes;
+
+type TagInput = { tag: string; provider_prerelease: boolean };
+const tagKey = (release: TagInput) => `${release.provider_prerelease ? 1 : 0}:${release.tag}`;
+const probe = {
+  releases: [{ tag: "v1.0", provider_prerelease: false }],
+  assets: ["Game-v1.0-windows-x64.zip"],
+  programs: ["Game.exe"],
+};
+
+/**
+ * Core's verdicts for names, collected across requests. One name never fails
+ * a run: names Core cannot take are not sent, and a refused request is split
+ * until the refused name is isolated and left unclassified. Only a refused
+ * known-good probe (an unusable CLI) fails the run.
+ */
+export class NameVerdicts {
+  readonly #classify: NameClassifier;
+  readonly #prerelease = new Map<string, boolean>();
+  readonly #assets = new Map<string, NameSuggestion>();
+  readonly #programs = new Map<string, string | null>();
+  readonly #tried = new Set<string>();
+  constructor(classify: NameClassifier) {
+    this.#classify = classify;
   }
-  const uniqueAssets = [...new Set(assets)];
-  for (let index = 0; index < uniqueAssets.length; index += chunk) {
-    const input = uniqueAssets.slice(index, index + chunk);
-    const result = await classify({ releases: [], assets: input });
-    if (result.assets.length !== input.length) throw new Error("Core classified other names.");
-    for (const [position, asset] of result.assets.entries()) {
-      if (asset.name !== input[position]) throw new Error("Core classified other names.");
-      named.set(asset.name, {
-        rule_version: result.filename_rule_version,
+  static async start(classify: NameClassifier) {
+    const verdicts = new NameVerdicts(classify);
+    if (!(await verdicts.#request(probe)))
+      throw new Error("Core refused a known-good name classification; the CLI is unusable.");
+    return verdicts;
+  }
+  /** The reviewed prerelease verdict; a tag Core did not classify counts as a prerelease. */
+  prerelease(release: { version: string; provider_prerelease: boolean }) {
+    return (
+      this.#prerelease.get(
+        tagKey({ tag: release.version, provider_prerelease: release.provider_prerelease }),
+      ) ?? true
+    );
+  }
+  /** The asset name's suggestion, or undefined when Core did not classify it. */
+  suggestion(name: string) {
+    return this.#assets.get(name);
+  }
+  /** The program name's tool token (null for none), or undefined when unclassified. */
+  programToken(name: string) {
+    return this.#programs.get(name);
+  }
+  async add(input: { releases?: TagInput[]; assets?: string[]; programs?: string[] }) {
+    const fresh = <T,>(values: T[], key: (value: T) => string, name: (value: T) => string) => {
+      const chosen = new Map<string, T>();
+      for (const value of values) {
+        const at = key(value);
+        if (!sendableName(name(value)) || this.#tried.has(at)) continue;
+        this.#tried.add(at);
+        chosen.set(at, value);
+      }
+      return [...chosen.values()];
+    };
+    const items = [
+      ...fresh(
+        input.releases ?? [],
+        (release) => `t${tagKey(release)}`,
+        (release) => release.tag,
+      ).map((release) => ({ kind: "releases" as const, value: release, name: release.tag })),
+      ...fresh(
+        input.assets ?? [],
+        (name) => `a${name}`,
+        (name) => name,
+      ).map((name) => ({
+        kind: "assets" as const,
+        value: name,
+        name,
+      })),
+      ...fresh(
+        input.programs ?? [],
+        (name) => `p${name}`,
+        (name) => name,
+      ).map((name) => ({
+        kind: "programs" as const,
+        value: name,
+        name,
+      })),
+    ];
+    let chunk: typeof items = [];
+    let size = 0;
+    const flush = async () => {
+      if (chunk.length) await this.#split(chunk);
+      chunk = [];
+      size = 0;
+    };
+    for (const item of items) {
+      const cost = Buffer.byteLength(JSON.stringify(item.name)) + 64;
+      if (chunk.length >= chunkNames || size + cost > chunkBytes) await flush();
+      chunk.push(item);
+      size += cost;
+    }
+    await flush();
+  }
+  async #split(
+    items: { kind: "releases" | "assets" | "programs"; value: unknown; name: string }[],
+  ): Promise<void> {
+    const ok = await this.#request({
+      releases: items.flatMap((item) => (item.kind === "releases" ? [item.value as TagInput] : [])),
+      assets: items.flatMap((item) => (item.kind === "assets" ? [item.name] : [])),
+      programs: items.flatMap((item) => (item.kind === "programs" ? [item.name] : [])),
+    });
+    if (ok || items.length === 1) return;
+    const half = Math.ceil(items.length / 2);
+    await this.#split(items.slice(0, half));
+    await this.#split(items.slice(half));
+  }
+  /** One request; records its verdicts only when the whole answer is well formed. */
+  async #request(input: { releases: TagInput[]; assets: string[]; programs: string[] }) {
+    let result: unknown;
+    try {
+      result = await this.#classify(input);
+    } catch {
+      return false;
+    }
+    if (
+      !isRecord(result) ||
+      !Number.isSafeInteger(result.filename_rule_version) ||
+      Number(result.filename_rule_version) < 1 ||
+      !Array.isArray(result.releases) ||
+      !Array.isArray(result.assets) ||
+      !Array.isArray(result.programs) ||
+      result.releases.length !== input.releases.length ||
+      result.assets.length !== input.assets.length ||
+      result.programs.length !== input.programs.length
+    )
+      return false;
+    const token = (value: unknown) =>
+      value === null || (typeof value === "string" && /^[a-z0-9]{1,32}$/u.test(value));
+    const releases = result.releases as unknown[];
+    const assets = result.assets as unknown[];
+    const programs = result.programs as unknown[];
+    const wellFormed =
+      releases.every(
+        (release, index) =>
+          isRecord(release) &&
+          release.tag === input.releases[index]!.tag &&
+          typeof release.prerelease === "boolean",
+      ) &&
+      assets.every(
+        (asset, index) =>
+          isRecord(asset) &&
+          asset.name === input.assets[index] &&
+          (roles as readonly unknown[]).includes(asset.role) &&
+          typeof asset.os === "string" &&
+          typeof asset.arch === "string" &&
+          token(asset.tool_token),
+      ) &&
+      programs.every(
+        (program, index) =>
+          isRecord(program) && program.name === input.programs[index] && token(program.tool_token),
+      );
+    if (!wellFormed) return false;
+    const typed = result as unknown as NameClassification;
+    for (const [index, release] of typed.releases.entries())
+      this.#prerelease.set(tagKey(input.releases[index]!), release.prerelease);
+    for (const asset of typed.assets)
+      this.#assets.set(asset.name, {
+        rule_version: typed.filename_rule_version,
         role: asset.role,
         os: asset.os,
         arch: asset.arch,
+        tool_token: asset.tool_token,
       });
-    }
+    for (const program of typed.programs) this.#programs.set(program.name, program.tool_token);
+    return true;
   }
-  return {
-    prerelease: (release: ObservedRelease) =>
-      prerelease.get(
-        key({ tag: release.version, provider_prerelease: release.provider_prerelease }),
-      ) ?? true,
-    suggestion: (name: string) => named.get(name)!,
-  };
 }
 
 export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveResult> {
   const budget: Budget = { ...defaultBudget, ...inputs.budget };
   const previous = inputs.table ?? emptyFactsTable();
   checkListingFactsTable(previous);
-  const state = inputs.state ?? initialState();
   const now = inputs.now;
+  if (Number.isNaN(Date.parse(now)) || Date.parse(now) < Date.parse(previous.generated_at))
+    throw new Error(
+      `The worker clock (${now}) is before the facts table's generation time (${previous.generated_at}).`,
+    );
+  if (inputs.provenance !== undefined) checkFactsProvenance(inputs.provenance);
+  const state = sanitizeState(inputs.state ?? initialState());
   const candidates = listingOnly(inputs.records);
+  const recordById = new Map(inputs.records.map((record) => [record.listing.id, record]));
   // Facts bind to the repository the listing names; a re-pointed listing rebinds.
   const bound = (entry: ListingFactsEntry) =>
     candidates.get(entry.port_id)?.toLowerCase() === entry.repository.toLowerCase();
   const entries = new Map(
     previous.entries.filter(bound).map((entry) => [entry.port_id, entry] as const),
+  );
+  // Identities the previous table already offers: keeping them fresh comes
+  // before growth.
+  const offered = new Set(
+    [...entries.values()]
+      .filter((entry) => {
+        const record = recordById.get(entry.port_id);
+        return record ? fitDecision(record, entry, previous.generated_at).fit : false;
+      })
+      .map((entry) => entry.port_id),
   );
   const held = new Map(
     state.held
@@ -425,23 +611,32 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
   const complete = (observation: Observation) =>
     observation.status === "complete" && observation.repositoryId !== null;
 
-  const classified = await classifyInChunks(
-    inputs.classify,
-    [...observed.values()].filter(complete).flatMap((observation) => observation.releases),
-    [],
-  );
+  const names = await NameVerdicts.start(inputs.classify);
+  await names.add({
+    releases: [...observed.values()]
+      .filter(complete)
+      .flatMap((observation) => observation.releases)
+      .map((release) => ({
+        tag: release.version,
+        provider_prerelease: release.provider_prerelease,
+      })),
+  });
   const latest = new Map<string, ObservedRelease | undefined>(
     [...observed]
       .filter(([, observation]) => complete(observation))
-      .map(([id, observation]) => [id, latestStable(observation.releases, classified.prerelease)]),
+      .map(([id, observation]) => [
+        id,
+        latestStable(observation.releases, (release) => names.prerelease(release)),
+      ]),
   );
-  const names = await classifyInChunks(
-    inputs.classify,
-    [],
-    [...latest.values()].flatMap((release) =>
+  await names.add({
+    assets: [...latest.values()].flatMap((release) =>
       (release?.assets ?? []).filter((asset) => isArchive(asset.name)).map((asset) => asset.name),
     ),
-  );
+    programs: [...entries.values(), ...held.values()].flatMap((entry) =>
+      entry.artifacts.flatMap(candidatesOf).map((player) => basenameOf(player.display_path)),
+    ),
+  });
 
   const report: ReportRow[] = [];
   const ineligibleCounts: Record<string, number> = {};
@@ -451,7 +646,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     reason?: string,
     inspected = 0,
     reused = 0,
-  ) => report.push({ port_id, outcome, ...(reason ? { reason } : {}), inspected, reused });
+  ) => {
+    const existing = report.findIndex((item) => item.port_id === port_id);
+    if (existing >= 0) report.splice(existing, 1);
+    report.push({ port_id, outcome, ...(reason ? { reason } : {}), inspected, reused });
+  };
 
   const observationOf = (id: string, release: ObservedRelease | undefined) => {
     const observation = observed.get(id)!;
@@ -459,13 +658,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       observation.observedAt && !Number.isNaN(Date.parse(observation.observedAt))
         ? new Date(Math.min(Date.parse(observation.observedAt), Date.parse(now))).toISOString()
         : now;
+    const published = release?.published_at ? Date.parse(release.published_at) : NaN;
     return {
       release_id: release?.id ?? null,
       tag: release ? safeText(release.version, `release-${release.id}`) : null,
-      published_at:
-        release?.published_at && !Number.isNaN(Date.parse(release.published_at))
-          ? safeText(release.published_at, "") || null
-          : null,
+      published_at: Number.isNaN(published) ? null : new Date(published).toISOString(),
       observed_at: observedAt,
       coverage: "complete" as ListingFactsEntry["observation"]["coverage"],
       assets_complete: release?.assets_complete ?? true,
@@ -502,7 +699,26 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     ineligibleCounts[reason] = (ineligibleCounts[reason] ?? 0) + 1;
     row(id, "ineligible", reason);
   };
-  /** Keep last-good complete facts through a non-complete attempt, within the retention bound. */
+  const invalid = (
+    id: string,
+    repositoryId: number,
+    release: ObservedRelease | undefined,
+    why: string,
+  ) =>
+    ineligible(
+      id,
+      repositoryId,
+      release,
+      "invalid-facts",
+      safeText(why.slice(0, 500), "Observed facts failed validation."),
+    );
+  /**
+   * Keep last-good complete facts through a non-complete upstream attempt,
+   * within the retention bound. The worker's own backlog
+   * (`pending-inspection`) is not an upstream attempt: upstream was complete,
+   * so it starts no retention clock and leaves the entry unchanged once
+   * recorded; only the facts age (`stale-facts`) bounds it.
+   */
   const notComplete = (
     id: string,
     status: "partial" | "unavailable" | "failed" | "pending-inspection",
@@ -513,9 +729,19 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       row(id, outcome ?? "unknown", status);
       return;
     }
-    const attempt = prior.attempt
-      ? { ...prior.attempt, status, last_at: now, failures: prior.attempt.failures + 1 }
-      : { status, first_at: now, last_at: now, failures: 1 };
+    if (status === "pending-inspection") {
+      if (prior.attempt?.status !== "pending-inspection")
+        entries.set(id, {
+          ...prior,
+          attempt: { status, first_at: now, last_at: now, failures: 1 },
+        });
+      row(id, outcome ?? "retained-last-good", status);
+      return;
+    }
+    const attempt =
+      prior.attempt && prior.attempt.status !== "pending-inspection"
+        ? { ...prior.attempt, status, last_at: now, failures: prior.attempt.failures + 1 }
+        : { status, first_at: now, last_at: now, failures: 1 };
     if ((Date.parse(now) - Date.parse(attempt.first_at)) / day > lastGoodRetentionDays) {
       ineligible(
         id,
@@ -530,44 +756,41 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     entries.set(id, { ...prior, attempt });
     row(id, outcome ?? "retained-last-good", status);
   };
-  /** Rebuild facts from known players with the current filename classification. */
-  const refreshed = (artifacts: readonly ArtifactFactV2[], assets: readonly ObservedAsset[]) =>
-    artifacts.map((artifact) => {
-      const asset = assets.find((candidate) => candidate.id === artifact.asset_id)!;
-      return artifactFact(
-        { ...asset, sha256: artifact.sha256 },
-        artifact.players,
-        names.suggestion(asset.name),
-      );
-    });
+  /** Facts for known candidates with Core's current name verdicts; undefined if a name is unclassified. */
+  const factFor = (asset: ObservedAsset & { sha256: string }, players: readonly PlayerFact[]) => {
+    const suggestion = names.suggestion(asset.name);
+    const programs = players.map((player) => basenameOf(player.display_path));
+    if (!suggestion || programs.some((name) => names.programToken(name) === undefined))
+      return undefined;
+    return artifactFact(asset, players, suggestion, (name) => names.programToken(name)!);
+  };
+  const unclassified =
+    "A release file or program name could not be classified by Core (malformed, over 1,024 bytes or refused), so it cannot be vetoed.";
   const settle = (
     id: string,
     repositoryId: number,
     release: ObservedRelease,
-    artifacts: ArtifactFactV2[],
+    artifacts: (ArtifactFactV2 | undefined)[],
   ) => {
+    if (artifacts.some((artifact) => artifact === undefined)) {
+      invalid(id, repositoryId, release, unclassified);
+      return false;
+    }
     const entry: ListingFactsEntry = {
       ...base(id, repositoryId),
       observation: observationOf(id, release),
       ineligible: null,
       attempt: null,
-      artifacts,
+      artifacts: artifacts as ArtifactFactV2[],
     };
     try {
       checkListingFactsEntry(entry);
     } catch (error) {
-      ineligible(
+      invalid(
         id,
         repositoryId,
         release,
-        "invalid-facts",
-        safeText(
-          `Observed facts failed validation: ${error instanceof Error ? error.message : "unknown"}`.slice(
-            0,
-            500,
-          ),
-          "Observed facts failed validation.",
-        ),
+        `Observed facts failed validation: ${error instanceof Error ? error.message : "unknown"}`,
       );
       return false;
     }
@@ -575,6 +798,31 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     held.delete(id);
     retry.delete(id);
     return true;
+  };
+  /**
+   * One identity's evaluation. Anything unexpected settles this identity as
+   * `invalid-facts`, or, when even that cannot be recorded, leaves its prior
+   * entry unchanged; it never fails the run.
+   */
+  const isolated = async (id: string, work: () => void | Promise<void>) => {
+    try {
+      await work();
+    } catch (error) {
+      const why = `The worker could not evaluate this identity: ${error instanceof Error ? error.message : "unknown error"}`;
+      const repositoryId = observed.get(id)?.repositoryId ?? entries.get(id)?.repository_id;
+      try {
+        if (!repositoryId) throw new Error("no repository id");
+        const release = latest.get(id);
+        invalid(
+          id,
+          repositoryId,
+          release && Number.isSafeInteger(release.id) ? release : undefined,
+          why,
+        );
+      } catch {
+        row(id, "unknown", "worker-error");
+      }
+    }
   };
 
   // Pass A: every observed identity, without reading bytes.
@@ -587,7 +835,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     cost: number;
   };
   const needs: Need[] = [];
-  for (const id of [...observed.keys()].toSorted()) {
+  const evaluate = (id: string) => {
     const observation = observed.get(id)!;
     const prior = entries.get(id);
     if (!complete(observation)) {
@@ -599,7 +847,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
             ? "failed"
             : "partial",
       );
-      continue;
+      return;
     }
     const repositoryId = observation.repositoryId!;
     if (prior && prior.repository_id !== repositoryId) {
@@ -616,7 +864,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
           `The listed repository now resolves to id ${repositoryId}, not the bound id ${prior.repository_id}.`,
           { ...prior.observation, observed_at: observationOf(id, undefined).observed_at },
         );
-      continue;
+      return;
     }
     const release = latest.get(id);
     if (!release) {
@@ -627,11 +875,11 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         "no-stable-release",
         "The complete observation lists no stable release.",
       );
-      continue;
+      return;
     }
     if (!release.assets_complete) {
       notComplete(id, "partial");
-      continue;
+      return;
     }
     const fingerprint = assetsDigest(release);
     const same = [prior, held.get(id)].find(
@@ -653,12 +901,18 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
       ineligibleCounts[same.ineligible.reason] =
         (ineligibleCounts[same.ineligible.reason] ?? 0) + 1;
       row(id, "unchanged", same.ineligible.reason);
-      continue;
+      return;
     }
     if (same && !same.ineligible) {
-      if (settle(id, repositoryId, release, refreshed(same.artifacts, release.assets)))
+      const refreshed = same.artifacts.map((artifact) => {
+        const asset = release.assets.find((candidate) => candidate.id === artifact.asset_id);
+        return asset
+          ? factFor({ ...asset, sha256: artifact.sha256 }, candidatesOf(artifact))
+          : undefined;
+      });
+      if (settle(id, repositoryId, release, refreshed))
         row(id, "unchanged", undefined, 0, same.artifacts.length);
-      continue;
+      return;
     }
     const archives = release.assets
       .filter((asset) => isArchive(asset.name))
@@ -671,7 +925,12 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         "no-release-archive",
         "The stable release has no ZIP, TAR.GZ or TAR.XZ archive.",
       );
-      continue;
+      return;
+    }
+    // A name Core could not classify cannot be vetoed: never read its bytes.
+    if (archives.some((asset) => !names.suggestion(asset.name))) {
+      invalid(id, repositoryId, release, unclassified);
+      return;
     }
     if (archives.some((asset) => !asset.sha256 || asset.size < 1)) {
       ineligible(
@@ -681,7 +940,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         "unbound-archive",
         "A release archive has no provider SHA-256, so its bytes cannot be bound.",
       );
-      continue;
+      return;
     }
     if (archives.some((asset) => asset.size > budget.maxArchiveBytes)) {
       ineligible(
@@ -691,7 +950,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         "archive-too-large",
         `A release archive exceeds ${budget.maxArchiveBytes} bytes.`,
       );
-      continue;
+      return;
     }
     if (archives.length > budget.maxArchivesPerRelease) {
       ineligible(
@@ -701,15 +960,15 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         "too-many-archives",
         `The release has more than ${budget.maxArchivesPerRelease} archives.`,
       );
-      continue;
+      return;
     }
-    const bound = archives as (ObservedAsset & { sha256: string })[];
+    const digestBound = archives as (ObservedAsset & { sha256: string })[];
     const reusable = new Map(
       [prior, held.get(id)]
         .flatMap((entry) => entry?.artifacts ?? [])
         .map((artifact) => [`${artifact.asset_id}/${artifact.sha256}`, artifact] as const),
     );
-    const cost = bound
+    const cost = digestBound
       .filter((asset) => !reusable.has(`${asset.id}/${asset.sha256}`))
       .reduce((sum, asset) => sum + asset.size, 0);
     if (cost > budget.maxBytes) {
@@ -720,34 +979,33 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         "exceeds-run-budget",
         `Its archives need ${cost} bytes; one run reads at most ${budget.maxBytes}.`,
       );
-      continue;
+      return;
     }
-    needs.push({ id, repositoryId, release, archives: bound, reusable, cost });
-  }
+    needs.push({ id, repositoryId, release, archives: digestBound, reusable, cost });
+  };
+  for (const id of [...observed.keys()].toSorted()) await isolated(id, () => evaluate(id));
 
-  // Pass B: inspection, retry queue first, then the cursor pass.
+  // Pass B: inspection within one bounded budget. The cursor's next new
+  // identity goes first, so a pass always advances. Offered identities whose
+  // release changed come next, oldest pending first, within all but a reserved
+  // share of the identities. New identities' transient failures are retried
+  // within part of that share, and the cursor pass takes the rest.
   let bytes = 0;
   let inspectedIdentities = 0;
   const inspectOne = async (need: Need) => {
-    const artifacts: ArtifactFactV2[] = [];
+    const found: { asset: ObservedAsset & { sha256: string }; players: PlayerFact[] }[] = [];
     let inspected = 0;
     let reused = 0;
     for (const asset of need.archives) {
       const known = need.reusable.get(`${asset.id}/${asset.sha256}`);
       if (known) {
-        artifacts.push(artifactFact(asset, known.players, names.suggestion(asset.name)));
+        found.push({ asset, players: candidatesOf(known) });
         reused++;
         continue;
       }
       try {
         inspected++;
-        artifacts.push(
-          artifactFact(
-            asset,
-            await inputs.inspect(asset, readerPlatform(asset.name)),
-            names.suggestion(asset.name),
-          ),
-        );
+        found.push({ asset, players: await inputs.inspect(asset, readerPlatform(asset.name)) });
       } catch (error) {
         if (error instanceof InspectionError && error.permanent) {
           ineligible(
@@ -775,63 +1033,111 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
         return;
       }
     }
-    if (settle(need.id, need.repositoryId, need.release, artifacts))
+    await names.add({
+      programs: found.flatMap(({ players }) =>
+        players.map((player) => basenameOf(player.display_path)),
+      ),
+    });
+    if (
+      settle(
+        need.id,
+        need.repositoryId,
+        need.release,
+        found.map(({ asset, players }) => factFor(asset, players)),
+      )
+    )
       row(need.id, "complete", undefined, inspected, reused);
   };
   const attempted = new Set<string>();
-  const retryCap = Math.max(1, Math.floor(budget.maxIdentities / 4));
-  const byId = new Map(needs.map((need) => [need.id, need]));
-  let retried = false;
-  /** Oldest transient failures first, bounded; after the cursor's first identity. */
-  const runRetries = async () => {
-    if (retried) return;
-    retried = true;
-    let taken = 0;
-    for (const item of [...retry.values()].toSorted(
-      (left, right) =>
-        left.since.localeCompare(right.since) || left.port_id.localeCompare(right.port_id),
-    )) {
-      if (taken >= retryCap || inspectedIdentities >= budget.maxIdentities) break;
-      const need = byId.get(item.port_id);
-      if (!need || attempted.has(need.id) || bytes + need.cost > budget.maxBytes) continue;
-      taken++;
-      attempted.add(need.id);
-      inspectedIdentities++;
-      bytes += need.cost;
-      await inspectOne(need);
-    }
+  const take = async (need: Need) => {
+    attempted.add(need.id);
+    inspectedIdentities++;
+    bytes += need.cost;
+    await isolated(need.id, () => inspectOne(need));
+  };
+  const fits = (need: Need) => bytes + need.cost <= budget.maxBytes;
+  const reserved = newIdentityShare(budget);
+  const newRetryCap = Math.max(0, Math.floor(reserved / 2));
+  const refreshing = needs.filter((need) => offered.has(need.id));
+  const growing = needs.filter((need) => !offered.has(need.id));
+  const pendingSince = (need: Need) => {
+    const attempt = entries.get(need.id)?.attempt;
+    return attempt?.status === "pending-inspection" ? attempt.first_at : now;
   };
   let after = state.after;
+  const cursor = growing.filter((need) => after === null || need.id > after);
   let finished = true;
   const budgetStopped = new Set<string>();
-  for (const need of needs.filter((candidate) => after === null || candidate.id > after)) {
-    if (attempted.has(need.id)) continue;
-    if (inspectedIdentities >= budget.maxIdentities) {
+  /** Advance the cursor pass by one identity; false when it must stop this run. */
+  const advance = async (limit: number) => {
+    const need = cursor.find((candidate) => !attempted.has(candidate.id));
+    if (!need) return false;
+    if (inspectedIdentities >= limit) {
       finished = false;
-      break;
+      return false;
     }
-    if (bytes + need.cost > budget.maxBytes) {
+    if (!fits(need)) {
       // Every queued identity fits one whole run (larger ones are completed
       // as exceeds-run-budget), so the pass resumes here next run.
       budgetStopped.add(need.id);
       finished = false;
-      break;
+      return false;
     }
     after = need.id;
-    attempted.add(need.id);
-    inspectedIdentities++;
-    bytes += need.cost;
-    await inspectOne(need);
-    await runRetries();
+    await take(need);
+    return true;
+  };
+  await advance(budget.maxIdentities);
+  const refreshOrder = refreshing.toSorted(
+    (left, right) =>
+      pendingSince(left).localeCompare(pendingSince(right)) || left.id.localeCompare(right.id),
+  );
+  let refreshed = 0;
+  for (const need of refreshOrder) {
+    if (refreshed >= budget.maxIdentities - reserved) break;
+    if (inspectedIdentities >= budget.maxIdentities) break;
+    if (!fits(need)) {
+      budgetStopped.add(need.id);
+      continue;
+    }
+    refreshed++;
+    await take(need);
   }
-  await runRetries();
-  for (const need of needs)
-    if (!attempted.has(need.id))
+  let retried = 0;
+  for (const item of [...retry.values()].toSorted(
+    (left, right) =>
+      left.since.localeCompare(right.since) || left.port_id.localeCompare(right.port_id),
+  )) {
+    if (retried >= newRetryCap || inspectedIdentities >= budget.maxIdentities) break;
+    const need = growing.find((candidate) => candidate.id === item.port_id);
+    if (!need || attempted.has(need.id)) continue;
+    if (!fits(need)) {
+      budgetStopped.add(need.id);
+      continue;
+    }
+    retried++;
+    await take(need);
+  }
+  while (await advance(budget.maxIdentities));
+  // Share the cursor pass did not need goes back to offered identities.
+  for (const need of refreshOrder) {
+    if (inspectedIdentities >= budget.maxIdentities) break;
+    if (attempted.has(need.id)) continue;
+    if (!fits(need)) {
+      budgetStopped.add(need.id);
+      continue;
+    }
+    await take(need);
+  }
+  const pending = needs.filter((need) => !attempted.has(need.id));
+  for (const need of pending)
+    await isolated(need.id, () =>
       notComplete(
         need.id,
         "pending-inspection",
         budgetStopped.has(need.id) ? "deferred-budget" : "deferred-identities",
-      );
+      ),
+    );
 
   // One bounded batch lands; the rest is held for the next run.
   const sorted = [...entries.values()]
@@ -841,6 +1147,7 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     format: previous.format,
     generator: previous.generator,
     generated_at: now,
+    ...(inputs.provenance ? { provenance: inputs.provenance } : {}),
     entries: sorted,
     entries_sha256: digestOf(sorted),
   };
@@ -863,6 +1170,75 @@ export async function deriveListingFacts(inputs: DeriveInputs): Promise<DeriveRe
     report,
     ineligible: ineligibleCounts,
     bytes,
+    backlog: backlogOf(
+      pending.filter((need) => offered.has(need.id)),
+      pending.filter((need) => !offered.has(need.id)),
+      budget,
+      inputs.cadenceHours ?? defaultCadenceHours,
+    ),
+  };
+}
+
+/** Identities each run reserves for new identities: a quarter, at least one. */
+export const newIdentityShare = (budget: Pick<Budget, "maxIdentities">) =>
+  Math.max(1, Math.floor(budget.maxIdentities / 4));
+/** The scheduled job's intended cadence. */
+export const defaultCadenceHours = 24;
+
+/**
+ * The worker's own inspection backlog and how long draining it takes at the
+ * configured cadence. Offered identities get all but the reserved share of
+ * each run; the whole backlog drains no faster than the identity and byte
+ * bounds allow.
+ */
+export function backlogOf(
+  enrolled: readonly { cost: number }[],
+  growth: readonly { cost: number }[],
+  budget: Budget,
+  cadenceHours: number,
+) {
+  const sum = (items: readonly { cost: number }[]) =>
+    items.reduce((total, item) => total + item.cost, 0);
+  // Offered identities get every identity a run has when nothing new waits.
+  const share = growth.length
+    ? budget.maxIdentities - newIdentityShare(budget)
+    : budget.maxIdentities;
+  const enrolledRuns = Math.max(
+    Math.ceil(enrolled.length / Math.max(1, share)),
+    Math.ceil(sum(enrolled) / budget.maxBytes),
+  );
+  const allRuns = Math.max(
+    Math.ceil((enrolled.length + growth.length) / budget.maxIdentities),
+    Math.ceil((sum(enrolled) + sum(growth)) / budget.maxBytes),
+  );
+  const days = (runs: number) => Math.round(((runs * cadenceHours) / 24) * 10) / 10;
+  return {
+    enrolled_pending: enrolled.length,
+    new_pending: growth.length,
+    bytes_pending: sum(enrolled) + sum(growth),
+    cadence_hours: cadenceHours,
+    runs_to_drain_enrolled: enrolledRuns,
+    runs_to_drain_all: allRuns,
+    days_to_drain_enrolled: days(enrolledRuns),
+    days_to_drain_all: days(allRuns),
+  };
+}
+
+/** A state file's usable parts; anything malformed starts that part fresh. */
+function sanitizeState(state: WorkerState): WorkerState {
+  return {
+    format: 2,
+    after: typeof state.after === "string" ? state.after : null,
+    retry: (Array.isArray(state.retry) ? state.retry : []).filter(
+      (item: unknown): item is RetryItem =>
+        isRecord(item) &&
+        typeof item.port_id === "string" &&
+        typeof item.since === "string" &&
+        !Number.isNaN(Date.parse(item.since)) &&
+        Number.isSafeInteger(item.failures) &&
+        Number(item.failures) > 0,
+    ),
+    held: Array.isArray(state.held) ? state.held : [],
   };
 }
 
@@ -1027,7 +1403,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const catalogRoot = path.join(root, "crates/portcove-core/catalog");
 export const factsTablePath = path.join(catalogRoot, "listing-package-facts.generated.json");
 const usage =
-  "Usage: node scripts/listing-package-facts.mts --check | derive --observations REPORT --cli PORTCOVE [--state FILE] [--output FILE]";
+  "Usage: node scripts/listing-package-facts.mts --check | derive --observations REPORT --cli PORTCOVE [--state FILE] [--output FILE] [--cadence-hours N] [--workflow-run-id ID --source-commit SHA]";
 
 function parseState(text: string): WorkerState {
   const value: unknown = JSON.parse(text);
@@ -1056,12 +1432,27 @@ async function main(argv: string[]) {
     options[name.slice(2)] = value;
   }
   if (!options.observations || !options.cli) throw new Error(usage);
+  if (Boolean(options["workflow-run-id"]) !== Boolean(options["source-commit"]))
+    throw new Error("Provenance needs both --workflow-run-id and --source-commit.");
+  const cadenceHours = options["cadence-hours"] ? Number(options["cadence-hours"]) : undefined;
+  if (cadenceHours !== undefined && !(cadenceHours > 0)) throw new Error(usage);
   const output = options.output ?? factsTablePath;
   const { records } = readCatalogSource(catalogRoot);
   const work = await mkdtemp(path.join(os.tmpdir(), "listing-facts-"));
   try {
     const cli = path.resolve(options.cli);
+    const provenance = options["workflow-run-id"]
+      ? {
+          workflow_run_id: options["workflow-run-id"],
+          source_commit: options["source-commit"]!,
+          cli_sha256: createHash("sha256")
+            .update(await readFile(cli))
+            .digest("hex"),
+        }
+      : undefined;
     const result = await deriveListingFacts({
+      ...(provenance ? { provenance } : {}),
+      ...(cadenceHours ? { cadenceHours } : {}),
       records,
       observerReport: JSON.parse(await readFile(options.observations, "utf8")),
       table: parseCatalogSource(await readFile(factsTablePath, "utf8")),
@@ -1078,7 +1469,7 @@ async function main(argv: string[]) {
     });
     await writeFile(output, `${JSON.stringify(result.table, null, 2)}\n`);
     if (options.state) await writeFile(options.state, `${JSON.stringify(result.state)}\n`);
-    return `${JSON.stringify({ after: result.state.after, retry: result.state.retry.length, held: result.state.held.length, bytes: result.bytes, ineligible: result.ineligible, identities: result.report })}\n`;
+    return `${JSON.stringify({ after: result.state.after, retry: result.state.retry.length, held: result.state.held.length, bytes: result.bytes, backlog: result.backlog, ineligible: result.ineligible, identities: result.report })}\n`;
   } finally {
     await rm(work, { recursive: true, force: true });
   }

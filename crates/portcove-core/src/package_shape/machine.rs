@@ -56,6 +56,34 @@ pub(crate) fn classify<R: Read + Seek>(reader: &mut R) -> io::Result<Option<Exec
     }
 }
 
+/// Whether `machine` is a name [`classify`] can produce: `pe-<arch>`,
+/// `elf32-`/`elf64-`/`elf32be-`/`elf64be-<arch>`, `macho-<arch>` or
+/// `macho-universal-<arch>+…` with sorted, distinct slices.
+pub(crate) fn is_machine_name(machine: &str) -> bool {
+    let named = |arch: &str, raw_digits: usize| {
+        matches!(arch, "x86" | "x86-64" | "arm64" | "arm")
+            || arch.strip_prefix("0x").is_some_and(|digits| {
+                digits.len() == raw_digits
+                    && digits
+                        .bytes()
+                        .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+            })
+    };
+    if let Some(slices) = machine.strip_prefix("macho-universal-") {
+        let arches = slices.split('+').collect::<Vec<_>>();
+        return arches.len() <= MAXIMUM_FAT_SLICES as usize
+            && arches.iter().all(|arch| named(arch, 8))
+            && arches.windows(2).all(|pair| pair[0] < pair[1]);
+    }
+    if let Some(arch) = machine.strip_prefix("macho-") {
+        return named(arch, 8);
+    }
+    ["pe-", "elf32-", "elf64-", "elf32be-", "elf64be-"]
+        .iter()
+        .find_map(|prefix| machine.strip_prefix(prefix))
+        .is_some_and(|arch| named(arch, 4))
+}
+
 fn read_at<R: Read + Seek>(reader: &mut R, offset: u64, length: usize) -> io::Result<Vec<u8>> {
     let length = length.min(MAXIMUM_READ);
     // No file is this large; a header naming such an offset reads nothing

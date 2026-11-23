@@ -22,6 +22,7 @@ import {
 } from "./catalog-authoring.mts";
 import {
   boundFactsBatch,
+  checkFactsProvenance,
   checkListingFactsTable,
   deltaBounds,
   digestOf,
@@ -30,6 +31,7 @@ import {
   enrollmentDelta,
   enrollmentTable,
   enrollmentTablePath,
+  failSafeExclusions,
   FACTS_PARSER,
   FACTS_PARSER_VERSION,
   fitDecision,
@@ -49,6 +51,7 @@ import {
   artifactFact,
   deriveListingFacts,
   InspectionError,
+  maximumNameBytes,
   runCore,
   type ByteInspector,
   type DeriveResult,
@@ -72,7 +75,14 @@ const classification = JSON.parse(
   output: {
     filename_rule_version: number;
     releases: { tag: string; provider_prerelease: boolean; prerelease: boolean }[];
-    assets: { name: string; role: NameSuggestion["role"]; os: string; arch: string }[];
+    assets: {
+      name: string;
+      role: NameSuggestion["role"];
+      os: string;
+      arch: string;
+      tool_token: string | null;
+    }[];
+    programs: { name: string; tool_token: string | null }[];
   };
 };
 /** Replays Core's recorded answers; a name Core was not asked about fails the test. */
@@ -92,7 +102,18 @@ const coreClassifier: NameClassifier = async (input) => ({
     assert.ok(known, `Core fixture has no classification for ${name}`);
     return known;
   }),
+  programs: input.programs.map((name) => {
+    const known = classification.output.programs.find((candidate) => candidate.name === name);
+    assert.ok(known, `Core fixture has no program verdict for ${name}`);
+    return known;
+  }),
 });
+/** Core's recorded tool token for a program name. */
+function programToken(name: string): string | null {
+  const known = classification.output.programs.find((candidate) => candidate.name === name);
+  assert.ok(known, `Core fixture has no program verdict for ${name}`);
+  return known.tool_token;
+}
 function suggestion(name: string): NameSuggestion {
   const known = classification.output.assets.find((candidate) => candidate.name === name);
   assert.ok(known, name);
@@ -101,6 +122,7 @@ function suggestion(name: string): NameSuggestion {
     role: known.role,
     os: known.os,
     arch: known.arch,
+    tool_token: known.tool_token,
   };
 }
 
@@ -148,6 +170,7 @@ function artifact(
     },
     players,
     suggestion(name),
+    programToken,
   );
 }
 function entry(
@@ -274,7 +297,7 @@ function inspector(
 async function derive(
   records: AuthoredPort[],
   report: unknown,
-  previous: ListingFactsTable = emptyFactsTable(),
+  previous: ListingFactsTable = emptyFactsTable("2026-11-01T00:00:00.000Z"),
   options: {
     state?: WorkerState | undefined;
     inspect?: ByteInspector;
@@ -1089,7 +1112,7 @@ void test("a complete observation that no longer fits withdraws immediately", as
       },
     }),
     good.table,
-    { inspect: inspector({ "MyGame-dedicated-server-win64.zip": [player("server.exe")] }) },
+    { inspect: inspector({ "MyGame-dedicated-server-win64.zip": [player("game.exe")] }) },
   );
   assert.equal(reasonOf(decide(records[0]!, serverOnly.table.entries[0])), "contradictory-role");
 });
@@ -1334,4 +1357,644 @@ void test("an authored listing guide stays first and gains the generated selecti
     },
   });
   assert.equal(reasonOf(decide(crowded, entry())), "guide-bound");
+});
+
+// ---------------------------------------------------------------------------
+// One identity never fails a run (N1).
+
+/** Refuses a request like Core does: any name over the byte bound or malformed. */
+function refusingLikeCore(inner: NameClassifier, refusals: { count: number }): NameClassifier {
+  return async (input) => {
+    const names = [
+      ...input.releases.map((release) => release.tag),
+      ...input.assets,
+      ...input.programs,
+    ];
+    if (names.some((name) => !name.isWellFormed() || Buffer.byteLength(name) > maximumNameBytes)) {
+      refusals.count++;
+      throw new InspectionError("listing name classification exceeds its bounds", true);
+    }
+    return await inner(input);
+  };
+}
+/** Core's recorded answers where known; any other well-formed name has no suggestion. */
+const anyNameClassifier: NameClassifier = async (input) => ({
+  filename_rule_version: classification.output.filename_rule_version,
+  releases: input.releases.map(
+    (release) =>
+      classification.output.releases.find(
+        (known) =>
+          known.tag === release.tag && known.provider_prerelease === release.provider_prerelease,
+      ) ?? { ...release, prerelease: release.provider_prerelease },
+  ),
+  assets: input.assets.map(
+    (name) =>
+      classification.output.assets.find((known) => known.name === name) ?? {
+        name,
+        role: "unknown" as const,
+        os: "unknown",
+        arch: "unknown",
+        tool_token: null,
+      },
+  ),
+  programs: input.programs.map(
+    (name) =>
+      classification.output.programs.find((known) => known.name === name) ?? {
+        name,
+        tool_token: null,
+      },
+  ),
+});
+
+void test("an oversized tag and release file name settle only their identity; another identity still enrolls", async () => {
+  const bad = "zz-oversized";
+  const good = "zz-ordinary";
+  const records = [listing(bad), listing(good)];
+  const longTag = `v${"1".repeat(1099)}`;
+  const longName = `${"G".repeat(1096)}.zip`;
+  assert.equal(Buffer.byteLength(longTag), 1100);
+  assert.equal(Buffer.byteLength(longName), 1100);
+  const refusals = { count: 0 };
+  const log: string[] = [];
+  const result = await deriveListingFacts({
+    records,
+    observerReport: observerReport({
+      [bad]: {
+        releases: [
+          // Newest, but its tag cannot be classified: counted as a prerelease.
+          {
+            id: 12,
+            tag: longTag,
+            published_at: "2026-11-10T00:00:00Z",
+            assets: [{ id: 51, name: windowsZip }],
+          },
+          {
+            id: 8,
+            tag: "v1.0",
+            assets: [
+              { id: 21, name: windowsZip },
+              { id: 23, name: longName },
+            ],
+          },
+        ],
+      },
+      [good]: {},
+    }),
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    inspect: async (asset) => {
+      log.push(asset.url);
+      return [player("Game/Game.exe")];
+    },
+    classify: refusingLikeCore(coreClassifier, refusals),
+    now: "2026-11-21T00:00:00.000Z",
+  });
+  assert.equal(refusals.count, 0, "the worker never sends a name Core refuses");
+  assert.equal(outcome(result, bad)!.reason, "invalid-facts");
+  const badEntry = result.table.entries.find((item) => item.port_id === bad)!;
+  assert.equal(badEntry.observation.tag, "v1.0", "the unclassified tag is not the stable release");
+  assert.ok(
+    log.every((url) => url.includes(good)),
+    "an identity with an unclassified release file reads no bytes",
+  );
+  assert.deepEqual(enrolledIds(records, result.table), [good]);
+  checkListingFactsTable(result.table);
+});
+
+void test("a name Core refuses alone is isolated by splitting the request; an unusable CLI fails the run", async () => {
+  const poison = "Game-v1.0-windows-x64-poison.zip";
+  const records = [listing("zz-poison"), listing("zz-clean")];
+  let calls = 0;
+  const classify: NameClassifier = async (input) => {
+    calls++;
+    if (input.assets.includes(poison)) throw new InspectionError("Core refused", true);
+    return await anyNameClassifier(input);
+  };
+  const report = observerReport({
+    "zz-poison": { releases: [{ id: 8, tag: "v1.0", assets: [{ id: 21, name: poison }] }] },
+    "zz-clean": {},
+  });
+  const result = await derive(records, report, undefined, {});
+  // `derive` replays the strict fixture; the poisoned name is not in it.
+  assert.equal(outcome(result, "zz-poison")!.reason, "invalid-facts");
+  const isolated = await deriveListingFacts({
+    records,
+    observerReport: report,
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    inspect: inspector(),
+    classify,
+    now: "2026-11-21T00:00:00.000Z",
+  });
+  assert.ok(calls > 2);
+  assert.equal(outcome(isolated, "zz-poison")!.reason, "invalid-facts");
+  assert.deepEqual(enrolledIds(records, isolated.table), ["zz-clean"]);
+  await assert.rejects(
+    deriveListingFacts({
+      records,
+      observerReport: report,
+      table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+      inspect: inspector(),
+      classify: async () => {
+        throw new Error("no CLI");
+      },
+      now: "2026-11-21T00:00:00.000Z",
+    }),
+    /CLI is unusable/u,
+  );
+});
+
+void test("an unexpected failure while inspecting one identity settles only that identity", async () => {
+  const records = [listing("zz-broken"), listing("zz-fine")];
+  const result = await derive(
+    records,
+    observerReport({ "zz-broken": {}, "zz-fine": {} }),
+    undefined,
+    {
+      inspect: async (asset) => {
+        if (asset.url.includes("zz-broken"))
+          return [{ path: 7, display_path: null }] as unknown as PlayerFact[];
+        return [player("Game/Game.exe")];
+      },
+    },
+  );
+  assert.equal(outcome(result, "zz-broken")!.reason, "invalid-facts");
+  assert.deepEqual(enrolledIds(records, result.table), ["zz-fine"]);
+});
+
+/** A small deterministic generator for fuzzing (mulberry32). */
+function seeded(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+void test("malformed per-identity observations never fail the run (fuzz)", async () => {
+  const random = seeded(8569);
+  const pick = <T,>(values: readonly T[]) => values[Math.floor(random() * values.length)]!;
+  const junk = () =>
+    pick<unknown>([
+      null,
+      undefined,
+      -1,
+      0,
+      1.5,
+      2 ** 60,
+      "",
+      " ",
+      "\ud800",
+      "‮.exe",
+      "a\u0000b",
+      "x".repeat(5000),
+      `${"G".repeat(1100)}.zip`,
+      [],
+      [null],
+      {},
+      { id: 1 },
+      true,
+      "2026-13-45T99:99:99Z",
+      "Game-v1.0-windows-x64.zip",
+    ]);
+  const ids = Array.from({ length: 6 }, (_, index) => `zz-fuzz-${index}`);
+  const good = "zz-fuzz-good";
+  const records = [...ids, good].map((id) => listing(id));
+  const base = observerReport(Object.fromEntries([...ids, good].map((id) => [id, {}])));
+  const paths = (value: unknown, prefix: (string | number)[] = []): (string | number)[][] =>
+    isObject(value)
+      ? [
+          prefix,
+          ...Object.entries(value).flatMap(([key, child]) =>
+            paths(child, [...prefix, Array.isArray(value) ? Number(key) : key]),
+          ),
+        ]
+      : [prefix];
+  for (let round = 0; round < 120; round++) {
+    const report = structuredClone(base) as { listings: Record<string, unknown>[] };
+    for (const [index] of ids.entries()) {
+      const target = report.listings[index]!;
+      const candidates = paths(target).filter((path) => path.length > 1);
+      for (let mutation = 0; mutation < 1 + Math.floor(random() * 4); mutation++) {
+        const path = pick(candidates);
+        let parent = target as Record<string | number, unknown>;
+        for (const key of path.slice(0, -1)) {
+          const next = parent[key];
+          if (!isObject(next)) break;
+          parent = next as Record<string | number, unknown>;
+        }
+        const key = path.at(-1)!;
+        if (random() < 0.15) delete parent[key];
+        else if (random() < 0.1)
+          parent[key] = Array.from({ length: 300 }, (_, item) => ({
+            id: item + 1,
+            name: `asset-${item}.zip`,
+            url: "https://github.com/x",
+            size: 10,
+            sha256: sha(`${item}`),
+          }));
+        else parent[key] = junk();
+      }
+    }
+    if (random() < 0.3) report.listings.push(structuredClone(report.listings[0]!));
+    const refusals = { count: 0 };
+    const result = await deriveListingFacts({
+      records,
+      observerReport: report,
+      table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+      inspect: inspector(),
+      classify: refusingLikeCore(anyNameClassifier, refusals),
+      now: "2026-11-21T00:00:00.000Z",
+      budget: { maxIdentities: 100 },
+    });
+    assert.equal(refusals.count, 0, `round ${round}`);
+    checkListingFactsTable(result.table);
+    assert.ok(enrolledIds(records, result.table).includes(good), `round ${round}`);
+  }
+});
+const isObject = (value: unknown): value is object => typeof value === "object" && value !== null;
+
+// ---------------------------------------------------------------------------
+// The worker's own backlog is not upstream unavailability (N2).
+
+/** A newer stable release with a fresh archive, so the identity needs bytes again. */
+const changedRelease = (id: string): ObservationSpec => ({
+  releases: [
+    {
+      id: 9,
+      tag: "alphabet-1.0",
+      published_at: "2026-11-15T00:00:00Z",
+      assets: [{ id: 61, name: windowsZip, sha256: sha(`${id}-changed`) }],
+    },
+  ],
+});
+const dayAfter = (start: string, days: number) =>
+  new Date(Date.parse(start) + days * 86_400_000).toISOString();
+
+void test("enrolled identities whose release changed stay offered as pending-inspection, never as unavailable upstream", async () => {
+  const ids = Array.from(
+    { length: 41 },
+    (_, index) => `zz-backlog-${String(index).padStart(2, "0")}`,
+  );
+  const records = ids.map((id) => listing(id));
+  const start = "2026-11-02T00:00:00.000Z";
+  const first = await derive(
+    records,
+    observerReport(Object.fromEntries(ids.map((id) => [id, { observed_at: start }]))),
+    undefined,
+    { budget: { maxIdentities: 100 }, now: start },
+  );
+  assert.deepEqual(enrolledIds(records, first.table), ids);
+  let facts = first.table;
+  let state: WorkerState | undefined = first.state;
+  let drainedOn: number | undefined;
+  for (let day = 1; day <= 25; day++) {
+    const now = dayAfter(start, day);
+    const run = await derive(
+      records,
+      observerReport(
+        Object.fromEntries(ids.map((id) => [id, { ...changedRelease(id), observed_at: now }])),
+      ),
+      facts,
+      { state, now, budget: { maxIdentities: 2 } },
+    );
+    if (day === 1) {
+      assert.equal(run.backlog.enrolled_pending, 39);
+      assert.equal(run.backlog.new_pending, 0);
+      assert.equal(run.backlog.runs_to_drain_enrolled, 20);
+      assert.equal(run.backlog.days_to_drain_enrolled, 20);
+      assert.ok(run.report.some((row) => row.reason === "pending-inspection"));
+    }
+    assert.ok(
+      run.table.entries.every((item) => item.ineligible?.reason !== "observation-unavailable"),
+      `day ${day}: the backlog is not an upstream failure`,
+    );
+    assert.deepEqual(enrolledIds(records, run.table), ids, `day ${day}: still offered`);
+    gateGeneration(
+      enrollmentTable(generateRegistrations(records, facts)),
+      generateRegistrations(records, run.table),
+      deltaBounds,
+      facts,
+    );
+    facts = run.table;
+    state = run.state;
+    if (drainedOn === undefined && run.backlog.enrolled_pending === 0) drainedOn = day;
+  }
+  assert.equal(drainedOn, 21, "two identities per run drain 41 in 21 runs");
+  assert.ok(facts.entries.every((item) => item.observation.tag === "alphabet-1.0"));
+  assert.ok(facts.entries.every((item) => item.attempt === null));
+});
+
+void test("pending last-good facts withdraw only at the stale-facts age", async () => {
+  const id = "zz-starved";
+  const newcomers = Array.from(
+    { length: 40 },
+    (_, index) => `zz-new-${String(index).padStart(2, "0")}`,
+  );
+  const records = [id, ...newcomers].map((item) => listing(item));
+  const start = "2026-11-02T00:00:00.000Z";
+  const first = await derive(records, observerReport({ [id]: { observed_at: start } }), undefined, {
+    now: start,
+  });
+  let facts = first.table;
+  let state: WorkerState | undefined = first.state;
+  for (let day = 1; day <= 32; day++) {
+    const now = dayAfter(start, day);
+    // One identity per run, always taken by the cursor's next new identity.
+    const run = await derive(
+      records,
+      observerReport({
+        [id]: { ...changedRelease(id), observed_at: now },
+        ...Object.fromEntries(newcomers.map((item) => [item, { observed_at: now }])),
+      }),
+      facts,
+      { state, now, budget: { maxIdentities: 1 } },
+    );
+    const decision = decide(
+      records[0]!,
+      run.table.entries.find((item) => item.port_id === id),
+      now,
+    );
+    if (day <= 30) assert.equal(reasonOf(decision), "fit", `day ${day}`);
+    else assert.equal(reasonOf(decision), "stale-facts", `day ${day}`);
+    assert.notEqual(outcome(run, id)?.reason, "observation-unavailable");
+    facts = run.table;
+    state = run.state;
+  }
+});
+
+void test("offered identities are refreshed before growth, and growth still advances every run", async () => {
+  const enrolled = Array.from({ length: 5 }, (_, index) => `zz-held-${index}`);
+  const newcomers = Array.from(
+    { length: 10 },
+    (_, index) => `zz-grow-${String(index).padStart(2, "0")}`,
+  );
+  const records = [...enrolled, ...newcomers].map((id) => listing(id));
+  const start = "2026-11-02T00:00:00.000Z";
+  const first = await derive(
+    records,
+    observerReport(Object.fromEntries(enrolled.map((id) => [id, { observed_at: start }]))),
+    undefined,
+    { now: start },
+  );
+  assert.deepEqual(enrolledIds(records, first.table), enrolled);
+  let facts = first.table;
+  let state: WorkerState | undefined = first.state;
+  const grown: number[] = [];
+  for (let day = 1; day <= 4; day++) {
+    const now = dayAfter(start, day);
+    const log: string[] = [];
+    const run = await derive(
+      records,
+      observerReport({
+        ...Object.fromEntries(
+          enrolled.map((id) => [id, { ...changedRelease(id), observed_at: now }]),
+        ),
+        ...Object.fromEntries(newcomers.map((id) => [id, { observed_at: now }])),
+      }),
+      facts,
+      {
+        state,
+        now,
+        budget: { maxIdentities: 4 },
+        inspect: async (asset) => {
+          log.push(asset.url.split("/")[4]!);
+          return [player("Game/Game.exe")];
+        },
+      },
+    );
+    const inspectedNew = log.filter((id) => id.startsWith("zz-grow")).length;
+    grown.push(inspectedNew);
+    if (day === 1) {
+      assert.deepEqual(
+        log.filter((id) => id.startsWith("zz-held")),
+        enrolled.slice(0, 3),
+        "offered identities take all but the reserved share",
+      );
+      assert.equal(inspectedNew, 1);
+    }
+    facts = run.table;
+    state = run.state;
+  }
+  assert.ok(
+    grown.every((count) => count >= 1),
+    `growth advances every run: ${grown.join(",")}`,
+  );
+  assert.ok(
+    facts.entries
+      .filter((item) => enrolled.includes(item.port_id))
+      .every((item) => item.observation.tag === "alphabet-1.0"),
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Provenance and the facts table's own time (N3).
+
+void test("table provenance is optional, checked when present and carried into the enrollment table", async () => {
+  const provenance = {
+    workflow_run_id: "123456789",
+    source_commit: "a".repeat(40),
+    cli_sha256: sha("cli"),
+  };
+  checkFactsProvenance(provenance);
+  for (const bad of [
+    { ...provenance, workflow_run_id: "0x1" },
+    { ...provenance, source_commit: "abc" },
+    { ...provenance, cli_sha256: "z".repeat(64) },
+    { ...provenance, extra: 1 },
+    { workflow_run_id: "1", source_commit: "a".repeat(40) },
+  ])
+    assert.throws(() => checkFactsProvenance(bad), /provenance/u);
+  const local = table(entry());
+  assert.equal(enrollmentTable(generateRegistrations([listing()], local)).facts_provenance, null);
+  const unattended = { ...local, provenance };
+  checkListingFactsTable(unattended);
+  assert.deepEqual(
+    enrollmentTable(generateRegistrations([listing()], unattended)).facts_provenance,
+    provenance,
+  );
+  assert.throws(
+    () => checkListingFactsTable({ ...local, provenance: { ...provenance, cli_sha256: "x" } }),
+    /provenance/u,
+  );
+  const run = await deriveListingFacts({
+    records: [listing()],
+    observerReport: observerReport({ [unseen]: {} }),
+    table: emptyFactsTable("2026-11-01T00:00:00.000Z"),
+    inspect: inspector(),
+    classify: coreClassifier,
+    now: "2026-11-21T00:00:00.000Z",
+    provenance,
+  });
+  assert.deepEqual(run.table.provenance, provenance);
+});
+
+void test("the facts table's time never moves backwards from the baseline's", async () => {
+  const facts = table(entry());
+  const generation = generateRegistrations([listing()], facts);
+  gateGeneration(null, generation, deltaBounds, { ...facts, generated_at: generatedAt });
+  assert.throws(
+    () =>
+      gateGeneration(null, generation, deltaBounds, {
+        ...facts,
+        generated_at: "2026-11-25T00:00:00.000Z",
+      }),
+    /before the baseline/u,
+  );
+  assert.throws(
+    () => gateGeneration(null, generation, deltaBounds, { generated_at: "never" }),
+    /no generation time/u,
+  );
+  await assert.rejects(
+    derive(
+      [listing()],
+      observerReport({ [unseen]: {} }),
+      emptyFactsTable("2026-11-25T00:00:00.000Z"),
+      {
+        now: "2026-11-21T00:00:00.000Z",
+      },
+    ),
+    /before the facts table's generation time/u,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Listing-only tool veto with real worker output (N4).
+
+const samplePath = join(root, "scripts/fixtures/listing-package-facts-sample.json");
+const sampleIds = {
+  windows: "zz-sample-a-windows",
+  patcherOnly: "zz-sample-b-patcher-only",
+  patcherArchive: "zz-sample-c-patcher-archive",
+  several: "zz-sample-d-several",
+  recomp: "zz-sample-e-recomp",
+  linux: "zz-sample-f-linux",
+  mac: "zz-sample-g-mac",
+} as const;
+async function sampleRun() {
+  const release = (name: string): ObservationSpec => ({
+    releases: [{ id: 8, tag: "v1.0", assets: [{ id: 21, name }] }],
+  });
+  const contents: Record<string, Record<string, PlayerFact[]>> = {
+    [sampleIds.windows]: {
+      [windowsZip]: [
+        player("Game/Game.exe"),
+        player("Game/Patcher.exe"),
+        player("Game/UnityCrashHandler64.exe"),
+      ],
+    },
+    [sampleIds.patcherOnly]: { "Patcher-v1.0-windows-x64.zip": [player("Patcher.exe")] },
+    [sampleIds.patcherArchive]: { "Patcher-v1.0-windows-x64.zip": [player("Game.exe")] },
+    [sampleIds.several]: { [windowsZip]: [player("Game.exe"), player("Launcher.exe")] },
+    [sampleIds.recomp]: {
+      "MarioKart64Recomp-v1.0-windows-x64.zip": [player("Zelda64Recompiled.exe")],
+    },
+    [sampleIds.linux]: { [linuxTar]: [player("Game/Game.x86_64", "elf64-x86-64")] },
+    [sampleIds.mac]: {
+      [macZip]: [player("Unseen.app/Contents/MacOS/Unseen", "macho-universal-arm64+x86-64")],
+    },
+  };
+  const records = Object.values(sampleIds).map((id) => listing(id));
+  const result = await derive(
+    records,
+    observerReport({
+      [sampleIds.windows]: release(windowsZip),
+      [sampleIds.patcherOnly]: release("Patcher-v1.0-windows-x64.zip"),
+      [sampleIds.patcherArchive]: release("Patcher-v1.0-windows-x64.zip"),
+      [sampleIds.several]: release(windowsZip),
+      [sampleIds.recomp]: release("MarioKart64Recomp-v1.0-windows-x64.zip"),
+      [sampleIds.linux]: release(linuxTar),
+      [sampleIds.mac]: release(macZip),
+    }),
+    undefined,
+    {
+      inspect: async (asset) => {
+        const id = asset.url.split("/")[4]!;
+        return contents[id]![asset.name]!;
+      },
+    },
+  );
+  return { records, result };
+}
+
+void test("the listing-only tool veto excludes tool programs and archives, and reports every exclusion", async () => {
+  const { records, result } = await sampleRun();
+  const generation = generateRegistrations(records, result.table);
+  const decisions = new Map(generation.decisions.map((decision) => [decision.port_id, decision]));
+  const reason = (id: string) => reasonOf(decisions.get(id)!);
+  assert.equal(reason(sampleIds.windows), "fit");
+  assert.equal(reason(sampleIds.patcherOnly), "no-runtime-role");
+  assert.equal(reason(sampleIds.patcherArchive), "contradictory-role");
+  assert.match(
+    (decisions.get(sampleIds.patcherArchive) as { detail: string }).detail,
+    /asset-tool-name patcher \(Patcher-v1\.0-windows-x64\.zip\)/u,
+  );
+  assert.equal(reason(sampleIds.several), "fit");
+  assert.equal(reason(sampleIds.recomp), "fit", "a ...Recomp game port is not a tool");
+  assert.equal(reason(sampleIds.linux), "fit");
+  assert.equal(reason(sampleIds.mac), "fit");
+  const guide = (id: string) =>
+    generation.records.find((record) => record.listing.id === id)!.listing.manual_setup as Guide;
+  assert.match(guide(sampleIds.windows).steps[2]!.instruction, /^Select Game\.exe in/u);
+  assert.doesNotMatch(JSON.stringify(guide(sampleIds.windows)), /Patcher|CrashHandler/u);
+  assert.equal(guide(sampleIds.several).steps[2]!.instruction, genericSelection);
+  const windows = generation.enrollments.find((row) => row.port_id === sampleIds.windows)!;
+  assert.deepEqual(
+    windows.runtimes[0]!.players.map((item) => item.display_path),
+    ["Game/Game.exe"],
+  );
+  const groups = failSafeExclusions(generation).map((group) => ({
+    key: `${group.reason}:${group.token}`,
+    count: group.count,
+    examples: group.examples.map(
+      (example) => `${example.port_id}=${example.outcome}:${example.name}`,
+    ),
+  }));
+  assert.deepEqual(groups, [
+    {
+      key: "asset-tool-name:patcher",
+      count: 2,
+      examples: [
+        `${sampleIds.patcherOnly}=no-runtime-role:Patcher-v1.0-windows-x64.zip`,
+        `${sampleIds.patcherArchive}=contradictory-role:Patcher-v1.0-windows-x64.zip`,
+      ],
+    },
+    {
+      key: "player-tool-name:patcher",
+      count: 2,
+      examples: [
+        `${sampleIds.windows}=enrolled:Patcher.exe`,
+        `${sampleIds.patcherOnly}=no-runtime-role:Patcher.exe`,
+      ],
+    },
+    {
+      key: "player-tool-name:crashhandler",
+      count: 1,
+      examples: [`${sampleIds.windows}=enrolled:UnityCrashHandler64.exe`],
+    },
+  ]);
+  const committed = enrollmentTable(generation);
+  assert.deepEqual(committed.blocked_exclusions, failSafeExclusions(generation));
+  // The gate refuses an enrollment that names an excluded player.
+  const forged = structuredClone(generation);
+  const runtime = forged.enrollments.find((row) => row.port_id === sampleIds.windows)!.runtimes[0]!;
+  const excluded = result.table.entries.find((item) => item.port_id === sampleIds.windows)!
+    .artifacts[0]!.excluded_players[0]!;
+  runtime.players.push({
+    path: excluded.path,
+    display_path: excluded.display_path,
+    machine: excluded.machine,
+    sha256: excluded.sha256,
+  });
+  assert.throws(() => gateGeneration(null, forged), /tool veto excluded/u);
+});
+
+void test("the worker's sample output is pinned for Core's forged-fact guard", async () => {
+  const { result } = await sampleRun();
+  const text = `${JSON.stringify(result.table, null, 2)}\n`;
+  if (process.env.UPDATE_LISTING_FACTS_SAMPLE === "1") writeFileSync(samplePath, text);
+  // portcove-core re-runs its own rules on every fact of this file
+  // (`worker_sample_facts_equal_what_core_computes_and_forgeries_do_not`).
+  assert.equal(readFileSync(samplePath, "utf8"), text);
 });

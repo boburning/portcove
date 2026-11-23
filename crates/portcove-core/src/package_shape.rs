@@ -31,8 +31,8 @@ pub(crate) mod withheld;
 
 pub use listing::{
     ListingArtifactInspection, ListingNameSuggestion, ListingNamesClassification,
-    ListingNamesInput, ListingPlayerCandidate, ListingReleaseName, ListingReleaseVerdict,
-    classify_listing_names, inspect_listing_artifact_archive,
+    ListingNamesInput, ListingPlayerCandidate, ListingProgramVerdict, ListingReleaseName,
+    ListingReleaseVerdict, classify_listing_names, inspect_listing_artifact_archive,
 };
 
 /// Version of the derivation rules the generated table records. Version 2

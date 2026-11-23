@@ -388,8 +388,8 @@ pub use package_shape::{
 };
 pub use package_shape::{
     ListingArtifactInspection, ListingNameSuggestion, ListingNamesClassification,
-    ListingNamesInput, ListingPlayerCandidate, ListingReleaseName, ListingReleaseVerdict,
-    classify_listing_names, inspect_listing_artifact_archive,
+    ListingNamesInput, ListingPlayerCandidate, ListingProgramVerdict, ListingReleaseName,
+    ListingReleaseVerdict, classify_listing_names, inspect_listing_artifact_archive,
 };
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
