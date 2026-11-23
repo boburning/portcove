@@ -306,6 +306,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/catalog-body-window.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3508],
+        ["release-check", 4308]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/app-release.test.mts",
       "memberships": [
         ["catalog-full-2", 3501],

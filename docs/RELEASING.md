@@ -246,6 +246,117 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   publication stops while they are expired and resumes once a re-signed version
   is merged. Root v1 expires on 2027-10-30.
 
+### Catalog listing-body window
+
+[Design 6.1–6.2](design/CATALOG-DISTRIBUTION-SCALING.md#61-body-window-with-a-listing-floor-ledger-pr-1)
+(#1422). The served catalog keeps every signed metadata version but, once
+activated, only the listing bodies anyone can still need. Superseded bodies stay
+in `gh-pages` Git history. `CATALOG_RETAIN_BODIES` at the top of
+`catalog-publish.yml` selects the mode, and changing it is a reviewed change by
+the lead (decision L2):
+
+| Mode            | What a publication does                                                                                                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `all` (default) | Exactly what it did before the window existed. Every body is served and read.                                                                                                                                          |
+| `ledger`        | Also serves `catalog/history-ledger/listing-floors.json`. The first run derives it from every retained body; later runs re-derive each entry whose body is served and append new ones. Nothing is pruned.              |
+| `window`        | Also prunes listing bodies from the served tree, keeping the current and previous body of each live carrier, the newest body of every listing target, both publications' bodies and every pinned publication's bodies. |
+
+- **Ledger.** One entry per distinct listing body: the first policy version
+  naming it, its target, SHA-256 and length, and what history verification
+  derives from it: revision, decoded SHA-256 and the withdrawal count and
+  digest. Each entry must match a retained signed descriptor, and the ledger
+  must extend the published one exactly. It is not signed. The newest body of
+  each target, which sets every floor, is never pruned, and the verifier refuses
+  a pruned body whose entry would sit above it.
+- **Fail closed.** A body is pruned only when an earlier publication already
+  served its ledger entry and this run re-verified it. Without a published
+  ledger, with an unretained pin, with checkpointed history or with any
+  mismatch, the run prunes nothing and says why. The publication itself
+  continues.
+- **Report.** The publish step prints and summarizes the mode, ledger size,
+  bodies kept and pruned, bytes freed, and the retained repository against its
+  805,306,368-byte bound. The commit check prints the Pages tree against its
+  900,000,000-byte bound.
+- **Pins.** `release/catalog-publication-pins.json` names at most 8 last-good
+  publications by `gh-pages` commit and policy version. Adding or removing one is
+  an ordinary reviewed PR. Check pins with
+  `node scripts/catalog-publication-pins.mts verify --repository <gh-pages clone>`.
+- **Activation.** Run `ledger` first, then switch to `window` after a run
+  publishes the ledger and the next run verifies it. The `window` run after that
+  prunes. Turning the window off means `ledger`, then the full restore below,
+  then `all`.
+
+**Restore from a pinned publication (lead).** Use this when a later run needs
+a pruned body: a "file missing" refusal, turning the window off, or a pin added
+after its bodies were pruned.
+
+1. Clone `gh-pages` with its history into a scratch directory outside the
+   checkout. Pins need their commits; the publisher's own fetch is shallow.
+
+   ```sh
+   git clone --single-branch --branch gh-pages https://github.com/boburning/portcove.git pages
+   node scripts/catalog-publication-pins.mts verify --repository pages
+   ```
+
+2. Pick the pin `P`: the newest one whose readback receipt passed. The verify
+   output lists the bodies its policy version names. Restore exactly those, or
+   for a full restore every listing body under `catalog/targets`:
+
+   ```sh
+   git -C pages checkout "$P" -- catalog/targets/<sha256>.policy/official/catalog.listings.json
+   git -C pages checkout "$P" -- catalog/targets   # full restore
+   ```
+
+   Restore only paths whose name digest equals their content digest and that
+   retained signed metadata names. `git checkout` of a content-addressed path
+   cannot change bytes the current tree already serves.
+
+3. Verify the history keylessly with `portcove-release-tools
+   verify-definition-history <config>`. The config names `trusted_root`,
+   `offline_targets`, their SHA-256 values,
+   `"initial_root_profile": "single-owner-one-of-one-v1"`, `"repository":
+   "pages/catalog"` and, unless every body is back, `"listing_floor_ledger":
+   {"prior": "pages/catalog/history-ledger/listing-floors.json"}`. The report
+   must equal one from a complete tree except for its ledger counters.
+4. Commit and push normally to `gh-pages`, never with force. Then dispatch an
+   ordinary catalog publication run so the newest catalog commit is again a
+   publisher commit; the late readback refuses a catalog tree changed outside a
+   publication until then.
+5. Record the pin, restored paths and verification reports on #1422.
+
+**What clients observe.** Nothing, until the next publication. Clients read
+only the bodies the current signed metadata names, and a restored body is named
+only by older metadata versions. Revision floors never go backwards. A client
+refuses a lower or equal role version, and a lower listing revision or an equal
+one with different bytes. A restore therefore never re-serves old metadata or an
+old listing as current. To return players to last-good content, revert the
+source change on `main`. The next run publishes that content as a new listing
+revision above the current floor, at higher role versions, and with every
+withdrawal published since; the publisher refuses to drop one.
+
+**Rehearsal, November 23, 2026 (offline, nothing pushed).** This used a scratch
+worktree of `gh-pages` at `c912fc37b` (policy 60, 47 legacy bodies) and this
+change's release tools:
+
+- **Backfill.** History verification of the complete tree took 3.6 s. The
+  backfilled ledger has 47 entries and 21,226 bytes. Every entry was re-derived
+  from its body.
+- **Window.** It kept 2 bodies (16,776,799 bytes): current and pinned, plus the
+  previous body. It pruned 45 bodies (373,854,886 bytes). The retained
+  repository fell to 17,272,265 of 805,306,368 bytes.
+- **Verification after pruning.** Without the ledger it refused ("public
+  repository file missing", as today). With the ledger it took 0.36 s and gave
+  the same floors, revisions, policy floors and definition floors as the
+  complete tree. 45 entries were verified from the ledger.
+- **Restore.** Restoring the publication at `68d132a42` (policy 41) by
+  `git checkout` and adding it as a pin left verification unchanged. The window
+  then kept 3 bodies. A full restore from the pin commit verified without the
+  ledger again.
+- **Not covered.** Signing a renewal needs the online keys and runs only in
+  `catalog-publish.yml`. The keyless publisher context check over the pruned
+  tree, and the signed fixture publications in
+  `definition_repository::tests::listing_floor_ledger`, cover the rest.
+
 <a id="release-task-order"></a>
 <a id="preflight"></a>
 <a id="build-matrix"></a>

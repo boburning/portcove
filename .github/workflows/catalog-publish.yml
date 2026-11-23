@@ -13,6 +13,11 @@
 #   checkpoint. Push and scheduled runs never pass it; without a published
 #   checkpoint pointer they publish exactly as before history existed.
 #
+# - Listing-body retention (#1422) is off: CATALOG_RETAIN_BODIES stays `all`
+#   until the lead activates `ledger`, then `window`, in reviewed changes
+#   (docs/RELEASING.md, "Catalog listing-body window"). It never runs beside
+#   checkpointed history.
+#
 # Each signing job runs in its own catalog signing environment, which only
 # admits `main`, and sees only its own key, in one step. Root and Targets stay
 # offline with the owner. There is no review gate.
@@ -40,6 +45,11 @@ concurrency:
   group: catalog-publish
   cancel-in-progress: false
 
+env:
+  # all: serve every listing body (unchanged). ledger: also serve the verified
+  # listing-floor ledger. window: also prune superseded listing bodies.
+  CATALOG_RETAIN_BODIES: all
+
 jobs:
   prepare:
     if: >-
@@ -57,6 +67,7 @@ jobs:
       prior_history_digest: ${{ steps.prepare.outputs.prior_history_digest }}
       prior_commit: ${{ steps.prepare.outputs.prior_commit }}
       history_mode: ${{ steps.prepare.outputs.history_mode }}
+      retain_bodies: ${{ steps.prepare.outputs.retain_bodies }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -201,6 +212,7 @@ jobs:
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
             --bundle "$BUNDLE" \
             --inspection-stdout "$RUNNER_TEMP/inspection.stdout" \
+            --retain-bodies "$CATALOG_RETAIN_BODIES" \
             --prior "$PRIOR" "${history_request[@]}" > "$RUNNER_TEMP/prepare.outputs"
           cat "$RUNNER_TEMP/prepare.outputs" >> "$GITHUB_OUTPUT"
           target/release/portcove-release-tools check-definition-publication-context \
@@ -274,6 +286,7 @@ jobs:
       PRIOR_HISTORY_DIGEST: ${{ needs.prepare.outputs.prior_history_digest }}
       PRIOR_COMMIT: ${{ needs.prepare.outputs.prior_commit }}
       HISTORY_MODE: ${{ needs.prepare.outputs.history_mode }}
+      RETAIN_BODIES: ${{ needs.prepare.outputs.retain_bodies || 'all' }}
     steps:
       # Credentials stay for the gh-pages push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -336,7 +349,9 @@ jobs:
             # The assembled report is local to this job. Compare the guarded
             # prior inventory and stage only newly assembled repository files.
             node scripts/catalog-pages-overlay.mts --site site --prior "$PRIOR_DIGEST" \
-              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json"
+              --repository "$repository" --receipt "$RUNNER_TEMP/catalog-work/assembly-report.json" \
+              --retain-bodies "$RETAIN_BODIES" --ledger "$RUNNER_TEMP/catalog-work/listing-floors.json" \
+              --pins release/catalog-publication-pins.json --history-mode "$HISTORY_MODE"
             if [ -n "$HISTORY_MODE" ]; then
               node scripts/catalog-publish.mts stage-history --site site \
                 --work "$RUNNER_TEMP/catalog-work" --prior-history "$PRIOR_HISTORY_DIGEST"
@@ -347,7 +362,7 @@ jobs:
             git -C site ls-tree -r -l HEAD | awk '
               $2 == "blob" { bytes += $4; files++ }
               END {
-                printf "Complete Pages tree: %d files, %.0f bytes\n", files, bytes
+                printf "Complete Pages tree: %d files, %.0f of 900000000 bytes\n", files, bytes
                 if (bytes > 900000000) exit 1
               }'
             if git -C site push --quiet origin HEAD:refs/heads/gh-pages; then exit 0; fi
