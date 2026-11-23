@@ -31,14 +31,22 @@
 #     what it cannot file (a spent quota) is kept and filed by the next run,
 #     whose `gate` holds until then.
 #
-# Only the built-in workflow token is used. GitHub creates the `pull_request`
-# runs of a pull request that token opens or updates in an approval-required
-# state: a person with write access starts them with "Approve workflows to
-# run", which counts as a human intervention and grants CI permission only.
-# The `merge` job separately confirms merge eligibility (five exact-head
-# contexts, complete closing inventory, composition onto main) through the guarded
-# route. A merge with that token starts no `push` run, so a batch is delivered
-# only once the next ordinary main run selects and publishes it.
+# Credentials (#1422 owner decision). Only `deliver` (push the batch branch,
+# open the pull request) and `merge` (the guarded merge, branch deletion)
+# declare the `facts-batch` environment, whose deployment-branch policy admits
+# only `main`. Each mints its own short-lived token from the job's GitHub App
+# (Contents and Pull requests only, this repository only) in one step, the
+# only step that references the App's key, after every check that needs no
+# write; the token reaches the one step that writes through `env:` and is
+# revoked when the job ends. Everything else uses the built-in workflow token:
+# `gate` and `notify` (which files issues; the App has no Issues permission)
+# and every job that runs Core over downloaded bytes (`prepare`, `inspect`,
+# `combine`, `reproduce`, `decide`), which never see the key or a write token.
+# Because the App opens the pull request, its required checks start on their
+# own, and because the App merges, `main` CI and catalog publication follow.
+# The `merge` job confirms merge eligibility (five exact-head contexts bound to
+# the head's CI run, complete closing inventory, composition onto main)
+# through the guarded route, which the `Protect main` ruleset also enforces.
 name: Listing facts batch
 
 on:
@@ -88,6 +96,7 @@ jobs:
       pr_created_at: ${{ steps.pull.outputs.created_at }}
       ci_run: ${{ steps.pull.outputs.ci_run }}
       ci_attempt: ${{ steps.pull.outputs.ci_attempt }}
+      pr_author: ${{ steps.pull.outputs.author }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
@@ -127,11 +136,15 @@ jobs:
       vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.gate.outputs.blocked == 'false' && needs.gate.outputs.pr_state == 'green'
+    # Holds the App's key; a dry run never reaches this job.
+    environment: facts-batch
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+    # The built-in token only reads the evidence the merge is bound to; the
+    # App token alone merges and deletes the branch.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
+      pull-requests: read
       checks: read
       statuses: read
       actions: read
@@ -180,12 +193,52 @@ jobs:
           GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check > /dev/null
           echo "target=$target" >> "$GITHUB_OUTPUT"
           echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+      - name: Record the closure intent and merge message
+        timeout-minutes: 3
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NUMBER: ${{ needs.gate.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          node scripts/listing-facts-batch.mts merge-intent --number "$NUMBER" \
+            --closure "$RUNNER_TEMP/closure.json" --message "$RUNNER_TEMP/message.json"
+      # The only step that references the App's key. The token is limited to
+      # this repository, Contents and Pull requests; the App has no Workflows,
+      # Administration or ruleset bypass. Revoked when the job ends.
+      - name: Mint the short-lived App token for the merge
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        timeout-minutes: 2
+        with:
+          app-id: ${{ vars.FACTS_BATCH_APP_ID }}
+          private-key: ${{ secrets.FACTS_BATCH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      # `gate` cannot know the App's login; this job can. A batch-like pull
+      # request any other App opened is refused here, before any write.
+      - name: Require the batch pull request to be the App's own
+        timeout-minutes: 1
+        env:
+          AUTHOR: ${{ needs.gate.outputs.pr_author }}
+          APP_SLUG: ${{ steps.app.outputs['app-slug'] }}
+        run: |
+          set -euo pipefail
+          if [ -z "$APP_SLUG" ] || [ "$AUTHOR" != "${APP_SLUG}[bot]" ]; then
+            echo "::error::The batch pull request was opened by ${AUTHOR}, not by ${APP_SLUG}[bot]."
+            exit 1
+          fi
       # Bound to the head's CI workflow run: every required context must be a
       # successful job of that run attempt, not merely a check of that name.
+      # Reads use the built-in token; only the merge mutation itself uses the
+      # App token (`PORTCOVE_MERGE_TOKEN`), so it goes through the ordinary
+      # guarded route and the `Protect main` ruleset, which nothing bypasses.
       - name: Merge through the guarded delivery route
         timeout-minutes: 8
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PORTCOVE_MERGE_TOKEN: ${{ steps.app.outputs.token }}
           NUMBER: ${{ needs.gate.outputs.pr_number }}
           HEAD: ${{ needs.gate.outputs.pr_head }}
           TARGET: ${{ steps.compose.outputs.target }}
@@ -194,8 +247,6 @@ jobs:
           CI_ATTEMPT: ${{ needs.gate.outputs.ci_attempt }}
         run: |
           set -euo pipefail
-          node scripts/listing-facts-batch.mts merge-intent --number "$NUMBER" \
-            --closure "$RUNNER_TEMP/closure.json" --message "$RUNNER_TEMP/message.json"
           # GitHub rebuilds its merge preview lazily: verify the reviewed
           # composition from local objects, run from a checkout of the head
           # with main's own delivery script.
@@ -208,16 +259,22 @@ jobs:
             --closure-intent-file "$RUNNER_TEMP/closure.json" \
             --merge-message-file "$RUNNER_TEMP/message.json"
       # The merged batch branch is spent; a failure to delete it changes nothing else.
+      # The credential is given to this one `git push` through its environment:
+      # nothing is written to the git configuration or the remote URL.
       - name: Delete the merged batch branch
         continue-on-error: true
         timeout-minutes: 2
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          APP_TOKEN: ${{ steps.app.outputs.token }}
           BRANCH: ${{ needs.gate.outputs.pr_head_ref }}
         run: |
           set -euo pipefail
           [[ "$BRANCH" =~ ^automation/listing-facts-batch-[1-9][0-9]{0,19}$ ]]
-          git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ":refs/heads/${BRANCH}"
+          basic=$(printf 'x-access-token:%s' "$APP_TOKEN" | base64 -w0)
+          echo "::add-mask::${basic}"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic}" \
+            git push --quiet "https://github.com/${GITHUB_REPOSITORY}.git" ":refs/heads/${BRANCH}"
 
   # A batch starts only when no stop issue and no batch pull request is open.
   # The derivation is sharded: `prepare` plans the run (everything that needs
@@ -800,11 +857,14 @@ jobs:
       vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.decide.outputs.ready == 'true'
+    # Holds the App's key; a dry run never reaches this job.
+    environment: facts-batch
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+    # The built-in token writes nothing here: the App token pushes and opens
+    # the pull request.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         timeout-minutes: 5
@@ -836,22 +896,56 @@ jobs:
         with:
           name: listing-facts-batch-state-${{ github.run_id }}
           path: work/listing-facts-batch
-      - name: Push the one-commit batch branch and open its pull request
-        timeout-minutes: 4
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          REPRODUCED: ${{ needs.decide.outputs.reproduced }}
+      # Every check that needs no credential runs before the token exists.
+      - name: Apply the batch and check its paths and outputs record
+        timeout-minutes: 2
         run: |
           set -euo pipefail
-          branch="automation/listing-facts-batch-${GITHUB_RUN_ID}"
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             am --quiet work/listing-facts-batch/batch.patch
           node scripts/listing-facts-batch.mts paths --base HEAD~1 --head HEAD
           node scripts/listing-facts-batch.mts outputs-check --record work/listing-facts-batch/outputs/outputs.json \
             --patch work/listing-facts-batch/batch.patch
-          git push --quiet "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
-          node scripts/listing-facts-batch.mts open-pull-request --branch "$branch" \
+      # The only step that references the App's key. The token is limited to
+      # this repository, Contents and Pull requests; the App has no Workflows
+      # permission, so GitHub would also refuse a push touching
+      # `.github/workflows` (defense in depth behind the path allowlist).
+      # Revoked when the job ends.
+      - name: Mint the short-lived App token for delivery
+        id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        timeout-minutes: 2
+        with:
+          app-id: ${{ vars.FACTS_BATCH_APP_ID }}
+          private-key: ${{ secrets.FACTS_BATCH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      # The credential is given to this one `git push` through its environment:
+      # nothing is written to the git configuration or the remote URL.
+      - name: Push the one-commit batch branch
+        timeout-minutes: 2
+        env:
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          branch="automation/listing-facts-batch-${GITHUB_RUN_ID}"
+          basic=$(printf 'x-access-token:%s' "$APP_TOKEN" | base64 -w0)
+          echo "::add-mask::${basic}"
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com/.extraheader \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${basic}" \
+            git push --quiet "https://github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${branch}"
+      # Opened by the App, so its required checks start without a person.
+      - name: Open the batch pull request
+        timeout-minutes: 3
+        env:
+          GITHUB_TOKEN: ${{ steps.app.outputs.token }}
+          REPRODUCED: ${{ needs.decide.outputs.reproduced }}
+        run: |
+          set -euo pipefail
+          node scripts/listing-facts-batch.mts open-pull-request --branch "automation/listing-facts-batch-${GITHUB_RUN_ID}" \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
             --delta work/listing-facts-batch/delta.json --reproduced "$REPRODUCED" \
             --report work/listing-facts-batch/worker-report.json --deadline-minutes 2

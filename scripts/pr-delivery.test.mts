@@ -1302,6 +1302,47 @@ void test("check-run pagination follows only this repository's bound numeric-id 
   }
 });
 
+void test("a separate merge credential carries the merge mutation alone", async () => {
+  const seen: { method: string; path: string; authorization: string | null }[] = [];
+  const client = await PullRequestDeliveryClient.connect({
+    credential: { kind: "explicit", token: "read-token" },
+    mergeCredential: { kind: "explicit", token: "merge-token" },
+    deadline: performance.now() + 60000,
+    fetch: async (input, init) => {
+      const request = input instanceof Request ? input : new Request(String(input), init);
+      const url = new URL(request.url);
+      seen.push({
+        method: request.method,
+        path: url.pathname,
+        authorization: new Headers(init?.headers ?? request.headers).get("authorization"),
+      });
+      return Response.json({ merged: true });
+    },
+  });
+  const internal = client as unknown as {
+    request(method: "GET" | "PUT", endpoint: string, data?: unknown): Promise<unknown>;
+    mergeSdk: { request(options: { method: string; url: string }): Promise<unknown> };
+  };
+  await internal.request("GET", `repos/${repository}/pulls/7`);
+  await internal.request("PUT", `repos/${repository}/pulls/7/merge`, { sha: head });
+  assert.deepEqual(
+    seen.map(({ method, path }) => `${method} ${path}`),
+    [`GET /repos/${repository}/pulls/7`, `PUT /repos/${repository}/pulls/7/merge`],
+  );
+  assert.match(String(seen[0]!.authorization), /read-token/u);
+  assert.doesNotMatch(String(seen[0]!.authorization), /merge-token/u);
+  assert.match(String(seen[1]!.authorization), /merge-token/u);
+  // The merge credential admits nothing but the merge mutation.
+  await assert.rejects(
+    internal.mergeSdk.request({
+      method: "GET",
+      url: `https://api.github.com/repos/${repository}/pulls/7`,
+    }),
+    /outside the admitted scope/u,
+  );
+  assert.equal(seen.length, 2);
+});
+
 void test("workflow attempt job inventory follows pagination and rejects incomplete totals", async () => {
   let incomplete = false;
   const client = await deliveryFixture(({ endpoint }) => {

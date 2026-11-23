@@ -1779,7 +1779,7 @@ export function batchPullBody(input: {
     "",
     "No title-specific review happens on this route; the documented rules, the gate and the reproduction are the review (docs/CATALOG.md, scheduled facts batch job).",
     "",
-    "This pull request was opened with the workflow token, so GitHub creates its `pull_request` runs in an approval-required state: a person with write access starts them with **Approve workflows to run**, and that approval counts as a human intervention. Approval grants CI permission only; the next scheduled run separately confirms merge eligibility and merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
+    "This pull request was opened by the job's GitHub App, so its required checks start on their own; no person needs to approve, close or reopen it. The next scheduled run confirms merge eligibility and merges it through the guarded delivery route only when all five required checks pass on its exact head, bound to that head's CI run; a failing check stops the job.",
   ].join("\n");
 }
 
@@ -2378,7 +2378,7 @@ export function collectConditions(
   if (["waiting-for-checks", "pending"].includes(input.prState) && waited > batchWaitDays)
     conditions.push({
       name: "batch-waiting",
-      detail: `Batch pull request #${input.prNumber} has waited ${Math.floor(waited)} days for its required checks (state ${input.prState}). Its workflow runs most likely wait for **Approve workflows to run**; approve them or close the pull request, then close this issue.`,
+      detail: `Batch pull request #${input.prNumber} has waited ${Math.floor(waited)} days for its required checks (state ${input.prState}). Its checks should have started when the job's App opened it: look at its CI runs (a run stuck queued, or none at all), fix the cause or close the pull request, then close this issue.`,
     });
   for (const [job, result] of Object.entries(input.jobs))
     // A deriving job that failed after its run named its conditions failed
@@ -2541,9 +2541,26 @@ export function ciRunFor(
 }
 
 /**
+ * Whether a pull request author is a GitHub App's bot user other than the
+ * built-in workflow token's: the job delivers with its own App, whose slug
+ * the read-only `gate` does not hold. The `merge` job, which mints the App
+ * token, binds the author to that App's exact login before it merges.
+ */
+export function isBatchAppAuthor(user: unknown) {
+  return (
+    isRecord(user) &&
+    user.type === "Bot" &&
+    typeof user.login === "string" &&
+    /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?\[bot\]$/iu.test(user.login) &&
+    user.login !== workflowLogin
+  );
+}
+
+/**
  * The open pull requests the job itself opened: a batch branch in this
- * repository, opened by the workflow token. A fork or a person using a
- * batch-like branch name is not a batch and cannot hold or stop the job.
+ * repository, opened by a GitHub App. A fork, a person, or the built-in
+ * workflow token of another workflow using a batch-like branch name is not
+ * a batch and cannot hold or stop the job.
  */
 export function jobBatches(pulls: readonly unknown[], repository: string) {
   return pulls.filter(
@@ -2551,10 +2568,9 @@ export function jobBatches(pulls: readonly unknown[], repository: string) {
       isRecord(pull) &&
       isRecord(pull.head) &&
       isRecord(pull.head.repo) &&
-      isRecord(pull.user) &&
       String(pull.head.ref).startsWith(batchBranchPrefix) &&
       pull.head.repo.full_name === repository &&
-      pull.user.login === workflowLogin,
+      isBatchAppAuthor(pull.user),
   );
 }
 
@@ -2562,6 +2578,7 @@ export function jobBatches(pulls: readonly unknown[], repository: string) {
 export function batchPullProblems(pull: {
   head_ref: string;
   author: string;
+  author_type: string;
   base_ref: string;
   commits: number;
   draft: boolean;
@@ -2569,8 +2586,8 @@ export function batchPullProblems(pull: {
   const problems: string[] = [];
   if (!/^automation\/listing-facts-batch-[1-9][0-9]{0,19}$/u.test(pull.head_ref))
     problems.push(`${pull.head_ref} is not a batch branch.`);
-  if (pull.author !== "github-actions[bot]")
-    problems.push(`The pull request was opened by ${pull.author}, not by the job.`);
+  if (!isBatchAppAuthor({ login: pull.author, type: pull.author_type }))
+    problems.push(`The pull request was opened by ${pull.author}, not by the job's App.`);
   if (pull.base_ref !== "main") problems.push("The pull request does not target main.");
   if (pull.commits !== 1) problems.push(`The batch has ${pull.commits} commits, not exactly one.`);
   if (pull.draft) problems.push("The batch pull request is a draft.");
@@ -3275,6 +3292,7 @@ async function main(argv: string[]): Promise<string> {
       const problems = batchPullProblems({
         head_ref: String(detail.head.ref),
         author: String(detail.user.login),
+        author_type: String(detail.user.type),
         base_ref: String(detail.base.ref),
         commits: Number(detail.commits),
         draft: detail.draft === true,
@@ -3313,6 +3331,8 @@ async function main(argv: string[]): Promise<string> {
       output("number", String(number));
       output("head", head);
       output("head_ref", String(detail.head.ref));
+      // The merge job binds this to the exact login of the App it mints for.
+      output("author", String(detail.user.login));
       return `${JSON.stringify({ number, head, ...state })}\n`;
     }
     case "delta": {

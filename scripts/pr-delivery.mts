@@ -39,7 +39,7 @@ export {
 } from "./pr-delivery-snapshot.mts";
 import type { OperationStatus } from "./github-operation.mts";
 import { createGitHubClient, iterateGitHubPages } from "./github-client.mts";
-import type { GitHubClientOptions } from "./github-client.mts";
+import type { GitHubClientOptions, GitHubCredential } from "./github-client.mts";
 import type { Octokit } from "@octokit/core";
 import { localDeveloperCredential } from "./github-cli.mts";
 import type { RenovatePull, RenovateBaseEvidence } from "./renovate-fast-lane.mts";
@@ -328,6 +328,8 @@ export class PullRequestDeliveryClient {
     this.observationDeadline = (this.scope.now ?? performance.now.bind(performance))() + 60000;
   }
   private sdk: Octokit;
+  /** The client of the one merge mutation, when it holds its own credential. */
+  private mergeSdk: Octokit | undefined;
   private scope: GitHubClientOptions;
   private admitRepositoryId: (id: number) => void;
   private repositoryId: Promise<number> | undefined;
@@ -335,10 +337,12 @@ export class PullRequestDeliveryClient {
     sdk: Octokit,
     scope: GitHubClientOptions,
     admitRepositoryId: (id: number) => void = () => {},
+    mergeSdk?: Octokit,
   ) {
     this.sdk = sdk;
     this.scope = scope;
     this.admitRepositoryId = admitRepositoryId;
+    this.mergeSdk = mergeSdk;
   }
 
   /** GitHub may link later pages through `/repositories/{id}/`. The id is bound
@@ -366,7 +370,16 @@ export class PullRequestDeliveryClient {
     }
   }
 
-  static async connect(options: Partial<GitHubClientOptions> = {}, observationRequired = false) {
+  /**
+   * `mergeCredential`, when given, is used for the merge mutation only: every
+   * read (checks, workflow runs, statuses, closing inventory) keeps
+   * `credential`. A job can then merge with a narrowly scoped write
+   * credential that cannot read the evidence the merge is bound to.
+   */
+  static async connect(
+    options: Partial<GitHubClientOptions> & { mergeCredential?: GitHubCredential } = {},
+    observationRequired = false,
+  ) {
     const deadline = options.deadline ?? performance.now() + 30 * 60000;
     let bytes = 0;
     let repositoryId: number | undefined;
@@ -398,16 +411,39 @@ export class PullRequestDeliveryClient {
             ))) &&
         options.allowRequest?.(method, url) !== false,
     };
-    const sdk = await createGitHubClient({ ...scope, environmentProxy: true });
-    const client = new PullRequestDeliveryClient(sdk, scope, (id) => {
-      repositoryId = id;
-    });
+    const { mergeCredential, ...readScope } = scope as GitHubClientOptions & {
+      mergeCredential?: GitHubCredential;
+    };
+    const sdk = await createGitHubClient({ ...readScope, environmentProxy: true });
+    const mergeSdk =
+      mergeCredential === undefined
+        ? undefined
+        : await createGitHubClient({
+            ...readScope,
+            credential: mergeCredential,
+            environmentProxy: true,
+            allowRequest: (method, url) =>
+              method === "PUT" &&
+              new RegExp(`^/repos/${repository}/pulls/[1-9][0-9]*/merge$`, "u").test(
+                url.pathname,
+              ) &&
+              options.allowRequest?.(method, url) !== false,
+          });
+    const client = new PullRequestDeliveryClient(
+      sdk,
+      readScope,
+      (id) => {
+        repositoryId = id;
+      },
+      mergeSdk,
+    );
     if (observationRequired) client.observationDeadline = 0;
     return client;
   }
 
   private async request(method: "GET" | "PUT", endpoint: string, data?: unknown) {
-    return await this.sdk.request({
+    const sdk = method === "PUT" ? (this.mergeSdk ?? this.sdk) : this.sdk;
+    return await sdk.request({
       method,
       url: `https://api.github.com/${endpoint}`,
       ...(data === undefined ? {} : { data }),
@@ -2012,7 +2048,13 @@ async function main(argv: string[]) {
                 : performance.now() + Date.parse(optionText(options, "--deadline")) - Date.now()
               : performance.now() + 60000,
         })
-      : await PullRequestDeliveryClient.connect();
+      : await PullRequestDeliveryClient.connect(
+          // A merge may hold a separate write credential for the mutation
+          // alone; its reads keep the workflow token.
+          command === "merge" && process.env.PORTCOVE_MERGE_TOKEN
+            ? { mergeCredential: { kind: "explicit", token: process.env.PORTCOVE_MERGE_TOKEN } }
+            : {},
+        );
   if (command === "inspect") {
     if (!Number.isSafeInteger(number))
       throw new Error("inspection PR number must be a safe positive integer");
