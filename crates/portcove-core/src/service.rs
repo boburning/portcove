@@ -21417,6 +21417,76 @@ fn main() {
         );
     }
 
+    /// #4890: the managed route follows later Nookery releases under the same
+    /// definition. Every data path the stable player writes in its pinned
+    /// `--user-dir .` (both memory cards, JSON settings and input profiles,
+    /// the quarantined settings copy and NES ROMs) moves to the next version
+    /// and back on rollback. Synthetic bytes only; no Nookery program runs.
+    #[tokio::test]
+    async fn nookery_update_and_rollback_keep_stable_player_data() {
+        const ID: &str = "animal-crossing-pc-port";
+        let current = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let port = current.port(ID).unwrap().clone();
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let data: [(&str, &[u8]); 8] = [
+            ("save/card_a/DobutsunomoriP_MURA.gci", b"town"),
+            ("save/card_a/DobutsunomoriP_F_SAVE.gci", b"nes saves"),
+            ("save/card_b/visited_town.gci", b"visited town"),
+            ("config.json", b"{\"version\":2}"),
+            ("config.json.bad", b"{broken"),
+            ("input.json", b"{\"profiles\":[1]}"),
+            ("nes_roms/player.nes", b"player rom"),
+            ("texture_pack/custom.png", b"player texture"),
+        ];
+        let mut files = vec![
+            ("rom/GAFE01.iso", b"staged disc".as_slice()),
+            (LAUNCH_MARKER, b"1".as_slice()),
+        ];
+        files.extend(data);
+        let old = register_forward_install(&library, &port, "v1.0.0", true, &files);
+        let new = register_forward_install(
+            &library,
+            &port,
+            "v1.0.1",
+            false,
+            &[("rom/GAFE01.iso", b"staged disc")],
+        );
+        let mut service = service_with_release(library.clone(), "v1.0.1");
+        service.replace_catalog_for_test(current);
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.id, new.id);
+        for (relative, bytes) in data {
+            assert_eq!(
+                fs::read(new.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+        assert!(service.verify(ID).unwrap().valid);
+
+        fs::write(new.path.join("config.json"), b"{\"version\":3}").unwrap();
+        fs::write(new.path.join("save/card_b/visited_town.gci"), b"revisited").unwrap();
+        fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+
+        let rolled_back = service.rollback(ID).unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        for (relative, bytes) in data {
+            let expected: &[u8] = match relative {
+                "config.json" => b"{\"version\":3}",
+                "save/card_b/visited_town.gci" => b"revisited",
+                _ => bytes,
+            };
+            assert_eq!(
+                fs::read(old.path.join(relative)).unwrap(),
+                expected,
+                "{relative}"
+            );
+        }
+        assert!(service.verify(ID).unwrap().valid);
+    }
+
     #[test]
     fn interrupted_activation_recovers_with_newly_admitted_retained_preferences() {
         const PORT: &str = "zelda64-recomp";
