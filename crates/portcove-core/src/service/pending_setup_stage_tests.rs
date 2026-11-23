@@ -231,7 +231,7 @@ fn released_default_format() -> u8 {
 
 /// The released reader's parse and format check: GitHub records are format
 /// 1, GitLab records format 2, and nothing else is accepted.
-fn released_reader_accepts(json: &str) -> bool {
+pub(in crate::service) fn released_reader_accepts(json: &str) -> bool {
     let Ok(record) = serde_json::from_str::<ReleasedRecord>(json) else {
         return false;
     };
@@ -758,6 +758,105 @@ fn missing_retained_bytes_invalidate_instead_of_downloading_again() {
     assert_invalidated(&setup, PendingSetupInvalidation::RetainedBytesChanged);
 }
 
+/// Resets the injected read fault even when an assertion fails.
+struct RetainedReadFault;
+
+impl RetainedReadFault {
+    fn arm() -> Self {
+        fault::fail_retained_reads(true);
+        Self
+    }
+}
+
+impl Drop for RetainedReadFault {
+    fn drop(&mut self) {
+        fault::fail_retained_reads(false);
+    }
+}
+
+#[test]
+fn a_retained_read_failure_is_retryable_and_records_nothing() {
+    for extracted in [false, true] {
+        let setup = published(extracted);
+        let (executable, working) = installed_program(&setup);
+        select(&setup, &executable, &working).unwrap();
+        let before = raw_row(&setup.service);
+        let stage = stage_of(&setup.service);
+        {
+            let _fault = RetainedReadFault::arm();
+            let errors = [
+                select(&setup, &executable, &working).unwrap_err(),
+                setup
+                    .service
+                    .require_pending_setup_continuable(FIXTURE, &|| Ok(()))
+                    .unwrap_err(),
+            ];
+            for error in errors {
+                assert_ne!(error.code, crate::ErrorCode::Conflict);
+                assert_eq!(error.details.get("invalidation"), None);
+                let presentation = error.report().presentation;
+                assert_eq!(
+                    presentation.presentation_key,
+                    "retained_download_unreadable"
+                );
+                assert_eq!(
+                    presentation.summary,
+                    "Portcove couldn’t read the downloaded files right now, so your setup wasn’t changed. Close any program that might be using them, then try again."
+                );
+            }
+        }
+        assert_eq!(raw_row(&setup.service), before);
+        assert_eq!(stage_of(&setup.service), stage);
+        // Once the file can be read again the same setup continues.
+        setup
+            .service
+            .require_pending_setup_continuable(FIXTURE, &|| Ok(()))
+            .unwrap();
+        let authorization = review(&setup, &executable, &working);
+        setup
+            .service
+            .register_user_selected_runtime(
+                FIXTURE,
+                &executable,
+                &working,
+                &[],
+                &authorization.token,
+            )
+            .unwrap();
+        assert!(setup.service.pending_setups().unwrap().is_empty());
+    }
+}
+
+#[test]
+fn cancelling_the_registration_digest_leaves_the_stage_unchanged() {
+    let setup = published(false);
+    let (executable, working) = installed_program(&setup);
+    select(&setup, &executable, &working).unwrap();
+    review(&setup, &executable, &working);
+    let before = raw_row(&setup.service);
+    let stage = stage_of(&setup.service);
+    let error = setup
+        .service
+        .require_pending_setup_continuable(FIXTURE, &|| {
+            Err(PortcoveError::new(
+                crate::ErrorCode::Cancelled,
+                "Operation cancelled.",
+            ))
+        })
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Cancelled);
+    assert_ne!(
+        error.report().presentation.presentation_key,
+        "retained_download_unreadable"
+    );
+    assert_eq!(raw_row(&setup.service), before);
+    assert_eq!(stage_of(&setup.service), stage);
+    assert!(matches!(
+        stage,
+        PendingSetupStage::RegistrationReviewed { .. }
+    ));
+}
+
 #[test]
 fn an_invalidated_setup_cannot_complete_registration() {
     let mut setup = published(false);
@@ -939,9 +1038,7 @@ fn a_newer_release_is_a_notice_and_never_blocks_registration() {
     assert_eq!(stage, PendingSetupStageKind::FinalSelected);
     assert_eq!(
         message.notice.as_deref(),
-        Some(
-            "Version v2 is newer than the one you downloaded. You can still add the game you set up."
-        )
+        Some("A newer version, v2, is available. You can still add the game you set up.")
     );
     let report = setup.service.port_capabilities(FIXTURE).unwrap();
     let explanation = &report
@@ -951,7 +1048,10 @@ fn a_newer_release_is_a_notice_and_never_blocks_registration() {
         .unwrap()
         .features[0]
         .explanation;
-    assert!(explanation.contains("Version v2 is newer"), "{explanation}");
+    assert!(
+        explanation.contains("A newer version, v2, is available."),
+        "{explanation}"
+    );
 
     let authorization = review(&setup, &executable, &working);
     let registered = setup

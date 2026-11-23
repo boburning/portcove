@@ -1317,19 +1317,19 @@ async fn download_without_published_digest_retains_honest_provenance_and_non_own
     // Publication stores the format earlier releases read: no record format
     // field (format 1) and no stage. `artifact-obtained` is the read-time
     // stage only, so a later rollback to an earlier release keeps working.
-    let stored: Value = serde_json::from_str(
-        &service
-            .library
-            .connection()
-            .unwrap()
-            .query_row(
-                "SELECT record_json FROM catalog_downloads WHERE port_id=?1",
-                [&pending.port_id],
-                |row| row.get::<_, String>(0),
-            )
-            .unwrap(),
-    )
-    .unwrap();
+    let raw = service
+        .library
+        .connection()
+        .unwrap()
+        .query_row(
+            "SELECT record_json FROM catalog_downloads WHERE port_id=?1",
+            [&pending.port_id],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    // The released reader's own parse accepts the real publication row.
+    assert!(super::stage::tests::released_reader_accepts(&raw), "{raw}");
+    let stored: Value = serde_json::from_str(&raw).unwrap();
     assert!(stored.get("format_version").is_none(), "{stored}");
     assert!(stored.get("progress").is_none(), "{stored}");
     assert_eq!(

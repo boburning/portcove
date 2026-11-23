@@ -4,6 +4,7 @@
 use super::catalog_download_provider::{CatalogDownloadProvider, CatalogDownloadRepository};
 use super::user_selected::managed_overlap_key;
 use super::*;
+
 #[cfg(test)]
 use crate::GithubReleaseProvider;
 use crate::PortListing;
@@ -1590,18 +1591,30 @@ impl PortcoveService {
             Ok(bytes) => bytes,
             Err(_) => return Ok(false),
         };
-        let receipt: PublicationReceipt = match serde_json::from_slice(&bytes) {
-            Ok(receipt) => receipt,
-            Err(_) => return Ok(false),
+        Ok(receipt_bytes_match(stored, &bytes))
+    }
+
+    /// Whether the published folder still holds this attempt's receipt. Only
+    /// a missing, non-file, oversized, unreadable-as-a-receipt or different
+    /// receipt is `false`; a failure to read an existing receipt is returned
+    /// so the caller can retry instead of treating it as changed.
+    fn publication_receipt_still_matches(&self, stored: &StoredDownload) -> Result<bool> {
+        self.require_download_destination(&stored.record.path)?;
+        let path = stored.record.path.join(RECEIPT_NAME);
+        refuse_symlink_ancestors(&path)?;
+        match stage::retained_metadata(&path) {
+            Ok(metadata) if metadata.is_file() && metadata.len() <= 4096 => {}
+            Ok(_) => return Ok(false),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.into()),
+        }
+        let bytes = match crate::path::read_bounded_regular(&path, 4096) {
+            Ok(bytes) => bytes,
+            // The bounded reader refuses a non-file or grown receipt.
+            Err(error) if error.code == crate::ErrorCode::Verification => return Ok(false),
+            Err(error) => return Err(error),
         };
-        Ok(receipt
-            == PublicationReceipt {
-                format_version: 1,
-                pending_id: stored.record.id.clone(),
-                port_id: stored.record.port_id.clone(),
-                preview_sha256: stored.preview_sha256.clone(),
-                archive_sha256: stored.record.archive_sha256.clone(),
-            })
+        Ok(receipt_bytes_match(stored, &bytes))
     }
 
     pub(super) fn recover_catalog_downloads(&self) -> Result<()> {
@@ -1749,4 +1762,17 @@ impl PortcoveService {
             "This link does not belong to the saved setup.",
         ))
     }
+}
+
+fn receipt_bytes_match(stored: &StoredDownload, bytes: &[u8]) -> bool {
+    serde_json::from_slice::<PublicationReceipt>(bytes).is_ok_and(|receipt| {
+        receipt
+            == PublicationReceipt {
+                format_version: 1,
+                pending_id: stored.record.id.clone(),
+                port_id: stored.record.port_id.clone(),
+                preview_sha256: stored.preview_sha256.clone(),
+                archive_sha256: stored.record.archive_sha256.clone(),
+            }
+    })
 }

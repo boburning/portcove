@@ -312,7 +312,11 @@ bytes when one is selected, else an explicit list of setup fields of the
 embedded definition (identity, project address, adapter, platforms, release
 provider, repository, rolling tag, package and executable hints), else their
 absence for a listing-only project; it never hashes Portcove's own
-serialization, so an application update alone keeps it. An earlier release
+serialization, so an application update alone keeps it. That list is a
+deliberate subset: it does not see later-added managed, curated or direct
+routes or changes to `user_prepared` or `reviewed_package_choices_v2`, which is
+safe because registration uses the retained listing and stays non-owning. An
+earlier release
 refuses a format 3 row, as it refuses any unknown record format: its startup
 download recovery fails, so it cannot open that library while the row exists.
 Running the newer release again and finishing or forgetting that setup removes
@@ -326,6 +330,10 @@ facts and the retained file's presence and size. Registration also verifies
 the retained package digest, bounded by its recorded size and cancellable.
 A changed source, definition, held restriction, artifact role or retained
 bytes invalidates the stage with a typed reason and Core's player message.
+Only a missing or non-file package, a size or digest mismatch, or a missing or
+different receipt counts as changed bytes. Any other read failure, such as
+another program holding the file, is a retryable error with Core's player
+message that records nothing, as cancellation does.
 A newer upstream release never invalidates: Core compares release identity
 and publication time as the download candidate does, and reports a newer
 version as a notice while registration proceeds. Capability reports and

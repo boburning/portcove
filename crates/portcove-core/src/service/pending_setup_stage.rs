@@ -308,9 +308,7 @@ fn invalidation_message(reason: &PendingSetupInvalidation) -> PendingSetupMessag
 /// Core's notice when a newer version exists. It never blocks registration of
 /// the game the player already set up.
 fn newer_release_notice(version: &str) -> String {
-    format!(
-        "Version {version} is newer than the one you downloaded. You can still add the game you set up."
-    )
+    format!("A newer version, {version}, is available. You can still add the game you set up.")
 }
 
 impl PendingSetupRecord {
@@ -524,6 +522,26 @@ pub(super) mod fault {
         FAULT.with(|cell| cell.set(fault));
     }
 
+    thread_local! {
+        static RETAINED_READ: Cell<bool> = const { Cell::new(false) };
+    }
+
+    /// Make every read of a waiting setup's retained download fail as a file
+    /// that another program holds open would, until reset.
+    pub(crate) fn fail_retained_reads(fail: bool) {
+        RETAINED_READ.with(|cell| cell.set(fail));
+    }
+
+    pub(super) fn retained_read() -> std::io::Result<()> {
+        if RETAINED_READ.with(Cell::get) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "injected retained read fault",
+            ));
+        }
+        Ok(())
+    }
+
     pub(super) fn check(point: StageWriteFault) -> crate::Result<()> {
         if FAULT.with(Cell::get) == Some(point) {
             FAULT.with(|cell| cell.set(None));
@@ -716,30 +734,11 @@ impl PortcoveService {
             RetainedSetupBytes::Package { file, sha256, size } => {
                 let path = record.path.join(file);
                 refuse_symlink_ancestors(&path)?;
-                let present = fs::symlink_metadata(&path)
-                    .is_ok_and(|metadata| metadata.is_file() && metadata.len() == *size);
-                match retained_check {
-                    RetainedCheck::Presence => present,
-                    RetainedCheck::Digest(checkpoint) => {
-                        present
-                            && match crate::adapter::hash_file_bounded_with_checkpoint(
-                                &path, *size, checkpoint,
-                            ) {
-                                Ok((actual, _)) => actual.eq_ignore_ascii_case(sha256),
-                                // Cancellation is the player's choice, not a
-                                // changed download.
-                                Err(error) if error.code == crate::ErrorCode::Cancelled => {
-                                    return Err(error);
-                                }
-                                Err(_) => false,
-                            }
-                    }
-                }
+                retained_package_matches(&path, sha256, *size, retained_check)
             }
-            RetainedSetupBytes::Extracted { .. } => {
-                self.publication_receipt_matches(stored).unwrap_or(false)
-            }
-        };
+            RetainedSetupBytes::Extracted { .. } => self.publication_receipt_still_matches(stored),
+        }
+        .map_err(retained_read_error)?;
         if !retained_matches {
             return Ok(Some(PendingSetupInvalidation::RetainedBytesChanged));
         }
@@ -982,7 +981,7 @@ impl PortcoveService {
         let stored = self.stored_pending_setup(port_id, &found.record.id)?;
         let (binding, stage) = self.staged_progress(&stored)?;
         self.require_continuable_stage(&stored, &binding, &stage, RetainedCheck::Presence)?;
-        let selection = selected_result(&preview)?;
+        let selection = selected_result(&preview, &|| Ok(()))?;
         if stage
             .selection()
             .is_none_or(|current| !current.same_choice(&selection))
@@ -1019,7 +1018,7 @@ impl PortcoveService {
             &stored,
             binding,
             PendingSetupStage::RegistrationReviewed {
-                selection: selected_result(preview)?,
+                selection: selected_result(preview, &|| Ok(()))?,
                 preview_sha256: preview.preview_sha256.clone(),
             },
         )?;
@@ -1054,6 +1053,45 @@ impl PortcoveService {
     }
 }
 
+/// Whether the retained package still has its recorded bytes. Only a missing
+/// file, something other than a file, or a size or digest mismatch means it
+/// changed. Any other read failure, such as another program holding the file,
+/// is returned so nothing is recorded and the player can try again.
+fn retained_package_matches(
+    path: &Path,
+    sha256: &str,
+    size: u64,
+    retained_check: RetainedCheck<'_>,
+) -> Result<bool> {
+    match retained_metadata(path) {
+        Ok(metadata) if metadata.is_file() && metadata.len() == size => {}
+        Ok(_) => return Ok(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    }
+    let RetainedCheck::Digest(checkpoint) = retained_check else {
+        return Ok(true);
+    };
+    let (actual, read) = crate::adapter::hash_file_bounded_with_checkpoint(path, size, checkpoint)?;
+    Ok(read == size && actual.eq_ignore_ascii_case(sha256))
+}
+
+/// Metadata of a retained setup file, with the test read-fault seam.
+pub(super) fn retained_metadata(path: &Path) -> std::io::Result<fs::Metadata> {
+    #[cfg(test)]
+    fault::retained_read()?;
+    fs::symlink_metadata(path)
+}
+
+/// A retained-download read failure the player can retry. Cancellation stays
+/// the player's own result.
+fn retained_read_error(error: PortcoveError) -> PortcoveError {
+    if error.code == crate::ErrorCode::Cancelled {
+        return error;
+    }
+    error.with_known_cause(crate::failure::KnownFailureCause::RetainedDownloadUnreadable)
+}
+
 fn retained_setup_guide(record: &PendingSetupRecord, url: &str) -> bool {
     [
         record.listing.setup_url.as_deref(),
@@ -1066,8 +1104,17 @@ fn retained_setup_guide(record: &PendingSetupRecord, url: &str) -> bool {
     .contains(&Some(url))
 }
 
-fn selected_result(preview: &crate::ExternalRuntimePreview) -> Result<SelectedSetupResult> {
-    let (executable_sha256, executable_size) = crate::adapter::hash_file(&preview.executable)?;
+/// The chosen program's identity, read with the same bounded, cancellable
+/// stable-file hashing that its preview used.
+fn selected_result(
+    preview: &crate::ExternalRuntimePreview,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<SelectedSetupResult> {
+    let (executable_sha256, executable_size) = crate::external_runtime::hash_stable_regular(
+        &preview.executable,
+        crate::external_runtime::MAX_FILE_BYTES,
+        checkpoint,
+    )?;
     Ok(SelectedSetupResult {
         executable: preview.executable.clone(),
         working_directory: preview.path.clone(),
@@ -1085,4 +1132,4 @@ fn selected_result(preview: &crate::ExternalRuntimePreview) -> Result<SelectedSe
 
 #[cfg(test)]
 #[path = "pending_setup_stage_tests.rs"]
-mod tests;
+pub(super) mod tests;
