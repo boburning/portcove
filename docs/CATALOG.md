@@ -3798,10 +3798,13 @@ blocked reason:
     identity, including platforms the fit would not enroll. No program of an
     archive that could be the game, on any platform, has a
     [program role word](#one-program-per-platform) in its file name or any
-    folder of its path (`role-program`). The archive offered on every
-    platform names a product that shares at least one word with the listing's
-    id, name or original title words or the repository name's words
-    (`archive-product-unrelated`); this rule only withholds.
+    folder of its path, nor a role word glued to the product's name
+    (`role-program`). No archive or program name holds a character outside
+    ASCII (`non-ascii-name`). The archive offered on every platform names a
+    product whose words, joined, are the listing's or repository's name, or
+    that shares an identifying word with them (`archive-product-unrelated`);
+    when only a shared word relates it, its program relates to the listing or
+    repository too (`program-product-unrelated`). These rules only withhold.
 12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
@@ -3909,27 +3912,63 @@ program is a launcher is refused, as the fit rule withholds it.
 
 A program named, or placed, for another role is not the game either. When a
 program of any archive that could be the game (on any platform) holds
-`debug`, `dedicated`, `headless`, `server`, `tools`, `editor`, `sdk` or
-`demo` as a whole word of its file name or of any folder of its path
-(`Game-debug.exe`, `GameServer.exe`, `server/Game.exe`, `tools/Game.exe`,
+`debug`, `dedicated`, `headless`, `server`, `tools`, `editor`, `sdk`, `demo`,
+`dbg`, `srv`, `ded`, `trial`, `shareware` or `test` as a whole word of its
+file name or of any folder of its path (`Game-debug.exe`, `GameServer.exe`,
+`server/Game.exe`, `tools/Game.exe`, `test/Game.exe`, `Game-trial.exe`,
 `Game Demo/Game.exe`), the whole identity is withheld as `role-program`, even
 beside the game's own program: a debug build is the same program by name,
-but nothing says which one the player should register. A word only
-containing the letters (`Serverless.exe`, `Demos.exe`, `Toolset/`,
-`Editorial/`) is another word. A demo is withheld too: it is not the listed
-game. The gate restates the word list and splitter and refuses every
-enrollment of such an identity, and every runtime naming such a program.
+but nothing says which one the player should register. Where no word
+boundary shows (glued or in capitals), the program's literal name (the file
+name lowercased, without `.exe`, letters and digits only) is compared with
+the listing's, repository's and archive's names joined: one of them with a
+role word before or after it (`gameserver.exe`, `GAMESERVER.EXE`,
+`gamedebug.exe`, `servergame.exe`) or a trailing `d` (`gamed.exe`) is a role
+program too. A word only containing the letters (`Serverless.exe`,
+`Demos.exe`, `Testament.exe`, `Toolset/`, `Editorial/`) or a name plus another
+word (`Gamer.exe`, `Gamedev.exe`) is not. A demo, trial or shareware build is
+withheld: it is not the listed game. The gate restates the word list, the
+splitter and the glued comparison and refuses every enrollment of such an
+identity, and every runtime naming such a program.
 
-An archive the listing does not name is not attributed to it. When the
-archive a platform would be offered from has product words
-([other package forms](#other-package-forms), `productIdentity`) that share
-no word with the listing's own words (`listing_words`) or the repository
-name's words (`Other-1.0-win64.zip` holding `Other.exe` for a listing named
-`Game` of repository `owner/game`, or an archive with no product words at
-all such as `win64.zip`), the whole identity is withheld as
-`archive-product-unrelated`. A shared word never proves the archive is the
-game; this rule only withholds. The gate restates it for every runtime and
-for the identity-wide candidate of each platform.
+A name with a character outside ASCII can imitate another name (a Cyrillic
+`а` in `Gаme.exe`, the full-width `Ｇａｍｅ.exe`). When any archive of the
+release or any of its programs has such a name, the whole identity is
+withheld as `non-ascii-name`; the gate restates the rule.
+
+An archive the listing does not name is not attributed to it. The archive a
+platform would be offered from relates to the listing when its product words
+([other package forms](#other-package-forms), `productIdentity`), joined,
+equal the listing's id, name or original title words joined, or the
+repository name's words joined (`supergame-1.0-win64.zip` for a listing named
+`Super Game` or a repository `owner/super-game`), or when they share an
+identifying word with the listing's own words (`listing_words`) or the
+repository name's words. Identifying words leave out, on both sides,
+articles, conjunctions and prepositions (`a`, `an`, `the`, `of`, `and`, `in`,
+`on`, `for`, `to`), the generic nouns `game` and `games`, single letters,
+pure digits and roman numerals (`identifyingWords`). An archive that relates
+neither way (`Other-1.0-win64.zip` for a listing named `Game`,
+`The-Other-1.0-win64.zip` for `The Game`, `Lord-of-Rings-…` for `Game of
+Life`, `Quake2-win64.zip` for `Doom 2`, or an archive with no product words at
+all such as `win64.zip`) withholds the whole identity as
+`archive-product-unrelated`. When an archive relates only by a shared word,
+its program must relate too: the program's literal name is the listing's or
+repository's name joined, or its file name's words share an identifying word
+with them. `Space-Other-1.0-win64.zip` holding only `Other.exe` for a listing
+named `Space Game` withholds the whole identity as `program-product-unrelated`.
+A relation never proves the archive is the game; these rules only withhold.
+The gate restates them for every runtime and for the identity-wide candidate
+of each platform.
+
+The cost of these name rules is stated, not hidden: they withhold real games
+whose release names only a platform (`win64.zip`, `linux.tar.gz`), whose
+title holds a role or launcher word as a word of its program or archive name
+(a title word `server`, `editor`, `demo` or `start`), whose archive uses an
+unrelated codename, or whose only program
+carries an architecture suffix beside an installer (`Game-x64.exe` beside
+`Game-1.0-Setup.exe`). Such identities stay in their queue with the matched
+evidence (`registration_queues.reason_evidence`) for a reviewed
+`route_facts_v1` enrollment or an authored integration.
 
 One program name is not one package, and equal programs are not one package
 either. A release can carry the full game and a small update archive that
@@ -4176,7 +4215,11 @@ the offered release, the line count, and the newer-prerelease check). The
 statements are `prerelease` (`prerelease`, or `pre` followed by `release`, so
 `pre-release`), `release-candidate` (`release` followed by `candidate`, or a
 standalone `rc`, also with digits: `RC1`, `1.0rc2`), `beta` and `alpha` (also
-with digits), `early-access` (`early` followed by `access`) and `unstable`.
+with digits), `early-access` (`early` followed by `access`), `unstable`,
+`nightly`, `experimental`, `wip`, `test-build` (`test` followed by `build`),
+`development-snapshot` (`development` followed by `snapshot`), and `preview`
+and `dev` only with a number (glued, `dev2`, or directly before one,
+`Preview 2`).
 Words are split at separators and letter/digit changes, never inside a word,
 so `Arc`, `Alphabet`, `Betamax` and `Publicity` state nothing.
 
@@ -4184,7 +4227,7 @@ A status word states the release's status only where a status stands, never
 anywhere in a sentence:
 
 - what never states anything is removed first: image references
-  (`![banner](beta.png)`), HTML tags, link targets (the link text stays),
+  (an image's alt text and file path), HTML tags, link targets (the link text stays),
   URLs, compare ranges (`v0.9-beta...v1.0`, as in GitHub's generated
   "Full Changelog" line) and image file names;
 - the word must be glued to digits (`rc2`, `1.0rc1`, `beta.2`), directly
@@ -4577,14 +4620,20 @@ content, each for the whole identity: `other-package-form-beside-archive`,
 toolchain, or a reviewed `route_facts_v1` enrollment covers the first-start
 build), `launcher-entry` (reconsider when listing data or release-bound
 metadata declares the launcher as the game's runtime entry), `role-program`
-(a program or its folder named for a debug, server, tools, editor, SDK or
-demo role) and `archive-product-unrelated` (the offered archive's product
-shares no word with the listing or its repository). When no platform fits, the reason is the first of
+(a program or its folder named for a debug, server, tools, editor, SDK, demo,
+trial or test role), `non-ascii-name` (an archive or program name outside
+ASCII), `archive-product-unrelated` (the offered archive relates to neither
+the listing nor its repository) and `program-product-unrelated` (an archive
+related only by a shared word whose program relates to neither). When no platform fits, the reason is the first of
 `ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
 `unknown-platform`, `non-desktop-platform`, `contradictory-role`,
 `tool-not-game`, `no-authorizing-source` and `no-player` that any platform
 gave. `bundled-toolchain` follows `core-refused` in that order.
-`registration_queues` also holds `bundled_toolchains` (each withheld
+`registration_queues` also holds `reason_evidence` (per reason among
+`role-program`, `launcher-entry`, `non-ascii-name`,
+`archive-product-unrelated` and `program-product-unrelated`, per withheld
+identity, the matched word with the program path, or the platform with the
+archive name and program path), `bundled_toolchains` (each withheld
 identity's helper names), `inspection_failures` (the
 `repeated-inspection-failure` identities by typed cause),
 `same_product_forms` (per identity, the other package forms attributed to
@@ -4627,7 +4676,18 @@ could hold the platform's game. It restates the #8569 cohort rules with its
 own code too: the release text statements (the title's re-derived from the
 recorded title), product-word attribution with its player check
 (`gateProduct`), source archives, the identity-wide toolchain rule and the
-launcher words. The facts
+launcher words. It restates the listing-level withholds from the authored
+records the generation decided, before any generated route was added: no
+authored integration or `route_facts_v1` enrollment (one runtime owner), not
+the ScummVM engine, availability neither `source-only` nor `unavailable`, a
+GitHub repository that is one of the listing's own (by its project or release
+URL, case-insensitive), and facts from the current parser version. Every fit
+withholding reason has a gate restatement except two, each exempted with its
+reason (`gateExemptions`): `route-held`, because Core evaluates the listing's
+acquisition restrictions itself for every registration and launch, and
+`guide-bound`, because Core's listing validation refuses a guide over eight
+entries. A test enumerates every reason and forces one enrollment past the
+fit for each, which the gate must refuse. The facts
 table's `generated_at` may not be earlier than the baseline facts table's,
 because facts age is measured against that time. `--check` also requires the
 committed table to equal the generator output, so a hand-edited table is
@@ -4641,8 +4701,14 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 18, the facts parser version from 5 to 19 and
-the facts table format from 4 to 15 (generator 18, parser 19 and format 15:
+generator version from 5 to 19, the facts parser version from 5 to 20 and
+the facts table format from 4 to 16 (generator 19, parser 20 and format 16:
+identifying words and joined names for archive relation,
+`program-product-unrelated`, `non-ascii-name`, glued and abbreviated role
+words, the gate's listing-level restatements and exemptions, the
+`reason_evidence` queue, and `nightly`, `preview`, `experimental`,
+`test-build`, `development-snapshot`, `wip` and `dev` release text
+statements; generator 18, parser 19 and format 15:
 product-form relief only for a program named literally for the product and
 only for the listing's product, `role-program`, `archive-product-unrelated`,
 `dedicated`, `headless` and `demo` archive role words, `launch`, `start`,

@@ -1,5 +1,5 @@
 {
-  "format": 15,
+  "format": 16,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -19,7 +19,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -120,7 +120,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -207,7 +207,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -292,7 +292,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -383,7 +383,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -468,7 +468,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -553,7 +553,7 @@
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 19,
+      "parser_version": 20,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -623,5 +623,5 @@
       ]
     }
   ],
-  "entries_sha256": "79ac293b6421fa75e3eca15ea736611bcf2550090749a39d5f0ec23da33c557f"
+  "entries_sha256": "82a54e95ed6c044119670487efbbf38c44dc0ca9be6701625e14cb5204c3fffa"
 }

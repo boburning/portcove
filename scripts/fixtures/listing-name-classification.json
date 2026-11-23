@@ -229,7 +229,25 @@
       "Demos.exe",
       "Game2.exe",
       "Game-2.exe",
-      "Super_Game.exe"
+      "Super_Game.exe",
+      "gameserver.exe",
+      "GAMESERVER.EXE",
+      "gamedebug.exe",
+      "gamed.exe",
+      "servergame.exe",
+      "Game-dbg.exe",
+      "Game-srv.exe",
+      "Game-ded.exe",
+      "Game-trial.exe",
+      "Game-shareware.exe",
+      "Game-test.exe",
+      "Gamedev.exe",
+      "Testament.exe",
+      "Trialsmith.exe",
+      "Gamer.exe",
+      "Gаme.exe",
+      "Ｇａｍｅ.exe",
+      "Space.exe"
     ]
   },
   "output": {
@@ -1173,6 +1191,78 @@
       },
       {
         "name": "Super_Game.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gameserver.exe",
+        "tool_token": null
+      },
+      {
+        "name": "GAMESERVER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "gamedebug.exe",
+        "tool_token": null
+      },
+      {
+        "name": "gamed.exe",
+        "tool_token": null
+      },
+      {
+        "name": "servergame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-dbg.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-srv.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-ded.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-trial.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-shareware.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Game-test.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gamedev.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Testament.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Trialsmith.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gamer.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Gаme.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Ｇａｍｅ.exe",
+        "tool_token": null
+      },
+      {
+        "name": "Space.exe",
         "tool_token": null
       }
     ]
