@@ -172,16 +172,82 @@ function releaseRepository(port: Record<string, unknown>) {
     : undefined;
 }
 
+type CfgPredicate =
+  | { op: "all" | "any" | "not"; args: CfgPredicate[] }
+  | { op: "option"; name: string; value?: string };
+
+/** Parses a `cfg` predicate; undefined when its shape is not a cfg predicate. */
+function parseCfgPredicate(predicate: string): CfgPredicate | undefined {
+  const tokens = predicate.match(/"(?:\\.|[^"\\])*"|[A-Za-z_][A-Za-z0-9_]*|[(),=]|\S/gu) ?? [];
+  let position = 0;
+  const parse = (): CfgPredicate | undefined => {
+    const name = tokens[position++];
+    if (!name || !/^[A-Za-z_]/u.test(name)) return undefined;
+    if (tokens[position] === "=") {
+      position++;
+      const value = tokens[position++];
+      return value?.startsWith('"') ? { op: "option", name, value } : undefined;
+    }
+    if (tokens[position] !== "(") return { op: "option", name };
+    if (name !== "all" && name !== "any" && name !== "not") return undefined;
+    position++;
+    const args: CfgPredicate[] = [];
+    while (tokens[position] !== ")") {
+      const argument = parse();
+      if (!argument) return undefined;
+      args.push(argument);
+      if (tokens[position] === ",") position++;
+      else if (tokens[position] !== ")") return undefined;
+    }
+    position++;
+    return name === "not" && args.length !== 1 ? undefined : { op: name, args };
+  };
+  const parsed = parse();
+  return parsed && position === tokens.length ? parsed : undefined;
+}
+
+/** Whether every configuration that satisfies the predicate has `test` set. */
+function requiresTest(predicate: CfgPredicate): boolean {
+  switch (predicate.op) {
+    case "option":
+      return predicate.name === "test" && predicate.value === undefined;
+    case "all":
+      return predicate.args.some(requiresTest);
+    case "any":
+      return predicate.args.length > 0 && predicate.args.every(requiresTest);
+    case "not":
+      return false;
+  }
+}
+
+/** Whether a `feature = "..."` option appears outside every `not(...)`. */
+function namesFeaturePositively(predicate: CfgPredicate): boolean {
+  switch (predicate.op) {
+    case "option":
+      return predicate.name === "feature" && predicate.value !== undefined;
+    case "all":
+    case "any":
+      return predicate.args.some(namesFeaturePositively);
+    case "not":
+      return false;
+  }
+}
+
 /**
- * How a `#[cfg(...)]` predicate gates an item: `test` is exactly `cfg(test)`
- * (like a `#[test]` function) and is excluded from every inventory; `feature`
- * is any other predicate that names a Cargo feature (for example
+ * How a `#[cfg(...)]` predicate gates an item: `test` is a predicate that can
+ * only hold in a test build, because `test` is a required conjunct (exactly
+ * `cfg(test)`, `all(test, windows)`, nested `all`; like a `#[test]` function),
+ * and is excluded from every inventory; `feature` is any other predicate that
+ * names a Cargo feature outside any `not(...)` (for example
  * `any(test, feature = "...")`) and is inventoried separately; anything else
- * (platform gates, negations) is production code.
+ * (platform gates, negations such as `any(test, not(feature = "..."))`,
+ * `any(test, windows)`, predicates the parser cannot read) is production code.
  */
 export function cfgClass(predicate: string): "test" | "feature" | "production" {
   const trimmed = predicate.trim();
-  if (trimmed === "test") return "test";
+  const parsed = parseCfgPredicate(trimmed);
+  if (parsed && requiresTest(parsed)) return "test";
+  if (parsed) return namesFeaturePositively(parsed) ? "feature" : "production";
   if (!/^not\s*\(/u.test(trimmed) && /\bfeature\s*=/u.test(trimmed)) return "feature";
   return "production";
 }
@@ -282,7 +348,7 @@ export function partitionCfgItems(text: string): {
   };
 }
 
-/** Text with exactly-`#[cfg(test)]` items removed; feature-gated items are kept. */
+/** Text with test-only (`cfgClass` "test") items removed; feature-gated items are kept. */
 export function withoutTestItems(text: string): string {
   let result = "";
   let index = 0;
@@ -302,7 +368,7 @@ interface CoreFiles {
 
 /**
  * Core Rust files by build: test-named files and directories and modules
- * declared under exactly `#[cfg(test)]` are excluded; modules declared under a
+ * declared under a test-only predicate are excluded; modules declared under a
  * feature predicate are feature-gated, with everything beneath them.
  */
 function coreRustFiles(root: string): CoreFiles {
@@ -635,7 +701,7 @@ export const authorityKinds: readonly AuthorityKind[] = [
   {
     kind: "core-title-literal",
     description:
-      "Production Core Rust source that compares or binds a literal catalog identity (exactly-#[cfg(test)] code and feature-gated code excluded).",
+      "Production Core Rust source that compares or binds a literal catalog identity (test-only #[cfg(...)] code, whose predicate requires `test`, and feature-gated code excluded).",
     detector: `${coreSource}/**/*.rs production files containing a quoted catalog identity`,
     retired: false,
     detect(root, context) {
