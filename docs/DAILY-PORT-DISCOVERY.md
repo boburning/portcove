@@ -891,7 +891,9 @@ store owns lead collection for that runner, and `plan` reports
 
 The journal and the lead summary record the stored revision, record count and
 bytes read (`lead_collection`). The store's searches satisfy the run's search
-requirement, so `recheck` and `finish` can complete without local searches. If
+requirement, so `recheck` and `finish` can complete without local searches. A
+scope filled only by `import-local` also counts, although no collector has
+searched it since; run `discovery-worker.mts collect` once after an import. If
 the store is empty, local collection runs as before. If the store is
 unavailable or its admission is deferred, local collection also runs as before,
 and a partial note records why. `plan` reports the configured mode; a fallback

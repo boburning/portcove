@@ -885,6 +885,8 @@ export async function readStoredLeads(
       { reservationBytes: storedLeadsReservation(forecast) },
     );
     bytes += snapshot.bytes;
+    // Commits are half a lease apart and a read takes seconds; every repeat is
+    // admitted again, so a deferred admission ends the loop.
     if (snapshot.outcome === "moved") continue;
     if (snapshot.outcome === "empty") return { outcome: "empty", bytes };
     const state = parseWorkerState(snapshot.state);
