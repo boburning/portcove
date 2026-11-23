@@ -200,9 +200,10 @@ Nightly preview by hand on `main` after that `CI` run succeeds. Then check that
 
 **Rollback:** do not revert the change. A revert changes the feed list the
 nightly sends, so a nightly that picks an older commit would fail after
-tagging. Instead, change `feedAccepts` in `scripts/app-release.mts` to refuse a
-preview on Beta, and merge that through normal review. Later previews then
-write only the Preview feed. The Beta file keeps its last preview until a Beta
+tagging. Instead, change `scripts/app-release.mts` so that `feedAccepts` refuses a
+preview on Beta and `replacementCandidates` offers Beta no preview. Merge that
+through normal review. Later previews then write only the Preview feed, and a
+withdrawal no longer puts a preview on Beta. The Beta file keeps its last preview until a Beta
 release replaces it or a withdrawal repoints it. Deleting that file from
 `gh-pages` makes default installations stop finding updates again, so that
 needs the owner's decision.
