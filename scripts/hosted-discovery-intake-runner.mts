@@ -302,9 +302,14 @@ async function main() {
       requests,
     );
   const scheduledMode = process.env.HOSTED_INTAKE_MODE;
+  // Tests redirect the receipt away from the checkout; workflows use the default.
+  const receiptDirectory = process.env.HOSTED_INTAKE_RECEIPT_DIRECTORY
+    ? path.resolve(root, process.env.HOSTED_INTAKE_RECEIPT_DIRECTORY)
+    : directory;
+  mkdirSync(receiptDirectory, { recursive: true });
   const recordReceipts = (outcome: ScheduledReceiptPass) =>
     writeFileSync(
-      path.join(directory, "scheduled-receipts.json"),
+      path.join(receiptDirectory, "scheduled-receipts.json"),
       JSON.stringify({ ...outcome.receipts, eligible_audits: outcome.tickets.length }),
     );
   if (scheduledMode === "scheduled-receipts") {

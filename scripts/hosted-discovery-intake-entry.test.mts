@@ -15,7 +15,6 @@ import { migrate } from "./maintenance-store.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const runner = path.join(root, "scripts/hosted-discovery-intake-runner.mts");
-const receiptFile = path.join(root, "work/hosted-discovery-intake/scheduled-receipts.json");
 const server = postgresServer();
 
 /** GET-only #177 fixture with an empty request queue; every other request is refused. */
@@ -39,7 +38,8 @@ function runScheduledReceipts(database: string, extra: NodeJS.ProcessEnv = {}) {
     writeFileSync(preload, githubFixture);
     const output = path.join(directory, "github-output");
     writeFileSync(output, "");
-    rmSync(receiptFile, { force: true });
+    // The receipt goes to this temporary directory, never the checkout's work/.
+    const receiptFile = path.join(directory, "receipts", "scheduled-receipts.json");
     const result = spawnSync(process.execPath, ["--import", pathToFileURL(preload).href, runner], {
       cwd: root,
       encoding: "utf8",
@@ -61,6 +61,7 @@ function runScheduledReceipts(database: string, extra: NodeJS.ProcessEnv = {}) {
         PORTCOVE_DISCOVERY_DATABASE_URL: database,
         PORTCOVE_MAINTENANCE_PURPOSE: "schedule",
         HOSTED_INTAKE_MODE: "scheduled-receipts",
+        HOSTED_INTAKE_RECEIPT_DIRECTORY: path.dirname(receiptFile),
       },
     });
     assert.ifError(result.error);
@@ -92,7 +93,10 @@ void test("scheduled receipt CLI reaches a terminal receipt when its store is un
 });
 
 void test(
-  "scheduled receipt CLI admits and records a passed receipt against a migrated store",
+  // A local non-Neon host bypasses maintenance admission: no reservation is
+  // acquired and no terminal admission outcome is written. That outcome is
+  // observable only on the hosted scheduled run.
+  "scheduled receipt CLI records a passed receipt against a migrated local store where admission is bypassed",
   { skip: server.skip ?? false, timeout: 120_000 },
   (context) => {
     const fixture = postgresFixture(context, server.directory!);

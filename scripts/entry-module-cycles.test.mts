@@ -7,11 +7,18 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { init, parse } from "es-module-lexer";
 
-// A module whose top-level await is still pending cannot finish another import
-// graph that contains it. If code reached during that await dynamically imports
-// a module that (statically) leads back to it, Node empties the event loop and
-// exits 13 with "unsettled top-level await" (#8417). Executable scripts are the
-// modules with top-level await; derive them from the source, never by hand.
+// Guards one deadlock shape (#8417): a module whose top-level await is still
+// pending cannot finish another import graph that contains it. If code in that
+// module's own reachable graph dynamically imports a module whose static graph
+// leads back to it, Node empties the event loop and exits 13 with "unsettled
+// top-level await". A pending non-awaiting ancestor is covered transitively: a
+// target that statically reaches the ancestor also reaches the awaiting module.
+// Top-level-await modules are derived from the source, never listed by hand.
+//
+// Not covered: dynamic imports in code outside the awaiting module's reachable
+// graph (for example a callback from a sibling the ancestor evaluated earlier),
+// non-literal or bare/package `import()` specifiers, and `.mjs`, `.ts` or other
+// non-`.mts` files. This is not a general "no entry imports an entry" rule.
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -126,7 +133,19 @@ void test("the deadlock rule reports a dynamic import that re-enters an awaiting
   assert.deepEqual([...deadlockCandidates(graph, ["runner"])], []);
 });
 
-void test("no script dynamically re-enters a module whose top-level await is pending", async () => {
+void test("the deadlock rule reports re-entry through a pending non-awaiting ancestor", () => {
+  const edges = (s: string[], d: string[] = []) => ({ static: new Set(s), dynamic: new Set(d) });
+  // main has no top-level await but statically imports the awaiting lib, so it
+  // stays pending while lib awaits; status re-enters main, not lib directly.
+  const graph = new Map<string, ModuleEdges>([
+    ["main", edges(["lib"])],
+    ["lib", edges([], ["status"])],
+    ["status", edges(["main"])],
+  ]);
+  assert.deepEqual([...deadlockCandidates(graph, ["lib"])], ["lib: lib -> import(status)"]);
+});
+
+void test("no .mts script dynamically re-enters, by a literal relative specifier, a module whose top-level await is pending", async () => {
   const files = scriptModules();
   const { graph, sources } = await moduleGraph(files);
   const awaiting = topLevelAwaitModules(sources);
