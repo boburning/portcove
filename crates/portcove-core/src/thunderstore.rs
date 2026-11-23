@@ -655,7 +655,9 @@ fn chunk_store(library: &Library) -> std::path::PathBuf {
 /// The SHA-256 a Thunderstore blob location names (`.../sha256/<hex>...`):
 /// the digest of the compressed bytes it serves.
 fn chunk_digest(chunk: &reqwest::Url) -> Option<&str> {
-    let (_, rest) = chunk.path().split_once("/sha256/")?;
+    let mut segments = chunk.path_segments()?;
+    segments.by_ref().find(|segment| *segment == "sha256")?;
+    let rest = segments.next()?;
     let digest = rest.get(..64)?;
     (digest
         .bytes()

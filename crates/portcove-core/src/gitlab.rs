@@ -3087,7 +3087,7 @@ mod tests {
         // Tags compare without regard to case, as before the exact lookup: a
         // tag published as `Nightly` is still found, through history.
         let (root, requests, server) = serve_routed_http(2, |request| {
-            if request.contains("/releases/nightly ") {
+            if request.contains("releases/nightly HTTP") {
                 return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                     .into();
             }
@@ -3112,7 +3112,7 @@ mod tests {
 
         // Absent only when both the exact lookup and the complete history say so.
         let (root, _requests, server) = serve_routed_http(2, |request| {
-            if request.contains("/releases/nightly ") {
+            if request.contains("releases/nightly HTTP") {
                 return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                     .into();
             }
