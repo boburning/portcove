@@ -1,4 +1,3 @@
-import { GitHubApiClient } from "./github-api.mts";
 import { nextLink } from "./github-operation.mts";
 import { coordinatorCommandDeadline } from "./release-coordinator-deadline.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
@@ -67,9 +66,10 @@ type ReleaseProjection = "publication" | "notes" | "raw";
 
 /** Rows of a scan continued across budget windows from a checkpoint. Every
  * page was read and the provider reported exhaustion, and the resume re-read
- * the head page and the last accepted page unchanged. Pages read before the
- * interruption are not re-observed, so an in-place edit of an older record, or
- * an add and a delete that cancel out behind the head page, can go unseen.
+ * the head page and the last accepted page unchanged, before and again after
+ * the continued walk. Pages read in an earlier window are not otherwise
+ * re-observed, so an in-place edit of an older record can go unseen, and for
+ * tags an add and a delete that cancel out behind the head page can too.
  * Releases list newest first, so a new Release lands on the head page; tags
  * list alphabetically, so a tag composite usually misses a new tag. A
  * composite is therefore not allocation or conflict authority on its own:
@@ -512,22 +512,6 @@ export function createReleasePublicationReader(rawApi: Api) {
   };
   const get = (endpoint: string) =>
     api.request("GET", endpoint ? `${base}/${endpoint}` : base).body;
-  const page = (endpoint: string) =>
-    GitHubApiClient.prototype.paginateRest
-      .call({ request: api.request.bind(api) }, `${base}/${endpoint}`, {
-        select: (body: unknown) => {
-          if (!Array.isArray(body) || body.length > 100)
-            throw new Error("admission collection page is incomplete or oversized");
-          return body as unknown[];
-        },
-        identity: (item: unknown) => {
-          const id = record(item).id;
-          integer(id);
-          return id;
-        },
-        label: "release admission inventory",
-      })
-      .map(record);
   const nodeId = repositoryNodeId(get(""));
   const scanTags = (refPrefix: string, resume?: PublicationInventoryCheckpoint) => {
     const scan = tagScan(refPrefix, resume);
@@ -553,10 +537,20 @@ export function createReleasePublicationReader(rawApi: Api) {
       name,
     );
   };
-  const releases = () =>
-    page("releases?per_page=100")
-      .map(inspectPublicationReleaseRecord)
-      .sort((a, b) => a.id - b.id);
+  const releases = () => {
+    const scan = releaseScan("/releases", "publication");
+    return runLegacySequence(
+      walkReleaseInventory(scan, inspectPublicationReleaseRecord),
+      (url) => {
+        const response = api.request("GET", url.href);
+        return {
+          data: response.body,
+          headers: { link: response.headers.get("link") ?? undefined },
+        };
+      },
+      scan,
+    ).sort((a, b) => a.id - b.id);
+  };
 
   const readAllocations = (initialTags: Record<string, unknown>[], namespace: string) =>
     runLegacySequence(readAllocationPairs(initialTags, namespace), (sha) =>
@@ -838,39 +832,49 @@ function nextInventoryRoute(link: unknown, page: number, suffix: string, rows: n
   return route.href;
 }
 
+type ReleasePage = { data: unknown; headers: { link?: unknown } };
+
 /** Reads a Release collection until the provider has no next page. There is no
  * record or page ceiling; the caller's request and time budgets pace the scan.
  * A failed read ends with a resumable checkpoint. Resuming first re-reads the
  * head page (where a new Release appears) and the last accepted page (which a
- * deletion shifts), and fails if either changed instead of skipping rows. */
-async function readReleaseInventoryPages<T>(
-  read: InventoryRead,
+ * deletion shifts), and fails if either changed instead of skipping rows.
+ *
+ * Listing is page-number based and newest first, so a Release deleted from an
+ * already-read page during the walk shifts every later page back by one: the
+ * first row of the next page is never returned and no duplicate shows it. A
+ * deleted Release ID never returns, so before the walk is accepted every
+ * accepted page except the last one this walk read is re-read and must hold
+ * the identical IDs in the identical order; a deletion behind the walk leaves
+ * the page that held it different. A new Release shifts rows forward into a
+ * duplicate, which is refused. A final page that is full is followed by one
+ * probe of the next page, which must be empty, so a provider that drops the
+ * `next` relation exactly at a page boundary is refused. A provider that ends
+ * a short page without `next` while more Releases exist is not detectable from
+ * the REST listing, which reports no total. Any mismatch is incomplete, never
+ * complete, and the scan's checkpoint is kept for a retry. */
+function* walkReleaseInventory<T>(
+  scan: ReleaseScan,
   project: (row: Record<string, unknown>) => T,
-  projection: ReleaseProjection,
-  suffix = "/releases",
-  resume?: PublicationInventoryCheckpoint,
-) {
-  const scan = releaseScan(suffix, projection, resume);
+): Generator<URL, T[], ReleasePage> {
+  const { suffix } = scan;
+  const first = `https://api.github.com/${base}${suffix}?per_page=100`;
   const ids = new Set(scan.ids);
-  const step = async (route: URL) => {
-    try {
-      return await read(route);
-    } catch (error) {
-      throw new PublicationInventoryIncompleteError(error, scan);
-    }
-  };
   const sameIds = (body: unknown, ids: number[]) =>
     Array.isArray(body) &&
     body.length === ids.length &&
     body.every((raw, index) => record(raw).id === ids[index]);
+  // Pages that end-of-walk verification re-reads, in the order they were read.
+  const verify: { route: string; ids: number[] }[] = [];
   if (scan.previous) {
     const previous = scan.previous;
     if (scan.page > 2) {
-      const head = await step(new URL(`https://api.github.com/${base}${suffix}?per_page=100`));
+      const head = yield new URL(first);
       if (!sameIds(head.data, scan.head))
         throw new Error("release inventory changed before its resume point");
+      verify.push({ route: first, ids: scan.head });
     }
-    const response = await step(new URL(previous.route));
+    const response = yield new URL(previous.route);
     const body: unknown = response.data;
     if (
       !Array.isArray(body) ||
@@ -878,10 +882,11 @@ async function readReleaseInventoryPages<T>(
       nextInventoryRoute(response.headers.link, scan.page - 1, suffix, body.length) !== scan.route
     )
       throw new Error("release inventory changed before its resume point");
+    verify.push(previous);
   }
   let route = new URL(scan.route);
   for (;;) {
-    const response = await step(route);
+    const response = yield route;
     const body: unknown = response.data;
     if (!Array.isArray(body) || body.length > 100)
       throw new Error("release inventory page is incomplete or oversized");
@@ -897,16 +902,54 @@ async function readReleaseInventoryPages<T>(
       pageRows.push(project(row));
     }
     const next = nextInventoryRoute(response.headers.link, scan.page, suffix, body.length);
+    if (next === null) {
+      // Verify before accepting the final page, so a failure keeps a checkpoint
+      // that resumes at this page rather than one that claims the walk ended.
+      if (body.length === 100) {
+        const probe = new URL(route);
+        probe.searchParams.set("page", String(scan.page + 1));
+        const after = yield probe;
+        if (
+          !Array.isArray(after.data) ||
+          after.data.length ||
+          nextInventoryRoute(after.headers.link, scan.page + 1, suffix, 0) !== null
+        )
+          throw new PublicationInventoryIncompleteError(
+            new Error("release inventory pagination ended before the provider was exhausted"),
+            scan,
+          );
+      }
+      for (const page of verify) {
+        const again = yield new URL(page.route);
+        if (!sameIds(again.data, page.ids))
+          throw new PublicationInventoryIncompleteError(
+            new Error("release inventory changed during the scan"),
+            scan,
+          );
+      }
+    }
     for (const id of pageIds) ids.add(id);
     if (scan.page === 1) scan.head = pageIds;
     scan.ids.push(...pageIds);
     scan.rows.push(...pageRows);
     if (next === null) return scan.rows as T[];
+    verify.push({ route: route.href, ids: pageIds });
     scan.previous = { route: route.href, ids: pageIds };
     scan.page++;
     scan.route = next;
     route = new URL(next);
   }
+}
+
+async function readReleaseInventoryPages<T>(
+  read: InventoryRead,
+  project: (row: Record<string, unknown>) => T,
+  projection: ReleaseProjection,
+  suffix = "/releases",
+  resume?: PublicationInventoryCheckpoint,
+) {
+  const scan = releaseScan(suffix, projection, resume);
+  return runSequence(walkReleaseInventory(scan, project), read, scan);
 }
 
 export { peel as peelReleaseReference, refsQuery as releasePublicationRefsQuery };

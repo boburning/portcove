@@ -26,6 +26,7 @@ import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import {
   PublicationInventoryIncompleteError,
   createPublicationInventoryWithSdk,
+  createReleasePublicationReader,
   readPublicationAllocationsWithSdk,
   releasePublicationPrefixRefsQuery,
   releasePublicationRefsQuery,
@@ -1248,10 +1249,12 @@ void test("source publication inventory keeps ordered short pages, exact repo al
         (await reader.releases()).map((row) => row.id),
         [1, 3],
       );
+      // The walk's earlier page is re-read once at the end and must not change.
       assert.deepEqual(routes, [
         "/repos/boburning/portcove",
         "/repos/boburning/portcove/releases?per_page=100",
         second,
+        "/repos/boburning/portcove/releases?per_page=100",
       ]);
     }
   }
@@ -1634,8 +1637,9 @@ for (const count of [1000, 5000, 20000])
     const provider = simulatedPublicationProvider(count);
     const ids = Array.from({ length: count }, (_, index) => index + 1);
     const names = provider.tags.map((row) => row.name);
-    if (count <= 15000) {
-      // Within one reader's request budget the read is a single pass.
+    if (count <= 7900) {
+      // Within one reader's request budget (walk plus end-of-walk re-reads,
+      // about 7,900 Releases) the read is a single pass.
       const reader = await openSimulatedInventory(provider);
       assert.deepEqual(
         (await reader.releases()).map((row) => row.id),
@@ -1727,6 +1731,26 @@ void test("resuming fails visibly when the head page or the last accepted page c
   }
 });
 
+void test("a Release deleted behind a resumed window during its walk fails visibly", async () => {
+  const provider = simulatedPublicationProvider(20000);
+  const interrupted = await interruptedScan(provider, (reader) => reader.releases());
+  let deleted = false;
+  provider.fault = (url) => {
+    // Delete a Release from an earlier window's page while page 170 is read.
+    if (!deleted && url.searchParams.get("page") === "170") {
+      provider.releases.splice(provider.releases.length - 5000, 1);
+      deleted = true;
+    }
+    return undefined;
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).resumeReleases(interrupted.checkpoint),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /changed during the scan/u.test(error.message),
+  );
+});
+
 void test("a composite continuation does not re-observe edits to already-read records", async () => {
   const provider = simulatedPublicationProvider(20000);
   const interrupted = await interruptedScan(provider, (reader) => reader.releases());
@@ -1743,6 +1767,137 @@ void test("a composite continuation does not re-observe edits to already-read re
     (await openSimulatedInventory(provider)).releases(),
     PublicationInventoryIncompleteError,
   );
+});
+
+void test("a single-pass Release read of one short page costs no verification requests", async () => {
+  const provider = simulatedPublicationProvider(15);
+  const reader = await openSimulatedInventory(provider);
+  const before = provider.requests;
+  assert.equal((await reader.releases()).length, 15);
+  assert.equal(provider.requests - before, 1);
+});
+
+void test("a Release deleted from an already-read page during a single pass fails visibly", async () => {
+  for (const deletedPage of [1, 3]) {
+    const provider = simulatedPublicationProvider(1000);
+    const removed = provider.releases.at(-((deletedPage - 1) * 100 + 7))!.id;
+    const skipped = provider.releases.at(-(5 * 100 + 1))!.id;
+    let deleted = false;
+    provider.fault = (url) => {
+      // Delete after page 5 is read and before page 6: page 6 loses its first row.
+      if (!deleted && url.searchParams.get("page") === "6") {
+        provider.releases.splice(
+          provider.releases.findIndex((row) => row.id === removed),
+          1,
+        );
+        deleted = true;
+      }
+      return undefined;
+    };
+    const error = await (await openSimulatedInventory(provider)).releases().then(
+      () => assert.fail("a walk that skipped a Release resolved as complete"),
+      (cause: unknown) => cause,
+    );
+    assert.ok(error instanceof PublicationInventoryIncompleteError);
+    assert.match(error.message, /release inventory changed during the scan/u);
+    // The checkpoint never claims the shifted row was read.
+    assert.ok(!error.checkpoint.rows.some((row) => isRecord(row) && row.id === skipped));
+    // A fresh read after the change is complete again.
+    provider.fault = undefined;
+    const rows = await (await openSimulatedInventory(provider)).releases();
+    assert.equal(rows.length, 999);
+    assert.ok(rows.some((row) => row.id === skipped));
+  }
+});
+
+void test("a Release published mid-walk fails visibly in a single pass", async () => {
+  const provider = simulatedPublicationProvider(1000);
+  let published = false;
+  provider.fault = (url) => {
+    if (!published && url.searchParams.get("page") === "4") {
+      provider.releases.push({ ...provider.releases.at(-1)!, id: 5000, tag_name: "v9.9.9" });
+      published = true;
+    }
+    return undefined;
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(),
+    /duplicates a Release ID/u,
+  );
+});
+
+void test("a provider that drops the next relation at a full page boundary fails visibly", async () => {
+  const provider = simulatedPublicationProvider(1000);
+  provider.fault = (url) => {
+    const page = Number(url.searchParams.get("page") ?? "1");
+    if (url.pathname !== "/repos/boburning/portcove/releases" || page !== 4) return undefined;
+    // A full page without `next`, although six more pages exist.
+    return Response.json([...provider.releases].reverse().slice(300, 400));
+  };
+  await assert.rejects(
+    (await openSimulatedInventory(provider)).releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /ended before the provider was exhausted/u.test(error.message),
+  );
+});
+
+void test("a provider that ends a short page without next is the documented residual", async () => {
+  // REST Release listing reports no total, so a short page without `next` is
+  // indistinguishable from the real end. This pins the residual, not a defect.
+  const provider = simulatedPublicationProvider(1000);
+  provider.fault = (url) =>
+    url.pathname === "/repos/boburning/portcove/releases" && url.searchParams.get("page") === "4"
+      ? Response.json([...provider.releases].reverse().slice(300, 350))
+      : undefined;
+  assert.equal((await (await openSimulatedInventory(provider)).releases()).length, 350);
+});
+
+void test("the legacy synchronous Release reader verifies its walk the same way", () => {
+  const provider = simulatedPublicationProvider(300);
+  const listing = () => [...provider.releases].reverse();
+  let deleted = false;
+  const reader = createReleasePublicationReader({
+    request(method, endpoint) {
+      assert.equal(method, "GET");
+      const url = new URL(endpoint, "https://api.github.com/");
+      if (url.pathname === "/repos/boburning/portcove")
+        return {
+          headers: new Map(),
+          body: { id: 1354613114, full_name: "boburning/portcove", node_id: "R_scale" },
+        };
+      const page = Number(url.searchParams.get("page") ?? "1");
+      if (page === 2 && !deleted) {
+        provider.releases.splice(provider.releases.length - 3, 1);
+        deleted = true;
+      }
+      const rows = listing().slice((page - 1) * 100, page * 100);
+      const more = page * 100 < listing().length;
+      return {
+        headers: new Map(
+          more
+            ? [
+                [
+                  "link",
+                  `<https://api.github.com/repos/boburning/portcove/releases?per_page=100&page=${page + 1}>; rel="next"`,
+                ],
+              ]
+            : [],
+        ),
+        body: rows,
+      };
+    },
+    graphql() {
+      throw new Error("not used");
+    },
+  });
+  assert.throws(
+    () => reader.releases(),
+    (error: unknown) =>
+      error instanceof PublicationInventoryIncompleteError &&
+      /changed during the scan/u.test(error.message),
+  );
+  assert.equal(reader.releases().length, 299);
 });
 
 void test("exact identity and namespace receipt reads detect conflicts beyond the former bound at 20,000 tags", async () => {

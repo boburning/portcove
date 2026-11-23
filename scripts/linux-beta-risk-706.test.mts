@@ -902,11 +902,14 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
   delete process.env.GITHUB_ACTIONS;
   process.env.NODE_USE_ENV_PROXY = "1";
   const prefix = "https://api.github.com/repos/boburning/portcove/releases";
+  // Each walk re-reads its earlier page once at the end and requires it unchanged.
   const routes = [
     `${prefix}?per_page=100`,
     "https://api.github.com/repositories/1354613114/releases?per_page=100&page=2",
+    `${prefix}?per_page=100`,
     `${prefix}/81/assets?per_page=100`,
     `${prefix}/81/assets?per_page=100&page=2`,
+    `${prefix}/81/assets?per_page=100`,
   ];
   const recent = {
     id: 81,
@@ -926,8 +929,10 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
         assets: [],
       },
     ],
+    [recent, { id: 82, draft: true }],
     [{ id: 10, name: "checksums.txt" }],
     [{ id: 11, name: "Portcove_0.1.0-beta.1_amd64.AppImage" }],
+    [{ id: 10, name: "checksums.txt" }],
   ];
   const seen: { url: string; auth: string | null }[] = [];
   let invalidAssetLink = false;
@@ -938,8 +943,9 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
     const index = seen.length;
     assert.equal(request.url, routes[index]);
     seen.push({ url: request.url, auth: request.headers.get("authorization") });
-    const next = index === 0 || index === 2 ? routes[index + 1] : null;
-    const link = invalidAssetLink && index === 2 ? "https://unadmitted.example/assets" : next;
+    const next =
+      index === 0 || index === 2 ? routes[1] : index === 3 || index === 5 ? routes[4] : null;
+    const link = invalidAssetLink && index === 3 ? "https://unadmitted.example/assets" : next;
     return Promise.resolve(
       Response.json(pages[index], {
         headers: link ? { link: `<${link}>; rel="next"` } : {},
@@ -959,7 +965,7 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
     routes,
   );
   assert.ok(seen.every(({ auth }) => auth === "token legacy-risk-gh"));
-  assert.deepEqual(evidence.releases[0]?.assets, [...pages[2]!, ...pages[3]!]);
+  assert.deepEqual(evidence.releases[0]?.assets, [...pages[3]!, ...pages[4]!]);
   assert.equal(decide706(evidence).disposition, "accepted-risk");
 
   seen.length = 0;
@@ -976,7 +982,7 @@ void test("legacy risk authorization reads complete SDK release and eligible ass
   await assert.rejects(collect, /release inventory pagination changed scope/u);
   assert.deepEqual(
     seen.map(({ url }) => url),
-    routes.slice(0, 3),
+    routes.slice(0, 4),
   );
   assert.ok(seen.every(({ auth }) => auth === "token legacy-risk-workflow"));
 
