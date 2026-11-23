@@ -393,3 +393,145 @@ async fn newer_decision_schema_refuses_only_its_subject() {
             .is_some()
     );
 }
+
+/// The same entry-bound decision with the managed GitHub acquisition scope.
+fn managed(mut document: Value) -> Value {
+    let scope = managed_github(1);
+    document["policy_schema"] = 2.into();
+    document["grant_id"] = scope["grant_id"].clone();
+    for field in [
+        "status",
+        "repository_id",
+        "artifact_hosts",
+        "max_redirects",
+        "operations",
+    ] {
+        document["decision"][field] = scope["decision"][field].clone();
+    }
+    document
+}
+
+fn selected_catalog(library: &Library) -> Catalog {
+    crate::definition_candidate::selection::load_selected_definition_catalog(
+        &library.connection().unwrap(),
+        &metadata_catalog(),
+        now_unix(),
+    )
+    .unwrap()
+    .unwrap()
+    .0
+}
+
+#[tokio::test]
+async fn entry_bound_managed_scope_authorizes_acquisition_across_an_unrelated_addition() {
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let only = index_targets(&[(&metadata_catalog(), ID, 7)]);
+    let subject = managed(decision_for(&only, ID, 1, 2));
+    let root = publish_set(&fixture, &key, 1, &only, &[&subject]).await;
+    let (_directory, library) = library();
+    policy::install_authority_for_test(&library, &root).unwrap();
+    let first = acquire(&fixture, &root).await.unwrap();
+    library
+        .apply_definition_publisher_policy(
+            &acquire_policy(&fixture, &root, ID).await.unwrap(),
+            Some(&first),
+        )
+        .unwrap();
+    assert!(selectable(&library, &first));
+    let scope = policy::acquisition_scope(&library, &selected_catalog(&library), ID)
+        .unwrap()
+        .unwrap();
+    policy::validate_current_acquisition(&scope).unwrap();
+
+    let sibling = sibling_catalog();
+    let added = index_targets(&[(&metadata_catalog(), ID, 7), (&sibling, SIBLING, 1)]);
+    let sibling_policy = decision_for(&added, SIBLING, 1, 2);
+    publish_set(&fixture, &key, 2, &added, &[&subject, &sibling_policy]).await;
+    let second = acquire(&fixture, &root).await.unwrap();
+    library
+        .apply_definition_publisher_policy(
+            &acquire_policy(&fixture, &root, ID).await.unwrap(),
+            Some(&second),
+        )
+        .unwrap();
+    // The scope assessed before the addition is still the current grant.
+    policy::validate_current_acquisition(&scope).unwrap();
+    assert!(selectable(&library, &second));
+    let after = policy::acquisition_scope(&library, &selected_catalog(&library), ID)
+        .unwrap()
+        .unwrap();
+    policy::validate_current_acquisition(&after).unwrap();
+}
+
+#[tokio::test]
+async fn an_uninterpretable_stored_decision_refuses_only_its_subject() {
+    let fixture = RepositoryFixture::new();
+    let key = Key::new(fixture._directory.path());
+    let sibling = sibling_catalog();
+    let both = index_targets(&[(&metadata_catalog(), ID, 7), (&sibling, SIBLING, 1)]);
+    let subject = decision_for(&both, ID, 1, 2);
+    let sibling_policy = decision_for(&both, SIBLING, 1, 2);
+    let root = publish_set(&fixture, &key, 1, &both, &[&subject, &sibling_policy]).await;
+    let candidate = acquire(&fixture, &root).await.unwrap();
+    let (_directory, library) = library();
+    policy::install_authority_for_test(&library, &root).unwrap();
+    for id in [ID, SIBLING] {
+        library
+            .apply_definition_publisher_policy(
+                &acquire_policy(&fixture, &root, id).await.unwrap(),
+                Some(&candidate),
+            )
+            .unwrap();
+    }
+
+    // A later Portcove admitted a decision schema this build cannot read,
+    // then the application was rolled back. The stored row is intact.
+    let connection = library.connection().unwrap();
+    let mut newer = subject.clone();
+    newer["decision_schema"] = 3.into();
+    let newer = serde_json::to_string(&newer).unwrap();
+    let rewrite = |document: &str, target_sha256: &str| {
+        let provenance: String = connection
+            .query_row(
+                "SELECT provenance_json FROM definition_publisher_admission WHERE stable_id=?1",
+                [ID],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut provenance: Value = serde_json::from_str(&provenance).unwrap();
+        provenance["target_sha256"] = target_sha256.into();
+        connection
+            .execute(
+                "UPDATE definition_publisher_admission SET policy_json=?1,provenance_json=?2
+                 WHERE stable_id=?3",
+                rusqlite::params![document, provenance.to_string(), ID],
+            )
+            .unwrap();
+    };
+    rewrite(&newer, &hex::encode(Sha256::digest(newer.as_bytes())));
+
+    // The library-wide sweep run before every official refresh continues...
+    policy::validate_stored_admissions(&connection).unwrap();
+    policy::validate_retained_curated_transitions(&connection).unwrap();
+    // ...while that subject alone is refused and its sibling stays usable.
+    assert!(
+        library
+            .assess_definition_candidate(&candidate, "official", ID)
+            .is_err()
+    );
+    assert!(
+        library
+            .assess_definition_candidate(&candidate, "official", SIBLING)
+            .unwrap()
+            .into_eligible()
+            .is_some()
+    );
+
+    // Bytes that do not match their recorded digest are still corruption.
+    rewrite(
+        &format!("{newer} "),
+        &hex::encode(Sha256::digest(newer.as_bytes())),
+    );
+    assert!(policy::validate_stored_admissions(&connection).is_err());
+}

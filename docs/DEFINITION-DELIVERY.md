@@ -1473,14 +1473,48 @@ procedure no property depends only on the global digest, so no case keeps the
 conservative binding. Decision schema 1 keeps its existing behavior, including
 stored admissions and selections that libraries already hold.
 
+Schema 2 is safe only because an entry's meaning depends on nothing at index
+level: the entry bytes and the contracts they name by digest are the whole
+reviewed definition, and the index contributes only membership. A future index
+field or `index_schema` that changes what an entry means must either be added
+to the decision binding or bump the decision schema.
+
+**Stored decisions a reader cannot interpret.** A stored admission whose exact
+authenticated bytes this reader cannot parse refuses only its own subject. An
+example is a newer decision schema stored by a later release before an
+application rollback. The authority review that runs before every official
+refresh still checks that row's digest, provenance and replay floor, then
+continues with the other subjects. Bytes that fail those checks still refuse
+the review. Curated hold evaluation still reads every retained receipt
+strictly and fails closed. Releases before this reader stop every official
+refresh on any stored decision they cannot parse.
+
 **Rollout.** A publisher emits schema 2 only after the
 [released-reader gate](design/CATALOG-DISTRIBUTION-SCALING.md#4-definitions-policy-decision-schema-2)
-verifies a released build that lists `catalog.policy-decision-v2`. That
-build becomes the minimum supported generation for new decisions. Older
-previews keep their last-good decisions and installs and update the
-application. The cutover re-signs every subject once at a higher
-`policy_revision`. After that, an addition or change re-signs only that
-subject's policy and launch targets.
+verifies a released build that lists `catalog.policy-decision-v2`. That build
+is declared the minimum supported preview generation before the first schema-2
+decision is emitted. Older previews then refuse each schema-2 decision with a
+generic unknown-field parse error. They keep their last-good decisions,
+selections and installs, but no further decisions reach them. Once each
+stored policy's authenticated expiry passes, `require_fresh` refuses new
+acquisition for that subject. Already-installed games keep launching under the
+retained contract. Those previews must update the application. The cutover
+re-signs every subject once at a higher `policy_revision`, which requires one
+re-selection of every subject. After that, an addition or change re-signs only
+that subject's policy and launch targets.
+
+Before the first schema-2 emission, every writer that compares or emits
+`decision.index_sha256` must handle schema 2. The writers are:
+
+- `crates/portcove-release-tools/src/definition_repository/bundle.rs`
+- `scripts/catalog-prepare-publication.mts`
+- `scripts/catalog-publication-receipt.mts`
+- `scripts/catalog-literal-launch-publication.mts`
+- `scripts/n64-original-publication.mts`
+
+The publication receipt check must also refuse a `removed` change unless that
+subject already has a higher-revision revocation, so "removal is revocation" is
+enforced rather than procedural.
 
 Curated resolution freshly observes the numeric GitHub repository, release and
 asset IDs, tag, peeled commit, filename, canonical asset URL and nonzero size.

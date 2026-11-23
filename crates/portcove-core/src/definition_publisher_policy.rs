@@ -1019,13 +1019,106 @@ pub(crate) fn validate_stored_admissions(connection: &Connection) -> Result<()> 
         })?
         .collect::<std::result::Result<Vec<_>, _>>()?;
     for (namespace, stable_id) in identities {
-        let (_, provenance, _) = stored_admission(connection, &namespace, &stable_id)?
+        let provenance = swept_admission_provenance(connection, &namespace, &stable_id)?
             .ok_or_else(|| PortcoveError::state("publisher admission disappeared"))?;
         let floor =
             installed_authority_floor(connection, &provenance.anchor_sha256)?.ok_or_else(|| {
                 PortcoveError::state("admitted publisher authority has no replay floor")
             })?;
         floor.check_advance(&provenance)?;
+    }
+    Ok(())
+}
+
+/// Library-wide sweeps (authority review before every official refresh) read
+/// each stored admission's provenance. An admission whose exact authenticated
+/// bytes this reader cannot interpret, such as a newer decision schema stored
+/// by a later Portcove before an application rollback, stays refused for its
+/// own subject by every per-subject use of `stored_admission`. It does not
+/// stop the sweep for its siblings. Bytes that fail their recorded digest,
+/// provenance or authority still refuse the whole sweep.
+pub(super) fn swept_admission_provenance(
+    connection: &Connection,
+    namespace: &str,
+    stable_id: &str,
+) -> Result<Option<PolicyProvenance>> {
+    match stored_admission(connection, namespace, stable_id) {
+        Ok(admission) => Ok(admission.map(|(_, provenance, _)| provenance)),
+        Err(error) => uninterpretable_admission(connection, namespace, stable_id)?
+            .map(Some)
+            .ok_or(error),
+    }
+}
+
+/// The provenance of an intact stored admission whose document this reader
+/// cannot parse; `None` when the document parses (any error is semantic) or
+/// the stored row fails its integrity checks.
+fn uninterpretable_admission(
+    connection: &Connection,
+    namespace: &str,
+    stable_id: &str,
+) -> Result<Option<PolicyProvenance>> {
+    let row: Option<(String, String, String)> = connection
+        .query_row(
+            "SELECT anchor_sha256,policy_json,provenance_json FROM definition_publisher_admission
+         WHERE namespace=?1 AND stable_id=?2",
+            params![namespace, stable_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()?;
+    let Some((anchor, document, provenance)) = row else {
+        return Ok(None);
+    };
+    if document.len() > MAX_POLICY_BYTES as usize
+        || provenance.len() > 16 * 1024
+        || PolicyDocument::parse(document.as_bytes()).is_ok()
+    {
+        return Ok(None);
+    }
+    let Ok(provenance) = serde_json::from_str::<PolicyProvenance>(&provenance) else {
+        return Ok(None);
+    };
+    if provenance.validate().is_err()
+        || provenance.anchor_sha256 != anchor
+        || provenance.target_sha256 != digest(document.as_bytes())
+    {
+        return Ok(None);
+    }
+    tracing::info!(
+        stable_id,
+        "stored publisher decision needs a newer Portcove; only its subject is refused"
+    );
+    Ok(Some(provenance))
+}
+
+/// Review-time validation of retained curated receipts. Like admissions, an
+/// intact receipt this reader cannot interpret is not treated as corruption
+/// here. Hold evaluation still reads every receipt strictly and fails closed.
+pub(crate) fn validate_retained_curated_transitions(connection: &Connection) -> Result<()> {
+    for (sha256, bytes, provenance) in
+        crate::curated_acquisition::retained_transition_receipts(connection)?
+    {
+        if bytes.len() > MAX_POLICY_BYTES as usize
+            || provenance.len() > 16 * 1024
+            || digest(bytes.as_bytes()) != sha256
+        {
+            return Err(PortcoveError::verification(
+                "retained curated transition receipt is invalid",
+            ));
+        }
+        let document = PolicyDocument::parse(bytes.as_bytes()).ok();
+        let provenance: PolicyProvenance = serde_json::from_str(&provenance)?;
+        provenance.validate()?;
+        if provenance.target_sha256 != sha256
+            || document
+                .as_ref()
+                .is_some_and(|document| document.curated_transitions.is_none())
+            || installed_authority_floor(connection, &provenance.anchor_sha256)?.is_none()
+        {
+            return Err(PortcoveError::state(
+                "retained curated transition lost its admitted authority",
+            ));
+        }
     }
     Ok(())
 }

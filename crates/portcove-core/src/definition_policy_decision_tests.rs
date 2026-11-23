@@ -374,3 +374,41 @@ fn reader_advertises_the_entry_bound_decision_feature() {
         features
     );
 }
+
+#[test]
+fn publication_inspection_checks_the_entry_binding_against_its_own_index() {
+    let published = Published::new(&BTreeMap::from([(SUBJECTS[0], 1), (SUBJECTS[1], 1)]));
+    let projection = published.projection(SUBJECTS[0]).unwrap();
+    let bytes = |document: &Value| serde_json::to_vec(document).unwrap();
+    let entry = serde_json::to_value(decision(&published, SUBJECTS[0], 2)).unwrap();
+    let (schema, revision, grant, launch) =
+        super::inspect_publication_policy(&bytes(&entry), &projection, &published.index_sha256())
+            .unwrap();
+    assert_eq!(
+        (schema, revision, grant.as_str(), launch),
+        (1, 1, "protected-fixture-availability", false)
+    );
+    // Another subject's entry digest under this identity.
+    let mut other = entry.clone();
+    other["decision"]["definition_sha256"] = published.entry_sha256(SUBJECTS[1]).unwrap().into();
+    assert!(
+        super::inspect_publication_policy(&bytes(&other), &projection, &published.index_sha256())
+            .is_err()
+    );
+    // A projection that was not interpreted from the publication's index.
+    let elsewhere = Published::new(&BTreeMap::from([(SUBJECTS[0], 1)]));
+    assert!(
+        super::inspect_publication_policy(&bytes(&entry), &projection, &elsewhere.index_sha256())
+            .is_err()
+    );
+    // A revision that does not match the indexed entry.
+    let revised = Published::new(&BTreeMap::from([(SUBJECTS[0], 2), (SUBJECTS[1], 1)]));
+    assert!(
+        super::inspect_publication_policy(
+            &bytes(&entry),
+            &revised.projection(SUBJECTS[0]).unwrap(),
+            &revised.index_sha256()
+        )
+        .is_err()
+    );
+}

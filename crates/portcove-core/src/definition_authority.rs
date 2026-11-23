@@ -242,7 +242,7 @@ fn review_from(
     // Reuse the admission and immutable curated-history validators; this is no
     // repair or policy-admission path and cannot reset a floor or clear a hold.
     super::validate_stored_admissions(connection)?;
-    super::retained_curated_transitions(connection)?;
+    super::validate_retained_curated_transitions(connection)?;
     for table in [
         "definition_publisher_policy",
         "definition_launch_assessments",
