@@ -5508,7 +5508,7 @@ async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
     let wire = serde_json::json!({
         "asset_rules":{"windows-x86-64":{"include":["portable"],"exclude":["debug"],"tag_pattern":"v2*","prerelease":"never"}},
         "package_format":{"windows-x86-64":"tar.xz"},
-        "launch":{"windows-x86-64":{"arguments":["--data",{"path":"user_data"}],"environment":{"FIXTURE_DATA":{"path":"install_root"}}}}
+        "launch":{"windows-x86-64":{"arguments":["--data",{"path":"user_data"}],"environment":{"TUFMETADATAFIXTURE_DATA":{"path":"install_root"}}}}
     });
     port.reviewed_launch_contract_v1 = Some(serde_json::from_value(wire.clone()).unwrap());
     *document.ports.last_mut().unwrap() = port;
@@ -5764,7 +5764,7 @@ async fn named_windows_tar_xz_requires_independent_grant_and_reopens_exactly() {
         ]
     );
     assert_eq!(
-        spec.environment["FIXTURE_DATA"],
+        spec.environment["TUFMETADATAFIXTURE_DATA"],
         installed.path.to_str().unwrap()
     );
 }
