@@ -200,6 +200,12 @@ impl<'a> ExactReleaseQuery<'a> {
     }
 }
 
+pub(crate) fn reviewed_forge_exact_release_unsupported() -> PortcoveError {
+    PortcoveError::unsupported(
+        "reviewed forge releases use their independently admitted package selection",
+    )
+}
+
 pub(crate) fn require_exact_release_route(
     port: &PortDefinition,
     channel: ReleaseChannel,
@@ -217,6 +223,21 @@ pub(crate) fn require_exact_release_route(
     }
     if port.release.managed_build.contains_key(&platform) {
         return Err(crate::cartridge_build::retired_creation());
+    }
+    if expected_provider == crate::ReleaseSource::ReviewedForge {
+        return Err(reviewed_forge_exact_release_unsupported());
+    }
+    // Reviewed launch contracts and runtime compatibility lists bind
+    // acquisition to independent authority, which an exact pin never carries.
+    if port.reviewed_launch_contract_v1.is_some() {
+        return Err(PortcoveError::unsupported(
+            "named package and launch declarations require independent acquisition authority",
+        ));
+    }
+    if port.managed_runtime_applies_to.is_some() {
+        return Err(PortcoveError::unsupported(
+            "reviewed runtime compatibility artifacts require independent acquisition authority",
+        ));
     }
     if scope.is_some() || !port.release.curated.is_empty() {
         return Err(PortcoveError::unsupported(
@@ -544,6 +565,13 @@ impl GithubReleaseProvider {
             .ok_or_else(|| {
                 PortcoveError::verification("the exact package requires its published SHA-256")
             })?;
+        crate::managed_runtime_policy::require_applies_to(
+            port,
+            &release_version(&release.tag_name),
+            asset.size,
+            &sha256,
+            Some(platform),
+        )?;
         if expected.is_some_and(|pin| !sha256.eq_ignore_ascii_case(&pin.sha256)) {
             return Err(PortcoveError::verification(
                 "the exact selection's GitHub package SHA-256 changed",

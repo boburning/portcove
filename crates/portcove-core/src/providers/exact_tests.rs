@@ -31,6 +31,7 @@ fn composite(root: &str) -> CompositeReleaseProvider {
     CompositeReleaseProvider {
         github: Arc::new(GithubReleaseProvider::with_api_root(root).unwrap()),
         gitlab: GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap(),
+        forge_fixture: None,
     }
 }
 
@@ -96,6 +97,102 @@ fn github_release(tag: &str, id: u64, asset: Value, draft: bool, prerelease: boo
         "id": id, "tag_name": tag, "draft": draft, "prerelease": prerelease,
         "published_at": "2025-01-01T00:00:00Z", "assets": [asset]
     })
+}
+
+#[tokio::test]
+async fn reviewed_forge_refuses_exact_review_and_pin_resolution_without_contacting_a_provider() {
+    let (root, requests, server) = serve_routed_http(1, |_| not_found());
+    let provider = composite(&root);
+    let port = fixture_port(ReleaseSource::ReviewedForge);
+    let incompatible_pin = pin(ExactReleaseIdentity::DirectManifest);
+    let review = provider
+        .review_exact(&port, CHANNEL, PLATFORM, None, &incompatible_pin.version)
+        .await
+        .unwrap_err();
+    let resolution = provider
+        .resolve_exact(&port, CHANNEL, PLATFORM, None, &incompatible_pin)
+        .await
+        .unwrap_err();
+    let chooser = crate::release::require_exact_release_route(
+        &port,
+        CHANNEL,
+        PLATFORM,
+        ReleaseSource::ReviewedForge,
+        None,
+    )
+    .unwrap_err();
+    for error in [review, resolution, chooser] {
+        assert!(
+            error
+                .message
+                .contains("independently admitted package selection")
+        );
+    }
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 0);
+}
+
+/// A saved exact pin cannot bypass the reviewed declarations that bind
+/// acquisition to independent authority: the chooser refuses them, and the
+/// pinned resolution refuses them before any provider request.
+#[tokio::test]
+async fn exact_pin_cannot_bypass_reviewed_acquisition_authority() {
+    let (root, requests, server) = serve_routed_http(1, |_| not_found());
+    let provider = composite(&root);
+    let saved = pin(ExactReleaseIdentity::Github {
+        repository_id: 1,
+        release_id: 2,
+        asset_id: 3,
+        commit_sha1: COMMIT.into(),
+    });
+    let mut contract = fixture_port(ReleaseSource::Github);
+    contract.reviewed_launch_contract_v1 = Some(
+        serde_json::from_value(json!({
+            "asset_rules": {"windows-x86-64": {"prerelease": "never"}}
+        }))
+        .unwrap(),
+    );
+    let mut applies_to = fixture_port(ReleaseSource::Github);
+    applies_to.managed_runtime_applies_to = Some(vec![crate::RuntimePolicyArtifact {
+        version: saved.version.clone(),
+        size: saved.size,
+        sha256: saved.sha256.clone(),
+    }]);
+    for port in [contract, applies_to] {
+        let chooser = crate::release::require_exact_release_route(
+            &port,
+            CHANNEL,
+            PLATFORM,
+            ReleaseSource::Github,
+            None,
+        )
+        .unwrap_err();
+        let review = provider
+            .review_exact(&port, CHANNEL, PLATFORM, None, &saved.version)
+            .await
+            .unwrap_err();
+        let resolution = provider
+            .resolve_exact(&port, CHANNEL, PLATFORM, None, &saved)
+            .await
+            .unwrap_err();
+        for error in [chooser, review, resolution] {
+            assert_eq!(
+                error.code,
+                crate::ErrorCode::Unsupported,
+                "{}",
+                error.message
+            );
+            assert!(
+                error
+                    .message
+                    .contains("require independent acquisition authority"),
+                "{}",
+                error.message
+            );
+        }
+    }
+    server.join().unwrap();
+    assert_eq!(requests.try_iter().count(), 0);
 }
 
 #[tokio::test]

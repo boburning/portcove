@@ -521,8 +521,8 @@
     {
       "file": "scripts/catalog-generated-registration.test.mts",
       "memberships": [
-        ["catalog-full-2", 8925],
-        ["repository-tools-2", 3925]
+        ["catalog-full-2", 8926],
+        ["repository-tools-2", 3926]
       ]
     },
     {
@@ -530,6 +530,13 @@
       "memberships": [
         ["catalog-full-2", 8924],
         ["repository-tools-2", 3924]
+      ]
+    },
+    {
+      "file": "scripts/restriction-recheck.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8925],
+        ["repository-tools-2", 3925]
       ]
     },
     {
