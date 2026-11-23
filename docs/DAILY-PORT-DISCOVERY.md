@@ -868,10 +868,53 @@ environment remains to be verified on the first scheduled run.
 `import-local --state-dir work/daily-discovery` imports a local checkout's
 `leads.json` once into an empty scope at its recorded strength. It does not
 trust the local source checkpoint as coverage, so those sources are collected
-again. A repeated import leaves the stored state unchanged. Until the local
-runner delegates to this store, its `work/daily-discovery/` cursors remain a
-separate diagnostic copy and are not the authoritative continuation for
-unattended collection.
+again. A repeated import leaves the stored state unchanged.
+
+### Local runner on the shared store
+
+When `PORTCOVE_MAINTENANCE_DATABASE_URL` is set for a local `run`, the shared
+store owns lead collection for that runner, and `plan` reports
+`lead_collection: "shared-store"`. Its `collect` operation then:
+
+1. Reads the stored leads without a lease. The read holds its own transfer
+   admission, sized from the stored state. If the stored revision moves while it
+   reads, it reads again.
+2. Keeps this runner's research on top of the stored leads. A local record keeps
+   its status, research, disposition and review clock only while it names the
+   same repository at the same revision. A changed upstream takes the stored
+   record, which queues it for review again. Leads from the session's own
+   `search` operations stay local, unless the store holds the same path under
+   another provider ID.
+3. Skips the curated lists and lead searches, which the store has already
+   collected and backfilled. The reviewed sources are still collected locally,
+   because their checkpoint carries this runner's research queue.
+
+The journal and the lead summary record the stored revision, record count and
+bytes read (`lead_collection`). The store's searches satisfy the run's search
+requirement, so `recheck` and `finish` can complete without local searches. A
+scope filled only by `import-local` also counts, although no collector has
+searched it since; run `discovery-worker.mts collect` once after an import. If
+the store is empty, local collection runs as before. If the store is
+unavailable or its admission is deferred, local collection also runs as before,
+and a partial note records why. `plan` reports the configured mode; a fallback
+shows only in the run.
+
+Each read reserves its whole payload: the admission meters 70% of a
+reservation, so the reservation is the stored state and records divided by 0.7,
+plus 1 MiB. A read that sees a commit is repeated, each time under its own
+admission.
+
+`daily-discovery.mts` removes the store URL and the Neon meter credential from
+its environment before its first Git command and hands them to the session
+alone, so no child process receives them. In
+this mode the local lead copy is bounded by the machine's memory rather than by
+the 32 MiB local envelope. A `leads.json` written this way may then exceed the
+envelope of a later run without the store; set the variable again to continue.
+
+`node scripts/discovery-worker.mts collect` can also run on a local machine and
+add collection capacity to the same store. It takes the lease like the scheduled
+job and records a `local:` runner identity. Without the variable, the local
+runner keeps its own `work/daily-discovery/` cursors.
 
 ## Maintained runner
 

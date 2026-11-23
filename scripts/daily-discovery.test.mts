@@ -231,10 +231,13 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
       const root=path.dirname(path.dirname(new URL(entry).pathname));
       let fetched=false,checkedOut=false,installed=false,sessions=0;const reads=new Map();
       process.env.GH_TOKEN="synthetic-install-secret";process.env.GITHUB_TOKEN="synthetic-other-secret";
+      process.env.PORTCOVE_MAINTENANCE_DATABASE_URL="postgres://synthetic-store";process.env.PORTCOVE_NEON_METER_TOKEN="synthetic-meter";
       const clean=environment=>{assert.equal(environment.GH_TOKEN,undefined);assert.equal(environment.GITHUB_TOKEN,undefined);assert.equal(environment.NODE_OPTIONS,undefined);};
       Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});
       mock.module('node:child_process',{namedExports:{execFileSync:(command,args)=>{
         assert.equal(command,'git');
+        assert.equal(process.env.PORTCOVE_MAINTENANCE_DATABASE_URL,undefined,'Git must not inherit the store URL');
+        assert.equal(process.env.PORTCOVE_NEON_METER_TOKEN,undefined,'Git must not inherit the meter credential');
         if(args[0]==='status'||args[0]==='branch')return '';
         if(args[0]==='fetch'){
           assert.deepEqual(args,['fetch','--no-write-commit-graph','--no-auto-maintenance','--no-tags','--no-recurse-submodules','origin','main']);
@@ -266,7 +269,8 @@ void test("actual discovery startup consumes its bootstrap identities and bounde
         clean(options.environment);assert.deepEqual(options.exclusive,['fixture-output']);assert.equal(options.executionTimeoutMilliseconds,600000);
         installed=true;return variant==='failed-install'?1:0;
       }}});
-      mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head)=>{
+      mock.module(${JSON.stringify(dependency("./daily-discovery-session.mts"))},{namedExports:{runDiscoverySession:async(observed,root,head,started,store)=>{
+        assert.deepEqual(store,{url:'postgres://synthetic-store',meterToken:'synthetic-meter'});
         assert.equal(observed,state);assert.equal(head,'a'.repeat(40));assert.ok(fetched&&checkedOut&&installed);
         for(const name of expected)assert.equal(reads.get(name),name==='package.json'||name==='.node-version'?4:3);sessions++;
       }}});
@@ -1320,4 +1324,101 @@ void test("quota refresh cannot spend reserved bytes expired runtime or active p
     assert.equal(f.calls().length, 0);
     assert.equal(f.budget.usage.requests, 339);
   }
+});
+
+void test("a configured shared store owns lead collection and keeps local research", async () => {
+  const { MaintenanceStoreError } = await import("./maintenance-store.mts");
+  const lead = (id: number, revision: string) => ({
+    id,
+    repository: `ports/game-${id}`,
+    url: `https://github.com/ports/game-${id}`,
+    description: "",
+    revision,
+    observed_at: "2026-11-01T00:00:00.000Z",
+    evidence: "lead-search-1.json",
+    status: "pending" as const,
+  });
+  const make = () => {
+    const session = Object.create(
+      discoverySession.DiscoverySession.prototype,
+    ) as discoverySession.DiscoverySession;
+    Object.assign(session, {
+      sharedStore: {},
+      leads: {
+        format: 1,
+        next_family: 0,
+        slices: {},
+        records: {
+          "1": {
+            ...lead(1, "a"),
+            status: "researched",
+            research: { evidence_id: "e1", file: "local.json", material: "m" },
+          },
+        },
+      },
+      journal: { notes: [], collection_done: false, started_at: "2026-11-23T00:00:00.000Z" },
+      inventory: { issues: [], items: [], archivedItems: [] },
+      externalCollectionAttempted: false,
+      leadCollectionAttempted: false,
+      leadPages: 0,
+      leadFamilies: new Set(),
+      deferredLeadFamilies: new Set(),
+      researchedLeads: new Set([1, 2]),
+      persist: () => {},
+    });
+    return session;
+  };
+  const stored = make();
+  await stored.leadsFromSharedStore(async () => ({
+    outcome: "read",
+    revision: 7,
+    bytes: 100,
+    leads: {
+      format: 1,
+      next_family: 2,
+      slices: {},
+      records: { "1": lead(1, "a"), "2": lead(2, "b") },
+    },
+  }));
+  assert.equal(stored.leads.records["1"]!.status, "researched", "local research is kept");
+  assert.ok(stored.leads.records["2"], "the store's leads arrive");
+  assert.ok(
+    stored.externalCollectionAttempted && stored.leadCollectionAttempted,
+    "curated lists and lead searches are not collected again locally",
+  );
+  assert.deepEqual(stored.journal.lead_collection, {
+    owner: "shared-store",
+    revision: 7,
+    records: 2,
+    bytes: 100,
+  });
+  assert.deepEqual(stored.journal.notes, [], "coverage is not marked partial");
+  assert.ok(
+    stored.leadWorkComplete(),
+    "the store's searches satisfy the run's search requirement, so finish and recheck can complete",
+  );
+  const summary = stored.leadSummary();
+  assert.deepEqual(summary.pending_families, [], "no family is reported as pending locally");
+  assert.equal(summary.collection?.owner, "shared-store");
+
+  const empty = make();
+  await empty.leadsFromSharedStore(async () => ({ outcome: "empty", bytes: 1 }));
+  assert.ok(!empty.leadCollectionAttempted, "an empty store leaves local collection in place");
+
+  const unavailable = make();
+  await unavailable.leadsFromSharedStore(async () => {
+    throw new MaintenanceStoreError("psql exited 2: connection refused");
+  });
+  assert.ok(!unavailable.leadCollectionAttempted, "an unavailable store falls back to local");
+  assert.equal(unavailable.journal.notes.length, 1, "and the fallback is recorded");
+  assert.ok(!unavailable.leadWorkComplete(), "local collection must then do its own searches");
+
+  const broken = make();
+  await assert.rejects(
+    broken.leadsFromSharedStore(async () => {
+      throw new TypeError("defect");
+    }),
+    TypeError,
+    "a defect is not mistaken for an unavailable store",
+  );
 });
