@@ -717,7 +717,9 @@ impl PolicyDocument {
             (schema, Some(binding)) => {
                 let index_matches_schema = match (schema, binding.index_sha256) {
                     (None, Some(index_sha256)) => valid_sha256(index_sha256),
-                    (Some(2), None) => true,
+                    (Some(schema), None) => {
+                        (2..=MAX_POLICY_DECISION_SCHEMA).contains(&u64::from(schema))
+                    }
                     _ => false,
                 };
                 if binding.definition_revision == 0
