@@ -44,35 +44,50 @@ const PROVIDER_PAGE_SIZE: usize = 100;
 /// not how many matching packages a release may have.
 const GITLAB_PACKAGE_LOOKUP_CONCURRENCY: usize = 4;
 
-/// One GitLab list read page by page. Every list an operation reads shares the
-/// operation's deadline, so the work is bounded by time rather than by a count
-/// of releases, packages or files. Running out of that budget is reported as an
-/// incomplete inventory and never as an absent release, package or file.
+/// One GitLab list read page by page to its end. There is no count or
+/// whole-operation ceiling: each request keeps its own connection, idle-read and
+/// request bounds, so a list of any length finishes while pages keep arriving.
+/// A failed page is an error, never an absent release, package or file.
 struct GitlabPages {
     label: &'static str,
     next_page: Option<usize>,
-    deadline: tokio::time::Instant,
 }
 
 impl GitlabPages {
-    fn new(label: &'static str, deadline: tokio::time::Instant) -> Self {
+    fn new(label: &'static str) -> Self {
         Self {
             label,
             next_page: Some(1),
-            deadline,
         }
     }
-
-    fn incomplete(&self, pages_read: usize) -> PortcoveError {
-        PortcoveError::network(format!(
-            "GitLab {} did not finish within the provider request budget. Try again.",
-            self.label
-        ))
-        .detail("gitlab_inventory", self.label)
-        .detail("inventory", "incomplete")
-        .detail("pages_read", pages_read.to_string())
-    }
 }
+
+/// What a list page response says about the list beyond its rows.
+#[derive(Debug, Clone, Default)]
+struct PageMeta {
+    /// SHA-256 of the body: the page's identity, with or without a validator.
+    body_sha256: String,
+    /// GitLab's `X-Total` row count, when it sends one. GitLab omits it for
+    /// lists of more than 10,000 rows.
+    total: Option<u64>,
+}
+
+/// Saved progress of a release-history walk, so the next check continues at
+/// `next_page` instead of re-reading the prefix. It is kept in the library's
+/// conditional-request cache table and is valid only for the same project,
+/// channel, rolling tag and unchanged first page and row count; anything else
+/// restarts the walk. Losing it (cache pruning) only costs a restart.
+#[derive(Debug, Clone, serde::Serialize, Deserialize, PartialEq)]
+struct ReleaseWalkCheckpoint {
+    first_page_sha256: String,
+    total: Option<u64>,
+    next_page: usize,
+    /// The newest stable release seen so far, kept for Beta's stable fallback.
+    beta_fallback: Option<GitlabRelease>,
+}
+
+/// Restarts allowed when the history changes during one walk.
+const RELEASE_WALK_RESTARTS: usize = 3;
 
 impl GitlabReleaseProvider {
     pub fn for_library(library: &Library) -> Result<Self> {
@@ -149,6 +164,17 @@ impl GitlabReleaseProvider {
     }
 
     async fn get_optional_json<T: DeserializeOwned>(&self, url: &str) -> Result<Option<T>> {
+        Ok(self
+            .get_optional_json_meta(url)
+            .await?
+            .map(|(value, _)| value))
+    }
+
+    async fn get_optional_json_meta<T: DeserializeOwned>(
+        &self,
+        url: &str,
+    ) -> Result<Option<(T, PageMeta)>> {
+        use sha2::Digest;
         let cached = self.cached_http_response(url);
         let mut request = self.client.get(url);
         if let Some(cached) = cached.as_ref() {
@@ -167,6 +193,11 @@ impl GitlabReleaseProvider {
             ));
             PortcoveError::network(error.to_string())
         })?;
+        let total = response
+            .headers()
+            .get("x-total")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse::<u64>().ok());
         if response.status() == StatusCode::NOT_MODIFIED {
             let cached = cached
                 .ok_or_else(|| PortcoveError::state("GitLab returned 304 without cached data"))?;
@@ -187,7 +218,11 @@ impl GitlabReleaseProvider {
             {
                 tracing::warn!(%error, %url, "could not refresh GitLab HTTP cache age");
             }
-            return Ok(Some(parsed));
+            let meta = PageMeta {
+                body_sha256: hex::encode(sha2::Sha256::digest(cached.body.as_bytes())),
+                total,
+            };
+            return Ok(Some((parsed, meta)));
         }
         if response.status() == StatusCode::NOT_FOUND {
             return Ok(None);
@@ -217,11 +252,11 @@ impl GitlabReleaseProvider {
         {
             tracing::warn!(%error, %url, "could not persist HTTP cache");
         }
-        Ok(Some(parsed))
-    }
-
-    fn operation_deadline(&self) -> tokio::time::Instant {
-        tokio::time::Instant::now() + self.network_bounds.request
+        let meta = PageMeta {
+            body_sha256: hex::encode(sha2::Sha256::digest(body.as_bytes())),
+            total,
+        };
+        Ok(Some((parsed, meta)))
     }
 
     /// Reads the next page of `pages` from `url(page)`. Returns `None` once the
@@ -236,35 +271,30 @@ impl GitlabReleaseProvider {
         let Some(page) = pages.next_page else {
             return Ok(None);
         };
-        if tokio::time::Instant::now() >= pages.deadline {
-            return Err(pages.incomplete(page - 1));
-        }
-        let url = url(page)?;
-        let current: Vec<T> = tokio::time::timeout_at(pages.deadline, self.get_json(&url))
-            .await
-            .map_err(|_| pages.incomplete(page - 1))??;
-        if current.len() > PROVIDER_PAGE_SIZE {
-            return Err(PortcoveError::verification(format!(
-                "GitLab {} page exceeds the requested page size",
-                pages.label
-            )));
-        }
+        let current: Vec<T> = self.get_json(&url(page)?).await?;
+        check_page_size(&current, pages.label)?;
         pages.next_page = (current.len() == PROVIDER_PAGE_SIZE).then_some(page + 1);
         Ok(Some(current))
     }
 
-    /// Newest-first release history, read only until `decided` holds for the
-    /// observed prefix (`true` as the second argument once the history is
-    /// complete). A release added upstream while the history is being read shifts
-    /// older entries onto the next page; the repeated entry is the same release
-    /// and is kept once, so the shift never hides one.
-    async fn release_prefix(
+    async fn release_page(
         &self,
         project_url: &str,
-        deadline: tokio::time::Instant,
-        mut decided: impl FnMut(&[GitlabRelease], bool) -> bool,
-    ) -> Result<Vec<GitlabRelease>> {
-        let mut pages = GitlabPages::new("release history", deadline);
+        page: usize,
+    ) -> Result<(Vec<GitlabRelease>, PageMeta)> {
+        let url = paginated_url(project_url, "releases", page, PROVIDER_PAGE_SIZE)?;
+        let (releases, meta): (Vec<GitlabRelease>, PageMeta) =
+            self.get_optional_json_meta(&url).await?.ok_or_else(|| {
+                PortcoveError::not_found(format!("GitLab resource was not found: {url}"))
+            })?;
+        check_page_size(&releases, "release history")?;
+        Ok((releases, meta))
+    }
+
+    /// The complete release history, for tests of history-wide behavior.
+    #[cfg(test)]
+    async fn releases(&self, project_url: &str) -> Result<Vec<GitlabRelease>> {
+        let mut pages = GitlabPages::new("release history");
         let mut releases: Vec<GitlabRelease> = Vec::new();
         let mut tags = HashSet::new();
         while let Some(current) = self
@@ -278,30 +308,50 @@ impl GitlabReleaseProvider {
                     .into_iter()
                     .filter(|release| tags.insert(release.tag_name.clone())),
             );
-            if decided(&releases, pages.next_page.is_none()) {
-                break;
-            }
         }
         Ok(releases)
     }
 
-    /// The complete release history within one operation budget.
-    #[cfg(test)]
-    async fn releases(&self, project_url: &str) -> Result<Vec<GitlabRelease>> {
-        self.release_prefix(project_url, self.operation_deadline(), |_, _| false)
-            .await
+    fn walk_key(project_url: &str, channel: ReleaseChannel, rolling_tag: Option<&str>) -> String {
+        format!(
+            "portcove-continuation:v1:gitlab-release-walk:{project_url}#{channel}#{}",
+            rolling_tag.unwrap_or_default()
+        )
     }
 
-    /// The release the channel selects. A rolling tag is looked up exactly
-    /// (`GET /projects/:id/releases/:tag_name`,
-    /// https://docs.gitlab.com/api/releases/#get-a-release-by-a-tag-name); other
-    /// channels read newest-first history only as far as the choice needs.
+    fn load_walk(&self, key: &str) -> Option<ReleaseWalkCheckpoint> {
+        let cached = self.cached_http_response(key)?;
+        serde_json::from_str(&cached.body).ok()
+    }
+
+    fn save_walk(&self, key: &str, checkpoint: &ReleaseWalkCheckpoint) {
+        if let Some(library) = &self.library
+            && let Ok(body) = serde_json::to_string(checkpoint)
+            && let Err(error) = library.store_http_cache(key, None, None, &body)
+        {
+            tracing::warn!(%error, "could not save GitLab release-history progress");
+        }
+    }
+
+    fn clear_walk(&self, key: &str) {
+        if let Some(library) = &self.library
+            && let Err(error) = library.remove_http_cache(key)
+        {
+            tracing::warn!(%error, "could not clear GitLab release-history progress");
+        }
+    }
+
+    /// The release the channel selects. A rolling tag is first looked up
+    /// exactly (`GET /projects/:id/releases/:tag_name`,
+    /// https://docs.gitlab.com/api/releases/#get-a-release-by-a-tag-name); only
+    /// when that finds nothing is history read for a tag differing in case.
+    /// Other channels walk newest-first history only as far as the choice
+    /// needs (see `walk_release_history`).
     async fn channel_release(
         &self,
         project_url: &str,
         channel: ReleaseChannel,
         rolling_tag: Option<&str>,
-        deadline: tokio::time::Instant,
     ) -> Result<Option<GitlabRelease>> {
         if channel == ReleaseChannel::Rolling
             && let Some(tag) = rolling_tag
@@ -311,20 +361,127 @@ impl GitlabReleaseProvider {
             url.path_segments_mut()
                 .map_err(|_| PortcoveError::state("invalid GitLab project URL"))?
                 .extend(["releases", tag]);
-            let release: Option<GitlabRelease> =
-                tokio::time::timeout_at(deadline, self.get_optional_json(url.as_str()))
-                    .await
-                    .map_err(|_| GitlabPages::new("rolling release", deadline).incomplete(0))??;
-            return Ok(release.filter(|release| {
-                release.tag_name.eq_ignore_ascii_case(tag) && !release.upcoming_release
-            }));
+            let release: Option<GitlabRelease> = self.get_optional_json(url.as_str()).await?;
+            if let Some(release) = release
+                && release.tag_name.eq_ignore_ascii_case(tag)
+            {
+                return Ok((!release.upcoming_release).then_some(release));
+            }
         }
-        let releases = self
-            .release_prefix(project_url, deadline, |releases, complete| {
-                channel_decided(releases, complete, channel, rolling_tag)
-            })
-            .await?;
-        Ok(select_gitlab_release(&releases, channel, rolling_tag).cloned())
+        self.walk_release_history(project_url, channel, rolling_tag)
+            .await
+    }
+
+    /// Walks newest-first history until the channel's release is decided:
+    /// Stable and Rolling take the first match, which no older page can
+    /// change; Beta takes the first prerelease and falls back to the newest
+    /// stable release only at the end of the history.
+    ///
+    /// No page count or whole-walk deadline bounds the walk; each request has
+    /// its own bounds. Progress is saved after every page, so a walk that
+    /// fails or is interrupted reports an incomplete history (never an absent
+    /// release) and the next check continues from the saved page. The first
+    /// page is always re-read (conditionally) to confirm the history is the
+    /// one the progress belongs to; a changed first page or row count, also
+    /// during a walk, restarts it so a release published or deleted meanwhile
+    /// cannot shift an entry past the walk.
+    async fn walk_release_history(
+        &self,
+        project_url: &str,
+        channel: ReleaseChannel,
+        rolling_tag: Option<&str>,
+    ) -> Result<Option<GitlabRelease>> {
+        let key = Self::walk_key(project_url, channel, rolling_tag);
+        'restart: for _ in 0..RELEASE_WALK_RESTARTS {
+            let (first, meta) = self.release_page(project_url, 1).await?;
+            let mut fallback = None;
+            if let Some(chosen) = consider_releases(&first, channel, rolling_tag, &mut fallback) {
+                self.clear_walk(&key);
+                return Ok(Some(chosen));
+            }
+            if first.len() < PROVIDER_PAGE_SIZE {
+                self.clear_walk(&key);
+                return Ok(fallback);
+            }
+            let mut checkpoint = match self.load_walk(&key) {
+                // A 304 may omit `X-Total`; the unchanged first page still
+                // identifies the history then.
+                Some(saved)
+                    if saved.first_page_sha256 == meta.body_sha256
+                        && (meta.total.is_none() || saved.total == meta.total) =>
+                {
+                    saved
+                }
+                _ => ReleaseWalkCheckpoint {
+                    first_page_sha256: meta.body_sha256.clone(),
+                    total: meta.total,
+                    next_page: 2,
+                    beta_fallback: fallback,
+                },
+            };
+            loop {
+                let page = checkpoint.next_page;
+                let (releases, current) = match self.release_page(project_url, page).await {
+                    Ok(read) => read,
+                    Err(error) if error.code == crate::ErrorCode::Network => {
+                        // The page was not read: keep the progress and say the
+                        // history is incomplete, with the request's own facts
+                        // (such as a rate-limit reset) as details.
+                        self.save_walk(&key, &checkpoint);
+                        let total_pages = checkpoint
+                            .total
+                            .map(|total| total.div_ceil(PROVIDER_PAGE_SIZE as u64));
+                        let mut incomplete = crate::failure::inventory_incomplete(
+                            crate::failure::FailureProvider::Gitlab,
+                            "release history",
+                            (page - 1) as u64,
+                            total_pages,
+                        )
+                        .detail("cause", error.message.clone());
+                        for (name, value) in error.details {
+                            incomplete.details.entry(name).or_insert(value);
+                        }
+                        return Err(incomplete);
+                    }
+                    Err(error) => {
+                        self.save_walk(&key, &checkpoint);
+                        return Err(error);
+                    }
+                };
+                if let (Some(expected), Some(observed)) = (checkpoint.total, current.total)
+                    && expected != observed
+                {
+                    // Rows were added or removed during the walk.
+                    self.clear_walk(&key);
+                    continue 'restart;
+                }
+                if let Some(chosen) = consider_releases(
+                    &releases,
+                    channel,
+                    rolling_tag,
+                    &mut checkpoint.beta_fallback,
+                ) {
+                    self.clear_walk(&key);
+                    return Ok(Some(chosen));
+                }
+                if releases.len() < PROVIDER_PAGE_SIZE {
+                    self.clear_walk(&key);
+                    return Ok(checkpoint.beta_fallback);
+                }
+                checkpoint.next_page = page + 1;
+                self.save_walk(&key, &checkpoint);
+            }
+        }
+        Err(crate::failure::inventory_incomplete(
+            crate::failure::FailureProvider::Gitlab,
+            "release history",
+            0,
+            None,
+        )
+        .detail(
+            "cause",
+            "the release history kept changing while it was read",
+        ))
     }
 
     /// Generic packages whose version is this release's tag, with or without a
@@ -334,12 +491,7 @@ impl GitlabReleaseProvider {
     /// unrelated package history. The filter is applied again locally, so a
     /// registry that ignores it still yields only matching packages after a
     /// complete read.
-    async fn release_packages(
-        &self,
-        project_url: &str,
-        tag: &str,
-        deadline: tokio::time::Instant,
-    ) -> Result<Vec<GitlabPackage>> {
+    async fn release_packages(&self, project_url: &str, tag: &str) -> Result<Vec<GitlabPackage>> {
         let normalized = tag.strip_prefix('v').unwrap_or(tag);
         let mut versions = vec![tag];
         if normalized != tag {
@@ -348,7 +500,7 @@ impl GitlabReleaseProvider {
         let mut packages = Vec::new();
         let mut ids = HashSet::new();
         for version in versions {
-            let mut pages = GitlabPages::new("package registry", deadline);
+            let mut pages = GitlabPages::new("package registry");
             while let Some(current) = self
                 .next_page::<GitlabPackage>(&mut pages, |page| {
                     let url = paginated_url(project_url, "packages", page, PROVIDER_PAGE_SIZE)?;
@@ -380,19 +532,18 @@ impl GitlabReleaseProvider {
         project_id: u64,
         release: &GitlabRelease,
         link: &GitlabReleaseLink,
-        deadline: tokio::time::Instant,
     ) -> Result<Option<GitlabPackageFile>> {
         let Some(file_id) = package_file_id(&link.url) else {
             return Ok(None);
         };
         let package_ids: Vec<u64> = self
-            .release_packages(project_url, &release.tag_name, deadline)
+            .release_packages(project_url, &release.tag_name)
             .await?
             .into_iter()
             .map(|package| package.id)
             .collect();
         let requests = package_ids.into_iter().map(|package_id| async move {
-            self.package_file_in_package(project_id, package_id, file_id, deadline)
+            self.package_file_in_package(project_id, package_id, file_id)
                 .await
         });
         let results = stream::iter(requests)
@@ -424,13 +575,12 @@ impl GitlabReleaseProvider {
         project_id: u64,
         package_id: u64,
         file_id: u64,
-        deadline: tokio::time::Instant,
     ) -> Result<Option<GitlabPackageFile>> {
         let package_url = format!(
             "{}/projects/{project_id}/packages/{package_id}",
             self.api_root
         );
-        let mut pages = GitlabPages::new("package files", deadline);
+        let mut pages = GitlabPages::new("package files");
         while let Some(files) = self
             .next_page::<GitlabPackageFile>(&mut pages, |page| {
                 paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)
@@ -450,18 +600,17 @@ impl GitlabReleaseProvider {
         project_id: u64,
         release: &GitlabRelease,
         link: &GitlabReleaseLink,
-        deadline: tokio::time::Instant,
     ) -> Result<Option<(GitlabPackageFile, reqwest::Url)>> {
         let Some(url) = generic_package_url(project_url, &self.api_root, project_id, &link.url)?
         else {
             return Ok(None);
         };
         let packages = self
-            .release_packages(project_url, &release.tag_name, deadline)
+            .release_packages(project_url, &release.tag_name)
             .await?;
         let selected = &url;
         let requests = packages.into_iter().map(|package| async move {
-            self.generic_files_in_package(project_url, project_id, &package, selected, deadline)
+            self.generic_files_in_package(project_url, project_id, &package, selected)
                 .await
         });
         let results = stream::iter(requests)
@@ -552,7 +701,6 @@ impl GitlabReleaseProvider {
         project_id: u64,
         package: &GitlabPackage,
         selected: &reqwest::Url,
-        deadline: tokio::time::Instant,
     ) -> Result<Vec<GitlabPackageFile>> {
         let package_url = format!(
             "{}/projects/{project_id}/packages/{}",
@@ -560,7 +708,7 @@ impl GitlabReleaseProvider {
         );
         let mut matched = Vec::new();
         let mut identities = HashSet::new();
-        let mut pages = GitlabPages::new("package files", deadline);
+        let mut pages = GitlabPages::new("package files");
         while let Some(files) = self
             .next_page::<GitlabPackageFile>(&mut pages, |page| {
                 paginated_url(&package_url, "package_files", page, PROVIDER_PAGE_SIZE)
@@ -687,14 +835,8 @@ impl ReleaseProvider for GitlabReleaseProvider {
         if let Some(release) = self.cached_release(&key).await {
             return Ok(release);
         }
-        let deadline = self.operation_deadline();
         let release = self
-            .channel_release(
-                &project_url,
-                channel,
-                port.release.rolling_tag.as_deref(),
-                deadline,
-            )
+            .channel_release(&project_url, channel, port.release.rolling_tag.as_deref())
             .await?
             .ok_or_else(|| {
                 PortcoveError::not_found(format!(
@@ -705,11 +847,11 @@ impl ReleaseProvider for GitlabReleaseProvider {
         let release = &release;
         let link = choose_link(port, platform, &release.assets.links)?;
         let package_file = self
-            .package_file(&project_url, project.id, release, link, deadline)
+            .package_file(&project_url, project.id, release, link)
             .await?;
         let description_digest = digest_from_description(&release.description, &link.name);
         let generic = if package_file.is_none() && description_digest.is_none() {
-            self.generic_package_file(&project_url, project.id, release, link, deadline)
+            self.generic_package_file(&project_url, project.id, release, link)
                 .await?
         } else {
             None
@@ -766,6 +908,23 @@ impl ReleaseProvider for GitlabReleaseProvider {
                     .and_then(|url| self.cached_http_response(&url))
             },
         );
+        // A rolling release is read by its exact endpoint, not the list; its
+        // cached answer keeps its notes available offline.
+        let mut releases = releases;
+        if let Some(tag) = port.release.rolling_tag.as_deref()
+            && !releases
+                .iter()
+                .any(|release| release.tag_name.eq_ignore_ascii_case(tag))
+            && let Some(url) = exact_release_url(&project_url, tag)
+        {
+            if let Some(release) = self
+                .cached_http_response(url.as_str())
+                .filter(|cached| cached.body.len() <= PROVIDER_JSON_MAX_BYTES)
+                .and_then(|cached| serde_json::from_str::<GitlabRelease>(&cached.body).ok())
+            {
+                releases.insert(0, release);
+            }
+        }
         let listed = releases
             .iter()
             .map(|release| crate::release_notes::ListedRelease {
@@ -812,7 +971,7 @@ struct GitlabCommit {
     id: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, Deserialize)]
 struct GitlabRelease {
     tag_name: String,
     /// Informational only: shown as untrusted plain text in update reviews.
@@ -827,13 +986,13 @@ struct GitlabRelease {
     assets: GitlabReleaseAssets,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, Deserialize)]
 struct GitlabReleaseAssets {
     #[serde(default)]
     links: Vec<GitlabReleaseLink>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, Deserialize)]
 struct GitlabReleaseLink {
     #[serde(default)]
     id: Option<u64>,
@@ -876,20 +1035,49 @@ fn select_gitlab_release<'a>(
     )
 }
 
-/// Whether the newest-first prefix already decides the channel's release.
-/// Stable and Rolling take the first match, which no older page can change.
-/// Beta prefers any prerelease and falls back to a stable release only when
-/// none exists, which only the complete history establishes.
-fn channel_decided(
+/// Considers one newest-first page for the channel. Returns the decided
+/// release, or records the first stable release in `fallback` for Beta.
+/// Matches `crate::release::select_channel_candidate` on the whole history.
+fn consider_releases(
     releases: &[GitlabRelease],
-    complete: bool,
     channel: ReleaseChannel,
     rolling_tag: Option<&str>,
-) -> bool {
-    complete
-        || select_gitlab_release(releases, channel, rolling_tag).is_some_and(|release| {
-            channel != ReleaseChannel::Beta || is_beta_tag(&release.tag_name)
-        })
+    fallback: &mut Option<GitlabRelease>,
+) -> Option<GitlabRelease> {
+    let is_rolling = |release: &GitlabRelease| {
+        rolling_tag.is_some_and(|rolling| release.tag_name.eq_ignore_ascii_case(rolling))
+    };
+    for release in releases.iter().filter(|release| !release.upcoming_release) {
+        let beta = is_beta_tag(&release.tag_name);
+        let rolling = is_rolling(release);
+        let decided = match channel {
+            ReleaseChannel::Stable => !beta && !rolling,
+            ReleaseChannel::Beta => beta && !rolling,
+            ReleaseChannel::Rolling => rolling,
+        };
+        if decided {
+            return Some(release.clone());
+        }
+        if channel == ReleaseChannel::Beta && !beta && !rolling && fallback.is_none() {
+            *fallback = Some(release.clone());
+        }
+    }
+    None
+}
+
+fn exact_release_url(project_url: &str, tag: &str) -> Option<reqwest::Url> {
+    let mut url = reqwest::Url::parse(project_url).ok()?;
+    url.path_segments_mut().ok()?.extend(["releases", tag]);
+    Some(url)
+}
+
+fn check_page_size<T>(page: &[T], label: &str) -> Result<()> {
+    if page.len() > PROVIDER_PAGE_SIZE {
+        return Err(PortcoveError::verification(format!(
+            "GitLab {label} page exceeds the requested page size"
+        )));
+    }
+    Ok(())
 }
 
 fn choose_link<'a>(
@@ -2844,7 +3032,6 @@ mod tests {
                 &provider.project_url("group/project").unwrap(),
                 ReleaseChannel::Stable,
                 None,
-                provider.operation_deadline(),
             )
             .await
             .unwrap()
@@ -2863,7 +3050,6 @@ mod tests {
                 &provider.project_url("group/project").unwrap(),
                 ReleaseChannel::Stable,
                 None,
-                provider.operation_deadline(),
             )
             .await
             .unwrap()
@@ -2890,7 +3076,6 @@ mod tests {
                 &provider.project_url("group/project").unwrap(),
                 ReleaseChannel::Rolling,
                 Some("nightly"),
-                provider.operation_deadline(),
             )
             .await
             .unwrap()
@@ -2899,9 +3084,39 @@ mod tests {
         assert_eq!(release.tag_name, "nightly");
         assert_eq!(requests.try_iter().count(), 1);
 
-        // A missing rolling release is absent only because the exact lookup said so.
-        let (root, _requests, server) = serve_routed_http(1, |_| {
-            "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into()
+        // Tags compare without regard to case, as before the exact lookup: a
+        // tag published as `Nightly` is still found, through history.
+        let (root, requests, server) = serve_routed_http(2, |request| {
+            if request.contains("/releases/nightly ") {
+                return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .into();
+            }
+            ok_json(
+                &serde_json::json!([release_row("v2.0.0"), release_row("Nightly")]).to_string(),
+                "",
+            )
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let release = provider
+            .channel_release(
+                &provider.project_url("group/project").unwrap(),
+                ReleaseChannel::Rolling,
+                Some("nightly"),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(release.tag_name, "Nightly");
+        assert_eq!(requests.try_iter().count(), 2);
+
+        // Absent only when both the exact lookup and the complete history say so.
+        let (root, _requests, server) = serve_routed_http(2, |request| {
+            if request.contains("/releases/nightly ") {
+                return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .into();
+            }
+            ok_json("[]", "")
         });
         let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
         assert!(
@@ -2910,7 +3125,6 @@ mod tests {
                     &provider.project_url("group/project").unwrap(),
                     ReleaseChannel::Rolling,
                     Some("nightly"),
-                    provider.operation_deadline(),
                 )
                 .await
                 .unwrap()
@@ -2919,46 +3133,78 @@ mod tests {
         server.join().unwrap();
     }
 
-    #[tokio::test]
-    async fn gitlab_release_published_mid_read_neither_repeats_nor_hides_a_release() {
-        // 250 releases; after page 1 is read, three more are published, so every
-        // older release shifts three places onto later pages.
-        let published = Arc::new(AtomicUsize::new(0));
-        let observed = published.clone();
-        let (root, _requests, server) = serve_routed_http(3, move |request| {
-            let page = query_number(request, "page");
-            let added = if page == 1 { 0 } else { 3 };
-            observed.store(added, Ordering::SeqCst);
-            let first = (page - 1) * PROVIDER_PAGE_SIZE + 1;
-            let rows = (first..=(250 + added).min(first + PROVIDER_PAGE_SIZE - 1))
-                .map(|position| {
-                    // Positions 1..=added are the new releases.
-                    if position <= added {
-                        release_row(&format!("v2.0.{position}"))
-                    } else {
-                        release_row(&format!("v1.0.{}", position - added))
+    /// A simulated newest-first history whose row count changes after page 1
+    /// is first read: `changed` releases are added (positive) or the newest
+    /// remaining older ones removed (negative), and `X-Total` says so.
+    fn shifting_history(request: &str, changed: &AtomicUsize, delta: i64, base: usize) -> String {
+        let page = query_number(request, "page");
+        let reads_after_change = changed.fetch_add(1, Ordering::SeqCst) > 0;
+        let total = if reads_after_change {
+            (base as i64 + delta) as usize
+        } else {
+            base
+        };
+        let first = (page - 1) * PROVIDER_PAGE_SIZE + 1;
+        let rows = (first..=total.min(first + PROVIDER_PAGE_SIZE - 1))
+            .map(|position| {
+                let index = if reads_after_change && delta > 0 {
+                    // New prereleases come first and push the rest down.
+                    if position <= delta as usize {
+                        return release_row(&format!("v9.0.{position}-beta"));
                     }
-                })
+                    position - delta as usize
+                } else if reads_after_change {
+                    // Older prereleases were deleted from the second page on.
+                    if position > PROVIDER_PAGE_SIZE {
+                        position + (-delta) as usize
+                    } else {
+                        position
+                    }
+                } else {
+                    position
+                };
+                // The only stable release is the 250th of the original history.
+                if index == 250 {
+                    release_row("v1.0.0")
+                } else {
+                    release_row(&format!("v8.0.{index}-beta"))
+                }
+            })
+            .collect::<Vec<_>>();
+        ok_json(
+            &serde_json::to_string(&rows).unwrap(),
+            &format!("X-Total: {total}\r\n"),
+        )
+    }
+
+    #[tokio::test]
+    async fn gitlab_history_changed_during_a_walk_restarts_instead_of_skipping_a_release() {
+        for delta in [3_i64, -3] {
+            let reads = Arc::new(AtomicUsize::new(0));
+            let counter = reads.clone();
+            let (root, requests, server) = serve_routed_http(6, move |request| {
+                shifting_history(request, &counter, delta, 300)
+            });
+            let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+            let release = provider
+                .channel_release(
+                    &provider.project_url("group/project").unwrap(),
+                    ReleaseChannel::Stable,
+                    None,
+                )
+                .await
+                .unwrap()
+                .unwrap();
+            server.join().unwrap();
+            // Without the restart, removing three releases would shift the
+            // only stable release from page 3 onto page 2 behind the walk.
+            assert_eq!(release.tag_name, "v1.0.0", "delta {delta}");
+            let pages = requests
+                .try_iter()
+                .map(|request| query_number(&request, "page"))
                 .collect::<Vec<_>>();
-            ok_json(&serde_json::to_string(&rows).unwrap(), "")
-        });
-        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
-        let releases = provider
-            .releases(&provider.project_url("group/project").unwrap())
-            .await
-            .unwrap();
-        server.join().unwrap();
-        assert_eq!(published.load(Ordering::SeqCst), 3);
-        let tags = releases
-            .iter()
-            .map(|release| release.tag_name.as_str())
-            .collect::<HashSet<_>>();
-        assert_eq!(tags.len(), releases.len(), "no release is listed twice");
-        for index in 1..=250 {
-            assert!(
-                tags.contains(format!("v1.0.{index}").as_str()),
-                "v1.0.{index}"
-            );
+            // Page 1 and 2 under the old count, then a restart from page 1.
+            assert_eq!(&pages[..3], &[1, 2, 1], "delta {delta}: {pages:?}");
         }
     }
 
@@ -3013,7 +3259,6 @@ mod tests {
                 9,
                 &release,
                 &link,
-                provider.operation_deadline(),
             )
             .await
             .unwrap()
@@ -3032,15 +3277,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn gitlab_budget_exhaustion_is_incomplete_and_a_retry_resumes_from_cached_pages() {
-        // Four pages. The first read spends its whole budget after two pages; it
-        // reports an incomplete inventory, never a short history. Pages already
-        // read are revalidated with their validators (304, no body) on the
-        // retry, which then finishes the history.
+    async fn gitlab_interrupted_walk_continues_across_checks_without_rereading_pages() {
+        // Ten pages of prereleases, then the stable release. The first check
+        // fails at page 4 and the second at page 8; each check continues from
+        // the saved page, so every page body is transferred once and page 1 is
+        // only revalidated by its validator.
         let temporary = tempfile::tempdir().unwrap();
         let library = Library::open(temporary.path()).unwrap();
-        let total = 3 * PROVIDER_PAGE_SIZE + 50;
-        let (root, requests, server) = serve_routed_http(6, move |request| {
+        let total = 10 * PROVIDER_PAGE_SIZE + 1;
+        let failures = Arc::new(Mutex::new(vec![4_usize, 8]));
+        let pending = failures.clone();
+        let (root, requests, server) = serve_routed_http(15, move |request| {
             let page = query_number(request, "page");
             let etag = format!("\"page-{page}\"");
             if request
@@ -3050,9 +3297,21 @@ mod tests {
                 return "HTTP/1.1 304 Not Modified\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                     .into();
             }
-            release_history_page(request, total, |index| format!("v0.0.{index}")).replacen(
+            let mut pending = pending.lock().unwrap();
+            if pending.first() == Some(&page) {
+                pending.remove(0);
+                return "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into();
+            }
+            release_history_page(request, total, |index| {
+                if index == total {
+                    "v1.0.0".into()
+                } else {
+                    format!("v9.0.{index}-beta")
+                }
+            })
+            .replacen(
                 "\r\n",
-                &format!("\r\nETag: {etag}\r\n"),
+                &format!("\r\nETag: {etag}\r\nX-Total: {total}\r\n"),
                 1,
             )
         });
@@ -3060,37 +3319,141 @@ mod tests {
             GitlabReleaseProvider::with_api_root_and_library(format!("{root}/api/v4"), library)
                 .unwrap();
         let project_url = provider.project_url("group/project").unwrap();
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
-        let error = provider
-            .release_prefix(&project_url, deadline, |releases, _| {
-                if releases.len() == 2 * PROVIDER_PAGE_SIZE {
-                    // Simulate the budget running out while the history continues.
-                    std::thread::sleep(deadline - tokio::time::Instant::now());
-                }
-                false
-            })
-            .await
-            .unwrap_err();
-        assert_eq!(error.code, crate::ErrorCode::Network);
-        assert_eq!(
-            error.details.get("inventory").map(String::as_str),
-            Some("incomplete")
-        );
-        assert_eq!(
-            error.details.get("pages_read").map(String::as_str),
-            Some("2")
-        );
-        let releases = provider.releases(&project_url).await.unwrap();
+        let check = || provider.channel_release(&project_url, ReleaseChannel::Stable, None);
+        for expected_read in ["3", "7"] {
+            let error = check().await.unwrap_err();
+            assert!(error.is_inventory_incomplete(), "{error:?}");
+            assert_eq!(
+                error.details.get("inventory_read").map(String::as_str),
+                Some(expected_read)
+            );
+            assert_eq!(
+                error.details.get("inventory_total").map(String::as_str),
+                Some("11")
+            );
+        }
+        let release = check().await.unwrap().unwrap();
         server.join().unwrap();
-        assert_eq!(releases.len(), total);
-        assert_eq!(releases[total - 1].tag_name, format!("v0.0.{total}"));
+        assert_eq!(release.tag_name, "v1.0.0");
         let requests = requests.try_iter().collect::<Vec<_>>();
-        let transferred = requests
+        let mut bodies = requests
             .iter()
             .filter(|request| !request.to_ascii_lowercase().contains("if-none-match"))
-            .count();
-        // Every page's body was transferred once; the retry only revalidated the prefix.
-        assert_eq!((requests.len(), transferred), (6, 4), "{requests:?}");
+            .map(|request| query_number(request, "page"))
+            .collect::<Vec<_>>();
+        // Pages 4 and 8 failed once; each other page body was transferred once.
+        bodies.sort_unstable();
+        assert_eq!(
+            bodies,
+            [1, 2, 3, 4, 4, 5, 6, 7, 8, 8, 9, 10, 11],
+            "{requests:#?}"
+        );
+        // The finished walk forgets its progress.
+        assert!(
+            provider
+                .load_walk(&GitlabReleaseProvider::walk_key(
+                    &project_url,
+                    ReleaseChannel::Stable,
+                    None
+                ))
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn gitlab_saved_progress_is_discarded_when_the_first_page_changes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let published = Arc::new(AtomicUsize::new(0));
+        let state = published.clone();
+        let (root, requests, server) = serve_routed_http(6, move |request| {
+            let page = query_number(request, "page");
+            if page == 3 && state.load(Ordering::SeqCst) == 0 {
+                state.store(1, Ordering::SeqCst);
+                return "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into();
+            }
+            // After the failure a newer stable release is published.
+            let newest = state.load(Ordering::SeqCst) == 1;
+            release_history_page(request, 3 * PROVIDER_PAGE_SIZE, |index| {
+                if newest && index == 1 {
+                    "v2.0.0".into()
+                } else if index == 3 * PROVIDER_PAGE_SIZE {
+                    "v1.0.0".into()
+                } else {
+                    format!("v9.0.{index}-beta")
+                }
+            })
+        });
+        let provider =
+            GitlabReleaseProvider::with_api_root_and_library(format!("{root}/api/v4"), library)
+                .unwrap();
+        let project_url = provider.project_url("group/project").unwrap();
+        let check = || provider.channel_release(&project_url, ReleaseChannel::Stable, None);
+        assert!(check().await.unwrap_err().is_inventory_incomplete());
+        // The saved progress belongs to the old first page; the new one decides.
+        assert_eq!(check().await.unwrap().unwrap().tag_name, "v2.0.0");
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 4);
+    }
+
+    #[tokio::test]
+    async fn gitlab_filtered_package_listing_longer_than_one_page_is_read_to_its_end() {
+        let (root, requests, server) = serve_routed_http(3, |request| {
+            let page = query_number(request, "page");
+            let count = if page == 1 { PROVIDER_PAGE_SIZE } else { 7 };
+            let packages = (0..count)
+                .map(|index| {
+                    serde_json::json!({"id": page * 1_000 + index, "version": "1.0.0", "name": "game"})
+                })
+                .collect::<Vec<_>>();
+            ok_json(&serde_json::to_string(&packages).unwrap(), "")
+        });
+        let provider = GitlabReleaseProvider::with_api_root(format!("{root}/api/v4")).unwrap();
+        let packages = provider
+            .release_packages(&provider.project_url("group/project").unwrap(), "1.0.0")
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(packages.len(), PROVIDER_PAGE_SIZE + 7);
+        assert_eq!(requests.try_iter().count(), 2);
+    }
+
+    #[tokio::test]
+    async fn gitlab_rate_limit_during_a_walk_keeps_progress_and_the_provider_reset() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let (root, _requests, server) = serve_routed_http(2, |request| {
+            if query_number(request, "page") == 2 {
+                return "HTTP/1.1 429 Too Many Requests\r\nRateLimit-Reset: 1900000000\r\nRetry-After: 60\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".into();
+            }
+            release_history_page(request, 300, |index| format!("v9.0.{index}-beta"))
+        });
+        let provider =
+            GitlabReleaseProvider::with_api_root_and_library(format!("{root}/api/v4"), library)
+                .unwrap();
+        let project_url = provider.project_url("group/project").unwrap();
+        let error = provider
+            .channel_release(&project_url, ReleaseChannel::Stable, None)
+            .await
+            .unwrap_err();
+        server.join().unwrap();
+        assert!(error.is_inventory_incomplete());
+        assert_eq!(
+            error.details.get("rate_reset").map(String::as_str),
+            Some("1900000000")
+        );
+        assert_eq!(
+            error.details.get("retry_after").map(String::as_str),
+            Some("60")
+        );
+        let saved = provider
+            .load_walk(&GitlabReleaseProvider::walk_key(
+                &project_url,
+                ReleaseChannel::Stable,
+                None,
+            ))
+            .unwrap();
+        assert_eq!(saved.next_page, 2);
     }
 
     #[tokio::test]
@@ -3184,7 +3547,6 @@ mod tests {
                     9,
                     &release,
                     &link,
-                    provider.operation_deadline(),
                 )
                 .await
                 .unwrap()

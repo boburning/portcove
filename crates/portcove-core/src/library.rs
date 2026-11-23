@@ -331,6 +331,7 @@ pub struct Library {
     pub(crate) quaddicted_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) moddb_backoff: crate::provider_http::ProviderBackoff,
     pub(crate) jakmods: crate::jakmods::JakModsProviderState,
+    pub(crate) thunderstore_listings: crate::thunderstore::ListingSnapshots,
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
@@ -842,6 +843,7 @@ impl Library {
             quaddicted_backoff: Default::default(),
             moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         })
     }
@@ -859,6 +861,7 @@ impl Library {
             quaddicted_backoff: Default::default(),
             moddb_backoff: Default::default(),
             jakmods: Default::default(),
+            thunderstore_listings: Default::default(),
             _lease: lease,
         };
         library.create_layout()?;
@@ -2246,6 +2249,12 @@ impl Library {
             .map_err(PortcoveError::from)?;
         transaction.commit()?;
         Ok(cached)
+    }
+
+    pub(crate) fn remove_http_cache(&self, url: &str) -> Result<()> {
+        self.connection()?
+            .execute("DELETE FROM github_http_cache WHERE url=?1", [url])?;
+        Ok(())
     }
 
     pub(crate) fn store_http_cache(

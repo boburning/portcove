@@ -1,5 +1,6 @@
 use super::*;
 use crate::ProviderFreshness;
+use crate::thunderstore::ListingFixture;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
@@ -356,23 +357,27 @@ const OLD_PACKAGE_CEILING: usize = 20_000;
 async fn a_community_past_the_old_package_ceiling_is_read_completely_through_redirects() {
     let per_chunk = 1_000;
     let chunks = OLD_PACKAGE_CEILING / per_chunk + 1;
-    let fixture = move |web: &str| {
-        (0..chunks)
-            .map(|index| {
-                chunk(
-                    web,
-                    "A",
-                    (0..per_chunk)
-                        .map(move |position| format!("Mod{}", index * per_chunk + position)),
-                )
-            })
-            .collect::<Vec<_>>()
-    };
+    // Built and compressed once, on the first request, for the fixture's host.
+    let built = Arc::new(std::sync::OnceLock::<ListingFixture>::new());
     let (root, requests, server) = crate::test_http::serve_routed_http_bytes(
         chunks + 2,
         move |request| {
             let web = host_root(request);
             let path = path_of(request);
+            let fixture = built.get_or_init(|| {
+                let listing = (0..chunks)
+                    .map(|index| {
+                        chunk(
+                            &web,
+                            "A",
+                            (0..per_chunk).map(move |position| {
+                                format!("Mod{}", index * per_chunk + position)
+                            }),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                ListingFixture::new(&web, "big", &listing)
+            });
             // Thunderstore answers the index with a redirect to a blob.
             let index = format!("/c/{}/api/v1/package-listing-index/", "big");
             if path == index {
@@ -386,7 +391,7 @@ async fn a_community_past_the_old_package_ceiling_is_read_completely_through_red
             } else {
                 path
             };
-            listing_fixture(&path, &web, "big", &fixture(&web)).unwrap()
+            fixture.respond(&path).unwrap()
         },
     );
     let client = ThunderstoreClient::with_root(&root, None).unwrap();
@@ -463,6 +468,224 @@ async fn an_interrupted_listing_is_incomplete_and_the_next_read_continues_with_n
     assert_eq!(chunk_requests.len(), 4, "{chunk_requests:?}");
     assert_eq!(chunk_requests[1], chunk_requests[2]);
     assert_ne!(chunk_requests[0], chunk_requests[3]);
+}
+
+fn three_chunks(web: &str) -> Vec<Value> {
+    vec![
+        chunk(web, "A", (0..3).map(|index| format!("First{index}"))),
+        chunk(web, "A", (0..3).map(|index| format!("Second{index}"))),
+        chunk(web, "A", (0..3).map(|index| format!("Third{index}"))),
+    ]
+}
+
+#[tokio::test]
+async fn many_reads_of_one_community_parse_each_chunk_once() {
+    // An update check over many installed packages and a browse session read
+    // the same community many times; the parsed listing is reused while the
+    // chunk list is unchanged.
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(24, move |request| {
+        let web = host_root(request);
+        listing_fixture(&path_of(request), &web, "shared", &three_chunks(&web)).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    for _ in 0..20 {
+        // A fresh client per installed package, as the update check builds them.
+        let client = ThunderstoreClient::with_root(&root, Some(library.clone())).unwrap();
+        assert_eq!(client.community("shared").await.unwrap().value.len(), 9);
+    }
+    server.join().unwrap();
+    assert_eq!(library.thunderstore_listings.parses(), 3);
+    let chunk_reads = requests
+        .try_iter()
+        .filter(|request| path_of(request).contains("listing-chunk/"))
+        .count();
+    assert_eq!(chunk_reads, 3);
+}
+
+#[tokio::test]
+async fn a_chunk_that_disagrees_with_its_named_digest_is_refused_and_not_kept() {
+    let (root, _requests, server) = crate::test_http::serve_routed_http_bytes(4, move |request| {
+        let web = host_root(request);
+        let path = path_of(request);
+        let fixture = ListingFixture::new(&web, "forged", &three_chunks(&web));
+        if path.contains("listing-chunk/") {
+            // Valid, parseable data that is not the content the location names.
+            return crate::thunderstore::ok_bytes(&crate::thunderstore::gzip_fixture(&chunk(
+                &web,
+                "B",
+                ["Other".to_owned()],
+            )));
+        }
+        fixture.respond(&path).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let client = ThunderstoreClient::with_root(&root, Some(library.clone())).unwrap();
+    for _ in 0..2 {
+        let error = client.community_catalog("forged").await.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+    }
+    server.join().unwrap();
+    let store = library
+        .downloads_dir()
+        .join("provider-listing-v1")
+        .join("thunderstore");
+    assert!(std::fs::read_dir(&store).map_or(true, |mut entries| entries.next().is_none()));
+}
+
+#[tokio::test]
+async fn a_damaged_stored_chunk_is_discarded_and_read_again() {
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(8, move |request| {
+        let web = host_root(request);
+        listing_fixture(&path_of(request), &web, "damaged", &three_chunks(&web)).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let read =
+        |library: &Library| ThunderstoreClient::with_root(&root, Some(library.clone())).unwrap();
+    assert_eq!(
+        read(&library)
+            .community("damaged")
+            .await
+            .unwrap()
+            .value
+            .len(),
+        9
+    );
+    let store = library
+        .downloads_dir()
+        .join("provider-listing-v1")
+        .join("thunderstore");
+    let stored = std::fs::read_dir(&store)
+        .unwrap()
+        .flatten()
+        .next()
+        .unwrap()
+        .path();
+    std::fs::write(&stored, b"not the chunk").unwrap();
+    // A new library handle has no parsed snapshot, so the store is consulted.
+    let reopened = Library::open(temporary.path()).unwrap();
+    assert_eq!(
+        read(&reopened)
+            .community("damaged")
+            .await
+            .unwrap()
+            .value
+            .len(),
+        9
+    );
+    server.join().unwrap();
+    let chunk_reads = requests
+        .try_iter()
+        .filter(|request| path_of(request).contains("listing-chunk/"))
+        .count();
+    // Three on the first read; only the damaged chunk again on the second.
+    assert_eq!(chunk_reads, 4);
+}
+
+#[tokio::test]
+async fn stored_chunks_survive_heavy_use_of_the_shared_response_cache() {
+    // The first read stops at the third chunk. Many other provider responses
+    // then pass through the shared conditional cache; the continuation still
+    // has the first two chunks, which live in their own store.
+    let chunk_requests = Arc::new(Mutex::new(0usize));
+    let state = chunk_requests.clone();
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(6, move |request| {
+        let web = host_root(request);
+        let path = path_of(request);
+        if path.contains("listing-chunk/") {
+            let mut count = state.lock().unwrap();
+            *count += 1;
+            if *count == 3 {
+                return MISSING.to_vec();
+            }
+        }
+        listing_fixture(&path, &web, "busy", &three_chunks(&web)).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let client = ThunderstoreClient::with_root(&root, Some(library.clone())).unwrap();
+    let error = client.community_catalog("busy").await.unwrap_err();
+    assert!(error.is_inventory_incomplete());
+    // More than the shared cache's 64 MiB, so its oldest rows are pruned.
+    let filler = "x".repeat(256 * 1024);
+    for index in 0..300 {
+        library
+            .store_http_cache(
+                &format!("https://other.example/{index}"),
+                None,
+                None,
+                &filler,
+            )
+            .unwrap();
+    }
+    let observed = client.community_catalog("busy").await.unwrap();
+    server.join().unwrap();
+    assert_eq!(observed.value.0.len(), 9);
+    let chunk_reads = requests
+        .try_iter()
+        .filter(|request| path_of(request).contains("listing-chunk/"))
+        .count();
+    // Two chunks, the failed third, and the third again: no chunk re-read.
+    assert_eq!(chunk_reads, 4);
+}
+
+#[tokio::test]
+async fn redirects_away_from_thunderstore_are_refused_for_the_index_and_a_chunk() {
+    for redirect_chunk in [false, true] {
+        let (root, _requests, server) = crate::test_http::serve_routed_http_bytes(
+            if redirect_chunk { 2 } else { 1 },
+            move |request| {
+                let web = host_root(request);
+                let path = path_of(request);
+                let foreign = "HTTP/1.1 302 Found\r\nLocation: https://example.com/blob\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                if !redirect_chunk || path.contains("listing-chunk/") {
+                    return foreign.as_bytes().to_vec();
+                }
+                listing_fixture(&path, &web, "moved", &three_chunks(&web)).unwrap()
+            },
+        );
+        let client = ThunderstoreClient::with_root(&root, None).unwrap();
+        let error = client.community_catalog("moved").await.unwrap_err();
+        server.join().unwrap();
+        assert_eq!(error.code, crate::ErrorCode::Verification, "{error:?}");
+        assert!(!error.is_inventory_incomplete());
+    }
+}
+
+#[tokio::test]
+async fn a_rate_limit_pauses_further_requests_and_serves_the_earlier_listing() {
+    let calls = Arc::new(Mutex::new(0usize));
+    let seen = calls.clone();
+    let (root, requests, server) = crate::test_http::serve_routed_http_bytes(5, move |request| {
+        let web = host_root(request);
+        let path = path_of(request);
+        if path.ends_with("package-listing-index/") {
+            let mut calls = seen.lock().unwrap();
+            *calls += 1;
+            if *calls == 2 {
+                return b"HTTP/1.1 429 Too Many Requests\r\nRetry-After: 120\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec();
+            }
+        }
+        listing_fixture(&path, &web, "limited", &three_chunks(&web)).unwrap()
+    });
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path()).unwrap();
+    let client = ThunderstoreClient::with_root(&root, Some(library)).unwrap();
+    assert_eq!(
+        client.community("limited").await.unwrap().freshness,
+        ProviderFreshness::Fresh
+    );
+    let limited = client.community("limited").await.unwrap();
+    assert_eq!(limited.freshness, ProviderFreshness::Stale);
+    // During the provider's stated pause no request is sent at all.
+    let paused = client.community("limited").await.unwrap();
+    assert_eq!(paused.freshness, ProviderFreshness::Stale);
+    assert_eq!(paused.value.len(), 9);
+    server.join().unwrap();
+    // Index and three chunks, then the limited index; the paused read sent none.
+    assert_eq!(requests.try_iter().count(), 5);
 }
 
 #[test]

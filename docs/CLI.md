@@ -2919,11 +2919,11 @@ a number and a file is a number. Zelda 64: Recompiled is bound to the Thundersto
 community `zelda-64-recompiled`, where a mod is `NAMESPACE-NAME` and a file is one
 of its versions (`1.2.0`); Thunderstore offers no digest, so the computed SHA-256 is
 the only byte identity, and a version Thunderstore no longer offers cannot be
-installed. Thunderstore listings are read once per community from its chunked
-listing index, in Thunderstore's order. A chunk already read is reused without a new
-request, so a community of any size is read completely; when a read stops early it
-fails as incomplete with the community link, and trying again continues from the
-chunks already read. Desktop names the reviewed mods that run
+installed. Thunderstore listings are read per community from its chunked listing
+index, in Thunderstore's order. Verified chunks are kept and the parsed community is
+reused while its chunks are unchanged, so a community of any size is read completely;
+when a read stops early it fails as incomplete with the community link, and trying
+again continues from the chunks already kept. Desktop names the reviewed mods that run
 code and asks for permission to apply those exact files.
 
 Desktop's **Mods** workspace uses the same reviewed bindings and exact file identities.

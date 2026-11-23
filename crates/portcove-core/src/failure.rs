@@ -256,12 +256,64 @@ pub(crate) enum KnownFailureCause {
         rate_limited: bool,
         resets_at: Option<i64>,
     },
+    /// A provider listing was read only in part: the work stopped before the
+    /// provider's end of list and continues from where it stopped on the next
+    /// attempt. Incomplete coverage is never an absent release, package or
+    /// file, and it is temporary rather than lasting.
+    ProviderInventoryIncomplete {
+        provider: FailureProvider,
+        /// What was being listed, such as `release history`.
+        inventory: &'static str,
+        /// Pages or chunks already read and kept for the next attempt.
+        read: u64,
+        /// Pages or chunks the provider listed, when it said.
+        total: Option<u64>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum FailureProvider {
     Github,
     Gitlab,
+    Thunderstore,
+}
+
+impl FailureProvider {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Github => "GitHub",
+            Self::Gitlab => "GitLab",
+            Self::Thunderstore => "Thunderstore",
+        }
+    }
+}
+
+/// Detail key every incomplete provider listing carries, shared by the
+/// GitHub, GitLab and Thunderstore readers.
+pub(crate) const INVENTORY_INCOMPLETE_DETAIL: &str = "inventory";
+
+/// An incomplete provider listing: typed cause plus the shared details.
+pub(crate) fn inventory_incomplete(
+    provider: FailureProvider,
+    inventory: &'static str,
+    read: u64,
+    total: Option<u64>,
+) -> PortcoveError {
+    let mut error = PortcoveError::network(format!(
+        "the {} {inventory} was read only in part; trying again continues where it stopped",
+        provider.name()
+    ))
+    .detail(INVENTORY_INCOMPLETE_DETAIL, "incomplete")
+    .detail("inventory_read", read.to_string());
+    if let Some(total) = total {
+        error = error.detail("inventory_total", total.to_string());
+    }
+    error.with_known_cause(KnownFailureCause::ProviderInventoryIncomplete {
+        provider,
+        inventory,
+        read,
+        total,
+    })
 }
 
 fn decimal_gigabytes(bytes: u64) -> String {
@@ -552,16 +604,31 @@ impl KnownFailureCause {
                 "github_device_authorization_denied",
                 "GitHub sign-in was cancelled. Choose Sign in with GitHub to try again.",
             ),
+            Self::ProviderInventoryIncomplete {
+                provider,
+                inventory,
+                read,
+                total,
+            } => {
+                let progress = total.map_or_else(
+                    || format!(" ({read} parts read)"),
+                    |total| format!(" ({read} of {total} parts read)"),
+                );
+                return (
+                    "provider_inventory_incomplete",
+                    format!(
+                        "Portcove read only part of the {} {inventory} this time{progress}. Nothing was concluded from the missing part. Try again to continue from where it stopped.",
+                        provider.name()
+                    ),
+                );
+            }
             Self::ProviderRequest {
                 provider,
                 status,
                 rate_limited,
                 resets_at,
             } => {
-                let provider = match provider {
-                    FailureProvider::Github => "GitHub",
-                    FailureProvider::Gitlab => "GitLab",
-                };
+                let provider = provider.name();
                 if *status == 401 {
                     return (
                         "provider_sign_in_rejected",
@@ -651,6 +718,15 @@ impl PortcoveError {
 
     pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
         self.failure.known_cause.as_ref()
+    }
+
+    /// Whether a provider listing stopped before its end; the item asked for
+    /// is not known to be absent.
+    pub(crate) fn is_inventory_incomplete(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::ProviderInventoryIncomplete { .. })
+        )
     }
 
     pub(crate) fn is_recorded_uploader_hold(&self) -> bool {

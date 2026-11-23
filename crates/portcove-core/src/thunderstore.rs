@@ -39,6 +39,14 @@ pub(crate) const MAX_COMPRESSED_BYTES: usize = 32 * 1024 * 1024;
 /// Decompressed JSON of one response (decompression guard); observed chunks are
 /// about 14 MiB and are parsed one package at a time.
 const MAX_DECOMPRESSED_BYTES: u64 = 256 * 1024 * 1024;
+/// Compressed chunks kept for continuing an interrupted read, least recently
+/// used first out. A resource budget: the largest community observed on
+/// November 23, 2026 was about 19 MiB compressed. A community larger than the
+/// store still completes in one uninterrupted read; only continuation after
+/// an interruption re-reads chunks the store could not keep.
+const CHUNK_STORE_MAX_BYTES: u64 = 512 * 1024 * 1024;
+/// Parsed communities kept in memory, keyed by their chunk lists.
+const SNAPSHOT_COMMUNITIES: usize = 4;
 const MAX_DEPENDENCIES: usize = 128;
 
 /// Reviewed port → Thunderstore community bindings. A community's own listing is
@@ -90,10 +98,13 @@ impl ThunderstoreClient {
     }
 
     /// Every package in the community, read chunk by chunk from the listing
-    /// index. Each read is bounded; together they cover the whole community.
-    /// Chunks already read are reused from the library cache without a request,
-    /// so a read that ran out of its budget continues where it stopped when it
-    /// is repeated. The second value is the number of package records listed,
+    /// index. Each request is bounded; there is no whole-read deadline, so a
+    /// community of any size finishes while chunks keep arriving. Chunks whose
+    /// location names their SHA-256 are verified and kept in the library's
+    /// chunk store, so a read that fails part way continues with the chunks it
+    /// already has. The parsed community is kept in memory for its current
+    /// chunk list, so browsing pages and checking many installed packages parse
+    /// it once. The second value is the number of package records listed,
     /// readable or not.
     pub(crate) async fn community_catalog(
         &self,
@@ -105,8 +116,7 @@ impl ThunderstoreClient {
             ));
         }
         self.read_community(community).await.map_err(|mut error| {
-            if error.details.contains_key("response_byte_limit")
-                || error.details.contains_key("inventory")
+            if error.details.contains_key("response_byte_limit") || error.is_inventory_incomplete()
             {
                 let url = format!("{WEB_ROOT}/c/{community}/");
                 error.message = format!("{}. Browse the full community at {url}", error.message);
@@ -120,85 +130,166 @@ impl ThunderstoreClient {
         &self,
         community: &str,
     ) -> Result<Observed<(Vec<ProviderProject>, usize)>> {
-        let deadline =
-            tokio::time::Instant::now() + crate::release::PROVIDER_NETWORK_BOUNDS.request;
         let index_url = reqwest::Url::parse(&format!(
             "{}/c/{community}/api/v1/package-listing-index/",
             self.web_root
         ))
         .map_err(|error| PortcoveError::state(error.to_string()))?;
-        let (chunks, mut observed_at, freshness) = self.listing_index(&index_url, deadline).await?;
+        let (chunks, observed_at, freshness) = self.listing_index(&index_url).await?;
+        let key = chunks
+            .iter()
+            .map(|chunk| chunk.to_string())
+            .collect::<Vec<_>>();
+        let snapshots = self
+            .http
+            .library()
+            .map(|library| &library.thunderstore_listings);
+        if let Some(snapshot) = snapshots.and_then(|snapshots| snapshots.get(community, &key)) {
+            return Ok(Observed {
+                value: (*snapshot).clone(),
+                observed_at,
+                freshness,
+            });
+        }
         let mut projects = Vec::new();
         let mut total = 0usize;
         for (position, chunk) in chunks.iter().enumerate() {
-            let incomplete = || {
-                PortcoveError::network(
-                    "the Thunderstore community listing did not finish within the provider request budget; try again to continue it",
+            let incomplete = |error: PortcoveError| {
+                // Only a failed transfer leaves the listing incomplete; a
+                // refused redirect or bad data is its own lasting failure.
+                if error.code != crate::ErrorCode::Network {
+                    return error;
+                }
+                crate::failure::inventory_incomplete(
+                    crate::failure::FailureProvider::Thunderstore,
+                    "community listing",
+                    position as u64,
+                    Some(chunks.len() as u64),
                 )
-                .detail("inventory", "incomplete")
                 .detail("chunks_read", position.to_string())
                 .detail("chunks_total", chunks.len().to_string())
+                .detail("cause", error.message)
             };
-            let (bytes, cached_at) = match self.cached_chunk(chunk) {
-                Some(cached) => cached,
+            let read = match self.stored_chunk(chunk) {
+                Some(bytes) => match self.parse(bytes, community).await {
+                    Ok(read) => Some(read),
+                    Err(error) => {
+                        // A stored chunk that no longer parses is discarded and
+                        // read again rather than failing until it expires.
+                        tracing::warn!(%error, "discarding an unreadable stored Thunderstore chunk");
+                        self.remove_stored_chunk(chunk);
+                        None
+                    }
+                },
+                None => None,
+            };
+            let read = match read {
+                Some(read) => read,
                 None if freshness == ProviderFreshness::Stale => {
-                    return Err(PortcoveError::network(
-                        "Thunderstore is unavailable and this community listing was not read completely before",
-                    )
-                    .detail("inventory", "incomplete")
-                    .detail("chunks_read", position.to_string())
-                    .detail("chunks_total", chunks.len().to_string()));
+                    return Err(incomplete(PortcoveError::network(
+                        "Thunderstore is unavailable and this part of the community listing was not kept from an earlier read",
+                    )));
                 }
                 None => {
-                    if tokio::time::Instant::now() >= deadline {
-                        return Err(incomplete());
-                    }
                     let bytes = self
                         .http
-                        .read_site_bytes(chunk.clone(), MAX_COMPRESSED_BYTES, deadline)
+                        .read_site_bytes(chunk.clone(), MAX_COMPRESSED_BYTES, true)
                         .await
-                        .map_err(|error| {
-                            if tokio::time::Instant::now() >= deadline {
-                                incomplete()
-                            } else {
-                                // Chunks read so far stay cached; repeating the
-                                // read continues from this chunk.
-                                let mut error = error
-                                    .detail("inventory", "incomplete")
-                                    .detail("chunks_read", position.to_string())
-                                    .detail("chunks_total", chunks.len().to_string());
-                                error.message = format!(
-                                    "{}; the Thunderstore community listing is incomplete",
-                                    error.message
-                                );
-                                error
-                            }
-                        })?;
-                    (bytes, None)
+                        .map_err(incomplete)?;
+                    let digest = chunk_digest(chunk);
+                    if let Some(expected) = digest {
+                        use sha2::Digest;
+                        if hex::encode(sha2::Sha256::digest(&bytes)) != expected {
+                            return Err(PortcoveError::verification(
+                                "a Thunderstore listing chunk does not match the SHA-256 its location names",
+                            ));
+                        }
+                    }
+                    let read = self.parse(bytes.clone(), community).await?;
+                    // Only verified, parsed chunks are kept: a chunk without a
+                    // content address has no identity to reuse it by.
+                    if digest.is_some() {
+                        self.store_chunk(chunk, &bytes);
+                    }
+                    read
                 }
             };
-            let read = parse_chunk(&bytes, community, &self.web_root)?;
-            if cached_at.is_none()
-                && let Some(library) = self.http.library()
-            {
-                // Store only parsed chunks: a malformed one is never reused.
-                use base64::Engine;
-                let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                if let Err(error) = library.store_http_cache(chunk.as_str(), None, None, &encoded) {
-                    tracing::warn!(%error, "could not cache a Thunderstore listing chunk");
-                }
-            }
-            if let Some(cached_at) = cached_at {
-                observed_at = observed_at.min(cached_at);
-            }
             total += read.records;
             projects.extend(read.projects);
         }
+        let snapshot = std::sync::Arc::new((projects, total));
+        if let Some(snapshots) = snapshots {
+            snapshots.put(community, key, snapshot.clone());
+        }
         Ok(Observed {
-            value: (projects, total),
+            value: (*snapshot).clone(),
             observed_at,
             freshness,
         })
+    }
+
+    /// Decompresses and parses one chunk on the blocking pool.
+    async fn parse(&self, bytes: Vec<u8>, community: &str) -> Result<ChunkRead> {
+        let community = community.to_owned();
+        let web_root = self.web_root.clone();
+        let parses = self
+            .http
+            .library()
+            .map(|library| library.thunderstore_listings.clone());
+        tokio::task::spawn_blocking(move || {
+            if let Some(parses) = parses {
+                parses.count_parse();
+            }
+            parse_chunk(&bytes, &community, &web_root)
+        })
+        .await
+        .map_err(|error| PortcoveError::state(error.to_string()))?
+    }
+
+    fn chunk_path(&self, chunk: &reqwest::Url) -> Option<std::path::PathBuf> {
+        let digest = chunk_digest(chunk)?;
+        let path = chunk_store(self.http.library()?).join(format!("{digest}.gz"));
+        crate::path::refuse_symlink_ancestors(&path).ok()?;
+        Some(path)
+    }
+
+    /// A verified chunk from the chunk store. Reusing one marks it recently used.
+    fn stored_chunk(&self, chunk: &reqwest::Url) -> Option<Vec<u8>> {
+        use sha2::Digest;
+        let path = self.chunk_path(chunk)?;
+        let bytes = std::fs::read(&path).ok()?;
+        if Some(hex::encode(sha2::Sha256::digest(&bytes))) != chunk_digest(chunk).map(str::to_owned)
+        {
+            let _ = std::fs::remove_file(&path);
+            return None;
+        }
+        if let Ok(file) = std::fs::File::options().write(true).open(&path) {
+            let _ = file.set_modified(std::time::SystemTime::now());
+        }
+        Some(bytes)
+    }
+
+    fn remove_stored_chunk(&self, chunk: &reqwest::Url) {
+        if let Some(path) = self.chunk_path(chunk) {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+
+    fn store_chunk(&self, chunk: &reqwest::Url, bytes: &[u8]) {
+        let (Some(path), Some(library)) = (self.chunk_path(chunk), self.http.library()) else {
+            return;
+        };
+        let directory = chunk_store(library);
+        let written = std::fs::create_dir_all(&directory).and_then(|()| {
+            let temporary = directory.join(format!(".{}.partial", uuid::Uuid::new_v4()));
+            std::fs::write(&temporary, bytes)?;
+            std::fs::rename(&temporary, &path)
+        });
+        if let Err(error) = written {
+            tracing::warn!(%error, "could not keep a Thunderstore listing chunk");
+            return;
+        }
+        prune_chunk_store(&directory, CHUNK_STORE_MAX_BYTES);
     }
 
     /// The community's current chunk list. When Thunderstore cannot be read,
@@ -206,7 +297,6 @@ impl ThunderstoreClient {
     async fn listing_index(
         &self,
         url: &reqwest::Url,
-        deadline: tokio::time::Instant,
     ) -> Result<(Vec<reqwest::Url>, i64, ProviderFreshness)> {
         let key = url.as_str();
         let cached = self
@@ -215,7 +305,7 @@ impl ThunderstoreClient {
             .and_then(|library| library.http_cache(key).ok().flatten());
         match self
             .http
-            .read_site_bytes(url.clone(), MAX_COMPRESSED_BYTES, deadline)
+            .read_site_bytes(url.clone(), MAX_COMPRESSED_BYTES, false)
             .await
         {
             Ok(bytes) => {
@@ -257,17 +347,6 @@ impl ThunderstoreClient {
             }
             Err(error) => Err(error),
         }
-    }
-
-    /// A chunk read earlier, with when it was stored. Chunk URLs are content
-    /// addressed, so a cached chunk is the chunk the index names.
-    fn cached_chunk(&self, chunk: &reqwest::Url) -> Option<(Vec<u8>, Option<i64>)> {
-        use base64::Engine;
-        let cached = self.http.library()?.http_cache(chunk.as_str()).ok()??;
-        let bytes = base64::engine::general_purpose::STANDARD
-            .decode(cached.body.as_bytes())
-            .ok()?;
-        Some((bytes, Some(cached.updated_at)))
     }
 
     /// One page of a community, `per_page` packages at a time.
@@ -566,6 +645,111 @@ pub(crate) fn parse_listing(
         .collect())
 }
 
+fn chunk_store(library: &Library) -> std::path::PathBuf {
+    library
+        .downloads_dir()
+        .join("provider-listing-v1")
+        .join("thunderstore")
+}
+
+/// The SHA-256 a Thunderstore blob location names (`.../sha256/<hex>...`):
+/// the digest of the compressed bytes it serves.
+fn chunk_digest(chunk: &reqwest::Url) -> Option<&str> {
+    let (_, rest) = chunk.path().split_once("/sha256/")?;
+    let digest = rest.get(..64)?;
+    (digest
+        .bytes()
+        .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+        && !rest[64..].starts_with(|c: char| c.is_ascii_hexdigit()))
+    .then_some(digest)
+}
+
+/// Removes the least recently used stored chunks until the store fits.
+fn prune_chunk_store(directory: &Path, max_bytes: u64) {
+    let Ok(entries) = std::fs::read_dir(directory) else {
+        return;
+    };
+    let mut files = entries
+        .flatten()
+        .filter_map(|entry| {
+            let metadata = entry.metadata().ok()?;
+            metadata.is_file().then(|| {
+                (
+                    metadata.modified().unwrap_or(std::time::UNIX_EPOCH),
+                    metadata.len(),
+                    entry.path(),
+                )
+            })
+        })
+        .collect::<Vec<_>>();
+    files.sort();
+    let mut size = files.iter().map(|(_, len, _)| len).sum::<u64>();
+    for (_, len, path) in files {
+        if size <= max_bytes {
+            break;
+        }
+        if std::fs::remove_file(&path).is_ok() {
+            size -= len;
+        }
+    }
+}
+
+/// Parsed communities shared by every Thunderstore client of one library.
+#[derive(Clone, Default)]
+pub(crate) struct ListingSnapshots(std::sync::Arc<std::sync::Mutex<SnapshotState>>);
+
+#[derive(Default)]
+struct SnapshotState {
+    /// Most recently used last: (community, chunk list, parsed listing).
+    entries: Vec<(String, Vec<String>, Snapshot)>,
+    parses: usize,
+}
+
+type Snapshot = std::sync::Arc<(Vec<ProviderProject>, usize)>;
+
+impl std::fmt::Debug for ListingSnapshots {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ListingSnapshots")
+    }
+}
+
+impl ListingSnapshots {
+    fn get(&self, community: &str, chunks: &[String]) -> Option<Snapshot> {
+        let mut state = self.0.lock().ok()?;
+        let position = state
+            .entries
+            .iter()
+            .position(|(name, key, _)| name == community && key == chunks)?;
+        let entry = state.entries.remove(position);
+        let snapshot = entry.2.clone();
+        state.entries.push(entry);
+        Some(snapshot)
+    }
+
+    fn put(&self, community: &str, chunks: Vec<String>, snapshot: Snapshot) {
+        let Ok(mut state) = self.0.lock() else {
+            return;
+        };
+        state.entries.retain(|(name, _, _)| name != community);
+        state.entries.push((community.to_owned(), chunks, snapshot));
+        while state.entries.len() > SNAPSHOT_COMMUNITIES {
+            state.entries.remove(0);
+        }
+    }
+
+    fn count_parse(&self) {
+        if let Ok(mut state) = self.0.lock() {
+            state.parses += 1;
+        }
+    }
+
+    /// Chunks parsed so far, for tests that establish parse reuse.
+    #[cfg(test)]
+    pub(crate) fn parses(&self) -> usize {
+        self.0.lock().map(|state| state.parses).unwrap_or_default()
+    }
+}
+
 /// Packages read from one listing chunk.
 struct ChunkRead {
     projects: Vec<ProviderProject>,
@@ -781,8 +965,72 @@ fn exact_listing_entry<T>(
     Ok(entry)
 }
 
-/// Fixture route for a simulated Thunderstore community listing: answers the
-/// listing index and its content-addressed chunk, `None` for other paths.
+/// Fixture routes for a simulated Thunderstore community listing: the listing
+/// index and its content-addressed chunks, named like Thunderstore's blobs
+/// (`.../sha256/<digest of the compressed chunk>.blob`). Built once per
+/// fixture so a large community is compressed once.
+#[cfg(test)]
+pub(crate) struct ListingFixture {
+    index_path: String,
+    index: Vec<u8>,
+    chunks: std::collections::HashMap<String, Vec<u8>>,
+}
+
+#[cfg(test)]
+pub(crate) fn gzip_fixture(value: &Value) -> Vec<u8> {
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+    std::io::Write::write_all(&mut encoder, value.to_string().as_bytes()).unwrap();
+    encoder.finish().unwrap()
+}
+
+#[cfg(test)]
+pub(crate) fn ok_bytes(body: &[u8]) -> Vec<u8> {
+    let mut response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    )
+    .into_bytes();
+    response.extend_from_slice(body);
+    response
+}
+
+#[cfg(test)]
+impl ListingFixture {
+    pub(crate) fn new(web: &str, community: &str, chunks: &[Value]) -> Self {
+        use sha2::Digest;
+        let chunks = chunks
+            .iter()
+            .map(|chunk| {
+                let body = gzip_fixture(chunk);
+                (hex::encode(sha2::Sha256::digest(&body)), body)
+            })
+            .collect::<Vec<_>>();
+        let index = gzip_fixture(&serde_json::json!(
+            chunks
+                .iter()
+                .map(|(sha, _)| format!("{web}/listing-chunk/sha256/{sha}.blob"))
+                .collect::<Vec<_>>()
+        ));
+        Self {
+            index_path: format!("/c/{community}/api/v1/package-listing-index/"),
+            index,
+            chunks: chunks
+                .into_iter()
+                .map(|(sha, body)| (format!("/listing-chunk/sha256/{sha}.blob"), body))
+                .collect(),
+        }
+    }
+
+    /// The response for `path`, or `None` when it is not one of these routes.
+    pub(crate) fn respond(&self, path: &str) -> Option<Vec<u8>> {
+        if path == self.index_path {
+            return Some(ok_bytes(&self.index));
+        }
+        self.chunks.get(path).map(|body| ok_bytes(body))
+    }
+}
+
+/// One-off fixture route; see [`ListingFixture`].
 #[cfg(test)]
 pub(crate) fn listing_fixture(
     path: &str,
@@ -790,37 +1038,7 @@ pub(crate) fn listing_fixture(
     community: &str,
     chunks: &[Value],
 ) -> Option<Vec<u8>> {
-    use sha2::Digest;
-    let gzip = |value: &Value| {
-        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
-        std::io::Write::write_all(&mut encoder, value.to_string().as_bytes()).unwrap();
-        encoder.finish().unwrap()
-    };
-    let named = chunks
-        .iter()
-        .map(|chunk| {
-            let body = gzip(chunk);
-            (hex::encode(sha2::Sha256::digest(&body)), body)
-        })
-        .collect::<Vec<_>>();
-    let body = if path == format!("/c/{community}/api/v1/package-listing-index/") {
-        gzip(&serde_json::json!(
-            named
-                .iter()
-                .map(|(sha, _)| format!("{web}/listing-chunk/{sha}"))
-                .collect::<Vec<_>>()
-        ))
-    } else {
-        let sha = path.split_once("listing-chunk/")?.1;
-        named.into_iter().find(|(name, _)| name == sha)?.1
-    };
-    let mut response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        body.len()
-    )
-    .into_bytes();
-    response.extend_from_slice(&body);
-    Some(response)
+    ListingFixture::new(web, community, chunks).respond(path)
 }
 
 #[cfg(test)]

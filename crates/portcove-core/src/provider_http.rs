@@ -403,13 +403,16 @@ impl ProviderHttp {
     }
 
     /// Reads one bounded response body, following at most four redirects that
-    /// stay on the provider's own site, within `deadline`. Throttling and server
-    /// errors start the provider-wide backoff; while it lasts no request is made.
+    /// stay on the provider's own site. Throttling and server errors start the
+    /// provider-wide backoff; while it lasts no request is made. A `transfer`
+    /// (a larger body) has connection and idle-read bounds but no overall
+    /// deadline, so it finishes while bytes keep arriving; other reads also
+    /// have the metadata request deadline.
     pub(crate) async fn read_site_bytes(
         &self,
         url: reqwest::Url,
         max_bytes: usize,
-        deadline: tokio::time::Instant,
+        transfer: bool,
     ) -> Result<Vec<u8>> {
         if let Some(wait) = self.backoff_remaining() {
             return Err(PortcoveError::network(format!(
@@ -422,8 +425,12 @@ impl ProviderHttp {
         let mut current = url;
         let read = async {
             for _ in 0..=4 {
-                let response = self
-                    .client
+                let client = if transfer {
+                    &self.download_client
+                } else {
+                    &self.client
+                };
+                let response = client
                     .get(current.clone())
                     .send()
                     .await
@@ -466,12 +473,7 @@ impl ProviderHttp {
                 self.label
             )))
         };
-        tokio::time::timeout_at(deadline, read).await.map_err(|_| {
-            PortcoveError::network(format!(
-                "{} did not answer within the provider request budget",
-                self.label
-            ))
-        })?
+        read.await
     }
 
     pub(crate) fn library(&self) -> Option<&Library> {
