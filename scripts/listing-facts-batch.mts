@@ -139,6 +139,7 @@ import {
   type ObservedRelease,
 } from "./listing-package-facts.mts";
 import { isRecord } from "./runtime-values.mts";
+import { listingDeliveryMaximum } from "./listing-directory-carrier.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -1874,7 +1875,9 @@ export interface CapacityRow {
  *    signed-envelope forms (`catalogSizeGuard`), and the binding measure, the
  *    JSON-escaped retained installed contract, estimated as the escaped
  *    `catalog.json` text plus `retainedContractReserveBytes`;
- *  - `MAX_LISTING_BYTES` (8 MiB): the embedded listing directory.
+ *  - the canonical `listings.json` against the listing publisher's 8 MiB
+ *    canonical read (`listingDeliveryMaximum`) and Core's inspection text
+ *    bound (`MAX_LISTING_DIRECTORY_TEXT_BYTES`).
  * Released readers refuse more than the bound, so a batch past a ceiling is
  * never proposed: its required check would fail.
  */
@@ -1885,12 +1888,24 @@ export function batchCapacity(input: {
   listingSource: string;
 }): { ok: boolean; percent: number; rows: CapacityRow[] } {
   const bounds = catalogSizeBounds(input.signedCatalogSource);
-  const listingBound = capacityConstant(input.listingSource, "MAX_LISTING_BYTES");
   const guard = catalogSizeGuard(
     Buffer.byteLength(input.catalogText),
     JSON.parse(input.catalogText) as unknown,
     bounds,
-    { bytes: input.listingBytes, bound: listingBound },
+    [
+      [
+        "generated listings.json bytes",
+        input.listingBytes,
+        listingDeliveryMaximum,
+        "listing publisher canonical read bound",
+      ],
+      [
+        "generated listings.json inspection bytes",
+        input.listingBytes,
+        capacityConstant(input.listingSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+        "Core listing inspection bound",
+      ],
+    ],
   );
   const ceiling = Math.floor((bounds.current * bounds.percent) / 100);
   const retained =
