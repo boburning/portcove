@@ -808,7 +808,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "PSScriptAnalyzer causal fixture failed" }
 
   fast_catalog:
-    timeout-minutes: 90
+    # 45 before listing facts reproduction, plus its CLI build (20), plan (2)
+    # and verification (42) when a change touches the facts table.
+    timeout-minutes: 110
     name: fast-catalog (linux-x86_64)
     needs: classify
     # actions: read lets a facts batch's provenance be read from its run.
@@ -1606,6 +1608,9 @@ jobs:
         run: node scripts/ci-result-gate.mts
 
   catalog_full:
+    # The repository caps CI jobs at 120. Listing facts reproduction runs only
+    # for pull requests and merge groups (`listing-facts-batch.mts plan`), so
+    # in a qualification run its build and verification steps normally skip.
     timeout-minutes: 120
     name: catalog-full
     needs: classify

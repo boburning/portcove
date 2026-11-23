@@ -53,7 +53,7 @@ jobs:
       (vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run))
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: read
@@ -66,9 +66,11 @@ jobs:
       pr_head: ${{ steps.pull.outputs.head }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
         with:
           node-version-file: .node-version
       - name: Stop while a stop issue is open
@@ -91,55 +93,72 @@ jobs:
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.gate.outputs.blocked == 'false' && needs.gate.outputs.pr_state == 'green'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     permissions:
       contents: write
       pull-requests: write
       checks: read
+      statuses: read
       actions: read
       issues: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
         with:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
         with:
           node-version-file: .node-version
       - name: Install locked dependencies before credentials
         timeout-minutes: 5
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
-      - name: Recheck the batch paths and gate bounds at its exact head
+      # Compose the batch onto the current main tip, as the squash will be,
+      # and check that result: main may have moved since its checks ran.
+      - name: Recheck the batch composed onto the current main
+        id: compose
         timeout-minutes: 8
         env:
           NUMBER: ${{ needs.gate.outputs.pr_number }}
           HEAD: ${{ needs.gate.outputs.pr_head }}
         run: |
           set -euo pipefail
-          git fetch --no-tags origin "+refs/pull/${NUMBER}/head:refs/remotes/batch/head"
+          git fetch --no-tags origin main "+refs/pull/${NUMBER}/head:refs/remotes/batch/head"
           test "$(git rev-parse refs/remotes/batch/head)" = "$HEAD"
-          base=$(git merge-base "$HEAD" origin/main)
+          target=$(git rev-parse origin/main)
+          base=$(git merge-base "$HEAD" "$target")
           # The trusted main scripts check the paths before any batch file runs.
           node scripts/listing-facts-batch.mts paths --base "$base" --head "$HEAD"
-          # The batch changes no script, so its own checkout runs main's gate.
-          git worktree add --detach "$RUNNER_TEMP/batch" "$HEAD"
+          git worktree add --detach "$RUNNER_TEMP/batch" "$target"
           ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/batch/node_modules"
           cd "$RUNNER_TEMP/batch"
-          env -u GITHUB_EVENT_NAME node scripts/generate-catalog.mts --check
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            merge --quiet --no-ff --no-edit "$HEAD"
+          node scripts/listing-facts-batch.mts paths --base "$target" --head HEAD
+          # Compared with the first parent: the current main tip.
+          GITHUB_EVENT_NAME=push node scripts/generate-catalog.mts --check > /dev/null
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
       - name: Merge through the guarded delivery route
         timeout-minutes: 5
         env:
           GITHUB_TOKEN: ${{ github.token }}
           NUMBER: ${{ needs.gate.outputs.pr_number }}
           HEAD: ${{ needs.gate.outputs.pr_head }}
+          TARGET: ${{ steps.compose.outputs.target }}
+          TREE: ${{ steps.compose.outputs.tree }}
         run: |
           set -euo pipefail
           node scripts/listing-facts-batch.mts merge-intent --number "$NUMBER" \
             --closure "$RUNNER_TEMP/closure.json" --message "$RUNNER_TEMP/message.json"
           node scripts/pr-delivery.mts merge --pr "$NUMBER" --head "$HEAD" \
+            --target "$TARGET" --tree "$TREE" \
             --closure-intent-file "$RUNNER_TEMP/closure.json" \
             --merge-message-file "$RUNNER_TEMP/message.json"
 
@@ -151,7 +170,9 @@ jobs:
       (needs.gate.outputs.pr_state == 'none' ||
       (github.event_name == 'workflow_dispatch' && inputs.dry_run))
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # The sum of its step budgets, so the stop assessment and artifacts still
+    # run after the slowest permitted worker and reproduction.
+    timeout-minutes: 240
     permissions:
       contents: read
       actions: read
@@ -162,20 +183,25 @@ jobs:
       WORK: ${{ github.workspace }}/work/listing-facts-batch
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
         with:
           fetch-depth: 2
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
         with:
           node-version-file: .node-version
       - name: Install locked dependencies before credentials
         timeout-minutes: 5
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - uses: ./.github/actions/setup-rust
+        timeout-minutes: 15
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        timeout-minutes: 5
         with:
           save-if: false
           shared-key: upstream-observer-cli
@@ -246,7 +272,7 @@ jobs:
           git -c user.name='github-actions[bot]' \
             -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
             commit --quiet --allow-empty -am "chore(catalog): listing facts batch ${GITHUB_RUN_ID}"
-          node scripts/listing-facts-batch.mts delta --base HEAD~1 --output "$WORK/delta.json"
+          node scripts/listing-facts-batch.mts delta --base HEAD~1 --output "$WORK/delta.json" > /dev/null
       - name: Refuse paths outside the batch allowlist
         id: paths
         timeout-minutes: 2
@@ -262,20 +288,6 @@ jobs:
         run: node scripts/listing-facts-batch.mts verify --cli target/debug/portcove --base HEAD~1 --own-run true
         env:
           GITHUB_TOKEN: ${{ github.token }}
-      - name: Decide whether this batch can be proposed
-        id: ready
-        timeout-minutes: 1
-        env:
-          PATHS: ${{ steps.paths.outcome }}
-          GATE: ${{ steps.gate.outcome }}
-          VERIFY: ${{ steps.verify.outcome }}
-        run: |
-          set -euo pipefail
-          changed=$(git diff --name-only HEAD~1 HEAD | wc -l)
-          ready=false
-          if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$VERIFY" = success ] && [ "$changed" -gt 0 ]; then ready=true; fi
-          echo "ready=$ready" >> "$GITHUB_OUTPUT"
-          git format-patch -1 --stdout HEAD > "$WORK/batch.patch"
       - name: Publish the registration exception queues
         if: ${{ !cancelled() && steps.generate.outcome == 'success' }}
         timeout-minutes: 5
@@ -284,6 +296,7 @@ jobs:
           node scripts/catalog-route-fit.mts --json --output "$WORK/route-fit.json"
           node scripts/listing-facts-batch.mts queues --route-fit "$WORK/route-fit.json" --output "$WORK/queue-counts.json" > /dev/null
       - name: Assess the stop conditions
+        id: assess
         if: ${{ !cancelled() }}
         timeout-minutes: 2
         env:
@@ -300,6 +313,25 @@ jobs:
           node scripts/listing-facts-batch.mts assess "${report[@]}" "${delta[@]}" \
             --history "$WORK/history.json" --run-id "$GITHUB_RUN_ID" --versions "$versions" \
             --gate "$GATE" --paths "$PATHS" --reproduction "$VERIFY" --output "$WORK/conditions.json" > /dev/null
+      # A batch is proposed only when every check passed, no stop condition
+      # holds and the change is material (see materialChange).
+      - name: Decide whether this batch can be proposed
+        id: ready
+        if: ${{ !cancelled() }}
+        timeout-minutes: 1
+        env:
+          PATHS: ${{ steps.paths.outcome }}
+          GATE: ${{ steps.gate.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+          STOP: ${{ steps.assess.outputs.stop }}
+          MATERIAL: ${{ steps.generate.outputs.material }}
+        run: |
+          set -euo pipefail
+          ready=false
+          if [ "$PATHS" = success ] && [ "$GATE" = success ] && [ "$VERIFY" = success ] \
+            && [ "$STOP" = false ] && [ "$MATERIAL" = true ]; then ready=true; fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+          if [ "$ready" = true ]; then git format-patch -1 --stdout HEAD > "$WORK/batch.patch"; fi
       - name: Retain the batch, its report and the exception queues
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -324,7 +356,12 @@ jobs:
           retention-days: 30
       # A dry run saves no state: it must not move the cursor of real runs.
       - name: Persist the worker state and run history
-        if: ${{ !cancelled() && env.DRY_RUN != 'true' && hashFiles('work/listing-facts-batch/state.json') != '' }}
+        # A refused batch saves nothing either: the next run derives it again.
+        if: >-
+          ${{ !cancelled() && env.DRY_RUN != 'true' &&
+          hashFiles('work/listing-facts-batch/state.json') != '' &&
+          (steps.ready.outputs.ready == 'true' || (steps.assess.outputs.stop == 'false' &&
+          steps.generate.outputs.material == 'false')) }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         timeout-minutes: 5
         with:
@@ -340,18 +377,21 @@ jobs:
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
       needs.derive.outputs.ready == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        timeout-minutes: 5
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
         with:
           node-version-file: .node-version
       - name: Install locked dependencies before credentials
@@ -383,17 +423,19 @@ jobs:
     if: >-
       always() && vars.PORTCOVE_FACTS_BATCH_ENABLED == 'true' &&
       !(github.event_name == 'workflow_dispatch' && inputs.dry_run) &&
-      needs.gate.result == 'success' && needs.gate.outputs.blocked == 'false'
+      needs.gate.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 20
     permissions:
       contents: read
       issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 5
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        timeout-minutes: 5
         with:
           node-version-file: .node-version
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -407,6 +449,7 @@ jobs:
         timeout-minutes: 4
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          BLOCKED: ${{ needs.gate.outputs.blocked }}
           PR_STATE: ${{ needs.gate.outputs.pr_state }}
           PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
           DERIVE: ${{ needs.derive.result }}
@@ -415,7 +458,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/listing-facts-batch.mts collect --conditions work/listing-facts-batch/conditions.json \
-            --pr-state "$PR_STATE" --pr-number "${PR_NUMBER:-none}" \
+            --blocked "$BLOCKED" --pr-state "$PR_STATE" --pr-number "${PR_NUMBER:-none}" \
             --derive "$DERIVE" --merge "$MERGE" --deliver "$DELIVER"
           node scripts/listing-facts-batch.mts issues --conditions work/listing-facts-batch/conditions.json \
             --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"

@@ -63,6 +63,7 @@ import {
   readGateBaseline,
   reproductionBudget,
   reproductionPlan,
+  sameExceptReconfirmation,
   type ArtifactFactV2,
   type FactsProvenance,
   type GitRunner,
@@ -145,6 +146,8 @@ export function changedPaths(git: GitRunner, base: string): string[] | undefined
 /** A provider release as the GitHub REST release endpoint states it. */
 export interface ProviderRelease {
   id: number;
+  /** `owner/name` the provider names for the release's repository now. */
+  repository: string;
   tag_name: string;
   draft: boolean;
   prerelease: boolean;
@@ -260,6 +263,12 @@ export async function reproduceFacts(inputs: {
       assets: release.assets.filter((asset) => isArchive(asset.name)).map((asset) => asset.name),
     });
     const stated: [boolean, string][] = [
+      // The numeric ids must name the listing's own repository: a release of
+      // any other repository is refused, whatever its bytes say.
+      [
+        release.repository.toLowerCase() === entry.repository.toLowerCase(),
+        `the listed repository ${entry.repository} (the ids name ${release.repository})`,
+      ],
       [release.id === releaseId && !release.draft, "the release id or draft state"],
       [
         safeText(release.tag_name, `release-${release.id}`) === entry.observation.tag,
@@ -401,9 +410,16 @@ export function parseProviderRelease(value: unknown): ProviderRelease {
     typeof value.draft !== "boolean" ||
     typeof value.prerelease !== "boolean" ||
     !(value.published_at === null || typeof value.published_at === "string") ||
-    !Array.isArray(value.assets)
+    !Array.isArray(value.assets) ||
+    typeof value.url !== "string"
   )
     throw new Error("The provider release record is malformed.");
+  // `https://api.github.com/repos/<owner>/<name>/releases/<id>` names the
+  // repository the numeric repository id resolves to now.
+  const named = /^https:\/\/api\.github\.com\/repos\/([\w.-]+\/[\w.-]+)\/releases\/[0-9]+$/u.exec(
+    value.url,
+  );
+  if (!named) throw new Error("The provider release record names no repository.");
   const assets = value.assets.map((asset: unknown) => {
     if (
       !isRecord(asset) ||
@@ -427,6 +443,7 @@ export function parseProviderRelease(value: unknown): ProviderRelease {
   });
   return {
     id: Number(value.id),
+    repository: named[1]!,
     tag_name: value.tag_name,
     draft: value.draft,
     prerelease: value.prerelease,
@@ -614,6 +631,41 @@ export function handoffObservations(directory: string) {
   return { listings };
 }
 
+/** Reconfirmed facts older than this are refreshed by a batch even when nothing else changed. */
+export const refreshAfterDays = 14;
+/**
+ * Whether a derived batch is worth a pull request (and a person's reopen):
+ * the enrollment changed, an entry appeared, disappeared or changed in
+ * anything but a reconfirmation, or a committed eligible entry was last
+ * confirmed more than `refreshAfterDays` before the new table's time, so
+ * landing its reconfirmation keeps it inside the 30-day facts age. A run that
+ * only moved `generated_at`, provenance and fresh reconfirmations is not.
+ */
+export function materialChange(
+  baseline: unknown,
+  current: ListingFactsTable,
+  delta: { added: number; withdrawn: number; changed: number },
+): boolean {
+  if (delta.added + delta.withdrawn + delta.changed > 0) return true;
+  const before = new Map(
+    (isRecord(baseline) && Array.isArray(baseline.entries)
+      ? (baseline.entries as ListingFactsEntry[])
+      : []
+    ).map((entry) => [entry.port_id, entry]),
+  );
+  if (before.size !== current.entries.length) return true;
+  const now = Date.parse(current.generated_at);
+  return current.entries.some((entry) => {
+    const prior = before.get(entry.port_id);
+    if (!prior || !sameExceptReconfirmation(prior, entry)) return true;
+    return (
+      prior.ineligible === null &&
+      prior.observation.observed_at !== entry.observation.observed_at &&
+      (now - Date.parse(prior.observation.observed_at)) / 86_400_000 > refreshAfterDays
+    );
+  });
+}
+
 /** Enrollment changes between two committed enrollment tables, by port_id. */
 export function tableDelta(previous: unknown, current: unknown) {
   const rows = (table: unknown) =>
@@ -717,6 +769,8 @@ export interface WorkerSummary {
     new_pending: number;
     held_for_batch: number;
     days_to_drain_all: number;
+    runs_to_drain_enrolled?: number;
+    cadence_hours?: number;
   };
   ineligible: Record<string, number>;
   identities: { port_id: string; outcome: string; reason?: string }[];
@@ -830,12 +884,30 @@ export function stopConditions(input: {
       "observer-coverage-dropped",
       `The observer covered ${record.observed} identities, down from ${previous.observed}.`,
     );
-  if (summary.backlog.days_to_drain_all >= 30)
+  const drainDays = offeredDrainDays(summary);
+  if (drainDays >= 30)
     add(
       "drain-exceeds-facts-age",
-      `Draining the backlog takes ${summary.backlog.days_to_drain_all} days at this cadence, not within the 30-day facts age.`,
+      `Refreshing the offered identities whose release changed takes about ${drainDays} days (${runsPerBatch} runs per batch at this cadence, before any wait for a person), not within the 30-day facts age.`,
     );
   return { conditions, record };
+}
+
+/**
+ * Runs one landed batch costs: the deriving run that opens it and the run
+ * that merges it (a run derives only while no batch is open).
+ */
+export const runsPerBatch = 2;
+/**
+ * Days until the offered identities whose release changed are refreshed and
+ * landed: the worker's run count for them, times the runs each landed batch
+ * costs, at the configured cadence. Waits for a person to reopen a batch come
+ * on top; the freshness alert covers those.
+ */
+export function offeredDrainDays(summary: WorkerSummary) {
+  const runs = summary.backlog.runs_to_drain_enrolled ?? 0;
+  const cadence = summary.backlog.cadence_hours ?? 24;
+  return Math.round(((runs * runsPerBatch * cadence) / 24) * 10) / 10;
 }
 
 /** Whether the committed facts have fallen behind the real clock. */
@@ -876,8 +948,18 @@ export function freshnessIssueBody(detail: string, runUrl: string) {
 /** Add a failed batch pull request and failed jobs to a run's conditions. */
 export function collectConditions(
   found: { conditions: StopCondition[]; freshness: string | null },
-  input: { prState: string; prNumber: string; jobs: Record<string, string> },
+  input: {
+    prState: string;
+    prNumber: string;
+    jobs: Record<string, string>;
+    /** An open stop issue holds the job: only the freshness alert is filed. */
+    blocked?: boolean;
+    /** The freshness of the committed facts, evaluated on every enabled run. */
+    freshness?: string | null;
+  },
 ) {
+  const freshness = input.freshness !== undefined ? input.freshness : found.freshness;
+  if (input.blocked) return { conditions: [] as StopCondition[], freshness };
   const conditions = [...found.conditions];
   if (input.prState === "failed")
     conditions.push({
@@ -886,9 +968,10 @@ export function collectConditions(
     });
   for (const [job, result] of Object.entries(input.jobs))
     // A derive job that already named its conditions failed because of them.
-    if (result === "failure" && !(job === "derive" && found.conditions.length))
-      conditions.push({ name: "worker-error", detail: `The ${job} job failed.` });
-  return { conditions, freshness: found.freshness };
+    // A timed-out or cancelled job ends the same way: nothing silent.
+    if (["failure", "cancelled"].includes(result) && !(job === "derive" && found.conditions.length))
+      conditions.push({ name: "worker-error", detail: `The ${job} job ended ${result}.` });
+  return { conditions, freshness };
 }
 
 /** The exact squash message of a batch merge: no closing keyword. */
@@ -977,6 +1060,24 @@ export function requiredCheckState(runs: readonly CheckRun[]): BatchPullState {
   const pending = requiredContexts.filter((name) => latest.get(name)?.status !== "completed");
   if (pending.length) return { state: "pending", pending };
   return { state: "green" };
+}
+
+/**
+ * The open pull requests the job itself opened: a batch branch in this
+ * repository, opened by the workflow token. A fork or a person using a
+ * batch-like branch name is not a batch and cannot hold or stop the job.
+ */
+export function jobBatches(pulls: readonly unknown[], repository: string) {
+  return pulls.filter(
+    (pull): pull is Record<string, unknown> =>
+      isRecord(pull) &&
+      isRecord(pull.head) &&
+      isRecord(pull.head.repo) &&
+      isRecord(pull.user) &&
+      String(pull.head.ref).startsWith(batchBranchPrefix) &&
+      pull.head.repo.full_name === repository &&
+      pull.user.login === workflowLogin,
+  );
 }
 
 /** Problems with an open pull request that claims to be a batch, before any merge. */
@@ -1076,12 +1177,18 @@ async function githubWrite(method: string, route: string, body: unknown) {
   return await response.json();
 }
 
-/** Issues the job opened (any state), newest first, bounded to 300. */
-async function jobIssues() {
+/** The login the built-in workflow token acts as. */
+export const workflowLogin = "github-actions[bot]";
+/**
+ * Issues the workflow token opened in one state, most recently updated
+ * first, at most 1,000. A list the API refuses fails the run: an unknown
+ * stop state is never read as "not stopped".
+ */
+async function jobIssues(state: "open" | "closed") {
   const issues: { number: number; title: string; state: string }[] = [];
-  for (let page = 1; page <= 3; page++) {
+  for (let page = 1; page <= 10; page++) {
     const batch = await githubJson(
-      `https://api.github.com/repos/${repository()}/issues?state=all&creator=${encodeURIComponent("app/github-actions")}&per_page=100&page=${page}`,
+      `https://api.github.com/repos/${repository()}/issues?state=${state}&creator=${encodeURIComponent(workflowLogin)}&sort=updated&direction=desc&per_page=100&page=${page}`,
       token(),
     );
     if (!Array.isArray(batch)) throw new Error("The issue list is malformed.");
@@ -1101,13 +1208,15 @@ async function jobIssues() {
 
 /** File one issue per condition: comment on an open one, reopen a closed one, else open one. */
 async function fileIssues(issues: readonly { title: string; body: string }[]) {
-  const existing = await jobIssues();
+  if (!issues.length) return;
+  const existing = [...(await jobIssues("open")), ...(await jobIssues("closed"))];
   for (const { title, body } of issues) {
     const issue = existing.find((candidate) => candidate.title === title);
     if (!issue) await githubWrite("POST", "/issues", { title, body });
-    else {
-      if (issue.state !== "open")
-        await githubWrite("PATCH", `/issues/${issue.number}`, { state: "open" });
+    // An open issue already says it; only a recurrence after it was closed
+    // reopens and comments, so a waiting stop never repeats itself each run.
+    else if (issue.state !== "open") {
+      await githubWrite("PATCH", `/issues/${issue.number}`, { state: "open" });
       await githubWrite("POST", `/issues/${issue.number}/comments`, { body });
     }
   }
@@ -1162,7 +1271,11 @@ async function main(argv: string[]): Promise<string> {
       const problems: string[] = [];
       const headRef = process.env.GITHUB_HEAD_REF || undefined;
       if (claimsBatch(baseline, current, headRef)) {
-        const changed = changedPaths(git, base);
+        // The committed range only: files a CI step leaves behind are not
+        // part of the change (the job checks its working tree with `paths`).
+        const changed = git(["diff", "--name-only", "-z", "--no-renames", base, "HEAD"])
+          ?.split("\0")
+          .filter(Boolean);
         const violations = changed ? pathViolations(changed) : ["(unlisted)"];
         if (violations.length)
           problems.push(`Paths outside the batch allowlist: ${violations.join(", ")}.`);
@@ -1318,8 +1431,8 @@ async function main(argv: string[]): Promise<string> {
     }
     case "blocked": {
       // An open stop issue holds every further run until a person closes it.
-      const open = (await jobIssues()).filter(
-        (issue) => issue.state === "open" && issue.title.startsWith(stopIssuePrefix),
+      const open = (await jobIssues("open")).filter((issue) =>
+        issue.title.startsWith(stopIssuePrefix),
       );
       output("blocked", String(open.length > 0));
       if (open.length)
@@ -1330,17 +1443,19 @@ async function main(argv: string[]): Promise<string> {
     }
     case "pull-request": {
       // The one open batch pull request and its exact-head required checks.
-      const pulls = await githubJson(
-        `https://api.github.com/repos/${repository()}/pulls?state=open&base=main&per_page=100`,
-        token(),
-      );
-      if (!Array.isArray(pulls)) throw new Error("The pull request list is malformed.");
-      const batches = pulls.filter(
-        (pull) =>
-          isRecord(pull) &&
-          isRecord(pull.head) &&
-          String(pull.head.ref).startsWith(batchBranchPrefix),
-      ) as Record<string, unknown>[];
+      const pulls: unknown[] = [];
+      for (let page = 1; page <= 10; page++) {
+        const list = await githubJson(
+          `https://api.github.com/repos/${repository()}/pulls?state=open&base=main&per_page=100&page=${page}`,
+          token(),
+        );
+        if (!Array.isArray(list)) throw new Error("The pull request list is malformed.");
+        pulls.push(...(list as unknown[]));
+        if (list.length < 100) break;
+        if (page === 10)
+          throw new Error("More than 1,000 open pull requests; the batch state is unknown.");
+      }
+      const batches = jobBatches(pulls, repository());
       if (batches.length === 0) {
         output("state", "none");
         return `${JSON.stringify({ state: "none" })}\n`;
@@ -1368,14 +1483,17 @@ async function main(argv: string[]): Promise<string> {
         commits: Number(detail.commits),
         draft: detail.draft === true,
       });
-      const checks = await githubJson(
-        `https://api.github.com/repos/${repository()}/commits/${head}/check-runs?per_page=100`,
-        token(),
-      );
-      const runs =
-        isRecord(checks) && Array.isArray(checks.check_runs)
-          ? (checks.check_runs as CheckRun[])
-          : [];
+      // Each required context by name, so other check runs cannot crowd it out.
+      const runs: CheckRun[] = [];
+      for (const context of requiredContexts) {
+        const checks = await githubJson(
+          `https://api.github.com/repos/${repository()}/commits/${head}/check-runs?check_name=${encodeURIComponent(context)}&per_page=100`,
+          token(),
+        );
+        if (!isRecord(checks) || !Array.isArray(checks.check_runs))
+          throw new Error("The check run list is malformed.");
+        runs.push(...(checks.check_runs as CheckRun[]));
+      }
       const state: BatchPullState = problems.length
         ? { state: "failed", failed: problems }
         : requiredCheckState(runs);
@@ -1394,6 +1512,7 @@ async function main(argv: string[]): Promise<string> {
       );
       if (option.output) writeFileSync(option.output, `${JSON.stringify(delta)}\n`);
       output("changed", String(delta.added + delta.withdrawn + delta.changed > 0));
+      output("material", String(materialChange(baselineFacts(base), currentFacts(), delta)));
       return `${JSON.stringify(delta)}\n`;
     }
     case "observer-run": {
@@ -1500,6 +1619,8 @@ async function main(argv: string[]): Promise<string> {
         mkdirSync(path.dirname(option.conditions), { recursive: true });
       }
       const collected = collectConditions(found, {
+        blocked: option.blocked === "true",
+        freshness: factsFallingBehind(currentFacts(), new Date().toISOString()) ?? null,
         prState: option["pr-state"] ?? "none",
         prNumber: option["pr-number"] ?? "none",
         jobs: {

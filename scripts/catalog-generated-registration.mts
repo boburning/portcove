@@ -1918,32 +1918,34 @@ export interface ReproductionBudget {
 /**
  * One change's reproduction budget. The entry bound is the gate's largest
  * delta bound; 4 GiB is two worker runs' byte budget, and an archive is never
- * larger than the worker reads (512 MiB). Forty minutes of downloads and
- * inspection stay inside CI's 45-minute catalog job.
+ * larger than the worker reads (512 MiB). The 30-minute deadline is checked
+ * before each archive, and one download or Core run stops after 10 minutes,
+ * so a reproduction ends within 40 minutes, inside its 42-minute CI step.
  */
 export const reproductionBudget: ReproductionBudget = {
   maxEntries: Math.max(deltaBounds.added, deltaBounds.changed),
   maxBytes: 4 * 1024 ** 3,
   maxArchiveBytes: 512 * 1024 ** 2,
-  maxMilliseconds: 40 * 60_000,
+  maxMilliseconds: 30 * 60_000,
 };
 
-/** The fields of an eligible entry that its exact bytes and release decide. */
-const reproducedFields = (entry: ListingFactsEntry) =>
-  digestOf([
-    entry.repository_id,
-    entry.observation.release_id,
-    entry.observation.tag,
-    entry.observation.published_at,
-    entry.observation.assets_sha256,
-    entry.artifacts,
-  ]);
+/**
+ * An entry without the fields a reconfirmation alone moves: `observed_at`
+ * and the worker's `attempt` record. Every other field (repository binding,
+ * parser version, coverage, unread forms, release and artifacts) can decide
+ * whether the entry enrolls, so a change to any of them is re-read.
+ */
+const reproducedFields = (entry: ListingFactsEntry) => {
+  const { attempt: _attempt, observation, ...rest } = entry;
+  const { observed_at: _observedAt, ...kept } = observation;
+  return digestOf({ ...rest, observation: kept });
+};
 /**
  * Whether `next` must be reproduced from its bytes: it is eligible (it can
- * offer a route) and it is new or its release, assets or artifact facts
- * differ from `previous`. A reconfirmation that only moves `observed_at`
- * re-reads nothing; an ineligible entry offers nothing (its withdrawals stay
- * bounded by the gate).
+ * offer a route) and it is new, was ineligible, or differs from `previous` in
+ * anything but `observed_at` and `attempt`. A reconfirmation re-reads nothing;
+ * an ineligible entry offers nothing (its withdrawals stay bounded by the
+ * gate).
  */
 export function needsReproduction(
   previous: ListingFactsEntry | undefined,
@@ -1956,6 +1958,9 @@ export function needsReproduction(
     reproducedFields(previous) !== reproducedFields(next)
   );
 }
+/** Whether two entries differ only in what a reconfirmation moves (`observed_at`, `attempt`). */
+export const sameExceptReconfirmation = (left: ListingFactsEntry, right: ListingFactsEntry) =>
+  reproducedFields(left) === reproducedFields(right);
 /** Archive bytes reproducing an entry downloads. */
 export const reproductionCost = (entry: ListingFactsEntry) =>
   entry.artifacts.reduce((sum, artifact) => sum + artifact.size, 0);

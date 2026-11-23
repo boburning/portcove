@@ -4146,13 +4146,17 @@ release downloads the worker already reads.
 Each run, in one concurrency group (`listing-facts-batch`):
 
 1. Any open issue titled `Listing facts batch stopped: …` stops the run.
-2. An open batch pull request is evaluated instead of starting another. When
+2. An open batch pull request is evaluated instead of starting another. Only
+   a pull request the workflow token opened from a batch branch of this
+   repository counts, so a fork or a person cannot hold or stop the job. When
    all five required checks (`catalog`, `dependency-review`, `frontend`,
-   `rust`, `rust-quality`) passed on its exact head, its paths stay inside the
-   allowlist and the gate accepts its generation with its own merge base, the
-   job merges it through the guarded route (`scripts/pr-delivery.mts merge`,
-   exact head, closure intent and merge message). A failed check stops the
-   job. Missing or pending checks wait.
+   `rust`, `rust-quality`) passed on its exact head, the job composes it onto
+   the current `main` tip as the squash will be, requires that composition to
+   keep the allowlist and pass the gate and `generate-catalog.mts --check`
+   against that tip, and merges through the guarded route
+   (`scripts/pr-delivery.mts merge`, exact head, that target and tree, closure
+   intent and merge message). A failed check stops the job. Missing or pending
+   checks wait.
 3. Otherwise the job derives one batch from the tip of `main`: the newest
    main observer handoff (`catalog-upstream-observations-*`) and the worker
    state restored from the Actions cache. It retains the run's inputs (the
@@ -4160,14 +4164,21 @@ Each run, in one concurrency group (`listing-facts-batch`):
    `listing-facts-batch-inputs-<run id>` artifact before the worker runs,
    then runs the worker once with `--workflow-run-id`, `--source-commit` and
    `--inputs-sha256`, regenerates the catalog and commits locally. It refuses
-   its own batch on a path outside the allowlist, a gate refusal, or an entry
-   it cannot reproduce.
+   its own batch on a path outside the allowlist, a gate refusal, an entry it
+   cannot reproduce, or any stop condition, and proposes nothing when the
+   change is not material: no enrollment changed, no entry appeared,
+   disappeared or changed other than by reconfirmation, and no offered entry
+   was last confirmed more than 14 days before.
 4. A ready batch is pushed as the one-commit branch
    `automation/listing-facts-batch-<run id>` and opened as a pull request.
-5. Stop conditions are filed and the exception queues are published.
+5. Stop conditions and the freshness alert are filed; a deriving run also
+   publishes the exception queues.
 
 A dry run never saves the worker state, so it cannot move the cursor real
-runs follow.
+runs follow. A refused batch saves none either, so the next run derives it
+again. A batch a person closes unmerged has already moved the cursor: its
+new identities wait for the next pass, and changed releases are offered
+again when the release changes or its facts are next reconfirmed.
 
 ###### Reproducible facts and the path allowlist
 
@@ -4182,14 +4193,20 @@ Pull-request CI (`fast-catalog`, and `catalog-full` in qualification) runs
 `listing-facts-batch.mts plan` and `verify` for every pull request, whoever
 opened it. For every eligible entry the change adds or changes against the
 gate's baseline, CI reads the release by numeric repository and release id
-from the GitHub REST API, requires the recorded tag, publication time, Core's
-stable verdict and the asset-list digest, requires the entry to record exactly
+from the GitHub REST API, requires those ids to name the listing's own
+repository, the recorded tag, publication time, Core's stable verdict and the
+asset-list digest, requires the entry to record exactly
 the release's archives, re-downloads each digest-bound archive, re-runs
 `inspect-listing-artifact` and Core's name classification, and requires a
-byte-equal artifact fact. A reconfirmation that only moves `observed_at`
-re-reads nothing; an ineligible entry offers nothing, and its withdrawals stay
-bounded by the gate. One change may reproduce at most 64 entries and 4 GiB in
-40 minutes, with no archive over 512 MiB (`reproductionBudget`); the worker's
+byte-equal artifact fact. Any change to an eligible entry other than its
+`observed_at` and the worker's `attempt` record is reproduced, including the
+parser version, coverage, repository binding and unread forms. A
+reconfirmation re-reads nothing, so whoever can merge can keep a
+reconfirmation's date moving; an ineligible entry offers nothing, and its
+withdrawals stay bounded by the gate. One change may reproduce at most 64
+entries and 4 GiB with no archive over 512 MiB; the 30-minute deadline is
+checked before each archive and one download or Core run stops at 10 minutes
+(`reproductionBudget`); the worker's
 batch bound (`boundFactsBatch`) keeps every batch inside that budget. A change
 over budget, an oversized or unavailable asset or a changed release refuses
 the entry: it is never trusted. A push to `main` was verified on its pull
@@ -4202,37 +4219,48 @@ repository's batch workflow, started by the schedule or a dispatch, on `main`
 at the recorded source commit, the pull request branch must be that run's
 batch branch, and the run's retained `inputs.json` must have the recorded
 digest and match the observations and state retained beside it. The inputs
-artifact is kept 30 days.
+artifact is kept 30 days. CI reads the change's paths from the committed
+range, so files earlier CI steps leave behind do not count. A dispatched dry
+run also retains inputs; its run id passes the provenance check, but it pushes
+no branch, and its facts still need reproduction like any other change.
 
 ###### Stop and wait
 
 Each condition files or reuses one issue titled
-`Listing facts batch stopped: <condition>`, with the grouped reason and the
-run. A recurrence reopens and comments on the same issue. No further run
-starts while any such issue is open; closing it is how a person clears the
-stop. The conditions are `gate-refused`, `reproduction-refused`,
-`path-allowlist`, `required-check-failed` (or a pull request on a batch branch
-that is not a well-formed one-commit job batch), `no-progress` (three
+`Listing facts batch stopped: <condition>`, opened by the workflow token,
+with the grouped reason and the run. A recurrence after it was closed reopens
+and comments on the same issue; an open issue is not commented again. No
+further run starts while any such issue is open; closing it is how a person
+clears the stop. An unreadable issue list fails the run rather than reading
+as "not stopped". The conditions are `gate-refused`, `reproduction-refused`,
+`path-allowlist`, `required-check-failed` (or a job batch that is not a
+well-formed one-commit pull request), `no-progress` (three
 consecutive runs settled nothing while work waited), `backlog-growing` (four
 consecutive runs grew the backlog), `large-withdrawal` (more than 16 routes in
 one batch), `repository-identity-changed`, `rule-version-changed` (the facts
 parser, generator or Core filename rule version changed since the previous
 run), `observer-coverage-dropped` (a quarter fewer observed identities than
-the previous run), `drain-exceeds-facts-age` (the backlog report says
-draining takes 30 days or more) and `worker-error`. A closed batch pull
-request that still fails stops again; close the pull request too.
+the previous run), `drain-exceeds-facts-age` (refreshing the offered
+identities whose release changed takes 30 days or more, counting two runs per
+landed batch) and `worker-error` (also a job that timed out or was
+cancelled). A stop condition found while deriving also withholds that run's
+batch. An open batch pull request that still fails stops the job again after
+its issue is closed; close that pull request too.
 
 The freshness watchdog compares the committed facts' `generated_at` with the
-real clock. When the table has entries and is more than 7 days old, the job
-files `Listing facts batch: facts are falling behind the clock`. It does not
-stop the job, whose next batch is the remedy. Every job and step has a finite
-timeout, nested so inner budgets end first: the CLI build 30 minutes, the
-worker 60 (its own downloads and Core runs stop at 10 minutes each),
-reproduction 45 (its own budget is 40), and the derive job 120.
+real clock on every enabled run, also while a batch waits or a stop issue is
+open. When the table has entries and is more than 7 days old, the job files
+`Listing facts batch: facts are falling behind the clock`. It does not stop
+the job, whose next batch is the remedy. Every job and every step has a
+finite timeout, and each job's timeout is at least the sum of its steps', so
+a slow step fails inside the job and the stop assessment still runs: the CLI
+build 30 minutes, the worker 60 (its own downloads and Core runs stop at 10
+minutes each), reproduction 45 (its own deadline 30, plus one 10-minute
+download or Core run), and the derive job 240.
 
 ###### Exception queues
 
-Every run publishes `catalog-route-fit.mts --json` as the
+Every deriving run publishes `catalog-route-fit.mts --json` as the
 `registration-queues-<run id>` artifact and a job summary with the count per
 blocked reason, the most frequent unread package forms and the most frequent
 name vetoes. That report stays computed from the committed catalog and facts.
@@ -4258,19 +4286,25 @@ installation token, which is an owner decision and a new secret.
 The schedule runs every 6 hours (`--cadence-hours 6`). A run reads at most
 I = 24 identities and 2 GiB; a batch lands at most 64 added, 32 withdrawn and
 64 changed routes and reproduces at most 64 entries and 4 GiB. A run derives
-only when no batch is waiting, and every batch takes one more run to merge.
+only while no batch is open, so each landed batch costs two runs, the one
+that derives it and the one that merges it, plus the wait until a person
+reopens it to start its checks.
+
 When this job was added, 1,110 listing-only GitHub identities had no facts
-(`no-observation`). Their first pass needs at most ⌈1,110 / 24⌉ = 47 deriving
-runs while the byte budget does not bind (an average below 2 GiB / 24, about
-85 MiB of archives per identity; identities settled without bytes, such as
-those without a release archive, need none). With L batches landing in that
-pass, it takes 47 + L runs: about 12 days plus L six-hour runs and the time
-each batch waits for a person to reopen it. Fewer than 30 days requires every
-batch to be reopened within about (18 − L / 4) / L days; with five batches,
-within three days. Offered identities whose release changed drain at 18 per
-run (I less the reserved share), well inside the 30-day facts age. The
-`backlog` report of each run gives the current numbers, and
-`drain-exceeds-facts-age` stops the job when they no longer fit.
+(`no-observation`). Their first pass needs at most ⌈1,110 / 24⌉ = 47
+deriving runs while the byte budget does not bind (an average below
+2 GiB / 24, about 85 MiB of archives per identity; identities settled without
+bytes, such as those without a release archive, need none). Almost every
+deriving run of that pass settles new identities and is therefore a batch,
+so the pass takes about 2 × 47 = 94 runs: 23.5 days at this cadence when
+each batch is reopened before the next run, plus every reopen that waits
+longer. The pass itself has no 30-day limit: new identities are not yet
+offered. What the 30-day facts age bounds is the offered facts, which every
+landed batch reconfirms; they stay fresh while a batch lands at least every
+30 days, and the freshness alert fires after 7. Offered identities whose
+release changed drain at 18 per run, two runs per batch:
+`drain-exceeds-facts-age` stops the job when that alone reaches 30 days.
+Each run's `backlog` report gives the current numbers.
 
 ###### Switching it on
 

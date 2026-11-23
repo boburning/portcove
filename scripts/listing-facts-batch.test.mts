@@ -39,6 +39,10 @@ import {
   changedPaths,
   claimsBatch,
   collectConditions,
+  jobBatches,
+  materialChange,
+  offeredDrainDays,
+  workflowLogin,
   factsFallingBehind,
   handoffObservations,
   inputsArtifactFiles,
@@ -137,6 +141,7 @@ function fixture(id = unseen, players = [player("Game/Game.exe")], size = 4096) 
   };
   const release: ProviderRelease = {
     id: 8,
+    repository: `Fixture-Owner/${id}`,
     tag_name: "v1.0",
     draft: false,
     prerelease: false,
@@ -296,6 +301,12 @@ void test("an entry is reproduced only when its exact bytes rebuild byte-equal f
     }),
     "mismatch",
   );
+  // The numeric ids must name the listing's repository (D1): another
+  // repository's release is refused whatever its bytes say.
+  assert.equal(
+    await refusal((copy) => (copy.release.repository = "someone-else/other-game")),
+    "release-changed",
+  );
   // Changed or missing provider facts are refused, never trusted.
   assert.equal(
     await refusal((copy) => (copy.release.assets[0]!.sha256 = sha("other"))),
@@ -353,7 +364,7 @@ void test("reproduction is budgeted: oversized assets, too many entries or bytes
     maxEntries: 64,
     maxBytes: 4 * 1024 ** 3,
     maxArchiveBytes: 512 * 1024 ** 2,
-    maxMilliseconds: 40 * 60_000,
+    maxMilliseconds: 30 * 60_000,
   });
 });
 
@@ -382,6 +393,27 @@ void test("only eligible entries a change adds or changes are reproduced", () =>
   } as ListingFactsEntry;
   assert.equal(needsReproduction(entry, ineligible), false);
   assert.equal(needsReproduction(ineligible, entry), true);
+  // Every field that can decide enrollment is re-read (D2): a parser bump,
+  // a coverage flip or changed unread forms alone is not a reconfirmation.
+  for (const mutate of [
+    (copy: ListingFactsEntry) => (copy.parser_version = 99),
+    (copy: ListingFactsEntry) => (copy.observation.coverage = "partial"),
+    (copy: ListingFactsEntry) => (copy.observation.assets_complete = false),
+    (copy: ListingFactsEntry) => (copy.unread_forms = [".7z"]),
+    (copy: ListingFactsEntry) => (copy.repository = "fixture-owner/other"),
+  ]) {
+    const copy = structuredClone(entry);
+    mutate(copy);
+    assert.equal(needsReproduction(copy, entry), true, String(mutate));
+  }
+  const retried = structuredClone(entry);
+  retried.attempt = {
+    status: "pending-inspection",
+    first_at: "2026-11-20T00:00:00.000Z",
+    last_at: "2026-11-20T00:00:00.000Z",
+    failures: 1,
+  };
+  assert.equal(needsReproduction(entry, retried), false);
   const plan = reproductionPlan(
     table(entry),
     table(reconfirmed, { ...changed, port_id: "zz-new" }),
@@ -431,6 +463,7 @@ void test("a batch never asks CI to reproduce more than its budget; the rest is 
 void test("provider release records are read strictly", () => {
   const release = parseProviderRelease({
     id: 8,
+    url: "https://api.github.com/repos/Owner/Game/releases/8",
     tag_name: "v1.0",
     draft: false,
     prerelease: false,
@@ -448,19 +481,24 @@ void test("provider release records are read strictly", () => {
   });
   assert.equal(release.assets[0]!.sha256, "a".repeat(64));
   assert.equal(release.assets[1]!.sha256, null);
+  assert.equal(release.repository, "Owner/Game");
+  const minimal = {
+    id: 8,
+    url: "https://api.github.com/repos/Owner/Game/releases/8",
+    tag_name: "v",
+    draft: false,
+    prerelease: false,
+    published_at: null,
+    assets: [],
+  };
   for (const bad of [
     null,
     { id: 8 },
-    {
-      id: 8,
-      tag_name: "v",
-      draft: false,
-      prerelease: false,
-      published_at: null,
-      assets: [{ id: 1 }],
-    },
+    { ...minimal, assets: [{ id: 1 }] },
+    { ...minimal, url: undefined },
+    { ...minimal, url: "https://example.com/repos/Owner/Game/releases/8" },
   ])
-    assert.throws(() => parseProviderRelease(bad), /malformed/u);
+    assert.throws(() => parseProviderRelease(bad), /malformed|names no repository/u);
 });
 
 // ---------------------------------------------------------------------------
@@ -699,14 +737,21 @@ void test("each stop condition is detected and named", () => {
   );
   assert.deepEqual(assess([record({ versions: "old" })]), ["rule-version-changed"]);
   assert.deepEqual(assess([record({ observed: 200 })]), ["observer-coverage-dropped"]);
-  assert.deepEqual(
-    assess([record()], {
-      summary: summary({
-        backlog: { enrolled_pending: 0, new_pending: 9, held_for_batch: 0, days_to_drain_all: 30 },
-      }),
-    }),
-    ["drain-exceeds-facts-age"],
-  );
+  // The offered drain counts the run each batch needs to merge (D5).
+  const offered = (runs: number) =>
+    summary({
+      backlog: {
+        enrolled_pending: 9,
+        new_pending: 0,
+        held_for_batch: 0,
+        days_to_drain_all: 1,
+        runs_to_drain_enrolled: runs,
+        cadence_hours: 6,
+      },
+    });
+  assert.equal(offeredDrainDays(offered(59)), 29.5);
+  assert.deepEqual(assess([record()], { summary: offered(59) }), []);
+  assert.deepEqual(assess([record()], { summary: offered(60) }), ["drain-exceeds-facts-age"]);
   const body = stopIssueBody({ name: "gate-refused", detail: "Grouped reason." }, "https://run");
   assert.match(body, /Grouped reason\./u);
   assert.match(body, /close this issue/u);
@@ -738,10 +783,33 @@ void test("the notify job adds a failed batch and failed jobs, never doubling a 
           detail:
             "Batch pull request #12 failed a required check or is not a well-formed one-commit job batch.",
         },
-        { name: "worker-error", detail: "The merge job failed." },
+        { name: "worker-error", detail: "The merge job ended failure." },
       ],
       freshness: "old",
     },
+  );
+  // A timed-out or cancelled job is never silent (U7).
+  assert.deepEqual(
+    collectConditions(
+      { conditions: [], freshness: null },
+      { prState: "none", prNumber: "none", jobs: { derive: "cancelled" } },
+    ).conditions,
+    [{ name: "worker-error", detail: "The derive job ended cancelled." }],
+  );
+  // While a stop issue is open only the freshness alert is filed (D4), and
+  // the freshness of the committed facts is evaluated on every run.
+  assert.deepEqual(
+    collectConditions(
+      { conditions: [], freshness: null },
+      {
+        blocked: true,
+        freshness: "stale",
+        prState: "failed",
+        prNumber: "12",
+        jobs: { merge: "failure" },
+      },
+    ),
+    { conditions: [], freshness: "stale" },
   );
   // The merge message closes nothing.
   assert.doesNotMatch(
@@ -859,6 +927,57 @@ void test("the enrollment delta and the batch pull request body state what chang
   assert.match(body, /closes and reopens this pull request/u);
 });
 
+void test("only the job's own batch pull requests count; a fork or a person cannot hold the job (D6)", () => {
+  const pull = (fields: Record<string, unknown> = {}, head: Record<string, unknown> = {}) => ({
+    number: 1,
+    user: { login: workflowLogin },
+    head: {
+      ref: `${batchBranchPrefix}1`,
+      repo: { full_name: "boburning/portcove" },
+      ...head,
+    },
+    ...fields,
+  });
+  assert.equal(jobBatches([pull()], "boburning/portcove").length, 1);
+  for (const other of [
+    pull({}, { repo: { full_name: "someone/portcove" } }),
+    pull({ user: { login: "someone" } }),
+    pull({}, { ref: "feature/x" }),
+    pull({}, { repo: null }),
+  ])
+    assert.equal(jobBatches([other], "boburning/portcove").length, 0, JSON.stringify(other));
+});
+
+void test("a batch is proposed only for a material change (D5)", () => {
+  const { entry } = fixture();
+  const at = (generatedAt: string, ...entries: ListingFactsEntry[]): ListingFactsTable => ({
+    ...emptyFactsTable(generatedAt),
+    entries,
+    entries_sha256: digestOf(entries),
+  });
+  const none = { added: 0, withdrawn: 0, changed: 0 };
+  const base = at("2026-11-20T00:00:00.000Z", entry);
+  const reconfirmed = structuredClone(entry);
+  reconfirmed.observation.observed_at = "2026-11-21T00:00:00.000Z";
+  // Only time, provenance and a fresh reconfirmation moved: no pull request.
+  assert.equal(materialChange(base, at("2026-11-21T00:00:00.000Z", reconfirmed), none), false);
+  // An enrollment change, a new or changed entry is material.
+  assert.equal(
+    materialChange(base, at("2026-11-21T00:00:00.000Z", reconfirmed), { ...none, added: 1 }),
+    true,
+  );
+  assert.equal(materialChange(at("2026-11-20T00:00:00.000Z"), base, none), true);
+  const changed = structuredClone(reconfirmed);
+  changed.unread_forms = [".7z"];
+  assert.equal(materialChange(base, at("2026-11-21T00:00:00.000Z", changed), none), true);
+  // An offered entry confirmed long ago is refreshed before it ages out.
+  const old = at("2026-11-20T00:00:00.000Z", {
+    ...structuredClone(entry),
+    observation: { ...entry.observation, observed_at: "2026-11-01T00:00:00.000Z" },
+  });
+  assert.equal(materialChange(old, at("2026-11-21T00:00:00.000Z", reconfirmed), none), true);
+});
+
 // ---------------------------------------------------------------------------
 // Observations and owner queues.
 
@@ -962,13 +1081,18 @@ void test("the workflow does nothing until the owner enables it and writes nothi
     assert.ok(job.if, `${name} has no condition`);
     const gated = job.if.includes(enabled) || ["derive"].includes(name);
     assert.ok(gated, `${name} is not gated by the variable`);
-    assert.ok(job["timeout-minutes"] && job["timeout-minutes"] <= 120, `${name} timeout`);
-    for (const step of job.steps)
-      if (step.run)
-        assert.ok(
-          step["timeout-minutes"] && step["timeout-minutes"] < job["timeout-minutes"],
-          `${name}: a step has no finite budget inside the job: ${step.run.slice(0, 60)}`,
-        );
+    assert.ok(job["timeout-minutes"] && job["timeout-minutes"] <= 360, `${name} timeout`);
+    // Every step has a finite budget, and the job outlasts their sum, so a
+    // slow step fails inside the job and the later always-steps still run.
+    let sum = 0;
+    for (const step of job.steps) {
+      assert.ok(
+        step["timeout-minutes"] && step["timeout-minutes"] < job["timeout-minutes"],
+        `${name}: a step has no finite budget: ${step.run?.slice(0, 60) ?? step.uses}`,
+      );
+      sum += step["timeout-minutes"];
+    }
+    assert.ok(sum <= job["timeout-minutes"], `${name}: steps may take ${sum} minutes`);
     const writes = Object.entries(job.permissions ?? {}).filter(([, access]) => access === "write");
     if (writes.length) {
       // A writing job runs only when enabled and never on a dry run.
@@ -986,6 +1110,12 @@ void test("the workflow does nothing until the owner enables it and writes nothi
     String(step.uses).startsWith("actions/cache/save"),
   );
   assert.match(String((save as { if?: string }).if), /env\.DRY_RUN != 'true'/u);
+  // The merge reads commit statuses for the guarded route (U2) and checks
+  // the batch composed onto the current main (D3).
+  assert.equal(workflow.jobs.merge!.permissions!.statuses, "read");
+  assert.match(text, /--target "\$TARGET" --tree "\$TREE"/u);
+  // The freshness alert is evaluated on every enabled run, also while stopped.
+  assert.doesNotMatch(workflow.jobs.notify!.if!, /blocked/u);
   // Only the built-in token: no secrets, no personal tokens.
   assert.doesNotMatch(text, /secrets\./u);
   // Merges go through the guarded route only, never an API shortcut.
