@@ -66,7 +66,7 @@
         "effect": "hold",
         "operations": ["download"],
         "reason": "bundled-game-data",
-        "explanation": "Portcove can download only the reviewed v4.0 Windows and Linux packages. Earlier releases and the Android debug package need separate checks. You can also register your own prepared Windows or Linux copy.",
+        "explanation": "Only the reviewed v4.0 Windows and Linux ZIPs can be downloaded, in a Portcove version that checks their exact files. The Android package and earlier releases are not yet reviewed. You can also get v4.0 from upstream and register your own prepared Windows or Linux copy.",
         "tracking_issue": 6134
       },
       {

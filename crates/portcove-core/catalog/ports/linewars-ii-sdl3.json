@@ -53,7 +53,7 @@
         "effect": "hold",
         "operations": ["download"],
         "reason": "bundled-game-data",
-        "explanation": "Portcove can download only the reviewed freeware v1.0.0 Windows x64 ZIP and Linux x64 archive. Other files and releases need separate checks. Keep the package notices.",
+        "explanation": "Only the reviewed freeware v1.0.0 Windows x64 ZIP and Linux x64 archive can be downloaded, in a Portcove version that checks their exact files. Other files and releases are not yet reviewed. You can also get the package from the publisher, keep its notices and register your extracted copy.",
         "tracking_issue": 6090
       },
       {

@@ -53,7 +53,7 @@
         "effect": "hold",
         "operations": ["download"],
         "reason": "third-party-component-terms",
-        "explanation": "Portcove can download only the reviewed v0.1 Windows ZIP. Other files and releases are not yet reviewed. That ZIP includes separately authored Chiaro fonts and no game data. You supply your own Japanese Chameleon Twist ROM.",
+        "explanation": "Only the reviewed v0.1 Windows ZIP can be downloaded, in a Portcove version that checks its exact file. Other files and releases are not yet reviewed. You can also register a permitted copy you already have. That ZIP includes separately authored Chiaro fonts and no game data. You supply your own Japanese Chameleon Twist ROM.",
         "tracking_issue": 125
       },
       {

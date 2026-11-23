@@ -861,9 +861,39 @@ async fn assert_embedded_download_holds(
     }
 }
 
+/// A held user-prepared listing is refused before any network request. The
+/// listings come from the embedded data: a user-prepared integration whose
+/// listing has a whole download hold and no permit.
+#[tokio::test]
+async fn held_user_prepared_listings_refuse_downloads_before_network() {
+    let catalog = Catalog::embedded().unwrap();
+    let held: Vec<&str> = catalog
+        .listings()
+        .iter()
+        .filter(|listing| {
+            catalog
+                .port(&listing.id)
+                .is_ok_and(|port| port.release.provider == crate::ReleaseSource::UserPrepared)
+                && listing.restrictions.iter().any(|restriction| {
+                    restriction.effect == crate::RestrictionEffect::Hold
+                        && restriction
+                            .operations
+                            .contains(&crate::RestrictedOperation::Download)
+                        && restriction.scope.is_whole()
+                })
+                && !listing
+                    .restrictions
+                    .iter()
+                    .any(|restriction| restriction.effect == crate::RestrictionEffect::Permit)
+        })
+        .map(|listing| listing.id.as_str())
+        .collect();
+    assert!(!held.is_empty());
+    assert_embedded_download_holds(&held, true, Some(crate::ReleaseSource::UserPrepared)).await;
+}
+
 /// Embedded listings that keep a whole download hold but permit their reviewed
 /// files (#8538, #1422): (port, [(host, release tag, SHA-256, asset name)]).
-/// (host, release tag, SHA-256, asset name).
 type ReviewedHostFile = (Platform, &'static str, &'static str, &'static str);
 
 const REVIEWED_EMBEDDED_PERMITS: &[(&str, &[ReviewedHostFile])] = &[
