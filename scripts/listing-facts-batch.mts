@@ -733,7 +733,7 @@ export function batchPullBody(input: {
     "",
     "No title-specific review happens on this route; the documented rules, the gate and the reproduction are the review (docs/CATALOG.md, scheduled facts batch job).",
     "",
-    "This pull request was opened with the workflow token, so GitHub creates its `pull_request` runs in an approval-required state: a person with write access starts them with **Approve workflows to run**, and that approval counts as a human intervention. The next scheduled run merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
+    "This pull request was opened with the workflow token, so GitHub creates its `pull_request` runs in an approval-required state: a person with write access starts them with **Approve workflows to run**, and that approval counts as a human intervention. Approval grants CI permission only; the next scheduled run separately confirms merge eligibility and merges it through the guarded delivery route only when all five required checks pass on its exact head; a failing check stops the job.",
   ].join("\n");
 }
 

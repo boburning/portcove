@@ -4281,9 +4281,15 @@ with **Approve workflows to run**. CI declares `pull_request`, so a batch pull
 request the job opens gets CI runs that wait for that approval; the job waits
 with it, and an approval counts as a human intervention. Whether the
 `pull_request_target` `closing-inventory` check, which the guarded merge
-requires, runs for such a pull request is not stated there, and neither is
-how the ruleset's extra approval for unattributed changes interacts with a
-bot-authored batch. A push with the built-in token, including its merge,
+requires, runs for such a pull request is not stated there. Approving the
+runs is CI permission, not merge eligibility: the guarded merge separately
+requires the five exact-head contexts, `closing-inventory` and the
+composition checks. The `Protect main` ruleset requires the five contexts,
+zero approving reviews and no required workflow. Its extra approval applies
+only to Copilot pull requests not attributed to a person and has no effect
+when the ruleset requires zero approvals
+([GitHub documentation](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#additional-approval-for-unattributed-copilot-pull-requests)),
+so it adds no requirement for a batch. A push with the built-in token, including its merge,
 starts no `push` run, so `main` CI, and the catalog publication that follows
 a green `main` run, pick the batch up only with the next ordinary qualifying
 `main` run. Runs without approval need a GitHub App installation token or a
@@ -4292,8 +4298,9 @@ personal token, which is an owner decision and a new secret.
 The first authorized pilot batch records, on that pull request: whether the
 approval banner appears; which of the five required gates and
 `closing-inventory` start and attach to the exact bot head; whether the
-guarded merge needs the unattributed-change approval separately; and whether
-the next ordinary qualifying `main` run selects and publishes the batch. Only
+guarded merge is eligible, confirmed separately from the CI approval; every
+actual approval or other intervention; and whether the next ordinary
+qualifying `main` run selects and publishes the batch. Only
 that publication makes the batch delivered.
 
 ###### Cadence and drain
@@ -4344,8 +4351,11 @@ batch could not offer a route. Then the owner, in the repository settings:
 2. Optionally dispatch the workflow once with the default dry run and read
    its summary and artifacts.
 3. Actions, Variables: set `PORTCOVE_FACTS_BATCH_ENABLED` to `true`.
-4. For each batch pull request, approve its workflow runs (the pilot
-   records what else, if anything, it needs).
+4. For each batch pull request, approve its workflow runs (**Approve
+   workflows to run**). That approval is a human intervention, and it grants
+   CI permission only: the job merges later through the guarded route when
+   the exact-head checks pass. The pilot records what else, if anything, a
+   batch needs.
 
 Nothing else changes: no ruleset, required check, environment, secret or
 signing setting. To switch it off, delete the variable or set it to anything
