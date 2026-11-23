@@ -501,10 +501,10 @@ impl AuthenticatedDefinitionIndex {
         let entry = self.acquire_content(repository, role, entry_target).await?;
         let inspection = match self.index.inspect_entry(namespace, stable_id, &entry) {
             Ok(inspection) => inspection,
-            // A newer named feature needs a newer engine. Keep the exact
+            // A newer named feature or entry schema needs a newer engine. Keep the exact
             // authenticated entry so admission records that ineligibility
             // as a manual refresh does, instead of dropping the subject.
-            Err(error) if crate::definition_capabilities::is_unknown_required_feature(&error) => {
+            Err(error) if crate::definition_capabilities::requires_newer_engine(&error) => {
                 return Ok(self.candidate(BTreeMap::from([(entry_target.to_owned(), entry)])));
             }
             Err(error) => return Err(error),

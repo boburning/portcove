@@ -250,6 +250,14 @@
       ]
     },
     {
+      "file": "scripts/catalog-literal-launch-publication.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3507],
+        ["release-check", 4307]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/n64-original-publication.test.mts",
       "memberships": [
         ["catalog-full-2", 3550],

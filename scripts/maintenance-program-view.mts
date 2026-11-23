@@ -110,6 +110,17 @@ export interface AuthorityKind {
 
 const coreSource = "crates/portcove-core/src";
 const typesFile = `${coreSource}/types.rs`;
+const historicalArtifactsFile = `${coreSource}/historical-artifacts.json`;
+const toolArtifactsFile = "crates/portcove-core/catalog/tool-artifacts.json";
+const catalogFile = "crates/portcove-core/catalog/catalog.json";
+/** The registry's sections, by name; each is a member the rot check requires. */
+const historicalArtifactSections = [
+  "dkr",
+  "direct",
+  "packages",
+  "cartridge",
+  "forbidden_memories_producer",
+] as const;
 
 const toPosix = (path: string) => path.split(sep).join("/");
 
@@ -502,6 +513,24 @@ const boundaries = (parts: readonly string[]) => {
   return result;
 };
 
+/** Production and feature-gated Core Rust text without its test items. */
+function coreTitleTexts(root: string) {
+  const { production, featureGated } = coreRustFiles(root);
+  return new Map(
+    [...production, ...featureGated]
+      .toSorted()
+      .map((file) => [file, withoutTestItems(readText(root, file) ?? "")] as const),
+  );
+}
+
+/** How many Core files use each word, which keeps common words out of family keys. */
+function coreWordFiles(texts: ReadonlyMap<string, string>) {
+  const counts = new Map<string, number>();
+  for (const text of texts.values())
+    for (const word of new Set(words(text))) counts.set(word, (counts.get(word) ?? 0) + 1);
+  return counts;
+}
+
 /**
  * Identities whose title keys a name spells. A whole key matches any
  * contiguous word group; a family key also needs its part boundaries to fall
@@ -654,16 +683,8 @@ export const authorityKinds: readonly AuthorityKind[] = [
     detector: `enum variant names and *.rs file stems in ${coreSource} (production and feature-gated) matching catalog title keys`,
     retired: false,
     detect(root, context) {
-      const { production, featureGated } = coreRustFiles(root);
-      const all = [...production, ...featureGated].toSorted();
-      const texts = new Map(
-        all.map((file) => [file, withoutTestItems(readText(root, file) ?? "")] as const),
-      );
-      const coreWordFiles = new Map<string, number>();
-      for (const text of texts.values())
-        for (const word of new Set(words(text)))
-          coreWordFiles.set(word, (coreWordFiles.get(word) ?? 0) + 1);
-      const keys = titleKeys(context, coreWordFiles);
+      const texts = coreTitleTexts(root);
+      const keys = titleKeys(context, coreWordFiles(texts));
       const files = new Set<string>();
       const identities = new Set<string>();
       let entries = 0;
@@ -793,6 +814,112 @@ export const authorityKinds: readonly AuthorityKind[] = [
         entries: rows.length,
         identities: sorted(identities),
         members: { SOURCES: rows.length },
+      };
+    },
+  },
+  {
+    kind: "historical-artifact-registry",
+    description:
+      "Bundled frozen artifact registries read by Core: historical title rows moved out of Rust match arms and the reviewed tool artifacts.",
+    detector: `rows of ${historicalArtifactsFile} sections and ${toolArtifactsFile}; a row covers its port_id, projection or catalog release repository, else the catalog title keys its text spells`,
+    retired: false,
+    members: [
+      ...historicalArtifactSections.map((section) => ({
+        name: `historical-artifacts.json#${section}`,
+      })),
+      { name: "tool-artifacts.json" },
+    ],
+    detect(root, context) {
+      const registries: { file: string; member: string; rows: unknown[] }[] = [];
+      const historical = readText(root, historicalArtifactsFile);
+      if (historical !== undefined) {
+        const parsed: unknown = parseCatalogSource(historical);
+        if (isRecord(parsed))
+          for (const [section, value] of Object.entries(parsed))
+            registries.push({
+              file: historicalArtifactsFile,
+              member: `historical-artifacts.json#${section}`,
+              rows: Array.isArray(value) ? value : [value],
+            });
+      }
+      const tools = readText(root, toolArtifactsFile);
+      if (tools !== undefined) {
+        const parsed: unknown = parseCatalogSource(tools);
+        registries.push({
+          file: toolArtifactsFile,
+          member: "tool-artifacts.json",
+          rows: Array.isArray(parsed) ? parsed : [parsed],
+        });
+      }
+      if (!registries.length) return { files: [], entries: 0, identities: [], members: {} };
+      const repositories = new Map<string, string[]>();
+      // Core binds a historical package by its exact bytes, so a digest that a
+      // definition or a port-scoped source contract declares names its subject.
+      const digests = new Map<string, Set<string>>();
+      const bind = (map: Map<string, Set<string>>, key: string, id: string) =>
+        map.set(key, new Set([...(map.get(key) ?? []), id]));
+      for (const port of portRecords(context)) {
+        const repository = releaseRepository(port)?.toLowerCase();
+        if (repository)
+          repositories.set(repository, [
+            ...(repositories.get(repository) ?? []),
+            port.id as string,
+          ]);
+        for (const value of stringsIn(port)) bind(digests, value.toLowerCase(), port.id as string);
+      }
+      const catalog = readText(root, catalogFile);
+      const scoped = (value: unknown): void => {
+        if (Array.isArray(value)) for (const item of value) scoped(item);
+        else if (isRecord(value)) {
+          if (typeof value.port_id === "string" && context.ids.has(value.port_id))
+            for (const text of stringsIn(value)) bind(digests, text.toLowerCase(), value.port_id);
+          else for (const item of Object.values(value)) scoped(item);
+        }
+      };
+      if (catalog !== undefined) {
+        const parsed: unknown = parseCatalogSource(catalog);
+        if (isRecord(parsed)) scoped(parsed.source_catalog);
+      }
+      let keys: TitleKeys | undefined;
+      const identities = new Set<string>();
+      const unattributed: string[] = [];
+      const members: Record<string, number> = {};
+      const files = new Set<string>();
+      let entries = 0;
+      for (const { file, member, rows } of registries) {
+        members[member] = rows.length;
+        entries += rows.length;
+        if (rows.length) files.add(file);
+        // A builder pack is chosen through a definition's admitted projection,
+        // not by a title, so an unmatched tool row is counted but names no subject.
+        const titleRows = file !== toolArtifactsFile;
+        rows.forEach((row, index) => {
+          const covered = new Set<string>();
+          if (isRecord(row)) {
+            for (const field of ["port_id", "projection"])
+              if (typeof row[field] === "string" && context.ids.has(row[field]))
+                covered.add(row[field]);
+            if (typeof row.repository === "string")
+              for (const id of repositories.get(row.repository.toLowerCase()) ?? [])
+                covered.add(id);
+            if (typeof row.sha256 === "string")
+              for (const id of digests.get(row.sha256.toLowerCase()) ?? []) covered.add(id);
+            if (!covered.size && titleRows) {
+              keys ??= titleKeys(context, coreWordFiles(coreTitleTexts(root)));
+              for (const value of stringsIn(row))
+                for (const id of titleMatches(value, keys)) covered.add(id);
+            }
+          }
+          if (!covered.size && titleRows) unattributed.push(`${member}[${index}]`);
+          for (const id of covered) identities.add(id);
+        });
+      }
+      return {
+        files: [...files],
+        entries,
+        identities: sorted(identities),
+        members,
+        unattributed,
       };
     },
   },

@@ -1323,9 +1323,7 @@ impl Catalog {
                     || !environment_names.insert(variable.as_str())
                     || value.is_empty()
                     || value.len() > 4096
-                    || value
-                        .chars()
-                        .any(|character| matches!(character, '\0' | '\r' | '\n'))
+                    || !crate::launch_paths::is_contained_launch_text(value)
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has an unsafe built-in launch environment",
@@ -1338,11 +1336,7 @@ impl Catalog {
                 .iter()
                 .chain(port.setup_arguments.iter())
             {
-                if argument.is_empty()
-                    || argument
-                        .chars()
-                        .any(|character| matches!(character, '\0' | '\r' | '\n'))
-                {
+                if argument.is_empty() || !crate::launch_paths::is_contained_launch_text(argument) {
                     return Err(PortcoveError::usage(format!(
                         "{} has unsafe built-in launch argument",
                         port.id
@@ -2386,6 +2380,7 @@ pub(crate) fn is_safe_environment_name(value: &str) -> bool {
         && !value.starts_with("PORTCOVE_")
         && !crate::process::is_credential_name(value)
         && !crate::process::is_reviewed_session_variable(value)
+        && !crate::process::is_loader_injection_variable(value)
 }
 
 fn is_safe_basename(value: &str) -> bool {

@@ -117,6 +117,133 @@ Launch values are literal strings or objects with a `path` of `user_data`,
 `source`, `install_root` or `cache`. Each path occupies one argument or one
 environment value. Source expansion needs the verified launch source.
 Existing path, executable and environment policies still apply.
+A reviewed launch contract's values follow strict rules by construction,
+because the contract is catalog data that reaches players' machines and
+starts a game process. A location comes only from the closed `path` set.
+Core's `launch_paths::is_contract_launch_text` accepts a literal environment
+value or text argument only when:
+
+- It is 1 to 256 bytes drawn only from ASCII letters, digits and
+  `.` `_` `=` `,` `+` `-` `:`. Everything else is refused, including `/`, `\`,
+  `"`, `'`, `@`, `%`, `$`, backtick, `~`, `;`, whitespace, control characters
+  and every non-ASCII character (fullwidth or look-alike dots, slashes and
+  quotes, and superscript digits).
+- It contains no `..` anywhere.
+- Split into tokens at `=` and `,`, each token may start with one option
+  sigil, `-`, `--` or `+`, whose remaining body does not start with `-` or `+`
+  again. A token with a sigil contains no `:`. In a token without a sigil,
+  every `:`-separated segment before the last has at least two characters and
+  no `.`, which refuses drive forms (`C:x`, `--dir=C:x`, `-dC:x`) and
+  alternate data streams (`a.txt:evil`) while keeping `profile:fast`; a token
+  does not start with a case-insensitive `file:` scheme.
+- No `:`-separated segment of a token body, nor the body after its first
+  character for a single `-` or `+` sigil (an attached short option such as
+  `-oNUL`), is a Windows device name (`CON`, `PRN`, `AUX`, `NUL`,
+  `COM0`–`COM9`, `LPT0`–`LPT9`, case-insensitive, with or without an
+  extension).
+- No token names a refused runtime option (below).
+
+For example `profile:fast`, `--width=1280`, `-windowed`, `+set` and
+`r_mode=4` are accepted; `-d\\host\share\x.dll`, `-I/etc`, `-dC:x`,
+`@/etc/args`, `-I..`, `-game..`, `a.txt:evil`, `COM¹`, `%2e%2e` and
+`smb://x` are refused.
+
+Legacy catalog fields (`launch_environment` values, `launch_arguments` and
+`setup_arguments`) may carry relative paths in existing data, so they pass
+the looser shared rule `launch_paths::is_contained_launch_text`:
+
+- The text is ASCII and has no control character, no `"` or `'`, no `%`,
+  `$` or backtick (refusing `%NAME%`, `$NAME`, `${NAME}`, `$(...)` and
+  backtick expansion), and no `\\` or `//` anywhere (UNC, device, extended
+  `\\?\` paths and `scheme://` locations).
+- It is split into elements at `;`, `,`, `=` and ASCII whitespace. An element
+  is refused when it starts with `@` (a response file), starts with an ASCII
+  letter and `:` (`C:\x` or drive-relative `C:x`), has a drive form after any
+  option sigil (`-C:x`, `--C:x` or the attached `-dC:x` and `--dC:x`), or
+  starts with a case-insensitive `file:` scheme.
+- Each element is split into segments at `:`, the path-list separator; a
+  single `key:value` token such as `profile:fast` keeps two harmless segments.
+  A segment before the last that has a `.` is refused (an alternate data
+  stream such as `a.txt:evil`). A segment is refused when it starts with `/`,
+  `\` or `~`, or when a
+  component in either separator style is a parent reference (only dots and
+  spaces with at least two dots, which Windows reads as `..`), ends in `..`,
+  is a reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`,
+  `LPT0`–`LPT9`, including the superscript digits `¹` `²` `³`), or starts
+  with `-` or `+` and is followed by a separator (`-I/etc`).
+
+Catalog `launch_environment`, source and user-data variable names pass the
+shared deny-list `process::is_loader_injection_variable`, compared
+case-insensitively. It refuses every name under the runtime, loader, toolkit,
+graphics and TLS prefixes `DOTNET_`, `COMPLUS_`, `COR_`, `CORECLR_`, `MONO_`,
+`DOORSTOP_`, `PYTHON` (except the reviewed `PYTHONDONTWRITEBYTECODE`), `WINE`,
+`QT`, `QML`, `GTK_`, `GTK2_`, `GTK3_`, `GDK_`, `GST_`, `GIO_`, `OCL_`,
+`LIBVA_`, `VDPAU_`, `GBM_`, `EGL_`, `__GLX_`, `__EGL_`, `ELECTRON_`, `NODE_`,
+`SSL_`, `OPENSSL_`, `MALLOC_`, `LD_`, `DYLD_`, `JAVA_`, `_JAVA_`, `JDK_`,
+`PERL`, `RUBY`, `ENABLE_` and `DISABLE_` (Vulkan implicit layer toggles),
+`VK_`, `LIBGL_`, `MESA_LOADER_`, `LUA`, `WEBVIEW2`, `TCL`, `TK_`, `BASH_`,
+`GEM_`, `BUNDLE_`, `PIP_`, `NPM_`, `OPENCL`, `LIBDECOR_`, `IBM_`, `OPENJ9_`,
+`ASAN_`, `UBSAN_`, `LSAN_`, `TSAN_`, `MSAN_`, `PROCESSOR_`, `OBS_`,
+`MANGOHUD`, `XR_`, `VR_`, `CURL_`, `LADSPA_` and `LV2_`; the exact names
+`PATH`, `SDL_DYNAMIC_API`, `__COMPAT_LAYER`, `CORE_LIBRARIES`, `GCONV_PATH`,
+`LOCPATH`, `NLSPATH`, `TERMINFO`, `TERMINFO_DIRS`, `GLIBC_TUNABLES`,
+`HOSTALIASES`, `RES_OPTIONS`, `TZDIR`, `CLASSPATH`, `CURL_CA_BUNDLE`,
+`REQUESTS_CA_BUNDLE`, `_NT_SYMBOL_PATH`, `PSMODULEPATH`, `GSETTINGS_BACKEND`,
+`SSLKEYLOGFILE`, `NO_PROXY`, `SYSTEMROOT`, `WINDIR`, `COMSPEC`, `TEMP`,
+`TMP`, `APPDATA`, `LOCALAPPDATA`, `USERPROFILE`, `PROGRAMDATA`,
+`PROGRAMFILES`, `HOMEDRIVE`, `HOMEPATH`, `PUBLIC` and `ALLUSERSPROFILE`; and
+every proxy variable (`*_PROXY`). The deny-list is a second guard for legacy
+data, not the contract rule.
+
+A reviewed launch contract's environment names are title-specific by
+construction. Its prefix is derived from the port identity, not chosen in the
+data: the port ID's ASCII letters and digits, uppercased, in order, followed
+by one `_` (`blacklabelhq-medievilrecomp` becomes
+`BLACKLABELHQMEDIEVILRECOMP_`). A stem longer than 32 characters keeps its
+first 24 characters followed by the first 8 uppercase hexadecimal digits of
+the SHA-256 of the port ID, so long IDs that share a start stay distinct. A contract may omit `environment_prefix`, or
+restate exactly that derivation; any other value is refused, and a restated
+prefix must be used by a name. A contract environment name is accepted only
+when it passes the shared name check above and either is the reviewed
+harmless `PYTHONDONTWRITEBYTECODE` or starts with the derived prefix and
+continues after it. When the derivation is shorter than three characters,
+starts with a digit, or starts with or is the start of a loader-injection
+prefix above or a non-title runtime, driver, platform or tool prefix (for
+example `SDL`, `MESA_`, `DXVK_`, `STEAM`, `XDG_`, `TEMP`, `HOME` or
+`PORTCOVE_`), the port has no derived prefix and its contract may set no
+environment name except the harmless one. A test keeps the derivations of the
+embedded catalog distinct.
+
+The rules bound where text can point, not what a game does with it. A game
+may itself treat one of its prefixed variables, or a literal argument, as a
+file name; values cannot name a location outside the closed `path` set, but a
+relative name inside the working directory remains expressible. Literal
+arguments can also carry runtime-specific semantic flags. The strict class
+already refuses the single-sigil and `:` forms such as `-agentlib:jdwp=…`,
+`-agentpath:…`, `-javaagent:…`, `-Xrunjdwp:…`, `-XX:OnError=…` and
+`-Xbootclasspath/a:…`. The class admits `--remote-debugging-port=…`,
+`--inspect=…`, `--load-extension=…` and `--renderer-cmd-prefix=…`, so a
+contract value is also refused when a token, after any `-`, `--` or `+`
+sigil and before any `=`, names (case-insensitively)
+`remote-debugging-port`, `remote-debugging-pipe`, `remote-debugging-address`,
+`remote-allow-origins`, `inspect`, `inspect-brk`, `inspect-port`,
+`inspect-wait`, `debug-port`, `load-extension`, `disable-extensions-except`,
+`browser-subprocess-path`, `js-flags`, `require`, `import`, `loader`,
+`experimental-loader`, `no-sandbox`, `disable-web-security`,
+`register-pepper-plugins`, `r`, `m`, `env-file`, `inspect-brk-node`,
+`openssl-config`, `disable-gpu-sandbox`, `no-zygote` or `single-process`, or
+ends in `-cmd-prefix` or `-launcher`; a `-D` token is refused when its
+property starts (case-insensitively) with `com.sun.management` or
+`java.library.path`. This list does not bound every runtime's flags (for
+example a short `-e`, an attached `-mmodule` or another `-Dproperty=value`),
+and the bare tokens `-`, `--` and `=` stay accepted, so review of a contract's
+literal arguments remains a publication-time responsibility. Legacy fields do
+not use this option list.
+
+A reviewed launch contract whose platform entry has only literal text
+arguments keeps the previous decision about player-forwarded arguments, so
+moving an existing static list into it changes only the representation. A
+typed `path` value or any environment entry offers only the fixed launch.
 
 Reviewed forge qualification models the API dialect, API root, web host and
 exact asset hosts separately from the reviewed repository, release and artifact
