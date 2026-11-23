@@ -163,8 +163,8 @@ they could run a changed copy of the workflow from a branch. The workflow:
 2. Adds the version to `updates/withdrawn.json` on `gh-pages`.
 3. Repoints each feed that serves a withdrawn version to the newest published,
    non-withdrawn release that channel accepts (Preview: any; Beta: any
-   non-pre-release, or the newest preview when none remains; Stable: 1.0.0
-   and later). A candidate without all four
+   non-pre-release, or the newest preview while no Beta or Stable release has
+   been published; Stable: 1.0.0 and later). A candidate without all four
    updater signatures is skipped for the next older one. If no release
    qualifies, it deletes that feed.
 4. Prefixes the release notes with "⚠️ Withdrawn — do not install." and the
@@ -179,23 +179,33 @@ until a fix release with a higher version ships.
 
 <a id="interim-beta-alias"></a>
 **Interim Beta alias (#1422).** Every released build checks the Beta feed by
-default, but no Beta release exists yet. So a preview publication also writes
-the Beta feed, but only while that feed is missing or serves a preview. The
-first Beta release replaces it, and later previews never overwrite a Beta or
-Stable release. The Beta file is a byte-identical copy of the Preview feed and
-uses the same signatures. Installed clients accept a preview version from the
-Beta feed because they only require a higher version signed by the updater key.
+default, but no Beta release exists yet. Until one does, a preview publication
+also writes the Beta feed, so default installations learn of new previews.
 
-- **Operator steps:** none. After the change is on `main`, the next nightly
-  preview writes both feeds. To publish sooner, start Nightly preview by hand
-  on `main`. Then check that
-  `https://boburning.github.io/portcove/updates/beta/latest.json` and
-  `.../updates/preview/latest.json` name the same version.
-- **Rollback:** revert the change on `main`. Later previews then write only the
-  Preview feed. The Beta file keeps its last preview until a Beta release
-  replaces it or a withdrawal repoints it. Deleting that file from `gh-pages`
-  makes default installations stop finding updates again, so it needs the
-  owner's decision.
+- The publisher writes Beta from a preview only while no `v*` tag names a Beta
+  or Stable version, and only if the Beta feed is missing or serves a preview.
+- The first Beta release replaces the alias. After that, previews never write
+  the Beta feed again.
+- The Beta file is a byte-identical copy of the Preview feed, with the same
+  signatures. Installed clients accept it because they only require a higher
+  version signed by the updater key.
+- A nightly never tags a commit from before this rule, because that commit's
+  build would refuse the new feed list after the tag exists.
+
+**Operator steps:** none. Once the change is on `main` and its `CI` run has
+succeeded, the next nightly preview writes both feeds. To publish sooner, start
+Nightly preview by hand on `main` after that `CI` run succeeds. Then check that
+`https://boburning.github.io/portcove/updates/beta/latest.json` and
+`.../updates/preview/latest.json` name the same version.
+
+**Rollback:** do not revert the change. A revert changes the feed list the
+nightly sends, so a nightly that picks an older commit would fail after
+tagging. Instead, change `feedAccepts` in `scripts/app-release.mts` to refuse a
+preview on Beta, and merge that through normal review. Later previews then
+write only the Preview feed. The Beta file keeps its last preview until a Beta
+release replaces it or a withdrawal repoints it. Deleting that file from
+`gh-pages` makes default installations stop finding updates again, so that
+needs the owner's decision.
 
 **Updater key.** Minisign key ID `F92BD3EA87BB77B0` is held in the `release`
 and `release-stable` environments, and the owner keeps an offline backup. If

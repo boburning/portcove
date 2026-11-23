@@ -369,14 +369,15 @@ fn unavailable_error() -> DesktopError {
     )
 }
 
-/// The plugin reports `ReleaseNotFound` when the update server answered but
-/// had no update information for the channel (for example, a missing feed).
-/// That is not a connection problem, so the player is not told to check it.
+/// The plugin reports `ReleaseNotFound` when every feed request got an HTTP
+/// response without update information: a missing feed (404), a server error
+/// or a refusal. Connection failures report other errors. The player is told
+/// the facts that hold for all of these instead of blaming their connection.
 fn check_error(error: &tauri_plugin_updater::Error) -> DesktopError {
     match error {
         tauri_plugin_updater::Error::ReleaseNotFound => refusal(
             PortcoveError::network(
-                "Portcove couldn't find update information for this update channel. Try again later.",
+                "Portcove couldn't get update information from the update server. Try again later.",
             ),
             "release-not-found",
         ),
@@ -671,6 +672,12 @@ mod tests {
         let missing = check_error(&tauri_plugin_updater::Error::ReleaseNotFound);
         assert!(!missing.message.contains("internet connection"));
         assert!(missing.message.contains("update information"));
+        assert_eq!(
+            missing
+                .details
+                .get(crate::application_update_admission::REFUSAL_DETAIL),
+            Some(&"release-not-found".to_owned())
+        );
         let offline = check_error(&tauri_plugin_updater::Error::Network("offline".into()));
         assert_eq!(offline.message, check_failed_error().message);
         assert!(offline.message.contains("internet connection"));
