@@ -38,9 +38,9 @@ const MAX_PREFERENCE_BYTES: u64 = 4 * 1024;
 const FIRST_AUTOMATIC_CHECK_DELAY: Duration = Duration::from_secs(60);
 const AUTOMATIC_CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 const CHECK_TIMEOUT: Duration = Duration::from_secs(60);
-/// Bounds any single updater request, including the whole package download.
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(30 * 60);
-/// A download that receives no bytes for this long is abandoned.
+/// A download that receives no bytes for this long is abandoned. There is no
+/// whole-download deadline: a package that keeps arriving finishes at any link
+/// speed, while Core's progress floor cuts a connection that only trickles.
 const DOWNLOAD_STALL_TIMEOUT: Duration = Duration::from_secs(60);
 const PROGRESS_STEP_BYTES: u64 = 256 * 1024;
 
@@ -324,7 +324,6 @@ async fn check(
     let diagnostics = app.state::<crate::ExitDiagnostics>().inner().clone();
     let updater = app
         .updater_builder()
-        .timeout(REQUEST_TIMEOUT)
         .on_before_exit(move || diagnostics.shutdown())
         .endpoints(vec![
             url::Url::parse(feed_url(channel)).map_err(|_| unavailable_error())?,
@@ -543,19 +542,26 @@ fn announce_library_reopened(app: &AppHandle) {
 
 /// Downloads the package with progress. The plugin verifies its signature
 /// against the configured key before returning the bytes. A download that
-/// stalls is abandoned; the request timeout bounds the whole transfer.
+/// stalls, or trickles below Core's progress floor, is abandoned; one that
+/// keeps progressing is never cut for taking long.
 async fn download_verified(
     update: &Update,
     on_event: &Channel<ApplicationUpdateProgress>,
 ) -> DesktopResult<Vec<u8>> {
     let last_progress = Arc::new(Mutex::new(Instant::now()));
     let observed = last_progress.clone();
+    let starved = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let starving = starved.clone();
+    let mut floor = portcove_core::ProgressWatch::new(portcove_core::PROGRESS_FLOOR);
     let mut downloaded = 0_u64;
     let mut reported = 0_u64;
     let download = update.download(
         move |chunk, total| {
             if let Ok(mut last) = observed.lock() {
                 *last = Instant::now();
+            }
+            if floor.record(chunk as u64).is_err() {
+                starving.store(true, std::sync::atomic::Ordering::Relaxed);
             }
             downloaded = downloaded.saturating_add(chunk as u64);
             if downloaded.saturating_sub(reported) >= PROGRESS_STEP_BYTES
@@ -576,7 +582,8 @@ async fn download_verified(
             let idle = last_progress
                 .lock()
                 .map_or(Duration::ZERO, |last| last.elapsed());
-            if idle >= DOWNLOAD_STALL_TIMEOUT {
+            if idle >= DOWNLOAD_STALL_TIMEOUT || starved.load(std::sync::atomic::Ordering::Relaxed)
+            {
                 break;
             }
         }

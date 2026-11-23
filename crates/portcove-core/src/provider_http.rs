@@ -17,6 +17,7 @@ use crate::{
         PROVIDER_JSON_MAX_BYTES, PROVIDER_NETWORK_BOUNDS, ProviderNetworkBounds,
         bounded_response_bytes,
     },
+    transfer_progress::{PROGRESS_FLOOR, ProgressFloor, ProgressWatch},
 };
 
 const DEFAULT_BACKOFF: Duration = Duration::from_secs(60);
@@ -38,6 +39,8 @@ pub(crate) struct ProviderHttp {
     site: &'static str,
     /// Provider-wide backoff after throttling or server errors.
     blocked_until: ProviderBackoff,
+    /// Minimum progress a download connection must sustain.
+    progress_floor: ProgressFloor,
 }
 
 impl ProviderHttp {
@@ -69,11 +72,18 @@ impl ProviderHttp {
             label,
             site,
             blocked_until: ProviderBackoff::default(),
+            progress_floor: PROGRESS_FLOOR,
         })
     }
 
     pub(crate) fn with_backoff(mut self, backoff: ProviderBackoff) -> Self {
         self.blocked_until = backoff;
+        self
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_progress_floor(mut self, floor: ProgressFloor) -> Self {
+        self.progress_floor = floor;
         self
     }
 
@@ -196,9 +206,11 @@ impl ProviderHttp {
                 self.start_backoff(response.headers());
             }
             if !status.is_success() {
-                return Err(PortcoveError::network(format!(
-                    "download returned {status}"
-                )));
+                return Err(
+                    PortcoveError::network(format!("download returned {status}")).with_upstream(
+                        Some(crate::failure::UpstreamObservation::Status(status.as_u16())),
+                    ),
+                );
             }
             if response
                 .content_length()
@@ -212,15 +224,16 @@ impl ProviderHttp {
             let mut hasher = Sha256::new();
             let mut total = 0u64;
             let mut stream = response.bytes_stream();
-            let deadline = tokio::time::Instant::now() + download_deadline(size);
-            while let Some(chunk) = tokio::time::timeout_at(deadline, stream.next())
-                .await
-                .map_err(|_| {
-                    let _ = std::fs::remove_file(destination);
-                    PortcoveError::network("the download exceeded its time allowance")
-                })?
-            {
+            // No whole-transfer deadline: a progressing download finishes at
+            // any size or link speed. The transport's read-idle bound cuts a
+            // silent connection and the progress floor cuts a trickle.
+            let mut progress = ProgressWatch::new(self.progress_floor);
+            while let Some(chunk) = stream.next().await {
                 let chunk = chunk.map_err(|error| PortcoveError::network(error.to_string()))?;
+                if let Err(error) = progress.record(chunk.len() as u64) {
+                    let _ = std::fs::remove_file(destination);
+                    return Err(error);
+                }
                 total += chunk.len() as u64;
                 if total > size {
                     let _ = std::fs::remove_file(destination);
@@ -387,9 +400,93 @@ impl ProviderHttp {
     }
 }
 
-/// Wall-clock allowance for one download: a floor plus time for the declared size at
-/// a deliberately slow 128 KiB/s, capped at six hours. A server dripping bytes just
-/// inside the idle bound cannot hold a worker indefinitely.
-pub(crate) fn download_deadline(size: u64) -> Duration {
-    Duration::from_secs((120 + size / (128 * 1024)).min(6 * 60 * 60))
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sha2::{Digest, Sha256};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    /// Serves one download whose body arrives `piece` bytes every `every`.
+    async fn paced(body: Vec<u8>, piece: usize, every: Duration) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                request.push(stream.read_u8().await.unwrap());
+            }
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            if stream.write_all(head.as_bytes()).await.is_err() {
+                return;
+            }
+            for part in body.chunks(piece) {
+                tokio::time::sleep(every).await;
+                if stream.write_all(part).await.is_err() || stream.flush().await.is_err() {
+                    return;
+                }
+            }
+        });
+        format!("http://{address}/file.zip")
+    }
+
+    fn client(floor: ProgressFloor) -> ProviderHttp {
+        ProviderHttp::new(None, "Fixture", "127.0.0.1")
+            .unwrap()
+            .with_progress_floor(floor)
+    }
+
+    const FLOOR: ProgressFloor = ProgressFloor {
+        window: Duration::from_millis(200),
+        minimum_bytes: 100,
+    };
+
+    #[tokio::test]
+    async fn a_slow_download_that_keeps_progressing_completes() {
+        // Five-plus floor windows long: under the removed size-derived
+        // deadline the same shape (scaled) was cut although bytes kept flowing.
+        let body: Vec<u8> = (0..2400u32).map(|value| value as u8).collect();
+        let url = paced(body.clone(), 60, Duration::from_millis(25)).await;
+        let temporary = tempfile::tempdir().unwrap();
+        let destination = temporary.path().join("download.bin");
+        let started = Instant::now();
+        let (sha256, size) = client(FLOOR)
+            .download_exact(&url, body.len() as u64, &destination, 1 << 20, false)
+            .await
+            .unwrap();
+        assert!(
+            started.elapsed() > FLOOR.window * 4,
+            "{:?}",
+            started.elapsed()
+        );
+        assert_eq!(size, body.len() as u64);
+        assert_eq!(sha256, hex::encode(Sha256::digest(&body)));
+        assert_eq!(std::fs::read(&destination).unwrap(), body);
+    }
+
+    #[tokio::test]
+    async fn a_trickle_that_defeats_the_idle_bound_is_cut_by_the_progress_floor() {
+        // One byte every 50 ms never trips the 15 second read-idle bound.
+        let body = vec![7_u8; 4096];
+        let url = paced(body.clone(), 1, Duration::from_millis(50)).await;
+        let temporary = tempfile::tempdir().unwrap();
+        let destination = temporary.path().join("download.bin");
+        let error = tokio::time::timeout(
+            Duration::from_secs(10),
+            client(FLOOR).download_exact(&url, body.len() as u64, &destination, 1 << 20, false),
+        )
+        .await
+        .expect("the progress floor must cut the trickle")
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Network);
+        assert!(
+            error
+                .details
+                .contains_key(crate::transfer_progress::PROGRESS_FLOOR_DETAIL)
+        );
+        assert!(!destination.exists());
+    }
 }

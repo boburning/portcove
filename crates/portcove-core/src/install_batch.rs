@@ -56,6 +56,21 @@ pub struct InstallBatchItem {
     pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub install_id: Option<String>,
+    /// Set on a failed item whose failure came from a passing condition, so
+    /// unattended setup retries it later instead of counting a lasting failure.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary: Option<crate::TemporaryFailure>,
+}
+
+impl InstallBatchItem {
+    /// The temporary failure of a failed or interrupted item, if it was one.
+    pub(crate) fn temporary_failure(&self) -> Option<crate::TemporaryFailure> {
+        match self.state {
+            InstallBatchItemState::Interrupted => Some(crate::TemporaryFailure::INTERRUPTED),
+            InstallBatchItemState::Failed => self.temporary,
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -245,7 +260,7 @@ fn validate_selection(port_ids: impl Iterator<Item = String>) -> Result<()> {
 enum ItemOutcome {
     Ready(String),
     Held(String),
-    Failed(String),
+    Failed(String, Option<crate::TemporaryFailure>),
     Cancelled,
 }
 
@@ -286,6 +301,7 @@ impl Library {
                     state: InstallBatchItemState::Queued,
                     detail: None,
                     install_id: None,
+                    temporary: None,
                 })
                 .collect(),
         };
@@ -523,9 +539,10 @@ impl PortcoveService {
                             item.state = InstallBatchItemState::Held;
                             item.detail = Some(reason);
                         }
-                        ItemOutcome::Failed(reason) => {
+                        ItemOutcome::Failed(reason, temporary) => {
                             item.state = InstallBatchItemState::Failed;
                             item.detail = Some(reason);
+                            item.temporary = temporary;
                         }
                         ItemOutcome::Cancelled => {
                             item.state = InstallBatchItemState::Cancelled;
@@ -578,7 +595,10 @@ impl PortcoveService {
         {
             Ok(install) => ItemOutcome::Ready(install.id),
             Err(error) if error.code == ErrorCode::Cancelled => ItemOutcome::Cancelled,
-            Err(error) => ItemOutcome::Failed(error.message),
+            Err(error) => {
+                let temporary = crate::TemporaryFailure::of(&error);
+                ItemOutcome::Failed(error.message, temporary)
+            }
         }
     }
 

@@ -68,8 +68,13 @@ pub struct RootSetupFailure {
     pub port_id: String,
     /// The install plan, or `source:` and the file, that failed.
     pub plan_sha256: String,
+    /// Lasting failures of this plan; temporary ones never count here.
     pub attempts: u32,
     pub reason: String,
+    /// Set when the last failure came from a passing condition; the same plan
+    /// runs again after its back-off, without an upstream change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary_retry: Option<crate::TemporaryRetry>,
 }
 
 /// The game the player chose for files that several implementations can use.
@@ -874,9 +879,21 @@ impl PortcoveService {
                     && failure.attempts >= crate::MAX_STANDING_SETUP_ATTEMPTS
             })
         };
+        let waiting = |attempt: &str| {
+            consent
+                .failures
+                .iter()
+                .filter(|failure| failure.port_id == port_id && failure.plan_sha256 == attempt)
+                .find_map(|failure| failure.temporary_retry.as_ref())
+                .filter(|retry| retry.waiting(Library::now()))
+                .map(crate::TemporaryRetry::explanation)
+        };
         let source_key = source_attempt(candidate);
         if exhausted(&source_key) {
             return Ok(RootSetupOutcome::Skipped);
+        }
+        if let Some(reason) = waiting(&source_key) {
+            return Ok(RootSetupOutcome::Waiting(reason));
         }
         // Never retarget a different copy the player is already using.
         match self.library.source(&candidate.profile_id)? {
@@ -892,7 +909,13 @@ impl PortcoveService {
                     if error.code == crate::ErrorCode::Conflict {
                         return Ok(RootSetupOutcome::Waiting(error.message));
                     }
-                    self.remember_root_failure(root_id, port_id, &source_key, &error.message);
+                    self.remember_root_failure(
+                        root_id,
+                        port_id,
+                        &source_key,
+                        &error.message,
+                        crate::TemporaryFailure::of(&error),
+                    );
                     return Ok(RootSetupOutcome::Failed(error.message));
                 }
             }
@@ -909,6 +932,9 @@ impl PortcoveService {
         if exhausted(&plan.plan_sha256) {
             return Ok(RootSetupOutcome::Skipped);
         }
+        if let Some(reason) = waiting(&plan.plan_sha256) {
+            return Ok(RootSetupOutcome::Waiting(reason));
+        }
         if !self.still_enrolled(root_id, root_path, candidate, &mut 0)? {
             return Ok(RootSetupOutcome::Skipped);
         }
@@ -924,14 +950,26 @@ impl PortcoveService {
                 return Ok(RootSetupOutcome::Waiting(error.message));
             }
             Err(error) => {
-                self.remember_root_failure(root_id, port_id, &plan.plan_sha256, &error.message);
+                self.remember_root_failure(
+                    root_id,
+                    port_id,
+                    &plan.plan_sha256,
+                    &error.message,
+                    crate::TemporaryFailure::of(&error),
+                );
                 return Ok(RootSetupOutcome::Failed(error.message));
             }
         };
         let record = match self.run_install_batch(&batch.id, &mut *emit).await {
             Ok(record) => record,
             Err(error) => {
-                self.remember_root_failure(root_id, port_id, &plan.plan_sha256, &error.message);
+                self.remember_root_failure(
+                    root_id,
+                    port_id,
+                    &plan.plan_sha256,
+                    &error.message,
+                    crate::TemporaryFailure::of(&error),
+                );
                 return Ok(RootSetupOutcome::Failed(error.message));
             }
         };
@@ -943,6 +981,7 @@ impl PortcoveService {
                         &item.port_id,
                         &item.expected_plan_sha256,
                         item.detail.as_deref().unwrap_or("setup did not finish"),
+                        item.temporary_failure(),
                     );
                 }
                 InstallBatchItemState::Ready => {
@@ -1022,32 +1061,59 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// Counts a failed attempt for one game and plan (or file). Best effort:
-    /// if it can't be recorded, a later pass tries again within the limits.
-    fn remember_root_failure(&self, root_id: &str, port_id: &str, attempt: &str, reason: &str) {
+    /// Records a failed attempt for one game and plan (or file): a lasting
+    /// failure counts toward the attempt limit; a temporary one only schedules
+    /// the next attempt. Best effort: if it can't be recorded, a later pass
+    /// tries again within the limits.
+    fn remember_root_failure(
+        &self,
+        root_id: &str,
+        port_id: &str,
+        attempt: &str,
+        reason: &str,
+        temporary: Option<crate::TemporaryFailure>,
+    ) {
         let reason = reason.chars().take(512).collect::<String>();
+        let now = Library::now();
+        // Older records without a retry read as lasting failures, unchanged.
         let result = self.library.update_root_setup_consent(root_id, |consent| {
-            match consent
+            let index = match consent
                 .failures
-                .iter_mut()
-                .find(|failure| failure.port_id == port_id)
+                .iter()
+                .position(|failure| failure.port_id == port_id)
             {
-                Some(failure) if failure.plan_sha256 == attempt => {
-                    failure.attempts = failure.attempts.saturating_add(1);
-                    failure.reason = reason;
+                Some(index) => index,
+                None => {
+                    consent.failures.push(RootSetupFailure {
+                        port_id: port_id.to_owned(),
+                        plan_sha256: attempt.to_owned(),
+                        attempts: 0,
+                        reason: String::new(),
+                        temporary_retry: None,
+                    });
+                    consent.failures.len() - 1
                 }
-                Some(failure) => {
-                    failure.plan_sha256 = attempt.to_owned();
-                    failure.attempts = 1;
-                    failure.reason = reason;
-                }
-                None => consent.failures.push(RootSetupFailure {
-                    port_id: port_id.to_owned(),
-                    plan_sha256: attempt.to_owned(),
-                    attempts: 1,
-                    reason,
-                }),
+            };
+            let failure = &mut consent.failures[index];
+            if failure.plan_sha256 != attempt {
+                failure.plan_sha256 = attempt.to_owned();
+                failure.attempts = 0;
+                failure.temporary_retry = None;
             }
+            match temporary {
+                Some(temporary) => {
+                    failure.temporary_retry = Some(crate::TemporaryRetry::after(
+                        failure.temporary_retry.as_ref(),
+                        temporary,
+                        now,
+                    ));
+                }
+                None => {
+                    failure.attempts = failure.attempts.saturating_add(1);
+                    failure.temporary_retry = None;
+                }
+            }
+            failure.reason = reason;
         });
         if let Err(error) = result {
             tracing::warn!(root_id, error = %error.message, "could not record a folder setup failure");
@@ -1228,6 +1294,93 @@ mod tests {
         assert!(folder.pass().await.batches.is_empty());
         assert!(!folder.installed());
         assert!(folder.service.root_setup_consents().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn temporary_folder_setup_failures_wait_then_recover_the_same_plan() {
+        let folder = folder();
+        let file = folder.file("game.z64", 'a');
+        folder.in_use(&file);
+        folder.scanned(vec![file]);
+        folder.consent(RootSetupEnrollment::ExistingAndFuture);
+        let plan = folder.service.plan_game_install(PORT).await.unwrap();
+        let stalled = PortcoveError::network("the download stalled");
+        for _ in 0..=crate::MAX_STANDING_SETUP_ATTEMPTS {
+            folder.service.remember_root_failure(
+                &folder.root_id,
+                PORT,
+                &plan.plan_sha256,
+                &stalled.message,
+                crate::TemporaryFailure::of(&stalled),
+            );
+        }
+        let consent = folder
+            .service
+            .library()
+            .root_setup_consent(&folder.root_id)
+            .unwrap()
+            .unwrap();
+        assert_eq!(consent.failures[0].attempts, 0);
+        assert!(consent.failures[0].temporary_retry.is_some());
+        // Waiting, with a player explanation, never skipped as exhausted.
+        let waiting = folder.pass().await;
+        assert!(waiting.batches.is_empty());
+        assert!(
+            waiting
+                .root_waiting
+                .iter()
+                .any(|waiting| waiting.reason.contains("will try again automatically")),
+            "{waiting:?}"
+        );
+        folder
+            .service
+            .library()
+            .update_root_setup_consent(&folder.root_id, |consent| {
+                consent.failures[0]
+                    .temporary_retry
+                    .as_mut()
+                    .unwrap()
+                    .retry_after = Library::now() - 1;
+            })
+            .unwrap();
+        let recovered = folder.pass().await;
+        assert_eq!(recovered.batches.len(), 1, "{recovered:?}");
+        assert_eq!(
+            recovered.batches[0].items[0].state,
+            InstallBatchItemState::Ready
+        );
+        assert!(
+            folder
+                .service
+                .library()
+                .root_setup_consent(&folder.root_id)
+                .unwrap()
+                .unwrap()
+                .failures
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn lasting_folder_setup_failures_keep_their_limit() {
+        let folder = folder();
+        let file = folder.file("game.z64", 'a');
+        folder.in_use(&file);
+        folder.scanned(vec![file]);
+        folder.consent(RootSetupEnrollment::ExistingAndFuture);
+        let plan = folder.service.plan_game_install(PORT).await.unwrap();
+        for _ in 0..crate::MAX_STANDING_SETUP_ATTEMPTS {
+            folder.service.remember_root_failure(
+                &folder.root_id,
+                PORT,
+                &plan.plan_sha256,
+                "the archive digest did not match",
+                None,
+            );
+        }
+        let pass = folder.pass().await;
+        assert!(pass.batches.is_empty());
+        assert!(folder.service.status(PORT).unwrap().active.is_none());
     }
 
     #[tokio::test]

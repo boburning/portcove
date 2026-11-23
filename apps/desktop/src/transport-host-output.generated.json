@@ -6806,6 +6806,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -6842,6 +6853,57 @@
             "type": "string"
           }
         ]
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -7790,6 +7852,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -7864,6 +7937,57 @@
           "updated_at",
           "cancel_requested",
           "items"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
         ],
         "type": "object"
       }
@@ -11658,6 +11782,62 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -11695,7 +11875,7 @@
         "type": "integer"
       },
       "failed_plan_sha256": {
-        "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
+        "description": "The plan whose standing setup last failed, and how many times it has\nfailed for a lasting reason. It is retried on later passes up to a\nsmall limit, then waits until the plan changes, so a permanent failure\ndoes not recur. Temporary failures never count here; see\n`temporary_retry`.",
         "type": [
           "string",
           "null"
@@ -11725,6 +11905,17 @@
           "$ref": "#/$defs/PortIntentSource"
         },
         "type": "array"
+      },
+      "temporary_retry": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/TemporaryRetry"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Set when the last failure of `failed_plan_sha256` came from a passing\ncondition (network, provider limit or outage, full disk, interruption).\nThe same plan runs again after its back-off, without an upstream change."
       },
       "updated_at": {
         "format": "int64",
@@ -12008,7 +12199,7 @@
             "type": "integer"
           },
           "failed_plan_sha256": {
-            "description": "The plan whose standing setup last failed, and how many times it has\nfailed. It is retried on later passes up to a small limit, then waits\nuntil the plan changes, so a permanent failure does not recur.",
+            "description": "The plan whose standing setup last failed, and how many times it has\nfailed for a lasting reason. It is retried on later passes up to a\nsmall limit, then waits until the plan changes, so a permanent failure\ndoes not recur. Temporary failures never count here; see\n`temporary_retry`.",
             "type": [
               "string",
               "null"
@@ -12038,6 +12229,17 @@
               "$ref": "#/$defs/PortIntentSource"
             },
             "type": "array"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure of `failed_plan_sha256` came from a passing\ncondition (network, provider limit or outage, full disk, interruption).\nThe same plan runs again after its back-off, without an upstream change."
           },
           "updated_at": {
             "format": "int64",
@@ -12100,6 +12302,62 @@
           "rolling"
         ],
         "type": "string"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -14180,6 +14438,7 @@
       "RootSetupFailure": {
         "properties": {
           "attempts": {
+            "description": "Lasting failures of this plan; temporary ones never count here.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
@@ -14193,6 +14452,17 @@
           },
           "reason": {
             "type": "string"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure came from a passing condition; the same plan\nruns again after its back-off, without an upstream change."
           }
         },
         "required": [
@@ -14216,6 +14486,62 @@
         "required": [
           "profile_id",
           "port_id"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
         ],
         "type": "object"
       }
@@ -14307,6 +14633,7 @@
       "RootSetupFailure": {
         "properties": {
           "attempts": {
+            "description": "Lasting failures of this plan; temporary ones never count here.",
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
@@ -14320,6 +14647,17 @@
           },
           "reason": {
             "type": "string"
+          },
+          "temporary_retry": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryRetry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the last failure came from a passing condition; the same plan\nruns again after its back-off, without an upstream change."
           }
         },
         "required": [
@@ -14343,6 +14681,62 @@
         "required": [
           "profile_id",
           "port_id"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryRetry": {
+        "additionalProperties": false,
+        "description": "A temporary failure's retry schedule. Clears when the work succeeds, its\nplan changes or the player chooses again.",
+        "properties": {
+          "attempts": {
+            "description": "Consecutive temporary failures of the same plan; sets the back-off.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "retry_after": {
+            "description": "Unix seconds before which the work is not tried again.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cause",
+          "attempts",
+          "retry_after"
         ],
         "type": "object"
       }
@@ -18903,6 +19297,17 @@
           },
           "state": {
             "$ref": "#/$defs/InstallBatchItemState"
+          },
+          "temporary": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TemporaryFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set on a failed item whose failure came from a passing condition, so\nunattended setup retries it later instead of counting a lasting failure."
           }
         },
         "required": [
@@ -19314,6 +19719,57 @@
         "required": [
           "port_id",
           "reason"
+        ],
+        "type": "object"
+      },
+      "TemporaryCause": {
+        "description": "Why unattended work stopped for now.",
+        "oneOf": [
+          {
+            "const": "network",
+            "description": "The connection failed, stalled or was too slow to finish.",
+            "type": "string"
+          },
+          {
+            "const": "rate_limited",
+            "description": "The provider asked Portcove to wait before sending more requests.",
+            "type": "string"
+          },
+          {
+            "const": "server_unavailable",
+            "description": "The provider answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "storage_full",
+            "description": "The disk was full.",
+            "type": "string"
+          },
+          {
+            "const": "interrupted",
+            "description": "Portcove stopped (or another task held the game) before the work finished.",
+            "type": "string"
+          }
+        ]
+      },
+      "TemporaryFailure": {
+        "additionalProperties": false,
+        "description": "What a temporary failure was, as recorded where it happened.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/TemporaryCause"
+          },
+          "stated_reset": {
+            "description": "Unix seconds the provider said its limit resets, when it said.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cause"
         ],
         "type": "object"
       },

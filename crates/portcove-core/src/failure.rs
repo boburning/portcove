@@ -672,6 +672,10 @@ impl PortcoveError {
         self
     }
 
+    pub(crate) fn upstream_observation(&self) -> Option<UpstreamObservation> {
+        self.failure.upstream
+    }
+
     /// Classify this failure for preserved-location failover from recorded facts
     /// only, never from message text.
     pub(crate) fn upstream_failure(&self) -> UpstreamFailure {

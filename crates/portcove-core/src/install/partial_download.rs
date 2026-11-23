@@ -128,9 +128,6 @@ impl PartialDownloads {
     /// caller then downloads without it.
     pub(crate) fn lease(&self, asset: &ReleaseAsset) -> Option<Lease> {
         let key = Self::key(asset)?;
-        if asset.size > self.max_bytes {
-            return None;
-        }
         fs::create_dir_all(&self.root).ok()?;
         crate::path::refuse_symlink_ancestors(&self.root).ok()?;
         if fs::symlink_metadata(&self.root)
@@ -279,9 +276,15 @@ impl PartialDownloads {
             count += 1;
         }
         idle.sort();
+        // The byte budget bounds what idle entries may keep. One asset larger
+        // than the budget still keeps its own progress once everything else
+        // has made room, so a large game on a slow link is never the one
+        // download that cannot continue after a restart. Free disk space
+        // remains the hard bound.
+        let budget = self.max_bytes.max(keeping_bytes);
         let fits = |count, total| {
             count <= self.max_entries
-                && total <= self.max_bytes
+                && total <= budget
                 && fs4::available_space(&self.root).is_ok_and(|available| needed <= available)
         };
         for (_, key, size) in idle {

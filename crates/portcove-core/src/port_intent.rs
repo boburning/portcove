@@ -57,14 +57,21 @@ pub struct PortIntent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub acknowledged_plan_sha256: Option<String>,
     /// The plan whose standing setup last failed, and how many times it has
-    /// failed. It is retried on later passes up to a small limit, then waits
-    /// until the plan changes, so a permanent failure does not recur.
+    /// failed for a lasting reason. It is retried on later passes up to a
+    /// small limit, then waits until the plan changes, so a permanent failure
+    /// does not recur. Temporary failures never count here; see
+    /// `temporary_retry`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failed_plan_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "is_zero")]
     pub failed_attempts: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub failure: Option<String>,
+    /// Set when the last failure of `failed_plan_sha256` came from a passing
+    /// condition (network, provider limit or outage, full disk, interruption).
+    /// The same plan runs again after its back-off, without an upstream change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary_retry: Option<crate::TemporaryRetry>,
     /// The release channel chosen with this choice. A different channel later
     /// waits for the player to choose again.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -216,6 +223,7 @@ impl PortIntent {
             failed_plan_sha256: None,
             failed_attempts: 0,
             failure: None,
+            temporary_retry: None,
             channel: None,
             sources: Vec::new(),
         }
@@ -225,6 +233,7 @@ impl PortIntent {
         self.failed_plan_sha256 = None;
         self.failed_attempts = 0;
         self.failure = None;
+        self.temporary_retry = None;
     }
 }
 
@@ -787,6 +796,14 @@ impl PortcoveService {
                     .map(|failure| format!(" ({failure})"))
                     .unwrap_or_default()
             ))
+        } else if let PortReadiness::Ready { plan_sha256, .. } = &readiness
+            && intent.failed_plan_sha256.as_deref() == Some(plan_sha256.as_str())
+            && let Some(retry) = intent
+                .temporary_retry
+                .as_ref()
+                .filter(|retry| retry.waiting(Library::now()))
+        {
+            Some(retry.explanation())
         } else {
             None
         };
@@ -925,6 +942,7 @@ impl PortcoveService {
                         &assessment.port_id,
                         plan_sha256,
                         &error.message,
+                        crate::TemporaryFailure::of(&error),
                     );
                     failures.push(StandingSetupFailure {
                         port_id: assessment.port_id.clone(),
@@ -1019,6 +1037,7 @@ impl PortcoveService {
                                 &item.port_id,
                                 &item.expected_plan_sha256,
                                 "setup was interrupted before it finished",
+                                Some(crate::TemporaryFailure::INTERRUPTED),
                             );
                         }
                     }
@@ -1079,6 +1098,7 @@ impl PortcoveService {
                         &item.port_id,
                         &item.expected_plan_sha256,
                         item.detail.as_deref().unwrap_or("setup did not finish"),
+                        item.temporary_failure(),
                     );
                 }
                 _ => {}
@@ -1087,16 +1107,36 @@ impl PortcoveService {
         Ok(Some(record))
     }
 
-    /// Counts a failed attempt for this plan. Best effort: if it can't be
-    /// recorded, the next pass simply tries again within the same limits.
-    fn remember_standing_failure(&self, port_id: &str, plan_sha256: &str, reason: &str) {
-        let result = self.library.update_port_intent(port_id, |intent, _| {
+    /// Records a failed attempt for this plan: a lasting failure counts toward
+    /// the attempt limit; a temporary one only schedules the next attempt.
+    /// Best effort: if it can't be recorded, the next pass simply tries again
+    /// within the same limits.
+    fn remember_standing_failure(
+        &self,
+        port_id: &str,
+        plan_sha256: &str,
+        reason: &str,
+        temporary: Option<crate::TemporaryFailure>,
+    ) {
+        let result = self.library.update_port_intent(port_id, |intent, now| {
             let Some(intent) = intent else { return };
-            if intent.failed_plan_sha256.as_deref() == Some(plan_sha256) {
-                intent.failed_attempts = intent.failed_attempts.saturating_add(1);
-            } else {
+            if intent.failed_plan_sha256.as_deref() != Some(plan_sha256) {
                 intent.failed_plan_sha256 = Some(plan_sha256.to_owned());
-                intent.failed_attempts = 1;
+                intent.failed_attempts = 0;
+                intent.temporary_retry = None;
+            }
+            match temporary {
+                Some(temporary) => {
+                    intent.temporary_retry = Some(crate::TemporaryRetry::after(
+                        intent.temporary_retry.as_ref(),
+                        temporary,
+                        now,
+                    ));
+                }
+                None => {
+                    intent.failed_attempts = intent.failed_attempts.saturating_add(1);
+                    intent.temporary_retry = None;
+                }
             }
             intent.failure = Some(reason.chars().take(512).collect());
         });
@@ -1724,12 +1764,139 @@ mod tests {
         let PortReadiness::Ready { plan_sha256, .. } = &assessed.assessments[0].readiness else {
             panic!("expected ready");
         };
-        service.remember_standing_failure(PORT, plan_sha256, "network unavailable");
+        service.remember_standing_failure(PORT, plan_sha256, "archive was rejected", None);
         let pass = service.run_standing_setup(|_| {}).await.unwrap();
         assert_eq!(pass.batches.len(), 1);
         assert!(service.status(PORT).unwrap().active.is_some());
         let intent = service.library.port_intent(PORT).unwrap().unwrap();
         assert_eq!((intent.failed_attempts, intent.failure), (0, None));
+    }
+
+    #[tokio::test]
+    async fn temporary_failures_wait_then_recover_the_same_plan_without_an_upstream_change() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Ready { plan_sha256, .. } = &assessed.assessments[0].readiness else {
+            panic!("expected ready");
+        };
+        // More temporary failures than the lasting-attempt limit allows.
+        for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
+            service.remember_standing_failure(
+                PORT,
+                plan_sha256,
+                "connection reset",
+                crate::TemporaryFailure::of(&PortcoveError::network("connection reset")),
+            );
+        }
+        let intent = service.library.port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_attempts, 0);
+        let retry = intent.temporary_retry.clone().unwrap();
+        assert_eq!(retry.cause, crate::TemporaryCause::Network);
+        assert_eq!(retry.attempts, MAX_STANDING_SETUP_ATTEMPTS + 1);
+        // While its back-off runs the game waits, and says it will retry.
+        let waiting = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(waiting.batches.is_empty());
+        let reason = waiting.assessments[0].suppressed.as_deref().unwrap();
+        assert!(reason.contains("will try again automatically"), "{reason}");
+        assert!(!reason.contains("files, catalog or requirements change"));
+
+        // Once the back-off has passed, the unchanged plan runs and succeeds.
+        service
+            .library
+            .update_port_intent(PORT, |intent, now| {
+                let retry = intent.as_mut().unwrap().temporary_retry.as_mut().unwrap();
+                retry.retry_after = now - 1;
+            })
+            .unwrap();
+        let pass = service.run_standing_setup(|_| {}).await.unwrap();
+        assert_eq!(pass.batches.len(), 1);
+        assert!(service.status(PORT).unwrap().active.is_some());
+        let intent = service.library.port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_plan_sha256, None);
+        assert_eq!(intent.temporary_retry, None);
+    }
+
+    #[tokio::test]
+    async fn a_rate_limit_waits_for_its_stated_reset_instead_of_refusing() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Ready { plan_sha256, .. } = &assessed.assessments[0].readiness else {
+            panic!("expected ready");
+        };
+        let reset = Library::now() + 2 * 60 * 60;
+        service.remember_standing_failure(
+            PORT,
+            plan_sha256,
+            "rate limited",
+            Some(crate::TemporaryFailure {
+                cause: crate::TemporaryCause::RateLimited,
+                stated_reset: Some(reset),
+            }),
+        );
+        let intent = service.library.port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.temporary_retry.unwrap().retry_after, reset);
+        assert_eq!(intent.failed_attempts, 0);
+        let pass = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(pass.batches.is_empty() && pass.failures.is_empty());
+        assert!(
+            pass.assessments[0]
+                .suppressed
+                .as_deref()
+                .unwrap()
+                .contains("asked Portcove to wait")
+        );
+    }
+
+    #[tokio::test]
+    async fn a_lasting_failure_after_temporary_ones_keeps_its_limit() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+        let assessed = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Ready { plan_sha256, .. } = &assessed.assessments[0].readiness else {
+            panic!("expected ready");
+        };
+        service.remember_standing_failure(
+            PORT,
+            plan_sha256,
+            "connection reset",
+            Some(crate::TemporaryFailure::INTERRUPTED),
+        );
+        for _ in 0..MAX_STANDING_SETUP_ATTEMPTS {
+            service.remember_standing_failure(PORT, plan_sha256, "digest mismatch", None);
+        }
+        let intent = service.library.port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.failed_attempts, MAX_STANDING_SETUP_ATTEMPTS);
+        assert_eq!(intent.temporary_retry, None);
+        let pass = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(pass.batches.is_empty());
+        assert!(
+            pass.assessments[0]
+                .suppressed
+                .as_deref()
+                .unwrap()
+                .contains("digest mismatch")
+        );
+    }
+
+    #[test]
+    fn intents_written_before_temporary_retries_still_read() {
+        let old = r#"{"format_version":1,"port_id":"game","mode":"set_up_when_ready","updated_at":5,"failed_plan_sha256":"aa","failed_attempts":2,"failure":"download failed"}"#;
+        let intent = decode("game", old).unwrap();
+        assert_eq!(intent.failed_attempts, 2);
+        assert_eq!(intent.temporary_retry, None);
+        // Unchanged records keep their exact stored shape.
+        assert_eq!(
+            serde_json::to_value(&intent).unwrap(),
+            serde_json::from_str::<serde_json::Value>(old).unwrap()
+        );
     }
 
     #[tokio::test]
@@ -2323,13 +2490,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn repeated_interruptions_stop_at_the_attempt_limit() {
+    async fn repeated_interruptions_back_off_and_then_continue_the_same_plan() {
         let (_temporary, service) = ready_service().await;
         service
             .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
             .unwrap();
         let plan = service.plan_game_install(PORT).await.unwrap();
-        for _ in 0..MAX_STANDING_SETUP_ATTEMPTS {
+        for _ in 0..=MAX_STANDING_SETUP_ATTEMPTS {
             let batch = service
                 .start_install_batch(
                     &[InstallBatchRequestItem {
@@ -2347,18 +2514,35 @@ mod tests {
                 .unwrap();
             service.recover_interrupted_setups();
         }
+        // Interruptions are our own execution failure: they never reach the
+        // lasting limit, but repeated ones wait before the next run.
         let intent = service.library().port_intent(PORT).unwrap().unwrap();
-        assert_eq!(intent.failed_attempts, MAX_STANDING_SETUP_ATTEMPTS);
-        // The plan now waits for a change instead of being retried.
-        assert!(
-            service
-                .run_standing_setup(|_| {})
-                .await
-                .unwrap()
-                .batches
-                .is_empty()
-        );
+        assert_eq!(intent.failed_attempts, 0);
+        let retry = intent.temporary_retry.unwrap();
+        assert_eq!(retry.cause, crate::TemporaryCause::Interrupted);
+        assert_eq!(retry.attempts, MAX_STANDING_SETUP_ATTEMPTS + 1);
+        assert!(retry.retry_after > Library::now());
+        let waiting = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(waiting.batches.is_empty());
         assert!(service.status(PORT).unwrap().active.is_none());
+
+        service
+            .library()
+            .update_port_intent(PORT, |intent, now| {
+                intent
+                    .as_mut()
+                    .unwrap()
+                    .temporary_retry
+                    .as_mut()
+                    .unwrap()
+                    .retry_after = now - 1;
+            })
+            .unwrap();
+        let pass = service.run_standing_setup(|_| {}).await.unwrap();
+        assert_eq!(pass.batches.len(), 1);
+        assert!(service.status(PORT).unwrap().active.is_some());
+        let intent = service.library().port_intent(PORT).unwrap().unwrap();
+        assert_eq!(intent.temporary_retry, None);
     }
 
     #[test]

@@ -10,6 +10,7 @@ fn fast(attempts: u32) -> transfer::ResumePolicy {
         attempts,
         first_delay: Duration::from_millis(1),
         max_delay: Duration::from_millis(1),
+        progress: crate::transfer_progress::PROGRESS_FLOOR,
     }
 }
 
@@ -392,6 +393,7 @@ async fn refused_reconnects_consume_retries_and_keep_the_original_classification
             attempts: 2,
             first_delay: Duration::from_millis(200),
             max_delay: Duration::from_millis(200),
+            progress: crate::transfer_progress::PROGRESS_FLOOR,
         },
     )
     .await;
@@ -553,6 +555,7 @@ fn cancellation_during_a_resumed_body_returns_after_draining_received_bytes() {
                     attempts: 3,
                     first_delay: Duration::from_millis(1),
                     max_delay: Duration::from_secs(20),
+                    progress: crate::transfer_progress::PROGRESS_FLOOR,
                 },
             ),
         )
@@ -615,6 +618,7 @@ fn cancellation_during_resume_back_off_stops_without_another_request() {
                     attempts: 3,
                     first_delay: Duration::from_secs(20),
                     max_delay: Duration::from_secs(20),
+                    progress: crate::transfer_progress::PROGRESS_FLOOR,
                 },
             ),
         )
@@ -1182,4 +1186,192 @@ fn expired_and_leftover_entries_are_removed_on_the_next_use() {
     }
     let lease = partials.lease(&asset_numbered(3, 1 << 20)).unwrap();
     assert!(lease.resumed().is_none());
+}
+
+/// First connection: a whole answer whose body starts quickly and then
+/// trickles one byte every 100 ms. Later connections honour `Range` exactly.
+async fn serve_trickle_then_range(
+    body: Vec<u8>,
+    fast_prefix: usize,
+) -> (String, tokio::task::JoinHandle<Vec<String>>) {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let mut requests = Vec::new();
+        for connection in 0..2 {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            while !request.ends_with(b"\r\n\r\n") {
+                request.push(stream.read_u8().await.unwrap());
+            }
+            let request = String::from_utf8(request).unwrap();
+            if connection == 0 {
+                let _ = stream
+                    .write_all(&head("200 OK", Some("\"v1\""), "", body.len()))
+                    .await;
+                let _ = stream.write_all(&body[..fast_prefix]).await;
+                for byte in &body[fast_prefix..] {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    if stream.write_all(&[*byte]).await.is_err() {
+                        break;
+                    }
+                }
+            } else {
+                let offset: usize = ranged(&request)
+                    .and_then(|range| {
+                        range
+                            .strip_prefix("bytes=")?
+                            .strip_suffix('-')
+                            .map(str::to_owned)
+                    })
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                let _ = stream
+                    .write_all(&partial(
+                        Some("\"v1\""),
+                        &format!("bytes {offset}-{}/{}", body.len() - 1, body.len()),
+                        &body[offset..],
+                    ))
+                    .await;
+            }
+            requests.push(request);
+        }
+        requests
+    });
+    (format!("http://{address}"), server)
+}
+
+#[tokio::test]
+async fn a_starved_transfer_is_cut_and_continues_byte_identically_after_a_restart() {
+    let body: Vec<u8> = (0..96u8).collect();
+    let digest = hex::encode(Sha256::digest(&body));
+    let (root, server) = serve_trickle_then_range(body.clone(), 40).await;
+    let asset = ReleaseAsset {
+        name: "sample.zip".into(),
+        url: format!("{root}/sample.zip"),
+        size: body.len() as u64,
+        sha256: digest.clone(),
+    };
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    // The trickle (about three bytes per window) never trips the read-idle
+    // bound, but falls below this floor in its second window.
+    let policy = transfer::ResumePolicy {
+        progress: crate::transfer_progress::ProgressFloor {
+            window: Duration::from_millis(300),
+            minimum_bytes: 5,
+        },
+        ..fast(0)
+    };
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .read_timeout(Duration::from_secs(15))
+        .build()
+        .unwrap();
+    let first = temporary.path().join("first.download");
+    let error = tokio::time::timeout(
+        Duration::from_secs(30),
+        transfer::download_resuming(
+            &client,
+            &asset,
+            &first,
+            &OperationCoordinator::new("download", None),
+            &mut |_| {},
+            policy,
+            Some(transfer::RetainedDownload::private(
+                &partial_download::PartialDownloads::new(store_root.clone()),
+            )),
+        ),
+    )
+    .await
+    .expect("the progress floor must cut the trickle")
+    .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Network);
+    assert!(
+        error
+            .details
+            .contains_key(crate::transfer_progress::PROGRESS_FLOOR_DETAIL)
+    );
+    // The received prefix is kept, bound to its validator.
+    assert_eq!(stored_entries(&store_root).len(), 2);
+
+    // A new store over the same directory stands in for the next Portcove run.
+    let second = temporary.path().join("second.download");
+    let mut messages = Vec::new();
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        transfer::download_resuming(
+            &client,
+            &asset,
+            &second,
+            &OperationCoordinator::new("download", None),
+            &mut |event| {
+                if let crate::OperationEventKind::Message { message, .. } = event.event {
+                    messages.push(message);
+                }
+            },
+            policy,
+            Some(transfer::RetainedDownload::private(
+                &partial_download::PartialDownloads::new(store_root.clone()),
+            )),
+        ),
+    )
+    .await
+    .expect("transfer fixture exceeded thirty seconds")
+    .unwrap();
+    let file = fs::read(&second).unwrap();
+    assert_eq!(file, body);
+    assert_eq!(hex::encode(Sha256::digest(&file)), digest);
+    assert!(messages[0].contains("Continuing the earlier download"));
+    assert!(stored_entries(&store_root).is_empty());
+    let requests = server.await.unwrap();
+    let resumed_from: usize = ranged(&requests[1])
+        .and_then(|range| {
+            range
+                .strip_prefix("bytes=")?
+                .strip_suffix('-')
+                .map(str::to_owned)
+        })
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(resumed_from >= 40, "{resumed_from}");
+    assert_eq!(if_range(&requests[1]).as_deref(), Some("\"v1\""));
+}
+
+#[test]
+fn an_asset_larger_than_the_byte_budget_keeps_its_progress_alone() {
+    use std::io::Write as _;
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("partial-v1");
+    // Formerly an asset over the budget could never keep bytes, so a large
+    // game interrupted on a slow link always started over.
+    let partials = partial_download::PartialDownloads::with_bounds(
+        root.clone(),
+        4,
+        1 << 20,
+        Duration::from_secs(3600),
+    );
+    keep_entry(&partials, 1, 8);
+    let large = asset_numbered(9, 4 << 20);
+    let lease = partials
+        .lease(&large)
+        .expect("the large asset may keep bytes");
+    lease.describe(Some("\"v\""), Some(4 << 20));
+    lease.writer().unwrap().write_all(&[9; 64]).unwrap();
+    drop(lease);
+    // The idle smaller entry made room; the large one's bytes continue.
+    let kept = parts(&root);
+    assert_eq!(kept.len(), 1, "{kept:?}");
+    assert!(kept[0].starts_with(&large.sha256));
+    let resumed = partials.lease(&large).unwrap();
+    assert_eq!(resumed.resumed().unwrap().bytes, 64);
+    drop(resumed);
+    // While the large transfer is active, another asset cannot push the store
+    // past the budget.
+    let active = partials.lease(&large).unwrap();
+    assert!(partials.lease(&asset_numbered(2, 1 << 20)).is_none());
+    drop(active);
 }

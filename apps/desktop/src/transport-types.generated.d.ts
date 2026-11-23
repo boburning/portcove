@@ -1420,6 +1420,10 @@ export type OutputDesktopApplicationUpdateProgress =
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
+/**
+ * Why unattended work stopped for now.
+ */
+export type TemporaryCause = "network" | "rate_limited" | "server_unavailable" | "storage_full" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
 export type OutputDesktopLibraryMembershipOutcomes = LibraryMembershipOutcome[];
@@ -8234,6 +8238,21 @@ export interface InstallBatchItem {
   install_id?: string | null;
   port_id: string;
   state: InstallBatchItemState;
+  /**
+   * Set on a failed item whose failure came from a passing condition, so
+   * unattended setup retries it later instead of counting a lasting failure.
+   */
+  temporary?: TemporaryFailure | null;
+}
+/**
+ * What a temporary failure was, as recorded where it happened.
+ */
+export interface TemporaryFailure {
+  cause: TemporaryCause;
+  /**
+   * Unix seconds the provider said its limit resets, when it said.
+   */
+  stated_reset?: number | null;
 }
 export interface OutputDesktopInstallBatchReview {
   capacity: InstallBatchCapacity;
@@ -8377,8 +8396,10 @@ export interface PortIntent {
   failed_attempts?: number;
   /**
    * The plan whose standing setup last failed, and how many times it has
-   * failed. It is retried on later passes up to a small limit, then waits
-   * until the plan changes, so a permanent failure does not recur.
+   * failed for a lasting reason. It is retried on later passes up to a
+   * small limit, then waits until the plan changes, so a permanent failure
+   * does not recur. Temporary failures never count here; see
+   * `temporary_retry`.
    */
   failed_plan_sha256?: string | null;
   failure?: string | null;
@@ -8392,6 +8413,12 @@ export interface PortIntent {
    * files that arrive are used.
    */
   sources?: PortIntentSource[];
+  /**
+   * Set when the last failure of `failed_plan_sha256` came from a passing
+   * condition (network, provider limit or outage, full disk, interruption).
+   * The same plan runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   updated_at: number;
 }
 /**
@@ -8400,6 +8427,21 @@ export interface PortIntent {
 export interface PortIntentSource {
   profile_id: string;
   sha256: string;
+}
+/**
+ * A temporary failure's retry schedule. Clears when the work succeeds, its
+ * plan changes or the player chooses again.
+ */
+export interface TemporaryRetry {
+  /**
+   * Consecutive temporary failures of the same plan; sets the back-off.
+   */
+  attempts: number;
+  cause: TemporaryCause;
+  /**
+   * Unix seconds before which the work is not tried again.
+   */
+  retry_after: number;
 }
 export interface OutputDesktopPortIntentAssessments {
   assessments: PortIntentAssessment[];
@@ -8507,6 +8549,9 @@ export interface RootSetupConsent {
   [k: string]: unknown;
 }
 export interface RootSetupFailure {
+  /**
+   * Lasting failures of this plan; temporary ones never count here.
+   */
   attempts: number;
   /**
    * The install plan, or `source:` and the file, that failed.
@@ -8514,6 +8559,11 @@ export interface RootSetupFailure {
   plan_sha256: string;
   port_id: string;
   reason: string;
+  /**
+   * Set when the last failure came from a passing condition; the same plan
+   * runs again after its back-off, without an upstream change.
+   */
+  temporary_retry?: TemporaryRetry | null;
   [k: string]: unknown;
 }
 /**

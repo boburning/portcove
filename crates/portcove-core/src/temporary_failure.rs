@@ -1,0 +1,312 @@
+//! Temporary failures and their bounded retry schedule.
+//!
+//! Unattended work (standing setup, folder setup) limits how often it repeats
+//! an unchanged plan that keeps failing, so a lasting problem does not recur on
+//! every pass. A network outage, a provider's rate limit or server error, a
+//! full disk or an interrupted run says nothing lasting about the plan,
+//! though. Those failures are recorded here instead: they never count toward
+//! the attempt limit, and the work runs again after a bounded back-off without
+//! needing a new upstream release. A lasting failure (a rejected digest, a
+//! missing asset, an unsupported format) keeps its limit and its own reason.
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    ErrorCode, PortcoveError,
+    failure::{KnownFailureCause, UpstreamObservation},
+};
+
+/// The first wait after a temporary failure; each further one doubles it.
+pub const TEMPORARY_RETRY_FIRST_DELAY_SECONDS: i64 = 5 * 60;
+/// The longest wait between retries of one temporary failure.
+pub const TEMPORARY_RETRY_MAX_DELAY_SECONDS: i64 = 6 * 60 * 60;
+/// A provider-stated reset beyond this is not believed; the work waits this long.
+const RATE_LIMIT_RESET_MAX_SECONDS: i64 = 24 * 60 * 60;
+
+/// Why unattended work stopped for now.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TemporaryCause {
+    /// The connection failed, stalled or was too slow to finish.
+    Network,
+    /// The provider asked Portcove to wait before sending more requests.
+    RateLimited,
+    /// The provider answered with a server error.
+    ServerUnavailable,
+    /// The disk was full.
+    StorageFull,
+    /// Portcove stopped (or another task held the game) before the work finished.
+    Interrupted,
+}
+
+/// What a temporary failure was, as recorded where it happened.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TemporaryFailure {
+    pub cause: TemporaryCause,
+    /// Unix seconds the provider said its limit resets, when it said.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stated_reset: Option<i64>,
+}
+
+impl TemporaryFailure {
+    pub(crate) fn of(error: &PortcoveError) -> Option<Self> {
+        error.temporary_cause().map(|(cause, stated_reset)| Self {
+            cause,
+            stated_reset,
+        })
+    }
+
+    pub(crate) const INTERRUPTED: Self = Self {
+        cause: TemporaryCause::Interrupted,
+        stated_reset: None,
+    };
+}
+
+/// A temporary failure's retry schedule. Clears when the work succeeds, its
+/// plan changes or the player chooses again.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TemporaryRetry {
+    pub cause: TemporaryCause,
+    /// Consecutive temporary failures of the same plan; sets the back-off.
+    pub attempts: u32,
+    /// Unix seconds before which the work is not tried again.
+    pub retry_after: i64,
+}
+
+impl TemporaryRetry {
+    /// The schedule after one more temporary failure of the same plan.
+    pub(crate) fn after(
+        previous: Option<&TemporaryRetry>,
+        TemporaryFailure {
+            cause,
+            stated_reset,
+        }: TemporaryFailure,
+        now: i64,
+    ) -> Self {
+        let attempts = previous
+            .map_or(0, |previous| previous.attempts)
+            .saturating_add(1);
+        // A run that stopped (Portcove closed, restarted or was stopped)
+        // continues on the next pass; repeated stops then back off, so a
+        // setup that keeps ending its own run cannot repeat without pause.
+        let waits = match cause {
+            TemporaryCause::Interrupted => attempts.saturating_sub(1),
+            _ => attempts,
+        };
+        let delay = if waits == 0 {
+            0
+        } else {
+            TEMPORARY_RETRY_FIRST_DELAY_SECONDS
+                .saturating_mul(1_i64 << (waits - 1).min(16))
+                .min(TEMPORARY_RETRY_MAX_DELAY_SECONDS)
+        };
+        let mut retry_after = now.saturating_add(delay);
+        // A provider's own stated reset is honored when it is later, within reason.
+        if let Some(reset) = stated_reset {
+            retry_after =
+                retry_after.max(reset.min(now.saturating_add(RATE_LIMIT_RESET_MAX_SECONDS)));
+        }
+        Self {
+            cause,
+            attempts,
+            retry_after,
+        }
+    }
+
+    pub(crate) fn waiting(&self, now: i64) -> bool {
+        now < self.retry_after
+    }
+
+    /// Player explanation while the work waits to run again.
+    pub fn explanation(&self) -> String {
+        let why = match self.cause {
+            TemporaryCause::Network => "the connection failed or became too slow",
+            TemporaryCause::RateLimited => "the download site asked Portcove to wait",
+            TemporaryCause::ServerUnavailable => "the download site had a problem",
+            TemporaryCause::StorageFull => "the disk was full",
+            TemporaryCause::Interrupted => "Portcove stopped before setup finished",
+        };
+        format!(
+            "Setup stopped because {why}. Portcove will try again automatically after {}.",
+            utc_minute(self.retry_after)
+        )
+    }
+}
+
+fn utc_minute(seconds: i64) -> String {
+    time::OffsetDateTime::from_unix_timestamp(seconds).map_or_else(
+        |_| "a short wait".to_owned(),
+        |moment| {
+            format!(
+                "{:04}-{:02}-{:02} {:02}:{:02} UTC",
+                moment.year(),
+                u8::from(moment.month()),
+                moment.day(),
+                moment.hour(),
+                moment.minute()
+            )
+        },
+    )
+}
+
+impl PortcoveError {
+    /// Whether this failure comes from a passing condition, from recorded facts
+    /// only (never message text), and any reset time the provider stated.
+    /// `None` is a lasting failure that keeps its attempt limit.
+    pub(crate) fn temporary_cause(&self) -> Option<(TemporaryCause, Option<i64>)> {
+        match self.known_cause() {
+            Some(KnownFailureCause::StorageFull) => {
+                return Some((TemporaryCause::StorageFull, None));
+            }
+            Some(
+                KnownFailureCause::Busy
+                | KnownFailureCause::OperationInterrupted
+                | KnownFailureCause::RetainedDownloadUnreadable,
+            ) => return Some((TemporaryCause::Interrupted, None)),
+            Some(KnownFailureCause::ProviderRequest {
+                status,
+                rate_limited,
+                resets_at,
+                ..
+            }) => {
+                return if *rate_limited || *status == 429 {
+                    Some((TemporaryCause::RateLimited, *resets_at))
+                } else {
+                    status_cause(*status).map(|cause| (cause, None))
+                };
+            }
+            _ => {}
+        }
+        match self.upstream_observation() {
+            Some(UpstreamObservation::Transport { .. }) => Some((TemporaryCause::Network, None)),
+            Some(UpstreamObservation::Status(status)) => {
+                status_cause(status).map(|cause| (cause, None))
+            }
+            // A dropped body, a stall or a starved connection carries no
+            // status: the network, not the file, failed.
+            None if self.code == ErrorCode::Network => Some((TemporaryCause::Network, None)),
+            None => None,
+        }
+    }
+}
+
+/// 404/410 (asset gone), 401/403 (authorization) and other client answers are
+/// lasting until something changes; throttling and server errors pass.
+fn status_cause(status: u16) -> Option<TemporaryCause> {
+    match status {
+        429 => Some(TemporaryCause::RateLimited),
+        408 => Some(TemporaryCause::Network),
+        500..=599 => Some(TemporaryCause::ServerUnavailable),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn failure(cause: TemporaryCause, stated_reset: Option<i64>) -> TemporaryFailure {
+        TemporaryFailure {
+            cause,
+            stated_reset,
+        }
+    }
+
+    #[test]
+    fn back_off_doubles_to_its_ceiling_and_honors_a_later_stated_reset() {
+        let now = 1_800_000_000;
+        let mut retry = None;
+        let mut delays = Vec::new();
+        for _ in 0..9 {
+            let next =
+                TemporaryRetry::after(retry.as_ref(), failure(TemporaryCause::Network, None), now);
+            delays.push(next.retry_after - now);
+            retry = Some(next);
+        }
+        assert_eq!(
+            delays,
+            [300, 600, 1200, 2400, 4800, 9600, 19200, 21600, 21600]
+        );
+        let limited = TemporaryRetry::after(
+            None,
+            failure(TemporaryCause::RateLimited, Some(now + 3600)),
+            now,
+        );
+        assert_eq!(limited.retry_after, now + 3600);
+        let implausible = TemporaryRetry::after(
+            None,
+            failure(TemporaryCause::RateLimited, Some(i64::MAX)),
+            now,
+        );
+        assert_eq!(implausible.retry_after, now + RATE_LIMIT_RESET_MAX_SECONDS);
+        assert!(limited.waiting(now) && !limited.waiting(now + 3600));
+        let mut stopped = None;
+        let mut delays = Vec::new();
+        for _ in 0..3 {
+            let next = TemporaryRetry::after(stopped.as_ref(), TemporaryFailure::INTERRUPTED, now);
+            delays.push(next.retry_after - now);
+            stopped = Some(next);
+        }
+        assert_eq!(delays, [0, 300, 600]);
+    }
+
+    #[test]
+    fn classification_uses_recorded_facts_and_keeps_lasting_failures_lasting() {
+        let network = PortcoveError::network("connection reset");
+        assert_eq!(
+            network.temporary_cause(),
+            Some((TemporaryCause::Network, None))
+        );
+        let timed_out = PortcoveError::network("timed out")
+            .with_upstream(Some(UpstreamObservation::Transport { timed_out: true }));
+        assert_eq!(
+            timed_out.temporary_cause(),
+            Some((TemporaryCause::Network, None))
+        );
+        for (status, cause) in [
+            (429, Some(TemporaryCause::RateLimited)),
+            (503, Some(TemporaryCause::ServerUnavailable)),
+            (404, None),
+            (410, None),
+            (403, None),
+        ] {
+            let error = PortcoveError::network(format!("download returned {status}"))
+                .with_upstream(Some(UpstreamObservation::Status(status)));
+            assert_eq!(
+                error.temporary_cause().map(|(cause, _)| cause),
+                cause,
+                "{status}"
+            );
+        }
+        let full = PortcoveError::from(std::io::Error::from(std::io::ErrorKind::StorageFull));
+        assert_eq!(
+            full.temporary_cause(),
+            Some((TemporaryCause::StorageFull, None))
+        );
+        assert_eq!(
+            PortcoveError::verification("digest mismatch").temporary_cause(),
+            None
+        );
+        assert_eq!(
+            PortcoveError::unsupported("unsupported format").temporary_cause(),
+            None
+        );
+        assert_eq!(PortcoveError::state("bad record").temporary_cause(), None);
+    }
+
+    #[test]
+    fn explanation_says_why_and_when_without_internal_codes() {
+        let retry = TemporaryRetry {
+            cause: TemporaryCause::RateLimited,
+            attempts: 1,
+            retry_after: 1_800_000_000,
+        };
+        assert_eq!(
+            retry.explanation(),
+            "Setup stopped because the download site asked Portcove to wait. Portcove will try again automatically after 2027-01-15 08:00 UTC."
+        );
+    }
+}
