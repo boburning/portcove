@@ -16,9 +16,10 @@ pub struct ReviewedLaunchContractV1 {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub launch: BTreeMap<Platform, LaunchValues>,
     /// Optional restatement of the environment name prefix derived from the
-    /// port ID: its uppercase ASCII letters and digits (a stem over 32
-    /// characters keeps 24 and eight SHA-256 hex digits of the ID), followed by
-    /// `_`. Any other value is refused.
+    /// port ID: its ASCII letters and digits, uppercased, followed by `_`. A
+    /// stem over 32 characters keeps its first 24 characters followed by the
+    /// first 8 uppercase hexadecimal digits of the SHA-256 of the port ID. Any
+    /// other value is refused.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment_prefix: Option<String>,
 }
@@ -877,6 +878,11 @@ mod tests {
         "nul.txt",
         "data/COM1",
         "LPT9",
+        "COM0",
+        "lpt0.txt",
+        // A drive attached after a doubled sigil, and an alternate data stream.
+        "--dC:x",
+        "a.txt:evil",
         // The previous review's table.
         "-d\\\\host\\share\\x.dll",
         "-d/Windows/x.dll",
@@ -931,7 +937,6 @@ mod tests {
             "build-portcove/overlay-captures/overlay_captures.json",
             "import/disc.cue",
             "save..file",
-            "COM0",
             "console",
             "data/-x",
         ] {
@@ -1045,7 +1050,6 @@ mod tests {
             "assets",
             "gold",
             ".",
-            "COM0",
             "console",
             "nullable",
             "--disable-updated",
@@ -1085,6 +1089,7 @@ mod tests {
             "-XX:OnError=cmd",
             "-XX:OnOutOfMemoryError=cmd",
             "-Xbootclasspath/a:x.jar",
+            "-Xmx:1",
             "--load-extension=C:\\x",
             "--renderer-cmd-prefix=gdb --args",
             "--inspect=0.0.0.0:9229",
@@ -1119,6 +1124,20 @@ mod tests {
             "--plugin-launcher=x",
             "--ppapi-plugin-launcher=x",
             "x=--inspect",
+            "-r",
+            "-R",
+            "--env-file=x",
+            "--inspect-brk-node",
+            "--openssl-config=x",
+            "--disable-gpu-sandbox",
+            "--no-zygote",
+            "--single-process",
+            "-m",
+            "-Dcom.sun.management.jmxremote",
+            "-Dcom.sun.management.jmxremote.port=9010",
+            "-DCOM.SUN.MANAGEMENT.jmxremote",
+            "-Djava.library.path=lib",
+            "-DJAVA.LIBRARY.PATH=lib",
         ];
         for value in by_class.iter().chain(&by_option) {
             assert!(
@@ -1134,6 +1153,29 @@ mod tests {
                     .all(|byte| byte.is_ascii_alphanumeric() || b"._=,+-:".contains(&byte)),
                 "{value:?} must be refused by the option list, not the class"
             );
+        }
+    }
+
+    /// The documented residual: these stay expressible on purpose, so a change
+    /// that refuses them is a deliberate contract change, not a side effect.
+    #[test]
+    fn documented_residual_values_stay_accepted() {
+        for value in [
+            "-",
+            "--",
+            "=",
+            "-Dfoo=bar",
+            "-Dsun.java2d.d3d=false",
+            "-mute",
+            "-rate=2",
+        ] {
+            assert!(
+                crate::launch_paths::is_contract_launch_text(value),
+                "{value:?}"
+            );
+            validate(&environment(None, NAME, text(value)))
+                .unwrap_or_else(|error| panic!("{value}: {error:?}"));
+            validate(&argument(value)).unwrap_or_else(|error| panic!("{value}: {error:?}"));
         }
     }
 

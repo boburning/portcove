@@ -61,11 +61,13 @@ impl<'a> LaunchPaths<'a> {
 /// into elements on `;`, `,`, `=` and ASCII whitespace; each element is
 /// refused when it starts with `@` (a response file), starts with an ASCII
 /// letter and `:` (a drive-absolute or drive-relative path such as `C:\x` or
-/// `C:x`), has a drive form after an option sigil (`-C:x`, `--C:x`, or the
-/// attached short option `-dC:x`), or starts with a case-insensitive `file:`
-/// scheme. The element is then split into segments on `:` (a path-list
-/// separator; a single `key:value` token such as `profile:fast` keeps two
-/// harmless segments), and a segment is refused when it starts with `/` or
+/// `C:x`), has a drive form after any option sigil (`-C:x`, `--C:x`, or an
+/// attached short option such as `-dC:x` or `--dC:x`), or starts with a
+/// case-insensitive `file:` scheme. The element is then split into segments on
+/// `:` (a path-list separator; a single `key:value` token such as
+/// `profile:fast` keeps two harmless segments). A segment before the last that
+/// has a `.` is refused (an alternate data stream such as `a.txt:evil`), and a
+/// segment is refused when it starts with `/` or
 /// `\` (root-relative), starts with `~`, or has a component in either
 /// separator style that is a parent reference (only dots and spaces with at
 /// least two dots, which Windows normalizes to `..`), ends in `..`, is a
@@ -90,15 +92,19 @@ pub(crate) fn is_contained_launch_text(text: &str) -> bool {
         let drive =
             |bytes: &[u8]| bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
         let body = element.trim_start_matches(['-', '+']).as_bytes();
-        let single_sigil = element.len() - body.len() == 1;
+        let sigil = element.len() > body.len();
+        let segments = element.split(':').collect::<Vec<_>>();
         !element.starts_with('@')
             && !drive(bytes)
             && !drive(body)
-            && !(single_sigil && body.len() >= 3 && drive(&body[1..]))
+            && !(sigil && body.len() >= 3 && drive(&body[1..]))
+            && !segments[..segments.len() - 1]
+                .iter()
+                .any(|segment| segment.contains('.'))
             && !bytes
                 .get(..5)
                 .is_some_and(|scheme| scheme.eq_ignore_ascii_case(b"file:"))
-            && element.split(':').all(|segment| {
+            && segments.iter().all(|segment| {
                 let mut components = segment.split(['/', '\\']).peekable();
                 !segment.starts_with(['/', '\\', '~'])
                     && std::iter::from_fn(|| {
@@ -137,7 +143,9 @@ pub(crate) const MAX_CONTRACT_TEXT_LEN: usize = 256;
 ///   character for a single `-` or `+` sigil (an attached short option such as
 ///   `-oNUL`), is a reserved Windows device name with or without an extension.
 /// - No token names an option in [`REFUSED_CONTRACT_OPTIONS`] or an option
-///   ending in `-cmd-prefix` or `-launcher` (case-insensitive, any sigil).
+///   ending in `-cmd-prefix` or `-launcher` (case-insensitive, any sigil), and
+///   no `-D` token sets a property starting with one of
+///   [`REFUSED_CONTRACT_PROPERTIES`] (case-insensitive).
 pub(crate) fn is_contract_launch_text(text: &str) -> bool {
     !text.is_empty()
         && text.len() <= MAX_CONTRACT_TEXT_LEN
@@ -177,7 +185,21 @@ pub(crate) const REFUSED_CONTRACT_OPTIONS: &[&str] = &[
     "no-sandbox",
     "disable-web-security",
     "register-pepper-plugins",
+    "r",
+    "env-file",
+    "inspect-brk-node",
+    "openssl-config",
+    "disable-gpu-sandbox",
+    "no-zygote",
+    "single-process",
+    "m",
 ];
+
+/// Java system properties, compared case-insensitively after a single `-D`,
+/// that open a management agent or choose where native libraries load from.
+/// Other `-D` properties stay expressible.
+pub(crate) const REFUSED_CONTRACT_PROPERTIES: &[&str] =
+    &["com.sun.management", "java.library.path"];
 
 fn contract_token(token: &str) -> bool {
     let sigil = if token.starts_with("--") {
@@ -197,6 +219,13 @@ fn contract_token(token: &str) -> bool {
             && contained_component(body)
             && !(sigil == 1 && body.len() > 1 && !contained_component(&body[1..]))
             && !REFUSED_CONTRACT_OPTIONS.contains(&name.as_str())
+            && !(sigil == 1
+                && token.starts_with('-')
+                && name.strip_prefix('d').is_some_and(|property| {
+                    REFUSED_CONTRACT_PROPERTIES
+                        .iter()
+                        .any(|refused| property.starts_with(refused))
+                }))
             && !name.ends_with("-cmd-prefix")
             && !name.ends_with("-launcher");
     }
@@ -217,8 +246,8 @@ fn contract_token(token: &str) -> bool {
 /// A path component that is neither a parent reference (only dots and spaces
 /// with at least two dots, or any component ending in `..`) nor a reserved DOS
 /// device name. Device names are recognized case-insensitively with or
-/// without an extension and trailing spaces, including `COM` and `LPT` with a
-/// superscript digit, which Windows also treats as devices.
+/// without an extension and trailing spaces, including `COM` and `LPT` with
+/// `0` or a superscript digit, which the Windows naming rules also reserve.
 fn contained_component(component: &str) -> bool {
     let parent = (component
         .chars()
@@ -237,7 +266,8 @@ fn contained_component(component: &str) -> bool {
         .is_some_and(|digit| {
             matches!(
                 digit,
-                "1" | "2"
+                "0" | "1"
+                    | "2"
                     | "3"
                     | "4"
                     | "5"
