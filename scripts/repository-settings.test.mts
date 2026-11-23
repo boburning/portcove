@@ -33,6 +33,7 @@ import { GitHubApiError } from "./github-operation.mts";
 
 import {
   planReleaseRulesets,
+  requireReceiptTagProtection,
   projectRuleset,
   repositoryApplyPlan,
   repositorySettingsMigration,
@@ -572,7 +573,7 @@ void test("release ruleset migration expands live coverage before retiring equiv
   assert.notEqual(planReleaseRulesets(revised, refs, ruleset).observation, original.observation);
   assert.equal(original.count, 75);
   const actions: string[] = [];
-  for (let stage = 0; stage < 9; stage++) {
+  for (let stage = 0; stage < 11; stage++) {
     const { next } = planReleaseRulesets(inventory, refs, ruleset);
     assert.ok(next);
     actions.push(next.action);
@@ -598,9 +599,69 @@ void test("release ruleset migration expands live coverage before retiring equiv
     "delete",
     "create",
     "create",
+    "create",
+    "create",
   ]);
   const final = planReleaseRulesets(inventory, refs, ruleset);
-  assert.equal(final.count, 9);
+  assert.equal(final.count, 11);
+  // Release receipts: immutable for everyone, created only by the state writer.
+  assert.deepEqual(final.stable.receiptImmutable?.bypass_actors, []);
+  assert.deepEqual(final.stable.receiptImmutable?.rules, [
+    { type: "update" },
+    { type: "deletion" },
+  ]);
+  assert.deepEqual(final.stable.receiptCreator?.bypass_actors, [writer]);
+  assert.deepEqual(final.stable.receiptCreator?.rules, [{ type: "creation" }]);
+  for (const policy of [final.stable.receiptImmutable, final.stable.receiptCreator])
+    assert.deepEqual(policy?.conditions, {
+      ref_name: {
+        include: [
+          "refs/tags/portcove-production-prepared/*",
+          "refs/tags/portcove-production-prepared-source/*",
+        ],
+        exclude: [],
+      },
+    });
+  requireReceiptTagProtection(inventory);
+  // Immutability is created and read back before creation is restricted.
+  const withoutReceipts = inventory.filter((row) => !String(row.name).includes("receipt"));
+  const receiptStage = planReleaseRulesets(withoutReceipts, refs, ruleset).next;
+  assert.equal(
+    receiptStage?.action === "create" && receiptStage.payload.name,
+    "Portcove release receipt tag immutability",
+  );
+  assert.throws(() => requireReceiptTagProtection(withoutReceipts), /absent or weaker/u);
+  const creatorStage = planReleaseRulesets(
+    inventory.filter((row) => row.name !== "Portcove release receipt tag creation"),
+    refs,
+    ruleset,
+  ).next;
+  assert.equal(
+    creatorStage?.action === "create" && creatorStage.payload.name,
+    "Portcove release receipt tag creation",
+  );
+  // A weaker live receipt policy is drift, never a satisfied contract.
+  for (const [name, change] of [
+    ["Portcove release receipt tag immutability", { bypass_actors: [owner] }],
+    ["Portcove release receipt tag immutability", { rules: [{ type: "update" }] }],
+    [
+      "Portcove release receipt tag immutability",
+      {
+        conditions: {
+          ref_name: { include: ["refs/tags/portcove-production-prepared/*"], exclude: [] },
+        },
+      },
+    ],
+    ["Portcove release receipt tag creation", { bypass_actors: [] }],
+    ["Portcove release receipt tag creation", { enforcement: "evaluate" }],
+  ] as const) {
+    const drifted = structuredClone(inventory);
+    Object.assign(
+      drifted.find((row) => row.name === name)!,
+      change,
+    );
+    assert.throws(() => planReleaseRulesets(drifted, refs, ruleset), /Unexpected drift/u, name);
+  }
   assert.equal(final.next, null);
   assert.notEqual(final.observation, original.observation);
   assert.deepEqual(final.identities, original.identities);
@@ -671,4 +732,96 @@ void test("release ruleset migration expands live coverage before retiring equiv
     assert.equal(successor.next, null);
     assert.deepEqual(successor.stable, final.stable);
   }
+});
+
+void test("receipt tag patterns match real slash-separated receipt names and refuse near misses", async () => {
+  const { matchesReceiptTagPattern, receiptTagPatternList } =
+    await import("./release-ref-rulesets.mts");
+  const [versions, sources] = receiptTagPatternList;
+  assert.equal(versions, "refs/tags/portcove-production-prepared/*");
+  assert.equal(sources, "refs/tags/portcove-production-prepared-source/*");
+  const source = "27328c8a1b30bf92868bcf3cde313f2720c8fd1e";
+  for (const [pattern, ref] of [
+    [versions, "refs/tags/portcove-production-prepared/v0.1.0-alpha.3"],
+    [versions, "refs/tags/portcove-production-prepared/v1.0.0"],
+    [sources, `refs/tags/portcove-production-prepared-source/${source}`],
+  ] as const)
+    assert.equal(matchesReceiptTagPattern(pattern, ref), true, ref);
+  for (const [pattern, ref] of [
+    // GitHub fnmatch: `*` does not cross `/`.
+    [versions, "refs/tags/portcove-production-prepared/v1.0.0/extra"],
+    // The bare namespace directory is not a receipt.
+    [versions, "refs/tags/portcove-production-prepared/"],
+    // A sibling prefix is not covered by the version pattern.
+    [versions, `refs/tags/portcove-production-prepared-source/${source}`],
+    [versions, "refs/tags/portcove-production-preparedv1.0.0"],
+    [sources, `refs/tags/portcove-production-prepared-source/${source}/x`],
+    [sources, "refs/tags/portcove-public-prepared-source/abc"],
+    // An unratified pattern is never treated as receipt coverage.
+    ["refs/tags/portcove-production-*", "refs/tags/portcove-production-prepared"],
+  ] as const)
+    assert.equal(matchesReceiptTagPattern(pattern, ref), false, ref);
+});
+
+void test("receipt tag protection fails closed when absent, weaker or narrower", async () => {
+  const { hasReceiptTagProtection } = await import("./release-ref-rulesets.mts");
+  const writer = { actor_id: 5632044, actor_type: "Integration", bypass_mode: "always" };
+  const owner = { actor_id: 43177418, actor_type: "User", bypass_mode: "always" };
+  const include = [
+    "refs/tags/portcove-production-prepared/*",
+    "refs/tags/portcove-production-prepared-source/*",
+  ];
+  const policy = (rules: string[], actors: object[], refs = include, enforcement = "active") => ({
+    target: "tag",
+    enforcement,
+    conditions: { ref_name: { include: refs, exclude: [] } },
+    rules: rules.map((type) => ({ type })),
+    bypass_actors: actors,
+  });
+  const immutable = policy(["update", "deletion"], []);
+  const creator = policy(["creation"], [writer]);
+  assert.equal(hasReceiptTagProtection([immutable, creator], "portcove-production"), true);
+  assert.doesNotThrow(() => requireReceiptTagProtection([immutable, creator]));
+  for (const [label, rulesets] of [
+    ["absent", []],
+    ["creation only", [creator]],
+    ["immutability only", [immutable]],
+    ["owner bypass on immutability", [policy(["update", "deletion"], [owner]), creator]],
+    ["update without deletion", [policy(["update"], []), creator]],
+    [
+      "evaluate-only enforcement",
+      [policy(["update", "deletion"], [], include, "evaluate"), creator],
+    ],
+    ["version prefix only", [policy(["update", "deletion"], [], [include[0]!]), creator]],
+    [
+      "one exact receipt instead of the namespace",
+      [
+        policy(
+          ["update", "deletion"],
+          [],
+          ["refs/tags/portcove-production-prepared/v0.1.0-alpha.3"],
+        ),
+        creator,
+      ],
+    ],
+    ["open creation", [immutable, policy(["creation"], [])]],
+    ["owner creation", [immutable, policy(["creation"], [owner])]],
+  ] as const) {
+    assert.equal(
+      hasReceiptTagProtection(rulesets as readonly unknown[], "portcove-production"),
+      false,
+      label,
+    );
+    assert.throws(
+      () => requireReceiptTagProtection(rulesets as readonly unknown[]),
+      /absent or weaker/u,
+      label,
+    );
+  }
+  // An additional restriction can only narrow access.
+  assert.equal(
+    hasReceiptTagProtection([immutable, creator, policy(["creation"], [])], "portcove-production"),
+    true,
+  );
+  assert.throws(() => hasReceiptTagProtection([], "portcove-fixture"), /ratified/u);
 });

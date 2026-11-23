@@ -16,6 +16,8 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { createReleasePublicationReader } from "./release-publication-inventory.mts";
+import { validateReleaseReceipts } from "./release-receipt-validation.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   checkpointReleaseOpportunity,
@@ -1431,4 +1433,350 @@ void test("symbolic state or prepared refs cannot redirect a checkpoint transact
   first.publication.reserved_versions = [];
   await assert.rejects(async () => await checkpointReleaseOpportunity(repository, null, first));
   assert.equal(git("symbolic-ref", coordinatorStateRef), "refs/portcove/missing-state");
+});
+
+// Release receipt cutover validation and protection (#1422).
+const receiptHash = (value: string) => createHash("sha256").update(value).digest("hex");
+
+/** REST-shaped commit whose exact raw bytes the provider reader reconstructs. */
+function receiptCommit(tree: string, parents: string[], message: string) {
+  const actor = { name: "Fixture", email: "fixture@example.invalid", date: "2026-10-18T00:00:00Z" };
+  const header = `tree ${tree}\n${parents.map((p) => `parent ${p}\n`).join("")}author Fixture <fixture@example.invalid> 1792281600 +0000\ncommitter Fixture <fixture@example.invalid> 1792281600 +0000`;
+  const raw = Buffer.from(`${header}\n\n${message}`);
+  const sha = createHash("sha1").update(`commit ${raw.length}\0`).update(raw).digest("hex");
+  return {
+    sha,
+    tree: { sha: tree },
+    parents: parents.map((parent) => ({ sha: parent })),
+    message,
+    author: actor,
+    committer: actor,
+  };
+}
+
+function receiptPreparation(
+  index: number,
+  overrides: { intentVersion?: string; parent?: string } = {},
+) {
+  const version = `0.1.${index}`;
+  const source = receiptCommit(index.toString(16).padStart(40, "1"), [], `source ${index}\n`);
+  const intent = JSON.stringify({
+    proposal: {
+      schema_version: 1,
+      source_commit: source.sha,
+      base_version: "0.1.0",
+      version: overrides.intentVersion ?? version,
+      change: "patch",
+      github_prerelease: true,
+      channels: ["preview"],
+    },
+    compatibility: "compatible",
+    migration_notes: "",
+  });
+  const prepared = receiptCommit(
+    index.toString(16).padStart(40, "2"),
+    [overrides.parent ?? source.sha],
+    `Prepare application ${version}\n\nPortcove-Preparation-SHA256: ${receiptHash(intent)}\n${intent}\n`,
+  );
+  return { version, source, prepared };
+}
+
+const receiptRef = (name: string, oid: string, type = "Commit") => ({
+  id: `ref-${name}`,
+  name,
+  prefix: "refs/tags/",
+  target: { __typename: type, oid },
+});
+
+/** Synchronous provider double serving the repository, receipt prefixes and
+ * raw commits; it records every route so a test can prove no write occurs. */
+function receiptProvider(
+  tags: ReturnType<typeof receiptRef>[],
+  commits: ReturnType<typeof receiptCommit>[],
+) {
+  const routes: string[] = [];
+  const reader = createReleasePublicationReader({
+    request(method, endpoint) {
+      assert.equal(method, "GET");
+      routes.push(endpoint);
+      const url = new URL(endpoint, "https://api.github.com/");
+      if (url.pathname === "/repos/boburning/portcove")
+        return {
+          headers: new Map(),
+          body: { id: 1354613114, full_name: "boburning/portcove", node_id: "R_validation" },
+        };
+      const sha = url.pathname.match(/\/git\/commits\/([a-f0-9]{40})$/u)?.[1];
+      const found = commits.find((value) => value.sha === sha);
+      if (!found) throw new Error(`commit ${String(sha)} unavailable`);
+      return { headers: new Map(), body: structuredClone(found) };
+    },
+    graphql(query, variables) {
+      routes.push("graphql");
+      assert.doesNotMatch(query, /mutation/u);
+      const requested = variables?.prefix;
+      assert.equal(typeof requested, "string");
+      const prefix = String(requested).slice("refs/tags/".length);
+      const matching = tags
+        .filter((tag) => tag.name.startsWith(prefix))
+        .map((tag) => ({
+          ...structuredClone(tag),
+          name: tag.name.slice(prefix.length),
+          prefix: `refs/tags/${prefix}`,
+        }));
+      return {
+        data: {
+          repository: {
+            id: "R_validation",
+            databaseId: 1354613114,
+            nameWithOwner: "boburning/portcove",
+            refs: {
+              totalCount: matching.length,
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: matching,
+            },
+          },
+        },
+      };
+    },
+  });
+  return {
+    routes,
+    reader: {
+      namespaceTags: async (namespace: string) => reader.namespaceTags(namespace),
+      readAllocations: async (tags: Record<string, unknown>[], namespace: string) =>
+        reader.readAllocations(tags, namespace),
+    },
+  };
+}
+
+void test("an empty receipt namespace is an explicit, complete, digest-bound inventory", async () => {
+  const { reader, routes } = receiptProvider([], []);
+  const result = await validateReleaseReceipts("portcove-production", reader);
+  assert.equal(result.empty, true);
+  assert.equal(result.tag_count, 0);
+  assert.equal(result.pair_count, 0);
+  assert.deepEqual(result.pairs, []);
+  assert.deepEqual(result.discrepancies, []);
+  assert.match(result.inventory_sha256, /^[a-f0-9]{64}$/u);
+  // Both prefixes were listed; nothing but reads were issued.
+  assert.equal(routes.filter((route) => route === "graphql").length, 2);
+});
+
+void test("every complete pair is verified against its source, prepared commit and intent", async () => {
+  const pairs = [receiptPreparation(1), receiptPreparation(2)];
+  const tags = pairs.flatMap(({ version, source, prepared }) => [
+    receiptRef(`portcove-production-prepared/v${version}`, prepared.sha),
+    receiptRef(`portcove-production-prepared-source/${source.sha}`, prepared.sha),
+  ]);
+  const { reader, routes } = receiptProvider(
+    tags,
+    pairs.flatMap(({ source, prepared }) => [source, prepared]),
+  );
+  const result = await validateReleaseReceipts("portcove-production", reader);
+  assert.deepEqual(result.discrepancies, []);
+  assert.equal(result.empty, false);
+  assert.equal(result.pair_count, 2);
+  assert.deepEqual(
+    result.pairs.map(({ version, source_commit, prepared_commit, source_tree, prepared_tree }) => ({
+      version,
+      source_commit,
+      prepared_commit,
+      source_tree,
+      prepared_tree,
+    })),
+    pairs.map(({ version, source, prepared }) => ({
+      version,
+      source_commit: source.sha,
+      prepared_commit: prepared.sha,
+      source_tree: source.tree.sha,
+      prepared_tree: prepared.tree.sha,
+    })),
+  );
+  // Two raw-commit reads per pair: the full verification, not tag pairing alone.
+  assert.equal(routes.filter((route) => route.includes("/git/commits/")).length, 4);
+  const again = await validateReleaseReceipts("portcove-production", reader);
+  assert.equal(again.inventory_sha256, result.inventory_sha256);
+});
+
+void test("every discrepancy is reported without stopping the inventory", async () => {
+  const good = receiptPreparation(1);
+  const wrongIntent = receiptPreparation(2, { intentVersion: "0.1.9" });
+  const wrongParent = receiptPreparation(3, { parent: "f".repeat(40) });
+  const orphan = receiptPreparation(4);
+  const unpaired = receiptPreparation(5);
+  const tags = [
+    receiptRef(`portcove-production-prepared/v${good.version}`, good.prepared.sha),
+    receiptRef(`portcove-production-prepared-source/${good.source.sha}`, good.prepared.sha),
+    receiptRef(`portcove-production-prepared/v${wrongIntent.version}`, wrongIntent.prepared.sha),
+    receiptRef(
+      `portcove-production-prepared-source/${wrongIntent.source.sha}`,
+      wrongIntent.prepared.sha,
+    ),
+    receiptRef(`portcove-production-prepared/v${wrongParent.version}`, wrongParent.prepared.sha),
+    receiptRef(
+      `portcove-production-prepared-source/${wrongParent.source.sha}`,
+      wrongParent.prepared.sha,
+    ),
+    // A source receipt whose version receipt is missing.
+    receiptRef(`portcove-production-prepared-source/${orphan.source.sha}`, orphan.prepared.sha),
+    // A version receipt whose source receipt is missing.
+    receiptRef(`portcove-production-prepared/v${unpaired.version}`, unpaired.prepared.sha),
+    // An annotated tag object instead of a direct raw commit.
+    receiptRef("portcove-production-prepared/v0.1.6", "6".repeat(40), "Tag"),
+  ];
+  const { reader } = receiptProvider(
+    tags,
+    [good, wrongIntent, wrongParent].flatMap(({ source, prepared }) => [source, prepared]),
+  );
+  const result = await validateReleaseReceipts("portcove-production", reader);
+  assert.deepEqual(
+    result.pairs.map((pair) => pair.version),
+    [good.version],
+  );
+  const reasons = result.discrepancies.map(
+    ({ tags: names, reason }) => `${names[0]!.split("/").slice(-1)[0]}: ${reason}`,
+  );
+  assert.equal(result.discrepancies.length, 5, reasons.join("\n"));
+  assert.ok(reasons.some((line) => /v0\.1\.2: .*intent/u.test(line)));
+  assert.ok(reasons.some((line) => /v0\.1\.3: .*sole parent/u.test(line)));
+  assert.ok(reasons.some((line) => /: source receipt has no version receipt/u.test(line)));
+  assert.ok(reasons.some((line) => /v0\.1\.5: receipt source pair is missing/u.test(line)));
+  assert.ok(reasons.some((line) => /v0\.1\.6: receipt does not point directly/u.test(line)));
+});
+
+void test("a source receipt shared by two version receipts is ambiguous, never paired", async () => {
+  const one = receiptPreparation(1);
+  const tags = [
+    receiptRef(`portcove-production-prepared/v${one.version}`, one.prepared.sha),
+    receiptRef("portcove-production-prepared/v0.1.7", one.prepared.sha),
+    receiptRef(`portcove-production-prepared-source/${one.source.sha}`, one.prepared.sha),
+  ];
+  const { reader } = receiptProvider(tags, [one.source, one.prepared]);
+  const result = await validateReleaseReceipts("portcove-production", reader);
+  assert.equal(result.pair_count, 0);
+  assert.equal(result.discrepancies.length, 2);
+  assert.ok(result.discrepancies.every(({ reason }) => /missing or ambiguous/u.test(reason)));
+});
+
+void test("release operations accept only a fresh observed inventory with receipt protection", async () => {
+  const { requireReceiptTagProtectionPolicy } = await import("./release-input-protections.mts");
+  const canonical = (value: unknown): string =>
+    Array.isArray(value)
+      ? `[${value.map(canonical).join(",")}]`
+      : value !== null && typeof value === "object"
+        ? `{${Object.keys(value)
+            .sort()
+            .map(
+              (key) =>
+                `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`,
+            )
+            .join(",")}}`
+        : JSON.stringify(value);
+  const include = [
+    "refs/tags/portcove-production-prepared/*",
+    "refs/tags/portcove-production-prepared-source/*",
+  ];
+  const policy = (rules: string[], actors: object[]) => ({
+    target: "tag",
+    enforcement: "active",
+    conditions: { ref_name: { include, exclude: [] } },
+    rules: rules.map((type) => ({ type })),
+    bypass_actors: actors,
+  });
+  const writer = { actor_id: 5632044, actor_type: "Integration", bypass_mode: "always" };
+  const now = Date.parse("2026-11-23T22:00:00.000Z");
+  const observation = (rulesets: unknown[], observed = now - 1000) => {
+    const inventory = { rulesets, branches: [] };
+    return {
+      schema_version: 1,
+      repository_id: 1354613114,
+      coverage: "current-repository-input-branches-and-release-immutability",
+      observed_at: new Date(observed).toISOString(),
+      inventory,
+      inventory_sha256: createHash("sha256").update(canonical(inventory)).digest("hex"),
+    };
+  };
+  const protectedRulesets = [policy(["update", "deletion"], []), policy(["creation"], [writer])];
+  assert.equal(
+    requireReceiptTagProtectionPolicy(observation(protectedRulesets), "portcove-production", now)
+      .authorization,
+    "release-receipt-tag-immutability-only",
+  );
+  assert.throws(
+    () =>
+      requireReceiptTagProtectionPolicy(
+        observation([policy(["update", "deletion"], [])]),
+        "portcove-production",
+        now,
+      ),
+    /absent or weaker/u,
+  );
+  // A stale observation proves nothing about the current settings.
+  assert.throws(
+    () =>
+      requireReceiptTagProtectionPolicy(
+        observation(protectedRulesets, now - 120_000),
+        "portcove-production",
+        now,
+      ),
+    /unproven/u,
+  );
+  const tampered = observation(protectedRulesets);
+  tampered.inventory.rulesets = [];
+  assert.throws(
+    () => requireReceiptTagProtectionPolicy(tampered, "portcove-production", now),
+    /unproven/u,
+  );
+});
+
+void test("coordinator checkpoints only create receipts or re-assert them at the same object", async () => {
+  const { coordinatorCheckpointUpdates } =
+    await import("./release-coordinator-checkpoint-evidence.mts");
+  const zero = "0".repeat(40);
+  const prepared = "c".repeat(40);
+  const receipts = (before: string) => [
+    {
+      local_ref: "refs/portcove/prepared-versions/v0.1.0-alpha.3",
+      oid: prepared,
+      before_oid: before,
+    },
+    {
+      local_ref: `refs/portcove/prepared-commits/${"a".repeat(40)}`,
+      oid: prepared,
+      before_oid: before,
+    },
+  ];
+  const checkpoint = (before: string) =>
+    ({ previous: "1".repeat(40), checkpoint: "2".repeat(40), receipts: receipts(before) }) as never;
+  const receiptUpdates = (before: string) =>
+    coordinatorCheckpointUpdates(checkpoint(before), "portcove-production").filter((update) =>
+      update.name.startsWith("refs/tags/portcove-production-prepared"),
+    );
+  // Allocation: both receipts are created from nothing.
+  assert.deepEqual(
+    receiptUpdates(zero).map(({ name, beforeOid, afterOid, force }) => [
+      name,
+      beforeOid,
+      afterOid,
+      force,
+    ]),
+    [
+      ["refs/tags/portcove-production-prepared/v0.1.0-alpha.3", zero, prepared, false],
+      [`refs/tags/portcove-production-prepared-source/${"a".repeat(40)}`, zero, prepared, false],
+    ],
+  );
+  // Every later checkpoint of the reservation re-asserts each receipt at the
+  // identical object inside the same atomic transaction: never a move, a
+  // force or a deletion. Whether GitHub's `update` rule refuses this same-OID
+  // assertion must be observed live before the immutability policy is applied.
+  for (const update of receiptUpdates(prepared))
+    assert.deepEqual(
+      [update.beforeOid, update.afterOid, update.force],
+      [prepared, prepared, false],
+    );
+  // A receipt move is refused before any request is built.
+  assert.throws(
+    () => coordinatorCheckpointUpdates(checkpoint("d".repeat(40)), "portcove-production"),
+    /differs from its validated allocation/u,
+  );
 });
