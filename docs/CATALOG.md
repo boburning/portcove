@@ -3800,11 +3800,14 @@ blocked reason:
     [program role word](#one-program-per-platform) in its file name or any
     folder of its path, nor a role word glued to the product's name
     (`role-program`). No archive or program name holds a character outside
-    ASCII (`non-ascii-name`). The archive offered on every platform names a
-    product whose words, joined, are the listing's or repository's name, or
-    that shares an identifying word with them (`archive-product-unrelated`);
-    when only a shared word relates it, its program relates to the listing or
-    repository too (`program-product-unrelated`). These rules only withhold.
+    ASCII (`non-ascii-name`). These deny-lists are contradiction detectors
+    and can only withhold. On top of them every name is parsed against a
+    [closed vocabulary](#closed-vocabulary-names): every token of the archive
+    offered on every platform is a product word, a version or a neutral word,
+    and its product words joined are the listing's or repository's name
+    (`archive-name-unaccounted`); the offered program is that name, in
+    folders of accounted words (`program-name-unaccounted`). Anything
+    unaccounted withholds; nothing enrolls by escaping a deny-list.
 12. On that platform no restriction holds `register-external` or `launch`. A
     `download` hold does not block registration. This route never offers a
     download.
@@ -3936,38 +3939,83 @@ A name with a character outside ASCII can imitate another name (a Cyrillic
 release or any of its programs has such a name, the whole identity is
 withheld as `non-ascii-name`; the gate restates the rule.
 
-An archive the listing does not name is not attributed to it. The archive a
-platform would be offered from relates to the listing when its product words
-([other package forms](#other-package-forms), `productIdentity`), joined,
-equal the listing's id, name or original title words joined, or the
-repository name's words joined (`supergame-1.0-win64.zip` for a listing named
-`Super Game` or a repository `owner/super-game`), or when they share an
-identifying word with the listing's own words (`listing_words`) or the
-repository name's words. Identifying words leave out, on both sides,
-articles, conjunctions and prepositions (`a`, `an`, `the`, `of`, `and`, `in`,
-`on`, `for`, `to`), the generic nouns `game` and `games`, single letters,
-pure digits and roman numerals (`identifyingWords`). An archive that relates
-neither way (`Other-1.0-win64.zip` for a listing named `Game`,
-`The-Other-1.0-win64.zip` for `The Game`, `Lord-of-Rings-…` for `Game of
-Life`, `Quake2-win64.zip` for `Doom 2`, or an archive with no product words at
-all such as `win64.zip`) withholds the whole identity as
-`archive-product-unrelated`. When an archive relates only by a shared word,
-its program must relate too: the program's literal name is the listing's or
-repository's name joined, or its file name's words share an identifying word
-with them. `Space-Other-1.0-win64.zip` holding only `Other.exe` for a listing
-named `Space Game` withholds the whole identity as `program-product-unrelated`.
-A relation never proves the archive is the game; these rules only withhold.
-The gate restates them for every runtime and for the identity-wide candidate
-of each platform.
+###### Closed-vocabulary names
 
-The cost of these name rules is stated, not hidden: they withhold real games
-whose release names only a platform (`win64.zip`, `linux.tar.gz`), whose
-title holds a role or launcher word as a word of its program or archive name
-(a title word `server`, `editor`, `demo` or `start`), whose archive uses an
-unrelated codename, or whose only program
-carries an architecture suffix beside an installer (`Game-x64.exe` beside
-`Game-1.0-Setup.exe`). Such identities stay in their queue with the matched
-evidence (`registration_queues.reason_evidence`) for a reviewed
+A deny-list of bad words loses to the next variation, so archive and program
+names are parsed against a closed vocabulary instead: a name enrolls only
+when every token is accounted for, and any unaccounted token withholds with
+that token as evidence.
+
+An archive name is tokenised (`archiveNameTokens`): the package form or
+another file extension is removed, `x86_64`, `x86-64` and `64-bit` are one
+word, and the rest is split at separators into chunks. A chunk that is a
+neutral word (`neutralArchiveWords`: the platform and operating-system
+words `windows`, `win`, `win32`, `win64`, `linux`, `linux32`, `linux64`,
+`macos`, `mac`, `osx`, `darwin`, the architecture words `universal`,
+`universal2`, `x64`, `x86`, `x86_64`, `amd64`, `arm64`, `aarch64`, `i386`,
+`i686`, `64bit`, `32bit`, and the packaging words `portable`, `bin`,
+`release`, `appimage`) is neutral. A chunk of digits after `v`, `r` or `b`
+is a version. A chunk of digits only is a version or a product word,
+whichever makes the names equal. Every other chunk is split into whole
+words (camel-case humps and letter/digit changes), each a neutral word or
+a product word, numbers included. The product words in order, joined, must
+equal one of the listing's id, name or original title words joined, or the
+repository name's words joined (`archiveNameAccount`), else the whole
+identity is withheld as `archive-name-unaccounted`. So:
+
+- for a listing named `Super Game`, `supergame-1.0-win64.zip`,
+  `Super-Game-v1.0-windows-x64.zip` and `SuperGame-portable-x86_64.zip`
+  enroll;
+- for `Doom 2`, `Doom-2-1.0-win64.zip` and `Doom2-win64.zip` enroll, and for
+  `2048`, `2048-win64.zip` does;
+- these withhold, with the leftover token as evidence:
+  - `SuperGame2-…` (`2`), `Super-Other-…` (`other`), `SuperGame-Trial-…`
+    (`trial`), `SuperGame-beta-…` (`beta`), `SuperGame-rc1-…` (`rc`, `1`) and
+    `SuperGame-Lite-…` (`lite`) for `Super Game`;
+  - `Doom3-win64.zip` (`3`) and `Doom-1.0-win64.zip` (`missing:2`) for
+    `Doom 2`;
+  - `Space-Invaders-…` (`invaders`) for `Space Game`;
+  - `The-Other-…` (`other`) for `The Game`;
+  - a platform-only name such as `win64.zip` (`no-product`).
+
+A program enrolls only when its literal name (the file name lowercased,
+without `.exe`, letters and digits only) equals the listing's, repository's
+or accepted archive's product name joined. Only where the release ships no
+other package form may architecture words follow it (`programArchitectureWords`:
+`Game-x64.exe`, `game.x86_64`; a bare `64` or `32` is not one, since
+`Game64` can be another title). Beside another form, the name stays strictly
+literal. Every folder on its path must be made of product words, versions,
+neutral words and the layout words `bin`, `game`, `app`, `contents`, `x64`
+and `win64` (`programLayoutWords`, which accounts for a macOS bundle's
+`Game.app/Contents/MacOS/`). Anything else withholds the whole identity as
+`program-name-unaccounted`, with the leftover as evidence:
+`supergameserver64`, `SUPERGAMELAUNCHER`, `SGSERVER`, `SGEDIT`,
+`supergame-cli`, `Other.exe` in an archive named for the game, engine or
+codename binaries, and `server/`, `tools/`, `editor/` or `data/` folders.
+
+The neutral, architecture and layout lists grow only from measured evidence
+with a recorded example (`registration_queues.unaccounted_tokens`), never
+speculatively. The deny-lists (role words, launcher words, archive role
+words, names outside ASCII) stay as contradiction detectors layered on top:
+they can never enroll. The gate restates the tokeniser, the lists and both
+comparisons with its own code, for every runtime and for the identity-wide
+candidate of each platform.
+
+The cost of these name rules is stated, not hidden: they trade enrollment
+count for certainty. They withhold real games in these shapes:
+
+- a release that names only a platform (`win64.zip`, `linux.tar.gz`);
+- a title that holds a role or launcher word as a word of its program or
+  archive name (a title word `server`, `editor`, `demo` or `start`);
+- an archive that uses a codename, an edition word or a platform word outside
+  the neutral list (`Game-PC-…`, `Game-HD-…`);
+- a program that is an engine or codename binary, or carries a variant or
+  bare-number suffix (`Game-64.exe`, `Game.console.exe`);
+- a program with an architecture suffix beside an installer (`Game-x64.exe`
+  beside `Game-1.0-Setup.exe`).
+
+Such identities stay in their queue with the matched evidence
+(`registration_queues.reason_evidence`, `unaccounted_tokens`) for a reviewed
 `route_facts_v1` enrollment or an authored integration.
 
 One program name is not one package, and equal programs are not one package
@@ -4216,10 +4264,13 @@ statements are `prerelease` (`prerelease`, or `pre` followed by `release`, so
 `pre-release`), `release-candidate` (`release` followed by `candidate`, or a
 standalone `rc`, also with digits: `RC1`, `1.0rc2`), `beta` and `alpha` (also
 with digits), `early-access` (`early` followed by `access`), `unstable`,
-`nightly`, `experimental`, `wip`, `test-build` (`test` followed by `build`),
-`development-snapshot` (`development` followed by `snapshot`), and `preview`
-and `dev` only with a number (glued, `dev2`, or directly before one,
-`Preview 2`).
+`nightly`, `experimental`, `wip`, `preview`, `canary`, `demo`, `test-build`
+(`test` followed by `build`), `debug-build` (`debug build`), `daily-build`
+(`daily build`), `test-release` (`test release` or `testing release`),
+`development-snapshot` (`development` followed by `snapshot`), `dev`,
+`prototype` and `playtest` only with a number (glued, `dev2`, or directly
+before one, `Playtest 2`), and `not-for-production` (`not for production`,
+wherever it stands).
 Words are split at separators and letter/digit changes, never inside a word,
 so `Arc`, `Alphabet`, `Betamax` and `Publicity` state nothing.
 
@@ -4235,7 +4286,8 @@ anywhere in a sentence:
   or `number`: `Pre-release build 7`), directly after one (`v1.0 Beta`), the
   line's last word (`Final Beta`, `Release candidate`), inside parentheses
   or brackets (`Game 1.0 (Beta)`, `Early access 0.3 (unstable)`), or directly
-  after `public`, `open` or `closed` (`Public beta test`, `Open alpha`);
+  after `public`, `open`, `closed`, `developer`, `technical` or `early`
+  (`Public beta test`, `Open alpha`, `Developer preview`);
   `This is beta software for testing`, `Open the beta menu with F1` and `Now
   in early access for everyone` state nothing;
 - a negation or past transition before it states nothing (`not`, `no`,
@@ -4243,7 +4295,8 @@ anywhere in a sentence:
   `formerly`, `previously`, `was`, `were`, `leaving`, `left`, `leaves`,
   `exits`, `exited`, `ended`, `ends`, `graduated`, `graduates`, `than`,
   `over`, `beyond`, and `out of`, skipping `a`, `an`, `the`, `last`,
-  `latest`, `previous`, `final`, `first`, `public`, `open` and `closed`):
+  `latest`, `previous`, `final`, `first`, `public`, `open`, `closed`,
+  `developer`, `technical` and `early`):
   `Out of beta`, `Out of early access`, `No longer a public beta`, `Changes
   since the last beta`;
 - the product's own words name the product before the line's first number:
@@ -4622,18 +4675,22 @@ build), `launcher-entry` (reconsider when listing data or release-bound
 metadata declares the launcher as the game's runtime entry), `role-program`
 (a program or its folder named for a debug, server, tools, editor, SDK, demo,
 trial or test role), `non-ascii-name` (an archive or program name outside
-ASCII), `archive-product-unrelated` (the offered archive relates to neither
-the listing nor its repository) and `program-product-unrelated` (an archive
-related only by a shared word whose program relates to neither). When no platform fits, the reason is the first of
+ASCII), `archive-name-unaccounted` (the offered archive's name holds a token
+that is neither the listing's or repository's name, a version nor a neutral
+word) and `program-name-unaccounted` (the offered program is not that name,
+or sits in a folder of unaccounted words). When no platform fits, the reason is the first of
 `ambiguous-player`, `ambiguous-artifact`, `core-refused`, `wrong-host`,
 `unknown-platform`, `non-desktop-platform`, `contradictory-role`,
 `tool-not-game`, `no-authorizing-source` and `no-player` that any platform
 gave. `bundled-toolchain` follows `core-refused` in that order.
 `registration_queues` also holds `reason_evidence` (per reason among
 `role-program`, `launcher-entry`, `non-ascii-name`,
-`archive-product-unrelated` and `program-product-unrelated`, per withheld
+`archive-name-unaccounted` and `program-name-unaccounted`, per withheld
 identity, the matched word with the program path, or the platform with the
-archive name and program path), `bundled_toolchains` (each withheld
+archive name and program path), `unaccounted_tokens` (per closed-vocabulary
+reason, each unaccounted token with the number of identities it withholds and
+those identities, most frequent first: the evidence a person reads before a
+token joins a neutral list), `bundled_toolchains` (each withheld
 identity's helper names), `inspection_failures` (the
 `repeated-inspection-failure` identities by typed cause),
 `same_product_forms` (per identity, the other package forms attributed to
@@ -4679,15 +4736,19 @@ recorded title), product-word attribution with its player check
 launcher words. It restates the listing-level withholds from the authored
 records the generation decided, before any generated route was added: no
 authored integration or `route_facts_v1` enrollment (one runtime owner), not
-the ScummVM engine, availability neither `source-only` nor `unavailable`, a
-GitHub repository that is one of the listing's own (by its project or release
-URL, case-insensitive), and facts from the current parser version. Every fit
+the ScummVM engine, availability neither `source-only` nor `unavailable`, the
+facts' repository equal (case-insensitive) to the one the listing's provider
+identity names (`gateProviderRepository`, restating `listingProviderIdentity`
+exactly: the release URL first, else the project URL; HTTPS on `github.com`
+only, with no user, password, port, query or fragment; `/<owner>/<name>`, an
+optional `.git`, an optional `/releases` subpath and an optional trailing
+slash), and facts from the current parser version. Every fit
 withholding reason has a gate restatement except two, each exempted with its
 reason (`gateExemptions`): `route-held`, because Core evaluates the listing's
 acquisition restrictions itself for every registration and launch, and
 `guide-bound`, because Core's listing validation refuses a guide over eight
-entries. A test enumerates every reason and forces one enrollment past the
-fit for each, which the gate must refuse. The facts
+entries. A test enumerates every reason with several scenarios each, forces
+every one past the fit, and requires the gate to refuse it. The facts
 table's `generated_at` may not be earlier than the baseline facts table's,
 because facts age is measured against that time. `--check` also requires the
 committed table to equal the generator output, so a hand-edited table is
@@ -4701,8 +4762,14 @@ upstream changes, and `FACTS_TABLE_FORMAT` when the facts table's shape
 changes. A parser or generator behavior change requires its version bump:
 the bump is what marks the withdrawals it causes as `rule-version` and holds
 them for a person ([stop and wait](#stop-and-wait)). #8569 raised the
-generator version from 5 to 19, the facts parser version from 5 to 20 and
-the facts table format from 4 to 16 (generator 19, parser 20 and format 16:
+generator version from 5 to 20, the facts parser version from 5 to 21 and
+the facts table format from 4 to 17 (generator 20, parser 21 and format 17:
+closed-vocabulary archive and program names (`archive-name-unaccounted`,
+`program-name-unaccounted`) replacing the shared-word relation, the
+`unaccounted_tokens` queue, the gate's exact repository identity, and
+`preview`, `canary`, `demo`, `debug-build`, `test-release`, `prototype`,
+`playtest`, `daily-build` and `not-for-production` release text statements;
+generator 19, parser 20 and format 16:
 identifying words and joined names for archive relation,
 `program-product-unrelated`, `non-ascii-name`, glued and abbreviated role
 words, the gate's listing-level restatements and exemptions, the

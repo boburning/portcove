@@ -1,5 +1,5 @@
 {
-  "format": 16,
+  "format": 17,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -11,15 +11,13 @@
       "listing_words": [
         "a",
         "game",
-        "observed",
-        "runtime",
         "sample",
         "unseen",
         "windows",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -111,16 +109,14 @@
       "listing_words": [
         "b",
         "game",
-        "observed",
         "only",
         "patcher",
-        "runtime",
         "sample",
         "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -199,15 +195,13 @@
         "archive",
         "c",
         "game",
-        "observed",
         "patcher",
-        "runtime",
         "sample",
         "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -284,15 +278,13 @@
       "listing_words": [
         "d",
         "game",
-        "observed",
-        "runtime",
         "sample",
         "several",
         "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -375,15 +367,13 @@
       "listing_words": [
         "e",
         "game",
-        "observed",
         "recomp",
-        "runtime",
         "sample",
         "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -461,14 +451,12 @@
         "f",
         "game",
         "linux",
-        "observed",
-        "runtime",
         "sample",
         "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -546,14 +534,12 @@
         "g",
         "game",
         "mac",
-        "observed",
-        "runtime",
         "sample",
         "unseen",
         "zz"
       ],
       "parser": "listing-package-facts",
-      "parser_version": 20,
+      "parser_version": 21,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -623,5 +609,5 @@
       ]
     }
   ],
-  "entries_sha256": "82a54e95ed6c044119670487efbbf38c44dc0ca9be6701625e14cb5204c3fffa"
+  "entries_sha256": "933daf3bcb3449742c913ecea69e86e64c07e457430f81c35b5b5894a9f738a2"
 }

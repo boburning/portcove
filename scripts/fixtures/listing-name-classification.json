@@ -247,7 +247,19 @@
       "Gamer.exe",
       "Gаme.exe",
       "Ｇａｍｅ.exe",
-      "Space.exe"
+      "Space.exe",
+      "2048.exe",
+      "SGEDIT.EXE",
+      "SGSERVER.EXE",
+      "SUPERGAMELAUNCHER.EXE",
+      "SpaceGame-cli.exe",
+      "SpaceGame.exe",
+      "SuperGame-x64.exe",
+      "SuperGame.exe",
+      "SuperGame64.exe",
+      "supergame-cli.exe",
+      "supergameserver64.exe",
+      "engine.exe"
     ]
   },
   "output": {
@@ -1263,6 +1275,54 @@
       },
       {
         "name": "Space.exe",
+        "tool_token": null
+      },
+      {
+        "name": "2048.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SGEDIT.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SGSERVER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SUPERGAMELAUNCHER.EXE",
+        "tool_token": null
+      },
+      {
+        "name": "SpaceGame-cli.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SpaceGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame-x64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame.exe",
+        "tool_token": null
+      },
+      {
+        "name": "SuperGame64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "supergame-cli.exe",
+        "tool_token": null
+      },
+      {
+        "name": "supergameserver64.exe",
+        "tool_token": null
+      },
+      {
+        "name": "engine.exe",
         "tool_token": null
       }
     ]

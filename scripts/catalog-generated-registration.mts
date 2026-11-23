@@ -89,14 +89,21 @@
 // 11. on no platform is the one program named for a launcher, loader,
 //     settings or setup step (`launcherProgram`): the whole identity is
 //     `launcher-entry`, and the gate refuses every runtime of such an identity;
-// 11a. no program of an archive that could be the game, on any platform, has
-//     a role word (`programRoleWord`: debug, dedicated, headless, server,
-//     tools, editor, sdk, demo) in its file name or any folder segment: the
-//     whole identity is `role-program`;
-// 11b. on every platform with a runtime, the offered archive's product words
-//     share a word with the listing's words or the repository name's words
-//     (`archiveProductRelated`), else the whole identity is
-//     `archive-product-unrelated` (this rule only withholds).
+// 11a. contradiction detectors layered on top, which can only withhold: no
+//     archive or program name holds a character outside ASCII
+//     (`non-ascii-name`), and no program of an archive that could be the
+//     game, on any platform, has a role word (`programRoleWord`) in its file
+//     name or any folder segment, or glued to the product's name
+//     (`role-program`);
+// 11b. closed vocabulary: on every platform with a runtime, every token of the
+//     offered archive's name is a product word, a version or a neutral word,
+//     and the product words joined are the listing's or repository's name
+//     (`archiveNameAccount`), else the whole identity is
+//     `archive-name-unaccounted`; every offered program's literal name is
+//     that name (with architecture words only where no other package form
+//     ships) in folders of accounted words (`programNameUnaccounted`), else
+//     `program-name-unaccounted`. Anything unaccounted withholds; nothing
+//     enrolls by being absent from a deny-list.
 // A source-named archive holding programs counts in rules 7b, 7c and 9 as an
 // ordinary candidate (`countedArchive`) and is never itself offered.
 // The route's platforms are every P satisfying 8 to 10.
@@ -113,11 +120,11 @@ import {
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 19;
+export const GENERATOR_VERSION = 20;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 20;
-export const FACTS_TABLE_FORMAT = 16;
+export const FACTS_PARSER_VERSION = 21;
+export const FACTS_TABLE_FORMAT = 17;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -356,6 +363,14 @@ export const statementTokens = [
   "development-snapshot",
   "wip",
   "dev",
+  "canary",
+  "demo",
+  "debug-build",
+  "test-release",
+  "prototype",
+  "playtest",
+  "daily-build",
+  "not-for-production",
 ] as const;
 export type StatementToken = (typeof statementTokens)[number];
 export const statementFields = ["title", "body-first-line"] as const;
@@ -440,7 +455,14 @@ export const statementNegators = [
  * Words directly before a status word that make it stand as the release's
  * status (`Public beta test`, `Open alpha`), wherever it is in the line.
  */
-export const statementQualifiers = ["public", "open", "closed"] as const;
+export const statementQualifiers = [
+  "public",
+  "open",
+  "closed",
+  "developer",
+  "technical",
+  "early",
+] as const;
 /** Articles, ordinal adjectives and qualifiers skipped when looking for a negation. */
 export const statementFillers = [
   "a",
@@ -581,8 +603,22 @@ export function releaseStatement(
       } else if (word === "development" && next === "snapshot") {
         token = "development-snapshot";
         last = index + 1;
-      } else if ((word === "preview" || word === "dev") && numbered(index)) token = word;
+      } else if (word === "debug" && next === "build") {
+        token = "debug-build";
+        last = index + 1;
+      } else if ((word === "test" || word === "testing") && next === "release") {
+        token = "test-release";
+        last = index + 1;
+      } else if (word === "daily" && next === "build") {
+        token = "daily-build";
+        last = index + 1;
+      } else if (word === "preview" || word === "canary" || word === "demo") token = word;
+      else if ((word === "dev" || word === "prototype" || word === "playtest") && numbered(index))
+        token = word;
     }
+    // `Not for production` states a prerelease wherever it stands.
+    if (word === "not" && next === "for" && words[index + 2]?.word === "production")
+      return "not-for-production";
     if (token !== null && !negated(index) && stands(index, last)) return token;
   }
   return null;
@@ -2684,44 +2720,6 @@ export function listingProductNames(listing: Record<string, unknown>): Set<strin
       .filter(Boolean),
   );
 }
-/**
- * Words that never identify a product on their own: articles, conjunctions
- * and prepositions, the generic nouns `game` and `games`, single letters,
- * pure digits and roman numerals. They are dropped from both sides before
- * product words are intersected (`identifyingWords`), so `The Game` and
- * `The-Other-1.0-win64.zip` share nothing.
- */
-export const nonIdentifyingWords = [
-  "a",
-  "an",
-  "the",
-  "of",
-  "and",
-  "in",
-  "on",
-  "for",
-  "to",
-  "game",
-  "games",
-] as const;
-/** Whether a word is a roman numeral (`ii`, `iv`, `xiii`), case already lowered. */
-export function romanNumeral(word: string): boolean {
-  return (
-    word.length > 0 && /^m{0,4}(?:cm|cd|d?c{0,3})(?:xc|xl|l?x{0,3})(?:ix|iv|v?i{0,3})$/u.test(word)
-  );
-}
-/** The words of a list that can identify a product: see `nonIdentifyingWords`. */
-export function identifyingWords(words: readonly string[]): Set<string> {
-  return new Set(
-    words.filter(
-      (word) =>
-        word.length > 1 &&
-        !/^[0-9]+$/u.test(word) &&
-        !romanNumeral(word) &&
-        !(nonIdentifyingWords as readonly string[]).includes(word),
-    ),
-  );
-}
 /** The listing's and repository's names joined (`listingProductNames` and the repository name). */
 function ownJoinedNames(listing: Record<string, unknown>, repository: string): Set<string> {
   const names = listingProductNames(listing);
@@ -2730,60 +2728,206 @@ function ownJoinedNames(listing: Record<string, unknown>, repository: string): S
   return names;
 }
 /**
- * How an archive's product words (`productIdentity`) relate to the listing:
- * `joined` when they, joined, equal the listing's id, name or original title
- * words joined or the repository name's words joined (`supergame-1.0-win64.zip`
- * for `Super Game` or `super-game`); `shared` when they share an identifying
- * word (`identifyingWords`) with the listing's own words (`listingWords`) or
- * the repository name's words; null otherwise. An archive that relates
- * neither way (`Other-1.0-win64.zip` for listing `Game`, `The-Other-…` for
- * `The Game`, `Quake2-win64.zip` for `Doom 2`, or no product words at all) is
- * not attributed to the listing: `archive-product-unrelated`. This only
- * withholds; a relation never proves the archive is the game.
+ * The closed list of words an archive name may carry besides its product
+ * and version: platform and operating-system words, architecture words and
+ * packaging words. It grows only from measured evidence with a recorded
+ * example (the `unaccounted_tokens` queue), never speculatively.
  */
-export function archiveRelation(
-  name: string,
-  listing: Record<string, unknown>,
-  repository: string,
-): "joined" | "shared" | null {
-  const product = productIdentity(name).words;
-  if (!product.length) return null;
-  if (ownJoinedNames(listing, repository).has(product.join(""))) return "joined";
-  const own = identifyingWords([
-    ...listingWords(listing),
-    ...nameWords(repository.split("/")[1] ?? ""),
-  ]);
-  return [...identifyingWords(product)].some((word) => own.has(word)) ? "shared" : null;
-}
-/** Whether an archive's product relates to the listing at all (`archiveRelation`). */
-export function archiveProductRelated(
-  name: string,
-  listing: Record<string, unknown>,
-  repository: string,
-): boolean {
-  return archiveRelation(name, listing, repository) !== null;
+export const neutralArchiveWords = [
+  "windows",
+  "win",
+  "win32",
+  "win64",
+  "linux",
+  "linux32",
+  "linux64",
+  "macos",
+  "mac",
+  "osx",
+  "darwin",
+  "universal",
+  "universal2",
+  "x64",
+  "x86",
+  "x8664",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "i386",
+  "i686",
+  "64bit",
+  "32bit",
+  "portable",
+  "bin",
+  "release",
+  "appimage",
+] as const;
+/**
+ * The closed list of architecture words a program name may carry after its
+ * product name, only where the release ships no other package form:
+ * `Game-x64.exe`, `game.x86_64`. A bare `64` or `32` is not one: `Game64`
+ * can be another title.
+ */
+export const programArchitectureWords = [
+  "x86",
+  "x64",
+  "x8664",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "i386",
+  "i686",
+  "64bit",
+  "32bit",
+  "win32",
+  "win64",
+  "universal",
+  "universal2",
+] as const;
+/**
+ * The closed list of folder words a program may sit under besides product
+ * words, versions and neutral words: `bin/`, `x64/`, `game/` and a macOS
+ * bundle's `Game.app/Contents/MacOS/`.
+ */
+export const programLayoutWords = ["bin", "game", "app", "contents", "x64", "win64"] as const;
+/**
+ * An archive name's tokens: the package form or another file extension is
+ * removed (as `productIdentity` does), `x86_64`, `x86-64` and `64-bit` are
+ * one word, and the rest is split at separators into chunks. A chunk that is
+ * a neutral word (`neutralArchiveWords`) is neutral; a chunk of digits,
+ * optionally after `v`, `r` or `b`, is a version, and one of digits only may
+ * instead be a product word (`Doom-2-1.0.zip` for `Doom 2`, `2048-win64.zip`
+ * for `2048`); every other chunk is split into whole words (`nameWords`),
+ * each a neutral word or a product word, numbers included (`Doom3` is
+ * `doom`, `3`).
+ */
+export function archiveNameTokens(name: string): {
+  product: { word: string; numeric: boolean }[];
+} {
+  let base = name;
+  const form = packageFormOf(name);
+  if (form !== undefined) base = base.slice(0, base.length - form.length);
+  else {
+    const extension = /\.[A-Za-z0-9]+$/u.exec(base)?.[0];
+    if (extension !== undefined && /[A-Za-z]/u.test(extension))
+      base = base.slice(0, -extension.length);
+  }
+  const normalized = base
+    .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
+    .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit");
+  const neutral = neutralArchiveWords as readonly string[];
+  const product: { word: string; numeric: boolean }[] = [];
+  for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean)) {
+    const lower = chunk.toLowerCase();
+    if (neutral.includes(lower)) continue;
+    if (/^[0-9]+$/u.test(lower)) {
+      product.push({ word: lower, numeric: true });
+      continue;
+    }
+    if (/^[vrb][0-9]+$/u.test(lower)) continue;
+    for (const word of nameWords(chunk))
+      if (!neutral.includes(word)) product.push({ word, numeric: false });
+  }
+  return { product };
 }
 /**
- * Whether a program relates to the listing: its literal name
- * (`literalProgramName`) equals the listing's or repository's names joined,
- * or its file name's words share an identifying word (`identifyingWords`)
- * with the listing's own words or the repository name's words. An archive
- * related only by a shared word whose program relates neither way
- * (`Game-Other-1.0-win64.zip` holding only `Other.exe` for listing `Game`)
- * is `program-product-unrelated`.
+ * How an archive name is accounted for against the listing: every token is a
+ * product word, a version or a neutral word (`archiveNameTokens`), and the
+ * product words in order, joined, equal one of the listing's id, name or
+ * original title words joined, or the repository name's words joined. A
+ * chunk of digits only counts as a product word where that makes the names
+ * equal, else as a version. The result is the accepted product (joined), or
+ * the unaccounted tokens: the product words that are no word of those names,
+ * else the name's words the archive lacks (`missing:<word>`). Any leftover
+ * withholds (`archive-name-unaccounted`): `Doom3` for `Doom 2`, `SuperGame2`,
+ * `Super-Other`, `SuperGame-Trial`, `SuperGame-beta` or `SuperGame-Lite` for
+ * `Super Game`, `Space-Invaders` for `Space Game`.
  */
-export function programRelated(
-  path: string,
+export function archiveNameAccount(
+  name: string,
   listing: Record<string, unknown>,
   repository: string,
-): boolean {
-  if (ownJoinedNames(listing, repository).has(literalProgramName(path))) return true;
-  const own = identifyingWords([
-    ...listingWords(listing),
-    ...nameWords(repository.split("/")[1] ?? ""),
+): { product: string } | { unaccounted: string[] } {
+  const names = ownJoinedNames(listing, repository);
+  const { product } = archiveNameTokens(name);
+  const numeric = product.flatMap((token, index) => (token.numeric ? [index] : []));
+  const subsets = numeric.length <= 8 ? 2 ** numeric.length : 1;
+  for (let mask = 0; mask < subsets; mask++) {
+    const joined = product
+      .filter((token, index) => !token.numeric || (mask >> numeric.indexOf(index)) % 2 === 1)
+      .map((token) => token.word)
+      .join("");
+    if (joined && names.has(joined)) return { product: joined };
+  }
+  const nameWordSet = new Set(
+    [listing.id, listing.name, listing.original_game_title, repository.split("/")[1] ?? ""].flatMap(
+      (value) => (typeof value === "string" ? nameWords(value) : []),
+    ),
+  );
+  const extra = product
+    .filter((token) => !token.numeric && !nameWordSet.has(token.word))
+    .map((token) => token.word);
+  if (extra.length) return { unaccounted: [...new Set(extra)] };
+  const present = new Set(product.map((token) => token.word));
+  // The name sharing the most words with the archive, its title first.
+  const closest = [listing.name, listing.original_game_title, repository.split("/")[1], listing.id]
+    .filter((value): value is string => typeof value === "string")
+    .map(nameWords)
+    .reduce<string[] | undefined>((best, words) => {
+      const overlap = words.filter((word) => present.has(word)).length;
+      const bestOverlap = best?.filter((word) => present.has(word)).length ?? 0;
+      return overlap > bestOverlap ? words : best;
+    }, undefined);
+  const missing = (closest ?? []).filter((word) => !present.has(word));
+  return {
+    unaccounted: missing.length
+      ? missing.map((word) => `missing:${word}`)
+      : [product.map((token) => token.word).join("-") || "no-product"],
+  };
+}
+/**
+ * How a program is accounted for: its literal name (`literalProgramName`)
+ * equals one of `names` (the listing's, repository's and accepted archive's
+ * product names joined), optionally followed, only where the release ships
+ * no other package form (`strict` false), by architecture words
+ * (`programArchitectureWords`); and every folder on its path is made of
+ * product words, versions, neutral words (`neutralArchiveWords`) and layout
+ * words (`programLayoutWords`). The result is null, or the unaccounted
+ * leftover (`program-name-unaccounted`): `supergameserver64`,
+ * `SUPERGAMELAUNCHER`, `supergame-cli`, `Other.exe` in a joined-name archive,
+ * or a `server/` or `tools/` folder.
+ */
+export function programNameUnaccounted(
+  path: string,
+  names: ReadonlySet<string>,
+  words: ReadonlySet<string>,
+  strict: boolean,
+): string | null {
+  const literal = literalProgramName(path);
+  if (!names.has(literal)) {
+    const architecture = programArchitectureWords as readonly string[];
+    const suffixed = (rest: string): boolean =>
+      rest === "" ||
+      architecture.some((word) => rest.startsWith(word) && suffixed(rest.slice(word.length)));
+    const base = strict
+      ? undefined
+      : [...names].find((name) => literal.startsWith(name) && suffixed(literal.slice(name.length)));
+    if (base === undefined) return literal;
+  }
+  const allowed = new Set<string>([
+    ...words,
+    ...(neutralArchiveWords as readonly string[]),
+    ...(programLayoutWords as readonly string[]),
   ]);
-  const file = basename(path).replace(/\.exe$/iu, "");
-  return [...identifyingWords(nameWords(file))].some((word) => own.has(word));
+  const accounted = (word: string) => allowed.has(word) || /^[vrb]?[0-9]+$/u.test(word);
+  for (const segment of path.split("/").slice(0, -1)) {
+    const normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
+    // A whole chunk (`MacOS`, `x64`) is checked before its camel-case words.
+    for (const chunk of normalized.split(/[^A-Za-z0-9]+/u).filter(Boolean))
+      if (!accounted(chunk.toLowerCase()) && !nameWords(chunk).every(accounted))
+        return `${segment}/`;
+  }
+  return null;
 }
 /** Whether a name holds any character outside ASCII: a homoglyph or full-width evasion. */
 export function nonAsciiName(name: string): boolean {
@@ -3192,8 +3336,8 @@ export const blockedReasons = [
   "launcher-entry",
   "role-program",
   "non-ascii-name",
-  "archive-product-unrelated",
-  "program-product-unrelated",
+  "archive-name-unaccounted",
+  "program-name-unaccounted",
   "route-held",
   "guide-bound",
 ] as const;
@@ -3215,8 +3359,8 @@ export const evidenceReasons = [
   "role-program",
   "launcher-entry",
   "non-ascii-name",
-  "archive-product-unrelated",
-  "program-product-unrelated",
+  "archive-name-unaccounted",
+  "program-name-unaccounted",
 ] as const satisfies readonly BlockedReason[];
 
 export interface GeneratedEnrollment {
@@ -3238,6 +3382,8 @@ export type FitDecision =
       detail: string;
       /** The matched word and path or name per finding, for the reasons that carry evidence. */
       evidence?: string[];
+      /** The unaccounted tokens, for `archive-name-unaccounted` and `program-name-unaccounted`. */
+      tokens?: string[];
     };
 
 /** When no platform fits, the identity's reason is the first of these any platform gave. */
@@ -3287,12 +3433,20 @@ export function fitDecision(
   context: FitContext,
 ): FitDecision {
   const port_id = record.listing.id;
-  const blocked = (reason: BlockedReason, detail: string, evidence?: string[]): FitDecision => ({
+  const blocked = (
+    reason: BlockedReason,
+    detail: string,
+    evidence?: string[],
+    tokens?: string[],
+  ): FitDecision => ({
     port_id,
     fit: false,
     reason,
     detail,
     ...(evidence ? { evidence: evidence.slice(0, 32).map((item) => item.slice(0, 300)) } : {}),
+    ...(tokens
+      ? { tokens: [...new Set(tokens)].slice(0, 32).map((item) => item.slice(0, 120)) }
+      : {}),
   });
   if (record.integration !== undefined)
     return blocked("operational-route", "An authored operational route exists.");
@@ -3420,8 +3574,12 @@ export function fitDecision(
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
   const launchers: string[] = [];
-  const unrelated: string[] = [];
-  const unrelatedPrograms: string[] = [];
+  const unaccountedArchives: string[] = [];
+  const archiveTokens: string[] = [];
+  const unaccountedPrograms: string[] = [];
+  const programTokens: string[] = [];
+  // Beside another package form the program name stays strictly literal.
+  const strict = entry.other_packages.length > 0;
   for (const platform of platforms) {
     const found = platformRuntime(entry, platform);
     if ("reason" in found) {
@@ -3430,12 +3588,29 @@ export function fitDecision(
     }
     const launcher = found.runtime.players.find((item) => launcherProgram(item.display_path));
     if (launcher) launchers.push(`${platform}: ${launcher.display_path}`);
-    const relation = archiveRelation(found.runtime.asset_name, record.listing, entry.repository);
-    if (relation === null) unrelated.push(`${platform}: ${found.runtime.asset_name}`);
-    else if (relation === "shared")
-      for (const item of found.runtime.players)
-        if (!programRelated(item.display_path, record.listing, entry.repository))
-          unrelatedPrograms.push(`${platform}: ${found.runtime.asset_name} ${item.display_path}`);
+    const account = archiveNameAccount(found.runtime.asset_name, record.listing, entry.repository);
+    if ("unaccounted" in account) {
+      unaccountedArchives.push(
+        `${platform}: ${found.runtime.asset_name} (${account.unaccounted.join(", ")})`,
+      );
+      archiveTokens.push(...account.unaccounted);
+    } else {
+      const names = new Set([...ownJoinedNames(record.listing, entry.repository), account.product]);
+      const words = new Set([
+        ...nameWords(found.runtime.asset_name),
+        ...[record.listing.id, record.listing.name, record.listing.original_game_title]
+          .filter((value): value is string => typeof value === "string")
+          .flatMap(nameWords),
+        ...nameWords(entry.repository.split("/")[1] ?? ""),
+      ]);
+      for (const item of found.runtime.players) {
+        const leftover = programNameUnaccounted(item.display_path, names, words, strict);
+        if (leftover !== null) {
+          unaccountedPrograms.push(`${platform}: ${item.display_path} (${leftover})`);
+          programTokens.push(leftover);
+        }
+      }
+    }
     const hold = ["register-external", "launch"]
       .map((operation) => heldAt(record, operation, platform))
       .find(Boolean);
@@ -3456,27 +3631,31 @@ export function fitDecision(
       ),
       launchers,
     );
-  // An archive whose product shares no word with the listing or its
-  // repository is not attributed to this listing by anything in the facts.
-  if (unrelated.length)
+  // Every token of the offered archive's name is a product word, a version
+  // or a neutral word, and the product is the listing's or repository's
+  // name: anything left over is unaccounted, and nothing in the facts says
+  // what it means.
+  if (unaccountedArchives.length)
     return blocked(
-      "archive-product-unrelated",
-      `The archive offered on ${unrelated.join(", ")} names a product that shares no identifying word with the listing or its repository.`.slice(
+      "archive-name-unaccounted",
+      `The archive offered on ${unaccountedArchives.join(", ")} carries tokens that are neither the listing's or repository's name, a version nor a neutral platform, architecture or packaging word.`.slice(
         0,
         1000,
       ),
-      unrelated,
+      unaccountedArchives,
+      archiveTokens,
     );
-  // An archive related only by a shared word whose program is named for
-  // neither the listing nor its repository may be another product.
-  if (unrelatedPrograms.length)
+  // The program is the product's own name (with an architecture suffix only
+  // where no other package form ships), in folders of accounted words.
+  if (unaccountedPrograms.length)
     return blocked(
-      "program-product-unrelated",
-      `The archive offered on ${unrelatedPrograms.join(", ")} relates to the listing only by a shared word, and its program relates to neither the listing nor its repository.`.slice(
+      "program-name-unaccounted",
+      `The program offered on ${unaccountedPrograms.join(", ")} is not the listing's, repository's or archive's product name, or sits in a folder of unaccounted words.`.slice(
         0,
         1000,
       ),
-      unrelatedPrograms,
+      unaccountedPrograms,
+      programTokens,
     );
   if (!runtimes.length) {
     if (held.length)
@@ -3656,6 +3835,17 @@ export interface RegistrationQueues {
    */
   reason_evidence: Record<(typeof evidenceReasons)[number], Record<string, string[]>>;
   /**
+   * The closed-vocabulary withholds grouped by the unaccounted token, most
+   * frequent first (then by token): per reason, each token with the number
+   * of identities it withholds and those identities in port_id order. A
+   * person decides from this queue, with a recorded example, whether a token
+   * deserves a neutral list; the lists never grow speculatively.
+   */
+  unaccounted_tokens: Record<
+    "archive-name-unaccounted" | "program-name-unaccounted",
+    { token: string; count: number; identities: string[] }[]
+  >;
+  /**
    * Identities whose observed release holds each package form the worker does
    * not read, also when a supported archive sits beside it.
    */
@@ -3739,6 +3929,27 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       ),
     ]),
   ) as RegistrationQueues["reason_evidence"];
+  const unaccountedTokens = Object.fromEntries(
+    (["archive-name-unaccounted", "program-name-unaccounted"] as const).map((reason) => {
+      const byToken = new Map<string, Set<string>>();
+      for (const decision of generation.decisions)
+        if (!decision.fit && decision.reason === reason)
+          for (const token of decision.tokens ?? [])
+            byToken.set(token, (byToken.get(token) ?? new Set()).add(decision.port_id));
+      return [
+        reason,
+        [...byToken]
+          .map(([token, ids]) => ({
+            token,
+            count: ids.size,
+            identities: [...ids].toSorted(compareCodePoints),
+          }))
+          .toSorted(
+            (left, right) => right.count - left.count || compareCodePoints(left.token, right.token),
+          ),
+      ];
+    }),
+  ) as RegistrationQueues["unaccounted_tokens"];
   const grouped = (pairs: [string, string][]) => {
     const groups: Record<string, string[]> = {};
     for (const key of [...new Set(pairs.map(([key]) => key))].toSorted(compareCodePoints))
@@ -3752,6 +3963,7 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       Object.entries(reasons).map(([reason, ids]) => [reason, ids.toSorted(compareCodePoints)]),
     ) as Record<BlockedReason, string[]>,
     reason_evidence: reasonEvidence,
+    unaccounted_tokens: unaccountedTokens,
     unread_forms: grouped(
       generation.facts.entries.flatMap((entry) =>
         entry.unread_forms.map((form): [string, string] => [form, entry.port_id]),
@@ -5118,7 +5330,7 @@ export function gateStatement(
     else if (")]}".includes(character)) depth = depth > 0 ? depth - 1 : 0;
   }
   flush();
-  const qualifiers = ["public", "open", "closed"];
+  const qualifiers = ["public", "open", "closed", "developer", "technical", "early"];
   const fillers = ["a", "an", "the", "last", "latest", "previous", "final", "first", ...qualifiers];
   const negators = [
     "not",
@@ -5177,7 +5389,17 @@ export function gateStatement(
       } else if (here === "development" && next === "snapshot") {
         found = "development-snapshot";
         end = index + 1;
-      } else if (here === "preview" || here === "dev") {
+      } else if (here === "debug" && next === "build") {
+        found = "debug-build";
+        end = index + 1;
+      } else if ((here === "test" || here === "testing") && next === "release") {
+        found = "test-release";
+        end = index + 1;
+      } else if (here === "daily" && next === "build") {
+        found = "daily-build";
+        end = index + 1;
+      } else if (["preview", "canary", "demo"].includes(here)) found = here;
+      else if (["dev", "prototype", "playtest"].includes(here)) {
         // Only with a number: glued to digits, or next past connectors.
         let numberAt = index + 1;
         while (numberAt < words.length && connectors.includes(words[numberAt]!.text)) numberAt++;
@@ -5188,6 +5410,8 @@ export function gateStatement(
           found = here;
       }
     }
+    if (here === "not" && next === "for" && words[index + 2]?.text === "production")
+      return "not-for-production";
     if (found === null) continue;
     let back = index - 1;
     while (back >= 0 && fillers.includes(words[back]!.text)) back--;
@@ -5226,6 +5450,16 @@ function gateStates(release: ObservedReleaseFact, repository: string, listing: r
  * `productIdentity`. Exported for its unit table only.
  */
 export function gateProduct(name: string): { words: string[]; version: string[] } {
+  const base = gateNameBase(name);
+  const targets = gateTargets;
+  return gateProductOf(base, targets);
+}
+/**
+ * An asset name without its package form or other lettered extension (and an
+ * `.app` bundle suffix), with `x86_64`, `x86-64` and `64-bit` as one word,
+ * restated: see `productIdentity`.
+ */
+function gateNameBase(name: string): string {
   const lower = name.toLowerCase();
   // Known package forms, longest first, then any other lettered extension.
   const forms = [
@@ -5288,34 +5522,38 @@ export function gateProduct(name: string): { words: string[]; version: string[] 
       base = name.slice(0, dot);
   }
   if (base.toLowerCase().endsWith(".app")) base = base.slice(0, -4);
-  base = base
+  return base
     .replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664")
     .replace(/(?<![A-Za-z0-9])(64|32)[_-]bit(?![A-Za-z0-9])/giu, "$1bit");
-  const targets = [
-    "windows",
-    "win",
-    "win32",
-    "win64",
-    "linux",
-    "linux32",
-    "linux64",
-    "macos",
-    "mac",
-    "osx",
-    "darwin",
-    "universal",
-    "universal2",
-    "x64",
-    "x86",
-    "x8664",
-    "amd64",
-    "arm64",
-    "aarch64",
-    "i386",
-    "i686",
-    "64bit",
-    "32bit",
-  ];
+}
+/** Platform and architecture words a product drops, restated. */
+const gateTargets = [
+  "windows",
+  "win",
+  "win32",
+  "win64",
+  "linux",
+  "linux32",
+  "linux64",
+  "macos",
+  "mac",
+  "osx",
+  "darwin",
+  "universal",
+  "universal2",
+  "x64",
+  "x86",
+  "x8664",
+  "amd64",
+  "arm64",
+  "aarch64",
+  "i386",
+  "i686",
+  "64bit",
+  "32bit",
+];
+/** A name base's product words and version, restated: see `productIdentity`. */
+function gateProductOf(base: string, targets: readonly string[]) {
   const channel = [
     "release",
     "releases",
@@ -5515,17 +5753,6 @@ export function gateNonAscii(name: string) {
   for (let index = 0; index < name.length; index++) if (name.charCodeAt(index) > 0x7f) return true;
   return false;
 }
-/** The words a gate comparison keeps as identifying, restated: see `identifyingWords`. */
-function gateIdentifying(words: readonly string[]) {
-  const dropped = ["a", "an", "the", "of", "and", "in", "on", "for", "to", "game", "games"];
-  // Thousands, hundreds, tens and units, each at most as a numeral writes them.
-  const roman =
-    /^(?:m|mm|mmm|mmmm)?(?:cm|cd|dc{0,3}|c{1,3})?(?:xc|xl|lx{0,3}|x{1,3})?(?:ix|iv|vi{0,3}|i{1,3})?$/u;
-  return words.filter(
-    (word) =>
-      word.length >= 2 && !/^\d+$/u.test(word) && !roman.test(word) && !dropped.includes(word),
-  );
-}
 /** The listing's id, name, original title and repository name, each as whole words joined. */
 function gateJoinedNames(listing: Record<string, unknown>, repository: string) {
   const names: string[] = [];
@@ -5534,52 +5761,166 @@ function gateJoinedNames(listing: Record<string, unknown>, repository: string) {
   names.push(gateNameWords(repository.split("/")[1] ?? "").join(""));
   return names.filter((name) => name !== "");
 }
-/** The listing's and repository's identifying words, restated. */
-function gateOwnIdentifying(listing: Record<string, unknown>, repository: string) {
-  return gateIdentifying([
-    ...gateListingWords(listing),
-    ...gateNameWords(repository.split("/")[1] ?? ""),
-  ]);
-}
+/** The neutral archive words, restated: see `neutralArchiveWords`. */
+const gateNeutral = [
+  ...gateTargets.filter((word) => word !== "32bit" && word !== "64bit"),
+  "64bit",
+  "32bit",
+  "universal2",
+  "portable",
+  "bin",
+  "release",
+  "appimage",
+];
 /**
- * How an archive's product words relate to the listing, restated: see
- * `archiveRelation`. Exported for its unit table only.
+ * How an archive name is accounted for against the listing, restated: see
+ * `archiveNameAccount`. Only whether it is accounted, and the joined product,
+ * matter to the gate. Exported for its unit table only.
  */
-export function gateArchiveRelation(
+export function gateArchiveAccount(
   name: string,
   listing: Record<string, unknown>,
   repository: string,
-): "joined" | "shared" | null {
-  const product = gateProduct(name).words;
-  if (product.length === 0) return null;
-  if (gateJoinedNames(listing, repository).includes(product.join(""))) return "joined";
-  const own = gateOwnIdentifying(listing, repository);
-  return gateIdentifying(product).some((word) => own.includes(word)) ? "shared" : null;
+): string | null {
+  const required: string[] = [];
+  const optional: { at: number; word: string }[] = [];
+  const sequence: { word: string; optional: boolean }[] = [];
+  for (const chunk of gateNameBase(name).split(/[^A-Za-z0-9]+/u)) {
+    if (chunk === "") continue;
+    const low = chunk.toLowerCase();
+    if (gateNeutral.includes(low)) continue;
+    if (/^\d+$/u.test(low)) {
+      optional.push({ at: sequence.length, word: low });
+      sequence.push({ word: low, optional: true });
+      continue;
+    }
+    if (/^[vrb]\d+$/u.test(low)) continue;
+    for (const word of gateNameWords(chunk))
+      if (!gateNeutral.includes(word)) {
+        required.push(word);
+        sequence.push({ word, optional: false });
+      }
+  }
+  const names = gateJoinedNames(listing, repository);
+  // Each digits-only chunk is either a version or a product word: try every
+  // choice when there are few, else only versions.
+  const choices = optional.length <= 8 ? 1 << optional.length : 1;
+  for (let choice = 0; choice < choices; choice++) {
+    let joined = "";
+    let next = 0;
+    for (const item of sequence) {
+      if (!item.optional) joined += item.word;
+      else {
+        if (choice & (1 << next)) joined += item.word;
+        next++;
+      }
+    }
+    if (joined !== "" && names.includes(joined)) return joined;
+  }
+  return null;
 }
-/** Whether an archive's product relates to the listing at all, restated. Exported for its unit table only. */
-export function gateArchiveRelated(
-  name: string,
-  listing: Record<string, unknown>,
-  repository: string,
-) {
-  return gateArchiveRelation(name, listing, repository) !== null;
+/** The words a program's folders may use besides neutral, layout and version words, restated. */
+function gateAccountWords(archive: string, listing: Record<string, unknown>, repository: string) {
+  const words = [...gateNameWords(archive), ...gateNameWords(repository.split("/")[1] ?? "")];
+  for (const value of [listing.id, listing.name, listing.original_game_title])
+    if (typeof value === "string") words.push(...gateNameWords(value));
+  return words;
 }
 /**
- * Whether a program relates to the listing, restated: see `programRelated`.
+ * Whether a program is accounted for, restated: see `programNameUnaccounted`.
  * Exported for its unit table only.
  */
-export function gateProgramRelated(
+export function gateProgramAccounted(
   path: string,
-  listing: Record<string, unknown>,
-  repository: string,
-) {
-  let file = path.slice(path.lastIndexOf("/") + 1);
-  if (file.toLowerCase().endsWith(".exe")) file = file.slice(0, -4);
+  names: readonly string[],
+  words: readonly string[],
+  strict: boolean,
+): boolean {
+  let file = path.slice(path.lastIndexOf("/") + 1).toLowerCase();
+  if (file.endsWith(".exe")) file = file.slice(0, -4);
   let literal = "";
-  for (const character of file.toLowerCase()) if (/[a-z0-9]/u.test(character)) literal += character;
-  if (gateJoinedNames(listing, repository).includes(literal)) return true;
-  const own = gateOwnIdentifying(listing, repository);
-  return gateIdentifying(gateNameWords(file)).some((word) => own.includes(word));
+  for (const character of file) if (/[a-z0-9]/u.test(character)) literal += character;
+  const architecture = [
+    "x86",
+    "x64",
+    "x8664",
+    "amd64",
+    "arm64",
+    "aarch64",
+    "i386",
+    "i686",
+    "64bit",
+    "32bit",
+    "win32",
+    "win64",
+    "universal",
+    "universal2",
+  ];
+  // Whether a rest is a run of architecture words, tried left to right.
+  const architectureRun = (rest: string): boolean => {
+    if (rest === "") return true;
+    for (const word of architecture)
+      if (rest.startsWith(word) && architectureRun(rest.slice(word.length))) return true;
+    return false;
+  };
+  let named = names.includes(literal);
+  if (!named && !strict)
+    named = names.some(
+      (name) =>
+        name !== "" && literal.startsWith(name) && architectureRun(literal.slice(name.length)),
+    );
+  if (!named) return false;
+  const layout = ["bin", "game", "app", "contents", "x64", "win64"];
+  const segments = path.split("/");
+  segments.pop();
+  const known = (word: string) =>
+    words.includes(word) ||
+    gateNeutral.includes(word) ||
+    layout.includes(word) ||
+    /^[vrb]?\d+$/u.test(word);
+  for (const segment of segments) {
+    const normalized = segment.replace(/(?<![A-Za-z0-9])x86[_-]64(?![A-Za-z0-9])/giu, "x8664");
+    for (const chunk of normalized.split(/[^A-Za-z0-9]+/u)) {
+      if (chunk === "" || known(chunk.toLowerCase())) continue;
+      if (!gateNameWords(chunk).every(known)) return false;
+    }
+  }
+  return true;
+}
+/**
+ * The GitHub repository a listing's provider identity names, restated: see
+ * `listingProviderIdentity`. The release URL comes first, else the project
+ * URL; HTTPS on `github.com` only, with no user, password, port, query or
+ * fragment; the path is `/<owner>/<name>`, an optional `.git`, an optional
+ * `/releases` subpath and an optional trailing slash. Anything else names
+ * none. Exported for its unit table only.
+ */
+export function gateProviderRepository(listing: Record<string, unknown>): string | null {
+  const raw = typeof listing.release_url === "string" ? listing.release_url : listing.project_url;
+  if (typeof raw !== "string") return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || url.hostname !== "github.com") return null;
+  if (url.username !== "" || url.password !== "" || url.port !== "") return null;
+  if (url.search !== "" || url.hash !== "") return null;
+  const parts = url.pathname.split("/");
+  // `/owner/name`, then optionally `releases` and anything below it.
+  if (parts[0] !== "" || parts.length < 3) return null;
+  const owner = parts[1]!;
+  let name = parts[2]!;
+  const rest = parts.slice(3);
+  if (rest.length > 0 && !(rest.length === 1 && rest[0] === "") && rest[0] !== "releases")
+    return null;
+  const part = /^[A-Za-z0-9_.-]+$/u;
+  // One `.git` is dropped unless nothing would be left of the name.
+  if (name.endsWith(".git") && name.length > 4) name = name.slice(0, -4);
+  if (!part.test(owner) || !part.test(name) || [owner, name].some((p) => p === "." || p === ".."))
+    return null;
+  return `${owner}/${name}`;
 }
 /** Whether a record runs on the ScummVM engine, restated from its declared runtime. */
 function gateScummvm(record: AuthoredPort) {
@@ -5626,11 +5967,13 @@ function gateEnrollmentProblems(
     if (availability === "source-only" || availability === "unavailable")
       problems.push(`${id} has upstream availability ${String(availability)}.`);
   }
+  // The repository is the one the listing's provider identity names: the
+  // release URL first, else the project URL, a GitHub repository only.
   const ownListing = listings.find((listing) => listing.id === id) ?? {};
-  const ownRepositories = gateRepositories(ownListing);
-  if (entry.provider !== "github" || ownRepositories.size === 0)
+  const providerRepository = gateProviderRepository(ownListing);
+  if (entry.provider !== "github" || providerRepository === null)
     problems.push(`${id} names no GitHub repository.`);
-  else if (!ownRepositories.has(entry.repository.toLowerCase()))
+  else if (providerRepository.toLowerCase() !== entry.repository.toLowerCase())
     problems.push(`${id} rests on facts of a repository its listing does not name.`);
   if (entry.parser !== "listing-package-facts" || entry.parser_version !== FACTS_PARSER_VERSION)
     problems.push(`${id} rests on facts of another parser version.`);
@@ -5650,6 +5993,13 @@ function gateEnrollmentProblems(
   // Release text is judged with the listing's own words: facts judged with
   // other words are not this listing's.
   const ownWords = gateListingWords(own);
+  // Beside another package form (recorded, or classified by the gate from
+  // the recorded asset names) a program name stays strictly literal.
+  const strict =
+    entry.other_packages.length > 0 ||
+    (Array.isArray(entry.asset_names) ? entry.asset_names : []).some(
+      (name) => gateFormKind(name) !== undefined,
+    );
   if (!Array.isArray(entry.listing_words) || entry.listing_words.join(" ") !== ownWords.join(" "))
     problems.push(`${id} rests on facts that judged release text with other listing words.`);
   const repository = entry.repository.toLowerCase();
@@ -5854,17 +6204,24 @@ function gateEnrollmentProblems(
       problems.push(
         `${id} has a launcher, settings or setup program (${launcher.display_path.slice(launcher.display_path.lastIndexOf("/") + 1)}) as the only program on ${platform}, so no platform of the identity may enroll.`,
       );
-    const relation = gateArchiveRelation(offered.name, own, entry.repository);
-    if (relation === null)
+    const accepted = gateArchiveAccount(offered.name, own, entry.repository);
+    if (accepted === null)
       problems.push(
-        `${id} offers ${offered.name} on ${platform}, whose product shares no word with the listing or its repository, so no platform of the identity may enroll.`,
+        `${id} offers ${offered.name} on ${platform}, whose name holds an unaccounted token, so no platform of the identity may enroll.`,
       );
     else if (
-      relation === "shared" &&
-      players.some((player) => !gateProgramRelated(player.display_path, own, entry.repository))
+      players.some(
+        (player) =>
+          !gateProgramAccounted(
+            player.display_path,
+            [...gateJoinedNames(own, entry.repository), accepted],
+            gateAccountWords(offered.name, own, entry.repository),
+            strict,
+          ),
+      )
     )
       problems.push(
-        `${id} offers ${offered.name} on ${platform}, related by a shared word only, whose program relates to neither the listing nor its repository, so no platform of the identity may enroll.`,
+        `${id} offers ${offered.name} on ${platform}, whose program name or folder holds an unaccounted token, so no platform of the identity may enroll.`,
       );
   }
   if (createHash("sha256").update(JSON.stringify(entry)).digest("hex") !== enrollment.facts_sha256)
@@ -5930,20 +6287,23 @@ function gateEnrollmentProblems(
       runtimeNames.push(gateProduct(artifact.name).words.join(""));
     if (runtime.players.some((player) => gateRoleProgram(player.display_path, runtimeNames)))
       problems.push(`${where} offers a program named or placed for another role than the game.`);
-    const runtimeRelation = gateArchiveRelation(artifact.name, own, entry.repository);
-    if (runtimeRelation === null)
+    const runtimeAccepted = gateArchiveAccount(artifact.name, own, entry.repository);
+    if (runtimeAccepted === null)
       problems.push(
-        `${where} rests on archive ${artifact.name}, whose product shares no word with the listing or its repository.`,
+        `${where} rests on archive ${artifact.name}, whose name holds an unaccounted token.`,
       );
     else if (
-      runtimeRelation === "shared" &&
       runtime.players.some(
-        (player) => !gateProgramRelated(player.display_path, own, entry.repository),
+        (player) =>
+          !gateProgramAccounted(
+            player.display_path,
+            [...gateJoinedNames(own, entry.repository), runtimeAccepted],
+            gateAccountWords(artifact.name, own, entry.repository),
+            strict,
+          ),
       )
     )
-      problems.push(
-        `${where} offers a program that relates to neither the listing nor its repository, from an archive related by a shared word only.`,
-      );
+      problems.push(`${where} offers a program whose name or folder holds an unaccounted token.`);
     const named = artifact.name_suggestion;
     if (named.tool_token !== null || named.system_token !== null)
       problems.push(
