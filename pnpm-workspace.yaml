@@ -18,10 +18,9 @@ catalog:
   "@vitest/browser-playwright": 5.1.0
   "@vitest/coverage-v8": 5.1.0
 overrides:
-  # Remove audited development-tool traversal/pattern DoS versions; retire as parents upgrade.
+  # Matches cacache's glob ^13 request (via @sigstore/sign) and lifts it past
+  # GHSA-3g3m-2fjr-6pw4; retire once cacache requests glob >=14.0.2.
   "glob@13.0.6": 14.0.6
-  # Renovate 44.156.3 still consumes minimatch 10.2.6; CLI 1.82.4 uses 11 directly.
-  "minimatch@10.2.6": 11.0.9
   vite@*: "catalog:"
   vitest@*: "catalog:"
 peerDependencyRules:
@@ -35,4 +34,5 @@ patchedDependencies:
   # Retain the namespace fix across compatible 1.x updates; changed patch context still fails.
   "i18next-cli@>=1.82.4 <2": patches/i18next-cli-default-namespace.patch
   "@sigstore/sign@5.1.0": patches/@sigstore__sign@5.1.0.patch
-  "@tauri-apps/api@2.12.4": patches/@tauri-apps__api@2.12.4.patch
+  # Release the rejected listen() callback across 2.x; changed patch context still fails.
+  "@tauri-apps/api@>=2.12.4 <3": patches/tauri-apps-api-listen-callback-cleanup.patch

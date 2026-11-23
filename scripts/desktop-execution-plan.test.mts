@@ -993,7 +993,10 @@ for (const id of ["native-late-listener-disposal", "native-rejected-listener-reg
     assert.ok(plan.selection.prerequisites.includes("native-dialog"));
     assert.ok(plan.selection.host_resources.includes("native-dialog"));
     if (id === "native-rejected-listener-registration")
-      for (const source of ["pnpm-workspace.yaml", "patches/@tauri-apps__api@2.12.4.patch"])
+      for (const source of [
+        "pnpm-workspace.yaml",
+        "patches/tauri-apps-api-listen-callback-cleanup.patch",
+      ])
         assert.ok(
           plan.receiptInputs.some((input) => input.kind === "file" && input.path === source),
         );

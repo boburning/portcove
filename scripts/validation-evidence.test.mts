@@ -20,7 +20,7 @@ import {
 } from "./validation-evidence.mts";
 
 void test("pnpm patch bytes belong to format, UI and release evidence", () => {
-  const patch = "patches/@tauri-apps__api@2.12.4.patch";
+  const patch = "patches/tauri-apps-api-listen-callback-cleanup.patch";
   const selected = domainsForPath(patch);
   assert.equal(selected.ambiguous, false);
   assert.ok(selected.domains.has("format"));
