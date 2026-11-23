@@ -1158,7 +1158,7 @@ fn unreadable_store_records_block_a_move_as_not_yet_checked() {
         Some(("not_checked".into(), "Steam".into()))
     );
     // A readable list restores the decision.
-    library_list(&client, &[client.clone()]);
+    library_list(&client, std::slice::from_ref(&client));
     assert_eq!(refusal(&service, &outside), None);
     // So does a malformed app manifest: its game folder could be a link.
     fs::write(client.join("steamapps/appmanifest_5.acf"), "\"AppState\" {").unwrap();

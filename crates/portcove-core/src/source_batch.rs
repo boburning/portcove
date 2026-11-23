@@ -206,7 +206,7 @@ impl PortcoveService {
                             // An interrupted read past the deadline is
                             // unfinished work, not a missing or unreadable file.
                             let error = if time_budget_reached(started, limits)
-                                && error.details.get("observed_health").is_none()
+                                && !error.details.contains_key("observed_health")
                             {
                                 time_budget_error()
                             } else {
