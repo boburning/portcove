@@ -609,7 +609,7 @@ async fn refusal_setupless_package_publishes_nothing() {
         .unwrap_err();
     assert_refused(
         error,
-        "Nothing was installed.",
+        "so nothing was installed.",
         "Your current installation is unchanged.",
     );
     assert!(service.status(SETUP_PORT).unwrap().active.is_none());
@@ -639,8 +639,8 @@ async fn refusal_setupless_package_publishes_nothing() {
         .unwrap_err();
     assert_refused(
         error,
-        "Your current installation is unchanged.",
-        "Nothing was installed.",
+        "Portcove did not install it. Your current installation is unchanged.",
+        "nothing was installed.",
     );
     let status = service.status(SETUP_PORT).unwrap();
     assert_eq!(status.active.unwrap().id, prepared.id);
