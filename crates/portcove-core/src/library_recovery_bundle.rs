@@ -123,10 +123,16 @@ fn prepare(
         LibraryRecoveryExclusion::HostCredentials,
     ];
     let metadata_bytes = crate::library_metadata_document::digest(&metadata)?.size;
+    crate::library_metadata_document::require_admitted(metadata_bytes, "library metadata")?;
+    // The receipt lists every reviewed content file; refuse at review, not
+    // after the copy, when this machine could not read it back.
+    let receipt_reserve = crate::library_metadata_document::encoded_size(&content)?;
+    crate::library_metadata_document::require_admitted(receipt_reserve, "recovery bundle receipt")?;
     let required_bytes = coverage
         .iter()
         .try_fold(metadata_bytes, |sum, root| sum.checked_add(root.bytes))
-        .and_then(|bytes| bytes.checked_add(64 * 1024 * 1024))
+        .and_then(|bytes| bytes.checked_add(receipt_reserve))
+        .and_then(|bytes| bytes.checked_add(1024 * 1024))
         .ok_or_else(|| PortcoveError::state("recovery bundle capacity estimate overflowed"))?;
     let parent = destination_root
         .parent()

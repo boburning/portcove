@@ -360,11 +360,14 @@ impl PortcoveService {
             ));
         }
         let content = crate::library_transfer::plan_portable_content(&metadata, &content_root)?;
+        // The import journal and its recovery archive each carry the plan.
+        let journal_reserve =
+            crate::library_metadata_document::transfer_reserve(&metadata, &content, 2)?;
         let required_bytes = content.iter().try_fold(
             metadata_file
                 .size
                 .checked_mul(4)
-                .and_then(|size| size.checked_add(64 * 1024 * 1024))
+                .and_then(|size| size.checked_add(journal_reserve))
                 .ok_or_else(|| PortcoveError::state("import capacity estimate overflowed"))?,
             |size, tree| {
                 size.checked_add(tree.copy.total_bytes)

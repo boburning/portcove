@@ -1668,3 +1668,85 @@ fn a_ten_thousand_profile_library_beyond_the_old_document_ceiling_round_trips() 
     // 10,000 profiles with about 2 KB each is a document well past 16 MiB.
     assert_scaled_library_round_trip(10_000, 2_000, TransferPhase::Verified);
 }
+
+#[test]
+fn a_hostile_multi_million_record_document_is_refused_before_it_is_decoded() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("hostile.json");
+    let destination = temp.path().join("destination");
+    drop(fixture_library(&source, &[("active", false)]));
+    // Three million records of the smallest shape: about 9 MB of JSON that
+    // would decode into far more memory than the bytes suggest.
+    let mut document = String::from(
+        r#"{"schema_version":6,"exported_at":0,"original_root":"x","content_roots":[],"source_references":[],"application_versions":[],"port_settings":[],"launch_history":[],"profiles":["#,
+    );
+    document.push_str(&"{},".repeat(3_000_000));
+    document.push_str("{}]}");
+    fs::write(&export, &document).unwrap();
+    let error = crate::library_metadata_document::with_admission_budget(1024 * 1024, || {
+        PortcoveService::plan_library_import(&export, &source, &destination).unwrap_err()
+    });
+    assert_eq!(error.code, crate::ErrorCode::Unsupported, "{error:?}");
+    assert_eq!(
+        error.failure.mutation_state,
+        crate::MutationState::NoChanges
+    );
+    assert_eq!(
+        error.details["document_bytes"],
+        document.len().to_string(),
+        "{error:?}"
+    );
+    assert!(!destination.exists());
+}
+
+#[test]
+fn an_export_this_machine_could_not_import_is_refused_before_publication() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    drop(fixture_library(&source, &[("active", false)]));
+    add_scaled_profiles(&source, "active", 200, 2_000);
+    let service = PortcoveService::new(Library::open(&source).unwrap()).unwrap();
+    let error = crate::library_metadata_document::with_admission_budget(64 * 1024, || {
+        service.write_library_metadata(&export).unwrap_err()
+    });
+    assert_eq!(error.code, crate::ErrorCode::Unsupported, "{error:?}");
+    assert!(!export.exists());
+    // The same library exports and imports under the real budget.
+    service.write_library_metadata(&export).unwrap();
+    PortcoveService::plan_library_import(&export, &source, &temp.path().join("destination"))
+        .unwrap();
+}
+
+#[test]
+fn transfer_capacity_reserves_the_actual_journal_size_beyond_the_old_flat_reserve() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let metadata = fixture(&source, &export);
+    // A synthetic inventory of 250,000 files with long relative paths encodes
+    // to well over the 64 MiB the preflight used to reserve.
+    let files = (0..250_000)
+        .map(|index| crate::AdoptionCopyFile {
+            relative_path: std::path::PathBuf::from(format!("{index:08}-{}", "p".repeat(200))),
+            size: 1,
+            sha256: "a".repeat(64),
+        })
+        .collect();
+    let content = vec![crate::LibraryTreePlan {
+        kind: crate::LibraryContentKind::UserData,
+        relative_path: "user".into(),
+        copy: crate::AdoptionCopyPlan {
+            directories: Vec::new(),
+            files,
+            skipped_entries: Vec::new(),
+            total_bytes: 250_000,
+        },
+    }];
+    let journal = crate::library_metadata_document::encoded_size(&(&metadata, &content)).unwrap();
+    assert!(journal > 64 * 1024 * 1024, "{journal}");
+    let reserve =
+        crate::library_metadata_document::transfer_reserve(&metadata, &content, 2).unwrap();
+    assert_eq!(reserve, 2 * journal + 1024 * 1024);
+}

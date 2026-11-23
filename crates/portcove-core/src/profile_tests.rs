@@ -508,6 +508,13 @@ fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_histo
         .unwrap();
     assert_eq!(retired.build.install_id, first.id);
     store.remove(&pending.id).unwrap();
+    let recorded =
+        crate::retained_build::retirements_from(&connection, port_id, &default.id).unwrap();
+    assert_eq!(recorded.len(), 1);
+    assert_eq!(
+        recorded[0].reason,
+        crate::RetainedBuildRetirementReason::Player
+    );
     library.activate_staged(port_id).unwrap();
     assert_eq!(offered(&connection).history.len(), MAX_OFFERED_REVISIONS);
 
@@ -563,6 +570,19 @@ fn default_updates_past_the_old_history_boundary_retire_by_policy_and_keep_histo
                 .any(|build| build.install_id == runtimes[0].id)
         );
     }
+
+    // Each policy retirement is recorded: runtime-1, then one per later update.
+    let recorded =
+        crate::retained_build::retirements_from(&connection, port_id, &default.id).unwrap();
+    assert_eq!(recorded.len(), 1 + 1 + 24);
+    assert_eq!(
+        recorded.last().unwrap().reason,
+        crate::RetainedBuildRetirementReason::Player
+    );
+    assert_eq!(
+        recorded[recorded.len() - 2].retired.build.install_id,
+        runtimes[1].id
+    );
 
     // Recovery meaning: every revision keeps its exact build, retired builds
     // stay registered on disk, and the history exports and validates.

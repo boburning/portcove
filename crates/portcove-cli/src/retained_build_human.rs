@@ -189,6 +189,20 @@ pub(crate) fn resolution(value: &RetainedBuildResolution, catalog: &Catalog) -> 
         ));
         gap_lines(entry.gap.as_ref(), &mut lines);
     }
+    for entry in &value.retired {
+        lines.push(format!(
+            "No longer offered: revision {} (install {}), {} at {}. The installation was not removed.",
+            entry.retired.revision,
+            clean(&entry.retired.build.install_id),
+            match entry.reason {
+                portcove_core::RetainedBuildRetirementReason::RetentionPolicy => {
+                    "retired by the retention policy"
+                }
+                portcove_core::RetainedBuildRetirementReason::Player => "retired by you",
+            },
+            utc_time(entry.retired_at)
+        ));
+    }
     lines.push("The setup reference protects this exact build from cleanup. Current launch and preparation checks still apply.".into());
     lines.join("\n")
 }
@@ -211,7 +225,7 @@ pub(crate) fn binding_preview(value: &RetainedBuildBindingPreview, catalog: &Cat
     }
     for retired in &value.retires {
         lines.push(format!(
-            "Stops offering recovery revision {} (install {}) to keep the newest {} offers. The installation stays on disk and can be bound again.",
+            "Stops offering recovery revision {} (install {}) to keep the newest {} offers. The installation stays on disk and can be bound again; only whole-port removal deletes it.",
             retired.revision,
             clean(&retired.build.install_id),
             portcove_core::MAX_OFFERED_REVISIONS

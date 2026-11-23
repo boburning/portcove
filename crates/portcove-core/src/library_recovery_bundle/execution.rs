@@ -780,16 +780,20 @@ fn read_signed<T: DeserializeOwned>(path: &Path, limit: Option<u64>) -> Result<A
             Ok(serde_json::from_slice(&bytes)?)
         }
         None => {
-            let metadata = fs::symlink_metadata(path)?;
-            if !metadata.is_file() || metadata.file_type().is_symlink() {
-                return Err(PortcoveError::verification(
-                    "recovery bundle document must be a regular file",
-                )
-                .detail("path", path.display().to_string()));
+            // The receipt MACs the re-encoded body, not its file bytes, so it
+            // must be decoded before verification; the admission budget bounds
+            // what an unverified file can make Portcove materialize.
+            let reader =
+                crate::library_metadata_document::open_admitted(path, "recovery bundle receipt")?;
+            let mut reader = std::io::BufReader::new(reader);
+            let decoded = serde_json::from_reader(&mut reader);
+            if reader.get_ref().limit() == 0 {
+                crate::library_metadata_document::require_admitted(
+                    crate::library_metadata_document::admission_budget().saturating_add(1),
+                    "recovery bundle receipt",
+                )?;
             }
-            Ok(serde_json::from_reader(std::io::BufReader::new(
-                fs::File::open(path)?,
-            ))?)
+            Ok(decoded?)
         }
     }
 }
@@ -829,6 +833,12 @@ fn write_or_verify(path: &Path, work: &Path, bytes: &[u8], limit: Option<u64>) -
         return Err(PortcoveError::unsupported(
             "recovery bundle document exceeds the supported size",
         ));
+    }
+    if limit.is_none() {
+        crate::library_metadata_document::require_admitted(
+            bytes.len() as u64,
+            "recovery bundle receipt",
+        )?;
     }
     match fs::symlink_metadata(path) {
         Ok(existing) => {

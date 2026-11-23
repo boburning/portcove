@@ -472,7 +472,8 @@ pub use retained_build::{
     MAX_OFFERED_REVISIONS, RetainedBuild, RetainedBuildAvailability, RetainedBuildBindingPreview,
     RetainedBuildGap, RetainedBuildHistoryResolution, RetainedBuildIdentity,
     RetainedBuildInventory, RetainedBuildReference, RetainedBuildRemovalPreview,
-    RetainedBuildResolution, RetainedBuildRetirementPreview, RetainedBuildRevision,
+    RetainedBuildResolution, RetainedBuildRetirement, RetainedBuildRetirementPreview,
+    RetainedBuildRetirementReason, RetainedBuildRevision,
 };
 pub use route_facts::{
     ArtifactFact, ArtifactRole, Coverage, FactProvenance, FactSource, LastGood,

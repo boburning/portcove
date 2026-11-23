@@ -84,9 +84,125 @@ pub(crate) fn write(output: impl Write, metadata: &LibraryMetadata) -> Result<Do
     Ok(writer.finish().1)
 }
 
+/// Encoded JSON size of any value, measured through a sink without keeping its
+/// bytes. Pretty output is never smaller than compact output, so it serves as
+/// a capacity reserve for either.
+pub(crate) fn encoded_size(value: &impl serde::Serialize) -> Result<u64> {
+    let mut writer = Hashing::new(std::io::sink());
+    serde_json::to_writer_pretty(&mut writer, value)?;
+    Ok(writer.size)
+}
+
+/// Destination space a transfer needs beyond its payload for its own durable
+/// documents: the recovery journal (or bundle receipt) that carries the
+/// reviewed metadata and content inventory, written up to `copies` times, plus
+/// a fixed 1 MiB for small fixed-shape records. Replaces a flat 64 MiB reserve
+/// that a large inventory could exceed after the copy had already run.
+pub(crate) fn transfer_reserve(
+    metadata: &LibraryMetadata,
+    content: &[crate::LibraryTreePlan],
+    copies: u64,
+) -> Result<u64> {
+    encoded_size(&(metadata, content))?
+        .checked_mul(copies)
+        .and_then(|bytes| bytes.checked_add(1024 * 1024))
+        .ok_or_else(|| PortcoveError::state("transfer journal estimate overflowed"))
+}
+
 /// Digest of the document `metadata` encodes to, without keeping its bytes.
 pub(crate) fn digest(metadata: &LibraryMetadata) -> Result<DocumentDigest> {
     write(std::io::sink(), metadata)
+}
+
+/// Materialized documents are kept within half of physical memory. Decoding
+/// JSON into Portcove's records expands it by at most about 16x (an empty
+/// string costs 2 bytes in JSON and a 24-byte `String`; every other field costs
+/// more JSON than structure), so a document may use 1/32 of physical memory.
+/// Physical rather than currently free memory keeps a reviewed plan stable.
+/// The same budget refuses an export, so a successful export stays importable
+/// on the machine that wrote it; no real library approaches it (10,000
+/// setups with 2 KB of revision data each is about 20 MiB).
+const PHYSICAL_MEMORY_SHARE: u64 = 32;
+/// Used when the platform cannot report physical memory: the budget of an
+/// 8 GiB machine.
+const FALLBACK_BUDGET: u64 = 256 * 1024 * 1024;
+
+#[cfg(test)]
+thread_local! {
+    static BUDGET_OVERRIDE: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_admission_budget<T>(budget: u64, run: impl FnOnce() -> T) -> T {
+    BUDGET_OVERRIDE.with(|value| value.set(Some(budget)));
+    let result = run();
+    BUDGET_OVERRIDE.with(|value| value.set(None));
+    result
+}
+
+#[cfg(unix)]
+fn physical_memory() -> Option<u64> {
+    // SAFETY: sysconf reads process-independent configuration values.
+    let (pages, page) = unsafe {
+        (
+            libc::sysconf(libc::_SC_PHYS_PAGES),
+            libc::sysconf(libc::_SC_PAGESIZE),
+        )
+    };
+    (pages > 0 && page > 0).then(|| (pages as u64).saturating_mul(page as u64))
+}
+
+#[cfg(windows)]
+fn physical_memory() -> Option<u64> {
+    use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+    // SAFETY: the structure is zero-initialized with its declared length, as
+    // GlobalMemoryStatusEx requires.
+    unsafe {
+        let mut status: MEMORYSTATUSEX = std::mem::zeroed();
+        status.dwLength = std::mem::size_of::<MEMORYSTATUSEX>() as u32;
+        (GlobalMemoryStatusEx(&mut status) != 0).then_some(status.ullTotalPhys)
+    }
+}
+
+/// Largest document this machine admits for decoding; see `PHYSICAL_MEMORY_SHARE`.
+pub(crate) fn admission_budget() -> u64 {
+    #[cfg(test)]
+    if let Some(budget) = BUDGET_OVERRIDE.with(std::cell::Cell::get) {
+        return budget;
+    }
+    physical_memory()
+        .map(|bytes| bytes / PHYSICAL_MEMORY_SHARE)
+        .unwrap_or(FALLBACK_BUDGET)
+}
+
+/// Typed refusal for a document beyond the admission budget, before any parse.
+pub(crate) fn require_admitted(size: u64, document: &str) -> Result<()> {
+    let budget = admission_budget();
+    if size > budget {
+        return Err(PortcoveError::unsupported(format!(
+            "This {document} is larger than this computer can safely read."
+        ))
+        .with_mutation_state(crate::MutationState::NoChanges)
+        .detail("document_bytes", size.to_string())
+        .detail("admission_budget_bytes", budget.to_string())
+        .detail("admission_basis", "physical_memory_div_32"));
+    }
+    Ok(())
+}
+
+/// Opens a regular, non-link file admitted by the budget. The returned reader
+/// stops one byte past the budget so a file that grows while it is read is
+/// refused too.
+pub(crate) fn open_admitted(path: &Path, document: &str) -> Result<std::io::Take<fs::File>> {
+    let metadata = fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Err(
+            PortcoveError::verification(format!("{document} must be a regular file"))
+                .detail("path", path.display().to_string()),
+        );
+    }
+    require_admitted(metadata.len(), document)?;
+    Ok(fs::File::open(path)?.take(admission_budget().saturating_add(1)))
 }
 
 fn open_regular(path: &Path) -> Result<fs::File> {
@@ -100,10 +216,15 @@ fn open_regular(path: &Path) -> Result<fs::File> {
     Ok(fs::File::open(path)?)
 }
 
-/// Streams and decodes a metadata document from a regular, non-link file.
+/// Streams and decodes a metadata document from a regular, non-link file
+/// within the admission budget.
 pub(crate) fn read(path: &Path) -> Result<(DocumentDigest, LibraryMetadata)> {
-    let mut reader = BufReader::new(Hashing::new(open_regular(path)?));
-    let document = serde_json::from_reader(&mut reader)?;
+    let mut reader = BufReader::new(Hashing::new(open_admitted(path, "library metadata")?));
+    let decoded = serde_json::from_reader(&mut reader);
+    if reader.get_ref().size > admission_budget() {
+        require_admitted(reader.get_ref().size, "library metadata")?;
+    }
+    let document = decoded?;
     // The decoder accepts only trailing whitespace; hash whatever remains so the
     // digest names the complete file that was reviewed.
     std::io::copy(&mut reader, &mut std::io::sink())?;

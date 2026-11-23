@@ -27,10 +27,11 @@ pub(crate) mod tests;
 /// Binding a further build retires the oldest offer that no selected setup or
 /// interrupted switch still needs, in the same transaction that publishes the
 /// new binding, so updates never stop at this bound. Retirement only stops
-/// offering a build: the installation and its bytes stay registered until the
-/// player removes them, every profile revision that used the build keeps its
-/// exact identity as inspectable history, and a retired build can be bound
-/// again. The bound keeps each stored reference inside `MAX_REFERENCE_BYTES`.
+/// offering a build and is recorded in `retained_build_retirements`. The
+/// installation stays registered and on disk (no single-installation cleanup
+/// route exists yet; only whole-port removal), every profile revision that used
+/// the build keeps its exact identity as inspectable history, and a retired
+/// build can be bound again. The bound keeps each stored reference inside `MAX_REFERENCE_BYTES`.
 pub const MAX_OFFERED_REVISIONS: usize = 16;
 const MAX_REFERENCE_BYTES: usize = 64 * 1024;
 
@@ -95,6 +96,28 @@ pub struct RetainedBuildRevision {
     pub revision: u64,
     pub build: RetainedBuildIdentity,
     pub superseded_at: i64,
+}
+
+/// Why an offered recovery build stopped being offered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum RetainedBuildRetirementReason {
+    /// A newer binding exceeded `MAX_OFFERED_REVISIONS`.
+    RetentionPolicy,
+    /// The player retired it after review.
+    Player,
+}
+
+/// Durable record of one retirement (library schema 78). The installation was
+/// not removed; only the offer ended.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RetainedBuildRetirement {
+    /// The reference revision that no longer offers the build.
+    pub binding_revision: u64,
+    pub retired: RetainedBuildRevision,
+    pub reason: RetainedBuildRetirementReason,
+    pub retired_at: i64,
 }
 
 /// Current availability of one offered recovery target.
@@ -165,6 +188,9 @@ pub struct RetainedBuildResolution {
     pub install: Option<InstallRecord>,
     pub gap: Option<RetainedBuildGap>,
     pub history: Vec<RetainedBuildHistoryResolution>,
+    /// Offers this setup no longer makes, newest first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub retired: Vec<RetainedBuildRetirement>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -277,12 +303,18 @@ impl PortcoveService {
                 })
             })
             .collect::<Result<_>>()?;
+        let retired = retirements_from(
+            &self.library.connection()?,
+            &reference.build.port_id,
+            &reference.setup_id,
+        )?;
         Ok(RetainedBuildResolution {
             reference,
             availability,
             install,
             gap,
             history,
+            retired,
         })
     }
 
@@ -522,7 +554,7 @@ impl PortcoveService {
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         require_reference_outside_profile(&transaction, port_id, setup_id)?;
-        let reference = self.publish_binding(
+        let (reference, retired) = self.publish_binding(
             &transaction,
             port_id,
             setup_id,
@@ -530,6 +562,11 @@ impl PortcoveService {
             preview.build,
             preview.previous.as_ref(),
         )?;
+        if retired != preview.retires {
+            return Err(PortcoveError::conflict(
+                "the recovery builds this binding would retire changed after review; review it again",
+            ));
+        }
         transaction.commit()?;
         self.reference_committed(&reference)?;
         Ok(reference)
@@ -561,7 +598,7 @@ impl PortcoveService {
         install_id: &str,
         build: RetainedBuildIdentity,
         previous: Option<&RetainedBuildReference>,
-    ) -> Result<RetainedBuildReference> {
+    ) -> Result<(RetainedBuildReference, Vec<RetainedBuildRevision>)> {
         require_idle(transaction, port_id)?;
         if reference_from(transaction, port_id, setup_id)?.as_ref() != previous {
             return Err(PortcoveError::conflict(
@@ -578,10 +615,10 @@ impl PortcoveService {
             PortcoveError::conflict("referenced installation lost its retained contract")
         })?;
         self.require_retained_build_permission(&installer, &install, &catalog)?;
-        let reference =
+        let published =
             write_successor_reference(&self.library, transaction, setup_id, build, previous)?;
         self.reference_publication_checkpoint()?;
-        Ok(reference)
+        Ok(published)
     }
 
     pub(crate) fn current_retained_reference(
@@ -732,6 +769,13 @@ impl PortcoveService {
         )?;
         let retired = reference.history.remove(position);
         write_reference(&transaction, &reference)?;
+        record_retirement(
+            &transaction,
+            &reference,
+            &retired,
+            RetainedBuildRetirementReason::Player,
+            Library::now(),
+        )?;
         self.reference_publication_checkpoint()?;
         transaction.commit()?;
         self.reference_committed(&reference)?;
@@ -1070,6 +1114,94 @@ pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
+/// Library migration 78: an append-only record of retired recovery offers, so
+/// what the retention policy or the player retired stays inspectable.
+pub(crate) fn migrate_retirements(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(
+        "CREATE TABLE retained_build_retirements (
+        id INTEGER PRIMARY KEY,
+        port_id TEXT NOT NULL,
+        setup_id TEXT NOT NULL,
+        binding_revision INTEGER NOT NULL CHECK(binding_revision >= 1),
+        retired_revision INTEGER NOT NULL CHECK(retired_revision >= 1),
+        install_id TEXT NOT NULL,
+        revision_json TEXT NOT NULL CHECK(length(revision_json) <= 65536),
+        reason TEXT NOT NULL CHECK(reason IN ('retention_policy','player')),
+        retired_at INTEGER NOT NULL CHECK(retired_at >= 0)
+    ); CREATE INDEX retained_build_retirement_setup
+        ON retained_build_retirements(port_id, setup_id, id);",
+    )?;
+    Ok(())
+}
+
+pub(crate) fn verify_retirements(connection: &Connection) -> Result<()> {
+    let present: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='retained_build_retirements')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !present {
+        return Err(PortcoveError::state(
+            "library migration 78 did not create retained-build retirements",
+        ));
+    }
+    Ok(())
+}
+
+fn record_retirement(
+    connection: &Connection,
+    reference: &RetainedBuildReference,
+    retired: &RetainedBuildRevision,
+    reason: RetainedBuildRetirementReason,
+    now: i64,
+) -> Result<()> {
+    connection.execute(
+        "INSERT INTO retained_build_retirements(port_id, setup_id, binding_revision,
+         retired_revision, install_id, revision_json, reason, retired_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![
+            reference.build.port_id,
+            reference.setup_id,
+            reference.revision,
+            retired.revision,
+            retired.build.install_id,
+            serde_json::to_string(retired)?,
+            serde_json::to_value(reason)?.as_str().unwrap_or_default(),
+            now.max(0),
+        ],
+    )?;
+    Ok(())
+}
+
+pub(crate) fn retirements_from(
+    connection: &Connection,
+    port_id: &str,
+    setup_id: &str,
+) -> Result<Vec<RetainedBuildRetirement>> {
+    let mut statement = connection.prepare(
+        "SELECT binding_revision, revision_json, reason, retired_at FROM retained_build_retirements
+         WHERE port_id=?1 AND setup_id=?2 ORDER BY id DESC",
+    )?;
+    let rows = statement.query_map(params![port_id, setup_id], |row| {
+        Ok((
+            row.get::<_, u64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, i64>(3)?,
+        ))
+    })?;
+    rows.map(|row| {
+        let (binding_revision, json, reason, retired_at) = row?;
+        Ok(RetainedBuildRetirement {
+            binding_revision,
+            retired: serde_json::from_str(&json)?,
+            reason: serde_json::from_value(serde_json::Value::String(reason))?,
+            retired_at,
+        })
+    })
+    .collect()
+}
+
 pub(crate) fn references_from(connection: &Connection) -> Result<Vec<RetainedBuildReference>> {
     let mut statement = connection.prepare(
         "SELECT id, port_id, setup_id, install_id, reference_json FROM retained_build_references ORDER BY port_id, setup_id")?;
@@ -1163,7 +1295,7 @@ pub(crate) fn write_successor_reference(
     setup_id: &str,
     build: RetainedBuildIdentity,
     previous: Option<&RetainedBuildReference>,
-) -> Result<RetainedBuildReference> {
+) -> Result<(RetainedBuildReference, Vec<RetainedBuildRevision>)> {
     let now = Library::now();
     let pins = RetentionPins::read(library, connection, &build.port_id, setup_id)?;
     let SuccessorHistory { history, retired } =
@@ -1189,7 +1321,16 @@ pub(crate) fn write_successor_reference(
         updated_at: previous.map_or(now, |r| now.max(r.updated_at)),
     };
     write_reference(connection, &reference)?;
-    Ok(reference)
+    for entry in &retired {
+        record_retirement(
+            connection,
+            &reference,
+            entry,
+            RetainedBuildRetirementReason::RetentionPolicy,
+            now,
+        )?;
+    }
+    Ok((reference, retired))
 }
 
 fn write_reference(connection: &Connection, reference: &RetainedBuildReference) -> Result<()> {

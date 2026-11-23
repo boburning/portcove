@@ -128,6 +128,8 @@ impl PortcoveService {
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
         let written = crate::library_metadata_document::write(temporary.as_file_mut(), &metadata)?;
         drop(metadata);
+        // Never publish an export the supported importer on this machine would refuse.
+        crate::library_metadata_document::require_admitted(written.size, "library metadata")?;
         temporary.as_file().sync_all()?;
         temporary.persist_noclobber(&destination).map_err(|error| {
             let kind = error.error.kind();

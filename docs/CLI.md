@@ -2621,11 +2621,16 @@ update never changes a customized setup. `copy --current-build` makes an upgrade
 build instead, leaving the source profile, its build and its progress unchanged.
 Default keeps up to 16 superseded builds offered for recovery. An update past
 that retires Default's oldest offer in the same transaction, so updates never
-stop at the bound. The build the selected setup projects is never retired by
-this policy, and an interrupted setup switch must finish first. Retirement keeps
-the recorded setup revision, its exact build identity and progress; the
-installation stays on disk until removed and can be bound again. A player can
-also retire a chosen offer earlier with `installation reference-retire`.
+stop at the bound. The build the selected setup projects and the newest offer
+(the rollback target) are never retired by this policy, and an interrupted
+setup switch must finish first; the update then refuses before it publishes.
+Retirement keeps the recorded setup revision, its exact build identity and
+progress, and library schema 78 records it under `retired` in
+`installation reference`. Retirement only ends the offer: the installation stays
+on disk and can be bound again. Portcove has no command yet that removes one
+superseded installation on its own; removing the whole port is the only
+cleanup route, so superseded installations accumulate on disk. A player can also
+retire a chosen offer earlier with `installation reference-retire`.
 Stale `--expected-revision` values fail as `conflict`.
 
 Clients can offer `profile create-clean` when `capabilities.commands` includes
@@ -3264,8 +3269,10 @@ offered build again promotes it back to current instead of duplicating it. A
 setup offers up to 16 earlier builds. Binding a further build retires the oldest
 offer that the selected setup does not use, as a deliberate retention policy:
 `installation.reference-plan` lists it under `retires`, the review fingerprint
-covers it, and the build stays registered and re-bindable. The retired build
-stays named by every setup revision that used it.
+covers it, binding refuses if the retired set differs from the review, and the
+build stays registered and re-bindable. The retired build stays named by every
+setup revision that used it, and `installation.reference` lists each retirement
+under `retired` with its reason.
 
 ```text
 portcove --library PATH --json installation reference PORT_ID SETUP_ID

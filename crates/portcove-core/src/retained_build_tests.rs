@@ -934,6 +934,17 @@ fn binding_past_the_old_history_boundary_retires_explicitly_and_keeps_the_instal
             .retained_builds()
             .all(|build| build.install_id != first.id)
     );
+    // The retirement is recorded durably and surfaced with the reference.
+    let resolved = service
+        .resolve_retained_build(&first.port_id, "custom")
+        .unwrap();
+    assert_eq!(resolved.retired.len(), 1);
+    assert_eq!(resolved.retired[0].retired, preview.retires[0]);
+    assert_eq!(
+        resolved.retired[0].reason,
+        RetainedBuildRetirementReason::RetentionPolicy
+    );
+    assert_eq!(resolved.retired[0].binding_revision, reference.revision);
 
     // Retirement ends only the offer: the exact install stays registered and
     // verified, survives reopen, and can be bound again.
