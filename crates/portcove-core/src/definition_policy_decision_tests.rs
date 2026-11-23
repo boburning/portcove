@@ -281,6 +281,9 @@ fn decision_schema_is_explicit_canonical_and_isolates_newer_schemas() {
     let mut both = entry.clone();
     both["decision"]["index_sha256"] = published.index_sha256().into();
     assert!(parse(&both).is_err());
+    // Including an explicit null: schema 2 omits the field.
+    both["decision"]["index_sha256"] = Value::Null;
+    assert!(parse(&both).is_err());
     let mut neither = base.clone();
     neither["decision"]
         .as_object_mut()

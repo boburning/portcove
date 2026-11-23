@@ -541,7 +541,19 @@ impl PolicyDocument {
         // binding shape needs a newer reader for this subject alone.
         if let Some(schema) = raw.0.get("decision_schema") {
             match schema.as_u64() {
-                Some(2) => {}
+                Some(schema) if (2..=MAX_POLICY_DECISION_SCHEMA).contains(&schema) => {
+                    // The global binding is omitted, not nulled: one canonical form.
+                    if raw
+                        .0
+                        .get("decision")
+                        .and_then(serde_json::Value::as_object)
+                        .is_some_and(|decision| decision.contains_key("index_sha256"))
+                    {
+                        return Err(PortcoveError::verification(
+                            "an entry-bound decision must omit the index binding",
+                        ));
+                    }
+                }
                 Some(schema) if schema > MAX_POLICY_DECISION_SCHEMA => {
                     return Err(
                         crate::definition_capabilities::newer_policy_decision_schema(schema),

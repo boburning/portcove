@@ -202,13 +202,20 @@ async fn entry_bound_decision_survives_an_unrelated_addition_unlike_the_global_b
                 .is_err()
         );
         assert!(!selectable(&library, &third));
-        // Replay against another entry: the sibling's entry digest under the
-        // subject's identity is refused.
+        // Replay against another entry: with the subject's own revision and
+        // identity unchanged, only the sibling's entry digest differs.
         let mut replayed = subject.clone();
         replayed["policy_revision"] = 2.into();
         replayed["decision"]["definition_sha256"] =
-            decision_for(&revised, SIBLING, 1, 2)["decision"]["definition_sha256"].clone();
-        publish_set(&fixture, &key, 4, &revised, &[&replayed, &sibling_policy]).await;
+            decision_for(&added, SIBLING, 1, 2)["decision"]["definition_sha256"].clone();
+        let mut honest = subject.clone();
+        honest["policy_revision"] = 2.into();
+        assert_eq!(
+            replayed["decision"]["definition_revision"],
+            decision_for(&added, ID, 2, 2)["decision"]["definition_revision"]
+        );
+        assert_eq!(honest, decision_for(&added, ID, 2, 2));
+        publish_set(&fixture, &key, 4, &added, &[&replayed, &sibling_policy]).await;
         let replay = acquire_policy(&fixture, &root, ID).await.unwrap();
         let fourth = acquire(&fixture, &root).await.unwrap();
         assert!(
@@ -216,10 +223,19 @@ async fn entry_bound_decision_survives_an_unrelated_addition_unlike_the_global_b
                 .apply_definition_publisher_policy(&replay, Some(&fourth))
                 .is_err()
         );
+        // Positive control at the same index: the honest digest is admitted.
+        publish_set(&fixture, &key, 5, &added, &[&honest, &sibling_policy]).await;
+        library
+            .apply_definition_publisher_policy(
+                &acquire_policy(&fixture, &root, ID).await.unwrap(),
+                Some(&acquire(&fixture, &root).await.unwrap()),
+            )
+            .unwrap();
 
-        // Removing the subject leaves no current entry for its decision.
+        // Removing the subject leaves no current entry for its (otherwise
+        // current, same-revision) decision.
         let removed = index_targets(&[(&sibling, SIBLING, 1)]);
-        publish_set(&fixture, &key, 5, &removed, &[&subject, &sibling_policy]).await;
+        publish_set(&fixture, &key, 6, &removed, &[&honest, &sibling_policy]).await;
         let fifth = acquire(&fixture, &root).await.unwrap();
         let fifth_policy = acquire_policy(&fixture, &root, ID).await.unwrap();
         assert!(
