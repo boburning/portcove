@@ -118,6 +118,15 @@ async function readRevisionDirectory(
     const entry = object(raw);
     if (entry.type !== "file" || typeof entry.name !== "string") continue;
     if (!/^[A-Za-z0-9_-]+\.ya?ml$/u.test(entry.name)) continue;
+    // Each file is one more request: keep the research reserve intact, and stop
+    // as a budget boundary (the list stays due) rather than eating into it.
+    const reserve = researchReserve(host, 22);
+    const left = host.budget.remaining();
+    if (left.requests <= reserve.requests || left.bytes < cap + reserve.bytes)
+      throw new GitHubApiError(
+        "budget_exhausted",
+        "External source directory does not fit the remaining run budget",
+      );
     const response = await host.source.http.request(
       "GET",
       `https://raw.githubusercontent.com/${repository}/${revision}/${directory}/${entry.name}`,
@@ -202,7 +211,7 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
             list.cap,
           ),
         });
-        host.save(name, { url: sourceUrl, revision, bytes: Buffer.byteLength(responseText) });
+        host.save(name, { url: sourceUrl, revision, text: responseText });
         parsed = {
           ...parseExternalList(list.id, responseText),
           source: {

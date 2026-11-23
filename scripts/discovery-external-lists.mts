@@ -71,7 +71,6 @@ export const externalHintRetryDays = { unavailable: 30, conflict: 30, failed: 1 
 export const externalListFailureRetryDays = 2;
 // Retired list ids remain readable in retained state; only configured lists are collected.
 const listId = /^[a-z0-9][a-z0-9-]{0,63}$/u;
-const maxEntries = 20000;
 const maxTitle = 160;
 
 /** External claims only: source slug/subject never establish Portcove game identity. */
@@ -199,7 +198,6 @@ function bounded(text: string, cap: number, label: string) {
 }
 function collect(rows: { url: string; title: string }[], unlinked: number): ParsedExternalList {
   if (!rows.length && !unlinked) throw new Error("External list has no entries");
-  if (rows.length + unlinked > maxEntries) throw new Error("Oversized external list entry set");
   const entries = new Map<string, ExternalListEntry>();
   for (const row of rows) {
     const repository = externalRepository(row.url);
@@ -225,7 +223,6 @@ export function parseFindsFeed(text: string): ParsedExternalList {
   }
   if (!isRecord(value) || !Array.isArray(value.games))
     throw new Error("Unsupported finds feed shape");
-  if (value.games.length > maxEntries) throw new Error("Oversized external list entry set");
   let unlinked = 0;
   const rows: { url: string; title: string }[] = [];
   for (const game of value.games) {
@@ -298,7 +295,7 @@ export function parseRecompSoftwareCatalog(text: string): ParsedExternalList {
   } catch {
     throw new Error("Malformed RecompSoftware JSON");
   }
-  if (!Array.isArray(value) || !value.length || value.length > maxEntries)
+  if (!Array.isArray(value) || !value.length)
     throw new Error("Unsupported RecompSoftware entry set");
   const entries = new Map<string, ExternalListEntry>();
   const ids = new Set<string>();
@@ -455,9 +452,12 @@ export function parsePortMasterIndex(text: string): ParsedExternalList {
     const prose = [attr.desc, attr.desc_md, attr.inst, attr.inst_md]
       .filter((field): field is string => typeof field === "string")
       .join(" ");
-    const links = [...new Set(prose.match(proseLink) ?? [])].filter(
-      (link) => !/\/\/github\.com\/(?:PortsMaster|PortsMaster-MV)\//iu.test(link),
-    );
+    // Prose often ends a link with sentence punctuation that is not part of the path.
+    const links = [
+      ...new Set(
+        (prose.match(proseLink) ?? []).map((link) => link.replace(/[.,;:!?)\]}'"]+$/u, "")),
+      ),
+    ].filter((link) => !/\/\/github\.com\/(?:PortsMaster|PortsMaster-MV)\//iu.test(link));
     if (!links.length) unlinked++;
     for (const link of links) rows.push({ url: link, title: inert(attr.title) });
   }
@@ -486,7 +486,7 @@ export function parseOsgcGames(text: string): ParsedExternalList {
     let games: unknown;
     try {
       // Data only: the schema-free core parser builds plain objects, never tags or code.
-      games = parseYaml(body, { schema: "core", maxAliasCount: 0 });
+      games = parseYaml(body, { schema: "core", maxAliasCount: 0, logLevel: "error" });
     } catch {
       throw new Error("Malformed Open Source Game Clones YAML");
     }
@@ -499,7 +499,13 @@ export function parseOsgcGames(text: string): ParsedExternalList {
         excluded++;
         continue;
       }
-      const originals = Array.isArray(game.originals) ? game.originals.map(inert).join(", ") : "";
+      const originals = Array.isArray(game.originals)
+        ? game.originals
+            .filter((name): name is string => typeof name === "string")
+            .map(inert)
+            .filter(Boolean)
+            .join(", ")
+        : "";
       if (typeof game.repo === "string")
         rows.push({ url: game.repo, title: originals || inert(game.name) });
       else unlinked++;
@@ -521,6 +527,18 @@ export function parseExternalList(id: string, text: string): ParsedExternalList 
   return parseAlexbeavCatalog(text);
 }
 
+/** The immutable source URLs a retained list clock may name for one revision. */
+function expectedSourceUrls(id: string, revision: string): string[] {
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  if (!list || !("revision_repository" in list)) return [];
+  if ("revision_directory" in list)
+    return [
+      `https://github.com/${list.revision_repository}/tree/${revision}/${list.revision_directory}`,
+    ];
+  return [
+    `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`,
+  ];
+}
 const clock = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
 export function parseExternalLeadState(value: unknown): ExternalLeadState | undefined {
   if (value === undefined) return undefined;
@@ -556,8 +574,7 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
         typeof raw.source.revision !== "string" ||
         !/^[a-f0-9]{40}$/u.test(raw.source.revision) ||
         typeof raw.source.url !== "string" ||
-        !/^https:\/\/(?:raw\.githubusercontent\.com|github\.com)\//u.test(raw.source.url) ||
-        !raw.source.url.includes(`/${raw.source.revision}/`) ||
+        !expectedSourceUrls(id, raw.source.revision).includes(raw.source.url) ||
         typeof raw.source.content_sha256 !== "string" ||
         !/^[a-f0-9]{64}$/u.test(raw.source.content_sha256) ||
         (raw.source.repository_id !== undefined &&
@@ -599,7 +616,6 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
           ([source, rows]) =>
             !listId.test(source) ||
             !Array.isArray(rows) ||
-            rows.length > maxEntries ||
             rows.some((row) => {
               if (!isRecord(row)) return true;
               const { fingerprint, ...claims } = row;

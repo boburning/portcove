@@ -178,6 +178,7 @@ export async function resolveDiscoveryRevision(
   const meta = await metadata(context, repository);
   if (
     !Number.isSafeInteger(meta.id) ||
+    Number(meta.id) <= 0 ||
     (repositoryId !== undefined && meta.id !== repositoryId) ||
     repoName(meta.full_name).toLowerCase() !== repository.toLowerCase() ||
     typeof meta.default_branch !== "string" ||

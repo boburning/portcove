@@ -15,6 +15,7 @@ import {
   resolveExternalHint,
 } from "./discovery-leads.mts";
 import {
+  parseExternalLeadState,
   parseDecompFunProjects,
   parseOsgcGames,
   parsePortMasterIndex,
@@ -1441,7 +1442,7 @@ void test("new structured sources yield repository hints and apply their own sco
         "a.zip": {
           attr: {
             title: "Engine Port",
-            desc: "Built from https://github.com/upstream/engine and https://github.com/PortsMaster/PortMaster-New",
+            desc: "Built from https://github.com/upstream/engine. See https://github.com/PortsMaster/PortMaster-New",
           },
         },
         "b.zip": { attr: { title: "Paid game", desc: "Buy it on Steam." } },
@@ -1451,7 +1452,7 @@ void test("new structured sources yield repository hints and apply their own sco
   assert.deepEqual(
     portmaster.entries.map((e) => e.key),
     ["https://github.com/upstream/engine"],
-    "PortMaster's own repositories are not upstreams",
+    "sentence punctuation is not part of the path, and PortMaster's own repositories are not upstreams",
   );
   assert.equal(portmaster.unlinked, 1);
 
@@ -1580,4 +1581,100 @@ void test("a directory source pins its repository identity on the first complete
   await session.collectExternalLists();
   assert.equal(session.leads.external?.lists.osgc?.source?.repository_id, 72310);
   assert.equal(session.leads.external?.attempts?.osgc?.outcome, "partial");
+});
+
+void test("retained list sources must name that list's own immutable location", () => {
+  const revision = "d".repeat(40);
+  const state = (url: string) => ({
+    lists: {
+      osgc: {
+        completed_at: "2026-11-01T00:00:00.000Z",
+        evidence: "x",
+        entries: 0,
+        unlinked: 0,
+        fingerprint: "f",
+        source: { url, revision, content_sha256: "e".repeat(64), repository_id: 7 },
+      },
+    },
+    hints: {},
+  });
+  assert.ok(
+    parseExternalLeadState(
+      state(`https://github.com/opengaming/osgameclones/tree/${revision}/games`),
+    ),
+  );
+  assert.throws(
+    () =>
+      parseExternalLeadState(
+        state(`https://raw.githubusercontent.com/other/repo/${revision}/games`),
+      ),
+    /immutable external source/u,
+  );
+});
+
+void test("a directory source too large for the remaining budget stops as a budget boundary", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-osgc-budget-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+  const budget = new DiscoveryBudget("ordinary");
+  const leads = parseLeadState(undefined);
+  leads.external = {
+    lists: {},
+    hints: {},
+    attempts: Object.fromEntries(
+      externalListIds
+        .filter((id) => id !== "osgc")
+        .map((id) => [id, { attempted_at: now, outcome: "partial" as const }]),
+    ),
+  };
+  Object.assign(session, {
+    stateDir: root,
+    runDir: root,
+    journalFile: path.join(root, "journal.json"),
+    checkpoint: {},
+    checkpointPreimage: "fixture",
+    inventory: { issues: [] },
+    intakeRecords: [],
+    journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+    leads,
+    budget,
+    leadPages: 0,
+    searches: 0,
+    leadCollectionAttempted: true,
+    researchedLeads: new Set<number>(),
+  });
+  session.knownLeadUrls = () => new Set();
+  const revision = "c".repeat(40);
+  const reads: string[] = [];
+  Object.defineProperty(session, "source", {
+    configurable: true,
+    value: {
+      budget,
+      http: {
+        request: async (_m: string, url: string) => {
+          reads.push(url);
+          budget.charge("GET", url, 1, 100, "200");
+          return { requests: 1, bytes: 1, status: 200, headers: {}, text: "[]" };
+        },
+      },
+      sdk: await fixtureGitHub(({ endpoint }) => {
+        budget.charge("GET", endpoint, 1, 100, "200");
+        if (endpoint === "repos/opengaming/osgameclones")
+          return { id: 5, full_name: "opengaming/osgameclones", default_branch: "master" };
+        if (endpoint === "repos/opengaming/osgameclones/git/ref/heads/master")
+          return { object: { sha: revision } };
+        // Far more files than the ordinary profile can read beside its reserve.
+        return Array.from({ length: 400 }, (_, i) => ({ type: "file", name: `f${i}.yaml` }));
+      }),
+    },
+  });
+  await session.collectExternalLists();
+  assert.ok(reads.length > 0 && reads.length < 400, "reading stopped before the reserve");
+  assert.equal(session.leads.external?.lists.osgc, undefined);
+  assert.equal(
+    session.leads.external?.attempts?.osgc,
+    undefined,
+    "a budget stop records no failed attempt, so the list stays due",
+  );
+  assert.ok(budget.remaining().requests >= 22, "the research reserve is intact");
 });
