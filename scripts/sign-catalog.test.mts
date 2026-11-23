@@ -414,6 +414,7 @@ void test("listing directory guard measures every delivery consumer, not an embe
     record: 1048576,
     entries: 10000,
     text: 67108864,
+    publisherText: 8388608,
   });
   const row = (id: string, summary = "Description") => ({
     id,
@@ -429,6 +430,7 @@ void test("listing directory guard measures every delivery consumer, not an embe
     measures.map(([name, , bound]) => [name, bound]),
     [
       ["generated listings.json bytes", 67108864],
+      ["canonical listings.json publisher read", 8388608],
       ["compact listing directory decoded bytes", 33554432],
       ["compact listing carrier bytes", 8388608],
       ["largest listing record bytes", 1048576],
@@ -436,7 +438,8 @@ void test("listing directory guard measures every delivery consumer, not an embe
     ],
   );
   assert.equal(measures[0]![1], text.length);
-  assert.equal(measures[4]![1], 2);
+  assert.equal(measures[1]![1], text.length);
+  assert.equal(measures[5]![1], 2);
   const catalogBounds = { current: 16777216, percent: 85 };
   assert.equal(catalogSizeGuard(100, { ports: [] }, catalogBounds, measures).ok, true);
   // One oversized record fails its own row while the whole directory still fits.
@@ -456,6 +459,7 @@ void test("listing directory guard measures every delivery consumer, not an embe
       ["compact catalog bytes", true],
       ["escaped signed envelope bytes (unsigned placeholder)", true],
       ["generated listings.json bytes", true],
+      ["canonical listings.json publisher read", true],
       ["compact listing directory decoded bytes", true],
       ["compact listing carrier bytes", true],
       ["largest listing record bytes", false],

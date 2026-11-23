@@ -78,6 +78,7 @@ mod projection_tests {
     /// Deterministic scale scenario: the committed directory repeated `scale`
     /// times, each repetition with fresh identities. A validation scenario
     /// for measurement only; it is never a product limit.
+    #[cfg(target_os = "linux")]
     fn scaled_compact_document(scale: usize) -> Vec<u8> {
         let mut directory: serde_json::Value =
             serde_json::from_str(include_str!("../catalog/listings.json")).unwrap();

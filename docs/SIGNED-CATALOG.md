@@ -120,7 +120,8 @@ once compatible application packages are available on the affected channels.
 `node scripts/catalog-capacity.mts --check` reports generated and compact
 operational bytes, a representative escaped signed envelope and the listing
 directory against each consumer that can stop its delivery: Core's inspection
-of the authored text, and the compact carrier's decoded, wire, per-record and
+of the authored text, the listing publisher's 8 MiB read of the canonical
+file, and the compact carrier's decoded, wire, per-record and
 entry-count bounds that released readers enforce. The compact rows omit
 observations; publication preparation measures the exact carrier. The Core test
 `catalog_growth_stays_within_supported_capacity` measures Core serialization for
@@ -140,19 +141,24 @@ and the publisher is changed to depend on it. The current generation advertises
 its limits as `listing_delivery_limits` in `capabilities`; older readers omit
 the field.
 
-| Bound                                                | Released readers (through Preview 15) | Current generation | Why it stays or changed                                                                                                                |
-| ---------------------------------------------------- | ------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Listing target body, either carrier                  | 8 MiB                                 | 8 MiB              | Whole-target read before its digest check; the frozen `listing_delivery` SQLite check. Compact delivery needs 19% of it today.         |
-| Decoded compact directory                            | 32 MiB                                | 32 MiB             | Decompression-ratio and working-memory bound, allocated before inflation; the `compact_listing_delivery` SQLite check. Measured below. |
-| One compact listing record                           | 1 MiB                                 | 1 MiB              | Bounds the per-record duplicate-key JSON tree. The largest record is 8,517 bytes.                                                      |
-| Listings and withdrawals                             | 10,000 each                           | No count           | The byte bounds already bound their memory.                                                                                            |
-| Definition index                                     | 4 MiB, 4,096 definitions              | 4 MiB, no count    | Same reason.                                                                                                                           |
-| Bundled listing directory                            | 8 MiB, 10,000 listings                | No bound           | Compiled into the binary; no untrusted input or allocation to protect.                                                                 |
-| Listing text inspected by `catalog inspect-listings` | 8 MiB                                 | 64 MiB             | Twice the largest decoded directory a reader admits, so authored formatting never binds before delivery.                               |
+| Bound                                                | Released readers         | Current generation | Why it stays or changed                                                                                                                |
+| ---------------------------------------------------- | ------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Listing target body, either carrier                  | 8 MiB                    | 8 MiB              | Whole-target read before its digest check; the frozen `listing_delivery` SQLite check. Compact delivery needs 19% of it today.         |
+| Decoded compact directory                            | 32 MiB                   | 32 MiB             | Decompression-ratio and working-memory bound, allocated before inflation; the `compact_listing_delivery` SQLite check. Measured below. |
+| One compact listing record                           | 1 MiB                    | 1 MiB              | Bounds the per-record duplicate-key JSON tree. The largest record is 8,517 bytes.                                                      |
+| Listings and withdrawals                             | 10,000 each              | No count           | The byte bounds already bound their memory.                                                                                            |
+| Definition index                                     | 4 MiB, 4,096 definitions | 4 MiB, no count    | Same reason.                                                                                                                           |
+| Bundled listing directory                            | 8 MiB, 10,000 listings   | No bound           | Compiled into the binary; no untrusted input or allocation to protect.                                                                 |
+| Listing text inspected by `catalog inspect-listings` | 8 MiB                    | 64 MiB             | Twice the largest decoded directory a reader admits, so authored formatting never binds before delivery.                               |
 
-The released readers' 10,000-entry count is the nearest constraint on growth:
-1,649 listings in November 2026, with an 85% guard at 8,500. The current
-generation removes it. The 32 MiB decoded bound is retained without a raise:
+The nearest constraint on growth is not a reader: the listing publisher reads
+the canonical `listings.json` under the 8 MiB target bound
+(`scripts/listing-observation-delivery.mts`), and the guard leaves 680,323
+bytes, about 400 generated listings, in November 2026. That read is publisher
+input, not a wire format, so it can follow Core's 64 MiB inspection bound
+without a new reader generation. The released readers' 10,000-entry count
+comes next: 1,649 listings, with an 85% guard at 8,500. The current generation
+removes it. The 32 MiB decoded bound is retained without a raise:
 compact delivery uses 16% of it, and raising it also needs a rebuild of the
 installed `compact_listing_delivery` table. Removing the whole-directory bound
 entirely needs a sharded, separately authenticated directory; that is a
@@ -171,8 +177,10 @@ Peak is the resident-memory increase over the process before the operation.
 | 5x    | 8,245    | 7,865,527     | 26,884,452    | 108.4 MiB, 374 ms    | 32,304,720 | 97.8 MiB, 339 ms      |
 | 10x   | 16,490   | 15,730,215    | 53,782,532    | 220.2 MiB, 759 ms    | 64,623,130 | 194.9 MiB, 692 ms     |
 
-Admission working memory is about four times the decoded bytes, so the 32 MiB
-decoded bound keeps one admission near 130 MiB. The 10x copy exceeds the
+One decode, parse and projection uses about four times the decoded bytes, so
+the 32 MiB decoded bound keeps it near 130 MiB. Admission also re-reads the
+stored previous directory, so replacing a directory of the same size needs
+about twice that. Timings come from a debug build and are upper bounds. The 10x copy exceeds the
 released 8 MiB carrier and 32 MiB decoded bounds; it was decoded with the
 measurement-only unbounded budget to show where the next raise would land.
 Its authored text fits the 64 MiB inspection bound, so one inspection at that
@@ -186,11 +194,18 @@ To move the minimum supported generation:
    `capabilities` report the required `listing_delivery_limits`.
 3. Only then change the publisher (`scripts/listing-observation-delivery.mts`,
    the release-tools signer and the publication contracts) to depend on the
-   new limits, for example to publish more than 10,000 listings.
+   new limits, for example to publish more than 10,000 listings or 4,096
+   definitions.
 
 An older preview refuses the larger target and keeps its last admitted
 directory until that signed metadata expires, then shows its bundled directory.
-Its installed games, libraries, saves and settings are unchanged. The application update offered on its channel restores
+More than 4,096 definitions would make it refuse the whole definition index, so
+it would also stop receiving definition refreshes. Its installed games,
+libraries, saves and settings are unchanged. A library downgraded to an older
+build after the current build stored a directory above the released count
+cannot read that stored directory. It shows its bundled directory, and the
+older build cannot admit a new directory until the current build replaces the
+stored one. Step 3 makes that downgrade one-way for listings. The application update offered on its channel restores
 current listings.
 
 The catalog publisher bounds the retained signed repository at 768 MiB.

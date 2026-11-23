@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { gzipSync } from "node:zlib";
-import { compactListingCarrier } from "./listing-directory-carrier.mts";
+import { compactListingCarrier, listingDeliveryMaximum } from "./listing-directory-carrier.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export function capacityConstant(source: string, name: string) {
@@ -158,6 +158,8 @@ export interface ListingDeliveryBounds {
   entries: number;
   /** Authored directory text the current Core inspects. */
   text: number;
+  /** Canonical `listings.json` read by the listing publisher. */
+  publisherText: number;
 }
 
 export function listingDeliveryBounds(carrierSource: string, listingsSource: string) {
@@ -167,6 +169,7 @@ export function listingDeliveryBounds(carrierSource: string, listingsSource: str
     record: capacityConstant(carrierSource, "MAX_COMPACT_RECORD_BYTES"),
     entries: capacityConstant(carrierSource, "MAX_LISTING_ENTRIES"),
     text: capacityConstant(listingsSource, "MAX_LISTING_DIRECTORY_TEXT_BYTES"),
+    publisherText: listingDeliveryMaximum,
   } satisfies ListingDeliveryBounds;
 }
 
@@ -208,6 +211,12 @@ export function listingDirectoryMeasures(
   );
   return [
     ["generated listings.json bytes", text.length, bounds.text, "Core listing inspection bound"],
+    [
+      "canonical listings.json publisher read",
+      text.length,
+      bounds.publisherText,
+      "listing publisher canonical read bound",
+    ],
     [
       "compact listing directory decoded bytes",
       decoded.length,
