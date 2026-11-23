@@ -88,7 +88,7 @@ impl PortcoveService {
             .checked_add(database_bytes)
             .and_then(|size| size.checked_add(journal_reserve))
             .ok_or_else(|| PortcoveError::state("library capacity estimate overflowed"))?;
-        let available_bytes = fs4::available_space(
+        let available_bytes = crate::path::transfer_available_space(
             destination_root
                 .parent()
                 .ok_or_else(|| PortcoveError::usage("destination needs a parent directory"))?,

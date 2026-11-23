@@ -228,7 +228,12 @@ pub(crate) fn read(path: &Path) -> Result<(DocumentDigest, LibraryMetadata)> {
     // The decoder accepts only trailing whitespace; hash whatever remains so the
     // digest names the complete file that was reviewed.
     std::io::copy(&mut reader, &mut std::io::sink())?;
-    Ok((reader.into_inner().finish().1, document))
+    let (_, digest) = reader.into_inner().finish();
+    // The reader stops one byte past the budget. Reaching that byte means the
+    // file grew beyond it while it was read, so the digest would name only a
+    // prefix: refuse instead.
+    require_admitted(digest.size, "library metadata")?;
+    Ok((digest, document))
 }
 
 /// Digest of a metadata file without decoding it.

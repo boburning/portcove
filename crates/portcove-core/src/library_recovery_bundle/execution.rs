@@ -1638,6 +1638,50 @@ mod tests {
     }
 
     #[test]
+    fn bundle_preflight_reserves_its_receipt_and_refuses_before_staging() {
+        let workspace = tempfile::tempdir().unwrap();
+        let source = workspace.path().join("library");
+        let destination = workspace.path().join("bundle");
+        let (_, plan) = plan_fixture(&source, &destination);
+        let short = plan.required_bytes - 1;
+        let error = crate::path::with_available_space(short, || {
+            PortcoveService::new(Library::open(&source).unwrap())
+                .unwrap()
+                .plan_library_recovery_bundle(&destination)
+                .unwrap_err()
+        });
+        assert!(
+            error.message.contains("insufficient free space"),
+            "{error:?}"
+        );
+        assert_eq!(
+            error.details["required_bytes"],
+            plan.required_bytes.to_string()
+        );
+        // Creation re-reviews under the same space and stops before staging.
+        crate::path::with_available_space(short, || {
+            start_creation(
+                &source,
+                &destination,
+                &plan.plan_sha256,
+                &mut |_| Ok(()),
+                &|| Ok(()),
+            )
+            .unwrap_err()
+        });
+        assert!(!destination.exists());
+        let parent = destination.parent().unwrap();
+        assert!(
+            fs::read_dir(parent).unwrap().all(|entry| !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with(STAGING_PREFIX)),
+            "no staging is created"
+        );
+    }
+
+    #[test]
     fn recovery_carries_registered_inbox_bios_and_tool_payload_into_the_restored_root() {
         let workspace = tempfile::tempdir().unwrap();
         let source = workspace.path().join("library");

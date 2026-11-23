@@ -3830,6 +3830,8 @@ impl Library {
             rows.collect::<std::result::Result<Vec<_>, _>>()?
         };
         transaction.execute("DELETE FROM port_settings WHERE port_id=?1", [port_id])?;
+        // A reinstalled port starts without retirement history from before.
+        crate::retained_build::delete_retirements(&transaction, port_id, None)?;
         transaction.execute("DELETE FROM installs WHERE port_id=?1", [port_id])?;
         transaction.commit()?;
         Ok(paths)

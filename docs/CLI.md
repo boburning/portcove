@@ -1852,9 +1852,15 @@ copies without replacing existing files, restores metadata transactionally, and
 verifies the copied manifests against current platform executable and persistence
 rules. Active, previous, and staged identity and source references survive the
 round trip. Import does not copy input SQLite, credentials, HTTP caches, or logs.
-Metadata JSON is written and read as a stream with no whole-document size
-ceiling, so any library Portcove can create exports and imports; each profile,
-revision and retained-build reference keeps its own byte bound. The recovery
+Metadata JSON is written and read as a stream with no fixed size ceiling; each
+profile, revision and retained-build reference keeps its own byte bound. Because
+import still decodes the whole document at once, Portcove admits a document only
+up to 1/32 of the computer's physical memory and refuses a larger one before
+reading it (`unsupported`, no changes, with `document_bytes` and
+`admission_budget_bytes`). Export applies the same limit, so an export always
+imports on the computer that wrote it; a computer with less memory can refuse an
+export another computer wrote. A chunked metadata format that removes this
+dependency on memory is tracked as follow-up work. The recovery
 journal that carries the reviewed plan and content inventory has no size
 ceiling either and is read as a stream, so import and move recovery work at any
 size the library reaches. Source
@@ -2651,7 +2657,10 @@ stop at the bound. The build the selected setup projects and the newest offer
 setup switch must finish first; the update then refuses before it publishes.
 Retirement keeps the recorded setup revision, its exact build identity and
 progress, and library schema 78 records it under `retired` in
-`installation reference`. Retirement only ends the offer: the installation stays
+`installation reference`. These records are local history: they are removed
+with their setup reference or with the port, and library export and import do
+not carry them (the exported setup revisions still name every build they used).
+Retirement only ends the offer: the installation stays
 on disk and can be bound again. Portcove has no command yet that removes one
 superseded installation on its own; removing the whole port is the only
 cleanup route, so superseded installations accumulate on disk. A player can also

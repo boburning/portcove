@@ -1750,3 +1750,47 @@ fn transfer_capacity_reserves_the_actual_journal_size_beyond_the_old_flat_reserv
         crate::library_metadata_document::transfer_reserve(&metadata, &content, 2).unwrap();
     assert_eq!(reserve, 2 * journal + 1024 * 1024);
 }
+
+#[test]
+fn import_preflight_reserves_its_journal_and_refuses_before_any_copy() {
+    let temp = tempfile::tempdir().unwrap();
+    let source = temp.path().join("source");
+    let export = temp.path().join("export.json");
+    let destination = temp.path().join("destination");
+    let metadata = fixture(&source, &export);
+    let plan = PortcoveService::plan_library_import(&export, &source, &destination).unwrap();
+    let content_bytes = plan
+        .content
+        .iter()
+        .map(|tree| tree.copy.total_bytes)
+        .sum::<u64>();
+    let reserve =
+        crate::library_metadata_document::transfer_reserve(&metadata, &plan.content, 2).unwrap();
+    assert_eq!(
+        plan.required_bytes,
+        plan.metadata_file.size * 4 + reserve + content_bytes
+    );
+    assert!(reserve > 1024 * 1024);
+
+    // One byte short of the requirement: refused at review, nothing written.
+    let error = crate::path::with_available_space(plan.required_bytes - 1, || {
+        PortcoveService::plan_library_import(&export, &source, &destination).unwrap_err()
+    });
+    assert!(
+        error.message.contains("insufficient free space"),
+        "{error:?}"
+    );
+    assert_eq!(
+        error.details["required_bytes"],
+        plan.required_bytes.to_string()
+    );
+    let error = crate::path::with_available_space(plan.required_bytes - 1, || {
+        PortcoveService::import_library(&export, &source, &destination, &plan.plan_sha256)
+            .unwrap_err()
+    });
+    assert!(
+        error.message.contains("insufficient free space"),
+        "{error:?}"
+    );
+    assert!(!destination.exists());
+}
