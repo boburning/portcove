@@ -794,6 +794,11 @@ void test("each stop condition is detected and named", () => {
       /zz-a: mismatch/u,
     );
     assert.deepEqual(reproductionDetails(join(directory, "missing.json")), {});
+    // Upstream text never mentions anyone or formats the issue (A17).
+    writeFileSync(file, JSON.stringify(["zz-a: mismatch: @someone `x` [link](y)"]));
+    const detail = reproductionDetails(file)["reproduction-refused"]!;
+    assert.doesNotMatch(detail, /@someone/u);
+    assert.match(detail, /`zz-a: mismatch: @\u200bsomeone 'x' \[link\]\(y\)`/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

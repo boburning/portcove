@@ -4232,9 +4232,11 @@ Each condition files or reuses one issue titled
 with the grouped reason and the run. A recurrence after it was closed reopens
 and comments on the same issue; an open issue is not commented again. No
 further run starts while any such issue is open; closing it is how a person
-clears the stop. An unreadable issue list, or more than 1,000 open or closed
-workflow issues, fails the run rather than reading as "not stopped". A
-`reproduction-refused` issue names up to five refused entries and why. The conditions are `gate-refused`, `reproduction-refused`,
+clears the stop. An unreadable issue list, or more than 1,000 open workflow
+issues, fails the run rather than reading as "not stopped"; past 1,000 closed
+workflow issues and pull requests, a recurrence may open a new issue instead
+of reopening the old one. A `reproduction-refused` issue names up to five
+refused entries and why, as inert code text. The conditions are `gate-refused`, `reproduction-refused`,
 `path-allowlist`, `required-check-failed` (or a job batch that is not a
 well-formed one-commit pull request), `no-progress` (three
 consecutive runs settled nothing while work waited), `backlog-growing` (four

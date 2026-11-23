@@ -952,6 +952,13 @@ export function freshnessIssueBody(detail: string, runUrl: string) {
   ].join("\n");
 }
 
+/**
+ * Upstream text (asset names, tags, errors) as inert Markdown code: no
+ * mention, link or formatting reaches a public issue body.
+ */
+export const inertText = (text: string) =>
+  `\`${text.replace(/[`\r\n]/gu, "'").replace(/@/gu, "@\u200b")}\``;
+
 /** The refused entries a verify step recorded, as the reproduction stop's detail. */
 export function reproductionDetails(file: string | undefined) {
   if (!file) return {};
@@ -960,7 +967,7 @@ export function reproductionDetails(file: string | undefined) {
     if (!Array.isArray(lines) || !lines.length) return {};
     return {
       "reproduction-refused": `CI could not reproduce these eligible entries from their exact bytes:\n${lines
-        .map((line) => `- ${String(line).slice(0, 400)}`)
+        .map((line) => `- ${inertText(String(line).slice(0, 400))}`)
         .join("\n")}`,
     };
   } catch {
@@ -1226,8 +1233,11 @@ async function jobIssues(state: "open" | "closed") {
         issues.push({ number: Number(issue.number), title: issue.title, state: issue.state });
     if (batch.length < 100) return issues;
   }
-  // Never read a truncated list as "not stopped" or as "no issue to reuse".
-  throw new Error(`More than 1,000 ${state} workflow issues; the stop state is unknown.`);
+  // Never read a truncated open list as "not stopped". The closed list only
+  // finds an issue to reopen; when it is truncated (closed issues and pull
+  // requests only grow), a recurrence opens a new issue instead.
+  if (state === "closed") return issues;
+  throw new Error(`More than 1,000 open workflow issues; the stop state is unknown.`);
 }
 
 /** File one issue per condition: comment on an open one, reopen a closed one, else open one. */
