@@ -49,6 +49,7 @@ import {
   externalInventoryDue,
   markExternalInventoryUnchanged,
   parseExternalInventoryItem,
+  parseFlathubCategoryPage,
   parseUnbakedInventory,
   recordExternalInventory,
   leadPaths,
@@ -237,6 +238,45 @@ async function readDirectoryInventory(
     ),
   };
 }
+/**
+ * Reads a paged JSON inventory (Flathub's category) in full before replacing
+ * the retained one; a listing the budget cut short records nothing.
+ */
+async function readPagedInventory(
+  host: DiscoveryCollectionHost,
+  id: string,
+  url: string,
+  cap: number,
+  fits: (bytes?: number) => boolean,
+) {
+  const rows: ReturnType<typeof parseFlathubCategoryPage>["rows"] = [];
+  const pages: string[] = [];
+  for (let page = 1; ; page++) {
+    if (!fits(cap)) throw new InventoryDeferred();
+    const pageUrl = `${url}?page=${page}&per_page=250`;
+    const response = await host.source.http.request("GET", pageUrl, undefined, false, cap);
+    if (response.status !== 200)
+      throw new Error(`External inventory page returned HTTP ${String(response.status)}`);
+    const parsed = parseFlathubCategoryPage(response.text);
+    if (parsed.page !== page) throw new Error("External inventory page out of order");
+    rows.push(...parsed.rows);
+    pages.push(response.text);
+    if (page >= parsed.totalPages) break;
+  }
+  if (!rows.length) throw new Error("External inventory has no items");
+  if (new Set(rows.map((row) => row.slug)).size !== rows.length)
+    throw new Error("External inventory repeats an item across pages");
+  host.leads = {
+    ...host.leads,
+    external: recordExternalInventory(
+      host.leads.external,
+      id,
+      rows.sort((a, b) => a.slug.localeCompare(b.slug)),
+      host.journal.started_at,
+      observationHash(pages),
+    ),
+  };
+}
 /** Records between durable saves while an inventory baseline reads item records. */
 const inventorySaveEvery = 25;
 /**
@@ -296,6 +336,7 @@ async function collectExternalInventory(
         return false;
       }
       if (directory) await readDirectoryInventory(host, id, directory, fits);
+      else if (list.format === "flathub-games") await readPagedInventory(host, id, url, cap, fits);
       else {
         const etag = host.leads.external?.inventories?.[id]?.etag;
         const response = await host.source.http.request(
@@ -381,7 +422,9 @@ async function collectExternalInventory(
     // A repository file is read at the exact revision its listing described.
     const recordUrl = directory
       ? `https://raw.githubusercontent.com/${directory.repository}/${inventory.revision}/${slug}`
-      : `https://unbaked.games/api/games/${slug}.json`;
+      : list.format === "flathub-games"
+        ? `https://flathub.org/api/v2/appstream/${slug}`
+        : `https://unbaked.games/api/games/${slug}.json`;
     try {
       const response = await host.source.http.request("GET", recordUrl, undefined, false, itemCap);
       if (response.status !== 200)

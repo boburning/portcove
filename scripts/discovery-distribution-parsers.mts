@@ -379,3 +379,80 @@ export function parseRecompLauncherCatalog(textValue: string): ParsedExternalLis
   }
   return group(rows);
 }
+
+/** One page of Flathub's Game category: its apps and the page count. */
+export function parseFlathubCategoryPage(textValue: string) {
+  bounded(textValue, 64 * 1024 * 1024, "Flathub category page");
+  const value = json(textValue, "Flathub category page");
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.hits) ||
+    !Number.isSafeInteger(value.totalPages) ||
+    !Number.isSafeInteger(value.page)
+  )
+    throw new Error("Unsupported Flathub category page");
+  const rows = value.hits.map((hit) => {
+    if (
+      !isRecord(hit) ||
+      typeof hit.app_id !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9._-]{0,239}$/u.test(hit.app_id)
+    )
+      throw new Error("Malformed Flathub app");
+    return {
+      slug: hit.app_id,
+      // A new build or architecture set makes the app's record due again.
+      fingerprint: JSON.stringify([hit.updated_at ?? null, strings(hit.arches).sort()]),
+      public_code: hit.is_free_license === true,
+    };
+  });
+  return { rows, page: Number(value.page), totalPages: Number(value.totalPages) };
+}
+
+/** A GitHub Pages project page (`<owner>.github.io/<repo>`) is that repository's site. */
+function pagesRepository(url: string) {
+  const match = /^https?:\/\/([A-Za-z0-9-]+)\.github\.io\/([A-Za-z0-9_.-]+)\/?/iu.exec(url);
+  return match ? `https://github.com/${match[1]}/${match[2]}` : "";
+}
+/**
+ * One Flathub app's AppStream record: Flathub builds the upstream separately
+ * for Linux, so its claim is a distribution build with the latest release as
+ * the pin. The upstream is the app's source browser, else its homepage; a
+ * proprietary app names no upstream to build and is excluded.
+ */
+export function parseFlathubAppstream(textValue: string, appId: string): ParsedExternalList {
+  bounded(textValue, 8 * 1024 * 1024, "Flathub AppStream record");
+  const value = json(textValue, "Flathub AppStream record");
+  if (!isRecord(value) || value.id !== appId)
+    throw new Error("Unsupported Flathub AppStream record");
+  if (value.is_free_license !== true) return { entries: [], unlinked: 0, excluded: 1 };
+  const urls = isRecord(value.urls) ? value.urls : {};
+  // A link to the Flathub packaging repository is not the upstream.
+  const candidates = [
+    text(urls["vcs-browser"]),
+    pagesRepository(text(urls.homepage)),
+    text(urls.homepage),
+  ].filter((url) => url && !/\/\/(?:www\.)?github\.com\/flathub\//iu.test(url));
+  const releases = Array.isArray(value.releases) ? value.releases.filter(isRecord) : [];
+  const bundle = isRecord(value.bundle) ? text(value.bundle.value) : "";
+  const arch = bundle.split("/")[2] ?? "";
+  return group([
+    {
+      url: candidates[0] ?? null,
+      title: text(value.name),
+      claim: sourceEntry({
+        id: claimId(appId),
+        subject: text(value.name),
+        category: "flathub-build",
+        method: "",
+        status: value.is_eol === true ? "end-of-life" : "",
+        targets: [`Linux ${arch}`.trim()],
+        needs_original: null,
+        latest_release: text(releases[0]?.version) || null,
+        relation: "distribution",
+        games: [text(value.name)],
+        channel: "flathub",
+        pinned: text(releases[0]?.version) || null,
+      }),
+    },
+  ]);
+}

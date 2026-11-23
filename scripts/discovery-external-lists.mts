@@ -24,10 +24,12 @@ import {
   parseDecompBuddyWaiting,
   parseDecompFunGames,
   parseDecompFunProjects,
+  parseRecompendiumCatalog,
   parseUnbakedGame,
 } from "./discovery-source-parsers.mts";
 import {
   parseBatoceraPackage,
+  parseFlathubAppstream,
   parseLuxtorpedaIndex,
   parseMacSourcePortsMeta,
   parseRecompLauncherCatalog,
@@ -35,6 +37,8 @@ import {
 } from "./discovery-distribution-parsers.mts";
 export {
   parseBatoceraPackage,
+  parseFlathubAppstream,
+  parseFlathubCategoryPage,
   parseLuxtorpedaIndex,
   parseMacSourcePortsMeta,
   parseRecompLauncherCatalog,
@@ -45,6 +49,7 @@ export {
   parseDecompBuddyWaiting,
   parseDecompFunGames,
   parseDecompFunProjects,
+  parseRecompendiumCatalog,
   parseUnbakedGame,
   parseUnbakedInventory,
 } from "./discovery-source-parsers.mts";
@@ -161,6 +166,33 @@ export const externalLeadLists = [
     conditional: true,
     refresh_days: 1,
     inventory: true,
+  },
+  // Recompendium's launcher feed: recompilations, decompilation ports, source
+  // ports and engines, reviewed by hand (data CC BY-SA 4.0; claims only).
+  {
+    id: "recompendium",
+    url: "https://recompendium.com/unricopie/catalogo.json",
+    format: "recompendium-catalog",
+    cap: 32 * 1024 * 1024,
+    observed_bytes: 4165588,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // Flathub's free Game apps as Linux build evidence for upstreams Portcove
+  // already has: the category is the inventory, each app's AppStream record an
+  // item. Flathub never creates a hint (`enrich_only`).
+  {
+    id: "flathub-games",
+    url: "https://flathub.org/api/v2/collection/category/Game",
+    format: "flathub-games",
+    cap: 8 * 1024 * 1024,
+    observed_bytes: 1_048_576,
+    item_cap: 1024 * 1024,
+    parser: 1,
+    refresh_days: 7,
+    inventory: true,
+    enrich_only: true,
   },
   // RecompLauncher's PC catalog: recompilations, decompilation ports and native
   // games the launcher installs, with platform labels and game associations.
@@ -625,6 +657,7 @@ export function parseExternalInventoryItem(id: string, text: string, key: string
   if (format === "unbaked-inventory") return parseUnbakedGame(text, key);
   if (format === "batocera-ports") return parseBatoceraPackage(text, key);
   if (format === "retropie-ports") return parseRetropieModule(text, key);
+  if (format === "flathub-games") return parseFlathubAppstream(text, key);
   throw new Error("Unknown external inventory format");
 }
 export function parseExternalList(id: string, text: string): ParsedExternalList {
@@ -635,7 +668,8 @@ export function parseExternalList(id: string, text: string): ParsedExternalList 
   if (format === "luxtorpeda-index") return parseLuxtorpedaIndex(text);
   if (format === "macsourceports-meta") return parseMacSourcePortsMeta(text);
   if (format === "recomplauncher-catalog") return parseRecompLauncherCatalog(text);
-  if (format === "batocera-ports" || format === "retropie-ports")
+  if (format === "recompendium-catalog") return parseRecompendiumCatalog(text);
+  if (format === "batocera-ports" || format === "retropie-ports" || format === "flathub-games")
     throw new Error("An inventory list is read item by item, not parsed whole");
   const list = externalLeadLists.find((candidate) => candidate.id === id);
   if (!list) throw new Error("Unknown external lead list");
@@ -1088,8 +1122,12 @@ function mergeEntries(
   entries: readonly ExternalListEntry[],
   observedAt: string,
 ) {
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  // An evidence-only source adds claims to known hints and never creates one.
+  const enrichOnly = Boolean(list && "enrich_only" in list && list.enrich_only);
   for (const entry of entries) {
     const old = next.hints[entry.key];
+    if (!old && enrichOnly) continue;
     const previous = old?.source_entries?.[id];
     const retained = entry.source_entries
       ? [

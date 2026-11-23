@@ -351,3 +351,51 @@ export function parseUnbakedGame(textValue: string, slug: string): ParsedExterna
     return { entries: [], unlinked: 0, excluded: 0 };
   return group(rows, { excluded });
 }
+
+/**
+ * Recompendium's launcher feed (`unricopie/catalogo.json`, format 1). Its data
+ * is CC BY-SA 4.0: only repository identities and attributed claims are kept;
+ * descriptions and requirement prose are never read. A retired or unlinked
+ * entry keeps that status; it is a lead, never support evidence.
+ */
+export function parseRecompendiumCatalog(textValue: string): ParsedExternalList {
+  bounded(textValue, 64 * 1024 * 1024, "Recompendium catalog");
+  const value = json(textValue, "Recompendium catalog");
+  if (!isRecord(value) || value.formato !== 1 || !Array.isArray(value.entradas))
+    throw new Error("Unsupported Recompendium catalog format");
+  const rows = value.entradas.map((entry) => {
+    if (!isRecord(entry) || typeof entry.entry !== "string" || !entry.entry)
+      throw new Error("Malformed Recompendium entry");
+    const repo = text(entry.repo).trim();
+    // GitHub `owner/name`; a dotted first segment names its own host.
+    const url = ownerRepo.test(repo)
+      ? repo.split("/")[0]!.includes(".")
+        ? `https://${repo}`
+        : `https://github.com/${repo}`
+      : null;
+    return {
+      url,
+      title: text(entry.nombre) || text(entry.proyecto),
+      claim: sourceEntry({
+        id: claimId(entry.entry),
+        subject: text(entry.proyecto) || text(entry.nombre),
+        category: inert(entry.consola),
+        method: [text(entry.metodo), text(entry.toolchain)].filter(Boolean).map(inert).join(","),
+        status: [
+          text(entry.estado),
+          entry.retirado === true ? "retired" : "",
+          entry.sin_enlace === true ? "unlinked" : "",
+        ]
+          .filter(Boolean)
+          .map(inert)
+          .join(","),
+        targets: [],
+        needs_original: null,
+        latest_release: releaseOf(entry.version),
+        relation: "implementation",
+        games: [text(entry.juego)],
+      }),
+    };
+  });
+  return group(rows);
+}

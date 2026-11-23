@@ -5,6 +5,7 @@ import {
   parseDecompBuddyWaiting,
   parseDecompFunGames,
   parseDecompFunProjects,
+  parseRecompendiumCatalog,
   parseUnbakedGame,
   parseUnbakedInventory,
 } from "./discovery-source-parsers.mts";
@@ -339,4 +340,54 @@ void test("an unbaked baseline resumes after interruption, reconciles changes an
     "unbaked-additions",
     "unbaked-registry",
   ]);
+});
+
+void test("Recompendium keeps identities and attributed claims, never its prose", () => {
+  const parsed = parseRecompendiumCatalog(
+    JSON.stringify({
+      formato: 1,
+      generado: now,
+      entradas: [
+        {
+          entry: "recomps/007-agent-under-fire",
+          juego: "007-agent-under-fire",
+          nombre: "007: Agent Under Fire",
+          proyecto: "007: Agent Under Fire",
+          repo: "owner/007-recomp",
+          consola: "xbox",
+          estado: "playable",
+          metodo: "recomp",
+          toolchain: "XboxXBE-Recomp",
+          retirado: false,
+          sin_enlace: false,
+          version: "v1.0.3",
+          desc: { es: "Texto con licencia", en: "Licensed text" },
+          requisitos: { en: "Windows 10" },
+        },
+        {
+          entry: "ports/re3",
+          juego: "gta3",
+          nombre: "re3",
+          repo: "GTAmodding/re3",
+          retirado: true,
+        },
+        { entry: "ports/nolink", juego: "x", nombre: "x", repo: "", sin_enlace: true },
+      ],
+    }),
+  );
+  assert.deepEqual(
+    parsed.entries.map((entry) => entry.key),
+    ["https://github.com/gtamodding/re3", "https://github.com/owner/007-recomp"],
+  );
+  const claim = parsed.entries[1]!.source_entries![0]!;
+  assert.equal(claim.method, "recomp,XboxXBE-Recomp");
+  assert.equal(claim.latest_release, "v1.0.3");
+  assert.deepEqual(claim.games, ["007-agent-under-fire"]);
+  assert.doesNotMatch(JSON.stringify(parsed), /Licensed text|Windows 10/u);
+  assert.match(parsed.entries[0]!.source_entries![0]!.status, /retired/u);
+  assert.equal(parsed.unlinked, 1);
+  assert.throws(
+    () => parseRecompendiumCatalog(JSON.stringify({ formato: 2, entradas: [] })),
+    /Unsupported/u,
+  );
 });

@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import {
   parseBatoceraPackage,
+  parseFlathubAppstream,
+  parseFlathubCategoryPage,
   parseLuxtorpedaIndex,
   parseMacSourcePortsMeta,
   parseRecompLauncherCatalog,
@@ -12,7 +14,13 @@ import {
 } from "./discovery-distribution-parsers.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
-import { externalListIds, externalHintSummary } from "./discovery-external-lists.mts";
+import {
+  externalListIds,
+  externalHintSummary,
+  mergeExternalInventoryItem,
+  mergeExternalList,
+  recordExternalInventory,
+} from "./discovery-external-lists.mts";
 import { parseLeadState } from "./discovery-leads.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 
@@ -397,4 +405,117 @@ void test("distribution extraction keeps variable sites, real pins and recognize
   );
   assert.equal(forks.entries.length, 0);
   assert.equal(forks.excluded, 1);
+});
+
+void test("Flathub adds Linux build evidence to known upstreams and creates no hint", () => {
+  const page = parseFlathubCategoryPage(
+    JSON.stringify({
+      page: 1,
+      totalPages: 4,
+      hits: [
+        {
+          app_id: "io.github.ihhub.Fheroes2",
+          is_free_license: true,
+          updated_at: 1,
+          arches: ["x86_64"],
+        },
+        { app_id: "org.vinegarhq.Sober", is_free_license: false, updated_at: 2, arches: [] },
+      ],
+    }),
+  );
+  assert.equal(page.totalPages, 4);
+  assert.deepEqual(
+    page.rows.map((row) => [row.slug, row.public_code]),
+    [
+      ["io.github.ihhub.Fheroes2", true],
+      ["org.vinegarhq.Sober", false],
+    ],
+  );
+  const record = (id: string, urls: Record<string, string>, free = true) =>
+    JSON.stringify({
+      id,
+      name: id,
+      is_free_license: free,
+      urls,
+      releases: [{ version: "v1.1.18" }],
+      bundle: { value: `app/${id}/x86_64/stable` },
+    });
+  const fheroes = parseFlathubAppstream(
+    record("io.github.ihhub.Fheroes2", { homepage: "https://ihhub.github.io/fheroes2/" }),
+    "io.github.ihhub.Fheroes2",
+  );
+  assert.equal(fheroes.entries[0]!.key, "https://github.com/ihhub/fheroes2");
+  const claim = fheroes.entries[0]!.source_entries![0]!;
+  assert.deepEqual(
+    [claim.relation, claim.channel, claim.pinned, claim.targets],
+    ["distribution", "flathub", "v1.1.18", ["Linux x86_64"]],
+  );
+  assert.equal(
+    parseFlathubAppstream(
+      record("org.example.Game", {
+        "vcs-browser": "https://github.com/flathub/org.example.Game",
+        homepage: "https://example.org/game",
+      }),
+      "org.example.Game",
+    ).entries[0]!.key,
+    "https://example.org/game",
+    "the Flathub packaging repository is never the upstream",
+  );
+  assert.equal(
+    parseFlathubAppstream(record("org.p.P", {}, false), "org.p.P").excluded,
+    1,
+    "a proprietary app names no upstream to build",
+  );
+
+  // Evidence only: a known upstream gains the claim; an unknown one is not hinted.
+  const at = "2026-11-23T18:00:00.000Z";
+  let state = mergeExternalList(
+    undefined,
+    "decomp-buddy-finds",
+    {
+      entries: [
+        {
+          key: "https://github.com/ihhub/fheroes2",
+          url: "https://github.com/ihhub/fheroes2",
+          host: "github",
+          title: "fheroes2",
+        },
+      ],
+      unlinked: 0,
+    },
+    at,
+    "finds.json",
+  );
+  state = recordExternalInventory(
+    state,
+    "flathub-games",
+    [
+      { slug: "io.github.ihhub.Fheroes2", fingerprint: "1", public_code: true },
+      { slug: "org.example.Game", fingerprint: "2", public_code: true },
+    ],
+    at,
+    "f".repeat(64),
+  );
+  state = mergeExternalInventoryItem(
+    state,
+    "flathub-games",
+    "io.github.ihhub.Fheroes2",
+    fheroes,
+    at,
+  );
+  state = mergeExternalInventoryItem(
+    state,
+    "flathub-games",
+    "org.example.Game",
+    parseFlathubAppstream(
+      record("org.example.Game", { homepage: "https://example.org/game" }),
+      "org.example.Game",
+    ),
+    at,
+  );
+  assert.deepEqual(state.hints["https://github.com/ihhub/fheroes2"]?.lists, [
+    "decomp-buddy-finds",
+    "flathub-games",
+  ]);
+  assert.equal(state.hints["https://example.org/game"], undefined);
 });

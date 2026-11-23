@@ -619,6 +619,30 @@ channel (the ScummVM expansion stays excluded).
   directories also hold software outside native-port scope; research
   classifies each upstream.
 
+**Flathub** (`flathub-games`) is Linux build evidence, not discovery. Its free
+Game apps (760 apps, 663 free, on 2026-11-23) are an inventory read weekly from
+the paged `api/v2/collection/category/Game`. Each app's
+`api/v2/appstream/<id>` record is an item, due again when its build or
+architectures change. The upstream is the app's source browser, then its
+GitHub Pages project page as the repository, then its homepage; the Flathub
+packaging repository is never the upstream. A Flathub claim
+(`relation: distribution`, `channel: flathub`, the latest release as its pin,
+the build architecture) only joins an upstream Portcove already holds as a
+hint (`enrich_only`); no app is hinted from the Game category alone, and
+proprietary apps are excluded. An app whose upstream is named only in its
+Flathub manifest `sources` is not matched yet.
+
+**Recompendium** (`https://recompendium.com/unricopie/catalogo.json`, format
+1; 1,390 entries on 2026-11-23) is its launcher's published feed of
+recompilations, decompilation ports, source ports and engines. Its data is CC
+BY-SA 4.0, so only repository identities and attributed claims (console,
+method and toolchain, status, retired and unlinked flags, version, game) are
+kept; descriptions and requirement text are never read. Its entries are leads,
+never support evidence.
+
+The secondary-source comparison and its implement, defer and reject decisions
+are recorded on [#177](https://github.com/boburning/portcove/issues/177).
+
 RecompLauncher's `pc-catalog.json` (catalog version 1; 1,965 apps on
 2026-11-23) is a launcher catalog, not a distribution. It lists
 recompilations, decompilation ports and native games. Each app's repository
