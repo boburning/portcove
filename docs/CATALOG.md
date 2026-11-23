@@ -88,6 +88,44 @@ evidence, even after a different artifact becomes the recommendation.
 Installed launch and rollback keep their existing checks. Local files and
 saves are preserved.
 
+## Package and launch declaration compatibility
+
+Existing asset hints narrow supported package names. Reviewed release-stream
+exclusions separately filter tags for their declared platforms. Exact managed
+pins and package choices retain their own identity and authority checks.
+
+The archive dispatch accepts TAR.XZ and 7z on the player-owned setup route
+through the existing bounded extractors. Managed installation requires separate authority for the format. Existing managed TAR.XZ still requires
+its retained platform declaration. Launch resolution derives the installed
+source, per-game user data and cache paths from the trusted launch request.
+
+The indexed-only `reviewed_launch_contract_v1` declares platform asset
+rules, archive formats and typed launch values. The entry declares
+`runtime.reviewed-package-and-launch-v1` in definition schema 4. A scoped
+catalog projection holds the selected subject, and installation retains the
+exact entry, projection and separately admitted acquisition grant. Legacy
+catalog import and export refuse the declaration.
+
+Asset `include` and `exclude` use literal case-insensitive filename terms.
+`tag_pattern` matches one exact tag or a literal prefix ending in `*`.
+The default and `markers` preserve GitHub's prerelease flag and recognized
+tag markers. `flag` uses the flag alone. `never` excludes both detected kinds
+of prerelease. Package declarations use `zip`, `tar.gz`, `tar.xz` or `7z`.
+The exact suffix and container magic must agree before bounded extraction.
+
+Launch values are literal strings or objects with a `path` of `user_data`,
+`source`, `install_root` or `cache`. Each path occupies one argument or one
+environment value. Source expansion needs the verified launch source.
+Existing path, executable and environment policies still apply.
+
+Reviewed forge qualification models the API dialect, API root, web host and
+exact asset hosts separately from the reviewed repository, release and artifact
+identity. The alternate-forge route is currently exercised by qualification
+fixtures. Naev's Codeberg listing and upstream-owned registration keep their
+existing scope. An indexed `reviewed-forge` selector requires a named definition reader.
+Managed acquisition also requires an exact, independently authenticated
+[schema-5 publisher grant](DEFINITION-DELIVERY.md#qualification-for-separately-reviewed-forges).
+
 ## Descriptive compatibility advisories
 
 The optional `listing.compatibility` envelope belongs to the existing
@@ -1673,6 +1711,23 @@ Metroid stay exact: their reviewed predecessor-archive transitions bind the crea
 materialization step and stays exact. An existing installation keeps the retained
 contract it was installed under, so it accepts a headered dump only after it is next
 installed or updated.
+
+### Managed PS1 toolchain artifacts
+
+The bundled defaults live in `crates/portcove-core/catalog/tool-artifacts.json`.
+An admitted managed PS1 definition may propose one exact pack per
+declared platform through projection schema 4 and the
+`tools.psx-toolchain-v1` required feature. Each row fixes the publisher release,
+ZIP size and SHA-256, Python, CMake and Ninja layout, and the Mac executable
+member identities. Core refuses another repository, unexpected layout,
+duplicate platform, missing platform, or a mismatched archive digest.
+
+Acquisition, download resume, reopening and build require the exact bundled
+tool pack. A proposal that differs from the independently pinned artifact
+fails before acquisition or cache use, including after reopening. Legacy
+definitions and existing preparations keep their cache coordinates and receipt
+format. Player-selected chdman and DolphinTool paths use their existing trust
+checks.
 
 ## Default covers
 
@@ -5057,6 +5112,36 @@ own. Repository activity observations retain their own dates and do not supply
 a catalog declaration. An indexed definition carrying this marker uses entry
 schema 2 and matching catalog projection schema 2. Keep serving schema 1 to
 readers that only support schema 1.
+
+## Frozen artifact readers
+
+Core compiles `historical-artifacts.json` into its offline reader. The table binds
+old DKR-R manifests to their frozen catalog, preserves the four historical
+Direct Windows reader exceptions and selects frozen package and cartridge
+interpretations. Each lookup keeps its creating reader's recorded coordinates.
+For example, an early DKR-R manifest may omit its platform, but must match the
+exact release, asset name, size, digest and executable basename. The Direct
+exception uses the version and digest from the retained Windows definition.
+
+Stored retained definitions and their registered manifests take precedence
+where the reader historically used them. Keep the frozen projections at their
+recorded revisions. The compiled table confers no publisher grant, replacement
+ownership, source approval or upstream package eligibility.
+
+Existing reusable managed profiles can select a new package through their
+ordinary reviewed GitHub rules and independent publisher grant. For single-lane
+Windows profiles that need an exact compatibility list, use
+`managed_runtime_applies_to` rows containing `version`, `size` and `sha256`.
+The list applies to the reusable TFE, Chocolate, RaceWave and GB Recompiled
+behaviors. The ordinary resolver checks the selected official package against
+the list before acquisition. Direct and curated lanes keep their existing
+separate bindings.
+
+Publication requires a schema 4 indexed entry declaring
+`runtime.reviewed-compatibility-artifacts-v1`, a schema 3 catalog projection
+and the independent exact publisher admission. Core reopens a prior install
+using its own captured list. Older definitions without the list retain their
+existing rules. Format-1 output cannot carry the list.
 
 ## Package-only settings defaults
 

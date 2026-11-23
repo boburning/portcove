@@ -9,9 +9,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(test)]
 pub(crate) const SHA: &str = "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6";
-pub(crate) const GRAPHICS_EXPORTS: &str = "asset_dump";
+#[cfg(test)]
 const NAME: &str = "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip";
+pub(crate) const GRAPHICS_EXPORTS: &str = "asset_dump";
+use crate::historical_artifacts::PackageContract;
+pub(crate) fn known_artifact(sha256: &str) -> bool {
+    PackageContract::Regaiden041Windows
+        .package()
+        .has_digest(sha256)
+}
 const ORIGINAL: &str = "9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44";
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
@@ -24,7 +32,7 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
                     .release
                     .direct
                     .values()
-                    .any(|release| release.sha256.eq_ignore_ascii_case(SHA)))
+                    .any(|release| known_artifact(&release.sha256)))
         {
             return Err(PortcoveError::usage(
                 "managed ReGaiden requires its explicit shared-preferences contract",
@@ -61,7 +69,11 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
         || !port.release.user_prepared.is_empty()
         || (legacy
             && release.is_none_or(|release| {
-                release.version != "v0.4.1" || release.size != 33_085_815 || release.sha256 != SHA
+                !PackageContract::Regaiden041Windows.package().matches_bytes(
+                    &release.version,
+                    release.size,
+                    &release.sha256,
+                )
             }))
         || (legacy && port.source_profile.as_deref() != Some("resident-evil-gaiden-gbc-usa"))
         || port.source_profile.as_deref().is_none_or(str::is_empty)
@@ -135,13 +147,11 @@ pub(crate) fn require_artifact(
     {
         return crate::managed_runtime_policy::require_artifact(port, version, artifact, platform);
     }
-    if (port.managed_shared_preferences.is_some() || artifact.sha256.eq_ignore_ascii_case(SHA))
+    if (port.managed_shared_preferences.is_some() || known_artifact(&artifact.sha256))
         && (port.managed_shared_preferences.is_none()
-            || version != "v0.4.1"
-            || platform != Some(crate::Platform::WindowsX86_64)
-            || artifact.sha256 != SHA
-            || artifact.size != 33_085_815
-            || artifact.asset_name != NAME)
+            || !PackageContract::Regaiden041Windows
+                .package()
+                .matches_release(version, platform, artifact))
     {
         return Err(PortcoveError::verification(
             "shared-preferences acceptance requires the actual reviewed ReGaiden Windows package",

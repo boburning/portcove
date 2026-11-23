@@ -532,7 +532,9 @@ fn offered_artifact(
                     route: PortAction::Install,
                 }
             }
-            crate::ReleaseSource::UserPrepared => OfferedArtifact::NoneOffered,
+            crate::ReleaseSource::ReviewedForge | crate::ReleaseSource::UserPrepared => {
+                OfferedArtifact::NoneOffered
+            }
         };
     }
     if offered(PortAction::RegisterExternal)

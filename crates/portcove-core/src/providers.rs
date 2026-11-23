@@ -12,6 +12,8 @@ use crate::{
 pub struct CompositeReleaseProvider {
     github: Arc<GithubReleaseProvider>,
     gitlab: GitlabReleaseProvider,
+    #[cfg(test)]
+    forge_fixture: Option<(Library, String)>,
 }
 
 impl CompositeReleaseProvider {
@@ -19,7 +21,17 @@ impl CompositeReleaseProvider {
         Ok(Self {
             github: Arc::new(GithubReleaseProvider::for_library(library)?),
             gitlab: GitlabReleaseProvider::for_library(library)?,
+            #[cfg(test)]
+            forge_fixture: None,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_forge_fixture(library: &Library, origin: &str) -> Result<Self> {
+        crate::definition_acquisition::validate_fixture_origin(origin)?;
+        let mut provider = Self::for_library(library)?;
+        provider.forge_fixture = Some((library.clone(), origin.to_owned()));
+        Ok(provider)
     }
 
     pub fn github(&self) -> Arc<GithubReleaseProvider> {
@@ -69,6 +81,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
                     crate::ExactReleaseIdentity::DirectManifest,
                 )
             }
+            ReleaseSource::ReviewedForge => {
+                Err(crate::release::reviewed_forge_exact_release_unsupported())
+            }
             ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
                 "a user-prepared runtime has no managed release selection",
             )),
@@ -101,6 +116,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
                 crate::ScopedResolvedRelease::legacy(selected)
                     .for_selection(port, platform, channel)
             }
+            ReleaseSource::ReviewedForge => {
+                Err(crate::release::reviewed_forge_exact_release_unsupported())
+            }
             ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(
                 "a user-prepared runtime has no managed release selection",
             )),
@@ -116,6 +134,30 @@ impl ReleaseProvider for CompositeReleaseProvider {
     ) -> Result<crate::ScopedResolvedRelease> {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
+        }
+        if port.release.provider == ReleaseSource::ReviewedForge {
+            let scope = scope.ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            #[cfg(test)]
+            let bound;
+            #[cfg(test)]
+            let scope = if let Some((library, origin)) = &self.forge_fixture {
+                if library.root() != scope.library.root() {
+                    return Err(PortcoveError::verification(
+                        "forge fixture library does not match",
+                    ));
+                }
+                let mut selected = scope.clone();
+                selected.fixture_origin = Some(origin.clone());
+                bound = selected;
+                &bound
+            } else {
+                scope
+            };
+            let forge = scope
+                .forge
+                .as_ref()
+                .ok_or_else(crate::reviewed_forge::independent_admission_required)?;
+            return forge.resolve_scoped(scope, port, channel, platform).await;
         }
         match scope {
             scope if port.release.provider == ReleaseSource::Github => {
@@ -144,6 +186,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         scope: Option<&crate::DefinitionAcquisitionScope>,
         variant: &crate::ManagedPackageVariant,
     ) -> Result<crate::ScopedResolvedRelease> {
+        if port.release.provider == ReleaseSource::ReviewedForge {
+            return Err(crate::reviewed_forge::independent_admission_required());
+        }
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
@@ -206,7 +251,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
             ReleaseSource::Gitlab => self
                 .gitlab
                 .cached_release_notes(port, channel, platform, installed, offered),
-            ReleaseSource::DirectManifest | ReleaseSource::UserPrepared => None,
+            ReleaseSource::ReviewedForge
+            | ReleaseSource::DirectManifest
+            | ReleaseSource::UserPrepared => None,
         }
     }
 
@@ -222,6 +269,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         match port.release.provider {
             ReleaseSource::Github => self.github.resolve(port, channel, platform).await,
             ReleaseSource::Gitlab => self.gitlab.resolve(port, channel, platform).await,
+            ReleaseSource::ReviewedForge => {
+                Err(crate::reviewed_forge::independent_admission_required())
+            }
             ReleaseSource::DirectManifest => resolve_direct(port, channel, platform),
             ReleaseSource::UserPrepared => Err(PortcoveError::unsupported(format!(
                 "{} has a user-prepared runtime; Portcove does not acquire it",
@@ -347,10 +397,12 @@ mod tests {
             linux_packaged_library: None,
             managed_shared_preferences: None,
             managed_shared_preferences_save_id: None,
+            managed_runtime_applies_to: None,
             source_environment: None,
             user_data_environment: None,
             launch_environment: BTreeMap::new(),
             launch_arguments: vec![],
+            reviewed_launch_contract_v1: None,
             runtime_subdirectory: None,
             runtime_subdirectory_by_platform: BTreeMap::new(),
             runtime_source_filename: None,

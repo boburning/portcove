@@ -1,5 +1,5 @@
 use super::*;
-use crate::release::GithubAsset;
+use crate::release::{GithubAsset, is_beta_release};
 use crate::{ArtifactRole, TargetArch, TargetOs};
 use serde_json::json;
 

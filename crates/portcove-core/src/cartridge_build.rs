@@ -98,25 +98,6 @@ impl CartridgeBuildRecipe {
             "staged-source-portable"
         }
     }
-
-    fn historical_port(self) -> Result<PortDefinition> {
-        let bytes = match self {
-            Self::YoshisCookieNesCycle110 => {
-                include_str!("legacy_cartridge/yoshis-cookie-recomp.json")
-            }
-            Self::DrMarioNesCycle130Usa => {
-                include_str!("legacy_cartridge/dr-mario-nes-recomp.json")
-            }
-            Self::AdvanceWarsGbaSourceV1 => return Err(retired_creation()),
-            Self::EarthBoundSnesSourceV1 => include_str!("legacy_cartridge/earthbound-recomp.json"),
-            Self::Render96UsSourceV1 => include_str!("legacy_cartridge/render96ex.json"),
-            Self::GundamWingSnesSourceV1 => {
-                include_str!("legacy_cartridge/gundam-wing-endless-duel-recomp.json")
-            }
-            Self::CvlodSourceV1 => include_str!("legacy_cartridge/cvlod-recomp.json"),
-        };
-        Ok(serde_json::from_str(bytes)?)
-    }
 }
 
 // Frozen historical reader contracts, not current authoring defaults. See the
@@ -143,7 +124,14 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
     let Some(recipe) = port.release.managed_build.values().next().copied() else {
         return Ok(());
     };
-    let expected = recipe.historical_port()?;
+    let expected = crate::historical_artifacts::cartridge_definition(&port.id, recipe)?
+        .ok_or_else(|| {
+            if recipe == CartridgeBuildRecipe::AdvanceWarsGbaSourceV1 {
+                retired_creation()
+            } else {
+                PortcoveError::verification("retained cartridge recipe belongs to another port")
+            }
+        })?;
     if execution_projection(port)? != execution_projection(&expected)?
         || expected.source_profile.as_deref() != Some(profile.id.as_str())
         || profile.kind != crate::SourceKind::File
