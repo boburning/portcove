@@ -4,6 +4,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
+import {
+  assertScheduledAuditCaller,
+  hostedIntakeMaxPasses,
+  scheduledAuditRequests,
+} from "./hosted-discovery-intake-audits.mts";
 
 interface Outcome {
   request: number;
@@ -12,7 +17,6 @@ interface Outcome {
   continuation: "inventory_changed" | "budget_exhausted" | null;
   progress: string | null;
 }
-export const hostedIntakeMaxPasses = 12;
 const hostedIntakeDeadlineMs = 90 * 60000;
 export function readHostedOutcomes(raw: unknown): Outcome[] {
   if (
@@ -203,43 +207,6 @@ export function auditDispatchRequest(mode: string | undefined, id: string | unde
   if (!id || !/^[1-9]\d*$/u.test(id) || !Number.isSafeInteger(Number(id)))
     throw new Error("Audit mode requires one positive proposal comment ID");
   return Number(id);
-}
-
-export interface AuditContinuation {
-  request: number;
-  binding: string;
-}
-
-function assertScheduledAuditCaller(environment: NodeJS.ProcessEnv) {
-  if (
-    environment.GITHUB_EVENT_NAME !== "schedule" ||
-    environment.GITHUB_REPOSITORY !== "boburning/portcove" ||
-    environment.GITHUB_REF !== "refs/heads/main" ||
-    environment.GITHUB_WORKFLOW_REF !==
-      "boburning/portcove/.github/workflows/maintenance-inventory.yml@refs/heads/main"
-  )
-    throw new Error("Only the protected maintenance schedule may resume owner-authorized audits");
-}
-
-export function scheduledAuditRequests(environment: NodeJS.ProcessEnv): AuditContinuation[] {
-  if (environment.HOSTED_INTAKE_MODE !== "resume-audits") return [];
-  assertScheduledAuditCaller(environment);
-  const parsed: unknown = JSON.parse(environment.HOSTED_INTAKE_AUDIT_CONTINUATIONS ?? "null");
-  if (
-    !Array.isArray(parsed) ||
-    !parsed.length ||
-    parsed.some(
-      (value) =>
-        !isRecord(value) ||
-        !Number.isSafeInteger(value.request) ||
-        Number(value.request) < 1 ||
-        typeof value.binding !== "string" ||
-        !/^[0-9a-f]{64}$/u.test(value.binding),
-    ) ||
-    new Set(parsed.map((value: AuditContinuation) => value.request)).size !== parsed.length
-  )
-    throw new Error("Invalid bound audit continuation selection");
-  return parsed as AuditContinuation[];
 }
 
 export function scheduledReceiptRequestKey(

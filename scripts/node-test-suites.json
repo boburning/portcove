@@ -2028,6 +2028,13 @@
       ]
     },
     {
+      "file": "scripts/entry-module-cycles.test.mts",
+      "memberships": [
+        ["catalog-full-2", 4901],
+        ["repository-tools-2", 501]
+      ]
+    },
+    {
       "file": "scripts/node-test-inventory.test.mts",
       "memberships": [
         ["windows-storage-3", 500],
@@ -4265,6 +4272,27 @@
       "memberships": [
         ["catalog-full-2", 9691],
         ["roadmap-check", 191]
+      ]
+    },
+    {
+      "file": "scripts/hosted-discovery-intake-entry.test.mts",
+      "memberships": [
+        ["catalog-full-2", 9692],
+        ["roadmap-check", 192]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full-2",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The scheduled receipt pass needs a real migrated PostgreSQL store; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full-2 on ubuntu-latest",
+          "cases": [
+            "scheduled receipt CLI admits and records a passed receipt against a migrated store"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
       ]
     },
     {
