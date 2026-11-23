@@ -1341,6 +1341,10 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+/**
+ * Why an offered recovery build stopped being offered.
+ */
+export type RetainedBuildRetirementReason = "retention_policy" | "player";
 export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
@@ -7532,6 +7536,10 @@ export interface RetainedBuildResolution {
   history: RetainedBuildHistoryResolution[];
   install: InstallRecord | null;
   reference: RetainedBuildReference;
+  /**
+   * Offers this setup no longer makes, newest first.
+   */
+  retired?: RetainedBuildRetirement[];
   [k: string]: unknown;
 }
 /**
@@ -7543,6 +7551,19 @@ export interface RetainedBuildHistoryResolution {
   install: InstallRecord | null;
   revision: RetainedBuildRevision;
   [k: string]: unknown;
+}
+/**
+ * Durable record of one retirement (library schema 78). The installation was
+ * not removed; only the offer ended.
+ */
+export interface RetainedBuildRetirement {
+  /**
+   * The reference revision that no longer offers the build.
+   */
+  binding_revision: number;
+  reason: RetainedBuildRetirementReason;
+  retired: RetainedBuildRevision;
+  retired_at: number;
 }
 export interface OutputRetainedBuildRemovalPreview {
   preview_sha256: string;

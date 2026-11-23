@@ -60159,6 +60159,13 @@
           },
           "reference": {
             "$ref": "#/$defs/RetainedBuildReference"
+          },
+          "retired": {
+            "description": "Offers this setup no longer makes, newest first.",
+            "items": {
+              "$ref": "#/$defs/RetainedBuildRetirement"
+            },
+            "type": "array"
           }
         },
         "required": [
@@ -60169,6 +60176,50 @@
           "history"
         ],
         "type": "object"
+      },
+      "RetainedBuildRetirement": {
+        "additionalProperties": false,
+        "description": "Durable record of one retirement (library schema 78). The installation was\nnot removed; only the offer ended.",
+        "properties": {
+          "binding_revision": {
+            "description": "The reference revision that no longer offers the build.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "$ref": "#/$defs/RetainedBuildRetirementReason"
+          },
+          "retired": {
+            "$ref": "#/$defs/RetainedBuildRevision"
+          },
+          "retired_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "binding_revision",
+          "retired",
+          "reason",
+          "retired_at"
+        ],
+        "type": "object"
+      },
+      "RetainedBuildRetirementReason": {
+        "description": "Why an offered recovery build stopped being offered.",
+        "oneOf": [
+          {
+            "const": "retention_policy",
+            "description": "A newer binding exceeded `MAX_OFFERED_REVISIONS`.",
+            "type": "string"
+          },
+          {
+            "const": "player",
+            "description": "The player retired it after review.",
+            "type": "string"
+          }
+        ]
       },
       "RetainedBuildRevision": {
         "additionalProperties": false,
@@ -61286,6 +61337,50 @@
         ],
         "type": "object"
       },
+      "RetainedBuildRetirement": {
+        "additionalProperties": false,
+        "description": "Durable record of one retirement (library schema 78). The installation was\nnot removed; only the offer ended.",
+        "properties": {
+          "binding_revision": {
+            "description": "The reference revision that no longer offers the build.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "reason": {
+            "$ref": "#/$defs/RetainedBuildRetirementReason"
+          },
+          "retired": {
+            "$ref": "#/$defs/RetainedBuildRevision"
+          },
+          "retired_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "binding_revision",
+          "retired",
+          "reason",
+          "retired_at"
+        ],
+        "type": "object"
+      },
+      "RetainedBuildRetirementReason": {
+        "description": "Why an offered recovery build stopped being offered.",
+        "oneOf": [
+          {
+            "const": "retention_policy",
+            "description": "A newer binding exceeded `MAX_OFFERED_REVISIONS`.",
+            "type": "string"
+          },
+          {
+            "const": "player",
+            "description": "The player retired it after review.",
+            "type": "string"
+          }
+        ]
+      },
       "RetainedBuildRevision": {
         "additionalProperties": false,
         "description": "A superseded binding. `revision` is the binding revision it held while current.",
@@ -61379,6 +61474,13 @@
       },
       "reference": {
         "$ref": "#/$defs/RetainedBuildReference"
+      },
+      "retired": {
+        "description": "Offers this setup no longer makes, newest first.",
+        "items": {
+          "$ref": "#/$defs/RetainedBuildRetirement"
+        },
+        "type": "array"
       }
     },
     "required": [
