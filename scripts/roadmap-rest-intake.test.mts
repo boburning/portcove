@@ -564,6 +564,43 @@ await test("REST issue inventory ignores PR-only edits but refuses creations and
   }
 });
 
+await test("REST issue inventory tolerates provider created-order skew but refuses real inversions", async () => {
+  for (const [skew, accepted] of [
+    ["2026-01-01T00:00:01Z", true],
+    ["2025-12-31T00:00:00Z", false],
+  ] as const) {
+    const pr = (number: number, created_at: string) => ({
+      ...issue(number),
+      pull_request: {},
+      html_url: `https://github.com/${config.repository}/pull/${number}`,
+      created_at,
+    });
+    const newest = { ...issue(4), created_at: "2026-01-01T00:00:03Z" };
+    const rows = [issue(1), pr(3, "2026-01-01T00:00:02Z"), pr(2, skew), newest];
+    const read: RestInventoryReader = async (endpoint) => {
+      const url = new URL(endpoint, base + "/");
+      if (url.pathname === `/repos/${config.repository}`)
+        return response({ id: 10, node_id: "repo", full_name: config.repository });
+      return response(url.searchParams.get("direction") === "asc" ? rows : [newest]);
+    };
+    const client = new RestPortIntakeClient(config, {
+      read,
+      issueProjectMemberships: async () => {
+        throw new Error("unexpected membership read");
+      },
+      write: async () => {
+        throw new Error("unexpected write");
+      },
+    });
+    if (accepted)
+      assert.deepEqual(
+        (await client.repositoryIssues()).issues.map(({ number }) => number),
+        [1, 4],
+      );
+    else await assert.rejects(() => client.repositoryIssues(), /unordered/u);
+  }
+});
+
 await test("REST endpoints omitting Link on304 use complete unconditional pages afterward", async () => {
   const requests: Readonly<Record<string, string>>[] = [];
   const link = `<${base}/items?after=next>; rel="next"`;

@@ -230,6 +230,14 @@ const verified = new WeakMap<
   VerifiedRepositoryIssueInventory,
   { reader: Pick<InventoryReader, "config">; hash: string }
 >();
+/**
+ * GitHub's `sort=created` key can place a row up to a second ahead of an older
+ * exposed `created_at` (observed: pull request 8156 at 19:34:13 listed before
+ * 8155 at 19:34:12). Completeness still rests on unique numbers, unchanged
+ * before/after markers and the newest-created final row; larger inversions
+ * remain an unordered inventory.
+ */
+const REST_CREATED_ORDER_SKEW_MS = 2000;
 /** Complete open/closed REST issue inventory for intake; no Project-membership claim. */
 export async function collectRestRepositoryIssueInventory(
   reader: Pick<InventoryReader, "config">,
@@ -312,7 +320,7 @@ export async function collectRestRepositoryIssueInventory(
       [`/repos/${binding}/issues`, `/repositories/${numericRepository}/issues`],
     );
     evidence.rest_pages = collected.pages;
-    let previousCreated = -Infinity;
+    let latestCreated = -Infinity;
     const numbers = new Set<number>();
     const issues: Readonly<RepositoryIssueRecord>[] = [];
     for (const value of collected.rows) {
@@ -327,7 +335,7 @@ export async function collectRestRepositoryIssueInventory(
         (value.body !== null && typeof value.body !== "string") ||
         typeof value.created_at !== "string" ||
         !Number.isFinite(Date.parse(value.created_at)) ||
-        Date.parse(value.created_at) < previousCreated ||
+        Date.parse(value.created_at) < latestCreated - REST_CREATED_ORDER_SKEW_MS ||
         typeof value.updated_at !== "string" ||
         !Number.isFinite(Date.parse(value.updated_at)) ||
         !["open", "closed"].includes(String(value.state))
@@ -336,7 +344,7 @@ export async function collectRestRepositoryIssueInventory(
           "inventory_malformed",
           "Incomplete or unordered REST issue inventory",
         );
-      previousCreated = Date.parse(String(value.created_at));
+      latestCreated = Math.max(latestCreated, Date.parse(String(value.created_at)));
       numbers.add(Number(value.number));
       if (value.pull_request) continue;
       issues.push(
