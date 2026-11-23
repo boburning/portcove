@@ -429,6 +429,139 @@ enum Case<'a> {
     Known(&'a str, &'a str),
 }
 
+/// (release tag, SHA-256, asset name).
+type ReviewedFile = (&'static str, &'static str, &'static str);
+
+/// Listing rows that gained a reviewed download permit for exact files after
+/// the migration: (port, [(release tag, SHA-256, asset name)]). Each keeps its
+/// whole-listing hold.
+/// - chameleon-twist-recompiled: owner approval of the accepted v0.1 ZIP.
+/// - grand-theft-auto-san-andreas-unity: lead decision under the #6134 and
+///   menu-art owner exceptions for the v4.0 desktop ZIPs.
+/// - linewars-ii-sdl3: lead decision under the #6090 freeware exception and
+///   the bundled-fonts note for the v1.0.0 desktop archives.
+const REVIEWED_LISTING_PERMITS: &[(&str, &[ReviewedFile])] = &[
+    (
+        "chameleon-twist-recompiled",
+        &[(
+            "v0.1",
+            "8e705d3826ab413afac92ea753d7f11dbc93be9ea507a3ef86bb6003019b5c56",
+            "ChameleonTwistJPRecompiled.zip",
+        )],
+    ),
+    (
+        "grand-theft-auto-san-andreas-unity",
+        &[
+            (
+                "v4.0",
+                "3cf2f15827d154d172fa259117e0699fc344ab5157a1a134288820361fe27eab",
+                "SanAndreasUnity-4.0-windows.zip",
+            ),
+            (
+                "v4.0",
+                "fb135b7f080517393af0b17d5c1ced9ae44951b31cfdc907eb7ed851df48859a",
+                "SanAndreasUnity-4.0-linux.zip",
+            ),
+        ],
+    ),
+    (
+        "linewars-ii-sdl3",
+        &[
+            (
+                "v1.0.0",
+                "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+                "LineWars2-SDL3-v1.0.0-win64.zip",
+            ),
+            (
+                "v1.0.0",
+                "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+                "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz",
+            ),
+        ],
+    ),
+];
+
+/// A reviewed listing permit opens only its exact named bytes; every other
+/// file, release or unresolved final identity stays held, and older readers
+/// still see a hold on every download.
+#[test]
+fn reviewed_listing_permits_open_only_their_exact_files() {
+    let catalog = Catalog::embedded().unwrap();
+    for (id, files) in REVIEWED_LISTING_PERMITS {
+        let listing = catalog.listing(id).unwrap();
+        let [hold, permit] = listing.restrictions.as_slice() else {
+            panic!("{id}: expected one hold and one permit");
+        };
+        assert_eq!(hold.effect, RestrictionEffect::Hold, "{id}");
+        assert!(hold.scope.is_whole(), "{id}");
+        assert_eq!(permit.effect, RestrictionEffect::Permit, "{id}");
+        assert_eq!(
+            permit.operations,
+            BTreeSet::from([RestrictedOperation::Download]),
+            "{id}"
+        );
+        assert_eq!(permit.scope.artifacts.len(), files.len(), "{id}");
+        let explanation = hold.explanation.clone();
+        // Older readers enforce the legacy string as a hold on every download.
+        assert!(explanation.is_some(), "{id}");
+        assert_eq!(
+            legacy_download_projection(&listing.restrictions).map(str::to_owned),
+            explanation,
+            "{id}"
+        );
+        assert_eq!(listing.download_block_reason, explanation, "{id}");
+        assert!(
+            normalize_legacy_listing(listing.download_block_reason.as_deref())[0]
+                .scope
+                .is_whole(),
+            "{id}"
+        );
+        let restrictions = EffectiveRestrictions::of(&catalog, id);
+        let decide = |version: &str, sha256: &str, name: &str, final_phase: bool| {
+            let mut subject = RestrictionSubject::deferred(RestrictedOperation::Download)
+                .on(Platform::WindowsX86_64);
+            subject.release = Knowledge::Known(version);
+            subject = subject.artifact(SubjectArtifact {
+                version,
+                sha256,
+                asset_name: Some(name),
+            });
+            if final_phase {
+                subject = subject.final_check();
+            }
+            restrictions.evaluate(&subject).explanation()
+        };
+        for final_phase in [false, true] {
+            for (version, sha256, name) in *files {
+                assert_eq!(decide(version, sha256, name, final_phase), None, "{id}");
+                assert_eq!(
+                    decide(version, &sha256.to_uppercase(), name, final_phase),
+                    None,
+                    "{id}"
+                );
+                for (other_version, other_sha, other_name) in [
+                    (*version, SHA_A, *name),
+                    (*version, *sha256, "other.zip"),
+                    ("v0.0.0-unseen", *sha256, *name),
+                ] {
+                    assert_eq!(
+                        decide(other_version, other_sha, other_name, final_phase),
+                        explanation,
+                        "{id} {other_version} {other_sha} {other_name}"
+                    );
+                }
+            }
+        }
+        // The final check before bytes are used defers nothing.
+        let unresolved = RestrictionSubject::deferred(RestrictedOperation::Download).final_check();
+        assert_eq!(
+            restrictions.evaluate(&unresolved).explanation(),
+            explanation,
+            "{id}"
+        );
+    }
+}
+
 /// Every migrated row, platform, operation and artifact-knowledge case that a
 /// Core call site can produce decides exactly as before, with the same text.
 #[test]
@@ -501,6 +634,17 @@ fn migration_is_behavior_preserving() {
             for operation in RestrictedOperation::ALL {
                 for case in &cases {
                     let legacy = match (operation, *case) {
+                        // A reviewed exact-file permit added after the migration
+                        // (#8538, #1422) may still cancel the whole hold for a
+                        // package whose bytes are not yet known, so the offer is
+                        // not withheld. Known bytes still decide below.
+                        (O::Download, Case::Deferred | Case::Release(_))
+                            if REVIEWED_LISTING_PERMITS
+                                .iter()
+                                .any(|(permitted, _)| permitted == id) =>
+                        {
+                            legacy_reference::acquisition(hold)
+                        }
                         (O::Download, Case::Deferred | Case::Release(_)) => {
                             legacy_reference::acquisition(hold).or(listing_reason.clone())
                         }

@@ -53,8 +53,27 @@
         "effect": "hold",
         "operations": ["download"],
         "reason": "bundled-game-data",
-        "explanation": "The reviewed freeware packages are the v1.0.0 Windows x64 ZIP and Linux x64 archive. Portcove cannot yet limit Download to those verified files. Get the package from the publisher, keep its notices and register your extracted copy.",
+        "explanation": "Only the reviewed freeware v1.0.0 Windows x64 ZIP and Linux x64 archive can be downloaded, in a Portcove version that checks their exact files. Other files and releases are not yet reviewed. You can also get the package from the publisher, keep its notices and register your extracted copy.",
         "tracking_issue": 6090
+      },
+      {
+        "id": "reviewed-v1-0-0",
+        "effect": "permit",
+        "operations": ["download"],
+        "scope": {
+          "artifacts": [
+            {
+              "version": "v1.0.0",
+              "sha256": "5bfededd432f529ab84780c07ba1f1a970708a9c7817998a52ef0b5e844b5ef8",
+              "asset_name": "LineWars2-SDL3-v1.0.0-win64.zip"
+            },
+            {
+              "version": "v1.0.0",
+              "sha256": "8166787cd8a76cfa349ea35b59c3ef8b7d6624dcabe4c67097149bb9c077ac20",
+              "asset_name": "LineWars2-SDL3-v1.0.0-linux-x86_64.tar.gz"
+            }
+          ]
+        }
       }
     ]
   },

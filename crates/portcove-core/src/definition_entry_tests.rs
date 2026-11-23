@@ -2906,3 +2906,80 @@ fn named_entry_ignores_only_bounded_top_level_advice() {
         assert!(inspect(&entry).is_err());
     }
 }
+
+/// The Daggerfall Unity loader's capability floor goes through the named
+/// feature helper: the same native-portable minimum for schema-3 and schema-4
+/// entries, fresh and retained, and a schema-4 entry must name the loader.
+#[test]
+fn daggerfall_unity_loader_capability_uses_the_named_feature_helper() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog
+        .ports()
+        .iter()
+        .find(|port| crate::profile_loader::declares_dfu_loader(port))
+        .expect("the catalog has a Daggerfall Unity loader binding")
+        .clone();
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"] = json!(crate::test_fixture::definition_requirements(&port, 3));
+    let floor = crate::profile_loader::DFU_CAPABILITY;
+    let set_minimum = |entry: &mut Value, minimum: u32| {
+        for requirement in entry["required_capabilities"].as_array_mut().unwrap() {
+            if requirement["template"] == "native-portable" {
+                requirement["minimum_version"] = json!(minimum);
+            }
+        }
+    };
+    let results = |entry: &Value| {
+        let bytes = serde_json::to_vec(entry).unwrap();
+        [
+            inspect(entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ]
+    };
+    assert_eq!(entry["definition_schema"], 3);
+    // Name every feature this entry needs, as a schema-4 author would.
+    let mut named = entry.clone();
+    named["definition_schema"] = json!(4);
+    named["required_features"] = json!([]);
+    for _ in 0..64 {
+        let Err(error) = inspect(&named) else { break };
+        let feature = error
+            .message
+            .strip_prefix("definition omits required feature ")
+            .and_then(|rest| rest.split(' ').next())
+            .unwrap_or_else(|| panic!("{error:?}"))
+            .to_owned();
+        named["required_features"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!(feature));
+    }
+    let features = named["required_features"].as_array().unwrap().clone();
+    assert!(features.contains(&json!("mods.native-loader-binding-v1")));
+    for candidate in [&mut entry, &mut named] {
+        for (minimum, accepted) in [(floor - 1, false), (floor, true)] {
+            set_minimum(candidate, minimum);
+            for result in results(candidate) {
+                if accepted {
+                    assert!(result.unwrap().capabilities().compatible);
+                } else {
+                    assert!(
+                        result
+                            .unwrap_err()
+                            .message
+                            .contains("Daggerfall Unity data-only loader")
+                    );
+                }
+            }
+        }
+    }
+    named["required_features"] = json!(
+        features
+            .into_iter()
+            .filter(|feature| feature != "mods.native-loader-binding-v1")
+            .collect::<Vec<_>>()
+    );
+    for result in results(&named) {
+        assert!(result.unwrap_err().message.contains("port.mod_loader"));
+    }
+}
