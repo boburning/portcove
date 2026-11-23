@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "generator": "scripts/generate-catalog.mts",
+  "generator_version": 1,
+  "enrollments": [],
+  "blocked": {
+    "operational-route": 459,
+    "scummvm-engine": 25,
+    "upstream-unavailable": 28,
+    "no-readable-upstream": 26,
+    "no-observation": 1111,
+    "repository-mismatch": 0,
+    "stale-parser": 0,
+    "incomplete-coverage": 0,
+    "no-runtime-role": 0,
+    "no-authorizing-source": 0,
+    "contradictory-role": 0,
+    "wrong-host": 0,
+    "no-player-for-host": 0,
+    "route-held": 0,
+    "guide-bound": 0
+  }
+}

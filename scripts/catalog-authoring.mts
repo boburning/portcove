@@ -20,6 +20,11 @@ import { projectPsxManagedWindows } from "./catalog-psx-managed-windows.mts";
 import { projectN64RecompPersistence } from "./catalog-n64-recomp-persistence.mts";
 import { projectRazeWindowsProfile } from "./catalog-raze-windows-profile.mts";
 import { checkRouteFacts, projectRouteFacts } from "./catalog-route-facts.mts";
+import {
+  enrollmentTableName,
+  factsTableName,
+  generateRegistrations,
+} from "./catalog-generated-registration.mts";
 import type { RouteFactsV1 } from "./catalog-route-facts.mts";
 import { projectNativeManagedProfile } from "./catalog-native-managed-profile.mts";
 import { projectAlephOnePinnedWindows } from "./catalog-alephone-pinned-windows.mts";
@@ -33,7 +38,7 @@ import { projectOpenMohaaPortable } from "./catalog-openmohaa-portable.mts";
 import { projectOpenXPortable } from "./catalog-openx-portable.mts";
 import { platforms } from "../apps/desktop/src/catalog-values.generated.ts";
 import { createHash } from "node:crypto";
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -91,7 +96,11 @@ export interface AuthoredListing extends NamedRecord {
       title: string;
       system?: string;
       evidence_urls: string[];
-      verified_sources?: { game_id: string; variant_id: string; representation_id: string }[];
+      verified_sources?: {
+        game_id: string;
+        variant_id: string;
+        representation_id: string;
+      }[];
     }[];
   };
   variant_label?: string;
@@ -175,6 +184,8 @@ export const catalogSourceNames = {
   ports: "ports",
   embedded: "catalog.json",
   listings: "listings.json",
+  listingPackageFacts: factsTableName,
+  generatedRegistration: enrollmentTableName,
 } as const;
 const listingPresentationFields = [
   "implementation",
@@ -560,7 +571,10 @@ function projectExternalRegistration(record: AuthoredPort): AuthoredPort {
       },
     ]),
   );
-  return { ...record, integration: { ...integration, release: { ...release, user_prepared } } };
+  return {
+    ...record,
+    integration: { ...integration, release: { ...release, user_prepared } },
+  };
 }
 
 export function checkedAuthoredPort(value: unknown, expectedId?: string): AuthoredPort {
@@ -980,13 +994,21 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   return { ...common, ...integration, id: record.listing.id };
 }
 
-export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown[]) {
+export function assembleCatalogRecords(
+  shared: unknown,
+  inputs: readonly unknown[],
+  listingPackageFacts?: unknown,
+) {
   if (!isRecord(shared) || Object.hasOwn(shared, "ports") || Object.hasOwn(shared, "listings"))
     throw new Error("Shared catalog source must not contain a second port/listing authority.");
   if (inputs.length > 10000) throw new Error("Catalog source exceeds its bounded record count.");
-  const records = inputs.map((record) => checkedAuthoredPort(record));
-  if (new Set(records.map((record) => record.listing.id)).size !== records.length)
+  const authored = inputs.map((record) => checkedAuthoredPort(record));
+  if (new Set(authored.map((record) => record.listing.id)).size !== authored.length)
     throw new Error("Catalog source has duplicate stable listing IDs.");
+  // Data-derived user-selected registration routes. Each generated record then
+  // passes exactly the validation a hand-authored record does.
+  const generation = generateRegistrations(authored, listingPackageFacts);
+  const records = generation.records.map((record) => checkedAuthoredPort(record));
   checkLineageIdentities(records);
   checkOriginalGameConsistency(records);
   records.sort(
@@ -1120,7 +1142,12 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
                                 )
                               ? 2
                               : 1;
-  return { records, catalog, directory: { format_version, listings } };
+  return {
+    records,
+    catalog,
+    directory: { format_version, listings },
+    generation,
+  };
 }
 
 function readRegularJson(file: string, maximum: number) {
@@ -1173,9 +1200,11 @@ export function readCatalogSource(catalogRoot: string) {
       file.slice(0, -5),
     );
   });
+  const factsPath = join(catalogRoot, catalogSourceNames.listingPackageFacts);
   return assembleCatalogRecords(
     readRegularJson(join(catalogRoot, catalogSourceNames.shared), 8 * 1024 * 1024),
     records,
+    existsSync(factsPath) ? readRegularJson(factsPath, 32 * 1024 * 1024) : undefined,
   );
 }
 export interface CurrentCatalog extends Record<string, unknown> {
@@ -1231,7 +1260,11 @@ export function reviewCompatibilityFixture(
   const legacyPorts = namedRecords(legacy.ports, "legacy.ports");
   const collections: Record<
     string,
-    { expected_count: number; unreviewed_ids: string[]; missing_expected_ids: string[] }
+    {
+      expected_count: number;
+      unreviewed_ids: string[];
+      missing_expected_ids: string[];
+    }
   > = {};
   for (const [name, baseline, actual] of [
     [

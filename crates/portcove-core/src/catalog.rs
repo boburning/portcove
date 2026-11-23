@@ -4883,11 +4883,23 @@ mod tests {
                 "data/out".into(),
             ];
         }
+        // Generated user-selected registration routes are bookkept by their
+        // generated, delta-gated table, not the curated additions fixture.
+        let generated: serde_json::Value = serde_json::from_str(include_str!(
+            "../catalog/generated-registration.generated.json"
+        ))
+        .unwrap();
+        let generated = generated["enrollments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["port_id"].as_str().unwrap().to_owned())
+            .collect::<HashSet<_>>();
         let mut migrated_legacy_ports = migrated
             .document()
             .ports
             .iter()
-            .filter(|port| !additions.port_ids.contains(&port.id))
+            .filter(|port| !additions.port_ids.contains(&port.id) && !generated.contains(&port.id))
             .cloned()
             .collect::<Vec<_>>();
         // Presentation and concise summaries are additive schema-2 client

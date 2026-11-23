@@ -137,6 +137,21 @@ pub(crate) enum CatalogCommand {
         #[arg(long)]
         classify_linux_programs_by_format: bool,
     },
+    /// List the native player candidates a verified listing release archive holds.
+    /// Read-only; nothing is executed and no catalog route is required.
+    InspectListingArtifact {
+        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ release archive.
+        archive: PathBuf,
+        /// Archive reader rules (windows-x86-64, linux-x86-64, macos-x86-64, or macos-aarch64).
+        #[arg(long)]
+        platform: String,
+        /// Expected archive size in bytes from the publisher's release metadata.
+        #[arg(long)]
+        size: u64,
+        /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
+        #[arg(long)]
+        sha256: String,
+    },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
     #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
@@ -298,6 +313,7 @@ impl CatalogCommand {
             Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
             Self::InspectPackageShape { .. } => "catalog.inspect-package-shape",
+            Self::InspectListingArtifact { .. } => "catalog.inspect-listing-artifact",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => DEFINITION_PUBLICATION_INSPECTION_COMMAND,
@@ -511,6 +527,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectPackageShape { .. } => {
             unreachable!("package shape inspection executes before opening a library")
+        }
+        CatalogCommand::InspectListingArtifact { .. } => {
+            unreachable!("listing artifact inspection executes before opening a library")
         }
         CatalogCommand::InspectSettingsQualification { .. } => {
             unreachable!("settings qualification executes before opening a library")

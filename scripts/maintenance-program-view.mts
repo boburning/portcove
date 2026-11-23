@@ -253,7 +253,10 @@ function cfgItems(text: string): CfgItem[] {
  * Splits Rust source into production text and feature-gated text. Pure
  * `#[cfg(test)]` items appear in neither.
  */
-export function partitionCfgItems(text: string): { production: string; featureGated: string } {
+export function partitionCfgItems(text: string): {
+  production: string;
+  featureGated: string;
+} {
   let production = "";
   const featureGated: string[] = [];
   let index = 0;
@@ -262,7 +265,10 @@ export function partitionCfgItems(text: string): { production: string; featureGa
     if (item.gate === "feature") featureGated.push(text.slice(item.start, item.end));
     index = item.end;
   }
-  return { production: production + text.slice(index), featureGated: featureGated.join("\n") };
+  return {
+    production: production + text.slice(index),
+    featureGated: featureGated.join("\n"),
+  };
 }
 
 /** Text with exactly-`#[cfg(test)]` items removed; feature-gated items are kept. */
@@ -1011,6 +1017,12 @@ export interface ProgramView {
       counts: Record<string, number>;
     };
     listing_only_github_packages_windows_x86_64: number;
+    /** Generated user-selected registrations: enrolled, and served by no title-specific code. */
+    generated_registrations: {
+      denominator: Ratio["denominator"];
+      enrolled: number;
+      without_title_authority: number;
+    };
     restricted_by_operation: {
       denominator: Ratio["denominator"];
       restricted_identities: number;
@@ -1108,7 +1120,10 @@ export function authorityCoverage(reports: readonly AuthorityReport[]) {
           ? [`its covering kind ${report.covered_through} is not fully derived`]
           : []),
       ];
-      unknownKinds.push({ kind: report.kind, detail: `${report.kind} ${reasons.join("; ")}.` });
+      unknownKinds.push({
+        kind: report.kind,
+        detail: `${report.kind} ${reasons.join("; ")}.`,
+      });
       continue;
     }
     for (const id of identities) covering.set(id, [...(covering.get(id) ?? []), report.kind]);
@@ -1262,6 +1277,17 @@ export function programView(inputs: ProgramViewInputs): ProgramView {
       },
       listing_only_github_packages_windows_x86_64:
         inputs.routeFit.summary.listing_only_github_packages_windows_x86_64,
+      generated_registrations: {
+        denominator: denominator("inScopeEnrolled", enrolled.length),
+        enrolled: inputs.routeFit.summary.generated_registrations,
+        without_title_authority: enrolled.filter(
+          (subject) =>
+            !subject.title_code_paths.length &&
+            inputs.routeFit.identities.some(
+              (identity) => identity.id === subject.id && identity.generated,
+            ),
+        ).length,
+      },
       restricted_by_operation: {
         denominator: denominator("identities", subjects.length),
         restricted_identities: subjects.filter((subject) => subject.restrictions.declared).length,
@@ -1309,6 +1335,7 @@ export function renderProgramView(view: ProgramView): string {
     `Program cutover view (${view.view_version}; read-only projection, not a planning authority)`,
     gateLine("Fitting coverage", view.gates.fitting),
     gateLine("Retired-authority coverage", view.gates.retired_authority),
+    `Generated registrations: ${view.metrics.generated_registrations.enrolled} enrolled, ${view.metrics.generated_registrations.without_title_authority} with no title-specific authority`,
     "Remaining actions:",
     ...Object.entries(view.remaining_actions.counts).map(([name, count]) => row(name, count)),
     "Title-specific authority kinds:",

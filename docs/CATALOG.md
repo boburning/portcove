@@ -3437,6 +3437,77 @@ artifacts deferred, and name each held operation. A download hold does not
 remove the registration route. The report grants no admission and changes no
 catalog data.
 
+#### Generated user-selected registration
+
+Catalog generation adds the shared registration-only route to a listing-only
+identity when its observed facts fit. This follows the owner decision on
+[#1422](https://github.com/boburning/portcove/issues/1422#issuecomment-7083831868).
+Portcove downloads and executes nothing on this route. The player keeps and
+prepares their own copy, and the player and upstream own runtime replacement.
+`scripts/catalog-generated-registration.mts` decides every identity from data
+only. No title, id or hand-kept list appears in it.
+
+An identity fits when all of these hold:
+
+1. It has no authored integration and no reviewed prepared-player
+   `route_facts_v1` enrollment.
+2. Its declared runtime engine is not the ScummVM project.
+3. Its availability is not `source-only` or `unavailable`.
+4. Its project or release URL names a GitHub repository.
+5. One `listing-package-facts.generated.json` entry names it and that same
+   repository, written by the current facts parser version.
+6. That entry's observation is `complete` and its asset list is complete.
+   Any other coverage is unknown, never eligible.
+7. For a supported desktop platform, an artifact has the typed role
+   `desktop-game-runtime` from an authorizing source. A filename suggestion or
+   stable declaration never authorizes it. No authorizing source contradicts it.
+   Its operating system and architecture are the platform's. It holds a player
+   candidate whose header machine runs on the platform.
+8. On that platform no restriction holds `register-external` or `launch`. A
+   `download` hold does not block registration. This route never offers a
+   download.
+9. An authored listing guide leaves room for the generated selection step and
+   ownership reference within the eight-entry guide bound.
+
+The route's platforms are every platform satisfying 7 and 8. The generated
+record is exactly the hand-authored form: `external_registration_v1: true`, the
+`user-prepared` provider and the `staged-source-portable` adapter. Generated
+records then pass the same validation as authored ones. The listing keeps
+only its other descriptive platforms. The guide names the selected program
+only when the facts name exactly one per platform. The working folder is that
+program's folder. Generic copy states what stays unknown, such as which
+original game files upstream needs. An authored listing guide stays first. The
+selection step, a warning that no title-specific review happened and the
+ownership reference follow it. The provenance reference and review step follow
+too when the bound leaves room.
+
+`generated-registration.generated.json` records each enrollment's facts digest,
+release, artifacts and players, plus blocked counts by reason. Generation is
+pure: when a fact stops holding, the next run omits that route. Examples are a
+removed asset, a contradicted role or incomplete coverage. The delta records
+the withdrawal reason. Withdrawal removes the offer to register new copies. It
+never touches external files. Core's existing
+[retained registration rules](ARCHITECTURE.md) keep a registered copy's
+listing identity. A run whose added, withdrawn or changed routes exceed
+`deltaBounds` is refused. A run is also refused when an enrollment rests on a
+non-authorizing fact. Raising a bound is a reviewed change. `--check` requires
+the committed table to equal the generator output. Generated routes are
+bookkept by this table rather than the curated
+`catalog-legacy-additions-fixture.json`. `catalog-route-fit.mts` and
+`maintenance-program-view.mts` count them as enrolled with no title-specific
+authority.
+
+`scripts/listing-package-facts.mts derive` writes the facts from a listing
+observer report. It reads only digest-bound archives of the latest stable
+release, verifies their size and SHA-256 and runs
+`portcove --json catalog inspect-listing-artifact` ([CLI](CLI.md#listing-artifact-inspection)).
+Then it deletes the bytes. Each archive becomes an `exact-release-structured`
+fact. Its role is `desktop-game-runtime` only when Core found a native player
+outside any tool, installer or server location. One run is bounded by identity
+count and bytes. Unchanged archives are reused. The cursor moves past an
+identity only when its coverage is complete. A failed identity is recorded as
+unknown and is retried first next time. `--check` validates the committed table.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits

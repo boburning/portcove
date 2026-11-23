@@ -718,6 +718,19 @@ against the embedded generated table or explicit fingerprint
 `reason`). It runs before opening a library, executes nothing and establishes
 no review; `scripts/package-shape-baselines.mts --record` uses it.
 
+### Listing artifact inspection
+
+Run `portcove --json catalog inspect-listing-artifact ARCHIVE --platform PLATFORM --size BYTES --sha256 SHA256`
+for a listing's release archive. It needs no catalog route. It verifies and
+extracts the bytes with the same readers; `--platform` selects only the reader
+rules. It returns `catalog.inspect-listing-artifact` data: `sha256`,
+`shape_version`, the number of regular `files` and the `player_candidates`.
+A candidate is a regular file outside any tool, installer or server location
+whose header is a native executable, with its path, machine and SHA-256. It runs
+before opening a library, executes nothing and grants no release or launch
+authority. `scripts/listing-package-facts.mts` uses it
+([CATALOG](CATALOG.md#generated-user-selected-registration)).
+
 `portcove --library PATH --json installation package-shape PORT_ID` lists each
 registered installation of the port with `install_id`, `version`, `active`,
 `status` and, when `status` is `recorded`, the `record`: shape, derivation

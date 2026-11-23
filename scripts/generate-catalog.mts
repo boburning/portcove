@@ -5,6 +5,12 @@ import {
 import { renderRetainedPreparedTests } from "./catalog-retained-prepared.mts";
 import { acceptedPlayerRouteExpectations } from "./package-player-observation.mts";
 import { routeEnrollment, renderRouteTests } from "./catalog-route-facts.mts";
+import {
+  enrollmentDelta,
+  enrollmentTable,
+  gateGeneration,
+  serializeEnrollmentTable,
+} from "./catalog-generated-registration.mts";
 import { coreProposalInspector } from "./catalog-authoring-inspector.mts";
 import type { ProposalReceipt } from "./catalog-authoring-inspector.mts";
 import {
@@ -17,7 +23,7 @@ import {
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -59,6 +65,7 @@ const managedSetupReviewPath = join(
   "managed-setup-review.generated.json",
 );
 const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
+const generatedRegistrationPath = join(catalogRoot, catalogSourceNames.generatedRegistration);
 const routeTestRoot = join(root, "crates", "portcove-core", "src", "testdata");
 const routeTestPaths = {
   prepared: join(routeTestRoot, "prepared-route-tests.generated.rs"),
@@ -301,7 +308,16 @@ function declarationCases(before: CurrentCatalog, after: CurrentCatalog, checks:
       qualification,
     ]);
     const evidence = (source.evidence ?? []).filter((item) => evidenceIds.has(item.id));
-    return { port, source_records: { identities, contracts, validators, evidence, qualification } };
+    return {
+      port,
+      source_records: {
+        identities,
+        contracts,
+        validators,
+        evidence,
+        qualification,
+      },
+    };
   };
   const references = (observed: ReturnType<typeof snapshot>, catalog: CurrentCatalog) => ({
     identities: observed.source_records.identities.map((record) => record.id),
@@ -327,8 +343,14 @@ function declarationCases(before: CurrentCatalog, after: CurrentCatalog, checks:
         {
           port_id: portId,
           reasons,
-          before: { port: old.port, source_record_refs: references(old, before) },
-          after: { port: proposed.port, source_record_refs: references(proposed, after) },
+          before: {
+            port: old.port,
+            source_record_refs: references(old, before),
+          },
+          after: {
+            port: proposed.port,
+            source_record_refs: references(proposed, after),
+          },
           unchanged_port_fields: Object.keys(old.port ?? {})
             .filter(
               (key) =>
@@ -349,7 +371,10 @@ function declarationCases(before: CurrentCatalog, after: CurrentCatalog, checks:
     });
   return {
     cases,
-    source_tables: { before: before.source_catalog ?? {}, after: after.source_catalog ?? {} },
+    source_tables: {
+      before: before.source_catalog ?? {},
+      after: after.source_catalog ?? {},
+    },
     adapter_references: [...new Set(cases.flatMap((item) => item.adapter_references))]
       .sort()
       .map((adapter) => ({
@@ -374,9 +399,12 @@ function declarationCases(before: CurrentCatalog, after: CurrentCatalog, checks:
   };
 }
 
+// Generated registration routes are bookkept by their generated, delta-gated
+// table instead of the independently curated additions fixture.
 function compatibilityFixtureReview(catalog: CurrentCatalog) {
+  const generated = new Set(authored.generation.enrollments.map(({ port_id }) => port_id));
   return reviewCompatibilityFixture(
-    catalog,
+    { ...catalog, ports: catalog.ports.filter(({ id }) => !generated.has(id)) },
     readJson(join(catalogRoot, "catalog-schema1-fixture.json")),
     readFileSync(join(catalogRoot, "catalog-legacy-additions-fixture.json")),
   );
@@ -479,7 +507,9 @@ function proposalImageValidator(
             imageInitializationError =
               error instanceof Error
                 ? error
-                : new Error("Core image initialization failed.", { cause: error });
+                : new Error("Core image initialization failed.", {
+                    cause: error,
+                  });
             throw error;
           }
         }
@@ -576,7 +606,10 @@ async function prepareArtworkProposal(fullProposal = false) {
   const proposalBytes = Buffer.from(`${JSON.stringify(result.catalog, null, 2)}\n`);
   const proposalChecks =
     inspectProposal && beforeChecks
-      ? { ...beforeChecks, output: inspectProposal.inspect("output", proposalBytes, true) }
+      ? {
+          ...beforeChecks,
+          output: inspectProposal.inspect("output", proposalBytes, true),
+        }
       : undefined;
   finishPhase("output_preparation_and_declarations");
   const compatibilityReview = fullProposal ? compatibilityFixtureReview(result.catalog) : undefined;
@@ -624,7 +657,9 @@ async function prepareArtworkProposal(fullProposal = false) {
       ? "Maintainer cover and remote game-media proposal; no admission, signature, publication, image-payload redistribution, runtime or user-choice mutation."
       : "Maintainer cover proposal; no admission, signature, publication, runtime or user-choice mutation.",
   };
-  writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, { flag: "wx" });
+  writeFileSync(join(outputRoot, "catalog-proposal.json"), proposalBytes, {
+    flag: "wx",
+  });
   writeFileSync(
     join(outputRoot, "artwork-evidence.json"),
     `${JSON.stringify(evidence, null, 2)}\n`,
@@ -743,8 +778,19 @@ if (preparing) {
   const routeTests = renderRouteTests(authored.records);
   const retainedTests = renderRetainedPreparedTests(routeTestRoot);
   const acceptedRouteExpectationsOutput = `${JSON.stringify(acceptedPlayerRouteExpectations(authored.records), null, 2)}\n`;
+  const generatedRegistrationOutput = serializeEnrollmentTable(
+    enrollmentTable(authored.generation),
+  );
+  const previousGeneratedRegistration = existsSync(generatedRegistrationPath)
+    ? readJson(generatedRegistrationPath)
+    : undefined;
   if (process.argv.includes("--check")) {
+    // Committed output must equal the generator's; the gate still checks every
+    // enrollment's facts and the committed table is the delta's baseline.
+    gateGeneration(previousGeneratedRegistration, authored.generation);
     if (
+      !existsSync(generatedRegistrationPath) ||
+      readFileSync(generatedRegistrationPath, "utf8") !== generatedRegistrationOutput ||
       readFileSync(acceptedRouteExpectationsPath, "utf8") !== acceptedRouteExpectationsOutput ||
       readFileSync(routeTestPaths.prepared, "utf8") !== routeTests.prepared ||
       readFileSync(routeTestPaths.managed, "utf8") !== routeTests.managed ||
@@ -757,6 +803,13 @@ if (preparing) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
   } else {
+    const delta = gateGeneration(previousGeneratedRegistration, authored.generation);
+    const changed = delta.added.length + delta.withdrawn.length + delta.changed.length;
+    if (changed)
+      process.stderr.write(
+        `Generated registration delta: ${JSON.stringify(enrollmentDelta(previousGeneratedRegistration, authored.generation))}\n`,
+      );
+    writeFileSync(generatedRegistrationPath, generatedRegistrationOutput);
     mkdirSync(routeTestRoot, { recursive: true });
     writeFileSync(acceptedRouteExpectationsPath, acceptedRouteExpectationsOutput);
     writeFileSync(routeTestPaths.prepared, routeTests.prepared);
