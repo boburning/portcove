@@ -51,7 +51,10 @@ import type { RoadmapConfig } from "./roadmap.mts";
 import path from "node:path";
 import os from "node:os";
 /** Lists added after a test was written are attempted, so it keeps exercising its own lists. */
-const newerLists = ["decomp-fun", "unbaked-additions", "portmaster", "osgc"];
+// Lists added after the original four curated lists.
+const newerLists = externalListIds.filter(
+  (id) => !["decomp-buddy-finds", "portsdr", "alexbeav-psx", "recompsoftware"].includes(id),
+);
 function withNewListsAttempted<T extends { external?: ExternalLeadState }>(
   leads: T,
   at: string,
@@ -2016,7 +2019,9 @@ void test("a claim several aggregators repeat counts once for its originating so
   assert.equal(progressBand(41.2), progressBand(48.9));
   assert.notEqual(progressBand(48.9), progressBand(51));
   assert.equal(progressBand(100), 10);
-  assert.equal(progressBand(0.5), 5, "a fraction is read as a share");
+  assert.equal(progressBand(0.99), 0, "values are percentages: 0.99 is under one percent");
+  assert.equal(progressBand(0.99), progressBand(1.05));
+  assert.equal(progressBand(101), null);
   assert.equal(progressBand(null), null);
 });
 

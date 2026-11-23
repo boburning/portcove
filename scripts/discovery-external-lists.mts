@@ -24,7 +24,22 @@ import {
   parseDecompBuddyWaiting,
   parseDecompFunGames,
   parseDecompFunProjects,
+  parseUnbakedGame,
 } from "./discovery-source-parsers.mts";
+import {
+  parseBatoceraPackage,
+  parseLuxtorpedaIndex,
+  parseMacSourcePortsMeta,
+  parseRecompLauncherCatalog,
+  parseRetropieModule,
+} from "./discovery-distribution-parsers.mts";
+export {
+  parseBatoceraPackage,
+  parseLuxtorpedaIndex,
+  parseMacSourcePortsMeta,
+  parseRecompLauncherCatalog,
+  parseRetropieModule,
+} from "./discovery-distribution-parsers.mts";
 export {
   parseDecompBuddyCatalog,
   parseDecompBuddyWaiting,
@@ -83,7 +98,8 @@ export const externalLeadLists = [
     id: "decomp-buddy-catalog",
     url: "https://tanookistudios.com/decomp-buddy/catalog.json",
     format: "decomp-buddy-catalog",
-    cap: 64 * 1024 * 1024,
+    cap: 32 * 1024 * 1024,
+    observed_bytes: 7_696_992,
     parser: 1,
     conditional: true,
     refresh_days: 1,
@@ -93,7 +109,8 @@ export const externalLeadLists = [
     id: "decomp-buddy-waiting",
     url: "https://tanookistudios.com/decomp-buddy/waiting.json",
     format: "decomp-buddy-waiting",
-    cap: 64 * 1024 * 1024,
+    cap: 16 * 1024 * 1024,
+    observed_bytes: 3_434_728,
     parser: 1,
     conditional: true,
     refresh_days: 1,
@@ -104,7 +121,8 @@ export const externalLeadLists = [
     id: "decomp-fun",
     url: "https://decomp.fun/v1/projects.json",
     format: "decomp-fun-json",
-    cap: 64 * 1024 * 1024,
+    cap: 4 * 1024 * 1024,
+    observed_bytes: 250_706,
     parser: 2,
     conditional: true,
     refresh_days: 1,
@@ -114,7 +132,8 @@ export const externalLeadLists = [
     id: "decomp-fun-games",
     url: "https://decomp.fun/v1/games.json",
     format: "decomp-fun-games",
-    cap: 64 * 1024 * 1024,
+    cap: 4 * 1024 * 1024,
+    observed_bytes: 61_804,
     parser: 1,
     conditional: true,
     refresh_days: 1,
@@ -135,11 +154,77 @@ export const externalLeadLists = [
     id: "unbaked-registry",
     url: "https://unbaked.games/api/games.json",
     format: "unbaked-inventory",
-    cap: 64 * 1024 * 1024,
+    cap: 16 * 1024 * 1024,
+    observed_bytes: 3_210_817,
+    item_cap: 1024 * 1024,
     parser: 1,
     conditional: true,
     refresh_days: 1,
     inventory: true,
+  },
+  // RecompLauncher's PC catalog: recompilations, decompilation ports and native
+  // games the launcher installs, with platform labels and game associations.
+  {
+    id: "recomplauncher",
+    url: "https://recomplauncher.com/pc-catalog.json",
+    format: "recomplauncher-catalog",
+    cap: 32 * 1024 * 1024,
+    observed_bytes: 7_035_088,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // Luxtorpeda's published package index, generated from
+  // codeberg.org/luxtorpeda/packages: native Linux engines for Steam games.
+  {
+    id: "luxtorpeda",
+    url: "https://luxtorpeda.org/packagessniper_v2.json",
+    format: "luxtorpeda-index",
+    cap: 8 * 1024 * 1024,
+    observed_bytes: 606_642,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // Mac Source Ports' build index: macOS builds and each one's upstream project.
+  {
+    id: "macsourceports",
+    url: "https://www.macsourceports.com/meta.json",
+    format: "macsourceports-meta",
+    cap: 4 * 1024 * 1024,
+    observed_bytes: 114_851,
+    parser: 1,
+    conditional: true,
+    refresh_days: 1,
+  },
+  // Batocera's port packages at an exact revision: one `.mk` per package.
+  {
+    id: "batocera-ports",
+    format: "batocera-ports",
+    cap: 1024 * 1024,
+    observed_bytes: 8_192,
+    parser: 1,
+    refresh_days: 1,
+    inventory: true,
+    revision_repository: "batocera-linux/batocera.linux",
+    inventory_directory: "package/batocera/ports",
+    inventory_depth: 2,
+    inventory_files: "\\.mk$",
+  },
+  // RetroPie's port modules at an exact revision: one shell module per port,
+  // read as text and never sourced.
+  {
+    id: "retropie-ports",
+    format: "retropie-ports",
+    cap: 1024 * 1024,
+    observed_bytes: 8_192,
+    parser: 1,
+    refresh_days: 1,
+    inventory: true,
+    revision_repository: "RetroPie/RetroPie-Setup",
+    inventory_directory: "scriptmodules/ports",
+    inventory_depth: 1,
+    inventory_files: "\\.sh$",
   },
   // PortMaster's package index names upstream projects only in its prose; those
   // links are read as hints. Its handheld ARM packages say nothing about desktop builds.
@@ -230,6 +315,8 @@ export interface ExternalInventoryItem {
   public_code: boolean;
   /** Projects the item's last complete record named. */
   projects?: number;
+  /** The parser version that read the record; another version reads it again. */
+  parser?: number;
 }
 /**
  * A resumable inventory baseline: the inventory read, then one record read per
@@ -240,6 +327,9 @@ export interface ExternalInventoryProgress {
   inventory_at: string;
   inventory_sha256: string;
   etag?: string;
+  /** For a repository directory: the exact revision listed and the pinned repository. */
+  revision?: string;
+  repository_id?: number;
   unchanged_at?: string;
   items: Record<string, ExternalInventoryItem>;
 }
@@ -527,11 +617,24 @@ export function parseOsgcGames(text: string): ParsedExternalList {
   return { ...collect(rows, unlinked), excluded };
 }
 
+/** One inventory item's record, parsed by its list's format. */
+export function parseExternalInventoryItem(id: string, text: string, key: string) {
+  const format = externalLeadLists.find((candidate) => candidate.id === id)?.format;
+  if (format === "unbaked-inventory") return parseUnbakedGame(text, key);
+  if (format === "batocera-ports") return parseBatoceraPackage(text, key);
+  if (format === "retropie-ports") return parseRetropieModule(text, key);
+  throw new Error("Unknown external inventory format");
+}
 export function parseExternalList(id: string, text: string): ParsedExternalList {
   const format = externalLeadLists.find((candidate) => candidate.id === id)?.format;
   if (format === "decomp-buddy-catalog") return parseDecompBuddyCatalog(text);
   if (format === "decomp-buddy-waiting") return parseDecompBuddyWaiting(text);
   if (format === "decomp-fun-games") return parseDecompFunGames(text);
+  if (format === "luxtorpeda-index") return parseLuxtorpedaIndex(text);
+  if (format === "macsourceports-meta") return parseMacSourcePortsMeta(text);
+  if (format === "recomplauncher-catalog") return parseRecompLauncherCatalog(text);
+  if (format === "batocera-ports" || format === "retropie-ports")
+    throw new Error("An inventory list is read item by item, not parsed whole");
   const list = externalLeadLists.find((candidate) => candidate.id === id);
   if (!list) throw new Error("Unknown external lead list");
   if (list.format === "recompsoftware-json") return parseRecompSoftwareCatalog(text);
@@ -554,6 +657,7 @@ function expectedSourceUrls(id: string, revision: string): string[] {
     return [
       `https://github.com/${list.revision_repository}/tree/${revision}/${list.revision_directory}`,
     ];
+  if (!("revision_path" in list)) return [];
   return [
     `https://raw.githubusercontent.com/${list.revision_repository}/${revision}/${list.revision_path}`,
   ];
@@ -695,10 +799,15 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
         !/^[a-f0-9]{64}$/u.test(raw.inventory_sha256) ||
         (raw.etag !== undefined && responseValidator(raw.etag) === undefined) ||
         (raw.unchanged_at !== undefined && !clock(raw.unchanged_at)) ||
+        (raw.revision !== undefined &&
+          (typeof raw.revision !== "string" || !/^[a-f0-9]{40}$/u.test(raw.revision))) ||
+        (raw.repository_id !== undefined &&
+          (!Number.isSafeInteger(raw.repository_id) || Number(raw.repository_id) <= 0)) ||
         !isRecord(raw.items) ||
         Object.entries(raw.items).some(
           ([slug, item]) =>
-            !/^[a-z0-9][a-z0-9-]{0,159}$/u.test(slug) ||
+            !inventoryItemKey.test(slug) ||
+            slug.split("/").includes("..") ||
             !isRecord(item) ||
             typeof item.row !== "string" ||
             typeof item.public_code !== "boolean" ||
@@ -706,7 +815,8 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
             (item.fetched_row !== undefined && typeof item.fetched_row !== "string") ||
             (item.failed_at !== undefined && !clock(item.failed_at)) ||
             (item.projects !== undefined &&
-              (!Number.isSafeInteger(item.projects) || Number(item.projects) < 0)),
+              (!Number.isSafeInteger(item.projects) || Number(item.projects) < 0)) ||
+            (item.parser !== undefined && !Number.isSafeInteger(item.parser)),
         )
       )
         throw new Error("Invalid retained external inventory");
@@ -714,6 +824,8 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
   return structuredClone(value) as unknown as ExternalLeadState;
 }
 
+/** An inventory item: a registry slug or a repository file path. */
+export const inventoryItemKey = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,239}$/u;
 /** Days after which an unchanged inventory item's record is read again. */
 export const inventoryReconcileDays = 30;
 /**
@@ -727,9 +839,11 @@ export function recordExternalInventory(
   rows: readonly { slug: string; fingerprint: string; public_code: boolean }[],
   observedAt: string,
   contentSha256: string,
-  etag?: string,
+  read: { etag?: string | undefined; revision?: string; repository_id?: number } = {},
 ): ExternalLeadState {
   if (!externalListIds.includes(id)) throw new Error("Unknown external lead list");
+  if (rows.some((row) => !inventoryItemKey.test(row.slug) || row.slug.split("/").includes("..")))
+    throw new Error("Invalid external inventory item");
   const next: ExternalLeadState = structuredClone(state ?? { lists: {}, hints: {} });
   const previous = next.inventories?.[id]?.items ?? {};
   const items: Record<string, ExternalInventoryItem> = {};
@@ -740,7 +854,9 @@ export function recordExternalInventory(
     [id]: {
       inventory_at: observedAt,
       inventory_sha256: contentSha256,
-      ...(etag ? { etag } : {}),
+      ...(read.etag ? { etag: read.etag } : {}),
+      ...(read.revision ? { revision: read.revision } : {}),
+      ...(read.repository_id ? { repository_id: read.repository_id } : {}),
       items,
     },
   };
@@ -764,6 +880,12 @@ export function externalInventoryDue(
   id: string,
   now: string,
 ) {
+  const attempt = state?.attempts?.[id];
+  if (
+    attempt?.outcome === "partial" &&
+    Date.parse(now) - Date.parse(attempt.attempted_at) < externalListFailureRetryDays * 86400000
+  )
+    return false;
   const inventory = state?.inventories?.[id];
   const last = [inventory?.inventory_at, inventory?.unchanged_at]
     .filter((value): value is string => Boolean(value))
@@ -788,14 +910,16 @@ export function dueExternalInventoryItems(
 ) {
   const items = Object.entries(state?.inventories?.[id]?.items ?? {});
   const at = Date.parse(now);
+  const parser = parserVersion(id);
   const rank = (item: ExternalInventoryItem) =>
-    !item.fetched_at ? 0 : item.fetched_row !== item.row ? 1 : 2;
+    !item.fetched_at ? 0 : item.fetched_row !== item.row || item.parser !== parser ? 1 : 2;
   return items
     .filter(
       ([, item]) =>
         !(item.failed_at && at - Date.parse(item.failed_at) < 86400000) &&
         (!item.fetched_at ||
           item.fetched_row !== item.row ||
+          item.parser !== parser ||
           at - Date.parse(item.fetched_at) >= inventoryReconcileDays * 86400000),
     )
     .sort(
@@ -814,19 +938,35 @@ export function mergeExternalInventoryItem(
   parsed: ParsedExternalList,
   observedAt: string,
 ): ExternalLeadState {
-  const item = state.inventories?.[id]?.items[slug];
+  const next = structuredClone(state);
+  applyExternalInventoryItem(next, id, slug, parsed, observedAt);
+  return next;
+}
+/**
+ * Applies one item's complete record in place. A baseline applies a batch of
+ * records to one working copy and saves it, rather than copying the whole lead
+ * state for every record.
+ */
+export function applyExternalInventoryItem(
+  next: ExternalLeadState,
+  id: string,
+  slug: string,
+  parsed: ParsedExternalList,
+  observedAt: string,
+) {
+  const item = next.inventories?.[id]?.items[slug];
   if (!item) throw new Error("Unknown external inventory item");
   if (!clock(observedAt)) throw new Error("Invalid external inventory clock");
-  const next = structuredClone(state);
   mergeEntries(next, id, parsed.entries, observedAt);
   const { failed_at: _failed, ...rest } = item;
+  const parser = parserVersion(id);
   next.inventories![id]!.items[slug] = {
     ...rest,
     fetched_at: observedAt,
     fetched_row: item.row,
     projects: parsed.entries.length + parsed.unlinked,
+    ...(parser !== undefined ? { parser } : {}),
   };
-  return next;
 }
 /** A failed item read keeps its last complete record and waits a day. */
 export function recordExternalInventoryItemFailure(
@@ -835,11 +975,34 @@ export function recordExternalInventoryItemFailure(
   slug: string,
   attemptedAt: string,
 ): ExternalLeadState {
-  const item = state.inventories?.[id]?.items[slug];
-  if (!item) throw new Error("Unknown external inventory item");
   const next = structuredClone(state);
-  next.inventories![id]!.items[slug] = { ...item, failed_at: attemptedAt };
+  applyExternalInventoryItemFailure(next, id, slug, attemptedAt);
   return next;
+}
+/** Records a failed item read in place. */
+export function applyExternalInventoryItemFailure(
+  next: ExternalLeadState,
+  id: string,
+  slug: string,
+  attemptedAt: string,
+) {
+  const item = next.inventories?.[id]?.items[slug];
+  if (!item) throw new Error("Unknown external inventory item");
+  next.inventories![id]!.items[slug] = { ...item, failed_at: attemptedAt };
+}
+/**
+ * Whether every item has a complete record for its current row and parser.
+ * An item waiting out a failed read is not complete: its backoff defers it.
+ */
+export function externalInventoryCurrent(state: ExternalLeadState | undefined, id: string) {
+  const inventory = state?.inventories?.[id];
+  const parser = parserVersion(id);
+  return Boolean(
+    inventory &&
+    Object.values(inventory.items).every(
+      (item) => item.fetched_at && item.fetched_row === item.row && item.parser === parser,
+    ),
+  );
 }
 /**
  * Records the list complete once no item is due. The clock's scope is the
@@ -853,7 +1016,10 @@ export function completeExternalInventory(
 ): ExternalLeadState {
   const inventory = state.inventories?.[id];
   if (!inventory) throw new Error("A complete inventory needs its retained read");
-  if (dueExternalInventoryItems(state, id, observedAt).length)
+  if (
+    dueExternalInventoryItems(state, id, observedAt).length ||
+    !externalInventoryCurrent(state, id)
+  )
     throw new Error("An inventory with due items is not complete");
   const next = structuredClone(state);
   const parser = parserVersion(id);
@@ -990,6 +1156,24 @@ export function mergeExternalList(
   return next;
 }
 
+/**
+ * Bytes a list's next read is expected to transfer: its last read, or the size
+ * observed when the list was configured, with a quarter's headroom, never more
+ * than its cap. A list is admitted by this, not by its cap; the cap only guards
+ * against a runaway response.
+ */
+export function expectedListBytes(state: ExternalLeadState | undefined, id: string) {
+  const list = externalLeadLists.find((candidate) => candidate.id === id);
+  if (!list) throw new Error("Unknown external lead list");
+  const last = state?.lists[id]?.bytes;
+  const expected =
+    last !== undefined && last > 0
+      ? last
+      : "observed_bytes" in list
+        ? list.observed_bytes
+        : list.cap;
+  return Math.min(list.cap, Math.ceil(expected * 1.25) + 64 * 1024);
+}
 /** The list's configured parser version; a retained copy from another version is re-read. */
 export function parserVersion(id: string) {
   const list = externalLeadLists.find((candidate) => candidate.id === id);
@@ -1192,7 +1376,11 @@ export function externalHintSummary(
         {
           last_complete: state?.lists[list.id] ?? null,
           last_attempt: state?.attempts?.[list.id] ?? null,
-          due: externalListDue(state, list.id, now),
+          due:
+            "inventory" in list
+              ? externalInventoryDue(state, list.id, now) ||
+                dueExternalInventoryItems(state, list.id, now).length > 0
+              : externalListDue(state, list.id, now),
           contribution: contribution.get(list.id) ?? null,
         },
       ]),

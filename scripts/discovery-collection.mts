@@ -37,17 +37,19 @@ import {
   externalLeadLists,
   externalListDue,
   externalListValidators,
+  expectedListBytes,
   markExternalListUnchanged,
   responseValidator,
+  applyExternalInventoryItem,
+  applyExternalInventoryItemFailure,
   completeExternalInventory,
   dueExternalInventoryItems,
+  externalInventoryCurrent,
   externalInventoryDue,
   markExternalInventoryUnchanged,
-  mergeExternalInventoryItem,
-  parseUnbakedGame,
+  parseExternalInventoryItem,
   parseUnbakedInventory,
   recordExternalInventory,
-  recordExternalInventoryItemFailure,
   leadPaths,
   mergeExternalList,
   parseExternalList,
@@ -158,6 +160,68 @@ async function readRevisionDirectory(
   return files;
 }
 
+/** The run's budget ended a directory listing; nothing partial is recorded. */
+class InventoryDeferred extends Error {}
+/**
+ * Lists one repository directory at its current default revision. The
+ * repository's provider ID is pinned on the first read and must match later.
+ * An unchanged revision keeps the retained listing; a new one is listed in
+ * full (subdirectories to the configured depth) before it replaces it, so a
+ * listing the budget cut short records nothing.
+ */
+async function readDirectoryInventory(
+  host: DiscoveryCollectionHost,
+  id: string,
+  directory: { repository: string; path: string; depth: number; files: RegExp },
+  fits: () => boolean,
+) {
+  const at = host.journal.started_at;
+  const retained = host.leads.external?.inventories?.[id];
+  const resolved = await resolveDiscoveryRevision(
+    host.source,
+    directory.repository,
+    retained?.repository_id,
+  );
+  if (retained && retained.revision === resolved.revision) {
+    host.leads = {
+      ...host.leads,
+      external: markExternalInventoryUnchanged(host.leads.external!, id, at),
+    };
+    return;
+  }
+  const rows: { slug: string; fingerprint: string; public_code: boolean }[] = [];
+  const list = async (path: string, depth: number) => {
+    if (!fits()) throw new InventoryDeferred();
+    const listing = await host.source.sdk.request({
+      method: "GET",
+      url: new URL(
+        `repos/${directory.repository}/contents/${path}?ref=${resolved.revision}`,
+        "https://api.github.com/",
+      ).href,
+    });
+    if (!Array.isArray(listing.data)) throw new Error("External source directory unavailable");
+    for (const raw of listing.data as unknown[]) {
+      const entry = object(raw);
+      if (typeof entry.path !== "string" || typeof entry.sha !== "string") continue;
+      if (entry.type === "dir" && depth > 1) await list(entry.path, depth - 1);
+      else if (entry.type === "file" && directory.files.test(entry.path))
+        rows.push({ slug: entry.path, fingerprint: entry.sha, public_code: true });
+    }
+  };
+  await list(directory.path, directory.depth);
+  if (!rows.length) throw new Error("External source directory has no definitions");
+  host.leads = {
+    ...host.leads,
+    external: recordExternalInventory(
+      host.leads.external,
+      id,
+      rows.sort((a, b) => a.slug.localeCompare(b.slug)),
+      at,
+      observationHash(rows),
+      { revision: resolved.revision, repository_id: resolved.id },
+    ),
+  };
+}
 /** Records between durable saves while an inventory baseline reads item records. */
 const inventorySaveEvery = 25;
 /**
@@ -170,10 +234,25 @@ const inventorySaveEvery = 25;
  */
 async function collectExternalInventory(
   host: DiscoveryCollectionHost,
-  id: string,
-  url: string,
-  cap: number,
+  list: (typeof externalLeadLists)[number],
 ) {
+  const { id, cap } = list;
+  // Item records are small; they are admitted and capped by their own size.
+  const itemCap = "item_cap" in list ? list.item_cap : cap;
+  const directory =
+    "inventory_directory" in list && "revision_repository" in list
+      ? {
+          repository: list.revision_repository,
+          path: list.inventory_directory,
+          depth: list.inventory_depth,
+          files: new RegExp(list.inventory_files, "u"),
+        }
+      : undefined;
+  const url = directory
+    ? `https://github.com/${directory.repository}/tree/HEAD/${directory.path}`
+    : "url" in list
+      ? list.url
+      : "";
   const at = host.journal.started_at;
   const note = (status: string, extra: Record<string, unknown>) =>
     host.journal.notes.push({ phase: "external-inventory", source: id, status, ...extra });
@@ -190,55 +269,66 @@ async function collectExternalInventory(
         "deadline_exceeded",
         "cancelled",
       ].includes(error.code));
-  const fits = () => {
+  const fits = (bytes = itemCap) => {
     const reserve = researchReserve(host, 22);
     const left = host.budget.remaining();
-    return left.requests > reserve.requests && left.bytes >= cap + reserve.bytes;
+    return left.requests > reserve.requests && left.bytes >= bytes + reserve.bytes;
   };
   try {
     if (externalInventoryDue(host.leads.external, id, at)) {
-      if (!fits()) {
+      if (!fits(directory ? itemCap : expectedListBytes(host.leads.external, id))) {
         note("deferred", { resume: "Read the inventory on a later admitted run" });
         return false;
       }
-      const etag = host.leads.external?.inventories?.[id]?.etag;
-      const response = await host.source.http.request(
-        "GET",
-        url,
-        undefined,
-        false,
-        cap,
-        etag ? { conditional: { etag } } : {},
-      );
-      host.save(`external-inventory-${id}`, {
-        url,
-        status: response.status,
-        headers: response.headers,
-        text: response.text,
-      });
-      if (response.status === 304 && etag && response.requests === 1)
-        host.leads = {
-          ...host.leads,
-          external: markExternalInventoryUnchanged(host.leads.external!, id, at),
-        };
+      if (directory) await readDirectoryInventory(host, id, directory, fits);
       else {
-        if (response.status !== 200)
-          throw new Error(`External inventory returned HTTP ${String(response.status)}`);
-        host.leads = {
-          ...host.leads,
-          external: recordExternalInventory(
-            host.leads.external,
-            id,
-            parseUnbakedInventory(response.text),
-            at,
-            observationHash(response.text),
-            response.requests === 1 ? responseValidator(response.headers.etag) : undefined,
-          ),
-        };
+        const etag = host.leads.external?.inventories?.[id]?.etag;
+        const response = await host.source.http.request(
+          "GET",
+          url,
+          undefined,
+          false,
+          cap,
+          etag ? { conditional: { etag } } : {},
+        );
+        host.save(`external-inventory-${id}`, {
+          url,
+          status: response.status,
+          headers: response.headers,
+          text: response.text,
+        });
+        if (response.status === 304 && etag && response.requests === 1)
+          host.leads = {
+            ...host.leads,
+            external: markExternalInventoryUnchanged(host.leads.external!, id, at),
+          };
+        else {
+          if (response.status !== 200)
+            throw new Error(`External inventory returned HTTP ${String(response.status)}`);
+          host.leads = {
+            ...host.leads,
+            external: recordExternalInventory(
+              host.leads.external,
+              id,
+              parseUnbakedInventory(response.text),
+              at,
+              observationHash(response.text),
+              {
+                etag:
+                  response.requests === 1 ? responseValidator(response.headers.etag) : undefined,
+              },
+            ),
+          };
+        }
       }
       host.persist();
     }
   } catch (error) {
+    if (error instanceof InventoryDeferred) {
+      note("deferred", { resume: "List the repository directory on a later admitted run" });
+      host.persist();
+      return false;
+    }
     if (boundary(error)) {
       host.persist();
       return false;
@@ -257,58 +347,68 @@ async function collectExternalInventory(
   }
   const inventory = host.leads.external?.inventories?.[id];
   if (!inventory) return true;
+  // One working copy takes a batch of records in place; each save links the
+  // batch's hints to leads and persists it.
+  let working = structuredClone(host.leads.external!);
   let unsaved = 0;
+  const save = () => {
+    host.leads = linkExternalHints({ ...host.leads, external: working }, at);
+    working = structuredClone(host.leads.external!);
+    unsaved = 0;
+    host.persist();
+  };
   for (const slug of dueExternalInventoryItems(host.leads.external, id, at)) {
     if (!fits()) {
       note("deferred", { next: slug, resume: "Read the remaining item records on a later run" });
-      host.persist();
+      save();
       return false;
     }
-    const recordUrl = `https://unbaked.games/api/games/${slug}.json`;
+    // A repository file is read at the exact revision its listing described.
+    const recordUrl = directory
+      ? `https://raw.githubusercontent.com/${directory.repository}/${inventory.revision}/${slug}`
+      : `https://unbaked.games/api/games/${slug}.json`;
     try {
-      const response = await host.source.http.request("GET", recordUrl, undefined, false, cap);
+      const response = await host.source.http.request("GET", recordUrl, undefined, false, itemCap);
       if (response.status !== 200)
         throw new Error(`External inventory record returned HTTP ${String(response.status)}`);
-      host.save(`external-inventory-${id}-${slug}`, { url: recordUrl, text: response.text });
-      host.leads = linkExternalHints(
-        {
-          ...host.leads,
-          external: mergeExternalInventoryItem(
-            host.leads.external!,
-            id,
-            slug,
-            parseUnbakedGame(response.text, slug),
-            at,
-          ),
-        },
+      host.save(`external-inventory-${id}-${observationHash(slug).slice(0, 16)}`, {
+        url: recordUrl,
+        text: response.text,
+      });
+      applyExternalInventoryItem(
+        working,
+        id,
+        slug,
+        parseExternalInventoryItem(id, response.text, slug),
         at,
       );
     } catch (error) {
       if (boundary(error)) {
-        host.persist();
+        save();
         return false;
       }
-      host.leads = {
-        ...host.leads,
-        external: recordExternalInventoryItemFailure(host.leads.external!, id, slug, at),
-      };
+      applyExternalInventoryItemFailure(working, id, slug, at);
       note("partial", {
         evidence: recordUrl,
         error: errorMessage(error),
         resume: "Retry this record after a day",
       });
     }
-    if (++unsaved >= inventorySaveEvery) {
-      host.persist();
-      unsaved = 0;
-    }
+    if (++unsaved >= inventorySaveEvery) save();
   }
-  if (!dueExternalInventoryItems(host.leads.external, id, at).length)
+  save();
+  // Complete only when every item has a record for its current row: an item
+  // waiting out a failed read keeps the list incomplete.
+  if (
+    !dueExternalInventoryItems(host.leads.external, id, at).length &&
+    externalInventoryCurrent(host.leads.external, id)
+  ) {
     host.leads = {
       ...host.leads,
       external: completeExternalInventory(host.leads.external!, id, at, url),
     };
-  host.persist();
+    host.persist();
+  }
   return true;
 }
 
@@ -348,7 +448,7 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
     if (
       left.requests <
         researchReserve(host, 22).requests + ("revision_repository" in list ? 3 : 0) ||
-      left.bytes < list.cap + researchReserve(host, 22).bytes
+      left.bytes < expectedListBytes(host.leads.external, list.id) + researchReserve(host, 22).bytes
     ) {
       host.journal.notes.push({
         phase: "external-list",
@@ -640,13 +740,11 @@ export async function collectExternalLeadLists(host: DiscoveryCollectionHost) {
   }
   // A resumable inventory baseline takes what remains; hints it creates are
   // resolved on the next pass or run.
-  if (!listsStopped && host.budget.remaining().milliseconds > 0)
+  // Inventory baselines are bulk work for unattended collection; interactive
+  // runners take their results from the shared store.
+  if (host.unattended && !listsStopped && host.budget.remaining().milliseconds > 0)
     for (const list of externalLeadLists)
-      if (
-        "inventory" in list &&
-        !(await collectExternalInventory(host, list.id, list.url, list.cap))
-      )
-        break;
+      if ("inventory" in list && !(await collectExternalInventory(host, list))) break;
   host.persist();
   return host.leadSummary().external;
 }

@@ -2,6 +2,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   bounded,
   externalLocation,
+  claimId,
   inert,
   json,
   progressBand,
@@ -88,7 +89,7 @@ export function parseDecompBuddyCatalog(textValue: string): ParsedExternalList {
       url: text(game.repoUrl),
       title: text(game.title),
       claim: sourceEntry({
-        id: inert(game.id),
+        id: claimId(game.id),
         subject: text(game.title),
         category: inert(game.console),
         method: inert(facts.completeness),
@@ -126,7 +127,7 @@ export function parseDecompBuddyWaiting(textValue: string): ParsedExternalList {
       url,
       title: text(game.title),
       claim: sourceEntry({
-        id: inert(repo),
+        id: claimId(repo),
         subject: text(game.title),
         category: inert(game.console),
         method: "",
@@ -180,7 +181,7 @@ export function parseDecompFunProjects(textValue: string): ParsedExternalList {
       url: project.repository,
       title,
       claim: sourceEntry({
-        id: inert(slot || `${text(project.owner)}/${text(project.repo)}`),
+        id: claimId(slot || `${text(project.owner)}/${text(project.repo)}`),
         subject: title,
         category: inert(platform),
         method: "matching-decompilation",
@@ -227,7 +228,7 @@ export function parseDecompFunGames(textValue: string): ParsedExternalList {
         url: `https://github.com/${project.repo}`,
         title: text(game.title),
         claim: sourceEntry({
-          id: inert(slot),
+          id: claimId(slot),
           subject: text(game.title),
           category: inert(game.platform),
           method: "matching-decompilation",
@@ -331,7 +332,7 @@ export function parseUnbakedGame(textValue: string, slug: string): ParsedExterna
       url: text(project.url) || text(project.website) || null,
       title: text(value.title),
       claim: sourceEntry({
-        id: inert(`${slug}:${text(project.name)}`),
+        id: claimId(`${slug}:${text(project.name)}`),
         subject: text(value.title),
         category: inert(value.platform),
         method: list(project.methods).map(inert).join(","),

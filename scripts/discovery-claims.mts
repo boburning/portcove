@@ -233,10 +233,27 @@ export function validClaimExtensions(row: Record<string, unknown>) {
   );
 }
 /** Tenths of matching progress; a source's small percentage moves stay in one band. */
-export function progressBand(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
-  const percent = value <= 1 && !Number.isInteger(value) ? value * 100 : value;
-  return percent >= 100 ? 10 : Math.min(9, Math.floor(percent / 10));
+export function progressBand(percent: unknown) {
+  // Every source publishes a percentage (0 to 100); 0.99 means under one percent.
+  if (typeof percent !== "number" || !Number.isFinite(percent) || percent < 0 || percent > 100)
+    return null;
+  return percent >= 100 ? 10 : Math.floor(percent / 10);
+}
+/**
+ * A claim identity: its inert text, or a long one's prefix and digest, so two
+ * long identities never collapse into one by truncation.
+ */
+export function claimId(value: unknown) {
+  const text = typeof value === "string" ? value : "";
+  const clean = text
+    .replace(/[\p{Cc}\p{Cf}]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+  return Array.from(clean).length <= maxTitle
+    ? clean
+    : `${Array.from(clean)
+        .slice(0, maxTitle - 17)
+        .join("")}#${observationHash(clean).slice(0, 16)}`;
 }
 /** One attributed claim with its fingerprint over every claim field. */
 export function sourceEntry(claims: Omit<ExternalSourceEntry, "fingerprint">): ExternalSourceEntry {

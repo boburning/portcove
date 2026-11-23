@@ -279,6 +279,12 @@ void test("an unbaked baseline resumes after interruption, reconciles changes an
   state = recordExternalInventoryItemFailure(state, "unbaked-registry", "b", now);
   assert.deepEqual(dueExternalInventoryItems(state, "unbaked-registry", now), ["c"]);
   state = mergeExternalInventoryItem(state, "unbaked-registry", "c", record("c"), now);
+  assert.deepEqual(dueExternalInventoryItems(state, "unbaked-registry", now), []);
+  assert.throws(
+    () => completeExternalInventory(state, "unbaked-registry", now, "games.json"),
+    /due items/u,
+    "an item waiting out a failed read keeps the list incomplete",
+  );
   const next = later(1);
   assert.deepEqual(dueExternalInventoryItems(state, "unbaked-registry", next), ["b"]);
   state = mergeExternalInventoryItem(state, "unbaked-registry", "b", record("b"), next);
@@ -304,6 +310,10 @@ void test("an unbaked baseline resumes after interruption, reconciles changes an
   state = recordExternalInventory(state, "unbaked-registry", changed, later(2), "e".repeat(64));
   assert.deepEqual(dueExternalInventoryItems(state, "unbaked-registry", later(2)), ["a"]);
   assert.deepEqual(dueExternalInventoryItems(state, "unbaked-registry", later(31)), ["a", "b"]);
+  // A record read by another parser version is read again.
+  const reparsed = structuredClone(state);
+  reparsed.inventories!["unbaked-registry"]!.items.b!.parser = 0;
+  assert.deepEqual(dueExternalInventoryItems(reparsed, "unbaked-registry", later(2)), ["a", "b"]);
   assert.ok(state.hints["https://github.com/owner/c"], "leaving the registry keeps the hint");
   assert.equal(state.inventories?.["unbaked-registry"]?.items.c, undefined);
 

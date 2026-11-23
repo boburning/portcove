@@ -560,8 +560,9 @@ Further structured sources follow the same contract (shapes verified live on
 - decomp.fun's hourly `v1/projects.json` and per-game `v1/games.json`. Every
   project keeps its own identity; a game's leading project never suppresses
   another (`status` is `leader` or `alternate-of:<leader>`). Each claim keeps
-  the game slot and its matching progress in tenths, so a small percentage move
-  is not a research change.
+  the game slot and its matching progress in tenths (sources publish
+  percentages, so 0.99 is under one percent), so a small percentage move is not
+  a research change.
 - unbaked's weekly `api/additions.json` (every project the registry gained in its
   published weeks, a rolling seven-week window) and its complete registry
   baseline (below).
@@ -577,11 +578,57 @@ Further structured sources follow the same contract (shapes verified live on
   on every later read; a different repository at that path is a failed read
   that keeps the last good clock.
 
+#### Distribution channels and launcher catalogs
+
+A distribution builds or packages an upstream separately. Its hint names the
+original project, whose own releases are resolved there; the claim carries
+`relation: distribution`, the `channel` and the channel's pin, so paths,
+patches, pinned versions and builds stay attributed to the distribution. No
+packaging script is executed. The ScummVM engine is never hinted through a
+channel (the ScummVM expansion stays excluded).
+
+- **Luxtorpeda** (`https://luxtorpeda.org/packagessniper_v2.json`, the index the
+  publisher generates from `codeberg.org/luxtorpeda/packages`, which replaced
+  `github.com/luxtorpeda-dev/packages`). Each native replacement engine's
+  upstream link is a hint with the Steam games it serves and its pinned
+  version. Emulator and interpreter fallbacks, generic runtimes, launchers and
+  tools, and Proton-only packages (a `uses_proton` notice) are excluded; on
+  2026-11-23 the index named 190 engines and 252 games, giving 124 native
+  upstreams and 56 exclusions.
+- **Mac Source Ports** (`https://www.macsourceports.com/meta.json`). Each macOS
+  build's upstream project is a hint; its architecture is the claim's target.
+  A build Mac Source Ports produced itself is `separately-built`; a build the
+  project published itself is `upstream-build`. Mac Source Ports' own forks
+  are never upstreams. Game associations live only in the site's bundled
+  script and are not read.
+- **Batocera** (`package/batocera/ports` in `batocera-linux/batocera.linux`) and
+  **RetroPie** (`scriptmodules/ports` in `RetroPie/RetroPie-Setup`) are
+  repository-directory baselines. The default branch is resolved to an exact
+  revision with the repository's provider ID pinned, and the directory is
+  listed (Batocera to two levels). Each definition file is an item whose
+  fingerprint is its blob, so only new and changed definitions, and any
+  unread for thirty days, are read at that revision. A Batocera `<PKG>_SITE`
+  names the upstream and `<PKG>_VERSION` is Batocera's pin. A RetroPie
+  `rp_module_repo` and further `gitPullOrClone` repositories name upstreams;
+  a pin that a shell function resolves at install time is not static. Both
+  directories also hold software outside native-port scope; research
+  classifies each upstream.
+
+RecompLauncher's `pc-catalog.json` (catalog version 1; 1,965 apps on
+2026-11-23) is a launcher catalog, not a distribution. It lists
+recompilations, decompilation ports and native games. Each app's repository
+(GitHub by default, or on its named GitLab, Forgejo or SourceForge host) is a
+hint with the app's game associations, platform labels and release as the
+launcher's attributed observations, including the groups only newer launchers
+show.
+
 #### unbaked registry baseline
 
 `api/games.json` lists every registry game (7,723 on 2026-11-23) but no
 repositories; each row links its per-game record. The `unbaked-registry` list
-is a resumable baseline that runs after every other list and hint resolution:
+is a resumable baseline. Like the directory baselines, it runs only in
+unattended collection, after every other list and hint resolution; interactive
+runners take its results from the shared store:
 
 1. The inventory is read daily as a conditional request. Each row is
    fingerprinted without its star count, which moves daily.
@@ -590,8 +637,12 @@ is a resumable baseline that runs after every other list and hint resolution:
    game unread for thirty days (reconciliation). A failed record waits a day.
 3. Each record's projects merge as soon as it is read and are saved every 25
    records, so an interrupted run keeps them and resumes from the next due game.
-4. The list's complete clock moves only once no game is due; its scope is the
-   inventory read it describes.
+4. The list's complete clock moves only once every game has a record read for
+   its current row by the current parser; a game waiting out a failed read
+   keeps the list incomplete. Its scope is the inventory read it describes.
+
+A failed inventory read waits two days, as a list does. A parser change makes
+every record due again.
 
 A game without public code keeps `candidate-without-public-code` on its
 projects' claims and is counted in the summary as an unresolved research
@@ -616,9 +667,12 @@ parse. Validators apply only to a copy parsed by the list's current parser
 version and only when the configured URL answered without a redirect, so a
 parser change or a redirect always reads the source in full. A source that sent
 no validators is read on the default interval instead.
-Each list clock records the bytes its read transferred. A single read is
-bounded by the run's byte budget and the physical read ceiling (an eighth of
-the machine's memory, at most 512 MiB).
+Each list clock records the bytes its read transferred. A list is admitted by
+its expected size (its last read, or the size observed when it was configured,
+plus a quarter), not by its cap. Its cap, about four times the observed size,
+only guards against a runaway response; per-item records have their own 1 MiB
+cap. Every read is also bounded by the run's byte budget and the physical read
+ceiling (an eighth of the machine's memory, at most 512 MiB).
 
 HTTPS GitHub and Codeberg `owner/name` and GitLab project paths (up to four
 group segments) and a truncated inert title are retained in `leads.json` as
