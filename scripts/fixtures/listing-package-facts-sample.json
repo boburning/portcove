@@ -1,5 +1,5 @@
 {
-  "format": 7,
+  "format": 8,
   "generator": "scripts/listing-package-facts.mts",
   "generated_at": "2026-11-21T00:00:00.000Z",
   "entries": [
@@ -9,7 +9,7 @@
       "repository": "fixture-owner/zz-sample-a-windows",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -89,7 +89,7 @@
       "repository": "fixture-owner/zz-sample-b-patcher-only",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -155,7 +155,7 @@
       "repository": "fixture-owner/zz-sample-c-patcher-archive",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -220,7 +220,7 @@
       "repository": "fixture-owner/zz-sample-d-several",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -291,7 +291,7 @@
       "repository": "fixture-owner/zz-sample-e-recomp",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -356,7 +356,7 @@
       "repository": "fixture-owner/zz-sample-f-linux",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -421,7 +421,7 @@
       "repository": "fixture-owner/zz-sample-g-mac",
       "repository_id": 4242,
       "parser": "listing-package-facts",
-      "parser_version": 8,
+      "parser_version": 9,
       "observation": {
         "release_id": 8,
         "tag": "v1.0",
@@ -481,5 +481,5 @@
       ]
     }
   ],
-  "entries_sha256": "08a03e6d565e38117ba63c9d3ef0b216dc9f8ddf81b305ddbc7037796312ed1f"
+  "entries_sha256": "9d21950f0b5cd0cdd352820ab0b7c7883d0749cd58a015988f804cf76c4029c0"
 }
