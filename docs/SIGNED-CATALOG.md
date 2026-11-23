@@ -252,7 +252,9 @@ but activating both makes compact delivery one-way (item 5).
    it excludes and reports only the candidates Core refuses, and each excluded
    row keeps its prior signed observation. Only Core's own refusal counts: the
    inspection must exit with Core's `verification`, `source_invalid` or
-   `unsupported` code and the matching JSON error envelope. Capacity
+   `unsupported` code and the matching JSON error envelope. Core reports any
+   decoding or validation failure of a staged listing target as
+   `verification`; a file-system failure stays a `state` error. Capacity
    exhaustion of the encoded carrier, a projection failure, a Core crash,
    timeout, output overflow or any other Core error fails compact preparation
    with a precise error instead of excluding candidates. Legacy preparation
@@ -405,7 +407,11 @@ restriction uses a permit, a scope, a second hold or an operation other than
 download. A fresh legacy projection delivers 5 of the held listings. The other
 147 are discovery rows outside the legacy target, so legacy readers keep their
 bundled row, as they do before activation. The rehearsal passed every step with
-a locally built CLI on that date.
+a locally built CLI on that date. On November 23, 2026 it passed every step
+again with automatic released-reader selection, using a debug CLI for Core and
+a stripped copy of it as the published reader. A debug CLI's archive exceeds
+the selection's 64 MiB archive bound, so pass a release or stripped build with
+`--released-reader`.
 
 ### Legacy holds after compact activation
 
