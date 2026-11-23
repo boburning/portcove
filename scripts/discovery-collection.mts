@@ -13,6 +13,10 @@ import {
 } from "./daily-discovery-sources.mts";
 import type { CollectedSource, SourceContext } from "./daily-discovery-sources.mts";
 import {
+  acceptBackfillPage,
+  nextBackfillPage,
+  passBackfillFamily,
+  skipBackfillWindow,
   acceptLeadPage,
   advanceLeadFamily,
   leadSearchFamilyCount,
@@ -601,8 +605,91 @@ export async function searchLeadFamilies(host: DiscoveryCollectionHost) {
     };
     host.persist();
   }
+  if (host.unattended) await backfillLeadFamilies(host);
   host.persist();
   return host.leadSummary();
+}
+
+/**
+ * Historical backfill and repair sweeps (unattended only), after forward
+ * searches and release rechecks, until every family is done for this run or a
+ * physical budget stops it. Each page commits through the same persistence.
+ */
+async function backfillLeadFamilies(host: DiscoveryCollectionHost) {
+  const deferred = new Set<string>();
+  let idle = 0;
+  while (idle < leadSearchFamilyCount) {
+    const plan = nextBackfillPage(host.leads, host.journal.started_at);
+    if (!plan || deferred.has(plan.family)) {
+      host.leads = passBackfillFamily(host.leads);
+      idle++;
+      continue;
+    }
+    if (plan.capped) {
+      host.leads = skipBackfillWindow(
+        host.leads,
+        plan,
+        "Narrower windows still exceed the provider's result ceiling; no complete coverage claim",
+        false,
+      );
+      host.journal.notes.push({
+        phase: "backfill",
+        status: "capped",
+        family: plan.family,
+        query: plan.query,
+      });
+      host.persist();
+      continue;
+    }
+    const reserve = researchReserve(host, 17);
+    if (
+      host.budget.remaining().requests < reserve.requests ||
+      host.budget.remaining().bytes < reserve.bytes
+    ) {
+      host.journal.notes.push({
+        phase: "backfill",
+        status: "deferred",
+        family: plan.family,
+        query: plan.query,
+        page: plan.page,
+        resume: "Continue this exact backfill window on the next admitted pass",
+      });
+      break;
+    }
+    await host.budget.admit(1, 1);
+    const response = await host.source.sdk.request({
+      method: "GET",
+      url: new URL(
+        `search/repositories?q=${encodeURIComponent(plan.query)}&per_page=${leadPageSize}&page=${plan.page}${plan.sort ? `&sort=${plan.sort}&order=desc` : ""}`,
+        "https://api.github.com/",
+      ).href,
+    });
+    const name = `backfill-search-${++host.searches}`;
+    host.save(name, { ...object(response.data), query: plan.query, page: plan.page });
+    try {
+      host.leads = acceptBackfillPage(
+        host.leads,
+        plan,
+        response.data,
+        host.journal.started_at,
+        path.join(host.runDir, `${name}.json`),
+      );
+    } catch (error) {
+      if (!(error instanceof LeadSearchChanged)) throw error;
+      // Keep independently validated identities; recollect this window on a later run.
+      host.leads = retainLeadResults(
+        host.leads,
+        object(response.data).items as unknown[],
+        host.journal.started_at,
+        path.join(host.runDir, `${name}.json`),
+        plan.family,
+      );
+      host.leads = skipBackfillWindow(host.leads, plan, errorMessage(error), true);
+      deferred.add(plan.family);
+    }
+    idle = 0;
+    host.persist();
+  }
 }
 
 /** One collection pass: curated lists, lead searches, then reviewed source collectors. */

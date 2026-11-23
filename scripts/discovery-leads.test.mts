@@ -2,6 +2,9 @@ import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  acceptBackfillPage,
+  backfillEpoch,
+  nextBackfillPage,
   acceptLeadPage,
   retainLeadResults,
   nextLeadPage,
@@ -1677,4 +1680,67 @@ void test("a directory source too large for the remaining budget stops as a budg
     "a budget stop records no failed attempt, so the list stays due",
   );
   assert.ok(budget.remaining().requests >= 22, "the research reserve is intact");
+});
+
+void test("backfill walks each family back to the epoch, then repairs from the top in a later run", () => {
+  const runA = "2026-11-24T05:00:00.000Z";
+  let state = parseLeadState(undefined);
+  const complete = (items: ReturnType<typeof item>[]) => ({
+    total_count: items.length,
+    incomplete_results: false,
+    items,
+  });
+  const first = nextBackfillPage(state, runA)!;
+  assert.equal(first.family, leadFamilyIds[0]);
+  // Without forward coverage yet, backfill starts below the forward baseline.
+  assert.equal(first.slice.until, "2026-11-10T05:00:00.000Z");
+  assert.match(
+    first.query,
+    / created:2025-11-09T05:00:00\.000Z\.\.2026-11-10T05:00:00\.000Z fork:false$/u,
+  );
+
+  // Walk one family to the epoch; an old repository is found along the way.
+  const family = first.family;
+  let windows = 0;
+  for (;;) {
+    const plan = nextBackfillPage({ ...state, backfill_next: 0 }, runA);
+    if (!plan) break;
+    assert.equal(plan.family, family);
+    const old =
+      Date.parse(plan.slice.since) <= Date.parse("2014-06-01T00:00:00Z") &&
+      Date.parse(plan.slice.until) > Date.parse("2014-06-01T00:00:00Z");
+    state = acceptBackfillPage(
+      { ...state, backfill_next: 0 },
+      plan,
+      complete(old ? [item(4242, "classic/old-port")] : []),
+      runA,
+      `backfill-${++windows}.json`,
+    );
+    assert.ok(windows < 40, "the sweep terminates");
+  }
+  assert.equal(state.backfill?.[family]?.slice.since, backfillEpoch, "the sweep reaches the epoch");
+  assert.deepEqual(state.records["4242"]?.search_families, [family], "found only by backfill");
+  assert.equal(
+    nextBackfillPage({ ...state, backfill_next: 0 }, runA),
+    undefined,
+    "no second sweep in the same run",
+  );
+
+  // A later run starts a repair sweep from the top.
+  const repair = nextBackfillPage({ ...state, backfill_next: 0 }, "2026-11-25T05:00:00.000Z")!;
+  assert.equal(repair.backfill.sweeps_completed, 1);
+  assert.equal(repair.slice.page, 1);
+  assert.ok(Date.parse(repair.slice.until) > Date.parse("2026-01-01T00:00:00Z"));
+
+  // Retained backfill state round-trips; malformed state is refused.
+  assert.deepEqual(parseLeadState(JSON.parse(JSON.stringify(state))).backfill, state.backfill);
+  assert.throws(
+    () =>
+      parseLeadState({
+        ...state,
+        backfill: { [family]: { slice: {}, sweep_started_at: runA, sweeps_completed: 0 } },
+      }),
+    /Invalid retained backfill window/u,
+  );
+  assert.throws(() => parseLeadState({ ...state, backfill_next: 999 }), /backfill rotation/u);
 });
