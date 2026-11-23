@@ -33,10 +33,14 @@
 //     identity names the repository unless the listing's release URL binds
 //     this one to a release line no other identity is bound to
 //     (`shared-repository`); the observed releases form one release line or
-//     the listing binds one, the offered release is on it, and no newer
-//     prerelease of another line follows it (`ambiguous-release-line`);
-//  7b. the release ships no bare installer or setup program beside its
-//     archives (`installer-driven-release`);
+//     the listing binds one, the offered release is on it, an unbound line is
+//     the main line or names the listed product (`lineNamesProduct`), and no
+//     newer prerelease of another line follows it (`ambiguous-release-line`);
+//  7b. the release ships no bare `.exe`/`.msi` asset beside its archives
+//     other than the offered archive's own player: every bare executable has
+//     a provider digest equal to a player of an offered artifact, else the
+//     release offers a different program than the archive holds
+//     (`bare-executable-beside-archive`);
 //  8. for at least one supported desktop platform P there is an artifact whose
 //     typed role is `desktop-game-runtime` from exact digest-bound archive
 //     bytes, which neither its asset name (Core's filename classifier and
@@ -68,11 +72,11 @@ import { listingProviderIdentity } from "./listing-upstream-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
 /** Bump when the fit rule or the generated route shape changes. */
-export const GENERATOR_VERSION = 6;
+export const GENERATOR_VERSION = 7;
 /** The facts parser version this generator reads. */
 export const FACTS_PARSER = "listing-package-facts";
-export const FACTS_PARSER_VERSION = 6;
-export const FACTS_TABLE_FORMAT = 5;
+export const FACTS_PARSER_VERSION = 7;
+export const FACTS_TABLE_FORMAT = 6;
 export const ENROLLMENT_TABLE_FORMAT = 1;
 export const factsTableName = "listing-package-facts.generated.json";
 export const enrollmentTableName = "generated-registration.generated.json";
@@ -254,11 +258,12 @@ export interface ListingFactsEntry {
    */
   observed_releases: ObservedReleaseFact[];
   /**
-   * Names of the release's bare `.exe` and `.msi` assets, sorted and unique:
-   * an installer beside the archives makes the release install-driven.
-   * Empty for an ineligible entry.
+   * The release's bare `.exe` and `.msi` assets in ascending asset id, with
+   * the provider's size and digest (null when the provider states none). One
+   * whose digest is not a player of the offered archive is a different
+   * program. Empty for an ineligible entry.
    */
-  bare_executables: string[];
+  bare_executables: BareExecutable[];
   /** Archives of the release Core refused; never offered. Empty when ineligible. */
   refused_archives: RefusedArchive[];
   /** Consecutive non-complete attempts since `observed_at`; last-good facts stay. */
@@ -438,17 +443,27 @@ function checkReleaseFacts(entry: Record<string, unknown>, where: string) {
       throw new Error(`${at} needs a release id in ascending order, a tag, a verdict and a time.`);
   }
   const executables = entry.bare_executables;
-  if (
-    !Array.isArray(executables) ||
-    executables.length > maxBareExecutables ||
-    executables.some(
-      (name: unknown, index: number) =>
-        !bounded(name, 255) ||
-        !/\.(?:exe|msi)$/iu.test(name) ||
-        (index > 0 && compareCodePoints(String(executables[index - 1]), name) >= 0),
+  if (!Array.isArray(executables) || executables.length > maxBareExecutables)
+    throw new Error(`${where}.bare_executables must be a bounded list.`);
+  for (const [index, executable] of executables.entries()) {
+    const at = `${where}.bare_executables[${index}]`;
+    if (!isRecord(executable)) throw new Error(`${at} must be an object.`);
+    exact(executable, ["asset_id", "name", "size", "sha256"], at);
+    if (
+      !positive(executable.asset_id) ||
+      (index > 0 &&
+        Number((executables[index - 1] as Record<string, unknown>).asset_id) >=
+          executable.asset_id) ||
+      !bounded(executable.name, 255) ||
+      !/\.(?:exe|msi)$/iu.test(executable.name) ||
+      !Number.isSafeInteger(executable.size) ||
+      Number(executable.size) < 0 ||
+      !(executable.sha256 === null || sha(executable.sha256))
     )
-  )
-    throw new Error(`${where}.bare_executables must be sorted, unique .exe or .msi names.`);
+      throw new Error(
+        `${at} needs an .exe or .msi asset in ascending order, its size and its digest or null.`,
+      );
+  }
   const refused = entry.refused_archives;
   if (!Array.isArray(refused) || refused.length > maxRefusedArchives)
     throw new Error(`${where}.refused_archives must be a bounded list.`);
@@ -958,9 +973,10 @@ function artifactArchFits(artifact: ArtifactFactV2, platform: string) {
 // Release lines: which product a release belongs to.
 
 /**
- * Words a tag's line drops: release-channel words, never a product name.
- * `release-1.2`, `nightly-2026` and `v1.3` are one line; `sm2-v1.1` and
- * `texture-studio-v1.0.0` are lines of their own.
+ * Words a tag's line drops: release-channel words, never a product name, alone
+ * or glued to a number (`rc2`, `beta5`, `build123`). `release-1.2`,
+ * `nightly-2026` and `v1.3` are one line; `game2-v1.1` and
+ * `level-editor-v1.0.0` are lines of their own.
  */
 const channelWords = new Set([
   "release",
@@ -968,6 +984,8 @@ const channelWords = new Set([
   "rel",
   "version",
   "ver",
+  "rev",
+  "revision",
   "stable",
   "latest",
   "nightly",
@@ -988,24 +1006,86 @@ const channelWords = new Set([
   "hotfix",
   "update",
 ]);
+/** A release-channel word, alone or with a number glued after it. */
+const channelMarker = (word: string) => {
+  const match = /^([a-z]+)[0-9]*$/u.exec(word);
+  return match !== null && channelWords.has(match[1]!);
+};
 
 /**
- * A release tag's line: the tag without its version part (the first number
- * that starts the tag or a word, optionally after one letter such as `v`, `r`
- * or `b`, and everything after it), lowercase, without release-channel words.
- * A line spelling the repository's own name is the repository's main line
- * (`""`). A tag that is not printable ASCII, or unknown, is a line of its own
+ * A release tag's line: its product words before the version, lowercase,
+ * without release-channel markers. Derivation errs toward ONE line for
+ * version and channel noise and toward DIFFERENT lines for different product
+ * words:
+ *  - the version starts at a real version token: a whole word of digits,
+ *    optionally after one `v`, `r` or `b` (`v1`, `r14388`, `2025`), never a
+ *    number followed by a letter (`d2x`, `game2` are product words); a
+ *    product word with a glued `v<digits>` ending (`game2v0`) is cut there;
+ *  - a bare number of one or two digits after a product word and before
+ *    another product word or a version (`game-64-v1`, `part-2-1.0`) is part of
+ *    the product; as the last word, before `.`, or before another bare
+ *    number it is the version (`game-2`, `game-1-2-0`);
+ *  - channel words, alone or glued to a number (`rc2`, `nightly20250101`),
+ *    are dropped.
+ * A line spelling the repository's own name is the main line (`""`). A tag
+ * that is not printable ASCII, or unknown, is a line of its own
  * (`#<release id>`), so it never merges with another.
  */
 export function releaseLine(tag: string | null, releaseId: number, repository: string): string {
   if (tag === null || !/^[\x21-\x7e]+$/u.test(tag)) return `#${releaseId}`;
-  const lower = tag.toLowerCase();
-  const cut = lower.search(/(?:^|[^a-z0-9])[a-z]?[0-9]/u);
-  const words = (cut < 0 ? lower : lower.slice(0, cut))
-    .split(/[^a-z0-9]+/u)
-    .filter((word) => word && !channelWords.has(word));
+  const parts = [...tag.toLowerCase().matchAll(/([a-z0-9]+)([^a-z0-9]*)/gu)].map((match) => ({
+    word: match[1]!,
+    after: match[2]!.slice(0, 1),
+  }));
+  const bareNumber = (word: string | undefined) => word !== undefined && /^[0-9]+$/u.test(word);
+  const words: string[] = [];
+  for (const [index, { word, after }] of parts.entries()) {
+    if (channelMarker(word)) continue;
+    if (/^[vrb][0-9]+$/u.test(word)) break;
+    if (bareNumber(word)) {
+      const next = parts[index + 1];
+      const partOfProduct =
+        words.length > 0 &&
+        word.length <= 2 &&
+        after !== "." &&
+        next !== undefined &&
+        !channelMarker(next.word) &&
+        (!bareNumber(next.word) || next.after === ".");
+      if (!partOfProduct) break;
+      words.push(word);
+      continue;
+    }
+    const glued = /^(.*[a-z].*?)v[0-9]+$/u.exec(word);
+    if (glued && glued[1]!.length >= 2) {
+      words.push(glued[1]!);
+      break;
+    }
+    words.push(word);
+  }
   const name = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
   return words.join("") === name ? "" : words.join("-");
+}
+
+/**
+ * Whether a release line names the listed product itself: the main line, or
+ * a line whose words, joined, appear in the repository name or the listing's
+ * id, name or original title (all lowercase, letters and digits only). Without
+ * a listing binding, only such a line may be offered: a line of other product
+ * words (a level editor's `level-editor-v1.0`) is never taken for the game.
+ */
+export function lineNamesProduct(
+  line: string,
+  repository: string,
+  listing: Record<string, unknown>,
+): boolean {
+  if (line === "") return true;
+  if (line.startsWith("#")) return false;
+  const joined = line.replace(/-/gu, "");
+  const normalized = (value: unknown) =>
+    typeof value === "string" ? value.toLowerCase().replace(/[^a-z0-9]/gu, "") : "";
+  return [repository.split("/")[1], listing.id, listing.name, listing.original_game_title].some(
+    (value) => normalized(value).includes(joined),
+  );
 }
 
 /**
@@ -1014,20 +1094,49 @@ export function releaseLine(tag: string | null, releaseId: number, repository: s
  * (`https://github.com/<owner>/<name>/releases/tag/<tag>`), or null.
  */
 export function boundReleaseLine(record: AuthoredPort): string | null {
-  const identity = listingProviderIdentity(record.listing);
   const url = record.listing.release_url;
-  if (identity?.provider !== "github" || typeof url !== "string") return null;
-  const prefix = `https://github.com/${identity.repository}/releases/tag/`.toLowerCase();
-  if (!url.toLowerCase().startsWith(prefix)) return null;
-  const encoded = url.slice(prefix.length);
-  if (!encoded || encoded.includes("/")) return null;
+  const prefix = "https://github.com/";
+  if (typeof url !== "string" || !url.startsWith(prefix)) return null;
+  const [owner, name, releases, tagWord, encoded, ...rest] = url.slice(prefix.length).split("/");
+  if (
+    rest.length ||
+    !githubPathPart(owner) ||
+    !githubPathPart(name) ||
+    releases !== "releases" ||
+    tagWord !== "tag" ||
+    !encoded ||
+    /[?#]/u.test(encoded)
+  )
+    return null;
   let tag: string;
   try {
     tag = decodeURIComponent(encoded);
   } catch {
     return null;
   }
-  return releaseLine(tag, 0, identity.repository);
+  return releaseLine(tag, 0, `${owner}/${name}`);
+}
+const githubPathPart = (part: string | undefined): part is string =>
+  part !== undefined && /^[A-Za-z0-9_.-]+$/u.test(part);
+
+/**
+ * Every GitHub repository a listing names through its release URL or its
+ * project URL, with any path below the repository, lowercase. Permissive on
+ * purpose: an identity is counted as sharing a repository whenever either URL
+ * names it, so a listing URL into a subdirectory never hides a sharing
+ * identity.
+ */
+export function listedRepositories(listing: Record<string, unknown>): string[] {
+  const prefix = "https://github.com/";
+  const named = new Set<string>();
+  for (const url of [listing.release_url, listing.project_url]) {
+    if (typeof url !== "string" || !url.startsWith(prefix)) continue;
+    const [owner, name] = url.slice(prefix.length).split(/[?#]/u)[0]!.split("/");
+    if (!githubPathPart(owner) || !githubPathPart(name)) continue;
+    const bare = name.endsWith(".git") ? name.slice(0, -4) : name;
+    named.add(`${owner}/${bare || name}`.toLowerCase());
+  }
+  return [...named];
 }
 
 /** Catalog-wide facts the fit rule needs beyond one record: who else names a repository. */
@@ -1037,15 +1146,12 @@ export interface FitContext {
 }
 export function fitContext(records: readonly AuthoredPort[]): FitContext {
   const repositories = new Map<string, { port_id: string; line: string | null }[]>();
-  for (const record of records) {
-    const identity = listingProviderIdentity(record.listing);
-    if (identity?.provider !== "github") continue;
-    const key = identity.repository.toLowerCase();
-    repositories.set(key, [
-      ...(repositories.get(key) ?? []),
-      { port_id: record.listing.id, line: boundReleaseLine(record) },
-    ]);
-  }
+  for (const record of records)
+    for (const key of listedRepositories(record.listing))
+      repositories.set(key, [
+        ...(repositories.get(key) ?? []),
+        { port_id: record.listing.id, line: boundReleaseLine(record) },
+      ]);
   return { repositories };
 }
 
@@ -1061,7 +1167,12 @@ function releaseLineProblem(
   );
   const chosen = entry.observed_releases.find(
     (release) => release.release_id === entry.observation.release_id,
-  )!;
+  );
+  if (!chosen)
+    return {
+      reason: "ambiguous-release-line",
+      detail: "The offered release is not among the observed releases, so its line is unknown.",
+    };
   const lineOf = (release: ObservedReleaseFact) =>
     releaseLine(release.tag, release.release_id, entry.repository);
   const chosenLine = lineOf(chosen);
@@ -1084,6 +1195,12 @@ function releaseLineProblem(
       reason: "ambiguous-release-line",
       detail: `The repository's releases fall into ${lines.size} release lines, and the listing binds this identity to none.`,
     };
+  if (bound === null && !lineNamesProduct(chosenLine, entry.repository, record.listing))
+    return {
+      reason: "ambiguous-release-line",
+      detail:
+        "The offered release's line names other product words than the repository or listing, and the listing binds this identity to no line.",
+    };
   // A stable release older than a newer prerelease of another line may be
   // another product's older release: never offer it.
   const published = Date.parse(chosen.published_at ?? "");
@@ -1102,11 +1219,31 @@ function releaseLineProblem(
   return undefined;
 }
 
-/** A bare installer or setup program among the release's assets. */
-export const installerExecutable = (name: string) => {
-  const lower = name.toLowerCase();
-  return /^install/u.test(lower) || lower.includes("setup") || lower.includes("installer");
-};
+/** A bare `.exe` or `.msi` asset of the release, as the provider states it. */
+export interface BareExecutable {
+  asset_id: number;
+  name: string;
+  size: number;
+  /** The provider's SHA-256, or null when it states none (UNKNOWN). */
+  sha256: string | null;
+}
+
+/**
+ * The bare executables of the release that are not the offered package's own
+ * player: an unknown digest, or one equal to no player of the offered
+ * artifacts, is a different program than the archive holds.
+ */
+function foreignExecutables(entry: ListingFactsEntry, runtimes: readonly PlatformRuntime[]) {
+  const offered = new Set(runtimes.map((runtime) => runtime.asset_id));
+  const players = new Set(
+    entry.artifacts
+      .filter((artifact) => offered.has(artifact.asset_id))
+      .flatMap((artifact) => artifact.players.map((player) => player.sha256)),
+  );
+  return entry.bare_executables.filter(
+    (executable) => executable.sha256 === null || !players.has(executable.sha256),
+  );
+}
 
 export interface PlatformRuntime {
   platform: string;
@@ -1281,7 +1418,7 @@ export const blockedReasons = [
   "stale-facts",
   "shared-repository",
   "ambiguous-release-line",
-  "installer-driven-release",
+  "bare-executable-beside-archive",
   "no-player",
   "tool-not-game",
   "no-authorizing-source",
@@ -1351,8 +1488,8 @@ export function factsFreshness(
 export function fitDecision(
   record: AuthoredPort,
   entry: ListingFactsEntry | undefined,
-  generatedAt: string = entry?.observation.observed_at ?? initialFactsTime,
-  context: FitContext = fitContext([record]),
+  generatedAt: string,
+  context: FitContext,
 ): FitDecision {
   const port_id = record.listing.id;
   const blocked = (reason: BlockedReason, detail: string): FitDecision => ({
@@ -1391,12 +1528,6 @@ export function fitDecision(
   if (freshness) return blocked(freshness.reason, freshness.detail);
   const line = releaseLineProblem(record, entry, context);
   if (line) return blocked(line.reason, line.detail);
-  const installers = entry.bare_executables.filter(installerExecutable);
-  if (installers.length)
-    return blocked(
-      "installer-driven-release",
-      `The release also ships ${installers.length} installer or setup program(s), so its archives are built or installed by them.`,
-    );
   const runtimes: PlatformRuntime[] = [];
   const misses = new Set<BlockedReason>();
   const held: string[] = [];
@@ -1429,6 +1560,20 @@ export function fitDecision(
       }`.slice(0, 1000),
     );
   }
+  const foreign = foreignExecutables(entry, runtimes);
+  if (foreign.length)
+    return blocked(
+      "bare-executable-beside-archive",
+      `The release also ships ${foreign.length} bare program(s) that are not the offered archive's player (${foreign
+        .slice(0, 3)
+        .map((executable) => executable.name)
+        .join(
+          ", ",
+        )}${foreign.some((executable) => executable.sha256 === null) ? "; a digest is UNKNOWN" : ""}), so it offers a different program than the archive holds.`.slice(
+        0,
+        1000,
+      ),
+    );
   if (!authoredGuideFits(record))
     return blocked(
       "guide-bound",
@@ -1582,6 +1727,12 @@ export interface RegistrationQueues {
   exclusions: Record<string, string[]>;
   /** Every refusal class of a refused archive, with the identities that have one. */
   refusals: Record<string, string[]>;
+  /**
+   * Every GitHub repository more than one catalog identity names, with those
+   * identities: the `shared-repository` queue an owner clears with a reviewed
+   * release-line binding, whether or not facts exist yet.
+   */
+  shared_repositories: Record<string, string[]>;
 }
 
 export function registrationQueues(generation: Generation): RegistrationQueues {
@@ -1617,6 +1768,16 @@ export function registrationQueues(generation: Generation): RegistrationQueues {
       generation.facts.entries.flatMap((entry) =>
         entry.refused_archives.map((archive): [string, string] => [archive.refusal, entry.port_id]),
       ),
+    ),
+    shared_repositories: Object.fromEntries(
+      [...fitContext(generation.records).repositories]
+        .filter(([, identities]) => identities.length > 1)
+        .map(([repository, identities]): [string, string[]] => [
+          repository,
+          [...new Set(identities.map((identity) => identity.port_id))].toSorted(compareCodePoints),
+        ])
+        .filter(([, ids]) => ids.length > 1)
+        .toSorted(([left], [right]) => compareCodePoints(left, right)),
     ),
   };
 }
@@ -2035,29 +2196,34 @@ function gateMachineRuns(machine: string, platform: string) {
   );
 }
 
-/** The GitHub repository a listing names (its release URL, else its project URL), restated. */
-function gateRepository(listing: Record<string, unknown>): string | undefined {
-  const url = typeof listing.release_url === "string" ? listing.release_url : listing.project_url;
-  const match =
-    typeof url === "string"
-      ? /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:[/?#]|$)/u.exec(
-          url,
-        )
-      : null;
-  return match ? `${match[1]}/${match[2]}`.toLowerCase() : undefined;
+/**
+ * Every GitHub repository a listing names through its release URL or project
+ * URL, any path below it, lowercase; restated permissively, so the gate never
+ * misses an identity that shares a repository.
+ */
+function gateRepositories(listing: Record<string, unknown>): Set<string> {
+  const named = new Set<string>();
+  for (const url of [listing.release_url, listing.project_url]) {
+    if (typeof url !== "string") continue;
+    const match =
+      /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?(?:[/?#]|$)/u.exec(
+        url,
+      );
+    if (match) named.add(`${match[1]}/${match[2]}`.toLowerCase());
+  }
+  return named;
 }
-/** A tag's release line, restated: see `releaseLine`. */
-function gateLine(tag: string | null, id: number, repository: string) {
+/** A tag's release line, restated: see `releaseLine`. Exported for its unit table only. */
+export function gateLine(tag: string | null, id: number, repository: string) {
   if (tag === null || !/^[!-~]+$/u.test(tag)) return `#${id}`;
-  const lower = tag.toLowerCase();
-  const version = /(^|[^a-z0-9])[a-z]?[0-9]/u.exec(lower);
-  const head = version ? lower.slice(0, version.index) : lower;
   const channel = [
     "release",
     "releases",
     "rel",
     "version",
     "ver",
+    "rev",
+    "revision",
     "stable",
     "latest",
     "nightly",
@@ -2078,24 +2244,87 @@ function gateLine(tag: string | null, id: number, repository: string) {
     "hotfix",
     "update",
   ];
-  const words: string[] = [];
-  for (const word of head.split(/[^a-z0-9]+/u))
-    if (word && !channel.includes(word)) words.push(word);
+  const isChannel = (word: string) => channel.includes(word.replace(/[0-9]+$/u, ""));
+  const isNumber = (word: string) => /^[0-9]+$/u.test(word);
+  // Words and the first separator character after each ("" at the end).
+  const lower = tag.toLowerCase();
+  const words: { text: string; then: string }[] = [];
+  let position = 0;
+  while (position < lower.length) {
+    const start = lower.slice(position).search(/[a-z0-9]/u);
+    if (start < 0) break;
+    let end = position + start;
+    while (end < lower.length && /[a-z0-9]/u.test(lower[end]!)) end++;
+    words.push({ text: lower.slice(position + start, end), then: lower[end] ?? "" });
+    position = end;
+  }
+  const kept: string[] = [];
+  let index = 0;
+  for (; index < words.length; index++) {
+    const { text, then } = words[index]!;
+    if (isChannel(text)) continue;
+    if (/^[vrb]?[0-9]+$/u.test(text)) {
+      if (!isNumber(text)) break;
+      // A short number between product words belongs to the product.
+      const following = words[index + 1];
+      if (
+        kept.length === 0 ||
+        text.length > 2 ||
+        then === "." ||
+        !following ||
+        isChannel(following.text) ||
+        (isNumber(following.text) && following.then !== ".")
+      )
+        break;
+      kept.push(text);
+      continue;
+    }
+    const v = text.lastIndexOf("v");
+    if (v >= 2 && /^[0-9]+$/u.test(text.slice(v + 1)) && /[a-z]/u.test(text.slice(0, v))) {
+      kept.push(text.slice(0, v));
+      break;
+    }
+    kept.push(text);
+  }
   const own = (repository.split("/")[1] ?? "").toLowerCase().replace(/[^a-z0-9]/gu, "");
-  return words.join("") === own ? "" : words.join("-");
+  return kept.join("") === own ? "" : kept.join("-");
+}
+/** Whether an unbound line names the listed product, restated: see `lineNamesProduct`. */
+function gateLineNamesProduct(
+  line: string,
+  repository: string,
+  listing: Record<string, unknown>,
+): boolean {
+  if (line === "") return true;
+  if (line[0] === "#") return false;
+  const needle = line.split("-").join("");
+  for (const value of [
+    repository.split("/")[1],
+    listing.id,
+    listing.name,
+    listing.original_game_title,
+  ])
+    if (
+      typeof value === "string" &&
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]/gu, "")
+        .includes(needle)
+    )
+      return true;
+  return false;
 }
 /** The line a listing's own release URL binds it to, restated. */
 function gateBoundLine(listing: Record<string, unknown>): string | null {
-  const repository = gateRepository(listing);
   const url = listing.release_url;
-  if (!repository || typeof url !== "string") return null;
-  const lower = url.toLowerCase();
-  const prefix = `https://github.com/${repository}/releases/tag/`;
-  if (!lower.startsWith(prefix)) return null;
-  const rest = url.slice(prefix.length);
-  if (!rest || rest.includes("/")) return null;
+  if (typeof url !== "string") return null;
+  const match =
+    /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/releases\/tag\/([^/?#]+)$/u.exec(
+      url,
+    );
+  if (!match) return null;
   try {
-    return gateLine(decodeURIComponent(rest), 0, repository);
+    return gateLine(decodeURIComponent(match[3]!), 0, `${match[1]}/${match[2]}`);
   } catch {
     return null;
   }
@@ -2114,7 +2343,7 @@ function gateEnrollmentProblems(
   enrollment: GeneratedEnrollment,
   entry: ListingFactsEntry | undefined,
   generatedAt: string,
-  listings: readonly Record<string, unknown>[] = [],
+  listings: readonly Record<string, unknown>[],
 ): string[] {
   const id = enrollment.port_id;
   if (!entry) return [`${id} has no facts entry.`];
@@ -2127,7 +2356,7 @@ function gateEnrollmentProblems(
   const bound = gateBoundLine(own);
   const repository = entry.repository.toLowerCase();
   const others = listings.filter(
-    (listing) => listing.id !== id && gateRepository(listing) === repository,
+    (listing) => listing.id !== id && gateRepositories(listing).has(repository),
   );
   if (others.length && (bound === null || others.some((other) => gateBoundLine(other) === bound)))
     problems.push(`${id} shares its repository with another identity and no line of its own.`);
@@ -2143,6 +2372,8 @@ function gateEnrollmentProblems(
       if (release.packaged) lines.add(gateLine(release.tag, release.release_id, entry.repository));
     if (bound !== null ? bound !== line : lines.size !== 1)
       problems.push(`${id} offers a release whose release line is ambiguous.`);
+    if (bound === null && !gateLineNamesProduct(line, entry.repository, own))
+      problems.push(`${id} offers an unbound release line of other product words.`);
     const at = Date.parse(offered.published_at ?? "");
     for (const release of entry.observed_releases)
       if (
@@ -2152,8 +2383,18 @@ function gateEnrollmentProblems(
       )
         problems.push(`${id} offers a stable release older than another line's prerelease.`);
   }
-  if (entry.bare_executables.some((name) => /^install|setup|installer/u.test(name.toLowerCase())))
-    problems.push(`${id} rests on a release that ships an installer or setup program.`);
+  // A bare program beside the archives must be byte-equal to a player of an
+  // offered archive; an unknown digest is not.
+  const offeredPlayers: string[] = [];
+  for (const runtime of enrollment.runtimes)
+    for (const artifact of entry.artifacts)
+      if (artifact.asset_id === runtime.asset_id)
+        for (const player of artifact.players) offeredPlayers.push(player.sha256);
+  for (const executable of entry.bare_executables)
+    if (typeof executable.sha256 !== "string" || !offeredPlayers.includes(executable.sha256))
+      problems.push(
+        `${id} rests on a release that also ships a different bare program (${executable.name}).`,
+      );
   if (createHash("sha256").update(JSON.stringify(entry)).digest("hex") !== enrollment.facts_sha256)
     problems.push(`${id} does not rest on the committed facts entry.`);
   if (
@@ -2430,9 +2671,11 @@ export interface ReproductionBudget {
 /**
  * One change's reproduction budget. The entry bound is the gate's largest
  * delta bound; 4 GiB is two worker runs' byte budget, and an archive is never
- * larger than the worker reads (512 MiB). The 30-minute deadline is checked
- * before each archive, and one download or Core run stops after 10 minutes,
- * so a reproduction ends within 40 minutes, inside its 45-minute CI step.
+ * larger than the worker reads (512 MiB). One 30-minute deadline bounds the
+ * whole reproduction: it is checked before each entry and archive, and every
+ * download, name classification and Core run is cut to the time left
+ * (`boundedTimeout`), so a reproduction ends at the deadline plus process
+ * scheduling, inside its 45-minute CI step.
  */
 export const reproductionBudget: ReproductionBudget = {
   maxEntries: Math.max(deltaBounds.added, deltaBounds.changed),

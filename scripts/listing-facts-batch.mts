@@ -283,7 +283,13 @@ export function allowlistProblems(entries: readonly ChangedEntry[] | undefined):
  * classification. Directories end with `/`.
  */
 const checkerRoots = {
-  workflows: [".github/workflows/ci.yml", batchWorkflowPath, ".github/actions/setup-rust/"],
+  workflows: [
+    ".github/workflows/ci.yml",
+    batchWorkflowPath,
+    ".github/actions/setup-rust/",
+    ".github/actions/stop-if-superseded/",
+    ".node-version",
+  ],
   /** Scripts whose import closure is the check: the batch rules, the worker, the gate, catalog generation and CI's plan. */
   scripts: [
     "scripts/listing-facts-batch.mts",
@@ -291,16 +297,27 @@ const checkerRoots = {
     "scripts/catalog-generated-registration.mts",
     "scripts/generate-catalog.mts",
     "scripts/validation-plan.mts",
+    "scripts/ci-baseline.mts",
   ],
+  /** The workspace and crate manifests, the toolchain, vendored code and Core's root. */
   rust: [
     "Cargo.lock",
-    "crates/portcove-cli/src/main.rs",
-    "crates/portcove-cli/src/catalog.rs",
+    "Cargo.toml",
+    "rust-toolchain.toml",
+    "vendor/",
+    "crates/portcove-cli/Cargo.toml",
+    "crates/portcove-core/Cargo.toml",
+    "crates/portcove-diagnostics/Cargo.toml",
+    "crates/portcove-listing-carrier/Cargo.toml",
+    "crates/portcove-release-tools/Cargo.toml",
+    "crates/portcove-core/src/lib.rs",
     "crates/portcove-core/src/package_shape.rs",
     "crates/portcove-core/src/package_shape/",
   ],
   /** The Core module whose submodules' direct `crate::` dependencies are also checker inputs. */
   core: "crates/portcove-core/src/package_shape.rs",
+  /** The CLI crate root: its whole `mod` closure is a checker input. */
+  cli: "crates/portcove-cli/src/main.rs",
 } as const;
 
 const importPattern =
@@ -309,9 +326,11 @@ const importPattern =
 /**
  * The paths the PR-side facts check depends on, derived from the checkout:
  * the fixed workflow and CLI inputs, the relative import closure of the
- * checker scripts, and the Core inspection module with every Core module it
- * names directly (`crate::<module>` as `src/<module>.rs` and `src/<module>/`).
- * Deeper Core dependencies are held by review only. Directories end with `/`.
+ * checker scripts, the workspace and crate manifests, toolchain and vendored
+ * code, the CLI crate's whole `mod` closure, and the Core inspection module
+ * with every Core module it names directly (`crate::<module>` as
+ * `src/<module>.rs` and `src/<module>/`). Deeper Core dependencies are held by
+ * review only. Directories end with `/`.
  */
 export function checkerPaths(read: (file: string) => string | undefined): string[] {
   const found = new Set<string>([...checkerRoots.workflows, ...checkerRoots.rust]);
@@ -342,6 +361,25 @@ export function checkerPaths(read: (file: string) => string | undefined): string
   for (const module of modules) {
     found.add(`crates/portcove-core/src/${module}.rs`);
     found.add(`crates/portcove-core/src/${module}/`);
+  }
+  // The CLI crate's whole module closure: a crate root's `mod x;` is
+  // `<dir>/x.rs` (and its `<dir>/x/` submodules); any other file's is
+  // `<file stem>/x.rs`.
+  const cli: string[] = [checkerRoots.cli];
+  for (let index = 0; index < cli.length; index++) {
+    const file = cli[index]!;
+    const text = read(file);
+    if (text === undefined) continue;
+    found.add(file);
+    const directory =
+      file === checkerRoots.cli ? path.posix.dirname(file) : file.slice(0, -".rs".length);
+    for (const match of text.matchAll(
+      /^\s*(?:pub(?:\([a-z]+\))?\s+)?mod\s+([a-z_][a-z0-9_]*)\s*;/gmu,
+    )) {
+      const child = `${directory}/${match[1]!}.rs`;
+      if (!cli.includes(child)) cli.push(child);
+      found.add(`${directory}/${match[1]!}/`);
+    }
   }
   return [...found].toSorted();
 }
@@ -1609,6 +1647,9 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
   const forms = sizes(queues.unread_forms).slice(0, top);
   const exclusions = sizes(queues.exclusions).slice(0, top);
   const refusals = sizes(queues.refusals);
+  // Repositories several identities name: each stays `shared-repository`
+  // until a reviewed release-line binding exists.
+  const shared = sizes(queues.shared_repositories);
   const table = (title: string, rows: readonly (readonly [string, number])[]) =>
     rows.length
       ? [
@@ -1630,12 +1671,17 @@ export function queueSummary(routeFit: unknown, top = 8): { markdown: string; co
       ...table("Top unread package forms", forms),
       ...table("Top name vetoes", exclusions),
       ...table("Refused archives by class", refusals),
+      ...table(
+        `Repositories named by more than one identity (${shared.length}; ${shared.reduce((sum, [, count]) => sum + count, 0)} identities; top ${top})`,
+        shared.slice(0, top),
+      ),
     ].join("\n"),
     counts: {
       reasons: Object.fromEntries(reasons),
       unread_forms: Object.fromEntries(sizes(queues.unread_forms)),
       exclusions: Object.fromEntries(sizes(queues.exclusions)),
       refusals: Object.fromEntries(refusals),
+      shared_repositories: Object.fromEntries(shared),
     },
   };
 }

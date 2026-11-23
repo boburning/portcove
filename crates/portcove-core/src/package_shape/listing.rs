@@ -328,7 +328,7 @@ pub const LISTING_TOOL_TOKENS: &[&str] = &[
 ];
 /// Tool words matched only as whole words between separators, because as a
 /// camel-case word or part of a longer word they also name real titles
-/// (`PatchQuest`, `Studiopolis`, `GlueBall`). Authoring suites (`studio`,
+/// (`PatchFarm`, `StudioTown`, `GlueGame`). Authoring suites (`studio`,
 /// `authoring`, `workbench`) and code generators or toolchains (`codegen`,
 /// `glue`, `toolchain`) ship beside games under the game's own name.
 pub const LISTING_DELIMITED_TOOL_TOKENS: &[&str] = &[
@@ -340,11 +340,6 @@ pub const LISTING_DELIMITED_TOOL_TOKENS: &[&str] = &[
     "glue",
     "toolchain",
 ];
-/// Words that give a release file a role other than the game when they stand
-/// as a whole word in its name (`Table-Tennis-Engine-Windows-v1.6.0.zip` is an
-/// engine or SDK distribution the game is built from). Archive names only: a
-/// program named after its engine is still judged by its own name.
-pub const LISTING_ARCHIVE_ROLE_TOKENS: &[&str] = &["engine"];
 
 /// Systems Portcove offers no desktop route for, matched only as a whole
 /// separator-delimited word or two adjacent words joined (`android-tv`,
@@ -457,20 +452,6 @@ pub fn listing_tool_token(name: &str) -> Option<&'static str> {
         })
 }
 
-/// The listing-only token a release file name carries: a tool token, or a
-/// whole-word role token that only archive names are judged by.
-pub fn listing_archive_token(name: &str) -> Option<&'static str> {
-    listing_tool_token(name).or_else(|| {
-        let (delimited, _) = name_words(name);
-        delimited.iter().find_map(|word| {
-            LISTING_ARCHIVE_ROLE_TOKENS
-                .iter()
-                .copied()
-                .find(|token| *token == word.as_str())
-        })
-    })
-}
-
 /// Classify release tags, asset names and program names with Core's reviewed
 /// rules only.
 pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesClassification> {
@@ -511,7 +492,7 @@ pub fn classify_listing_names(input: &ListingNamesInput) -> Result<ListingNamesC
                     role: suggestion.role,
                     os: suggestion.os,
                     arch: suggestion.arch,
-                    tool_token: listing_archive_token(name).map(str::to_owned),
+                    tool_token: listing_tool_token(name).map(str::to_owned),
                     system_token: listing_system_token(name).map(str::to_owned),
                 }
             })
@@ -997,15 +978,15 @@ mod tests {
             "Toolchainsaw.exe",
             "TheForceEngine.exe",
             "NXEngine-evo-v2.6-win64.zip",
+            // An engine reimplementation is a real game port, as a whole
+            // word too: a release offering another program is decided by the
+            // release's content (`bare-executable-beside-archive`), not a word.
+            "the-force-engine-v1.0-win.zip",
+            "Game-Engine-Windows-v1.6.0.zip",
+            "Engine.exe",
         ] {
-            assert_eq!(listing_archive_token(name), None, "{name}");
+            assert_eq!(listing_tool_token(name), None, "{name}");
         }
-        // An engine distribution is vetoed by its archive name, not a program name.
-        assert_eq!(
-            listing_archive_token("Table-Tennis-Engine-Windows-v1.6.0.zip"),
-            Some("engine")
-        );
-        assert_eq!(listing_tool_token("Engine.exe"), None);
         for name in [
             "Game-v1.0-windows-x64.zip",
             "Zelda64Recompiled.exe",

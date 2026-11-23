@@ -757,9 +757,8 @@ Run `portcove --json catalog classify-listing-names INPUT` with a JSON file of
 program file names in `programs`. It returns `catalog.classify-listing-names`
 data: `filename_rule_version`, each release with Core's reviewed `prerelease`
 verdict, each asset name with the `role`, `os` and `arch` its filename suggests
-and its listing-only `tool_token` (which also carries the release-file-only
-role word `engine`) and `system_token`, and each program name with its
-`tool_token` ([tool veto](CATALOG.md#listing-only-tool-veto)). A filename suggestion never
+and its listing-only `tool_token` and `system_token`, and each program name
+with its `tool_token` ([tool veto](CATALOG.md#listing-only-tool-veto)). A filename suggestion never
 authorizes a runtime; the facts worker uses it only to veto one. The input is
 at most 8 MiB, 50,000 names and 1,024 bytes per name; a larger request is
 refused whole. It runs before opening a library and reads nothing else.

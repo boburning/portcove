@@ -408,7 +408,22 @@ void test("the facts table and the code that checks it must be separate changes 
     "scripts/catalog-route-facts.mts",
     "apps/desktop/src/catalog-values.generated.ts",
     "Cargo.lock",
+    "Cargo.toml",
+    "rust-toolchain.toml",
+    "vendor/",
+    ".node-version",
+    ".github/actions/stop-if-superseded/",
+    "scripts/ci-baseline.mts",
+    "crates/portcove-cli/Cargo.toml",
+    "crates/portcove-core/Cargo.toml",
+    "crates/portcove-core/src/lib.rs",
     "crates/portcove-cli/src/main.rs",
+    "crates/portcove-cli/src/catalog.rs",
+    "crates/portcove-cli/src/catalog/",
+    "crates/portcove-cli/src/catalog/render.rs",
+    "crates/portcove-cli/src/startup.rs",
+    "crates/portcove-cli/src/args.rs",
+    "crates/portcove-cli/src/schema.rs",
     "crates/portcove-core/src/package_shape.rs",
     "crates/portcove-core/src/package_shape/",
     "crates/portcove-core/src/archive.rs",
@@ -630,9 +645,10 @@ void test("a refused archive, the release's line facts and its installers are re
   );
   // A refused archive left out is a mismatch: the entry records every archive.
   assert.equal(await reason({ ...entry, refused_archives: [] }, refusing(sameRefusal)), "mismatch");
-  // A forged installer list or release line record is refused.
+  // A forged bare-executable list or release line record is refused.
+  const setup = { asset_id: 24, name: "Setup.exe", size: 64, sha256: sha("installer") };
   assert.equal(
-    await reason({ ...entry, bare_executables: ["Setup.exe"] }, refusing(sameRefusal)),
+    await reason({ ...entry, bare_executables: [setup] }, refusing(sameRefusal)),
     "release-changed",
   );
   assert.equal(
@@ -645,7 +661,7 @@ void test("a refused archive, the release's line facts and its installers are re
     ),
     "release-changed",
   );
-  // A bare installer beside the archives must be recorded.
+  // A bare executable beside the archives must be recorded with its size and digest.
   const installer = structuredClone(release);
   installer.assets.push({
     id: 24,
@@ -665,8 +681,18 @@ void test("a refused archive, the release's line facts and its installers are re
     assets: installer.assets,
   });
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), "release-changed");
-  recorded.bare_executables = ["Install-Game.exe"];
+  const recordedInstaller = { ...setup, name: "Install-Game.exe" };
+  recorded.bare_executables = [recordedInstaller];
   assert.equal(await reason(recorded, refusing(sameRefusal), installer), undefined);
+  for (const forged of [
+    { ...recordedInstaller, sha256: sha("other-program") },
+    { ...recordedInstaller, sha256: null },
+    { ...recordedInstaller, size: 65 },
+  ])
+    assert.equal(
+      await reason({ ...recorded, bare_executables: [forged] }, refusing(sameRefusal), installer),
+      "release-changed",
+    );
 });
 
 void test("reproduction is budgeted: oversized assets, too many entries or bytes and the clock refuse", async () => {
@@ -742,6 +768,23 @@ void test("reproduction proves the named release is still the newest stable one 
   const newer = await refused(lister(other({ tag_name: "alphabet-1.0" }), release));
   assert.equal(newer.reason, "not-latest-stable");
   assert.match(newer.detail, /id 9, not the recorded id 8/u);
+  // A listing bound to the release's own line is checked on that line only,
+  // as the worker chooses; an entry without an authored listing is refused.
+  const onLine = (boundLines: ReadonlyMap<string, string | null>) =>
+    reproduceFacts({
+      entries: [entry],
+      readRelease: reader({ 8: release }),
+      listReleases: lister(other({ tag_name: "alphabet-1.0" }), release),
+      inspect: inspector(players),
+      classify: coreClassifier,
+      boundLines,
+    });
+  assert.deepEqual((await onLine(new Map([[unseen, ""]]))).verified, [unseen]);
+  assert.equal(
+    (await onLine(new Map([[unseen, "alphabet"]]))).refused[0]!.reason,
+    "not-latest-stable",
+  );
+  assert.equal((await onLine(new Map())).refused[0]!.reason, "mismatch");
   // A newer tag Core cannot classify, a newest release without a parseable
   // time and an unreadable asset are unknown, never a fall-back.
   assert.equal(
@@ -1698,6 +1741,7 @@ void test("the exception queues report counts per reason and the top unsupported
       unread_forms: { ".7z": ["a", "b"], ".exe": ["c"], ".dmg": [] },
       exclusions: { "asset-tool-name:patcher": ["e"] },
       refusals: { "core-source-invalid": ["f", "g"], "digest-mismatch": [] },
+      shared_repositories: { "o/shared": ["h", "i", "j"] },
     },
   });
   assert.deepEqual(counts, {
@@ -1705,7 +1749,9 @@ void test("the exception queues report counts per reason and the top unsupported
     unread_forms: { ".7z": 2, ".exe": 1 },
     exclusions: { "asset-tool-name:patcher": 1 },
     refusals: { "core-source-invalid": 2 },
+    shared_repositories: { "o/shared": 3 },
   });
+  assert.match(markdown, /more than one identity \(1; 3 identities/u);
   assert.match(markdown, /\| `no-observation` \| 3 \|/u);
   assert.match(markdown, /\| `core-source-invalid` \| 2 \|/u);
   assert.match(markdown, /Top unread package forms/u);

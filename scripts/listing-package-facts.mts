@@ -27,8 +27,9 @@
 //    recorded with a bounded refusal class and never offered, and the other
 //    archives still decide their platforms.
 //  - Every entry records the observed releases (for the release-line rule)
-//    and the release's bare `.exe`/`.msi` assets (an installer beside the
-//    archives makes the release install-driven). A listing whose release URL
+//    and the release's bare `.exe`/`.msi` assets with the provider's size and
+//    digest, never their bytes (a bare program that is not the archive's own
+//    player means the release offers a different program). A listing whose release URL
 //    names a tag is read on that tag's release line only.
 //  - Candidates are the authored listing-only identities, including those
 //    the generated route already offers (`workerRecords`), so offered
@@ -74,6 +75,7 @@ import {
   fitContext,
   releaseLine,
   type Generation,
+  type BareExecutable,
   type ObservedReleaseFact,
   type RefusalClass,
   type RefusedArchive,
@@ -415,15 +417,22 @@ export const recordedTag = (version: string): string | null =>
   !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Co}\p{Cn}]/u.test(version)
     ? version
     : null;
-/** Sorted, unique names of the release's bare `.exe` and `.msi` assets. */
-export const bareExecutablesOf = (release: ObservedRelease) =>
-  [
-    ...new Set(
-      release.assets
-        .filter((asset) => [".exe", ".msi"].includes(packageFormOf(asset.name) ?? ""))
-        .map((asset) => asset.name),
-    ),
-  ].toSorted(compareCodePoints);
+/**
+ * The release's bare `.exe` and `.msi` assets in ascending asset id, with the
+ * provider's size and digest. Their bytes are never downloaded: an asset
+ * without a provider digest is recorded as unknown (null) and the release is
+ * excluded unless the digest is known to equal an offered player.
+ */
+export const bareExecutablesOf = (release: ObservedRelease): BareExecutable[] =>
+  release.assets
+    .filter((asset) => [".exe", ".msi"].includes(packageFormOf(asset.name) ?? ""))
+    .map((asset) => ({
+      asset_id: asset.id,
+      name: asset.name,
+      size: asset.size,
+      sha256: asset.sha256,
+    }))
+    .toSorted((left, right) => left.asset_id - right.asset_id);
 /** Reader rules only; TAR.XZ is read by the Linux reader. */
 export const readerPlatform = (name: string) =>
   name.toLowerCase().endsWith(".tar.xz") ? "linux-x86-64" : "windows-x86-64";

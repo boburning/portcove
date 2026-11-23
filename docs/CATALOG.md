@@ -3746,12 +3746,16 @@ blocked reason:
    same repository, unless the listing's release URL binds this identity to a
    release line no other identity is bound to (`shared-repository`). The
    repository's observed releases form one release line, or the listing binds
-   one; the offered release is on that line; and no newer prerelease of
+   one; the offered release is on that line; without a binding, that line is
+   the main line or names the listed product; and no newer prerelease of
    another line follows it (`ambiguous-release-line`).
-9. The release ships no bare installer or setup program (a `.exe` or `.msi`
-   asset named `Install…`, `…Setup…` or `…Installer…`) beside its archives.
-   Such a release is built or installed by that program
-   (`installer-driven-release`).
+9. Every bare `.exe` or `.msi` asset of the release is the offered package's
+   own program: its provider SHA-256 equals a player of an offered archive.
+   A bare program with another digest, or with no provider digest (UNKNOWN),
+   means the release offers a different program than its archive holds, such
+   as an installer, or the real game beside an archive holding only a build
+   tool (`bare-executable-beside-archive`). The decision rests on the bytes'
+   digests, never on the program's name. Bare programs are never downloaded.
 10. For a supported desktop platform, an artifact has the role
     `desktop-game-runtime` from an `exact-release-structured` fact. That fact
     binds the archive's provider SHA-256 and holds player candidates with
@@ -3833,9 +3837,9 @@ architecture or system word (`x86_64`, `x64`, `win64`, `linux`, `universal`),
 alone between separators. So `openjk.x86_64.exe` and `openjk.x86.exe` are one
 program, `Game.exe`, `Game-64.exe` and `Game.console.exe` are one program, and
 `openjk.x86_64.exe` beside `openjo.x86_64.exe` is two. A number glued to the
-name is part of the name: `Doom64.exe` is Doom 64, a different game from
-`Doom.exe`, and nothing in the names proves otherwise, so `Doom.exe` beside
-`Doom64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
+name is part of the name: `Quest64.exe` can be a different game from
+`Quest.exe`, and nothing in the names proves otherwise, so `Quest.exe` beside
+`Quest64.exe` (and likewise `Game.exe` beside `Game64.exe`) is
 `ambiguous-player`. A reviewed `route_facts_v1` enrollment can still offer
 such a release.
 
@@ -3859,27 +3863,49 @@ checks this with its own code too.
 ##### Release lines
 
 A repository can publish more than one product: a game and its modding tool,
-or two titles. Each release tag has a release line: the tag without its
-version part (the first number that starts the tag or a word, optionally after
-one letter such as `v`, `r` or `b`, and everything after it), lowercase,
-without release-channel words such as `release`, `nightly`, `beta` or
-`latest`. A line that spells the repository's own name is the main line. So
-`v1.0`, `2.0.0-beta`, `r14388` and `<repository>-v3` are the main line, while
-`texture-studio-v1.0.0` and `sm2-v1.1` are lines of their own. A tag that is
-not printable ASCII is a line of its own.
+or two titles. Each release tag has a release line: its product words before
+the version, lowercase, without release-channel markers. Derivation errs toward
+one line for version and channel noise and toward different lines for
+different product words:
+
+- The version starts at a real version token: a whole word of digits,
+  optionally after one `v`, `r` or `b` (`v1`, `r14388`, `2025`). A number
+  followed by a letter is a product word (`game2x`, `game2`). A product word
+  ending in a glued `v<digits>` is cut there (`game2v0.3` is `game2`).
+- A bare number of one or two digits after a product word, followed by another
+  product word or a version, is part of the product (`quest-64-v1` is
+  `quest-64`, `part-2-1.0` is `part-2`). As the last word, before `.`, or
+  before another bare number it is the version (`quest-2` and `quest-1` are
+  both `quest`, `game-1-2-0` is `game`).
+- Release-channel words such as `release`, `nightly`, `beta`, `rc`, `build`
+  or `rev` are dropped, alone or glued to a number (`rc2`, `beta5`,
+  `build123`, `nightly20250101`, `release1.2`).
+
+A line that spells the repository's own name is the main line. So `v1.0`,
+`v1.2.0p`, `2.0.0-beta`, `r14388`, `2025.01.01`, `release-1.2`, `rc2` and
+`<repository>-v3` are the main line, while `level-editor-v1.0.0`,
+`game2-v1.1` and `quest-64-v1` are lines of their own. A tag that is not
+printable ASCII, or unknown, is a line of its own.
 
 The worker records each observed release (within the observer's own bound of
 the newest releases) with its tag, Core's prerelease verdict, publication time
 and whether it carries a package file. The fit rule and, independently, the
 gate refuse an identity when:
 
-- another catalog identity names the same repository, unless the listing's
+- another catalog identity names the same repository through its release URL
+  or project URL (any path below the repository counts), unless the listing's
   `release_url` names a tag on its repository
   (`…/releases/tag/<tag>`) whose line no other identity sharing the
   repository is bound to (`shared-repository`);
 - the packaged releases fall into more than one line and the listing binds
   none, or the offered release is not on the bound line
   (`ambiguous-release-line`);
+- the listing binds no line and the offered release's line is neither the
+  main line nor names the listed product: its words, joined, appear in none of
+  the repository name and the listing's id, name and original title (letters
+  and digits only, lowercase), so a window of only a tool's releases
+  (`level-editor-v1.0.x`) is never taken for the game, while `part-v1.2` on a
+  `part-decomp` repository is (`ambiguous-release-line`);
 - a prerelease of another line, or a release whose verdict Core did not give,
   is newer than the offered stable release (`ambiguous-release-line`): the
   offered release may be another product's older release.
@@ -3888,7 +3914,7 @@ A listing bound to a line is read on that line only: the worker offers that
 line's latest stable release. This uses the existing `release_url` field; no
 per-title data is added. A repository that publishes a second product on the
 main line itself (`v1.1-tools`) is not told apart by its tags; the shared
-repository, tool-token, installer and one-package rules still apply.
+repository, tool-token, bare-executable and one-package rules still apply.
 
 ##### What the player sees
 
@@ -3950,7 +3976,8 @@ not read, such as `.7z`, `.rar`, a bare `.exe`, `.msi`, `.dmg` or `.AppImage`;
 the forms are in the detail and `unread_forms`), `non-desktop-platform`,
 `no-digest`, `too-many-assets`, `too-large`, `exceeds-run-budget`,
 `repeated-inspection-failure` and `invalid-facts`. Product binding:
-`shared-repository`, `ambiguous-release-line` and `installer-driven-release`.
+`shared-repository`, `ambiguous-release-line` and
+`bare-executable-beside-archive`.
 Fit: `no-player`, `tool-not-game` (only tool-named programs or a tool or
 tool-role archive name), `contradictory-role`, `non-desktop-platform`,
 `unknown-platform`, `wrong-host`, `ambiguous-player`, `ambiguous-artifact`,
@@ -3978,10 +4005,11 @@ age and retention bounds, the exact archive binding, the veto, tool and system t
 the name's operating system and architecture, that each player exists in the
 facts with a machine that runs on the platform and was not excluded by the
 tool veto, that every player of the artifact running there is named, and the
-one-program rule, including one top-level directory for the players of every
-artifact whose name permits the platform, as the generator checks. It also
+one-program rule, including each such artifact's players under one top-level
+directory, for every non-contradictory desktop-runtime artifact whose name
+permits the platform, as the generator checks. It also
 restates, from the facts and the listings alone, the release-line,
-shared-repository and installer rules, that the archives whose names permit
+shared-repository and bare-executable rules, that the archives whose names permit
 the platform are one package, and that no refused archive is offered or
 could hold the platform's game. The facts
 table's `generated_at` may not be earlier than the baseline facts table's,
@@ -3998,7 +4026,12 @@ empty facts table and no enrollment, so no bound changed. Generator version 6,
 facts parser version 6 and facts table format 5 (#8569 real-data defects:
 release lines, shared repositories, installer-driven releases, one package
 per platform, per-archive Core refusals, per-platform archive counts and the
-new tool tokens) also landed with an empty facts table, so no bound changed. A curated change that adds integrations to
+new tool tokens) also landed with an empty facts table, so no bound changed.
+Generator version 7, facts parser version 7 and facts table format 6 (#8569
+review repairs: the release-line version cut and channel markers, named lines
+that must name the product, bare executables recorded with size and digest
+and the `bare-executable-beside-archive` rule replacing the installer-name
+rule, and no `engine` archive word) landed the same way. A curated change that adds integrations to
 more generated identities than the `withdrawn` bound must be split into
 changes within it.
 
@@ -4037,7 +4070,8 @@ archive becomes an `exact-release-structured` fact with the player candidates
 Core found outside any tool, installer or server location. A listing whose
 `release_url` names a tag is read on that tag's [release line](#release-lines)
 only. Each entry also records the observed releases and the release's bare
-`.exe` and `.msi` asset names, for the release-line and installer rules.
+`.exe` and `.msi` assets with the provider's size and digest (never their
+bytes), for the release-line and bare-executable rules.
 
 The worker's candidates are the authored listing-only GitHub identities, read
 before catalog generation adds generated routes (`workerRecords`). An identity
@@ -4090,9 +4124,8 @@ why each is vetoed:
 | `sdk`, `devkit`, `tool`, `tools`, `toolkit`                               | Development kits and generic tools.                                               |
 | `server`                                                                  | A server is not the player's program.                                             |
 | `patch` (whole word only)                                                 | A patch archive; as a camel-case part it also starts titles such as `PatchQuest`. |
-| `studio`, `authoring`, `workbench` (whole word only)                      | Authoring suites shipped beside the game; `Studiopolis` and `TextureStudio` pass. |
-| `codegen`, `glue`, `toolchain` (whole word only)                          | Code generators and toolchains; `rex-glue.exe` is vetoed, `rexglue.exe` is not.   |
-| `engine` (whole word, release file names only)                            | An engine or SDK distribution a game is built from, not the game.                 |
+| `studio`, `authoring`, `workbench` (whole word only)                      | Authoring suites shipped beside the game; `StudioTown` and `LevelStudio` pass.    |
+| `codegen`, `glue`, `toolchain` (whole word only)                          | Code generators and toolchains; `code-glue.exe` is vetoed, `codeglue.exe` is not. |
 
 These words stay allowed, because they also name real game programs:
 `recomp`, `recompiled` and `psxrecomp` (game ports are often named
@@ -4100,9 +4133,11 @@ These words stay allowed, because they also name real game programs:
 and `demo` (a demo is still a game). A missed tool still needs a native
 program outside every tool, installer or server location to enroll. A name
 written as one lowercase word, such as `gamepatcher`, is not split and is not
-vetoed. Such a program is still caught by its release: an archive named as an
-engine, or a release that also ships an installer or setup program, does not
-enroll.
+vetoed. Such a program is still caught by its release when the release also
+ships a bare program that is not the archive's player
+(`bare-executable-beside-archive`). `engine` is not a tool word: engine
+reimplementations are real game ports, also as a whole word in an archive
+name.
 
 Programs inside nested build trees (`target/release`, `build/`, toolchain
 directories) are not treated as tools by path. A package can ship its only
