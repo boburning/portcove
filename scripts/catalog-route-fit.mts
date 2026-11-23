@@ -14,6 +14,11 @@ import type {
   RestrictionScope,
 } from "./catalog-acquisition-restrictions.mts";
 import { listingProviderIdentity } from "./listing-upstream-observation.mts";
+import {
+  observerListingObservations,
+  readListingObservation,
+  type ListingObservation,
+} from "./listing-observation-reader.mts";
 import { packagePlayerProjection } from "./package-player-observation.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -313,46 +318,16 @@ interface Observed {
   assets: number;
 }
 
-function readObservation(observation: unknown): Observed | undefined {
-  if (!isRecord(observation)) return undefined;
-  const status = observation.status;
-  // `complete` is the producer's success; an absent status is a legacy success.
-  if (status !== undefined && status !== "complete") {
-    const state = (["incomplete", "unavailable", "failed"] as const).find(
-      (known) => known === status,
-    );
-    return { state: state ?? "failed", platforms: new Set(), assets: 0 };
-  }
-  const observed: Observed = { state: "complete", platforms: new Set(), assets: 0 };
-  for (const release of Array.isArray(observation.releases) ? observation.releases : [])
-    for (const asset of isRecord(release) && Array.isArray(release.assets) ? release.assets : []) {
+function observedOf(observation: ListingObservation | undefined): Observed | undefined {
+  if (!observation) return undefined;
+  const observed: Observed = { state: observation.state, platforms: new Set(), assets: 0 };
+  for (const release of observation.releases)
+    for (const asset of release.assets) {
       observed.assets++;
-      for (const hint of isRecord(asset) && Array.isArray(asset.platform_hints)
-        ? asset.platform_hints
-        : [])
-        if (desktopPlatforms.includes(hint as string)) observed.platforms.add(hint as string);
+      for (const hint of asset.platform_hints)
+        if (desktopPlatforms.includes(hint)) observed.platforms.add(hint);
     }
   return observed;
-}
-
-/** Listing updates, `{ listings }`, or observer policies with `listing_update`. */
-function observerObservations(report: unknown, known: ReadonlySet<string>) {
-  const result = new Map<string, Observed>();
-  if (report === undefined) return result;
-  const entries: unknown =
-    isRecord(report) && Array.isArray(report.listings) ? report.listings : report;
-  if (!Array.isArray(entries))
-    throw new Error("Observer report needs a listings array of listing updates.");
-  for (const raw of entries) {
-    const entry: unknown = isRecord(raw) && isRecord(raw.listing_update) ? raw.listing_update : raw;
-    if (!isRecord(entry) || typeof entry.id !== "string")
-      throw new Error("Observer report contains a listing without an id.");
-    if (!known.has(entry.id))
-      throw new Error(`Observer report names ${entry.id}, which is not a catalog identity.`);
-    const observed = readObservation(entry.upstream_observation);
-    if (observed) result.set(entry.id, observed);
-  }
-  return result;
 }
 
 /** Platforms with independently observed player facts and where they came from. */
@@ -493,13 +468,15 @@ export function routeFitReport(inputs: RouteFitInputs): RouteFitReport {
   const enrolled = groupById(portEntries(inputs.routeEnrollment, "cases", "Route enrollment"));
   for (const id of [...ports.keys(), ...shapes.keys(), ...enrolled.keys()])
     if (!known.has(id)) throw new Error(`${id} is not a catalog identity.`);
-  const reported = observerObservations(inputs.observerReport, known);
+  const reported = observerListingObservations(inputs.observerReport, known);
 
   const dataOnlyWindows = new Set<string>();
   const identities = records.map((record): RouteFitRecord => {
     const id = record.listing.id;
     const port = ports.get(id);
-    const observed = reported.get(id) ?? readObservation(record.listing.upstream_observation);
+    const observed = observedOf(
+      reported.get(id) ?? readListingObservation(record.listing.upstream_observation),
+    );
     const restrictions = reportedRestrictions(record);
     // Every supported platform: a whole hold applies even where none is declared.
     const held = heldOperations(record, desktopPlatforms);

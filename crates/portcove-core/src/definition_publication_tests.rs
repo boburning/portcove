@@ -10,6 +10,15 @@ fn fixture_with_catalog_growth(
     additional_bytes: usize,
     padded_leaf_bytes: Option<usize>,
 ) -> BTreeMap<String, Vec<u8>> {
+    fixture_with_entry(schema, additional_bytes, padded_leaf_bytes, |_| {})
+}
+
+fn fixture_with_entry(
+    schema: u32,
+    additional_bytes: usize,
+    padded_leaf_bytes: Option<usize>,
+    change_entry: impl FnOnce(&mut Value),
+) -> BTreeMap<String, Vec<u8>> {
     let mut document = crate::test_fixture::indexed_fixture_document_for_port(
         &crate::Catalog::embedded().unwrap(),
         "shipwright",
@@ -32,9 +41,11 @@ fn fixture_with_catalog_growth(
         leaf.resize(bytes, b' ');
     }
     let leaf_target = format!("sha256/{}.json", hash(&leaf));
-    let entry = serde_json::to_vec(&json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
+    let mut entry = json!({"definition_schema":loader_schema,"namespace":"official","stable_id":port.id,"revision":1,"port":port,
         "required_capabilities":crate::test_fixture::definition_requirements(port, 1),
-        "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]})).unwrap();
+        "source_contracts":[leaf_target],"execution_contract":leaf_target,"persistence_contract":leaf_target,"artifact_bindings":[],"evidence_references":[]});
+    change_entry(&mut entry);
+    let entry = serde_json::to_vec(&entry).unwrap();
     let entry_target = format!("sha256/{}.json", hash(&entry));
     let index = serde_json::to_vec(&json!({"index_schema":1,"definitions":[{"namespace":"official","stable_id":port.id,"revision":1,"target":entry_target}],
         "contents":[{"target":entry_target,"sha256":hash(&entry),"length":entry.len()},{"target":leaf_target,"sha256":hash(&leaf),"length":leaf.len()}]})).unwrap();
@@ -269,6 +280,38 @@ fn publication_refuses_a_valid_leaf_that_cannot_fit_the_escaped_selection() {
         error
             .message
             .contains("escaped definition snapshot exceeds selection storage capacity")
+    );
+}
+
+#[test]
+fn publication_inspects_named_advice_without_changing_report_or_authority() {
+    let build = |features| {
+        fixture_with_entry(2, 0, None, |entry| {
+            entry["definition_schema"] = 4.into();
+            entry["required_features"] = features;
+            entry["advisory"] = json!({"future-advice": "inert"});
+        })
+    };
+    let files = build(json!([
+        "mods.native-loader-binding-v1",
+        "mods.provider-bindings-v1"
+    ]));
+    let missing_loader = build(json!(["mods.provider-bindings-v1"]));
+    assert!(
+        inspect_definition_publication_bytes(&missing_loader)
+            .unwrap_err()
+            .message
+            .contains("mods.native-loader-binding-v1"),
+    );
+    let report = inspect_definition_publication_bytes(&files).unwrap();
+    assert_eq!(report.publication_schema, 1);
+    assert_eq!(report.authority, "none");
+    let files = build(json!(["native.future-layout-v7"]));
+    assert_eq!(
+        inspect_definition_publication_bytes(&files)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Unsupported,
     );
 }
 

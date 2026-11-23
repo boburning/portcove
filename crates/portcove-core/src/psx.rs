@@ -10,8 +10,10 @@ use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
     OperationResult, Platform, PortcoveError, ReleaseAsset, Result, SourceRecord,
     adapter::hash_file, archive::extract_archive_with_checkpoint,
+    psx_tool_artifacts::ToolchainArtifact,
 };
 
+#[cfg(test)]
 const TOOLCHAIN_VERSION: &str = "1.0.14";
 const APPLE_SYSTEM_BIN: &str = "/usr/bin";
 const WEBP_DEPENDENCY: &str = "psx_libwebp";
@@ -135,13 +137,6 @@ impl<'a> PreparationConfiguration<'a> {
             executable_basename: &preparation.executable_basename,
         })
     }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ToolchainArtifact {
-    name: &'static str,
-    size: u64,
-    sha256: &'static str,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -471,7 +466,7 @@ impl Drop for DirectoryGuard {
 
 pub(crate) async fn ensure_toolchain<F>(
     library: &Library,
-    platform: Platform,
+    artifact: &ToolchainArtifact,
     parent: &OperationCoordinator,
     emit: &mut F,
 ) -> Result<PathBuf>
@@ -480,7 +475,7 @@ where
 {
     let operation = parent.child("psx_toolchain", None);
     emit(operation.started());
-    let result = ensure_toolchain_inner(library, platform, &operation, emit).await;
+    let result = ensure_toolchain_inner(library, artifact, &operation, emit).await;
     emit(operation.finished(if result.is_ok() {
         OperationResult::Succeeded
     } else {
@@ -491,14 +486,14 @@ where
 
 async fn ensure_toolchain_inner<F>(
     library: &Library,
-    platform: Platform,
+    artifact: &ToolchainArtifact,
     operation: &OperationCoordinator,
     emit: &mut F,
 ) -> Result<PathBuf>
 where
     F: FnMut(OperationEvent),
 {
-    let artifact = toolchain_artifact(platform)?;
+    let platform = artifact.platform;
     let _acquisition = loop {
         operation.checkpoint()?;
         match library.try_lock_psx_toolchain_acquisition() {
@@ -512,12 +507,12 @@ where
     let destination = library
         .toolchains_dir()
         .join("cmake-clang-v1")
-        .join(toolchain_cache_coordinate(platform));
+        .join(artifact.cache_coordinate());
     let destination_existed = destination.exists();
     if validate_toolchain_with_checkpoint(&destination, platform, artifact, || {
         operation.checkpoint()
     })? {
-        require_macos_toolchain_executables(&destination, platform, operation)?;
+        require_macos_toolchain_executables(&destination, artifact, operation)?;
         return Ok(destination);
     }
 
@@ -531,17 +526,8 @@ where
     let guard = std::sync::Arc::new(DirectoryGuard(operation_root.clone()));
     let unpacked = operation_root.join("unpacked");
     fs::create_dir_all(&unpacked)?;
-    let archive_path = operation_root.join(artifact.name);
-    let url = format!(
-        "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v{TOOLCHAIN_VERSION}/{}",
-        artifact.name
-    );
-    let asset = crate::ReleaseAsset {
-        name: artifact.name.into(),
-        url,
-        size: artifact.size,
-        sha256: artifact.sha256.into(),
-    };
+    let archive_path = operation_root.join(&artifact.name);
+    let asset = artifact.release_asset();
     crate::Installer::new(library.clone())?
         .download_psx_toolchain(&asset, &archive_path, operation, &mut |mut event| {
             if let crate::OperationEventKind::Progress {
@@ -557,7 +543,9 @@ where
     let extraction_guard = guard.clone();
     let extraction_operation = operation.clone();
     let extraction_root = unpacked.clone();
+    let pinned = artifact.clone();
     tokio::task::spawn_blocking(move || {
+        let artifact = &pinned;
         // Keep staging owned until extraction quiesces even if the caller drops its future.
         let _guard = extraction_guard;
         let operation = &extraction_operation;
@@ -567,11 +555,11 @@ where
             artifact.size,
             || operation.checkpoint(),
         )?;
-        if actual_size != artifact.size || !actual_sha256.eq_ignore_ascii_case(artifact.sha256) {
+        if actual_size != artifact.size || !actual_sha256.eq_ignore_ascii_case(&artifact.sha256) {
             return Err(PortcoveError::verification(
                 "PS1 toolchain failed its pinned artifact verification",
             )
-            .detail("expected_sha256", artifact.sha256)
+            .detail("expected_sha256", &artifact.sha256)
             .detail("actual_sha256", actual_sha256)
             .detail("expected_size", artifact.size.to_string())
             .detail("actual_size", actual_size.to_string()));
@@ -580,7 +568,7 @@ where
         extract_archive_with_checkpoint(
             &archive_path,
             &unpacked,
-            artifact.name,
+            &artifact.name,
             artifact.size,
             &|| operation.checkpoint(),
         )?;
@@ -591,21 +579,21 @@ where
         PortcoveError::install(format!("PS1 toolchain extraction failed: {error}"))
     })??;
     let pack_root = locate_pack_root(&unpacked)?;
-    require_macos_toolchain_executables(&pack_root, platform, operation)?;
-    let critical_files = toolchain_file_identities(&pack_root, platform)?;
+    require_macos_toolchain_executables(&pack_root, artifact, operation)?;
+    let critical_files = toolchain_file_identities(&pack_root, artifact)?;
     let marker = ToolchainMarker {
         schema_version: 2,
-        version: TOOLCHAIN_VERSION.into(),
+        version: artifact.version.clone(),
         platform,
-        asset_name: artifact.name.into(),
-        sha256: artifact.sha256.into(),
+        asset_name: artifact.name.clone(),
+        sha256: artifact.sha256.clone(),
         critical_files,
     };
     fs::write(
         pack_root.join(".portcove-toolchain.json"),
         serde_json::to_vec_pretty(&marker)?,
     )?;
-    publish_toolchain_cache(library, &pack_root, &destination, platform, operation).await?;
+    publish_toolchain_cache(library, &pack_root, &destination, artifact, operation).await?;
     drop(guard);
     Ok(destination)
 }
@@ -614,10 +602,10 @@ async fn publish_toolchain_cache(
     library: &Library,
     pack_root: &Path,
     destination: &Path,
-    platform: Platform,
+    artifact: &ToolchainArtifact,
     operation: &OperationCoordinator,
 ) -> Result<()> {
-    let artifact = toolchain_artifact(platform)?;
+    let platform = artifact.platform;
     let started = std::time::Instant::now();
     let _publication = loop {
         operation.checkpoint()?;
@@ -638,7 +626,7 @@ async fn publish_toolchain_cache(
     if validate_toolchain_with_checkpoint(destination, platform, artifact, || {
         operation.checkpoint()
     })? {
-        return require_macos_toolchain_executables(destination, platform, operation);
+        return require_macos_toolchain_executables(destination, artifact, operation);
     }
     operation.checkpoint()?;
     fs::create_dir_all(destination.parent().expect("toolchain has a parent"))?;
@@ -668,16 +656,18 @@ fn refuse_unverified_mac_toolchain(destination: &Path, platform: Platform) -> Re
 pub(crate) fn prepare_install(
     root: &Path,
     preparation: &PsxManagedPreparation,
+    artifact: &ToolchainArtifact,
     operation: &OperationCoordinator,
 ) -> (Result<()>, bool) {
     let mut quiesced = true;
-    let result = prepare_install_inner(root, preparation, operation, &mut quiesced);
+    let result = prepare_install_inner(root, preparation, artifact, operation, &mut quiesced);
     (result, quiesced)
 }
 
 fn prepare_install_inner(
     root: &Path,
     preparation: &PsxManagedPreparation,
+    artifact: &ToolchainArtifact,
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
@@ -709,7 +699,12 @@ fn prepare_install_inner(
         })
         .transpose()?;
     let platform = Platform::current()?;
-    let python = toolchain_python(&preparation.toolchain_root, platform)?;
+    if artifact.platform != platform {
+        return Err(PortcoveError::verification(
+            "PS1 toolchain platform differs from the build host",
+        ));
+    }
+    let python = toolchain_python_for(&preparation.toolchain_root, artifact)?;
     operation.checkpoint()?;
     let temporary = retained_source_workspace(root)?;
     let cue = materialize_managed_disc(
@@ -727,12 +722,15 @@ fn prepare_install_inner(
         &cue,
         preparation.bios.as_ref().map(|bios| bios.path.as_path()),
     )?;
-    require_macos_toolchain_executables(&preparation.toolchain_root, platform, operation)?;
-    run_cli(
+    require_macos_toolchain_executables(&preparation.toolchain_root, artifact, operation)?;
+    run_cli_with_artifact(
         &python,
         &cli,
         root,
-        &preparation.toolchain_root,
+        PinnedToolchain {
+            root: &preparation.toolchain_root,
+            artifact,
+        },
         generate_arguments,
         operation,
         quiesced,
@@ -742,12 +740,15 @@ fn prepare_install_inner(
     }
     rewrite_game_discs(&config, configuration.source_paths)?;
     let build_dir = root.join("build-portcove");
-    require_macos_toolchain_executables(&preparation.toolchain_root, platform, operation)?;
-    run_cli(
+    require_macos_toolchain_executables(&preparation.toolchain_root, artifact, operation)?;
+    run_cli_with_artifact(
         &python,
         &cli,
         root,
-        &preparation.toolchain_root,
+        PinnedToolchain {
+            root: &preparation.toolchain_root,
+            artifact,
+        },
         rebuild_arguments(&config, root, &build_dir, configuration.executable_basename)?,
         operation,
         quiesced,
@@ -795,7 +796,7 @@ fn prepare_install_inner(
             source_sha256: &preparation.source.sha256,
             source_storage_sha256: &preparation.source.storage_sha256,
             bios_source_sha256: preparation.bios.as_ref().map(|bios| bios.sha256.as_str()),
-            toolchain_version: TOOLCHAIN_VERSION,
+            toolchain_version: &artifact.version,
         })?,
     )?;
     Ok(())
@@ -1608,6 +1609,7 @@ fn rebuild_arguments(
     Ok(arguments)
 }
 
+#[cfg(test)]
 fn run_cli(
     python: &Path,
     cli: &Path,
@@ -1617,14 +1619,45 @@ fn run_cli(
     operation: &OperationCoordinator,
     quiesced: &mut bool,
 ) -> Result<()> {
+    run_cli_with_artifact(
+        python,
+        cli,
+        project_root,
+        PinnedToolchain {
+            root: toolchain_root,
+            artifact: toolchain_artifact(Platform::current()?)?,
+        },
+        arguments,
+        operation,
+        quiesced,
+    )
+}
+
+/// The pinned toolchain directory and the reviewed artifact it must match.
+#[derive(Clone, Copy)]
+struct PinnedToolchain<'a> {
+    root: &'a Path,
+    artifact: &'a ToolchainArtifact,
+}
+
+fn run_cli_with_artifact(
+    python: &Path,
+    cli: &Path,
+    project_root: &Path,
+    toolchain: PinnedToolchain<'_>,
+    arguments: impl IntoIterator<Item = String>,
+    operation: &OperationCoordinator,
+    quiesced: &mut bool,
+) -> Result<()> {
+    let PinnedToolchain {
+        root: toolchain_root,
+        artifact,
+    } = toolchain;
     operation.checkpoint()?;
     let platform = Platform::current()?;
-    if !validate_toolchain_with_checkpoint(
-        toolchain_root,
-        platform,
-        toolchain_artifact(platform)?,
-        || operation.checkpoint(),
-    )? || toolchain_python(toolchain_root, platform)? != python
+    if !validate_toolchain_with_checkpoint(toolchain_root, platform, artifact, || {
+        operation.checkpoint()
+    })? || toolchain_python_for(toolchain_root, artifact)? != python
     {
         return Err(PortcoveError::verification(
             "managed PS1 builder requires its unchanged pinned toolchain",
@@ -1949,30 +1982,14 @@ fn macos_toolchain_sdk(
     ))
 }
 
-fn toolchain_artifact(platform: Platform) -> Result<ToolchainArtifact> {
-    match platform {
-        Platform::WindowsX86_64 => Ok(ToolchainArtifact {
-            name: "cmake-clang-v1-windows-x64.zip",
-            size: 209_497_009,
-            sha256: "28da9742385e7ff875b3d9311e8ed89dbdc84f27b6ecba2bc0d0acc11f6d2b4d",
-        }),
-        Platform::LinuxX86_64 => Ok(ToolchainArtifact {
-            name: "cmake-clang-v1-linux-x64.zip",
-            size: 833_435_449,
-            sha256: "597c8d343a3cf02ba6f6b2ae7cf6fe2fef125dde8feff62a144e8dd3da3d484e",
-        }),
-        Platform::MacosX86_64 | Platform::MacosAarch64 => Ok(ToolchainArtifact {
-            name: "cmake-clang-v1-macos-universal.zip",
-            size: 95_921_806,
-            sha256: "9db2a9b6ede4162cb19850ee1a08d01147f3ea8bc9b2eefb3ffbdf8b20d389d7",
-        }),
-    }
+#[cfg(test)]
+fn toolchain_artifact(platform: Platform) -> Result<&'static ToolchainArtifact> {
+    crate::psx_tool_artifacts::embedded(platform)
 }
-
 fn validate_toolchain(
     root: &Path,
     platform: Platform,
-    artifact: ToolchainArtifact,
+    artifact: &ToolchainArtifact,
 ) -> Result<bool> {
     validate_toolchain_with_checkpoint(root, platform, artifact, || Ok(()))
 }
@@ -1980,7 +1997,7 @@ fn validate_toolchain(
 fn validate_toolchain_with_checkpoint(
     root: &Path,
     platform: Platform,
-    artifact: ToolchainArtifact,
+    artifact: &ToolchainArtifact,
     mut checkpoint: impl FnMut() -> Result<()>,
 ) -> Result<bool> {
     checkpoint()?;
@@ -1994,20 +2011,21 @@ fn validate_toolchain_with_checkpoint(
     let marker: ToolchainMarker =
         serde_json::from_slice(&crate::path::read_bounded_regular(&marker_path, 64 * 1024)?)?;
     if marker.schema_version != 2
-        || marker.version != TOOLCHAIN_VERSION
+        || artifact.platform != platform
+        || marker.version != artifact.version
         || marker.platform != platform
         || marker.asset_name != artifact.name
-        || !marker.sha256.eq_ignore_ascii_case(artifact.sha256)
+        || !marker.sha256.eq_ignore_ascii_case(&artifact.sha256)
     {
         return Ok(false);
     }
-    let Ok(python) = toolchain_python(root, platform) else {
+    let Ok(python) = toolchain_python_for(root, artifact) else {
         return Ok(false);
     };
     let paths = [
         python,
-        platform_executable(&root.join("bin"), "cmake"),
-        platform_executable(&root.join("bin"), "ninja"),
+        root.join(&artifact.cmake),
+        root.join(&artifact.ninja),
         root.join("retcomm-toolchain.json"),
     ];
     if marker.critical_files.len() != paths.len() {
@@ -2051,12 +2069,12 @@ fn validate_toolchain_with_checkpoint(
 
 fn toolchain_file_identities(
     root: &Path,
-    platform: Platform,
+    artifact: &ToolchainArtifact,
 ) -> Result<Vec<ToolchainFileIdentity>> {
     let paths = [
-        toolchain_python(root, platform)?,
-        platform_executable(&root.join("bin"), "cmake"),
-        platform_executable(&root.join("bin"), "ninja"),
+        toolchain_python_for(root, artifact)?,
+        root.join(&artifact.cmake),
+        root.join(&artifact.ninja),
         root.join("retcomm-toolchain.json"),
     ];
     let mut identities = Vec::with_capacity(paths.len());
@@ -2084,30 +2102,19 @@ fn toolchain_file_identities(
     Ok(identities)
 }
 
+#[cfg(test)]
 fn toolchain_cache_coordinate(platform: Platform) -> String {
-    match platform {
-        Platform::MacosAarch64 => format!("{TOOLCHAIN_VERSION}-macos-arm64-native-python"),
-        Platform::MacosX86_64 => format!("{TOOLCHAIN_VERSION}-macos-x64-native-python"),
-        _ => TOOLCHAIN_VERSION.into(),
-    }
+    toolchain_artifact(platform).unwrap().cache_coordinate()
 }
 
 fn require_macos_toolchain_executables(
     root: &Path,
-    platform: Platform,
+    artifact: &ToolchainArtifact,
     operation: &OperationCoordinator,
 ) -> Result<()> {
-    let (python_size, python_digest) = match platform {
-        Platform::MacosAarch64 => (
-            18_073_984,
-            "71720f1fc66989ebd691e81c96111b47ae6ff3f1a478666084d1cacbf0fccbf2",
-        ),
-        Platform::MacosX86_64 => (
-            18_494_104,
-            "998814918a46569ca4b8ee3b2fc75eef9d2079eee292f426e0a3472db8f73a91",
-        ),
-        _ => return Ok(()),
-    };
+    if artifact.pinned_executables.is_empty() {
+        return Ok(());
+    }
     let bin = root.join("bin");
     crate::path::refuse_symlink_ancestors(&bin)?;
     for entry in fs::read_dir(&bin)? {
@@ -2123,56 +2130,41 @@ fn require_macos_toolchain_executables(
             .detail("path", entry.path().display().to_string()));
         }
     }
-    for (relative, size, digest) in [
-        (
-            toolchain_python_paths(platform)[0],
-            python_size,
-            python_digest,
-        ),
-        (
-            "bin/cmake",
-            23_876_688,
-            "84d61153cfcb96949945f6b04a57ec7e052aedf9580107acd5a2d9957e162e53",
-        ),
-        (
-            "bin/ccache",
-            5_122_216,
-            "1d8cc4e68ed61355bc9b29191e05fab2b764d98a41fed794e7d6a9d34b5c3735",
-        ),
-        (
-            "bin/ninja",
-            828_128,
-            "458cdf3a6cf289118da14cc897b5106d152c66545947329b016629d9df085815",
-        ),
-    ] {
-        let path = root.join(relative);
+    for member in &artifact.pinned_executables {
+        let path = root.join(&member.path);
         crate::path::refuse_symlink_ancestors(&path)?;
-        crate::permissions::require_platform_executable(&path, platform, "pinned PS1 tool")?;
+        crate::permissions::require_platform_executable(
+            &path,
+            artifact.platform,
+            "pinned PS1 tool",
+        )?;
         let (actual_digest, actual_size) =
-            crate::adapter::hash_file_bounded_with_checkpoint(&path, size, || {
+            crate::adapter::hash_file_bounded_with_checkpoint(&path, member.size, || {
                 operation.checkpoint()
             })?;
-        if actual_size != size || actual_digest != digest {
+        if actual_size != member.size || actual_digest != member.sha256 {
             return Err(PortcoveError::verification(
                 "Mac PS1 tool executable differs from its pinned archive member",
             )
-            .detail("member", relative));
+            .detail("member", &member.path));
         }
     }
     Ok(())
 }
 
-fn toolchain_python_paths(platform: Platform) -> &'static [&'static str] {
-    match platform {
-        Platform::WindowsX86_64 => &["python/python.exe"],
-        Platform::LinuxX86_64 => &["python/bin/python3", "python/bin/python"],
-        Platform::MacosAarch64 => &["python/aarch64-apple-darwin/bin/python3"],
-        Platform::MacosX86_64 => &["python/x86_64-apple-darwin/bin/python3"],
-    }
+#[cfg(test)]
+fn toolchain_python_paths(platform: Platform) -> &'static [String] {
+    &toolchain_artifact(platform).unwrap().python_paths
 }
 
+#[cfg(test)]
 fn toolchain_python(root: &Path, platform: Platform) -> Result<PathBuf> {
-    toolchain_python_paths(platform)
+    toolchain_python_for(root, toolchain_artifact(platform)?)
+}
+
+fn toolchain_python_for(root: &Path, artifact: &ToolchainArtifact) -> Result<PathBuf> {
+    artifact
+        .python_paths
         .iter()
         .map(|relative| root.join(relative))
         .find(|path| path.is_file())
@@ -2180,7 +2172,6 @@ fn toolchain_python(root: &Path, platform: Platform) -> Result<PathBuf> {
             PortcoveError::verification("PS1 toolchain is missing its bundled Python runtime")
         })
 }
-
 fn platform_executable(root: &Path, basename: &str) -> PathBuf {
     if cfg!(windows) {
         root.join(format!("{basename}.exe"))
@@ -2680,6 +2671,7 @@ mod tests {
         let (result, quiesced) = prepare_install(
             &staging,
             preparation,
+            crate::psx_tool_artifacts::embedded(Platform::current().unwrap()).unwrap(),
             &OperationCoordinator::new("owned-input-validation", None),
         );
         let error = result.unwrap_err();
@@ -2978,6 +2970,7 @@ mod tests {
                 let (result, quiesced) = prepare_install(
                     temporary.path(),
                     &preparation,
+                    crate::psx_tool_artifacts::embedded(Platform::current().unwrap()).unwrap(),
                     &OperationCoordinator::new("owned-valid-input", None),
                 );
                 let error = result.unwrap_err();
@@ -3033,7 +3026,9 @@ mod tests {
         let identity = crate::adapter::source_storage_identity(&preparation.source.path).unwrap();
         for previous in [true, false] {
             let mut quiesced = previous;
-            let result = prepare_install_inner(&staging, &preparation, &operation, &mut quiesced);
+            let artifact = toolchain_artifact(Platform::current().unwrap()).unwrap();
+            let result =
+                prepare_install_inner(&staging, &preparation, artifact, &operation, &mut quiesced);
             assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
             assert_eq!(quiesced, previous);
             assert_eq!(fs::read_dir(&staging).unwrap().count(), 1);
@@ -3598,7 +3593,7 @@ mod tests {
     pub(super) fn toolchain_fixture(root: &Path, program: Option<&Path>) -> PathBuf {
         let platform = Platform::current().unwrap();
         let artifact = toolchain_artifact(platform).unwrap();
-        let python = root.join(toolchain_python_paths(platform)[0]);
+        let python = root.join(&toolchain_python_paths(platform)[0]);
         let cmake = platform_executable(&root.join("bin"), "cmake");
         let ninja = platform_executable(&root.join("bin"), "ninja");
         for (path, bytes) in [
@@ -3619,9 +3614,9 @@ mod tests {
             schema_version: 2,
             version: TOOLCHAIN_VERSION.into(),
             platform,
-            asset_name: artifact.name.into(),
-            sha256: artifact.sha256.into(),
-            critical_files: toolchain_file_identities(root, platform).unwrap(),
+            asset_name: artifact.name.clone(),
+            sha256: artifact.sha256.clone(),
+            critical_files: toolchain_file_identities(root, artifact).unwrap(),
         };
         fs::write(
             root.join(".portcove-toolchain.json"),
@@ -3858,7 +3853,13 @@ mod tests {
         let publication = library.try_lock_psx_toolchain_publication().unwrap();
         let operation = OperationCoordinator::new("toolchain-publication", None);
         let (result, ()) = tokio::join!(
-            publish_toolchain_cache(&library, &contender, &destination, platform, &operation),
+            publish_toolchain_cache(
+                &library,
+                &contender,
+                &destination,
+                toolchain_artifact(platform).unwrap(),
+                &operation
+            ),
             async {
                 crate::durability::rename_noreplace(&winner, &destination).unwrap();
                 drop(publication);

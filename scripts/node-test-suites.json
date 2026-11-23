@@ -266,6 +266,14 @@
       "ordinary_families": ["release-contract-tests"]
     },
     {
+      "file": "scripts/listing-compact-activation-rehearsal.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3504],
+        ["release-check", 4304]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/catalog-publish.test.mts",
       "memberships": [
         ["catalog-full-2", 3502],
@@ -515,6 +523,13 @@
       "memberships": [
         ["catalog-full-2", 8924],
         ["repository-tools-2", 3924]
+      ]
+    },
+    {
+      "file": "scripts/restriction-recheck.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8925],
+        ["repository-tools-2", 3925]
       ]
     },
     {

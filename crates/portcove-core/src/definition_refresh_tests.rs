@@ -1058,3 +1058,141 @@ async fn scheduled_refresh_shares_metadata_and_preserves_each_known_definition_s
     assert!(effective.definition_selection(ids[0]).is_none());
     assert!(effective.definition_selection(ids[1]).is_some());
 }
+
+/// Rewrite one indexed entry with a named feature this reader does not know,
+/// keeping the index's digest and length bindings exact.
+fn with_unknown_named_feature(targets: &mut [(String, Vec<u8>)], id: &str) {
+    let mut index: Value = serde_json::from_slice(&targets[0].1).unwrap();
+    let old = index["definitions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|definition| definition["stable_id"] == id)
+        .unwrap()["target"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let position = targets.iter().position(|(name, _)| *name == old).unwrap();
+    let mut entry: Value = serde_json::from_slice(&targets[position].1).unwrap();
+    entry["definition_schema"] = 4.into();
+    entry["required_features"] = serde_json::json!(["native.future-layout-v7"]);
+    let entry = serde_json::to_vec(&entry).unwrap();
+    let digest = hex::encode(Sha256::digest(&entry));
+    let target = format!("sha256/{digest}.json");
+    for definition in index["definitions"].as_array_mut().unwrap() {
+        if definition["target"] == old.as_str() {
+            definition["target"] = target.clone().into();
+        }
+    }
+    for record in index["contents"].as_array_mut().unwrap() {
+        if record["target"] == old.as_str() {
+            *record =
+                serde_json::json!({"target": target, "sha256": digest, "length": entry.len()});
+        }
+    }
+    targets[0].1 = serde_json::to_vec(&index).unwrap();
+    targets[position] = (target, entry);
+}
+
+/// A scheduled check records an unknown named feature exactly as a manual
+/// refresh of the same subject does, instead of only logging and skipping it.
+#[tokio::test]
+async fn scheduled_and_manual_refresh_record_the_same_unknown_named_feature_refusal() {
+    use policy::provisioning::official_catalog::{
+        automatic_refresh_fixture, serialize_automatic_refresh_fixtures,
+    };
+    let _fixtures = serialize_automatic_refresh_fixtures().await;
+    const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+    let catalog = Catalog::embedded().unwrap();
+    let id = catalog.ports()[0].id.clone();
+    let mut targets = repository_targets_for(&catalog, &id);
+    with_unknown_named_feature(&mut targets, &id);
+    let document = availability_for(&targets, &id, 1);
+    targets.push((
+        format!("policy/official/{id}.json"),
+        serde_json::to_vec(&document).unwrap(),
+    ));
+    let recorded = |library: &Library| {
+        let activities = library.activities(10).unwrap();
+        let [activity] = activities.as_slice() else {
+            panic!("one refresh activity must be recorded: {activities:?}");
+        };
+        assert_eq!(activity.operation, crate::ActivityOperation::UpdateCatalog);
+        let failure = activity.failure.clone().unwrap();
+        assert_eq!(failure.code, ErrorCode::Unsupported);
+        assert_eq!(
+            failure.details["unknown_required_feature"],
+            "native.future-layout-v7"
+        );
+        assert!(
+            library
+                .definition_selection_status_for("official", &id)
+                .unwrap()
+                .selected
+                .is_none()
+        );
+        (failure.code, failure.message, failure.details)
+    };
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let (_manual_directory, library) = self::library();
+    provision(&library, &root);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let error = refresh_fixture(
+        &service,
+        &source(&fixture),
+        &id,
+        &root,
+        FilesystemTransport,
+        |_| {},
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        error.details["definition_refresh_phase"],
+        "policy_admission"
+    );
+    let manual = recorded(&library);
+
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = authority_provisioning::single_owner_root(&fixture).await;
+    fixture
+        .publish_with_policy(
+            &targets,
+            true,
+            &DEFINITION_ROLE_PATHS,
+            later(),
+            Some((&key, 1)),
+        )
+        .await;
+    let (_scheduled_directory, library) = self::library();
+    let host = tempfile::tempdir().unwrap();
+    let preferences =
+        crate::HostPreferenceStore::new(host.path().join("preferences.json")).unwrap();
+    preferences
+        .set_official_catalog_automatic_updates(true)
+        .unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &source(&fixture),
+        ObservedTransport::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(recorded(&library), manual);
+}

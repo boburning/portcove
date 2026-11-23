@@ -4,6 +4,7 @@
 use crate::{AdapterKind, PortDefinition, PortcoveError, ReleaseSource, ResolvedRelease, Result};
 
 pub(crate) const MANAGED_GRANT_PREFIX: &str = "managed-github-v1-";
+pub(crate) const REVIEWED_FORGE_GRANT_PREFIX: &str = "reviewed-forge-v1-";
 pub(crate) const MANAGED_OPERATIONS: [&str; 4] = ["install", "update", "prepare", "launch"];
 
 pub(crate) fn valid_github_repository(repository: &str) -> bool {
@@ -20,7 +21,7 @@ pub(crate) fn valid_github_repository(repository: &str) -> bool {
 }
 
 pub(crate) fn restricted_grant(grant_id: &str) -> bool {
-    grant_id.starts_with(MANAGED_GRANT_PREFIX)
+    grant_id.starts_with(MANAGED_GRANT_PREFIX) || grant_id.starts_with(REVIEWED_FORGE_GRANT_PREFIX)
 }
 
 pub(crate) fn refuse_restricted_portability(grant_id: &str) -> Result<()> {
@@ -61,6 +62,7 @@ pub struct DefinitionAcquisitionScope {
     pub(crate) grant_id: String,
     pub(crate) policy_revision: u64,
     pub(crate) curated_checks: Option<u32>,
+    pub(crate) forge: Option<crate::reviewed_forge::ReviewedForgeSelection>,
     #[cfg(any(test, feature = "qualification-fixtures"))]
     pub(crate) fixture_origin: Option<String>,
 }
@@ -106,6 +108,7 @@ impl DefinitionAcquisitionScope {
             && self.grant_id == other.grant_id
             && self.policy_revision == other.policy_revision
             && self.curated_checks == other.curated_checks
+            && self.forge == other.forge
     }
     pub(crate) fn validate_parameters(
         repository_id: u64,
@@ -178,7 +181,11 @@ impl DefinitionAcquisitionScope {
     }
 
     pub(crate) fn require_port(&self, port: &PortDefinition) -> Result<()> {
-        Self::validate_port_contract(port)?;
+        if let Some(forge) = &self.forge {
+            forge.validate_granted_port(port)?;
+        } else {
+            Self::validate_port_contract(port)?;
+        }
         if !port.release.curated.is_empty() && self.curated_checks != Some(1) {
             return Err(PortcoveError::unsupported(
                 "publisher scope does not admit curated acquisition",
@@ -207,7 +214,9 @@ impl DefinitionAcquisitionScope {
 
     pub(crate) fn require_url(&self, url: &reqwest::Url) -> Result<()> {
         #[cfg(any(test, feature = "qualification-fixtures"))]
-        if let Some(origin) = &self.fixture_origin {
+        if let Some(origin) = &self.fixture_origin
+            && self.forge.is_none()
+        {
             validate_fixture_origin(origin)?;
             if url.as_str().len() <= 4096
                 && url.origin().ascii_serialization() == *origin

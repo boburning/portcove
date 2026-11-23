@@ -2275,8 +2275,8 @@ fn an_unsupported_entry_does_not_discard_a_valid_sibling_or_change_the_index() {
 #[test]
 fn shape_inspection_does_not_bypass_existing_catalog_semantic_validation() {
     let mut value = catalog_fixture();
+    // Isolate generic persistence validation from the separate loader and provider fences.
     let port = value["port"].as_object_mut().unwrap();
-    // Exercise generic persistence validation rather than the earlier loader fence.
     port.remove("mod_loader");
     port.remove("mod_provider_bindings");
     // Keep the fixture's authored settings targets in the persistence contract.
@@ -2772,5 +2772,137 @@ fn native_relative_originals_require_capability_37_in_fresh_and_retained_readers
                 assert!(result.unwrap().capabilities().compatible);
             }
         }
+    }
+}
+
+#[test]
+fn named_features_are_explicit_and_keep_legacy_reader_minimums() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.adapter = crate::AdapterKind::NativePortable;
+    port.release.linux_tar_xz = true;
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(8);
+    entry["required_capabilities"][0]["maximum_version"] = json!(8);
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+    }
+    entry["definition_schema"] = json!(4);
+    assert!(inspect(&entry).is_err());
+    entry["required_features"] = json!([]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("native.linux-tar-xz")
+    );
+    entry["required_features"] = json!(["native.linux-tar-xz"]);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(7);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 8"));
+    entry["required_features"] = json!(["native.linux-tar-xz", "native.linux-tar-xz"]);
+    assert!(inspect(&entry).unwrap_err().message.contains("duplicate"));
+    entry["required_features"] = json!(["native.future-layout-v7"]);
+    assert_eq!(
+        inspect(&entry).unwrap_err().code,
+        crate::ErrorCode::Unsupported
+    );
+}
+
+#[test]
+fn reviewed_runtime_compatibility_artifacts_require_named_entry_even_when_retained() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut port = catalog
+        .port("the-force-engine-dark-forces")
+        .unwrap()
+        .clone();
+    port.managed_runtime_applies_to = Some(vec![crate::RuntimePolicyArtifact {
+        version: "v91.2".into(),
+        size: 31_291,
+        sha256: "bc".repeat(32),
+    }]);
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(23);
+    entry["required_capabilities"][0]["maximum_version"] = json!(38);
+    for schema in [1, 2, 3] {
+        entry["definition_schema"] = json!(schema);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        assert!(
+            inspect(&entry)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+        assert!(
+            index(&bytes, &port.id)
+                .inspect_retained_entry("official", &port.id, &bytes)
+                .unwrap_err()
+                .message
+                .contains("definition schema 4")
+        );
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!([
+        "staged.provider-resolution-v1",
+        "staged.reusable-runtime-policy-v1",
+        "staged.managed-initialization-v1",
+        "staged.ready-archive-v1"
+    ]);
+    assert!(
+        inspect(&entry)
+            .unwrap_err()
+            .message
+            .contains("runtime.reviewed-compatibility-artifacts-v1")
+    );
+    entry["required_features"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!("runtime.reviewed-compatibility-artifacts-v1"));
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn named_entry_ignores_only_bounded_top_level_advice() {
+    let mut entry = fixture();
+    let legacy = inspect(&entry).unwrap();
+    let advisory = json!({"future-reader": {"downloaded_implementation": true}});
+    entry["advisory"] = advisory.clone();
+    assert!(inspect(&entry).is_err());
+    for schema in [2, 3] {
+        entry["definition_schema"] = json!(schema);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["definition_schema"] = json!(4);
+    entry["required_features"] = json!(null);
+    assert!(inspect(&entry).is_err());
+    entry["required_features"] = json!([]);
+    let newer = inspect(&entry).unwrap();
+    assert_eq!(
+        serde_json::to_value(newer.port()).unwrap(),
+        serde_json::to_value(legacy.port()).unwrap()
+    );
+    assert_eq!(
+        serde_json::to_value(newer.capabilities()).unwrap(),
+        serde_json::to_value(legacy.capabilities()).unwrap()
+    );
+    entry["future_required_field"] = advisory.clone();
+    assert!(inspect(&entry).is_err());
+    entry
+        .as_object_mut()
+        .unwrap()
+        .remove("future_required_field");
+    entry["port"]["future_required_field"] = advisory;
+    assert!(inspect(&entry).is_err());
+    entry["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("future_required_field");
+    for invalid in [
+        json!(null),
+        json!([]),
+        json!({"over-size": "x".repeat(16 * 1024)}),
+    ] {
+        entry["advisory"] = invalid;
+        assert!(inspect(&entry).is_err());
     }
 }

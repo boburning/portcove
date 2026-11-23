@@ -33,6 +33,36 @@ Check which operations and schemas both the client and the CLI support. If
 either lacks support or the client cannot interpret a required field, keep the
 affected operation unavailable.
 
+Continue authoring the existing fields for current released readers. Prepare
+named package and launch declarations only as scoped schema-4 indexed proposals.
+Use the independent acquisition policy for the same exact repository and
+artifact decisions. Keep selected bytes and executable layout evidence with
+the proposal. [Catalog declaration compatibility](CATALOG.md#package-and-launch-declaration-compatibility)
+
+For migration, replay current selection and installed launch before replacing
+any prior field. Native GitHub hints can become case-insensitive include terms
+only where the ordered fallback still picks the same asset. Existing stream
+exclusions remain separate because a positive tag pattern has a different
+meaning. Replace an XZ platform declaration only after confirming the same
+format, decoder limits and link policy for every selected asset. Existing direct
+pins, curated records, explicit package choices and external-profile layouts
+keep their separate scope.
+
+The first native user-data candidate is Open Surge. The other user-data and all
+existing source-environment declarations use other adapters or materialization
+rules that need separate equivalence. CorsixTH's `USER=PLAYER` fallback affects
+Windows x64 and Linux x64. A compatible proposal can state those two environment
+values explicitly after an independently scoped grant and a same-launch replay.
+The legacy fallback remains available for historical installs. No authored
+production migration is included with this reader.
+
+A forge URL in a listing identifies the upstream project. For an alternate
+forge, the qualification path uses the exact API dialect, API root, web host
+and asset hosts. It binds a reviewed repository ID, tag, release and asset
+identity, URL, byte count and SHA-256. Publisher metadata alone cannot supply
+the reviewed digest. Production admission remains subject to the definition
+reader and the independent managed acquisition policy.
+
 ## Choose a CLI and fixture library
 
 1. Choose the standalone CLI for the actual operating system and processor from
@@ -1008,3 +1038,12 @@ generated outputs intact. Keep deliberate pins and release-specific evidence
 with their scope. Keep exact original-file requirements and dependencies explicit.
 See `crates/portcove-core/catalog/ports/nhl-94-genesis-ninety-four.json` for a
 prepared route retaining explicit retail-ROM and save/state limitations.
+
+### Exact releases on reviewed forge instances
+
+For stable native portable packages on Forgejo or a self-hosted GitLab, use the
+named `release.reviewed-forge-v1` capability and one reviewed selector per
+indexed subject. Supply the exact project origin, API dialect and root,
+reviewed asset hosts, repository identity, release, archive identity, size and
+SHA-256. Eligibility also requires a separate authenticated publisher decision.
+See [reviewed forge qualification](DEFINITION-DELIVERY.md#qualification-for-separately-reviewed-forges).
