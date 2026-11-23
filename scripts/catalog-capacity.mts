@@ -1,10 +1,17 @@
 /** Offline capacity diagnostics only. No signature, provider read or admission. */
 import { createHash } from "node:crypto";
 import { closeSync, fstatSync, lstatSync, openSync, readSync, readFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { isRecord } from "./runtime-values.mts";
+import {
+  compactListingCountMaximum,
+  compactListingDecodedMaximum,
+  compactListingRecordMaximum,
+  listingDeliveryMaximum,
+} from "./listing-directory-carrier.mts";
 
 export function capacityConstant(source: string, name: string) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
@@ -196,6 +203,106 @@ export function formatCatalogSizeGuard(result: ReturnType<typeof catalogSizeGuar
     .join("\n");
 }
 
+/**
+ * The compact listing carrier's bounds are enforced by the RELEASED readers
+ * (Preview 14 and 15) and lift only with the next reader generation. Measured
+ * November 23, 2026; refresh these figures with the evidence in
+ * docs/SIGNED-CATALOG.md ("Compact carrier capacity guard").
+ */
+export const compactCarrierModel = {
+  /** Mean serialized `upstream_observation` over the 933 observed rows of the
+   * live revision-47 target; the guard charges it to EVERY row. */
+  observationBytesPerRow: 4_791,
+  /** Largest live serialized observation, charged to the largest authored row. */
+  largestObservationBytes: 31_106,
+  /** Wire/decoded ratio of the staged revision-48 compact target
+   * (2,745,010 / 9,602,327); the guard uses the worse of this and its own. */
+  wireRatio: 2_745_010 / 9_602_327,
+  /** Seven-day growth of the committed directory (November 16 -> 23): compact
+   * authored bytes 4,251,227 -> 5,365,914 and rows 1,527 -> 1,649. */
+  authoredBytesPerDay: (5_365_914 - 4_251_227) / 7,
+  rowsPerDay: (1_649 - 1_527) / 7,
+  /** Days to release a new reader generation AND have players adopt it: the
+   * compact reader took two days from merge (#8450) to Preview 14, but older
+   * previews do not update on their own (docs/SIGNED-CATALOG.md). */
+  leadDays: 28,
+} as const;
+
+/** CI guard for the compact listing carrier at the released readers' bounds.
+ * Each ceiling leaves `leadDays` of measured growth before publication would
+ * stop; a single record has no growth rate, so its ceiling is half its bound
+ * (one observation can bring a full release history at once). */
+export function compactCarrierGuard(
+  directory: unknown,
+  withdrawals: readonly string[],
+  model: typeof compactCarrierModel = compactCarrierModel,
+) {
+  if (!isRecord(directory) || !Array.isArray(directory.listings))
+    throw new Error("Compact carrier guard requires the canonical listing directory");
+  const rows: unknown[] = directory.listings;
+  const authored = Buffer.from(
+    JSON.stringify({
+      listing_delivery_schema: 1,
+      revision: Number.MAX_SAFE_INTEGER,
+      withdrawn_ids: withdrawals,
+      directory,
+    }),
+  );
+  const decoded = authored.length + rows.length * model.observationBytesPerRow;
+  const ratio = Math.max(model.wireRatio, (gzipSync(authored).length * 4) / 3 / authored.length);
+  const wire = Math.ceil(decoded * ratio) + 256;
+  const record =
+    Math.max(0, ...rows.map((row) => Buffer.byteLength(JSON.stringify(row)))) +
+    model.largestObservationBytes;
+  const decodedPerDay = model.authoredBytesPerDay + model.rowsPerDay * model.observationBytesPerRow;
+  const measures = [
+    ["modeled compact decoded bytes", decoded, compactListingDecodedMaximum, decodedPerDay],
+    ["modeled compact wire bytes", wire, listingDeliveryMaximum, decodedPerDay * ratio],
+    ["compact listing records", rows.length, compactListingCountMaximum, model.rowsPerDay],
+    // Withdrawals cannot outpace the rows that could be withdrawn.
+    [
+      "compact listing withdrawals",
+      withdrawals.length,
+      compactListingCountMaximum,
+      model.rowsPerDay,
+    ],
+    ["largest modeled compact record bytes", record, compactListingRecordMaximum, null],
+  ] as const;
+  const result = measures.map(([name, value, bound, perDay]) => {
+    const margin = perDay === null ? Math.ceil(bound / 2) : Math.ceil(perDay * model.leadDays);
+    const ceiling = bound - margin;
+    return {
+      name,
+      value,
+      bound,
+      ceiling,
+      headroom: ceiling - value,
+      growth_per_day: perDay === null ? null : Math.round(perDay),
+      days_before_ceiling:
+        perDay === null || perDay <= 0 ? null : Math.floor((ceiling - value) / perDay),
+      days_before_bound:
+        perDay === null || perDay <= 0 ? null : Math.floor((bound - value) / perDay),
+      ok: value <= ceiling,
+    };
+  });
+  return { ok: result.every((row) => row.ok), lead_days: model.leadDays, rows: result };
+}
+
+export function formatCompactCarrierGuard(result: ReturnType<typeof compactCarrierGuard>) {
+  return result.rows
+    .map(
+      (row) =>
+        `${row.ok ? "ok  " : "FAIL"} ${row.name}: ${row.value} of ${row.ceiling} ` +
+        `(released-reader bound ${row.bound}, ` +
+        (row.growth_per_day === null
+          ? "half reserved for one record's growth"
+          : `${result.lead_days} days at ${row.growth_per_day}/day reserved; ` +
+            `${row.days_before_ceiling} days to this ceiling, ${row.days_before_bound} to the bound`) +
+        `); headroom ${row.headroom}`,
+    )
+    .join("\n");
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const { values } = parseArgs({
     options: {
@@ -246,6 +353,29 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
         "Catalog size guard failed: reduce catalog bytes or resolve the limiting supported consumer (#5894).\n",
       );
       process.exitCode = 1;
+    }
+    if (!values.catalog) {
+      const listingBytes = boundedInput(fileURLToPath(repositoryListings), listingBound);
+      const record: unknown = JSON.parse(
+        boundedInput(
+          fileURLToPath(
+            new URL("../crates/portcove-core/catalog/listing-withdrawals.json", import.meta.url),
+          ),
+          listingBound,
+        ).toString("utf8"),
+      );
+      const withdrawn =
+        isRecord(record) && Array.isArray(record.withdrawals)
+          ? record.withdrawals.map((entry: unknown) => (isRecord(entry) ? String(entry.id) : ""))
+          : [];
+      const compact = compactCarrierGuard(JSON.parse(listingBytes.toString("utf8")), withdrawn);
+      process.stdout.write(`${formatCompactCarrierGuard(compact)}\n`);
+      if (!compact.ok) {
+        process.stderr.write(
+          "Compact listing carrier guard failed: the released readers' bounds lift only with the next reader generation; start one now (docs/SIGNED-CATALOG.md, Compact carrier capacity guard).\n",
+        );
+        process.exitCode = 1;
+      }
     }
   } else {
     if (!values.catalog) throw new Error("--catalog is required");

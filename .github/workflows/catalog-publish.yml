@@ -171,7 +171,9 @@ jobs:
       # Compact listing delivery (#1422) is the only live listing carrier; the
       # legacy target keeps its last signed bytes. The anonymously selected and
       # verified released reader gates the carrier; without one the prior
-      # listing targets are renewed exactly.
+      # listing targets are renewed exactly. A listing-only failure renews the
+      # prior listing targets too and is reported as `listing_publication_stopped`;
+      # the publish job fails the run on it after readback.
       - name: Project completed shared observations into the compact listing target
         id: observe
         if: steps.decide.outputs.publish == 'true'
@@ -185,6 +187,7 @@ jobs:
             --cli target/release/portcove --tools target/release/portcove-release-tools \
             --root crates/portcove-core/catalog/official-definition-root.json \
             --offline-targets release/bootstrap-public-inputs/catalog/offline-targets.json \
+            --withdrawals crates/portcove-core/catalog/listing-withdrawals.json \
             --official-released-reader
           activation=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const report = JSON.parse(readFileSync(process.argv[1], "utf8")); if (report.released_reader_activation) process.stdout.write(JSON.stringify(report.released_reader_activation))' "$RUNNER_TEMP/observation-bundle/report.json")
           echo "reader_activation=$activation" >> "$GITHUB_OUTPUT"
@@ -435,3 +438,21 @@ jobs:
           path: ${{ runner.temp }}/catalog-publication-live-readback.json
           retention-days: 7
           if-no-files-found: error
+      # Freshness, definitions and policy are already published; a stopped
+      # listing publication still fails the run so a person resolves it.
+      - name: Fail the run when listing publication stopped
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import {appendFileSync, readFileSync} from "node:fs";
+            const report = JSON.parse(readFileSync(process.argv[1], "utf8"));
+            const stopped = report.listing_publication_stopped;
+            if (!stopped) process.exit(0);
+            const line = "Listing publication stopped (" + stopped.code + "): " + stopped.reason +
+              "; prior listing targets renewed. Figures: " + JSON.stringify(stopped.figures);
+            const escaped = line.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+            console.log("::error title=Listing publication stopped::" + escaped);
+            const summary = process.env.GITHUB_STEP_SUMMARY;
+            if (summary) appendFileSync(summary, "### Listing publication stopped\n\n" + line + "\n");
+            process.exit(1);
+          ' "$RUNNER_TEMP/catalog-work/observation-projection.json"

@@ -170,7 +170,7 @@ void test("the rehearsal drives every activation step through preparation", asyn
   assert.match(report.preconditions.without_prior, /requires the prior signed repository/u);
 });
 
-void test("compact preparation fails on a projection error instead of excluding candidates", async (t) => {
+void test("a projection stop renews the exact prior carriers instead of excluding candidates", async (t) => {
   const fixture = fixtureWorkspace(t);
   const enrichment = enrichmentFixture();
   const legacy = legacyTarget;
@@ -182,29 +182,60 @@ void test("compact preparation fails on a projection error instead of excluding 
     directory: { format_version: 15, listings: [...canonical.listings, row("vanished")] },
   });
   const { encodeCompactListing } = await import("./listing-directory-carrier.mts");
+  const priorCompact = encodeCompactListing(compactDecoded);
   const prior = writePriorRepository(path.join(fixture.root, "prior"), {
     [listingDeliveryTarget]: legacy,
-    [compactListingDeliveryTarget]: encodeCompactListing(compactDecoded),
+    [compactListingDeliveryTarget]: priorCompact,
   });
-  await assert.rejects(
-    prepareObservationBundle({
-      bundle: fixture.bundle,
-      canonical: fixture.write("enriched.json", {
-        ...canonical,
-        listings: [...canonical.listings, ...enrichment.rows],
-      }),
-      catalog: fixture.catalog,
-      prior,
-      output: path.join(fixture.root, "out"),
-      cli: fixture.cli,
-      tools: fixture.tools,
-      root: fixture.rootFile,
-      offlineTargets: fixture.offlineTargets,
-      readObservation: () => Promise.resolve(enrichment.mixedInput),
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.write("enriched.json", {
+      ...canonical,
+      listings: [...canonical.listings, ...enrichment.rows],
     }),
-    /missing from the canonical directory without an explicit withdrawal/u,
-  );
+    catalog: fixture.catalog,
+    prior,
+    output: path.join(fixture.root, "out"),
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    readObservation: () => Promise.resolve(enrichment.mixedInput),
+  });
+  assert.deepEqual(report.listing_publication_stopped, {
+    code: "missing_without_withdrawal",
+    reason:
+      "Previously published listing missing from the canonical directory without an explicit withdrawal",
+    figures: { missing_count: 1, missing_ids: ["vanished"] },
+  });
+  assertExactPriorRenewal(path.join(fixture.root, "out"), report, legacy, priorCompact);
 });
+
+/** The bundle carries exactly the prior targets and the report says so. */
+function assertExactPriorRenewal(
+  output: string,
+  report: Record<string, unknown>,
+  legacy: Buffer,
+  compact: Buffer | null,
+) {
+  const read = (target: string) => {
+    try {
+      return readFileSync(path.join(output, "bundle", target));
+    } catch {
+      return null;
+    }
+  };
+  assert.deepEqual(read(listingDeliveryTarget), legacy);
+  assert.deepEqual(read(compactListingDeliveryTarget), compact);
+  assert.equal(report.changed, false);
+  assert.equal(report.carrier, compact ? "compact" : "legacy-renewal");
+  assert.equal(report.released_reader_activation, undefined);
+  assert.match(String(report.projection_scope), /Listing publication stopped/u);
+  assert.ok(
+    (report.diagnostics as string[]).some((line) => line.startsWith("listing publication stopped")),
+  );
+  if (compact) assert.equal(report.transport_changed, false);
+}
 
 void test("optional enrichment isolation excludes only failing candidates within its budget", async () => {
   const accepts = (bad: Set<number>) => (subset: readonly number[]) =>
@@ -352,7 +383,7 @@ void test("only Core's refusal of a staged candidate excludes compact enrichment
   );
 });
 
-void test("compact capacity overflow fails preparation instead of trimming candidates", async (t) => {
+void test("compact capacity overflow stops listing publication instead of trimming candidates", async (t) => {
   const fixture = fixtureWorkspace(t);
   const enrichment = enrichmentFixture();
   const candidates = enrichment.policies.map((policy) => policy.listing_update);
@@ -415,21 +446,31 @@ void test("compact capacity overflow fails preparation instead of trimming candi
   const listings = listingsWith(high);
   const canonicalFile = fixture.write("capacity.json", { ...canonical, listings });
   // The prior compact target without the candidates fits; with them it does not.
-  const { prior } = compactPrior(fixture.root, listings);
-  await assert.rejects(
-    prepareObservationBundle({
-      bundle: fixture.bundle,
-      canonical: canonicalFile,
-      catalog: fixture.catalog,
-      prior,
-      output: path.join(fixture.root, "out"),
-      cli: fixture.cli,
-      tools: fixture.tools,
-      root: fixture.rootFile,
-      offlineTargets: fixture.offlineTargets,
-      readObservation: () => Promise.resolve(enrichment.validInput),
-    }),
-    /exceeds its transport byte bound/u,
+  const { prior, decoded } = compactPrior(fixture.root, listings);
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: canonicalFile,
+    catalog: fixture.catalog,
+    prior,
+    output: path.join(fixture.root, "out"),
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    readObservation: () => Promise.resolve(enrichment.validInput),
+  });
+  const stopped = report.listing_publication_stopped as {
+    code: string;
+    figures: Record<string, number>;
+  };
+  assert.equal(stopped.code, "transport_bound");
+  assert.ok(stopped.figures.wire_bytes! > listingDeliveryMaximum);
+  assert.equal(stopped.figures.wire_limit, listingDeliveryMaximum);
+  assertExactPriorRenewal(
+    path.join(fixture.root, "out"),
+    report,
+    legacyTarget,
+    encodeCompactListing(decoded),
   );
 });
 
@@ -697,4 +738,314 @@ void test("the minimum supported preview for live listing updates is stated once
     observe: false,
   });
   assert.equal(report.minimum_live_listing_reader, minimumLiveListingReader);
+});
+
+/** A CLI whose publication inspection refuses (Core's verification envelope)
+ * or crashes whenever the staged bundle carries the compact target. */
+function compactInspectionCli(file: string, stub: string, behavior: "refuse" | "crash") {
+  writeFileSync(
+    file,
+    `#!${process.execPath}
+const fs = require("node:fs"), path = require("node:path");
+const { execFileSync } = require("node:child_process");
+const args = process.argv.slice(2);
+if (args[2] === "inspect-definition-publication" &&
+    fs.existsSync(path.join(args[3], ${JSON.stringify(compactListingDeliveryTarget)}))) {
+  ${
+    behavior === "refuse"
+      ? `process.stdout.write(JSON.stringify({ ok: false, command: "catalog.inspect-definition-publication", error: { code: "verification", message: "listing record exceeds its byte bound" } })); process.exit(11);`
+      : `process.exit(101);`
+  }
+}
+try { process.stdout.write(execFileSync(${JSON.stringify(stub)}, args)); }
+catch (error) { process.stdout.write(error.stdout ?? ""); process.exit(error.status ?? 1); }
+`,
+  );
+  chmodSync(file, 0o755);
+  return file;
+}
+
+void test("a first-cutover Core refusal renews the legacy-only publication and records the stop", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const legacyPrior = writePriorRepository(path.join(fixture.root, "legacy-prior"), {
+    [listingDeliveryTarget]: legacyTarget,
+  });
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: fixture.canonical,
+    catalog: fixture.catalog,
+    prior: legacyPrior,
+    output: path.join(fixture.root, "out"),
+    cli: compactInspectionCli(path.join(fixture.root, "refusing-cli"), fixture.cli, "refuse"),
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+    // The gate passes: the reader itself supports the compact carrier.
+    releasedReader: {
+      cli: fixture.cli,
+      sha256: createHash("sha256").update(readFileSync(fixture.cli)).digest("hex"),
+    },
+  });
+  assert.ok(report.released_reader, "the released-reader gate passed");
+  const stopped = report.listing_publication_stopped as { code: string; reason: string };
+  assert.equal(stopped.code, "core_refusal");
+  assert.match(stopped.reason, /Core refused the candidate publication \(verification\)/u);
+  assert.equal(report.listing_format, 11);
+  assert.equal(report.revision, 1);
+  assertExactPriorRenewal(path.join(fixture.root, "out"), report, legacyTarget, null);
+});
+
+void test("a post-cutover decoded-bound breach renews the exact compact carrier", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  // Compressible signed observations retained from the prior compact target
+  // bring the decoded document just under 32 MiB; one new row crosses it.
+  const filler = "x".repeat(8 * 1024 ** 2);
+  const observed = canonical.listings.map((listing) => ({
+    ...listing,
+    upstream_observation: {
+      provider: "github",
+      repository: `owner/${listing.id}`,
+      status: "complete",
+      releases: [{ version: filler.slice(0, 8 * 1024 ** 2 - 4096) }],
+    },
+  }));
+  const { prior, decoded } = compactPrior(fixture.root, observed);
+  assert.ok(decoded.length <= compactListingDecodedMaximum);
+  const grown = fixture.write("grown.json", {
+    ...canonical,
+    listings: [...canonical.listings, row("new-row", { summary: "y".repeat(64 * 1024) })],
+  });
+  const report = await prepareObservationBundle({
+    bundle: fixture.bundle,
+    canonical: grown,
+    catalog: fixture.catalog,
+    prior,
+    output: path.join(fixture.root, "out"),
+    cli: fixture.cli,
+    tools: fixture.tools,
+    root: fixture.rootFile,
+    offlineTargets: fixture.offlineTargets,
+    observe: false,
+  });
+  const stopped = report.listing_publication_stopped as {
+    code: string;
+    figures: Record<string, number>;
+  };
+  assert.equal(stopped.code, "decoded_bound");
+  assert.ok(stopped.figures.decoded_bytes! > compactListingDecodedMaximum);
+  assert.equal(stopped.figures.decoded_limit, compactListingDecodedMaximum);
+  assert.equal(report.revision, 2);
+  assertExactPriorRenewal(
+    path.join(fixture.root, "out"),
+    report,
+    legacyTarget,
+    encodeCompactListing(decoded),
+  );
+});
+
+void test("canonical input changes and tool crashes stay fatal", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const prior = compactPrior15(fixture.root);
+  const enrichment = enrichmentFixture();
+  const canonicalFile = fixture.write("mutable.json", canonical);
+  const prepare = (name: string, extra: Record<string, unknown>) =>
+    prepareObservationBundle({
+      bundle: fixture.bundle,
+      canonical: canonicalFile,
+      catalog: fixture.catalog,
+      prior,
+      output: path.join(fixture.root, name),
+      cli: fixture.cli,
+      tools: fixture.tools,
+      root: fixture.rootFile,
+      offlineTargets: fixture.offlineTargets,
+      ...extra,
+    });
+  // The canonical directory changes while observations are read.
+  await assert.rejects(
+    prepare("canonical-changed", {
+      readObservation: () => {
+        writeFileSync(canonicalFile, JSON.stringify({ ...canonical, listings: [] }));
+        return Promise.resolve(enrichment.validInput);
+      },
+    }),
+    /Canonical inputs changed during observation projection/u,
+  );
+  writeFileSync(canonicalFile, JSON.stringify(canonical));
+  // The withdrawal record changes while observations are read.
+  const record = fixture.write("withdrawals.json", { schema_version: 1, withdrawals: [] });
+  await assert.rejects(
+    prepare("withdrawals-changed", {
+      withdrawals: record,
+      readObservation: () => {
+        writeFileSync(
+          record,
+          JSON.stringify({
+            schema_version: 1,
+            withdrawals: [
+              {
+                id: "gone",
+                reason: "Removed.",
+                reference: "https://github.com/boburning/portcove/issues/1",
+              },
+            ],
+          }),
+        );
+        return Promise.resolve(enrichment.validInput);
+      },
+    }),
+    /Canonical inputs changed during observation projection/u,
+  );
+  // Core crashing on the final staged publication is not a refusal.
+  await assert.rejects(
+    prepare("final-crash", {
+      observe: false,
+      canonical: fixture.write("changed-final.json", {
+        ...canonical,
+        listings: canonical.listings.map((listing) =>
+          listing.id === "open-discovery" ? { ...listing, summary: "Changed." } : listing,
+        ),
+      }),
+      cli: compactInspectionCli(path.join(fixture.root, "crashing-cli"), fixture.cli, "crash"),
+    }),
+    /inspection failed without a candidate refusal \(exit 101\)/u,
+  );
+});
+
+const withdrawal = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  reason: "The upstream project asked to be removed.",
+  reference: "https://github.com/boburning/portcove/issues/1422",
+  ...extra,
+});
+
+void test("a committed withdrawal publishes a removed row as withdrawn; without one listing publication stops", async (t) => {
+  const fixture = fixtureWorkspace(t);
+  const { prior, decoded } = compactPrior(fixture.root, [...canonical.listings, row("retired")]);
+  const prepare = (name: string, withdrawals?: unknown) =>
+    prepareObservationBundle({
+      bundle: fixture.bundle,
+      canonical: fixture.canonical,
+      catalog: fixture.catalog,
+      prior,
+      output: path.join(fixture.root, name),
+      cli: fixture.cli,
+      tools: fixture.tools,
+      root: fixture.rootFile,
+      offlineTargets: fixture.offlineTargets,
+      observe: false,
+      ...(withdrawals === undefined
+        ? {}
+        : { withdrawals: fixture.write(`${name}-withdrawals.json`, withdrawals) }),
+    });
+  const withdrawn = await prepare("withdrawn", {
+    schema_version: 1,
+    withdrawals: [withdrawal("retired")],
+  });
+  assert.equal(withdrawn.listing_publication_stopped, undefined);
+  assert.equal(withdrawn.changed, true);
+  assert.equal(withdrawn.withdrawn_records, 1);
+  assert.equal(withdrawn.delivered_records, 4);
+  assert.equal((withdrawn.withdrawal_record as { withdrawals: number }).withdrawals, 1);
+  const published = document(
+    (await import("./listing-directory-carrier.mts")).decodeRetainedCompactListing(
+      readFileSync(path.join(fixture.root, "withdrawn", "bundle", compactListingDeliveryTarget)),
+    ),
+  );
+  assert.deepEqual(published.withdrawn_ids, ["retired"]);
+  assert.equal(published.revision, 3);
+  assert.ok(!published.directory.listings.some((listing) => listing.id === "retired"));
+  assert.deepEqual(
+    readFileSync(path.join(fixture.root, "withdrawn", "bundle", listingDeliveryTarget)),
+    legacyTarget,
+  );
+  // Removed without a committed withdrawal: listing publication stops loudly
+  // and the prior targets are renewed; the row is never silently dropped.
+  for (const [name, record] of [
+    ["unrecorded", { schema_version: 1, withdrawals: [] }],
+    ["no-record", undefined],
+  ] as const) {
+    const report = await prepare(name, record);
+    assert.equal(
+      (report.listing_publication_stopped as { code: string }).code,
+      "missing_without_withdrawal",
+      name,
+    );
+    assertExactPriorRenewal(
+      path.join(fixture.root, name),
+      report,
+      legacyTarget,
+      encodeCompactListing(decoded),
+    );
+  }
+  // An invalid record stops listing publication the same way.
+  const invalid = await prepare("invalid", {
+    schema_version: 1,
+    withdrawals: [withdrawal("retired", { reference: "issue 1" })],
+  });
+  assert.equal((invalid.listing_publication_stopped as { code: string }).code, "withdrawal_input");
+});
+
+void test("the withdrawal record is reviewed, sorted, cumulative and never re-lists an identity", async () => {
+  const { listingWithdrawals, ListingPublicationStop } =
+    await import("./listing-observation-delivery.mts");
+  const record = (...entries: unknown[]) => ({ schema_version: 1, withdrawals: entries });
+  const none = new Set<string>();
+  assert.deepEqual(listingWithdrawals(record(withdrawal("a"), withdrawal("b")), none), ["a", "b"]);
+  assert.deepEqual(
+    listingWithdrawals(
+      record(withdrawal("a", { reference: "https://github.com/boburning/portcove/pull/8619" })),
+      none,
+    ),
+    ["a"],
+  );
+  const refusals: [unknown, ReadonlySet<string>, string[], RegExp][] = [
+    [{ schema_version: 2, withdrawals: [] }, none, [], /schema_version 1/u],
+    [{ schema_version: 1, withdrawals: [], extra: 1 }, none, [], /schema_version 1/u],
+    [record(withdrawal("b"), withdrawal("a")), none, [], /sorted by id/u],
+    [record(withdrawal("a"), withdrawal("a")), none, [], /sorted by id/u],
+    [record(withdrawal("A")), none, [], /listing id/u],
+    [record(withdrawal("a", { reason: "" })), none, [], /a reason/u],
+    [record(withdrawal("a", { reason: " padded " })), none, [], /a reason/u],
+    [record({ id: "a", reason: "Removed." }), none, [], /reference/u],
+    [
+      record(withdrawal("a", { reference: "https://github.com/other/repo/issues/1" })),
+      none,
+      [],
+      /reference/u,
+    ],
+    [record(withdrawal("a", { note: "x" })), none, [], /reference/u],
+    // A withdrawn identity may not return to the canonical directory.
+    [record(withdrawal("a")), new Set(["a"]), [], /still in the canonical directory/u],
+    // A published withdrawal is never removed from the record.
+    [record(withdrawal("a")), none, ["a", "b"], /never removed/u],
+  ];
+  for (const [value, ids, published, pattern] of refusals)
+    assert.throws(
+      () => listingWithdrawals(value, ids, published),
+      (error: unknown) =>
+        error instanceof ListingPublicationStop &&
+        error.code === "withdrawal_input" &&
+        pattern.test(error.message),
+      JSON.stringify(value),
+    );
+});
+
+void test("the committed withdrawal record is valid against the committed listings", async () => {
+  const { listingWithdrawals, listingWithdrawalsInput } =
+    await import("./listing-observation-delivery.mts");
+  const repository = new URL("../", import.meta.url);
+  const listings = JSON.parse(
+    readFileSync(new URL("crates/portcove-core/catalog/listings.json", repository), "utf8"),
+  ) as { listings: { id: string }[] };
+  const record: unknown = JSON.parse(
+    readFileSync(new URL(listingWithdrawalsInput, repository), "utf8"),
+  );
+  listingWithdrawals(record, new Set(listings.listings.map((listing) => listing.id)));
+  const workflow = readFileSync(
+    new URL(".github/workflows/catalog-publish.yml", repository),
+    "utf8",
+  );
+  assert.ok(workflow.includes(`--withdrawals ${listingWithdrawalsInput}`));
 });

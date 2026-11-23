@@ -28,15 +28,17 @@ import type { AcquiredReleasedReader } from "./catalog-released-reader.mts";
 
 import {
   compactListingCarrier,
+  compactListingCountMaximum,
   compactListingDecodedMaximum,
   compactListingDeliveryTarget,
   decodeRetainedCompactListing,
   encodeCompactListing,
   listingDeliveryMaximum as maximum,
   listingDeliveryTarget,
+  ListingPublicationStop,
 } from "./listing-directory-carrier.mts";
 
-export { listingDeliveryTarget };
+export { listingDeliveryTarget, ListingPublicationStop };
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const legacyListingFormat = 11;
 const latestListingFormat = 15;
@@ -334,21 +336,31 @@ export function projectListingDelivery(
     )
       continue;
     if (updates.has(String(candidate.id)))
-      throw new Error("Conflicting descriptive observation candidates");
+      throw new ListingPublicationStop(
+        "conflicting_observations",
+        "Conflicting descriptive observation candidates",
+        { listing_id: String(candidate.id) },
+      );
     updates.set(String(candidate.id), compatibleObservation(candidate.upstream_observation));
   }
   const withdrawn = [...new Set([...(previousDocument?.withdrawn_ids ?? []), ...withdrawals])];
-  if (withdrawn.length > 10000)
-    throw new Error(
+  if (withdrawn.length > compactListingCountMaximum)
+    throw new ListingPublicationStop(
+      "withdrawal_count",
       "Listing withdrawals exceed their count bound; retaining last-good publication",
+      { withdrawals: withdrawn.length, withdrawal_limit: compactListingCountMaximum },
     );
   const withdrawalSet = new Set(withdrawn);
-  for (const id of previousListings.keys()) {
-    if (!identities.has(id) && !withdrawalSet.has(String(id)))
-      throw new Error(
-        "Previously published listing missing from the canonical directory without an explicit withdrawal",
-      );
-  }
+  const missing = [...previousListings.keys()]
+    .map(String)
+    .filter((id) => !identities.has(id) && !withdrawalSet.has(id))
+    .sort();
+  if (missing.length)
+    throw new ListingPublicationStop(
+      "missing_without_withdrawal",
+      "Previously published listing missing from the canonical directory without an explicit withdrawal",
+      { missing_count: missing.length, missing_ids: missing.slice(0, 20) },
+    );
   const observedAt = (value: Record<string, unknown> | undefined) =>
     value && typeof value.observed_at === "string" ? Date.parse(value.observed_at) : -Infinity;
   let retained = 0;
@@ -419,8 +431,10 @@ export function projectListingDelivery(
     throw new Error("Descriptive byte bound exceeds the compact decoded maximum");
   const bytes = Buffer.from(JSON.stringify(candidate));
   if (bytes.length > byteLimit)
-    throw new Error(
+    throw new ListingPublicationStop(
+      "decoded_bound",
       "Complete compact listing exceeds its decoded byte bound; retaining last-good publication",
+      { decoded_bytes: bytes.length, decoded_limit: byteLimit },
     );
   const counts = {
     retained,
@@ -435,6 +449,80 @@ export function projectListingDelivery(
   )
     return { bytes: previous!, revision: previousDocument.revision, changed: false, ...counts };
   return { bytes, revision, changed: true, ...counts };
+}
+
+/** The reviewed, committed listing withdrawal record (docs/SIGNED-CATALOG.md,
+ * "Withdrawing a listing"). */
+export const listingWithdrawalsInput = "crates/portcove-core/catalog/listing-withdrawals.json";
+const withdrawalReference =
+  /^https:\/\/github\.com\/boburning\/portcove\/(?:issues|pull)\/[1-9]\d{0,9}$/u;
+
+function parseWithdrawalRecord(bytes: Buffer): unknown {
+  try {
+    return parseCatalogSource(bytes.toString("utf8"));
+  } catch (error) {
+    throw new ListingPublicationStop(
+      "withdrawal_input",
+      `Listing withdrawal record is not valid JSON: ${error instanceof Error ? error.message.slice(0, 200) : "parse failed"}`,
+    );
+  }
+}
+
+/** Validate the committed withdrawal record against the canonical directory
+ * and every withdrawal already published. Withdrawals are cumulative: an entry
+ * is never removed, and a withdrawn identity never returns to `listings.json`
+ * (a re-listing uses a new identity). Any violation is a listing-only stop. */
+export function listingWithdrawals(
+  value: unknown,
+  canonicalIds: ReadonlySet<string>,
+  published: readonly string[] = [],
+) {
+  const refuse = (message: string, figures: Record<string, number | string | string[]> = {}) =>
+    new ListingPublicationStop(
+      "withdrawal_input",
+      `Listing withdrawal record: ${message}`,
+      figures,
+    );
+  if (
+    !isRecord(value) ||
+    Object.keys(value).sort().join(",") !== "schema_version,withdrawals" ||
+    value.schema_version !== 1 ||
+    !Array.isArray(value.withdrawals) ||
+    value.withdrawals.length > compactListingCountMaximum
+  )
+    throw refuse("requires schema_version 1 and a bounded withdrawals array");
+  const ids: string[] = [];
+  for (const entry of value.withdrawals as unknown[]) {
+    if (
+      !isRecord(entry) ||
+      Object.keys(entry).sort().join(",") !== "id,reason,reference" ||
+      typeof entry.id !== "string" ||
+      entry.id.length > 128 ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.id) ||
+      typeof entry.reason !== "string" ||
+      !entry.reason.trim() ||
+      entry.reason !== entry.reason.trim() ||
+      entry.reason.length > 500 ||
+      typeof entry.reference !== "string" ||
+      !withdrawalReference.test(entry.reference)
+    )
+      throw refuse("each entry needs a listing id, a reason and a Portcove issue or PR reference");
+    if (ids.length && !(ids[ids.length - 1]! < entry.id))
+      throw refuse("entries must be sorted by id without repeats", { id: entry.id });
+    ids.push(entry.id);
+  }
+  const present = ids.filter((id) => canonicalIds.has(id));
+  if (present.length)
+    throw refuse("a withdrawn listing is still in the canonical directory", {
+      present_ids: present.slice(0, 20),
+    });
+  const recorded = new Set(ids);
+  const forgotten = published.filter((id) => !recorded.has(id)).sort();
+  if (forgotten.length)
+    throw refuse("a published withdrawal was removed; withdrawals are never removed", {
+      forgotten_ids: forgotten.slice(0, 20),
+    });
+  return ids;
 }
 
 function compatibleObservation(observation: Record<string, unknown>) {
@@ -710,6 +798,8 @@ export async function prepareObservationBundle(options: {
   /** Replaces the live, anonymous acquisition (rehearsal fixtures, tests). */
   acquireReleasedReader?: (privateRoot: string) => Promise<AcquiredReleasedReader>;
   readObservation?: () => Promise<UpstreamInput>;
+  /** The committed withdrawal record; absent means no withdrawals are added. */
+  withdrawals?: string;
   /** Per-invocation Core CLI deadline; tests shorten it. */
   cliTimeoutMs?: number;
 }) {
@@ -739,6 +829,9 @@ export async function prepareObservationBundle(options: {
   const diagnostics: string[] = [];
   const canonicalBytes = await readControllerToolFile(options.canonical, maximum);
   const catalogBytes = await readControllerToolFile(options.catalog, 32 * 1024 * 1024);
+  const withdrawalBytes = options.withdrawals
+    ? await readControllerToolFile(options.withdrawals, maximum)
+    : null;
   const canonical = directory(parseCatalogSource(canonicalBytes.toString("utf8")));
   const current = parseCatalogSource(catalogBytes.toString("utf8"));
   if (!isRecord(current) || !Array.isArray(current.ports))
@@ -903,12 +996,14 @@ export async function prepareObservationBundle(options: {
   }
   // Every compact revision exceeds the frozen legacy revision, the signer's
   // replay floor for the first compact publication.
+  let withdrawals: string[] = [];
   const project = (observations: readonly Record<string, unknown>[]) =>
     publishedAbove(
       projectListingDelivery(canonical, observations, previous, {
         revisionFloor: legacyDocument.revision,
         compatible,
         now,
+        withdrawals,
       }),
       legacyDocument.revision,
     );
@@ -935,42 +1030,112 @@ export async function prepareObservationBundle(options: {
     }
     return wire;
   };
-  let projected = renewal ?? project(candidates);
+  let projected:
+    | Pick<
+        ReturnType<typeof retainedListingRenewal>,
+        | "bytes"
+        | "revision"
+        | "changed"
+        | "retained"
+        | "updated"
+        | "canonical_records"
+        | "delivered_records"
+      >
+    | undefined = renewal;
+  const renewedBeforeProjection = renewal !== undefined;
   let excludedCandidates: string[] = [];
-  if (!renewal && candidates.length) {
-    // Only Core's refusal of the staged publication excludes optional
-    // enrichment. Projection failures, capacity exhaustion, staging errors and
-    // a Core CLI crash, timeout or non-refusal error fail preparation.
-    let validationRun = 0;
-    const accepts = (observations: readonly Record<string, unknown>[]) => {
-      const candidate = project(observations);
-      const scratch = path.join(workspace, `validation-${++validationRun}`);
-      try {
-        stage(candidate, scratch);
-        return true;
-      } catch (error) {
-        if (error instanceof CoreInspectionRefusal) return false;
-        throw error;
-      } finally {
-        rmSync(scratch, { recursive: true, force: true });
-      }
-    };
-    const isolated = await isolateValidEnrichment(candidates, accepts);
-    if (isolated.excluded.length) {
-      excludedCandidates = isolated.excluded.map((candidate) => String(candidate.id));
-      diagnostics.push(
-        `observer candidates failed Core validation and were excluded: ${excludedCandidates.join(", ").slice(0, 600)}`,
+  // A listing-only failure stops listing publication, never the catalog:
+  // projection, encoding and Core's refusal of the final staged publication
+  // renew the exact prior listing targets and the report records the stop.
+  let stopped: ListingPublicationStop | undefined;
+  const stopListing = (error: unknown) => {
+    if (error instanceof CoreInspectionRefusal)
+      return new ListingPublicationStop("core_refusal", error.message, {
+        message: error.message.slice(0, 300),
+      });
+    if (error instanceof ListingPublicationStop) return error;
+    throw error;
+  };
+  if (!renewal) {
+    try {
+      withdrawals = listingWithdrawals(
+        withdrawalBytes
+          ? parseWithdrawalRecord(withdrawalBytes)
+          : // Without a record, add none and keep every published withdrawal.
+            { schema_version: 1, withdrawals: [] },
+        new Set(canonical.listings.map((listing) => String(listing.id))),
+        withdrawalBytes
+          ? [...new Set([...legacyDocument.withdrawn_ids, ...previousDocument.withdrawn_ids])]
+          : [],
       );
-      projected = project(isolated.admitted);
+      projected = project(candidates);
+      if (candidates.length) {
+        // Only Core's refusal of the staged publication excludes optional
+        // enrichment. A listing stop ends listing publication below; staging
+        // errors and a Core CLI crash, timeout or non-refusal error fail
+        // preparation.
+        let validationRun = 0;
+        const accepts = (observations: readonly Record<string, unknown>[]) => {
+          const candidate = project(observations);
+          const scratch = path.join(workspace, `validation-${++validationRun}`);
+          try {
+            stage(candidate, scratch);
+            return true;
+          } catch (error) {
+            if (error instanceof CoreInspectionRefusal) return false;
+            throw error;
+          } finally {
+            rmSync(scratch, { recursive: true, force: true });
+          }
+        };
+        const isolated = await isolateValidEnrichment(candidates, accepts);
+        if (isolated.excluded.length) {
+          excludedCandidates = isolated.excluded.map((candidate) => String(candidate.id));
+          diagnostics.push(
+            `observer candidates failed Core validation and were excluded: ${excludedCandidates.join(", ").slice(0, 600)}`,
+          );
+          projected = project(isolated.admitted);
+        }
+      }
+    } catch (error) {
+      stopped = stopListing(error);
     }
   }
   if (
     hash(await readControllerToolFile(options.canonical, maximum)) !== hash(canonicalBytes) ||
-    hash(await readControllerToolFile(options.catalog, 32 * 1024 * 1024)) !== hash(catalogBytes)
+    hash(await readControllerToolFile(options.catalog, 32 * 1024 * 1024)) !== hash(catalogBytes) ||
+    (options.withdrawals !== undefined &&
+      hash(await readControllerToolFile(options.withdrawals, maximum)) !== hash(withdrawalBytes!))
   )
     throw new Error("Canonical inputs changed during observation projection");
   const bundle = path.join(options.output, "bundle");
-  const wire = stage(projected, bundle);
+  let wire: Buffer | null = null;
+  if (!stopped) {
+    if (!projected) throw new Error("No listing projection was prepared");
+    try {
+      wire = stage(projected, bundle);
+    } catch (error) {
+      // Core refusing an exact prior renewal is never a listing-only stop.
+      if (renewedBeforeProjection) throw error;
+      stopped = stopListing(error);
+      rmSync(bundle, { recursive: true, force: true });
+    }
+  }
+  if (stopped) {
+    diagnostics.push(
+      `listing publication stopped (${stopped.code}); renewing the exact prior listing targets: ${stopped.message.slice(0, 300)}`,
+    );
+    renewal = retainedListingRenewal(
+      compactWire ?? legacyWire,
+      canonical.listings.length,
+      compactWire ? compactListingDeliveryTarget : listingDeliveryTarget,
+    );
+    projected = renewal;
+    // The renewal is the exact prior publication; Core refusing it is not a
+    // listing-only failure and fails preparation.
+    wire = stage(renewal, bundle);
+  }
+  if (!projected) throw new Error("No listing projection was prepared");
   const delivered = delivery(parseCatalogSource(projected.bytes.toString("utf8")));
   const report = {
     bundle,
@@ -979,7 +1144,7 @@ export async function prepareObservationBundle(options: {
     revision: projected.revision,
     listing_format: delivered.directory.format_version,
     ...(releasedReader ? { released_reader: releasedReader } : {}),
-    ...(officialReader
+    ...(officialReader && !stopped
       ? {
           released_reader_source: officialReader.receipt,
           // Publish rechecks this selection against each fresh Pages base.
@@ -990,6 +1155,20 @@ export async function prepareObservationBundle(options: {
         }
       : {}),
     ...(readerUnavailable ? { released_reader_unavailable: readerUnavailable } : {}),
+    ...(stopped
+      ? {
+          // The run publishes freshness, definitions and policy, then fails
+          // loudly after readback so a person resolves the listing stop.
+          listing_publication_stopped: {
+            code: stopped.code,
+            reason: stopped.message.slice(0, 600),
+            figures: stopped.figures,
+          },
+        }
+      : {}),
+    withdrawal_record: withdrawalBytes
+      ? { sha256: hash(withdrawalBytes), withdrawals: withdrawals.length }
+      : null,
     changed: projected.changed,
     retained: projected.retained,
     updated: projected.updated,
@@ -1016,9 +1195,11 @@ export async function prepareObservationBundle(options: {
       unchanged: true,
     },
     excluded_candidates: excludedCandidates,
-    projection_scope: renewal
-      ? "Exact prior signed listing targets for signer-verified renewal."
-      : "Complete canonical directory with applicable observations and explicit withdrawals.",
+    projection_scope: stopped
+      ? "Listing publication stopped; exact prior signed listing targets renewed."
+      : renewal
+        ? "Exact prior signed listing targets for signer-verified renewal."
+        : "Complete canonical directory with applicable observations and explicit withdrawals.",
     diagnostics,
     scope:
       "descriptive-observation-only; canonical fields unchanged; no operation or publication grant",
@@ -1042,6 +1223,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "released-reader": { type: "string" },
       "released-reader-sha256": { type: "string" },
       "official-released-reader": { type: "boolean", default: false },
+      withdrawals: { type: "string" },
     },
   });
   for (const key of [
@@ -1071,6 +1253,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         offlineTargets: path.resolve(values["offline-targets"]!),
         observe: !values.offline,
         officialReleasedReader: values["official-released-reader"],
+        ...(values.withdrawals ? { withdrawals: path.resolve(values.withdrawals) } : {}),
         ...(values["released-reader"] && values["released-reader-sha256"]
           ? {
               releasedReader: {

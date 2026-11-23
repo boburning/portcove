@@ -990,6 +990,8 @@ void test("tree digests change with any catalog file and match for absent trees"
 
 type Step = {
   id?: string;
+  name?: string;
+  "continue-on-error"?: boolean;
   uses?: string;
   run?: string;
   if?: string;
@@ -1076,6 +1078,62 @@ void test("compact listing activation selects the released reader and rechecks i
     /if \[ -n "\$CATALOG_READER_ACTIVATION" \]; then\n\s*node scripts\/catalog-released-reader\.mts site\n\s*fi/u,
   );
   assert.equal(source.match(/catalog-released-reader\.mts/gu)?.length, 1);
+});
+
+void test("a stopped listing publication fails the run only after publish and readback", () => {
+  const workflow = read("catalog-publish.yml");
+  const observe = workflow.jobs.prepare!.steps!.find(({ id }) => id === "observe")!;
+  assert.match(
+    observe.run!,
+    /--withdrawals crates\/portcove-core\/catalog\/listing-withdrawals\.json \\\n/u,
+  );
+  const steps = workflow.jobs.publish!.steps!;
+  const stop = steps.findIndex(
+    ({ name }) => name === "Fail the run when listing publication stopped",
+  );
+  const push = steps.findIndex(({ run }) => run?.includes("git -C site push"));
+  const readback = steps.findIndex(({ id }) => id === "readback");
+  // Last: freshness, definitions and policy are pushed and read back first.
+  assert.equal(stop, steps.length - 1);
+  assert.ok(push < readback && readback < stop);
+  assert.equal(steps[stop]!.if, undefined);
+  assert.equal(steps[stop]!["continue-on-error"], undefined);
+  const scratch = mkdtempSync(path.join(os.tmpdir(), "portcove-listing-stop-"));
+  try {
+    const work = path.join(scratch, "catalog-work");
+    mkdirSync(work);
+    const run = (report: unknown) => {
+      writeFileSync(path.join(work, "observation-projection.json"), JSON.stringify(report));
+      const summary = path.join(scratch, "summary.md");
+      rmSync(summary, { force: true });
+      try {
+        const stdout = execFileSync("bash", ["-c", steps[stop]!.run!], {
+          env: { ...process.env, RUNNER_TEMP: scratch, GITHUB_STEP_SUMMARY: summary },
+          encoding: "utf8",
+        });
+        return { status: 0, stdout, summary: existsSync(summary) };
+      } catch (error) {
+        const failure = error as { status: number; stdout: string };
+        return { status: failure.status, stdout: failure.stdout, summary: existsSync(summary) };
+      }
+    };
+    assert.deepEqual(run({ carrier: "compact" }), { status: 0, stdout: "", summary: false });
+    const stopped = run({
+      listing_publication_stopped: {
+        code: "decoded_bound",
+        reason: "Complete compact listing exceeds its decoded byte bound",
+        figures: { decoded_bytes: 33554433, decoded_limit: 33554432 },
+      },
+    });
+    assert.equal(stopped.status, 1);
+    assert.equal(stopped.summary, true);
+    assert.match(
+      stopped.stdout,
+      /^::error title=Listing publication stopped::Listing publication stopped \(decoded_bound\): Complete compact listing exceeds its decoded byte bound; prior listing targets renewed\. Figures: \{"decoded_bytes":33554433,"decoded_limit":33554432\}$/mu,
+    );
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 void test("late catalog readback stays in the existing read-only scheduled prepare lane", () => {

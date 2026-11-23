@@ -585,3 +585,45 @@ void test("legacy signer refuses an alternate forge selector before key access",
   );
   assert.equal(existsSync(item.output), false);
 });
+
+void test("the compact carrier guard reserves lead-time growth below the released readers' bounds", async () => {
+  const { compactCarrierGuard, compactCarrierModel } = await import("./catalog-capacity.mts");
+  const listing = (id: string) => ({ id, name: id, summary: "s".repeat(200) });
+  const small = compactCarrierGuard(
+    { format_version: 15, listings: [listing("a"), listing("b")] },
+    [],
+  );
+  assert.equal(small.ok, true);
+  assert.equal(small.lead_days, compactCarrierModel.leadDays);
+  const decoded = small.rows.find((row) => row.name === "modeled compact decoded bytes")!;
+  assert.equal(decoded.bound, 32 * 1024 ** 2);
+  // Every row is charged a full observation.
+  assert.ok(decoded.value > 2 * compactCarrierModel.observationBytesPerRow);
+  assert.equal(
+    decoded.ceiling,
+    decoded.bound -
+      Math.ceil(
+        (compactCarrierModel.authoredBytesPerDay +
+          compactCarrierModel.rowsPerDay * compactCarrierModel.observationBytesPerRow) *
+          compactCarrierModel.leadDays,
+      ),
+  );
+  const record = small.rows.find((row) => row.name === "largest modeled compact record bytes")!;
+  assert.equal(record.ceiling, 512 * 1024);
+  // Inside the bound but within the lead-time margin fails CI.
+  const rows = Math.ceil(10000 - compactCarrierModel.rowsPerDay * compactCarrierModel.leadDays) + 1;
+  const crowded = compactCarrierGuard(
+    { format_version: 15, listings: Array.from({ length: rows }, (_, i) => ({ id: `r${i}` })) },
+    [],
+  );
+  const count = crowded.rows.find((row) => row.name === "compact listing records")!;
+  assert.ok(count.value < count.bound && !count.ok && !crowded.ok);
+  const withdrawals = compactCarrierGuard({ format_version: 15, listings: [] }, [
+    ...Array.from({ length: 9600 }, (_, i) => `w${i}`),
+  ]);
+  assert.equal(
+    withdrawals.rows.find((row) => row.name === "compact listing withdrawals")!.ok,
+    false,
+  );
+  assert.throws(() => compactCarrierGuard({}, []), /canonical listing directory/u);
+});

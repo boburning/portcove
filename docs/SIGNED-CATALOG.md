@@ -287,10 +287,17 @@ capability report lists formats 5–13 and no carrier). Read from the
 - **Application update.** The updater reads
   `updates/{beta,preview}/latest.json` with its own minisign key, separately
   from the TUF catalog (`application_update.rs`); it does not read listing
-  targets or catalog freshness. Older previews default to the Beta channel,
-  and no Beta feed is published yet, so a player chooses the Preview channel
-  in Settings or installs the new preview from the release page. That was
-  already true before the cutover.
+  targets or catalog freshness. `application_update.rs` is identical at
+  Preview 13, Preview 15 and current `main`: the channel defaults to Beta,
+  and `updates/beta/latest.json` returns 404 while
+  `updates/preview/latest.json` names Preview 15 (anonymous reads, November
+  23, 2026). A default-configured older preview's automatic check, at startup
+  and every six hours, fails and is only logged, so it never shows an update
+  notice. A manual check in Settings reports that Portcove couldn't check for
+  updates and suggests checking the internet connection. The player must
+  choose the Preview channel in Settings or install the new preview from the
+  release page. That was already true before the cutover; after it, the same
+  player also stops receiving listing changes without any notice.
 
 Alternatives considered:
 
@@ -334,6 +341,11 @@ newer Beta and Stable releases) and verifies it without credentials:
   report, run in a private directory with no credentials, must name the
   `gzip-base64-json-v1` carrier, listing format 15 and the release version.
 
+If the Preview pointer changes between preparation and publication, that
+recheck fails the push and nothing from the run is published. Freshness then
+waits for the next scheduled run, at most 12 hours later, well inside the
+one-day timestamp.
+
 When selection or the probe fails, or no reader source is configured,
 preparation does not stop and publishes nothing new for listings: a
 legacy-only prior is renewed byte for byte, and an active compact prior
@@ -349,6 +361,74 @@ stops that push if the selected reader was withdrawn or replaced.
 rehearsal, tests and offline evidence; it cannot be combined with official
 selection.
 
+### Listing publication stops
+
+A listing-only failure stops listing publication, never the catalog.
+Preparation then renews the exact prior listing targets: legacy-only before
+the cutover, the compact target and the frozen legacy target after it. The
+signer sees the same bytes it already admitted, so freshness, definitions and
+policy still publish. The report records `listing_publication_stopped` with a
+`code`, the `reason` and its `figures`. After the Pages push and readback,
+`Catalog publish` emits an `::error::` annotation and a step summary with those
+figures and fails the run, so a person resolves it. The stop codes are:
+
+| Code                         | Cause                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `decoded_bound`              | The decoded compact document exceeds 32 MiB                              |
+| `transport_bound`            | The encoded compact target exceeds 8 MiB                                 |
+| `withdrawal_count`           | Withdrawals exceed 10,000                                                |
+| `withdrawal_input`           | The committed withdrawal record is invalid (see the next section)        |
+| `missing_without_withdrawal` | A published listing left `listings.json` without a committed withdrawal  |
+| `conflicting_observations`   | Two observer candidates claim the same listing                           |
+| `core_refusal`               | Core refused the final staged publication with an input-refusal envelope |
+
+Everything else fails preparation as before and publishes nothing: canonical
+inputs (`listings.json`, `catalog.json`, the withdrawal record) changing during
+the run; a Core crash, timeout, output overflow or non-refusal error; Core
+refusing the exact prior renewal; a failed prior verification that cannot be
+renewed; and filesystem errors. These are typed: only
+`ListingPublicationStop` and Core's `CoreInspectionRefusal` (a completed
+process whose exit code and JSON envelope both name an input refusal) stop
+listing publication.
+
+### Withdrawing a listing
+
+`crates/portcove-core/catalog/listing-withdrawals.json` is the reviewed,
+committed withdrawal record:
+
+```json
+{
+  "schema_version": 1,
+  "withdrawals": [
+    {
+      "id": "example-port",
+      "reason": "The upstream project asked to be removed.",
+      "reference": "https://github.com/boburning/portcove/issues/1234"
+    }
+  ]
+}
+```
+
+To withdraw a listing, remove its row from `listings.json` and add an entry in
+the same pull request. Entries are sorted by `id` without repeats. Each needs
+a non-empty `reason` of at most 500 characters and a Portcove issue or pull
+request `reference`. The record is cumulative: an entry is never removed, and
+a withdrawn identity never returns to `listings.json`. A project that comes
+back is listed under a new identity. CI validates the committed record against
+the committed `listings.json`, and preparation validates it again against the
+canonical directory and every withdrawal already published. Any violation is a
+`withdrawal_input` stop.
+
+`Catalog publish` passes the record with `--withdrawals`. Preparation adds its
+identities to the published `withdrawn_ids` and leaves those rows out of the
+compact target. Removing a row without a record entry is a
+`missing_without_withdrawal` stop; the row is never silently dropped. The
+signer's existing rules hold unchanged: compact withdrawals include the legacy
+target's withdrawals (`listing_targets` in `bundle.rs`), and history
+verification refuses any publication that forgets a withdrawal
+(`history_checkpoint.rs`). The frozen legacy target keeps its own withdrawals,
+none at revision 47, so older previews never see later withdrawals.
+
 ### Cutover runbook
 
 **Preconditions.**
@@ -356,6 +436,8 @@ selection.
 - Required checks are green on the merge commit.
 - `node scripts/listing-compact-activation-rehearsal.mts --cli PATH --workspace DIR`
   passes with a release or stripped CLI.
+- `node scripts/catalog-capacity.mts --check` passes, including the compact
+  carrier rows.
 - The `select` preflight reports the current Preview, format 15 and
   `gzip-base64-json-v1`.
 - No history bootstrap is requested in the same change.
@@ -376,6 +458,8 @@ publish the compact carrier, if its reader verifies.
    - `released_reader` and `released_reader_source` name the current Preview.
    - `target_bytes` is within 8 MiB, `decoded_bytes` within 32 MiB, and
      `excluded_candidates` and `diagnostics` are reviewed.
+   - `listing_publication_stopped` is absent, and `withdrawal_record` names
+     the committed record's SHA-256 and count.
 2. On Pages, follow `catalog/metadata/timestamp.json` to its snapshot, then to
    `official-policy`. The policy role names
    `policy/official/catalog.listings.compact.json` with the report's
@@ -453,8 +537,9 @@ admission. Each step stops the rehearsal when its property fails:
   that candidate, and its row keeps the prior signed observation. Only Core's
   own refusal counts: the inspection must exit with Core's `verification`,
   `source_invalid` or `unsupported` code and the matching JSON error envelope.
-  A Core crash, timeout, output overflow, other Core error, projection failure
-  or carrier capacity exhaustion fails preparation.
+  A Core crash, timeout, output overflow or other Core error fails
+  preparation. A projection or carrier capacity failure stops listing
+  publication (see [Listing publication stops](#listing-publication-stops)).
 - **Preconditions.** Preparation without the prior signed repository is
   refused.
 
@@ -481,6 +566,26 @@ All offline; nothing was signed or uploaded. Inputs:
 A live client refresh against the staged bundle cannot run offline: the
 bundle is unsigned, and clients trust only the compiled root. After the first
 signed cutover publication, a person runs readback steps 4 and 5 against Pages.
+
+**Rerun with listing publication stops and the withdrawal record.** Same
+day, Pages commit `7585833` (timestamp 60), release-built `portcove` and
+`portcove-release-tools` from this branch, and the released Linux x86-64 CLIs
+for Preview 13, 14 and 15, each matching its release `SHA256SUMS`:
+
+| Step                                                                                                                                  | Result                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `listing-compact-activation-rehearsal.mts --cli` with the release CLI                                                                 | Passed: all eight gate cases renew legacy-only; cutover 1,649 of 1,649 rows above the legacy revision; a later hold reaches only the compact target; enrichment excludes only the refused candidate.                                                                                                                                                                                                                                        |
+| Prepare with `--official-released-reader` and `--withdrawals`                                                                         | The anonymous attestation read returned 403 from the sandbox, so the gate failed closed: exact legacy renewal (revision 47, `0d20ba97…`), no compact target.                                                                                                                                                                                                                                                                                |
+| Prepare with the real Preview 15 and, separately, Preview 14 CLI as explicit reader                                                   | Both: compact revision 48, format 15, 1,649 of 1,649 rows, 0 withdrawals, wire 2,745,010 bytes `ed6d37df…`, decoded 9,602,327 bytes; legacy target unchanged; no stop. The two compact targets are byte-identical and equal the earlier evidence target.                                                                                                                                                                                    |
+| Real Preview 13, 14 and 15 clients: `catalog definition-authority --apply`, `catalog listing-refresh` against Pages, `listing-status` | Each selects revision 47, target `0d20ba97…`, 1,193 listings, expiring 2026-11-24T15:53Z, no fallback. This is the pre-cutover baseline.                                                                                                                                                                                                                                                                                                    |
+| Real CLIs' `inspect-definition-publication` on the staged bundle                                                                      | Preview 15 selects the compact target, revision 48, 1,649 listings, `ed6d37df…`. Preview 14 and 13 refuse with `query metadata exceeds its read budget` (their publisher inspector's 64 KiB policy-file cap).                                                                                                                                                                                                                               |
+| Preview 14 storage of a decoded document above 8 MiB (source at `nightly-0.1.0-preview.14`, `listing_delivery.rs`)                    | Compact documents go to their own `compact_listing_delivery` table with a 32 MiB `CHECK`; before inserting a document above 8 MiB, Preview 14 drops a table created with the 8 MiB check. Replaying that DDL in SQLite 3.54.1 with the staged 9,602,327-byte document: the 8 MiB-checked table refuses it, the 32 MiB table stores it. Preview 14's parser and projection of these exact bytes were run earlier (the evidence table above). |
+
+No real client can refresh from the staged bundle. `listing-refresh` accepts
+only HTTPS bases and only the compiled-in root, and the staged bundle carries
+no role signatures; producing them needs the official online keys. Readback
+steps 4 and 5 therefore run against Pages after the first signed cutover
+publication.
 
 **Migration simulation (not committed).** The simulation gives 200 and 400
 listing-only identities a generated registration shaped like `generatedRecord`
@@ -516,6 +621,40 @@ The 47 retained legacy listing bodies make up 390,631,685 bytes.
   three weeks at the same pace) and about 180 before the Pages bound.
 - **Pruning.** Pruning the 46 superseded legacy bodies would free 382,243,287
   bytes, but it needs the listing-floor ledger above.
+
+### Compact carrier capacity guard
+
+`node scripts/catalog-capacity.mts --check` also guards the compact carrier
+against the released readers' bounds. Those bounds are real constraints of
+the minimum supported generation and lift only with the next reader
+generation. The guard models the decoded document from the committed
+`listings.json` and withdrawal record and charges every row the mean live
+observation (4,791 bytes over the 933 observed rows of revision 47). The wire
+uses the worse of the staged target's compression ratio and the committed
+directory's own. The largest record adds the largest live observation (31,106
+bytes) to the largest authored row.
+
+Each ceiling reserves 28 days of measured growth below the bound. The compact
+reader shipped two days after its merge (#8450 to Preview 14), but older
+previews do not update themselves (see [What an older preview does after
+cutover](#what-an-older-preview-does-after-cutover)), so the reservation
+covers a reader release and its adoption. Growth is the committed directory's
+over November 16–23, 2026: 159,241 authored bytes and 17.4 rows a day. A
+single record has no growth rate, so half its bound is reserved. CI fails at
+the ceiling, before publication would stop. The figures live in
+`compactCarrierModel` and are refreshed with new measurements.
+
+| Measure (November 23, 2026)  | Value      | Ceiling    | Released-reader bound | Runway at the measured rate     |
+| ---------------------------- | ---------- | ---------- | --------------------- | ------------------------------- |
+| Modeled decoded bytes        | 13,266,362 | 26,757,676 | 33,554,432 (32 MiB)   | 55 days to ceiling, 83 to bound |
+| Modeled wire bytes           | 3,859,933  | 6,411,179  | 8,388,608 (8 MiB)     | 36 days to ceiling, 64 to bound |
+| Listings                     | 1,649      | 9,512      | 10,000                | 451 days to ceiling             |
+| Withdrawals                  | 0          | 9,512      | 10,000                | —                               |
+| Largest modeled record bytes | 39,623     | 524,288    | 1,048,576 (1 MiB)     | —                               |
+
+The model is deliberately conservative: the staged target, with 875 rows
+observed, measured 2,745,010 wire and 9,602,327 decoded bytes. The wire bound
+is the nearest; a new reader generation should start well before its ceiling.
 
 ### Listing delivery limits
 
