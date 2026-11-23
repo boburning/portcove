@@ -10,14 +10,21 @@
 //
 // Rules this file owns, each fail-closed:
 //  - Path allowlist: a batch changes only the facts table and the outputs
-//    `scripts/generate-catalog.mts` rewrites from it (`batchAllowlist`).
+//    `scripts/generate-catalog.mts` rewrites from it (`batchAllowlist`), each
+//    a regular non-executable file (`modeViolations`).
+//  - Checker separation: one change may not edit the facts table and the
+//    code that checks it (`checkerSeparationProblem`). This catches
+//    accidents; a deliberate change to both is held only by review.
 //  - Reproduction: every eligible entry a change adds or changes is re-read
 //    from its exact digest-bound release asset and re-inspected by Core; its
-//    players and facts must be byte-equal. An oversized, unavailable or
-//    changed asset is refused, never trusted (`reproduceFacts`).
+//    players and facts must be byte-equal, and its release must still be the
+//    newest stable one. An oversized, unavailable or changed asset is
+//    refused, never trusted (`reproduceFacts`); so is a time ahead of the
+//    clock (`clockProblems`).
 //  - Provenance: a batch names the workflow run, source commit and inputs
-//    digest it came from; CI checks them against that run and its retained
-//    inputs artifact (`provenanceProblems`, `inputsProblems`).
+//    digest it came from; CI checks them against that run, its retained
+//    inputs and its outputs record (`provenanceProblems`, `inputsProblems`,
+//    `outputsProblems`).
 //  - Stop and wait: conditions a person must clear (`stopConditions`).
 //
 //   node scripts/listing-facts-batch.mts plan [--base REV]
@@ -39,6 +46,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   appendFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -78,9 +86,12 @@ import {
   cliInspector,
   InspectionError,
   isArchive,
+  latestStable,
   NameVerdicts,
+  OverBudgetError,
   readerPlatform,
   safeText,
+  unreadableReleases,
   type ByteInspector,
   type NameClassifier,
   type ObservedAsset,
@@ -94,6 +105,8 @@ export const batchWorkflowPath = ".github/workflows/listing-facts-batch.yml";
 /** A batch branch is this prefix and the run id that produced it. */
 export const batchBranchPrefix = "automation/listing-facts-batch-";
 export const inputsArtifactPrefix = "listing-facts-batch-inputs-";
+/** The run's outputs record: digests of the facts table and batch patch it produced. */
+export const outputsArtifactPrefix = "listing-facts-batch-outputs-";
 /** Title prefix of the one issue per stop condition. */
 export const stopIssuePrefix = "Listing facts batch stopped: ";
 export const freshnessIssueTitle = "Listing facts batch: facts are falling behind the clock";
@@ -153,16 +166,206 @@ export function pathViolations(paths: readonly string[]): string[] {
   return [...new Set(paths)].filter((file) => !allowed.has(file)).toSorted();
 }
 
+/** One changed path with its Git file modes before and after (`000000` when absent). */
+export interface ChangedEntry {
+  path: string;
+  modes: [string, string];
+}
 /**
- * Paths changed against `base`: committed and working-tree changes, both
- * sides of renames, and untracked files. Undefined when git cannot say,
+ * The modes an allowlisted path may have on either side: absent or a regular,
+ * non-executable file. A symlink (`120000`), an executable bit (`100755`) or a
+ * gitlink (`160000`) at an allowlisted path is a violation: the allowlist is
+ * by name, and a name alone does not make a path a plain generated file.
+ */
+export const allowedModes: readonly string[] = ["000000", "100644"];
+
+/**
+ * `git diff --raw -z --no-renames` records: `:<old> <new> <sha> <sha> <status>`
+ * then the path. Undefined when the text is not that shape, which callers
+ * treat as a violation.
+ */
+export function parseRawDiff(text: string): ChangedEntry[] | undefined {
+  const parts = text.split("\0");
+  if (parts.at(-1) === "") parts.pop();
+  const entries: ChangedEntry[] = [];
+  for (let index = 0; index < parts.length; index += 2) {
+    const header = /^:([0-7]{6}) ([0-7]{6}) [0-9a-f]+ [0-9a-f]+ [A-Z][0-9]*$/u.exec(
+      parts[index] ?? "",
+    );
+    const file = parts[index + 1];
+    if (!header || !file) return undefined;
+    entries.push({ path: file, modes: [header[1]!, header[2]!] });
+  }
+  return entries;
+}
+
+/** Allowlisted paths whose mode on either side is not a regular non-executable file. */
+export function modeViolations(entries: readonly ChangedEntry[]): string[] {
+  const allowed = new Set<string>(batchAllowlist);
+  return entries
+    .filter(
+      (entry) =>
+        allowed.has(entry.path) && entry.modes.some((mode) => !allowedModes.includes(mode)),
+    )
+    .map((entry) => `${entry.path} (mode ${entry.modes.join(" → ")})`)
+    .toSorted();
+}
+
+/**
+ * Entries changed against `base`: the committed range to `head` when given,
+ * else committed and working-tree changes plus untracked files (as regular
+ * files; they are never allowlisted, since every allowlisted path is
+ * tracked). Both sides of a rename count. Undefined when git cannot say,
  * which callers treat as a violation.
  */
-export function changedPaths(git: GitRunner, base: string): string[] | undefined {
-  const diff = git(["diff", "--name-only", "-z", "--no-renames", base]);
+export function changedEntries(
+  git: GitRunner,
+  base: string,
+  head?: string,
+): ChangedEntry[] | undefined {
+  const diff = git([
+    "diff",
+    "--raw",
+    "-z",
+    "--no-renames",
+    "--no-abbrev",
+    base,
+    ...(head ? [head] : []),
+  ]);
+  const raw = diff === undefined ? undefined : parseRawDiff(diff);
+  if (!raw) return undefined;
+  if (head) return raw;
   const untracked = git(["ls-files", "--others", "--exclude-standard", "-z"]);
-  if (diff === undefined || untracked === undefined) return undefined;
-  return [...diff.split("\0"), ...untracked.split("\0")].filter(Boolean);
+  if (untracked === undefined) return undefined;
+  return [
+    ...raw,
+    ...untracked
+      .split("\0")
+      .filter(Boolean)
+      .map((file): ChangedEntry => ({ path: file, modes: ["000000", "100644"] })),
+  ];
+}
+
+/** Paths changed against `base` (see `changedEntries`). */
+export function changedPaths(git: GitRunner, base: string, head?: string): string[] | undefined {
+  return changedEntries(git, base, head)?.map((entry) => entry.path);
+}
+
+/** Every allowlist problem of a change: paths outside it and modes inside it. */
+export function allowlistProblems(entries: readonly ChangedEntry[] | undefined): string[] {
+  if (!entries) return ["git could not list the changed paths and modes."];
+  const problems: string[] = [];
+  const outside = pathViolations(entries.map((entry) => entry.path));
+  if (outside.length)
+    problems.push(
+      `A batch may change only ${batchAllowlist.join(", ")}; it changed ${outside.join(", ")}.`,
+    );
+  const modes = modeViolations(entries);
+  if (modes.length)
+    problems.push(
+      `An allowlisted path must stay a regular, non-executable file: ${modes.join(", ")}.`,
+    );
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// Checker separation: the PR-side check runs the pull request's own code.
+
+/**
+ * Inputs of the facts check that are not found by following script imports:
+ * the two workflows that run it, the Rust setup they share, the Rust lock
+ * and the CLI command files that dispatch Core's inspection and name
+ * classification. Directories end with `/`.
+ */
+const checkerRoots = {
+  workflows: [".github/workflows/ci.yml", batchWorkflowPath, ".github/actions/setup-rust/"],
+  /** Scripts whose import closure is the check: the batch rules, the worker, the gate, catalog generation and CI's plan. */
+  scripts: [
+    "scripts/listing-facts-batch.mts",
+    "scripts/listing-package-facts.mts",
+    "scripts/catalog-generated-registration.mts",
+    "scripts/generate-catalog.mts",
+    "scripts/validation-plan.mts",
+  ],
+  rust: [
+    "Cargo.lock",
+    "crates/portcove-cli/src/main.rs",
+    "crates/portcove-cli/src/catalog.rs",
+    "crates/portcove-core/src/package_shape.rs",
+    "crates/portcove-core/src/package_shape/",
+  ],
+  /** The Core module whose submodules' direct `crate::` dependencies are also checker inputs. */
+  core: "crates/portcove-core/src/package_shape.rs",
+} as const;
+
+const importPattern =
+  /(?:\bfrom\s*|\bimport\s*\(\s*|^\s*import\s+)["'](\.{1,2}\/[^"']+\.(?:mts|ts|mjs|js))["']/gmu;
+
+/**
+ * The paths the PR-side facts check depends on, derived from the checkout:
+ * the fixed workflow and CLI inputs, the relative import closure of the
+ * checker scripts, and the Core inspection module with every Core module it
+ * names directly (`crate::<module>` as `src/<module>.rs` and `src/<module>/`).
+ * Deeper Core dependencies are held by review only. Directories end with `/`.
+ */
+export function checkerPaths(read: (file: string) => string | undefined): string[] {
+  const found = new Set<string>([...checkerRoots.workflows, ...checkerRoots.rust]);
+  const queue: string[] = [...checkerRoots.scripts];
+  while (queue.length) {
+    const file = queue.shift()!;
+    if (found.has(file)) continue;
+    const text = read(file);
+    if (text === undefined) continue;
+    found.add(file);
+    for (const match of text.matchAll(importPattern))
+      queue.push(path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]!)));
+  }
+  // The module file and its `mod x;` submodules (`<dir>/x.rs`), recursively.
+  const modules = new Set<string>();
+  const files = [checkerRoots.core as string];
+  for (let index = 0; index < files.length; index++) {
+    const file = files[index]!;
+    const text = read(file);
+    if (text === undefined) continue;
+    const directory = file.slice(0, -".rs".length);
+    for (const match of text.matchAll(
+      /^\s*(?:pub(?:\([a-z]+\))?\s+)?mod\s+([a-z_][a-z0-9_]*)\s*;/gmu,
+    ))
+      files.push(`${directory}/${match[1]!}.rs`);
+    for (const match of text.matchAll(/\bcrate::([a-z_][a-z0-9_]*)/gu)) modules.add(match[1]!);
+  }
+  for (const module of modules) {
+    found.add(`crates/portcove-core/src/${module}.rs`);
+    found.add(`crates/portcove-core/src/${module}/`);
+  }
+  return [...found].toSorted();
+}
+
+/** Changed paths that are checker inputs. */
+export function checkerChanges(changed: readonly string[], checker: readonly string[]) {
+  return [...new Set(changed)]
+    .filter((file) =>
+      checker.some((entry) => (entry.endsWith("/") ? file.startsWith(entry) : file === entry)),
+    )
+    .toSorted();
+}
+
+/**
+ * The refusal when one change edits the facts table and the code that checks
+ * it. The PR-side check runs the pull request's own code, so such a change
+ * could check itself with a loosened checker. This catches accidents; a
+ * deliberate change to both is held only by review. The enrollment table
+ * alone is not refused: a rule change necessarily regenerates it in the same
+ * change (`generate-catalog.mts --check`), from facts the change cannot edit.
+ */
+export function checkerSeparationProblem(
+  changed: readonly string[],
+  checker: readonly string[],
+): string | undefined {
+  if (!changed.includes(factsTablePath)) return undefined;
+  const touched = checkerChanges(changed, checker);
+  if (!touched.length) return undefined;
+  return `This change edits the listing facts table and the code that checks it (${touched.slice(0, 8).join(", ")}${touched.length > 8 ? `, and ${touched.length - 8} more` : ""}). The pull-request check runs this change's own code, so the facts table and its checker must be separate changes: land the checker change first, then the facts.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,12 +384,25 @@ export interface ProviderRelease {
 }
 /** Reads one release of a repository by numeric ids; throws when unavailable. */
 export type ReleaseReader = (repositoryId: number, releaseId: number) => Promise<ProviderRelease>;
+/**
+ * The first page of a repository's releases, newest first, as the worker's
+ * observations state them; `full` when the page is full, so more may exist.
+ */
+export interface ProviderReleaseList {
+  releases: ObservedRelease[];
+  full: boolean;
+}
+/** Lists one bounded page of a repository's releases by numeric id; throws when unavailable. */
+export type ReleaseLister = (repositoryId: number) => Promise<ProviderReleaseList>;
+/** Releases one listing read returns: one page of the REST maximum. */
+export const releaseListPage = 100;
 
 export type RefusalReason =
   | "over-budget"
   | "oversized-asset"
   | "release-unavailable"
   | "release-changed"
+  | "not-latest-stable"
   | "asset-unavailable"
   | "core-refused"
   | "mismatch";
@@ -204,22 +420,30 @@ export interface ReproductionResult {
 /**
  * Re-derive every planned entry from its provider release and exact bytes.
  * An entry is verified only when the release still states the recorded tag,
- * publication time, stable verdict and asset list, the entry records exactly
- * the release's archives, and each archive's re-inspected players and Core's
- * name verdicts rebuild a byte-equal artifact fact. Anything else, including
- * a budget overrun, refuses that entry.
+ * publication time, stable verdict and asset list, it is still the newest
+ * stable release the worker's rules choose from the repository's release
+ * list, the entry records exactly the release's archives, and each archive's
+ * re-inspected players and Core's name verdicts rebuild a byte-equal artifact
+ * fact. Anything else, including a budget overrun, refuses that entry.
+ *
+ * `deadline` (epoch ms, default now plus `budget.maxMilliseconds`) is checked
+ * before each entry and archive; pass the same deadline to the inspector and
+ * classifier so a download or Core run that reaches it stops there and the
+ * entry is refused as `over-budget` instead of running past the step.
  */
 export async function reproduceFacts(inputs: {
   entries: readonly ListingFactsEntry[];
   readRelease: ReleaseReader;
+  listReleases: ReleaseLister;
   inspect: ByteInspector;
   classify: NameClassifier;
   budget?: ReproductionBudget;
   clock?: () => number;
+  deadline?: number;
 }): Promise<ReproductionResult> {
   const budget = inputs.budget ?? reproductionBudget;
   const clock = inputs.clock ?? Date.now;
-  const deadline = clock() + budget.maxMilliseconds;
+  const deadline = inputs.deadline ?? clock() + budget.maxMilliseconds;
   const refused: Refusal[] = [];
   const verified: string[] = [];
   const total = inputs.entries.reduce(
@@ -238,34 +462,62 @@ export async function reproduceFacts(inputs: {
       bytes: 0,
     };
   }
-  const names = await NameVerdicts.start(inputs.classify);
+  const overBudget = `The reproduction ran out of its ${budget.maxMilliseconds} ms budget.`;
+  let names: NameVerdicts;
+  try {
+    names = await NameVerdicts.start(inputs.classify);
+  } catch (error) {
+    if (!(error instanceof OverBudgetError)) throw error;
+    return {
+      verified,
+      refused: inputs.entries.map((entry) => ({
+        port_id: entry.port_id,
+        reason: "over-budget",
+        detail: overBudget,
+      })),
+      bytes: 0,
+    };
+  }
   let bytes = 0;
   for (const entry of inputs.entries) {
     const refuse = (reason: RefusalReason, detail: string) =>
       refused.push({ port_id: entry.port_id, reason, detail });
     if (clock() >= deadline) {
-      refuse("over-budget", `The reproduction ran out of its ${budget.maxMilliseconds} ms budget.`);
+      refuse("over-budget", overBudget);
       continue;
     }
+    try {
+      const outcome = await reproduceEntry(entry);
+      if (outcome === "verified") verified.push(entry.port_id);
+      else refuse(outcome.reason, outcome.detail);
+    } catch (error) {
+      // A download, Core run or classification that reached the deadline.
+      if (!(error instanceof OverBudgetError)) throw error;
+      refuse("over-budget", overBudget);
+    }
+  }
+  return { verified, refused, bytes };
+
+  async function reproduceEntry(
+    entry: ListingFactsEntry,
+  ): Promise<"verified" | { reason: RefusalReason; detail: string }> {
     const large = entry.artifacts.find((artifact) => artifact.size > budget.maxArchiveBytes);
-    if (large) {
-      refuse("oversized-asset", `${large.name} exceeds ${budget.maxArchiveBytes} bytes.`);
-      continue;
-    }
+    if (large)
+      return {
+        reason: "oversized-asset",
+        detail: `${large.name} exceeds ${budget.maxArchiveBytes} bytes.`,
+      };
     const releaseId = entry.observation.release_id;
-    if (releaseId === null) {
-      refuse("release-changed", "An eligible entry names no release.");
-      continue;
-    }
+    if (releaseId === null)
+      return { reason: "release-changed", detail: "An eligible entry names no release." };
     let release: ProviderRelease;
     try {
       release = await inputs.readRelease(entry.repository_id, releaseId);
     } catch (error) {
-      refuse(
-        "release-unavailable",
-        `The release could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
-      );
-      continue;
+      return {
+        reason: "release-unavailable",
+        detail: `The release could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
+      };
     }
     const observed: ObservedRelease = {
       id: release.id,
@@ -308,10 +560,25 @@ export async function reproduceFacts(inputs: {
       [assetsDigest(observed) === entry.observation.assets_sha256, "the release asset list"],
     ];
     const differs = stated.filter(([same]) => !same).map(([, what]) => what);
-    if (differs.length) {
-      refuse("release-changed", `The provider no longer states ${differs.join(", ")}.`);
-      continue;
+    if (differs.length)
+      return {
+        reason: "release-changed",
+        detail: `The provider no longer states ${differs.join(", ")}.`,
+      };
+    // The release must still be the one the worker's rules offer: the newest
+    // stable release of the repository's list. An older release whose bytes
+    // reproduce must not enroll.
+    let listed: ProviderReleaseList;
+    try {
+      listed = await inputs.listReleases(entry.repository_id);
+    } catch (error) {
+      return {
+        reason: "release-unavailable",
+        detail: `The release list could not be read: ${error instanceof Error ? error.message : "unknown error"}`,
+      };
     }
+    const newest = await newestStableProblem(listed, releaseId);
+    if (newest) return { reason: "not-latest-stable", detail: newest };
     // The entry records exactly the release's archives: none may be left out.
     const archives = release.assets
       .filter((asset) => isArchive(asset.name))
@@ -320,46 +587,35 @@ export async function reproduceFacts(inputs: {
     const recorded = entry.artifacts
       .map((artifact) => artifact.asset_id)
       .toSorted((left, right) => left - right);
-    if (JSON.stringify(archives) !== JSON.stringify(recorded)) {
-      refuse("mismatch", "The entry does not record exactly the release's archives.");
-      continue;
-    }
-    let failed = false;
+    if (JSON.stringify(archives) !== JSON.stringify(recorded))
+      return {
+        reason: "mismatch",
+        detail: "The entry does not record exactly the release's archives.",
+      };
     for (const artifact of entry.artifacts) {
       const asset = release.assets.find((candidate) => candidate.id === artifact.asset_id)!;
       if (
         asset.name !== artifact.name ||
         asset.size !== artifact.size ||
         asset.sha256 !== artifact.sha256
-      ) {
-        refuse(
-          "release-changed",
-          `${artifact.name} no longer has the recorded name, size or digest.`,
-        );
-        failed = true;
-        break;
-      }
-      if (clock() >= deadline) {
-        refuse(
-          "over-budget",
-          `The reproduction ran out of its ${budget.maxMilliseconds} ms budget.`,
-        );
-        failed = true;
-        break;
-      }
+      )
+        return {
+          reason: "release-changed",
+          detail: `${artifact.name} no longer has the recorded name, size or digest.`,
+        };
+      if (clock() >= deadline) return { reason: "over-budget", detail: overBudget };
       const bound: ObservedAsset & { sha256: string } = { ...asset, sha256: artifact.sha256 };
       let players;
       try {
         bytes += asset.size;
         players = await inputs.inspect(bound, readerPlatform(asset.name));
       } catch (error) {
+        if (error instanceof OverBudgetError) throw error;
         const permanent = error instanceof InspectionError && error.permanent;
-        refuse(
-          permanent ? "core-refused" : "asset-unavailable",
-          `${artifact.name}: ${error instanceof Error ? error.message : "inspection failed"}`,
-        );
-        failed = true;
-        break;
+        return {
+          reason: permanent ? "core-refused" : "asset-unavailable",
+          detail: `${artifact.name}: ${error instanceof Error ? error.message : "inspection failed"}`,
+        };
       }
       await names.add({
         programs: players.map((player) =>
@@ -370,26 +626,42 @@ export async function reproduceFacts(inputs: {
       const programs = players.map((player) =>
         player.display_path.slice(player.display_path.lastIndexOf("/") + 1),
       );
-      if (!suggestion || programs.some((name) => names.programToken(name) === undefined)) {
-        refuse("mismatch", `Core could not classify a name in ${artifact.name}.`);
-        failed = true;
-        break;
-      }
+      if (!suggestion || programs.some((name) => names.programToken(name) === undefined))
+        return {
+          reason: "mismatch",
+          detail: `Core could not classify a name in ${artifact.name}.`,
+        };
       const rebuilt: ArtifactFactV2 = artifactFact(bound, players, suggestion, (name) =>
         names.programToken(name)!,
       );
-      if (JSON.stringify(rebuilt) !== JSON.stringify(artifact)) {
-        refuse(
-          "mismatch",
-          `${artifact.name}: the re-inspected players or Core's name verdicts differ from the recorded facts.`,
-        );
-        failed = true;
-        break;
-      }
+      if (JSON.stringify(rebuilt) !== JSON.stringify(artifact))
+        return {
+          reason: "mismatch",
+          detail: `${artifact.name}: the re-inspected players or Core's name verdicts differ from the recorded facts.`,
+        };
     }
-    if (!failed) verified.push(entry.port_id);
+    return "verified";
   }
-  return { verified, refused, bytes };
+
+  /** Why `releaseId` is not the newest stable release of the list, if it is not. */
+  async function newestStableProblem(listed: ProviderReleaseList, releaseId: number) {
+    if (listed.full)
+      return `The repository lists ${releaseListPage} or more releases; one page cannot show the newest stable release.`;
+    await names.add({
+      releases: listed.releases.map((item) => ({
+        tag: item.version,
+        provider_prerelease: item.provider_prerelease,
+      })),
+    });
+    const chosen = latestStable(listed.releases, (item) => names.prerelease(item));
+    const unreadable = unreadableReleases(listed.releases, chosen.release ?? chosen.unclassified);
+    if (unreadable) return unreadable;
+    if (chosen.unclassified)
+      return `Release ${chosen.unclassified.id} is newer than every stable release and has a tag Core could not classify.`;
+    if (chosen.release?.id !== releaseId)
+      return `The newest stable release is ${chosen.release ? `id ${chosen.release.id}` : "none"}, not the recorded id ${releaseId}.`;
+    return undefined;
+  }
 }
 
 const apiVersion = "2022-11-28";
@@ -424,6 +696,77 @@ export function githubReleaseReader(token: string | undefined): ReleaseReader {
         token,
       ),
     );
+}
+
+/**
+ * One page of releases by numeric repository id, newest first: the same
+ * `per_page=100` page bound the observer reads with.
+ */
+export function githubReleaseLister(token: string | undefined): ReleaseLister {
+  return async (repositoryId) =>
+    parseProviderReleaseList(
+      await githubJson(
+        `https://api.github.com/repositories/${repositoryId}/releases?per_page=${releaseListPage}&page=1`,
+        token,
+      ),
+    );
+}
+
+/**
+ * A release list page as the worker's observations state it. A malformed
+ * release record fails the whole list (the newest stable release is then
+ * unknown); a malformed asset record is counted, as the worker counts it,
+ * so `unreadableReleases` judges it the same way. Drafts are not releases.
+ */
+export function parseProviderReleaseList(value: unknown): ProviderReleaseList {
+  if (!Array.isArray(value) || value.length > releaseListPage)
+    throw new Error("The provider release list is malformed.");
+  const releases = value.map((release: unknown): ObservedRelease & { draft: boolean } => {
+    if (
+      !isRecord(release) ||
+      !Number.isSafeInteger(release.id) ||
+      Number(release.id) < 1 ||
+      typeof release.tag_name !== "string" ||
+      typeof release.draft !== "boolean" ||
+      typeof release.prerelease !== "boolean" ||
+      !(release.published_at === null || typeof release.published_at === "string") ||
+      !Array.isArray(release.assets)
+    )
+      throw new Error("A provider release list record is malformed.");
+    const readable = (asset: unknown): asset is Record<string, unknown> =>
+      isRecord(asset) &&
+      Number.isSafeInteger(asset.id) &&
+      Number(asset.id) > 0 &&
+      typeof asset.name === "string" &&
+      typeof asset.browser_download_url === "string" &&
+      Number.isSafeInteger(asset.size);
+    const assets = (release.assets as unknown[]).filter(readable);
+    return {
+      id: Number(release.id),
+      version: release.tag_name,
+      published_at: release.published_at,
+      provider_prerelease: release.prerelease,
+      draft: release.draft,
+      assets_complete: true,
+      malformed_assets: release.assets.length - assets.length,
+      assets: assets.map((asset) => ({
+        id: Number(asset.id),
+        name: String(asset.name),
+        url: String(asset.browser_download_url),
+        size: Number(asset.size),
+        sha256:
+          typeof asset.digest === "string" && /^sha256:[a-f0-9]{64}$/iu.test(asset.digest)
+            ? asset.digest.slice(7).toLowerCase()
+            : null,
+      })),
+    };
+  });
+  return {
+    releases: releases
+      .filter((release) => !release.draft)
+      .map(({ draft: _draft, ...rest }) => rest),
+    full: value.length === releaseListPage,
+  };
 }
 
 /** A provider release record, or an error naming what is malformed. */
@@ -596,16 +939,82 @@ export function batchInputs(input: {
   };
 }
 
-/** The retained inputs artifact's files, read from its ZIP within fixed bounds. */
-export function inputsArtifactFiles(archive: Buffer): Map<string, Buffer> {
+/**
+ * What one run produced, retained after the worker as the
+ * `listing-facts-batch-outputs-<run id>` artifact: the SHA-256 of the facts
+ * table it wrote and of its one-commit batch patch, and whether it was a dry
+ * run. CI binds a batch's provenance to these outputs, not only to the inputs.
+ */
+export interface BatchOutputs {
+  format: 1;
+  run_id: string;
+  dry_run: boolean;
+  facts_table_sha256: string;
+  batch_patch_sha256: string;
+}
+const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+export function batchOutputs(input: {
+  runId: string;
+  dryRun: boolean;
+  factsTable: Buffer;
+  patch: Buffer;
+}): BatchOutputs {
+  return {
+    format: 1,
+    run_id: input.runId,
+    dry_run: input.dryRun,
+    facts_table_sha256: sha256(input.factsTable),
+    batch_patch_sha256: sha256(input.patch),
+  };
+}
+/**
+ * Problems with a run's outputs record against the provenance and the facts
+ * table under check (and the batch patch, where the caller holds it). A dry
+ * run's outputs never back a batch: it pushes no branch and saves no state.
+ */
+export function outputsProblems(
+  provenance: FactsProvenance,
+  record: Buffer | undefined,
+  factsTable: Buffer,
+  patch?: Buffer,
+): string[] {
+  if (!record) return ["The run's outputs artifact holds no outputs.json."];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(record.toString("utf8"));
+  } catch {
+    return ["The run's outputs.json is not JSON."];
+  }
+  if (
+    !isRecord(parsed) ||
+    parsed.format !== 1 ||
+    typeof parsed.dry_run !== "boolean" ||
+    typeof parsed.facts_table_sha256 !== "string" ||
+    typeof parsed.batch_patch_sha256 !== "string"
+  )
+    return ["The run's outputs.json is malformed."];
+  const problems: string[] = [];
+  if (parsed.run_id !== provenance.workflow_run_id)
+    problems.push("outputs.json names another run.");
+  if (parsed.dry_run)
+    problems.push(`Run ${provenance.workflow_run_id} was a dry run; a dry run backs no batch.`);
+  if (parsed.facts_table_sha256 !== sha256(factsTable))
+    problems.push("The facts table is not the one the named run produced.");
+  if (patch && parsed.batch_patch_sha256 !== sha256(patch))
+    problems.push("The batch patch is not the one the named run produced.");
+  return problems;
+}
+
+/** A retained artifact's files, read from its ZIP within fixed bounds. */
+export function artifactFiles(archive: Buffer, allowed: readonly string[]): Map<string, Buffer> {
   const parsed = inspectBoundedZip(
     archive,
     {
       compressedBytes: 64 * 1024 * 1024,
       expandedBytes: 128 * 1024 * 1024,
-      files: 3,
+      files: allowed.length,
       nameBytes: 64,
-      allowedPaths: new Set(["inputs.json", "observations.json", "state-before.json"]),
+      allowedPaths: new Set(allowed),
     },
     { deadline: Date.now() + 30_000 },
   );
@@ -621,6 +1030,9 @@ export function inputsArtifactFiles(archive: Buffer): Map<string, Buffer> {
   }
   return files;
 }
+/** The retained inputs artifact's files. */
+export const inputsArtifactFiles = (archive: Buffer) =>
+  artifactFiles(archive, ["inputs.json", "observations.json", "state-before.json"]);
 
 // ---------------------------------------------------------------------------
 // Observations: the observer's retained handoff, as the worker's report.
@@ -754,6 +1166,7 @@ export const stopConditionNames = [
   "rule-version-changed",
   "observer-coverage-dropped",
   "drain-exceeds-facts-age",
+  "batch-waiting",
   "worker-error",
 ] as const;
 export type StopConditionName = (typeof stopConditionNames)[number];
@@ -788,6 +1201,14 @@ export const coverageDropShare = 0.25;
  * reconfirmation batch, and below the 30-day facts age.
  */
 export const freshnessAlertDays = 21;
+/**
+ * A batch pull request whose required checks have not all started or
+ * finished after this many days stops the job: its runs most likely wait for
+ * a person to approve them.
+ */
+export const batchWaitDays = 3;
+/** The clock skew a recorded time may lead the real clock by. */
+export const clockSkewMs = 10 * 60_000;
 
 /** The parts of the worker's summary line the job reads. */
 export interface WorkerSummary {
@@ -942,12 +1363,60 @@ export function offeredDrainDays(summary: WorkerSummary) {
   return Math.round(((runs * runsPerBatch * cadence) / 24) * 10) / 10;
 }
 
-/** Whether the committed facts have fallen behind the real clock. */
+/**
+ * Whether the committed facts have fallen behind the real clock. A time ahead
+ * of the clock by more than `clockSkewMs` is an alert, never a negative age:
+ * facts age is measured from `generated_at`, so a future time would keep
+ * routes offered past 30 days. An empty table alerts too, so a first batch
+ * that never lands is visible.
+ */
 export function factsFallingBehind(table: ListingFactsTable, now: string): string | undefined {
-  const age = (Date.parse(now) - Date.parse(table.generated_at)) / 86_400_000;
-  if (table.entries.length && age > freshnessAlertDays)
-    return `The committed facts were generated ${Math.floor(age)} days ago (${table.generated_at}); generated routes keep their offer until 30 days, measured against that time, not the clock.`;
-  return undefined;
+  const clock = Date.parse(now);
+  const generated = Date.parse(table.generated_at);
+  const future = [
+    ...(generated > clock + clockSkewMs ? [`generated_at ${table.generated_at}`] : []),
+    ...table.entries
+      .filter((entry) => Date.parse(entry.observation.observed_at) > clock + clockSkewMs)
+      .slice(0, 5)
+      .map((entry) => `${entry.port_id} observed_at ${entry.observation.observed_at}`),
+  ];
+  if (future.length)
+    return `The committed facts record times ahead of the clock (${now}): ${future.join(", ")}. Facts age is measured from these times, so routes could stay offered past 30 days.`;
+  const age = (clock - generated) / 86_400_000;
+  if (age <= freshnessAlertDays) return undefined;
+  if (!table.entries.length)
+    return `No facts batch has landed since the empty facts table was written ${Math.floor(age)} days ago (${table.generated_at}); the first batch may be waiting for a person.`;
+  return `The committed facts were generated ${Math.floor(age)} days ago (${table.generated_at}); generated routes keep their offer until 30 days, measured against that time, not the clock.`;
+}
+
+/**
+ * Times a facts change records ahead of the clock: `generated_at` and every
+ * added or changed `observed_at` may lead `now` by at most `clockSkewMs`.
+ * Facts age is measured from these times, so a future time would extend an
+ * offer. An unchanged table (a change that does not touch the facts) is not judged.
+ */
+export function clockProblems(
+  baseline: unknown,
+  current: ListingFactsTable,
+  now: number,
+): string[] {
+  if (digestOf(isRecord(baseline) ? baseline : null) === digestOf(current)) return [];
+  const limit = now + clockSkewMs;
+  const problems: string[] = [];
+  if (!(Date.parse(current.generated_at) <= limit))
+    problems.push(`generated_at ${current.generated_at} is ahead of the clock.`);
+  const before = new Map(
+    (isRecord(baseline) && Array.isArray(baseline.entries)
+      ? (baseline.entries as ListingFactsEntry[])
+      : []
+    ).map((entry) => [entry.port_id, entry.observation.observed_at]),
+  );
+  for (const entry of current.entries) {
+    const observed = entry.observation.observed_at;
+    if (before.get(entry.port_id) !== observed && !(Date.parse(observed) <= limit))
+      problems.push(`${entry.port_id} observed_at ${observed} is ahead of the clock.`);
+  }
+  return problems;
 }
 
 /** The issue body for one condition: grouped reason, run and how to clear it. */
@@ -1006,6 +1475,9 @@ export function collectConditions(
   input: {
     prState: string;
     prNumber: string;
+    /** When the open batch pull request was opened, for `batch-waiting`. */
+    prCreatedAt?: string;
+    now?: string;
     jobs: Record<string, string>;
     /** An open stop issue holds the job: only the freshness alert is filed. */
     blocked?: boolean;
@@ -1020,6 +1492,14 @@ export function collectConditions(
     conditions.push({
       name: "required-check-failed",
       detail: `Batch pull request #${input.prNumber} failed a required check or is not a well-formed one-commit job batch.`,
+    });
+  const waited =
+    (Date.parse(input.now ?? new Date().toISOString()) - Date.parse(input.prCreatedAt ?? "")) /
+    86_400_000;
+  if (["waiting-for-checks", "pending"].includes(input.prState) && waited > batchWaitDays)
+    conditions.push({
+      name: "batch-waiting",
+      detail: `Batch pull request #${input.prNumber} has waited ${Math.floor(waited)} days for its required checks (state ${input.prState}). Its workflow runs most likely wait for **Approve workflows to run**; approve them or close the pull request, then close this issue.`,
     });
   for (const [job, result] of Object.entries(input.jobs))
     // A derive job that already named its conditions failed because of them.
@@ -1118,6 +1598,33 @@ export function requiredCheckState(runs: readonly CheckRun[]): BatchPullState {
 }
 
 /**
+ * The CI workflow run the guarded merge binds to: the newest successful,
+ * completed `pull_request` run of `.github/workflows/ci.yml` on exactly this
+ * head (highest id, then attempt). The merge then requires every required
+ * context to be a successful job of that run attempt, not merely a passing
+ * check of the same name.
+ */
+export function ciRunFor(
+  runs: readonly unknown[],
+  head: string,
+): { id: number; attempt: number } | undefined {
+  const matching = runs.flatMap((run) =>
+    isRecord(run) &&
+    Number.isSafeInteger(run.id) &&
+    Number.isSafeInteger(run.run_attempt) &&
+    Number(run.run_attempt) > 0 &&
+    run.head_sha === head &&
+    run.path === ".github/workflows/ci.yml" &&
+    run.event === "pull_request" &&
+    run.status === "completed" &&
+    run.conclusion === "success"
+      ? [{ id: Number(run.id), attempt: Number(run.run_attempt) }]
+      : [],
+  );
+  return matching.toSorted((left, right) => right.id - left.id || right.attempt - left.attempt)[0];
+}
+
+/**
  * The open pull requests the job itself opened: a batch branch in this
  * repository, opened by the workflow token. A fork or a person using a
  * batch-like branch name is not a batch and cannot hold or stop the job.
@@ -1191,6 +1698,21 @@ function baselineRevision(base: string | undefined) {
   const revision = gateBaselineRevision(process.env, git);
   if (!revision) throw new Error("The batch checks need the baseline history (fetch-depth 2).");
   return revision;
+}
+
+/** A checkout file as text, or undefined when it does not exist. */
+const readCheckout = (file: string) => {
+  const absolute = path.join(root, file);
+  return existsSync(absolute) && statSync(absolute).isFile()
+    ? readFileSync(absolute, "utf8")
+    : undefined;
+};
+
+/** The checker-separation refusal for the committed range `base..HEAD`, if any. */
+function checkerSeparation(base: string): string | undefined {
+  const changed = changedPaths(git, base, "HEAD");
+  if (!changed) return "git could not list the changed paths; refusing.";
+  return checkerSeparationProblem(changed, checkerPaths(readCheckout));
 }
 
 function currentFacts(): ListingFactsTable {
@@ -1298,6 +1820,9 @@ async function main(argv: string[]): Promise<string> {
       }
       const current = currentFacts();
       const baseline = baselineFacts(option.base);
+      // The facts table and the code that checks it are separate changes.
+      const separation = checkerSeparation(baselineRevision(option.base));
+      if (separation) throw new Error(separation);
       const plan = reproductionPlan(baseline, current);
       const batch = claimsBatch(baseline, current, process.env.GITHUB_HEAD_REF);
       const changed = digestOf(isRecord(baseline) ? baseline : null) !== digestOf(current);
@@ -1308,18 +1833,10 @@ async function main(argv: string[]): Promise<string> {
     case "paths": {
       // Working tree against --base, or the committed range --base..--head.
       const base = baselineRevision(option.base);
-      const changed = option.head
-        ? git(["diff", "--name-only", "-z", "--no-renames", base, option.head])
-            ?.split("\0")
-            .filter(Boolean)
-        : changedPaths(git, base);
-      if (!changed) throw new Error("git could not list the changed paths; refusing.");
-      const violations = pathViolations(changed);
-      if (violations.length)
-        throw new Error(
-          `A batch may change only ${batchAllowlist.join(", ")}; it changed ${violations.join(", ")}.`,
-        );
-      return `Batch paths are within the allowlist (${changed.length} changed).\n`;
+      const changed = changedEntries(git, base, option.head);
+      const problems = allowlistProblems(changed);
+      if (problems.length) throw new Error(problems.join("\n"));
+      return `Batch paths are within the allowlist (${changed!.length} changed).\n`;
     }
     case "verify": {
       // Every facts-table change: reproduce eligible entries; a change that
@@ -1328,16 +1845,14 @@ async function main(argv: string[]): Promise<string> {
       const base = baselineRevision(option.base);
       const baseline = baselineFacts(base);
       const problems: string[] = [];
+      const separation = checkerSeparation(base);
+      if (separation) problems.push(separation);
+      problems.push(...clockProblems(baseline, current, Date.now()));
       const headRef = process.env.GITHUB_HEAD_REF || undefined;
       if (claimsBatch(baseline, current, headRef)) {
         // The committed range only: files a CI step leaves behind are not
         // part of the change (the job checks its working tree with `paths`).
-        const changed = git(["diff", "--name-only", "-z", "--no-renames", base, "HEAD"])
-          ?.split("\0")
-          .filter(Boolean);
-        const violations = changed ? pathViolations(changed) : ["(unlisted)"];
-        if (violations.length)
-          problems.push(`Paths outside the batch allowlist: ${violations.join(", ")}.`);
+        problems.push(...allowlistProblems(changedEntries(git, base, "HEAD")));
         // Only the facts table is an input: every other allowed path must be
         // the byte-for-byte output catalog generation writes from it.
         problems.push(...canonicalDerivativeProblems());
@@ -1352,11 +1867,16 @@ async function main(argv: string[]): Promise<string> {
         const work = await mkdtemp(path.join(os.tmpdir(), "listing-facts-reproduce-"));
         try {
           const cli = path.resolve(option.cli);
+          // One deadline for the whole reproduction: every download and Core
+          // run is cut at it, and the entry is refused as over-budget.
+          const deadline = Date.now() + reproductionBudget.maxMilliseconds;
           const result = await reproduceFacts({
             entries: plan.entries,
             readRelease: githubReleaseReader(token()),
-            inspect: cliInspector(cli, work),
-            classify: cliClassifier(cli, work),
+            listReleases: githubReleaseLister(token()),
+            inspect: cliInspector(cli, work, { deadline }),
+            classify: cliClassifier(cli, work, { deadline }),
+            deadline,
           });
           summary(
             `Reproduced ${result.verified.length} of ${plan.entries.length} changed eligible facts entries (${result.bytes} bytes).`,
@@ -1417,6 +1937,35 @@ async function main(argv: string[]): Promise<string> {
       const digest = createHash("sha256").update(bytes).digest("hex");
       output("inputs_sha256", digest);
       return `${digest}\n`;
+    }
+    case "outputs": {
+      // The run's outputs record, written after the batch commit exists.
+      for (const name of ["run-id", "dry-run", "patch", "output"])
+        if (!option[name]) throw new Error(`outputs needs --${name}.`);
+      const record = batchOutputs({
+        runId: option["run-id"]!,
+        dryRun: option["dry-run"] === "true",
+        factsTable: readFileSync(path.join(root, factsTablePath)),
+        patch: readFileSync(option.patch!),
+      });
+      mkdirSync(path.dirname(option.output!), { recursive: true });
+      writeFileSync(option.output!, `${JSON.stringify(record, null, 2)}\n`);
+      return `${JSON.stringify(record)}\n`;
+    }
+    case "outputs-check": {
+      // The deliver job: the applied patch and facts table are this run's.
+      if (!option.record || !option.patch)
+        throw new Error("outputs-check needs --record and --patch.");
+      const current = currentFacts();
+      if (!current.provenance) throw new Error("A batch must record its provenance.");
+      const problems = outputsProblems(
+        current.provenance,
+        readFileSync(option.record),
+        readFileSync(path.join(root, factsTablePath)),
+        readFileSync(option.patch),
+      );
+      if (problems.length) throw new Error(problems.join("\n"));
+      return "The batch is the one this run recorded.\n";
     }
     case "assess": {
       if (!option.history || !option["run-id"])
@@ -1563,10 +2112,26 @@ async function main(argv: string[]): Promise<string> {
           throw new Error("The check run list is malformed.");
         runs.push(...(checks.check_runs as CheckRun[]));
       }
-      const state: BatchPullState = problems.length
+      let state: BatchPullState = problems.length
         ? { state: "failed", failed: problems }
         : requiredCheckState(runs);
+      // The merge binds to the CI workflow run whose jobs are the contexts.
+      let ci: { id: number; attempt: number } | undefined;
+      if (state.state === "green") {
+        const list = await githubJson(
+          `https://api.github.com/repos/${repository()}/actions/workflows/ci.yml/runs?head_sha=${head}&event=pull_request&status=completed&per_page=100`,
+          token(),
+        );
+        ci = ciRunFor(
+          isRecord(list) && Array.isArray(list.workflow_runs) ? list.workflow_runs : [],
+          head,
+        );
+        if (!ci) state = { state: "pending", pending: ["CI workflow run"] };
+      }
       output("state", state.state);
+      output("created_at", typeof detail.created_at === "string" ? detail.created_at : "");
+      output("ci_run", ci ? String(ci.id) : "");
+      output("ci_attempt", ci ? String(ci.attempt) : "");
       output("number", String(number));
       output("head", head);
       output("head_ref", String(detail.head.ref));
@@ -1692,7 +2257,9 @@ async function main(argv: string[]): Promise<string> {
         freshness: factsFallingBehind(currentFacts(), new Date().toISOString()) ?? null,
         prState: option["pr-state"] ?? "none",
         prNumber: option["pr-number"] ?? "none",
+        ...(option["pr-created-at"] ? { prCreatedAt: option["pr-created-at"] } : {}),
         jobs: {
+          gate: option.gate ?? "",
           derive: option.derive ?? "",
           merge: option.merge ?? "",
           deliver: option.deliver ?? "",
@@ -1742,33 +2309,67 @@ async function verifyProvenance(current: ListingFactsTable, headRef: string | un
   const problems = provenanceProblems(provenance, run, { repository: repository(), headRef });
   if (problems.length) return problems;
   try {
-    const list = await githubJson(
-      `https://api.github.com/repos/${repository()}/actions/runs/${provenance.workflow_run_id}/artifacts?name=${inputsArtifactPrefix}${provenance.workflow_run_id}`,
-      token(),
+    const files = await runArtifact(
+      provenance.workflow_run_id,
+      `${inputsArtifactPrefix}${provenance.workflow_run_id}`,
+      ["inputs.json", "observations.json", "state-before.json"],
     );
-    const artifact =
-      isRecord(list) && Array.isArray(list.artifacts) ? (list.artifacts[0] as unknown) : undefined;
-    if (
-      !isRecord(artifact) ||
-      typeof artifact.archive_download_url !== "string" ||
-      artifact.expired === true
-    )
-      return ["The run's inputs artifact is missing or expired."];
-    const response = await fetch(artifact.archive_download_url, {
-      headers: {
-        authorization: `Bearer ${token() ?? ""}`,
-        "user-agent": "portcove-listing-facts-batch",
-      },
-      signal: AbortSignal.timeout(120_000),
-    });
-    if (!response.ok) return [`The run's inputs artifact answered ${response.status}.`];
-    const archive = Buffer.from(await response.arrayBuffer());
-    return inputsProblems(provenance, inputsArtifactFiles(archive));
+    if (typeof files === "string") return [files];
+    const inputs = inputsProblems(provenance, files);
+    if (inputs.length) return inputs;
   } catch (error) {
     return [
       `The run's inputs could not be verified: ${error instanceof Error ? error.message : "unknown error"}`,
     ];
   }
+  // Bound to the outputs: the facts table must be the one the named run
+  // produced, and that run must not have been a dry run.
+  try {
+    const record = await runArtifact(
+      provenance.workflow_run_id,
+      `${outputsArtifactPrefix}${provenance.workflow_run_id}`,
+      ["outputs.json"],
+    );
+    if (typeof record === "string") return [record];
+    return outputsProblems(
+      provenance,
+      record.get("outputs.json"),
+      readFileSync(path.join(root, factsTablePath)),
+    );
+  } catch (error) {
+    return [
+      `The run's outputs could not be verified: ${error instanceof Error ? error.message : "unknown error"}`,
+    ];
+  }
+}
+
+/** One named artifact of a run, as its files, or a problem string when it cannot be read. */
+async function runArtifact(
+  runId: string,
+  name: string,
+  allowed: readonly string[],
+): Promise<Map<string, Buffer> | string> {
+  const list = await githubJson(
+    `https://api.github.com/repos/${repository()}/actions/runs/${runId}/artifacts?name=${name}`,
+    token(),
+  );
+  const artifact =
+    isRecord(list) && Array.isArray(list.artifacts) ? (list.artifacts[0] as unknown) : undefined;
+  if (
+    !isRecord(artifact) ||
+    typeof artifact.archive_download_url !== "string" ||
+    artifact.expired === true
+  )
+    return `The run's ${name} artifact is missing or expired.`;
+  const response = await fetch(artifact.archive_download_url, {
+    headers: {
+      authorization: `Bearer ${token() ?? ""}`,
+      "user-agent": "portcove-listing-facts-batch",
+    },
+    signal: AbortSignal.timeout(120_000),
+  });
+  if (!response.ok) return `The run's ${name} artifact answered ${response.status}.`;
+  return artifactFiles(Buffer.from(await response.arrayBuffer()), allowed);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

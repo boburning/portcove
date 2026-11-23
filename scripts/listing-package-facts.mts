@@ -139,6 +139,12 @@ export class InspectionError extends Error {
     this.permanent = permanent;
   }
 }
+/**
+ * The caller's wall-clock deadline (epoch ms) ran out before or during one
+ * download or Core run. Reproduction names it an `over-budget` refusal; it is
+ * never a fact about the bytes.
+ */
+export class OverBudgetError extends Error {}
 /** Reads verified archive bytes and returns their player candidates; throws on failure. */
 export type ByteInspector = (asset: ObservedAsset, readerPlatform: string) => Promise<PlayerFact[]>;
 /** Core's `catalog.classify-listing-names` data. */
@@ -306,7 +312,7 @@ function releasesOf(observation: Record<string, unknown>): ObservedRelease[] {
  * skipped as a prerelease: it is returned as `unclassified`, so the identity
  * records invalid facts instead of silently falling back to an older release.
  */
-function latestStable(
+export function latestStable(
   releases: readonly ObservedRelease[],
   verdict: (r: ObservedRelease) => boolean | undefined,
 ): { release?: ObservedRelease; unclassified?: ObservedRelease } {
@@ -582,7 +588,9 @@ export class NameVerdicts {
     let result: unknown;
     try {
       result = await this.#classify(input);
-    } catch {
+    } catch (error) {
+      // A deadline is the caller's budget, not a verdict on these names.
+      if (error instanceof OverBudgetError) throw error;
       return false;
     }
     if (
@@ -1404,6 +1412,22 @@ function sanitizeState(state: WorkerState): WorkerState {
 // I/O shell: bounded download, Core inspection, then delete the bytes.
 
 const timeoutMs = 10 * 60_000;
+/**
+ * One download or Core run's timeout: 10 minutes, cut to what is left of an
+ * optional deadline. With no time left it throws `OverBudgetError` before
+ * anything starts, so a caller with a deadline is never held past it by more
+ * than the scheduling of this process.
+ */
+export function boundedTimeout(deadline: number | undefined, now = Date.now()) {
+  if (deadline === undefined) return timeoutMs;
+  const left = deadline - now;
+  if (left <= 0)
+    throw new OverBudgetError("The deadline passed before the next download or Core run.");
+  return Math.min(timeoutMs, left);
+}
+/** Whether a deadline has passed: an interrupted run then becomes `OverBudgetError`. */
+const pastDeadline = (deadline: number | undefined) =>
+  deadline !== undefined && Date.now() >= deadline;
 
 export interface CoreRun {
   stdout: string;
@@ -1459,7 +1483,12 @@ function coreData(run: CoreRun, what: string): Record<string, unknown> {
   throw new InspectionError(`Core refused the archive during ${what}.`, run.exited);
 }
 
-export function cliInspector(cli: string, workDirectory: string): ByteInspector {
+export function cliInspector(
+  cli: string,
+  workDirectory: string,
+  options: { deadline?: number } = {},
+): ByteInspector {
+  const { deadline } = options;
   return async (asset, platform) => {
     if (!asset.sha256 || !/^https:\/\/github\.com\//u.test(asset.url))
       throw new InspectionError("Only digest-bound GitHub release assets are inspected.", true);
@@ -1473,9 +1502,10 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
       try {
         response = await fetch(asset.url, {
           redirect: "follow",
-          signal: AbortSignal.timeout(timeoutMs),
+          signal: AbortSignal.timeout(boundedTimeout(deadline)),
         });
       } catch {
+        if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
         throw new InspectionError("Download failed.", false);
       }
       if (!response.ok || !response.body)
@@ -1493,29 +1523,33 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
       } catch {
         if (received > asset.size)
           throw new InspectionError("Archive bytes exceed the provider's size.", true);
+        if (pastDeadline(deadline)) throw new OverBudgetError("The download reached the deadline.");
         throw new InspectionError("Download was interrupted.", false);
       }
       if (received !== asset.size || hash.digest("hex") !== asset.sha256)
         throw new InspectionError("Archive bytes differ from the provider's size or digest.", true);
-      const data = coreData(
-        await runCore(
-          cli,
-          [
-            "--json",
-            "catalog",
-            "inspect-listing-artifact",
-            file,
-            "--platform",
-            platform,
-            "--size",
-            String(asset.size),
-            "--sha256",
-            asset.sha256,
-          ],
-          directory,
-        ),
-        "inspection",
+      // The deadline is checked again before Core starts: a download that
+      // used the time left never starts a Core run past the deadline.
+      const inspection = await runCore(
+        cli,
+        [
+          "--json",
+          "catalog",
+          "inspect-listing-artifact",
+          file,
+          "--platform",
+          platform,
+          "--size",
+          String(asset.size),
+          "--sha256",
+          asset.sha256,
+        ],
+        directory,
+        boundedTimeout(deadline),
       );
+      if (!inspection.exited && pastDeadline(deadline))
+        throw new OverBudgetError("The Core inspection reached the deadline.");
+      const data = coreData(inspection, "inspection");
       if (data.sha256 !== asset.sha256 || !Array.isArray(data.player_candidates))
         throw new InspectionError("Core returned no inspection for these bytes.", false);
       return data.player_candidates.flatMap((player: unknown) =>
@@ -1540,16 +1574,26 @@ export function cliInspector(cli: string, workDirectory: string): ByteInspector 
   };
 }
 
-export function cliClassifier(cli: string, workDirectory: string): NameClassifier {
+export function cliClassifier(
+  cli: string,
+  workDirectory: string,
+  options: { deadline?: number } = {},
+): NameClassifier {
+  const { deadline } = options;
   return async (input) => {
     const directory = await mkdtemp(path.join(workDirectory, "names-"));
     try {
       const file = path.join(directory, "names.json");
       await writeFile(file, JSON.stringify(input), { flag: "wx" });
-      const data = coreData(
-        await runCore(cli, ["--json", "catalog", "classify-listing-names", file], directory),
-        "name classification",
+      const run = await runCore(
+        cli,
+        ["--json", "catalog", "classify-listing-names", file],
+        directory,
+        boundedTimeout(deadline),
       );
+      if (!run.exited && pastDeadline(deadline))
+        throw new OverBudgetError("The Core name classification reached the deadline.");
+      const data = coreData(run, "name classification");
       return data as unknown as NameClassification;
     } finally {
       await rm(directory, { recursive: true, force: true });
