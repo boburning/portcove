@@ -1029,6 +1029,12 @@ Separately opened project folders retain their own files and backup ownership.
 
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
+A policy is bound to the authenticated definition that satisfies its structural
+layout (adapter, permitted platforms, launch and data constraints, and the
+exact upstream package and executable shape its validator requires), not to a
+compiled list of port identities. The Dune Dynasty and fheroes2 policies have no
+such package-shape validator, so they remain bound to their reviewed identity
+and repository until a signed per-policy binding exists.
 It checks the effective profile selected by the final managed game environment
 before the player starts. The reviewed Dune Dynasty policy follows Allegro's
 Windows roaming folder and Linux HOME-relative XDG selection. It refuses a

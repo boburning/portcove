@@ -115,92 +115,75 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     validate_layout(port, policy)
 }
 
-fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
-    let (identity, platforms): (_, &[_]) = match policy {
-        ExternalProfilePolicy::VcmiWindowsV1 => {
-            (Some(("vcmi-vcmi", "vcmi/vcmi")), &[Platform::WindowsX86_64])
+/// Platform routes for which each policy's upstream profile layout was
+/// reviewed. A definition may declare only these; [`applies_to`] then selects
+/// the routes where the profile guard is active. Neither is a fact the
+/// definition states: `platforms` lists every managed route, including plain
+/// portable routes outside the guard.
+fn permitted_platforms(policy: ExternalProfilePolicy) -> &'static [Platform] {
+    const ALL: &[Platform] = &[
+        Platform::WindowsX86_64,
+        Platform::LinuxX86_64,
+        Platform::MacosX86_64,
+        Platform::MacosAarch64,
+    ];
+    const WINDOWS_LINUX: &[Platform] = &[Platform::WindowsX86_64, Platform::LinuxX86_64];
+    const WINDOWS_LINUX_MAC_ARM: &[Platform] = &[
+        Platform::WindowsX86_64,
+        Platform::LinuxX86_64,
+        Platform::MacosAarch64,
+    ];
+    match policy {
+        ExternalProfilePolicy::VcmiWindowsV1 => &[Platform::WindowsX86_64],
+        ExternalProfilePolicy::Fheroes2V1 => &[
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+        ],
+        ExternalProfilePolicy::Openrct2MacV1
+        | ExternalProfilePolicy::OpenmohaaUnixV1
+        | ExternalProfilePolicy::OpenjkUnixV1
+        | ExternalProfilePolicy::Z2rsDesktopV1 => ALL,
+        ExternalProfilePolicy::OpenlocoUnixV1 | ExternalProfilePolicy::OpengladMacV1 => {
+            WINDOWS_LINUX_MAC_ARM
         }
-        ExternalProfilePolicy::EndlessSkyDesktopV1 => (
-            Some(("endless-sky", "endless-sky/endless-sky")),
-            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
-        ),
-        ExternalProfilePolicy::DuneDynastyAllegroV1 => (
-            Some(("dune-ii-dune-dynasty", "gameflorist/dunedynasty")),
-            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
-        ),
-        ExternalProfilePolicy::Fheroes2V1 => (
-            Some(("heroes-of-might-and-magic-ii-fheroes2", "ihhub/fheroes2")),
-            &[
-                Platform::WindowsX86_64,
-                Platform::LinuxX86_64,
-                Platform::MacosX86_64,
-            ],
-        ),
-        ExternalProfilePolicy::OpenomfLinuxV1 => (
-            Some(("omf2097-openomf", "omf2097/openomf")),
-            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
-        ),
-        ExternalProfilePolicy::Openrct2MacV1 => (
-            Some(("openrct2-openrct2", "OpenRCT2/OpenRCT2")),
-            &[
-                Platform::WindowsX86_64,
-                Platform::LinuxX86_64,
-                Platform::MacosX86_64,
-                Platform::MacosAarch64,
-            ],
-        ),
-        ExternalProfilePolicy::RecompAppimageV1 | ExternalProfilePolicy::Doom3LinuxV1 => {
-            (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
-        }
-        ExternalProfilePolicy::OpenmohaaUnixV1 | ExternalProfilePolicy::OpenjkUnixV1 => (
-            None,
-            &[
-                Platform::WindowsX86_64,
-                Platform::LinuxX86_64,
-                Platform::MacosX86_64,
-                Platform::MacosAarch64,
-            ],
-        ),
-        ExternalProfilePolicy::IronwailLinuxV1
+        ExternalProfilePolicy::EndlessSkyDesktopV1
+        | ExternalProfilePolicy::DuneDynastyAllegroV1
+        | ExternalProfilePolicy::OpenomfLinuxV1
+        | ExternalProfilePolicy::RecompAppimageV1
+        | ExternalProfilePolicy::Doom3LinuxV1
+        | ExternalProfilePolicy::IronwailLinuxV1
         | ExternalProfilePolicy::VkquakeLinuxV1
-        | ExternalProfilePolicy::CorsixthLinuxV1 => {
-            (None, &[Platform::WindowsX86_64, Platform::LinuxX86_64])
+        | ExternalProfilePolicy::CorsixthLinuxV1
+        | ExternalProfilePolicy::JgrppLinuxV1
+        | ExternalProfilePolicy::RecompDirectV1 => WINDOWS_LINUX,
+    }
+}
+
+/// The reviewed subject for a policy whose structural rules do not bind it to
+/// one upstream player. Every other policy is bound by its own layout
+/// validator (exact upstream asset, executable and package shape), so its
+/// subject is whichever authenticated definition satisfies that layout.
+///
+/// These two guards walk an upstream-owned profile outside Portcove storage
+/// and accept any GitHub-backed portable player, so this pin is their only
+/// binding to the reviewed upstream. The definition model has no signed
+/// per-policy subject binding to replace it with yet.
+fn reviewed_subject(policy: ExternalProfilePolicy) -> Option<(&'static str, &'static str)> {
+    match policy {
+        ExternalProfilePolicy::DuneDynastyAllegroV1 => {
+            Some(("dune-ii-dune-dynasty", "gameflorist/dunedynasty"))
         }
-        ExternalProfilePolicy::OpenlocoUnixV1 => (
-            None,
-            &[
-                Platform::WindowsX86_64,
-                Platform::LinuxX86_64,
-                Platform::MacosAarch64,
-            ],
-        ),
-        ExternalProfilePolicy::JgrppLinuxV1 => (
-            Some(("jgrennison-openttd-patches", "JGRennison/OpenTTD-patches")),
-            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
-        ),
-        ExternalProfilePolicy::OpengladMacV1 => (
-            Some(("gladiator-openglad", "openglad/openglad")),
-            &[
-                Platform::WindowsX86_64,
-                Platform::LinuxX86_64,
-                Platform::MacosAarch64,
-            ],
-        ),
-        ExternalProfilePolicy::RecompDirectV1 => (
-            Some(("body-harvest-recompiled", "mcsoderh/BodyHarvestRecomp")),
-            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
-        ),
-        ExternalProfilePolicy::Z2rsDesktopV1 => (
-            Some(("troyedwardsjr-z2rs", "troyedwardsjr/z2rs")),
-            &[
-                Platform::WindowsX86_64,
-                Platform::LinuxX86_64,
-                Platform::MacosX86_64,
-                Platform::MacosAarch64,
-            ],
-        ),
-    };
-    if identity.is_some_and(|(id, repo)| {
+        ExternalProfilePolicy::Fheroes2V1 => {
+            Some(("heroes-of-might-and-magic-ii-fheroes2", "ihhub/fheroes2"))
+        }
+        _ => None,
+    }
+}
+
+fn validate_layout(port: &PortDefinition, policy: ExternalProfilePolicy) -> Result<()> {
+    let platforms = permitted_platforms(policy);
+    if reviewed_subject(policy).is_some_and(|(id, repo)| {
         port.id != id || !port.release.repository.eq_ignore_ascii_case(repo)
     }) || port.adapter != AdapterKind::NativePortable
         || port.release.provider != ReleaseSource::Github
@@ -1175,6 +1158,129 @@ mod tests {
             Ok(expected) => assert_eq!(observed.unwrap(), [expected]),
             Err(_) => assert!(observed.is_err()),
         }
+    }
+
+    const UNFAMILIAR_ID: &str = "unfamiliar-external-profile-fixture";
+    const UNFAMILIAR_REPOSITORY: &str = "fixture-owner/unfamiliar-player";
+
+    fn unfamiliar(port: &PortDefinition) -> PortDefinition {
+        let mut port = port.clone();
+        port.id = UNFAMILIAR_ID.into();
+        port.release.repository = UNFAMILIAR_REPOSITORY.into();
+        port
+    }
+
+    fn assert_verification_refusal(port: &PortDefinition) {
+        let error = validate(port).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification, "{}", port.id);
+    }
+
+    #[test]
+    fn every_cataloged_external_profile_validates_and_covers_each_policy() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut policies = std::collections::BTreeSet::new();
+        for port in catalog.ports() {
+            let Some(policy) = port.external_profile_policy else {
+                continue;
+            };
+            validate(port).unwrap_or_else(|error| panic!("{}: {}", port.id, error.message));
+            assert!(
+                port.platforms
+                    .iter()
+                    .all(|platform| permitted_platforms(policy).contains(platform)),
+                "{}",
+                port.id
+            );
+            policies.insert(serde_json::to_string(&policy).unwrap());
+        }
+        let declared: std::collections::BTreeSet<_> =
+            serde_json::to_value(schemars::schema_for!(ExternalProfilePolicy)).unwrap()["enum"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| value.to_string())
+                .collect();
+        assert_eq!(policies, declared);
+    }
+
+    /// Policies whose identity pins restated the definition's own `id` and
+    /// repository and whose layout validator binds the exact upstream package.
+    const STRUCTURALLY_BOUND: [ExternalProfilePolicy; 12] = [
+        ExternalProfilePolicy::VcmiWindowsV1,
+        ExternalProfilePolicy::EndlessSkyDesktopV1,
+        ExternalProfilePolicy::OpenomfLinuxV1,
+        ExternalProfilePolicy::Openrct2MacV1,
+        ExternalProfilePolicy::JgrppLinuxV1,
+        ExternalProfilePolicy::OpengladMacV1,
+        ExternalProfilePolicy::RecompDirectV1,
+        ExternalProfilePolicy::Z2rsDesktopV1,
+        ExternalProfilePolicy::CorsixthLinuxV1,
+        ExternalProfilePolicy::OpenlocoUnixV1,
+        ExternalProfilePolicy::IronwailLinuxV1,
+        ExternalProfilePolicy::VkquakeLinuxV1,
+    ];
+
+    #[test]
+    fn unfamiliar_identity_uses_a_structurally_bound_policy_by_data_alone() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut checked = Vec::new();
+        for port in catalog.ports() {
+            let Some(policy) = port.external_profile_policy else {
+                continue;
+            };
+            let candidate = unfamiliar(port);
+            if !STRUCTURALLY_BOUND.contains(&policy) {
+                // Dune Dynasty and fheroes2 keep their reviewed subject pin;
+                // the remaining guards select per-title data by identity or
+                // tie the package name to the repository.
+                assert_eq!(
+                    reviewed_subject(policy).is_some(),
+                    matches!(
+                        policy,
+                        ExternalProfilePolicy::DuneDynastyAllegroV1
+                            | ExternalProfilePolicy::Fheroes2V1
+                    )
+                );
+                assert_verification_refusal(&candidate);
+                continue;
+            }
+            assert_eq!(reviewed_subject(policy), None);
+            validate(&candidate).unwrap_or_else(|error| panic!("{}: {}", port.id, error.message));
+            checked.push(policy);
+
+            let mut changed = candidate.clone();
+            changed
+                .launch_environment
+                .insert("PROFILE_OVERRIDE".into(), "1".into());
+            assert_verification_refusal(&changed);
+
+            let mut changed = candidate.clone();
+            changed.adapter = AdapterKind::StagedSourcePortable;
+            assert_verification_refusal(&changed);
+
+            let mut changed = candidate.clone();
+            for hints in changed.executable_hints.values_mut() {
+                *hints = vec!["unfamiliar-player".into()];
+            }
+            assert_verification_refusal(&changed);
+        }
+        for policy in STRUCTURALLY_BOUND {
+            assert!(checked.contains(&policy), "{policy:?}");
+        }
+    }
+
+    #[test]
+    fn unfamiliar_fixture_identity_stays_out_of_production_source() {
+        let source = include_str!("native_external_profile.rs");
+        let production = &source[..source.find("#[cfg(test)]\nmod tests {").unwrap()];
+        assert!(!production.contains(UNFAMILIAR_ID));
+        assert!(!production.contains(UNFAMILIAR_REPOSITORY));
+        assert!(
+            crate::Catalog::embedded()
+                .unwrap()
+                .port(UNFAMILIAR_ID)
+                .is_err()
+        );
     }
 
     #[test]
