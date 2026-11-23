@@ -59,7 +59,23 @@ export const storeTables = [
   ["portcove_maintenance.discovery_intake_batches", "request_comment"],
   ["portcove_maintenance.discovery_intake_candidates", "request_comment, candidate_index"],
   ["portcove_maintenance_meta.resource_admissions", "attempt_id"],
+  ["portcove_maintenance.discovery_collection_state", 'scope COLLATE "C"'],
+  ["portcove_maintenance.discovery_collection_attempts", "acquisition"],
+  [
+    "portcove_maintenance.discovery_observations",
+    'provider COLLATE "C", provider_id COLLATE "C", parser_version, content_sha256 COLLATE "C"',
+  ],
+  [
+    "portcove_maintenance.discovery_watches",
+    'provider COLLATE "C", provider_id COLLATE "C", reason COLLATE "C"',
+  ],
+  [
+    "portcove_maintenance.discovery_watch_transitions",
+    'provider COLLATE "C", provider_id COLLATE "C", reason COLLATE "C", generation',
+  ],
 ] as const;
+/** Tables added by migration 0007; older backups do not contain them. */
+const discoveryCollectionTables = 5;
 
 const queryParameters = new Map([
   ["host", "PGHOST"],
@@ -676,10 +692,12 @@ function validTableDigests(tables: unknown, schemaVersion: number): tables is St
   const entries: [string, unknown][] = Object.entries(tables);
   const expected =
     schemaVersion < 5
-      ? storeTables.slice(0, -3)
+      ? storeTables.slice(0, -3 - discoveryCollectionTables)
       : schemaVersion < 6
-        ? storeTables.slice(0, -1)
-        : storeTables;
+        ? storeTables.slice(0, -1 - discoveryCollectionTables)
+        : schemaVersion < 7
+          ? storeTables.slice(0, -discoveryCollectionTables)
+          : storeTables;
   return (
     entries.length === expected.length &&
     expected.every(([table]) => Object.hasOwn(tables, table)) &&
@@ -783,7 +801,9 @@ export function restore(
         "-f",
         roles,
         "-c",
-        "UPDATE portcove_maintenance_meta.discovery_intake_activation SET active = false;",
+        // Every discovery writer class starts inactive, and the collection generation
+        // advances so no pre-restore lease can commit to the restored store.
+        "UPDATE portcove_maintenance_meta.discovery_intake_activation SET active = false, collection_active = false, collection_generation = collection_generation + 1;",
       ],
       environment,
       { timeoutMs: dumpTimeoutMs },

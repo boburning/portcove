@@ -751,6 +751,60 @@ Cap receipt retention at 90 days, retaining unresolved intake and pending
 research regardless of age; raw run receipts retain 14 days unless failed
 evidence has an existing preservation obligation. Record baseline rebuilds.
 
+## Unattended collection
+
+The [maintenance workflow](../.github/workflows/maintenance-inventory.yml) runs
+deterministic discovery collection in its `discover` job on the existing daily
+04:47 UTC schedule, after the `collect` job applies migrations. It uses no
+terminal, personal checkout, model or Roadmap credential, and adds no new
+schedule. `node scripts/discovery-worker.mts collect` runs the same collectors as
+the interactive `collect` operation (`scripts/discovery-collection.mts`): curated
+list hints, bounded lead-search families with their fixed windows, overlap and
+continuation, and the reviewed source collectors. GitHub access is read-only and
+the client refuses every mutation.
+
+State lives in the [maintenance store](MAINTENANCE-STORE.md#discovery-collection),
+not in a local file. The worker takes a fenced lease and a database acquisition
+ticket before any external read, then commits the lead continuation, the new
+positive provider observations and watch changes together. Commits are throttled
+to bound database transfer, and the last state always commits at the end. A
+crash before a commit replays those pages; identical observations are stored
+once. A stale or expired worker, or one from before a restore, cannot commit.
+
+Canonical ownership is `unknown` in this path. The worker reads catalog lineage
+but not the Roadmap inventory. A retained observation is a lead, not intake,
+identity resolution or admission; the hosted bridge and its receipts still own
+canonical intake. Budget, quota, deadline and cancellation end a run as `partial`
+with its continuation intact. An inaccessible source is recorded as such and
+never as absence. Exit code 75 means deferred: inactive store, lease held,
+resource admission or missing credential.
+
+A lead whose recent releases have no uploaded desktop asset gets a
+`no-native-package` watch (`waiting`). When a later run sees uploaded desktop
+assets for the same provider ID, the watch becomes `due` in a new episode. This
+needs no title-specific code, issue or allowlist. Due watches are pending
+reconsideration for the hosted researcher and the eligible-cohort facts worker.
+Automatic executor dispatch stays disabled under
+[#8570](https://github.com/boburning/portcove/issues/8570), so the status
+export reports the handoff as `pending-dependency`.
+
+`node scripts/discovery-worker.mts status` writes a read-only export
+(`status.json`, `status.md`). It shows the latest attempts, source outcomes,
+observation and watch counts, due subjects and activation. The job appends
+`status.md` to its run summary and retains the files as
+`discovery-status-<run>-<attempt>`. Before new research, the hosted researcher
+reads the latest run's export rather than rebuilding coverage from first-page
+searches. Whether the hosted task can read the run summary or artifact in its
+environment remains to be verified on the first scheduled run.
+
+`import-local --state-dir work/daily-discovery` imports a local checkout's
+`leads.json` once into an empty scope at its recorded strength. It does not
+trust the local source checkpoint as coverage, so those sources are collected
+again. A repeated import leaves the stored state unchanged. Until the local
+runner delegates to this store, its `work/daily-discovery/` cursors remain a
+separate diagnostic copy and are not the authoritative continuation for
+unattended collection.
+
 ## Maintained runner
 
 Use the existing dedicated metadata checkout (currently

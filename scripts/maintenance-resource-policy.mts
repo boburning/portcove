@@ -64,6 +64,7 @@ const costs = {
   "recovery-full": 440 * mb,
   inspect: 2 * mb,
   intake: 18 * mb,
+  discovery: 16 * mb,
 } as const;
 
 export type MaintenanceOperation = keyof typeof costs;

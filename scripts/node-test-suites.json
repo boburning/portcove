@@ -1719,6 +1719,30 @@
       ]
     },
     {
+      "file": "scripts/discovery-worker.test.mts",
+      "memberships": [
+        ["catalog-full", 1279],
+        ["repository-tools", 414]
+      ],
+      "platform_skips": [
+        {
+          "platform": ["linux", "darwin"],
+          "owner": "catalog-full",
+          "category": "prerequisite",
+          "prerequisite": "Non-root PostgreSQL 16+ server binaries (initdb, pg_ctl) for disposable clusters",
+          "reason": "The integration proof needs real PostgreSQL clusters; a skipped observation is not execution.",
+          "intended_route": ".github/workflows/ci.yml; complete Node suite catalog-full on ubuntu-latest",
+          "cases": [
+            "fenced discovery leases refuse stale writers, resume committed state and deduplicate replays",
+            "watch evidence changes open new episodes and unchanged evidence stays quiet",
+            "a restored store starts discovery collection inactive and refuses pre-restore leases",
+            "local lead state imports once with its recorded strength"
+          ],
+          "skip_reason_prefix": "PostgreSQL server prerequisite unavailable"
+        }
+      ]
+    },
+    {
       "file": "scripts/migrate-catalog-schema2.test.mts",
       "memberships": [
         ["catalog-full-2", 9500],
