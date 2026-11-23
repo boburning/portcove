@@ -47,6 +47,7 @@
   },
   "favorite": {
     "count_one": "{{count, number}} juego",
+    "count_many": "{{count, number}} juegos",
     "count_other": "{{count, number}} juegos",
     "countUnavailable": "no disponible",
     "favorite": "Favorito",

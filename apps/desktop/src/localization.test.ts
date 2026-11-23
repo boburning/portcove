@@ -87,4 +87,42 @@ describe("localization foundation", () => {
       await instance.changeLanguage("en");
     }
   });
+
+  it("gives every pluralized key every plural form its locale requires", () => {
+    // `i18n:check` only checks keys used by migrated surfaces, so keys rendered
+    // from unmigrated components would otherwise miss locale plural forms.
+    const catalogs = import.meta.glob<Record<string, unknown>>("./locales/*/*.json", {
+      eager: true,
+      import: "default",
+    });
+    const pluralForm = /^(.+)_(zero|one|two|few|many|other)$/;
+    const missing: string[] = [];
+    let checked = 0;
+    for (const [file, catalog] of Object.entries(catalogs)) {
+      const locale = file.split("/")[2]!;
+      const required = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
+      const forms = new Map<string, Set<string>>();
+      const visit = (value: unknown, path: string) => {
+        if (value && typeof value === "object") {
+          for (const [key, child] of Object.entries(value))
+            visit(child, path ? `${path}.${key}` : key);
+          return;
+        }
+        const match = pluralForm.exec(path);
+        if (!match) return;
+        const [, key = "", category = ""] = match;
+        const known = forms.get(key) ?? new Set<string>();
+        known.add(category);
+        forms.set(key, known);
+      };
+      visit(catalog, "");
+      for (const [key, present] of forms) {
+        checked += 1;
+        const absent = required.filter((category) => !present.has(category));
+        if (absent.length) missing.push(`${file} ${key}: ${absent.join(", ")}`);
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+    expect(missing).toEqual([]);
+  });
 });
